@@ -373,21 +373,29 @@ class PartitionPlotter(object):
         def get_fname(ic):
             return 'icluster-%d' % ic
         def get_cluster_info(full_cluster):
-
             title = 'size: %d' % len(full_cluster)
-            if len(full_cluster) <= max_cluster_size:
-                kept_indices = list(range(len(full_cluster)))
-            else:
-                uids_to_choose_from = set(full_cluster)  # note similarity to code in seqfileopener.post_process()
+            full_info = annotations[':'.join(full_cluster)]
+
+            all_seqs = set()
+            kept_indices = []
+            for iseq in range(len(full_cluster)):
+                if full_info['seqs'][iseq] in all_seqs:  # duplicates are from shm indels (I think I did this on purpose in sw)
+                    continue
+                if full_info['n_mutations'][iseq] == 0:  # remove unmutated sequences since a) they'll crash mds after we add the naive seq below and b) they'd show up in the same spot anyway (note that the only way there can be more than one is if there's Ns either within the sequences or on either end)
+                    continue
+                kept_indices.append(iseq)
+                all_seqs.add(full_info['seqs'][iseq])
+
+            if len(kept_indices) > max_cluster_size:
+                uids_to_choose_from = set([full_cluster[i] for i in kept_indices])  # note similarity to code in seqfileopener.post_process()
                 if self.args.queries_to_include is not None:
                     uids_to_choose_from -= set(self.args.queries_to_include)
-                removed_uids = uids_to_choose_from if len(uids_to_choose_from) == 1 else numpy.random.choice(list(uids_to_choose_from), len(full_cluster) - max_cluster_size, replace=False)
-                kept_indices = sorted(set(range(len(full_cluster))) - set([full_cluster.index(uid) for uid in removed_uids]))
+                removed_uids = uids_to_choose_from if len(uids_to_choose_from) == 1 else numpy.random.choice(list(uids_to_choose_from), len(kept_indices) - max_cluster_size, replace=False)
+                kept_indices = sorted(set(kept_indices) - set([full_cluster.index(uid) for uid in removed_uids]))
                 title += ' (subset: %d / %d)' % (len(kept_indices), len(full_cluster))
 
-            full_info = annotations[':'.join(full_cluster)]
-            seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices if full_info['n_mutations'][iseq] > 0]  # remove unmutated sequences since a) they'll crash mds after we add the naive seq below and b) they'd show up in the same spot anyway (note that the only way there can be more than one is if there's Ns either within the sequences or on either end)
-            color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices if full_info['n_mutations'][iseq] > 0}
+            seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices]
+            color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
 
             seqfos.append({'name' : 'naive', 'seq' : full_info['naive_seq']})  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
             color_scale_vals['naive'] = 0
@@ -416,7 +424,10 @@ class PartitionPlotter(object):
             if debug:
                 start = time.time()
                 subset_str = '' if len(sorted_clusters[iclust]) <= max_cluster_size else utils.color('red', '/%d' % len(sorted_clusters[iclust]), width=6, padside='right')  # -1 is for the added naive seq
-                print '      %4d%6s' % (len(seqfos) - 1, subset_str),  # NOTE len(seqfos) - 1 is the original cluster size (before adding the naive seq) if the naive seq *wasn't* present in the sample; otherwise it's one less than the cluster size (kinda arbitrary what I print)
+                tmpfo = annotations[':'.join(sorted_clusters[iclust])]
+                # n_naive_in_cluster = len([iseq for iseq in range(len(sorted_clusters[iclust])) if tmpfo['n_mutations'][iseq] == 0])  # work out if there was a sequence already in the cluster that was the same as the naive sequence
+                # print '      %4d%6s' % (len(seqfos) - 1 + n_naive_in_cluster, subset_str),
+                print '      %4d%6s' % (len(seqfos), subset_str),
 
             mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
                                         queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)

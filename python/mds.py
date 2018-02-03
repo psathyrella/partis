@@ -170,6 +170,9 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
     if not os.path.exists(workdir):
         os.makedirs(workdir)
 
+    if len(set([sfo['seq'] for sfo in seqfos])) < len(seqfos):  # it'll just crash when it's running mds later, but this is faster
+        raise Exception('duplicate sequences in seqfos')
+
     if aligned:  # NOTE unlike the sklearn version below, this doesn't modify <seqfos>
         with open(msafname, 'w') as fastafile:
             for sfo in seqfos:
