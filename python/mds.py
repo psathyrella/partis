@@ -9,6 +9,7 @@ from sklearn.metrics import euclidean_distances
 # from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import itertools
+import subprocess
 
 import utils
 
@@ -101,11 +102,13 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
     # TODO switch to mpl_init/mpl_finalize
     import matplotlib
     from matplotlib import pyplot as plt
+    # plt.rcParams['axes.facecolor'] = '#f1efef'
     colors = ['blue', 'forestgreen', 'red', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
     single_color = '#4b92e7'
     def plot_component_pair(ipair, svgfname, color_map):
         fig = plt.figure(1)
         ax = plt.axes([0., 0., 1., 1.])
+        # ax.set_facecolor('black')
         if hexbin:
             xvals, yvals = zip(*[(v[ipair], v[ipair + 1]) for v in pcvals.values()])
             hb = ax.hexbin(xvals, yvals, gridsize=gridsize, cmap=plt.cm.Blues, bins='log')
@@ -147,7 +150,9 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         color_map = {uid : colors[iclust] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
     elif color_scale_vals is not None:  # map with a number for each sequence (e.g. number of mutations) that we use to make a new color scale
         cmap = plt.cm.Blues
-        norm = matplotlib.colors.Normalize(vmin=min([v for k, v in color_scale_vals.items() if k != 'naive']), vmax=max(color_scale_vals.values()))
+        sorted_vals = sorted([v for k, v in color_scale_vals.items() if k != 'naive'])
+        vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=sorted_vals[-1])
         color_map = {uid : cmap(norm(color_scale_vals[uid])) for uid in pcvals}
 
     for ipair in range(0, n_components - 1, 2):

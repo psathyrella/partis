@@ -372,14 +372,30 @@ class PartitionPlotter(object):
         debug = True
         def get_fname(ic):
             return 'icluster-%d' % ic
-        def subset_cluster(cluster, seqfos, color_scale_vals):
-            new_cluster = numpy.random.choice(cluster, max_cluster_size, replace=False)
-            new_seqfos = [sfo for sfo in seqfos if sfo['name'] in new_cluster]
-            for removed_uid in set(cluster) - set(new_cluster):
-                del color_scale_vals[removed_uid]
-            assert set(new_cluster) == set(color_scale_vals)
-            assert set(new_cluster) == set([sfo['name'] for sfo in new_seqfos])
-            return new_cluster, new_seqfos
+        def get_cluster_info(full_cluster):
+
+            title = 'size: %d' % len(full_cluster)
+            if len(full_cluster) <= max_cluster_size:
+                kept_indices = list(range(len(full_cluster)))
+            else:
+                uids_to_choose_from = set(full_cluster)  # note similarity to code in seqfileopener.post_process()
+                if self.args.queries_to_include is not None:
+                    uids_to_choose_from -= set(self.args.queries_to_include)
+                removed_uids = uids_to_choose_from if len(uids_to_choose_from) == 1 else numpy.random.choice(list(uids_to_choose_from), len(full_cluster) - max_cluster_size, replace=False)
+                kept_indices = sorted(set(range(len(full_cluster))) - set([full_cluster.index(uid) for uid in removed_uids]))
+                title += ' (subset: %d / %d)' % (len(kept_indices), len(full_cluster))
+
+            full_info = annotations[':'.join(full_cluster)]
+            seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices if full_info['n_mutations'][iseq] > 0]  # remove unmutated sequences since a) they'll crash mds after we add the naive seq below and b) they'd show up in the same spot anyway (note that the only way there can be more than one is if there's Ns either within the sequences or on either end)
+            color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices if full_info['n_mutations'][iseq] > 0}
+
+            seqfos.append({'name' : 'naive', 'seq' : full_info['naive_seq']})  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
+            color_scale_vals['naive'] = 0
+            queries_to_include = ['naive']
+            if self.args.queries_to_include is not None:
+                queries_to_include += self.args.queries_to_include
+
+            return seqfos, color_scale_vals, queries_to_include, title
 
         plotting = sys.modules['plotting']
         subd = 'mds'
@@ -392,31 +408,18 @@ class PartitionPlotter(object):
         skipped_cluster_lengths = []
         fnames = [[]]
         for iclust in range(len(sorted_clusters)):
-            cluster = sorted_clusters[iclust]
             if not self.plot_this_cluster(sorted_clusters, iclust):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
 
-            info = annotations[':'.join(cluster)]
-            seqfos = [{'name' : info['unique_ids'][iseq], 'seq' : info['seqs'][iseq]} for iseq in range(len(cluster))]
-            color_scale_vals = {cluster[iseq] : info['n_mutations'][iseq] for iseq in range(len(cluster))}
-
-            title = ''
-            if len(cluster) > max_cluster_size:
-                cluster, seqfos = subset_cluster(cluster, seqfos, color_scale_vals)
-                title = 'subset: %d / %d' % (len(cluster), len(sorted_clusters[iclust]))
-
-            seqfos.append({'name' : 'naive', 'seq' : info['naive_seq']})
-            color_scale_vals['naive'] = 0
-            queries_to_include = ['naive']
-            if self.args.queries_to_include is not None:
-                queries_to_include += self.args.queries_to_include
-
+            seqfos, color_scale_vals, queries_to_include, title = get_cluster_info(sorted_clusters[iclust])
             if debug:
                 start = time.time()
-                print '      %4d%6s' % (len(cluster), utils.color('red', '/%d' % len(sorted_clusters[iclust]), width=6, padside='right') if len(sorted_clusters[iclust]) > max_cluster_size else ''),
+                subset_str = '' if len(sorted_clusters[iclust]) <= max_cluster_size else utils.color('red', '/%d' % len(sorted_clusters[iclust]), width=6, padside='right')  # -1 is for the added naive seq
+                print '      %4d%6s' % (len(seqfos) - 1, subset_str),  # NOTE len(seqfos) - 1 is the original cluster size (before adding the naive seq) if the naive seq *wasn't* present in the sample; otherwise it's one less than the cluster size (kinda arbitrary what I print)
 
-            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust), queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)
+            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
+                                        queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)
             self.addfname(fnames, '%s' % get_fname(iclust))
 
             if debug:
