@@ -21,7 +21,7 @@ class PartitionPlotter(object):
         self.n_max_mutations = 65
         self.n_joyplots_in_html = 4  # the rest of them are still in the dir, they're just not displayed in the html
         self.min_high_mutation_cluster_size = 1
-        self.n_biggest_to_plot = 12
+        self.n_biggest_to_plot = 24
         self.n_plots_per_row = 4
 
         self.n_mds_components = 2

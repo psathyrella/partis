@@ -70,6 +70,10 @@ def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def read_component_file(mdsfname, n_components, seqfos):
+    if not os.path.exists(mdsfname):  # r failed (probably with complex eigenvalues)
+        os.remove(os.path.dirname(mdsfname) + '/mds.r')  # this should really be integrated with utils.run_r()
+        return {sfo['name'] : [0. for _ in range(n_components)] for sfo in seqfos}
+
     pc_names = None
     pcvals = {}
     with open(mdsfname) as mdsfile:
@@ -208,19 +212,14 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
         ]
 
     rstart = time.time()
-    utils.run_r(cmdlines, workdir)  #, print_time='kmeans')
+    try:
+        utils.run_r(cmdlines, workdir)  #, print_time='kmeans')
+    except subprocess.CalledProcessError as e:  # complex eigenvalues
+        print e
+        print '   mds failed on cluster'  # NOTE will still crash in read_kmeans_clusterfile(), but I'm not using that a.t.m.
+        title = (title if title is not None else '') + ' mds failed'
     pcvals = read_component_file(mdsfname, n_components, seqfos)
     partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
-    # try:
-    #     utils.run_r(cmdlines, workdir)  #, print_time='kmeans')
-    #     pcvals = read_component_file(mdsfname, n_components, seqfos)
-    #     partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
-    # except subprocess.CalledProcessError as e:  # complex eigenvalues
-    #     print e
-    #     print '   mds failed on cluster'
-    #     title = (title if title is not None else '') + ' mds failed'
-    #     pcvals = {sfo['name'] : [0. for _ in range(n_components)] for sfo in seqfos}
-    #     partition = [sfo['name'] for sfo in seqfos]  # TODO do something better here
     rstop = time.time()
 
     os.remove(msafname)
