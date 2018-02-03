@@ -264,7 +264,7 @@ class PartitionPlotter(object):
                     xtext = nmutelist[-1] if plot_high_mutation else self.n_max_mutations  # NOTE reuse of <xtext> (arg)
                     xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_mutation else self.n_max_mutations
                     ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
-                    ax.text(0.10 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.12 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
 
                 iclust_global += 1
 
@@ -368,7 +368,7 @@ class PartitionPlotter(object):
     #     return fnames
 
     # ----------------------------------------------------------------------------------------
-    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=1000, debug=False):
+    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, debug=False):
         debug = True
         def get_fname(ic):
             return 'icluster-%d' % ic
@@ -390,7 +390,11 @@ class PartitionPlotter(object):
                 uids_to_choose_from = set([full_cluster[i] for i in kept_indices])  # note similarity to code in seqfileopener.post_process()
                 if self.args.queries_to_include is not None:
                     uids_to_choose_from -= set(self.args.queries_to_include)
-                removed_uids = uids_to_choose_from if len(uids_to_choose_from) == 1 else numpy.random.choice(list(uids_to_choose_from), len(kept_indices) - max_cluster_size, replace=False)
+                n_to_remove = len(kept_indices) - max_cluster_size
+                if n_to_remove >= len(uids_to_choose_from):  # i.e. if we'd have to start removing queries that are in <queries_to_include>
+                    removed_uids = uids_to_choose_from
+                else:
+                    removed_uids = numpy.random.choice(list(uids_to_choose_from), n_to_remove, replace=False)  # i think this'll still crash if len(uids_to_choose_from) is zero, but, meh
                 kept_indices = sorted(set(kept_indices) - set([full_cluster.index(uid) for uid in removed_uids]))
                 title += ' (subset: %d / %d)' % (len(kept_indices), len(full_cluster))
 
@@ -412,7 +416,7 @@ class PartitionPlotter(object):
 
         if debug:
             print '  making mds plots starting with %d clusters' % len(sorted_clusters)
-            print '       size            mds    plot   total'
+            print '       size (+naive)   mds    plot   total'
         skipped_cluster_lengths = []
         fnames = [[]]
         for iclust in range(len(sorted_clusters)):

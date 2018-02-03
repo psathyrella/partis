@@ -211,6 +211,16 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
     utils.run_r(cmdlines, workdir)  #, print_time='kmeans')
     pcvals = read_component_file(mdsfname, n_components, seqfos)
     partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
+    # try:
+    #     utils.run_r(cmdlines, workdir)  #, print_time='kmeans')
+    #     pcvals = read_component_file(mdsfname, n_components, seqfos)
+    #     partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
+    # except subprocess.CalledProcessError as e:  # complex eigenvalues
+    #     print e
+    #     print '   mds failed on cluster'
+    #     title = (title if title is not None else '') + ' mds failed'
+    #     pcvals = {sfo['name'] : [0. for _ in range(n_components)] for sfo in seqfos}
+    #     partition = [sfo['name'] for sfo in seqfos]  # TODO do something better here
     rstop = time.time()
 
     os.remove(msafname)
