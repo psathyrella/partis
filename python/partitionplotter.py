@@ -340,7 +340,8 @@ class PartitionPlotter(object):
         self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, plotdir, get_fname(hexbin=True), log_cluster_size=True)
         self.addfname(fnames, get_fname(hexbin=True) + '-log')
 
-        self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True)
+        if not self.args.only_csv_plots:
+            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True)
 
         return [[subd + '/' + fn for fn in [fnames[0][0]] + fnames[-1]]]  # take the first joy plot, and the two hexbin plots
 
@@ -363,7 +364,8 @@ class PartitionPlotter(object):
 
     #     print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
 
-    #     self.plotting.make_html(plotdir, fnames=fnames)
+    #     if not self.args.only_csv_plots:
+    #         self.plotting.make_html(plotdir, fnames=fnames)
 
     #     return fnames
 
@@ -443,7 +445,8 @@ class PartitionPlotter(object):
         if debug and len(skipped_cluster_lengths) > 0:
             print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
 
-        self.plotting.make_html(plotdir, fnames=fnames)
+        if not self.args.only_csv_plots:
+            self.plotting.make_html(plotdir, fnames=fnames)
 
         return [[subd + '/' + fn for fn in fnames[0]]]
 
@@ -483,7 +486,7 @@ class PartitionPlotter(object):
             partition.remove(fclust)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, partition=None, infiles=None, annotations=None, only_csv=None):
+    def plot(self, plotdir, partition=None, infiles=None, annotations=None):
         assert (partition is None and annotations is not None) or infiles is None
         print '  plotting partitions'
         sys.stdout.flush()
@@ -498,7 +501,7 @@ class PartitionPlotter(object):
             # fnames += self.make_shm_vs_inverse_identity_plots(sorted_clusters, annotations, plotdir)
         fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
-        assert not only_csv  # meh, too much trouble to deal with this now
-        self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds']])
+        if self.args.only_csv_plots:
+            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds']])
 
         print '(%.1f sec)' % (time.time()-start)

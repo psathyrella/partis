@@ -344,7 +344,7 @@ class PartitionDriver(object):
         cpath = self.read_existing_partitions()
         annotations = self.read_existing_annotations(outfname=self.args.outfname.replace('.csv', '-cluster-annotations.csv'))
         partplotter = PartitionPlotter(self.args)
-        partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, only_csv=self.args.only_csv_plots)
+        partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
 
     # ----------------------------------------------------------------------------------------
     def view_alternative_naive_seqs(self):
@@ -384,7 +384,7 @@ class PartitionDriver(object):
 
         if self.args.plotdir is not None:
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=best_cluster_annotations, only_csv=self.args.only_csv_plots)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=best_cluster_annotations)
 
         if self.args.debug:
             print 'final'
