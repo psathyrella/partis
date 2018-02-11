@@ -191,32 +191,8 @@ def run_partitiondriver(args):
         parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
         parter.annotate()
     elif args.action == 'partition':
-        if args.n_partition_subsets is None:
-            parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
-            parter.partition()
-        else:
-            if args.abbreviate:
-                raise Exception('not supported (different runs have the same uid for different sequences, which breaks everything)')
-            old_outfname = args.outfname
-            if args.n_max_queries == -1:
-                raise Exception('--n-max-queries must be set in order to use --n-partition-subsets')
-            n_per_subset = args.n_max_queries / args.n_partition_subsets
-            args.n_max_queries = -1
-            outfnames = [args.workdir + '/outfiles/partition-' + str(isub) + '.csv' for isub in range(args.n_partition_subsets)]
-            istart = 0
-            for isub in range(args.n_partition_subsets):
-                istop = istart + n_per_subset
-                args.outfname = outfnames[isub]
-                args.istartstop = [istart, istop]  # and here I break my rule about not modifying <args>, sigh.
-                parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
-                parter.partition()
-                istart = istop
-            partplotter = PartitionPlotter()
-            if args.plotdir is not None:
-                partplotter.plot(args.plotdir + '/partitions', infiles=outfnames, only_csv=args.only_csv_plots)
-            for fn in outfnames:
-                os.remove(fn)
-            os.rmdir(os.path.dirname(outfnames[0]))
+        parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
+        parter.partition()
     else:
         raise Exception('bad action ' + args.action)
     parter.clean()
