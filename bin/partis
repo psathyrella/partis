@@ -10,7 +10,6 @@ import scipy
 if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
     raise RuntimeError("scipy version 0.17 or later is required (found version %s)." % scipy.__version__)
 import colored_traceback.always
-from subprocess import check_call, check_output, CalledProcessError
 import os
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):

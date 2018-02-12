@@ -31,6 +31,8 @@ def process(args):
         if args.istartstop[0] >= args.istartstop[1] or args.istartstop[0] < 0:
             raise Exception('invalid --istartstop specification: %d %d' % (args.istartstop[0], args.istartstop[1]))
     args.n_max_per_region = utils.get_arg_list(args.n_max_per_region, intify=True)
+    if len(args.n_max_per_region) != 3:
+        raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
     args.write_additional_cluster_annotations = utils.get_arg_list(args.write_additional_cluster_annotations, intify=True)
     if args.write_additional_cluster_annotations is not None and len(args.write_additional_cluster_annotations) != 2:
         raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
@@ -40,6 +42,8 @@ def process(args):
     args.region_end_exclusion_length = None  # there isn't really a big reason to set it to None, but this makes clear that I should only be using the dict version
 
     args.initial_match_mismatch = utils.get_arg_list(args.initial_match_mismatch, intify=True)
+    if len(args.initial_match_mismatch) != 2:
+        raise Exception('--initial-match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
     args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
     if args.small_clusters_to_ignore is not None:

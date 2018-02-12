@@ -5,6 +5,7 @@ import random
 import copy
 import sys
 import multiprocessing
+import subprocess
 
 import utils
 import glutils
@@ -161,10 +162,6 @@ def run_simulation(args):
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
-    if len(args.n_max_per_region) != 3:
-        raise Exception('n-max-per-region should be of the form \'x:y:z\', but I got ' + str(args.n_max_per_region))
-    if len(args.initial_match_mismatch) != 2:
-        raise Exception('--initial-match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
     if args.infname is None:
         raise Exception('--infname is required for the \'%s\' action' % args.action)
 
@@ -179,13 +176,14 @@ def run_partitiondriver(args):
     if not os.path.exists(args.parameter_dir):
         print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, args.action)
         newargv = copy.deepcopy(sys.argv)
+        # TODO
         for argconf in [ac for ac in subargs[args.action] if ac['name'] in newargv]:  # remove args that only make sense for <args.action>
             index = newargv.index(argconf['name'])
             newargv.remove(argconf['name'])
             if 'action' not in argconf['kwargs'] or argconf['kwargs']['action'] != 'store_true':  # also remove the argument's argument
                 newargv.pop(index)
         newargv = newargv[:1] + ['cache-parameters', ] + newargv[2:]
-        check_call(newargv)
+        subprocesses.check_call(newargv)
 
     if args.action == 'annotate':
         parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
