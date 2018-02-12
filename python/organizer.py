@@ -137,7 +137,7 @@ def run_simulation(args):
             fname = cmdfos[iproc]['outfname']
             if not os.path.exists(fname):
                 raise Exception('output simulation file %s d.n.e.' % fname)
-            n_events = int(subprocesses.check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])  # if *adjacent* events have the same rearrangement parameters (and hence reco id), they'll show up as the same event. It has happened!
+            n_events = int(subprocess.check_output('grep -v unique_id ' + fname + ' | awk -F, \'{print $2}\' | uniq | wc -l', shell=True).split()[0])  # if *adjacent* events have the same rearrangement parameters (and hence reco id), they'll show up as the same event. It has happened!
             n_total_events += n_events
             if n_events < n_per_proc - 3:  # give ourselves a little breathing room for adjacent events that have the same rearrangement parameters (it's only happened once, ever, so maybe 3 is enough?)
                 raise Exception('only found %d events (expected %d) in output file %s' % (n_events, n_per_proc, fname))
@@ -183,7 +183,7 @@ def run_partitiondriver(args):
             if 'action' not in argconf['kwargs'] or argconf['kwargs']['action'] != 'store_true':  # also remove the argument's argument
                 newargv.pop(index)
         newargv = newargv[:1] + ['cache-parameters', ] + newargv[2:]
-        subprocesses.check_call(newargv)
+        subprocess.check_call(newargv)
 
     if args.action == 'annotate':
         parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
