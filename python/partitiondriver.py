@@ -43,7 +43,7 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args, action, initial_gldir):  # NOTE <initial_gldir> is not, in general, the same as <args.initial_germline_dir>
         self.args = args
-        self.current_action = action  # *not* necessarily the same as <self.args.action>
+        self.current_action = action  # *not* necessarily the same as <self.args.action> (<self.args.action> isn't used anywhere here)
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         self.glfo = glutils.read_glfo(initial_gldir, locus=self.args.locus, only_genes=self.args.only_genes)

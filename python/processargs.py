@@ -4,6 +4,7 @@ import sys
 
 import utils
 
+# ----------------------------------------------------------------------------------------
 def process(args):
     if args.action == 'run-viterbi':
         print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (this doesn\'t change any actual behavior)'
