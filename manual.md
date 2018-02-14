@@ -7,7 +7,7 @@ It is described in the following papers:
 
 * Ralph, DK, & Matsen IV, FA (2016). [Consistency of \[...\] Enables Accurate B Cell Receptor Sequence Annotation.](http://doi.org/10.1371/journal.pcbi.1004409) *PLOS Computational Biology*, 12(1), e1004409.
 * Ralph, DK, & Matsen IV, FA (2016). [Likelihood-based Inference of B-cell Clonal Families.](http://dx.doi.org/10.1371/journal.pcbi.1005086) *PLOS Computational Biology*, 12(10), e1005086.
-* Ralph, DK, & Matsen IV, FA (in preparation) [Per-sample immunoglobulin germline inference \[...\]](https://arxiv.org/abs/1711.05843) 
+* Ralph, DK, & Matsen IV, FA (in review) [Per-sample immunoglobulin germline inference \[...\]](https://arxiv.org/abs/1711.05843) 
 
 Partis is free software under the GPL v3.
 
@@ -102,7 +102,7 @@ export PATH=<path_to_conda>:$PATH
 ```
 If you've used pip in the past, but you won't need it in the future, you should also completely remove `~/.local`.
 If you might need pip in the future, you should expect some difficulty with having both conda and pip on the same system.
-In most cases you can prevent conda from finding the packages in `~/.local` (and then breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
+In most cases you can prevent conda from finding the packages in `~/.local` (and consequently breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
 You may also need to `unset LD_LIBRARY_PATH`.
 
 Then make a conda environment for partis:
@@ -365,7 +365,7 @@ By default partis infers a germline set for each sample during parameter caching
 The resulting per-sample germline sets are written as three fasta files and a meta-info csv to `<--parameter-dir>/hmm/germline-sets`.
 
 By default, this only looks for alleles that are separated by point mutations from existing genes.
-This is appropriate for humans, and probably for mice as well, since the known germline sets are fairly complete.
+This is appropriate for humans, and probably for mice and macaque as well, since the known germline sets are fairly complete.
 For species for which the known germline sets are much less complete (e.g. macaque), it is better to set `--allele-cluster`, so that it also looks for alleles that are separated by indels from existing genes.
 
 At the moment we only do clever germline inference things for V, and not for D and J.
