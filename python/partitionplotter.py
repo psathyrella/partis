@@ -501,7 +501,7 @@ class PartitionPlotter(object):
             # fnames += self.make_shm_vs_inverse_identity_plots(sorted_clusters, annotations, plotdir)
         fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
-        if self.args.only_csv_plots:
+        if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds']])
 
         print '(%.1f sec)' % (time.time()-start)

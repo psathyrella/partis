@@ -222,6 +222,25 @@ class PartitionDriver(object):
         glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
 
     # ----------------------------------------------------------------------------------------
+    def run(self):
+        if self.current_action == 'cache-parameters':
+            self.cache_parameters()
+        elif self.current_action == 'annotate':
+            self.annotate()
+        elif self.current_action == 'partition':
+            self.partition()
+        elif self.current_action == 'view-annotations':
+            self.read_existing_annotations(debug=True)
+        elif self.current_action == 'view-partitions':
+            self.read_existing_partitions(debug=True)
+        elif self.current_action == 'plot-partitions':
+            self.plot_existing_partitions()
+        elif self.current_action == 'view-alternative-naive-seqs':
+            self.view_alternative_naive_seqs()
+        else:
+            raise Exception('bad action %s' % self.current_action)
+
+    # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
@@ -341,6 +360,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def plot_existing_partitions(self):
+        if self.args.plotdir is None:
+            raise Exception('--plotdir must be specified')
         cpath = self.read_existing_partitions()
         annotations = self.read_existing_annotations(outfname=self.args.outfname.replace('.csv', '-cluster-annotations.csv'))
         partplotter = PartitionPlotter(self.args)
@@ -1638,7 +1659,7 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
-                assert uidstr not in padded_annotations
+                assert uidstr not in padded_annotations  # <uidstr> shouldn't be in the file twice
                 padded_annotations[uidstr] = padded_line
 
                 if len(uids) > 1:  # if there's more than one sequence, we need to use the padded line

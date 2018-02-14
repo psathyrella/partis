@@ -175,40 +175,33 @@ def run_simulation(args):
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
-    if args.infname is None:
-        raise Exception('--infname is required for the \'%s\' action' % args.action)
+    def get_gldir(action, argvar):
+        if action == 'cache-parameters':  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
+            return argvar.default_initial_germline_dir if argvar.initial_germline_dir is None else argvar.initial_germline_dir
+        else:
+            return argvar.parameter_dir + '/' + argvar.parameter_type + '/' + glutils.glfo_dir
+    def actually_run(action, argvar):  # NOTE <action> not in general the same as <argvar.action>
+        parter = PartitionDriver(argvar, action, get_gldir(action, argvar))
+        parter.run()
+        parter.clean()
 
     set_default_parameter_dir(args)
 
     if args.action == 'cache-parameters':
-        parter = PartitionDriver(args, 'cache-parameters', args.default_initial_germline_dir if args.initial_germline_dir is None else args.initial_germline_dir)  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
-        parter.cache_parameters()
-        parter.clean()
+        actually_run('cache-parameters', args)
         return
 
     if not os.path.exists(args.parameter_dir):
         print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, args.action)
-        newargv = copy.deepcopy(sys.argv)
-        for argconf in [ac for ac in subargs[args.action] if ac['name'] in newargv]:  # remove args that only make sense for <args.action>
-            index = newargv.index(argconf['name'])
-            newargv.remove(argconf['name'])
-            if 'action' not in argconf['kwargs'] or argconf['kwargs']['action'] != 'store_true':  # also remove the argument's argument
-                newargv.pop(index)
-        newargv = newargv[:1] + ['cache-parameters', ] + newargv[2:]
-        subprocess.check_call(newargv)
+        argcopy = copy.deepcopy(args)  # remove args that only make sense for <args.action> (note that 'cache-parameters' doesn't have any args specific to it now (so the second set is empty), but it could later)
+        for argname in get_arg_names([args.action]) - get_arg_names(['cache-parameters']):
+            argcopy.__dict__[argname] = None
+        actually_run('cache-parameters', argcopy)
 
-    if args.action == 'annotate':
-        parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
-        parter.annotate()
-    elif args.action == 'partition':
-        parter = PartitionDriver(args, args.action, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
-        parter.partition()
-    else:
-        raise Exception('bad action ' + args.action)
-    parter.clean()
+    actually_run(args.action, args)
 
 # ----------------------------------------------------------------------------------------
-def view_existing_output(args):
+def view_existing_output(args):  # it would be nice to combine this with run_partitiondriver()
     if args.outfname is None:
         if args.infname is not None:  # can specify either outfname or infname
             args.outfname = args.infname
@@ -227,16 +220,7 @@ def view_existing_output(args):
             args.initial_germline_dir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
 
     parter = PartitionDriver(args, args.action, args.initial_germline_dir)
-    if args.action == 'view-annotations':
-        parter.read_existing_annotations(debug=True)
-    elif args.action == 'view-partitions':
-        parter.read_existing_partitions(debug=True)
-    elif args.action == 'plot-partitions':
-        parter.plot_existing_partitions()
-    elif args.action == 'view-alternative-naive-seqs':
-        parter.view_alternative_naive_seqs()
-    else:
-        assert False
+    parter.run()
     parter.clean()
 
 # ----------------------------------------------------------------------------------------
@@ -414,6 +398,11 @@ subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' :
 subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this process has subsidiary simulation processes handled by Popen'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this is a sub-process handled by --subsimproc'}})
 
+def get_arg_names(actions):  # return set of all arg names (in the form they appear in args.__dict__) for the specified actions
+    if actions == 'all':
+        actions = subconfig.keys()
+    return set([actionconf['name'][2:].replace('-', '_') for action in actions for actionconf in subargs[action]])
+
 subparsermap = {}
 for name, vals in subconfig.items():
     subparsermap[name] = subparsers.add_parser(name, parents=[parent_parser], help=vals['help'], formatter_class=MultiplyInheritedFormatter)
@@ -425,13 +414,8 @@ for name, vals in subconfig.items():
 args = parser.parse_args()
 
 # add OR of all arguments to all subparsers to <args>, as None (to avoid having to rewrite a *##!(%ton of other code)
-for name in subconfig:
-    for argconf in subargs[name]:
-        if argconf['name'][:2] != '--':
-            raise Exception('expected argument %s to be of form --<stuff>' % argconf['name'])
-        argname = argconf['name'][2:].replace('-', '_')
-        if argname not in args.__dict__:
-            args.__dict__[argname] = None
+for missing_arg in get_arg_names('all') - set(args.__dict__):
+    args.__dict__[missing_arg] = None
 
 processargs.process(args)
 random.seed(args.seed)
