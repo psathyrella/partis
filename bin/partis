@@ -327,9 +327,6 @@ parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23
 parent_parser.add_argument('--min-allele-finding-gene-length', type=int, default=150, help='if (after excluding particularly short reads) the reads for a gene are shorter than this, then don\'t look for new alleles with/on this gene')
 parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 
-parent_parser.add_argument('--seed-unique-id', help='Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.')
-parent_parser.add_argument('--seed-seq', help='same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file')
-
 # ----------------------------------------------------------------------------------------
 subconfig = {
     'version'          : {'func' : int, 'help' : 'print version information and exit'},
@@ -348,8 +345,9 @@ subargs = {subname : [] for subname in subconfig}
 
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
-# subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Only look for sequences that are clonally related to this unique id. Much much much faster than partitioning the entire dataset.'}})
-# subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same as --seed-unique-id, but specifies a sequence that doesn\'t have to be in the original file'}})
+subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Throw out all sequences that are not clonally related to this sequence id. Much much much faster than partitioning the entire sample (well, unless your whole sample is one family).'}})
+subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same effect as --seed-unique-id, but specifies the sequence instead of that sequence\'s id (so that it doesn\'t have to be in the original input file)'}})
+subargs['partition'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'choose a sequence at random from the input file, and use it as the seed for seed partitioning (as if it had been set as the --seed-unique-id)'}})
 subargs['partition'].append({'name' : '--annotation-clustering', 'kwargs' : {'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
 subargs['partition'].append({'name' : '--annotation-clustering-thresholds', 'kwargs' : {'default' : '0.9', 'help' : 'colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering'}})
 subargs['partition'].append({'name' : '--print-cluster-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'deprecated'}})
@@ -362,7 +360,6 @@ subargs['partition'].append({'name' : '--biggest-naive-seq-cluster-to-calculate'
 subargs['partition'].append({'name' : '--biggest-logprob-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 15, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
 subargs['partition'].append({'name' : '--n-partitions-to-write', 'kwargs' : {'type' : int, 'default' : 10, 'help' : 'Number of partitions (surrounding the best partition) to write to output file.'}})
 subargs['partition'].append({'name' : '--naive-swarm', 'kwargs' : {'action' : 'store_true', 'help' : 'Use swarm instead of vsearch, which the developer recommends. Didn\'t seem to help much, and needs more work to optimize threshold, so DO NOT USE.'}})
-subargs['partition'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'choose a sequence at random from the input sequences, and use it as a seed for seed partitioning'}})
 subargs['partition'].append({'name' : '--small-clusters-to-ignore', 'kwargs' : {'help' : 'colon-separated list (or dash-separated inclusive range) of cluster sizes to throw out after several partition steps. E.g. \'1:2\' will, after <--n-steps-at-which-to-ignore-small-clusters> partition steps, throw out all singletons and pairs. Alternatively, \'1-10\' will ignore all clusters with size less than 11.'}})
 subargs['partition'].append({'name' : '--n-steps-after-which-to-ignore-small-clusters', 'kwargs' : {'type' : int, 'default' : 3, 'help' : 'number of partition steps after which to throw out small clusters (where "small" is controlled by <--small-clusters-to-ignore>). (They\'re thrown out before this if we get to n_procs one before this).'}})
 subargs['partition'].append({'name' : '--n-final-clusters', 'kwargs' : {'type' : int, 'help' : 'If you reach the maximum likelihood partition and there are still more than this many clusters, attempt to keep merging until there aren\'t. NOTE should\'ve called this --n-max-final-clusters, but too late to change now'}})

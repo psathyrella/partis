@@ -1069,7 +1069,7 @@ class PartitionDriver(object):
     def split_input(self, n_procs, infname):
 
         # should we pull out the seeded clusters, and carefully re-inject them into each process?
-        separate_seeded_clusters = self.args.seed_unique_id is not None and self.unseeded_seqs is None
+        separate_seeded_clusters = self.current_action == 'partition' and self.args.seed_unique_id is not None and self.unseeded_seqs is None  # I think it's no longer possible to have seed_unique_id set if we're not partitioning, but I'll leave it just to be safe (otherwise we get the seed seq sent to every process)
 
         # read single input file
         info = []
@@ -1659,7 +1659,8 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
-                assert uidstr not in padded_annotations  # <uidstr> shouldn't be in the file twice
+                if uidstr in padded_annotations:  # this shouldn't happen, but it's more an indicator that something else has gone wrong than that in and of itself it's catastrophic
+                    print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
                 if len(uids) > 1:  # if there's more than one sequence, we need to use the padded line
