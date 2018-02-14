@@ -43,7 +43,7 @@ class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args, action, initial_gldir):  # NOTE <initial_gldir> is not, in general, the same as <args.initial_germline_dir>
         self.args = args
-        self.current_action = action  # *not* necessarily the same as <self.args.action>
+        self.current_action = action  # *not* necessarily the same as <self.args.action> (<self.args.action> isn't used anywhere here)
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         self.glfo = glutils.read_glfo(initial_gldir, locus=self.args.locus, only_genes=self.args.only_genes)
@@ -222,6 +222,25 @@ class PartitionDriver(object):
         glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
 
     # ----------------------------------------------------------------------------------------
+    def run(self):
+        if self.current_action == 'cache-parameters':
+            self.cache_parameters()
+        elif self.current_action == 'annotate':
+            self.annotate()
+        elif self.current_action == 'partition':
+            self.partition()
+        elif self.current_action == 'view-annotations':
+            self.read_existing_annotations(debug=True)
+        elif self.current_action == 'view-partitions':
+            self.read_existing_partitions(debug=True)
+        elif self.current_action == 'plot-partitions':
+            self.plot_existing_partitions()
+        elif self.current_action == 'view-alternative-naive-seqs':
+            self.view_alternative_naive_seqs()
+        else:
+            raise Exception('bad action %s' % self.current_action)
+
+    # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
@@ -341,6 +360,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def plot_existing_partitions(self):
+        if self.args.plotdir is None:
+            raise Exception('--plotdir must be specified')
         cpath = self.read_existing_partitions()
         annotations = self.read_existing_annotations(outfname=self.args.outfname.replace('.csv', '-cluster-annotations.csv'))
         partplotter = PartitionPlotter(self.args)
@@ -1048,7 +1069,7 @@ class PartitionDriver(object):
     def split_input(self, n_procs, infname):
 
         # should we pull out the seeded clusters, and carefully re-inject them into each process?
-        separate_seeded_clusters = self.args.seed_unique_id is not None and self.unseeded_seqs is None
+        separate_seeded_clusters = self.current_action == 'partition' and self.args.seed_unique_id is not None and self.unseeded_seqs is None  # I think it's no longer possible to have seed_unique_id set if we're not partitioning, but I'll leave it just to be safe (otherwise we get the seed seq sent to every process)
 
         # read single input file
         info = []

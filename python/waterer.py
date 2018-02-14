@@ -1166,6 +1166,8 @@ class Waterer(object):
             uids_to_pre_keep.add(self.args.seed_unique_id)
         if self.args.queries is not None:
             uids_to_pre_keep |= set(self.args.queries)
+        if self.args.queries_to_include is not None:  # note that the seed seq is added to queries_to_include, which is good if we're parameter caching since seed_unique_id will be set to None
+            uids_to_pre_keep |= set(self.args.queries_to_include)
 
         if debug and len(uids_to_pre_keep) > 0:
             print 'pre-keeping %s' % ' '.join(uids_to_pre_keep)
