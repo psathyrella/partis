@@ -16,6 +16,7 @@ class PerformancePlotter(object):
     def __init__(self, name):
         self.name = name
         self.values, self.hists = {}, {}  # the dictionary-based approach in <self.values> is nice because you can decide your hist bounds after filling everything
+        self.skipped_queries = []
 
         for column in plotconfig.gene_usage_columns:
             self.values[column] = {'right' : 0, 'wrong' : 0}
@@ -122,8 +123,9 @@ class PerformancePlotter(object):
             inflen = indelutils.net_length(inf_line['indelfos'][iseq])
             addval('shm_indel_length', simlen, inflen)
             if simlen != inflen:  # this is probably because the simulated shm indel was within the cdr3, so we attempt to fix it by switching the sim line to non-reversed
-                print '    %s true and inferred shm net indel lengths different, so skipping rest of performance evaluation' % ' '.join(inf_line['unique_ids'])
-                # note that you can't really evaluate the rest of the performance vars in a particularly meaningful when the indel info is different (like I tried to do below) since you have to decide how to assign the indel'd bases (like, is it correct to assign the indel'd bases to a deletion? or to an insertion? or to the j?)
+                # print '    %s true and inferred shm net indel lengths different, so skipping rest of performance evaluation' % ' '.join(inf_line['unique_ids'])
+                self.skipped_queries.append(':'.join(inf_line['unique_ids']))
+                # note that you can't really evaluate the rest of the performance vars in any particularly meaningful way when the indel info is different (like I tried to do below) since you have to decide how to assign the indel'd bases (like, is it correct to assign the indel'd bases to a deletion? or to an insertion? or to the j?)
                 return
                 # true_line = copy.deepcopy(true_line)
                 # utils.remove_all_implicit_info(true_line)
@@ -170,6 +172,9 @@ class PerformancePlotter(object):
         start = time.time()
         for substr in self.subplotdirs:
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
+
+        if len(self.skipped_queries) > 0:
+            print '\n    %s skipped annotation performance evaluation on %d queries with different true and inferred shm net indel lengths: %s' % (utils.color('yellow', 'warning'), len(self.skipped_queries), ' '.join(self.skipped_queries))
 
         for column in self.values:
             if column in plotconfig.gene_usage_columns:
