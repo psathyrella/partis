@@ -1638,7 +1638,8 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
-                assert uidstr not in padded_annotations
+                if uidstr in padded_annotations:  # this shouldn't happen, but it's more an indicator that something else has gone wrong than that in and of itself it's catastrophic
+                    print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
                 if len(uids) > 1:  # if there's more than one sequence, we need to use the padded line
