@@ -174,7 +174,7 @@ class PerformancePlotter(object):
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
         if len(self.skipped_queries) > 0:
-            print '\n    %s skipped annotation performance evaluation on %d queries with different true and inferred shm net indel lengths: %s' % (utils.color('yellow', 'warning'), len(self.skipped_queries), ' '.join(self.skipped_queries))
+            print '\n    %s skipped annotation performance evaluation on %d queries with different true and inferred net shm indel lengths: %s' % (utils.color('yellow', 'warning'), len(self.skipped_queries), ' '.join(self.skipped_queries))
 
         for column in self.values:
             if column in plotconfig.gene_usage_columns:
