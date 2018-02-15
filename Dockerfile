@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     r-base
 RUN pip install numpy  # putting them on different lines allows docker's caching to defeat pip's slowness
 RUN pip install scipy
+RUN pip install scikit-learn
 RUN pip install matplotlib
 RUN pip install pandas
 RUN pip install biopython

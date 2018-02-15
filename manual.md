@@ -110,7 +110,7 @@ Then make a conda environment for partis:
 ```
 conda create -y -n partis
 source activate partis  # do this _every_ time you start a new terminal
-conda install -y biopython cmake gsl openblas pandas psutil pysam r-essentials scons seaborn
+conda install -y biopython scikit-learn cmake gsl openblas pandas psutil pysam r-essentials scons seaborn
 conda install -y -c biocore mafft
 ```
 
@@ -131,7 +131,7 @@ For Ubuntu (tested on 16.04):
 
 ```
 sudo apt-get install python-pip cmake scons libgsl0-dev libncurses5-dev libxml2-dev libxslt1-dev mafft r-base
-pip install --user numpy scipy matplotlib pandas biopython dendropy==3.12.3 pysam pyyaml seaborn colored_traceback psutil
+pip install --user numpy scipy scikit-learn matplotlib pandas biopython dendropy==3.12.3 pysam pyyaml seaborn colored_traceback psutil
 R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # optional -- only used for simulation
 ```
 If you're running an old RHEL variant, with a (very) old gcc, you may need to either update gcc, or swap out `-Ofast` for something else in several places.
