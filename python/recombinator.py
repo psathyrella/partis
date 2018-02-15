@@ -118,7 +118,7 @@ class Recombinator(object):
     def read_mute_freq_stuff(self, gene):
         assert gene[:2] not in utils.boundaries  # make sure <gene> isn't actually an insertion (we used to pass insertions in here separately, but now they're smooshed onto either end of d)
         if self.args.mutate_from_scratch:
-            self.all_mute_freqs[gene] = {'overall_mean' : self.args.flat_mute_freq}
+            self.all_mute_freqs[gene] = {'overall_mean' : self.args.default_scratch_mute_freq if self.args.flat_mute_freq is None else self.args.flat_mute_freq}
         else:
             gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
             approved_genes = [gene]

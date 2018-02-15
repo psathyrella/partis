@@ -110,16 +110,21 @@ class TreeGenerator(object):
     #----------------------------------------------------------------------------------------
     def get_mute_hist(self, mtype, parameter_dir):
         if self.args.mutate_from_scratch:
-            n_entries = 500
-            length_vals = [v for v in numpy.random.exponential(self.args.flat_mute_freq, n_entries)]  # count doesn't work on numpy.ndarray objects
-            max_val = 0.8  # 0.5 is arbitrary, but you shouldn't be calling this with anything that gets a significant number anywhere near there, anyway
-            if length_vals.count(max_val):
-                print '%s lots of really high mutation rates treegenerator::get_mute_hist()' % utils.color('yellow', 'warning')
-            length_vals = [min(v, max_val) for v in length_vals]
-            hist = Hist(30, 0., max_val)
-            for val in length_vals:
-                hist.fill(val)
-            hist.normalize()
+            mean_mute_val = self.args.default_scratch_mute_freq if self.args.flat_mute_freq is None else self.args.flat_mute_freq
+            if self.args.same_mute_freq_for_all_seqs:
+                hist = Hist(1, mean_mute_val - utils.eps, mean_mute_val + utils.eps)
+                hist.fill(mean_mute_val)
+            else:
+                n_entries = 500
+                length_vals = [v for v in numpy.random.exponential(mean_mute_val, n_entries)]  # count doesn't work on numpy.ndarray objects
+                max_val = 0.8  # this is arbitrary, but you shouldn't be calling this with anything that gets a significant number anywhere near there, anyway
+                if length_vals.count(max_val):
+                    print '%s lots of really high mutation rates treegenerator::get_mute_hist()' % utils.color('yellow', 'warning')
+                length_vals = [min(v, max_val) for v in length_vals]
+                hist = Hist(30, 0., max_val)
+                for val in length_vals:
+                    hist.fill(val)
+                hist.normalize()
         else:
             hist = Hist(fname=parameter_dir + '/' + mtype + '-mean-mute-freqs.csv')
 

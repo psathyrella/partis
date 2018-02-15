@@ -177,3 +177,6 @@ def process(args):
         args.dont_remove_unlikely_alleles = True
         args.allele_cluster = False
         args.dont_find_new_alleles = True
+
+    if args.flat_mute_freq is not None or args.same_mute_freq_for_all_seqs:
+        assert args.mutate_from_scratch
