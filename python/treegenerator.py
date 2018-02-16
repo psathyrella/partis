@@ -87,7 +87,7 @@ def rescale_tree(treestr, new_height, debug=False):
 class TreeGenerator(object):
     def __init__(self, args, parameter_dir, seed):
         self.args = args
-        self.branch_lengths = self.read_treegenerator_mfreqs(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
+        self.set_branch_lengths(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
         if self.args.debug:
             print '  generating %d trees,' % self.args.n_trees,
@@ -131,27 +131,22 @@ class TreeGenerator(object):
         return hist
 
     #----------------------------------------------------------------------------------------
-    def read_treegenerator_mfreqs(self, parameter_dir):
-        # NOTE these are mute freqs, not branch lengths, but it's ok for now
-        branch_lengths = {}
-        for mtype in ['all',] + utils.regions:
-            branch_lengths[mtype] = {n : [] for n in ('lengths', 'probs')}
-            mutehist = self.get_mute_hist(mtype, parameter_dir)
-            branch_lengths[mtype]['mean'] = mutehist.get_mean()
-
-            mutehist.normalize(include_overflows=False, expect_overflows=True)  # if it was written with overflows included, it'll need to be renormalized
+    def set_branch_lengths(self, parameter_dir):
+        self.branch_lengths = {}
+        for mtype in ['all'] + utils.regions:
+            hist = self.get_mute_hist(mtype, parameter_dir)
+            hist.normalize(include_overflows=False, expect_overflows=True)  # if it was written with overflows included, it'll need to be renormalized
             check_sum = 0.0
-            for ibin in range(1, mutehist.n_bins + 1):  # ignore under/overflow bins
-                freq = mutehist.get_bin_centers()[ibin]
-                branch_length = self.convert_observed_changes_to_branch_length(float(freq))
-                prob = mutehist.bin_contents[ibin]
-                branch_lengths[mtype]['lengths'].append(branch_length)
-                branch_lengths[mtype]['probs'].append(prob)
-                check_sum += branch_lengths[mtype]['probs'][-1]
+            lengths, probs = [], []
+            for ibin in range(1, hist.n_bins + 1):  # ignore under/overflow bins
+                freq = hist.get_bin_centers()[ibin]
+                lengths.append(self.convert_observed_changes_to_branch_length(float(freq)))
+                probs.append(hist.bin_contents[ibin])
+                check_sum += probs[-1]
+            self.branch_lengths[mtype] = {'mean' : hist.get_mean(), 'lengths' : lengths, 'probs' : probs}
+
             if not utils.is_normed(check_sum):
                 raise Exception('not normalized %f' % check_sum)
-
-        return branch_lengths
 
     #----------------------------------------------------------------------------------------
     def post_process_trees(self, treefname, lonely_leaves, ages):
@@ -200,8 +195,7 @@ class TreeGenerator(object):
                 treefile.write(line + '\n')
 
     #----------------------------------------------------------------------------------------
-    def choose_mean_branch_length(self):
-        """ mean for entire sequence, i.e. weighted average over v, d, and j """
+    def choose_full_sequence_branch_length(self):
         iprob = numpy.random.uniform(0,1)
         sum_prob = 0.0
         for ibin in range(len(self.branch_lengths['all']['lengths'])):
@@ -244,7 +238,7 @@ class TreeGenerator(object):
             ages, lonely_leaves = [], []  # <lonely_leaves> keeps track of which trees should have only one leaf, so we can go back and add them later in the proper spots
             for itree in range(self.args.n_trees):
                 n_leaves = self.choose_n_leaves()
-                age = self.choose_mean_branch_length()
+                age = self.choose_full_sequence_branch_length()
                 ages.append(age)
                 if n_leaves == 1:
                     lonely_leaves.append(True)
