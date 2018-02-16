@@ -284,10 +284,14 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
 
     for ih in range(len(hists)):
         htmp = hists[ih]
-        if 'mean' in stats:
+        if stats == 'mean':
             htmp.title += ' (mean %.2f)' % htmp.get_mean()
-        if '0-bin' in stats:
+        elif stats == 'absmean':
+            htmp.title += ' (abs av %.2f)' % htmp.get_mean(absval=True)
+        elif stats == '0-bin':
             htmp.title += ' (right %.2f)' % htmp.bin_contents[1]
+        else:
+            raise Exception('unexpected stats str %s' % stats)
         markersize = None
         if markersizes is not None:
             imark = ih if len(markersizes) > 1 else 0

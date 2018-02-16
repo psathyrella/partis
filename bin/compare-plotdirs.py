@@ -53,6 +53,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
 
     no_labels = False
     xline, bounds, figsize = None, None, None
+    stats = args.extra_stats
     translegend = [0.0, -0.2]
     log = ''
     xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
@@ -71,7 +72,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if varname in plotconfig.gene_usage_columns:
         xtitle = 'allele'
         if hlist[0].n_bins == 2:
-            args.extra_stats += ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+            stats += ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
     # elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
     #     xtitle = '???'
 
@@ -127,10 +128,17 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
 
     if len(hlist) > 9:  # skootch it down so they (maybe) all fit
         translegend[1] -= 0.5
+    if args.translegend is not None:  # override with the command line
+        translegend = args.translegend
+    if args.extra_stats == 'auto':  # kind of hackey
+        if xtitle == 'inferred - true':
+            stats = 'absmean'
+        else:
+            stats = 'mean'
     # draw that little #$*(!
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
     alphas = [0.6 for _ in range(len(hlist))]
-    plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=args.extra_stats, bounds=bounds,
+    plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds,
                           shift_overflows=(os.path.basename(outdir) != 'gene-call'), plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, alphas=alphas, errors=True,
@@ -148,12 +156,14 @@ parser.add_argument('--gldir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--extra-stats', default='')
+parser.add_argument('--translegend')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
 args.names = utils.get_arg_list(args.names)
 args.colors = utils.get_arg_list(args.colors)
 args.linewidths = utils.get_arg_list(args.linewidths)
+args.translegend = utils.get_arg_list(args.translegend, floatify=True)
 for iname in range(len(args.names)):
     args.names[iname] = args.names[iname].replace('@', ' ')
 
