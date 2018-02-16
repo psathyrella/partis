@@ -3046,7 +3046,7 @@ def read_vsearch_cluster_file(fname):
 def read_vsearch_search_file(fname, userfields):
     # first we add every match (i.e. gene) for each query
     query_info = {}
-    with open(outfname) as alnfile:
+    with open(fname) as alnfile:
         reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
         for line in reader:
             query = line['query']
