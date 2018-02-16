@@ -3043,6 +3043,52 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
+def read_vsearch_search_file(fname, userfields):
+    # first we add every match (i.e. gene) for each query
+    query_info = {}
+    with open(outfname) as alnfile:
+        reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
+        for line in reader:
+            query = line['query']
+            istart = int(line['qilo']) - 1  # qilo/qihi: first/last nucleotide of query aligned with target (1-indexed, ignores initial gaps)
+            length = int(line['qihi']) - int(line['qilo']) + 1
+            qr_seq = seqs[query][istart : istart + length]
+            id_score = int(line['ids'])
+            if query not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but in the end it doesn't/shouldn't matter
+                query_info[query] = []
+            query_info[query].append({'ids' : id_score,
+                                      'gene' : line['target'],
+                                      'qr_seq' : qr_seq})
+
+    glutils.remove_glfo_files(dbdir, glfo['locus'])
+    if len(query_info) == 0:
+        raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
+
+    # then we throw out all the matches (genes) that have id/score lower than the best one
+    for query in query_info:
+        if len(query_info[query]) == 0:
+            print '%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query)
+            del query_info[query]  # uh... need to handle failures better than this
+            continue
+        query_info[query] = sorted(query_info[query], key=lambda d: d['ids'], reverse=True)  # sort the list of matches by decreasing score
+        best_score = query_info[query][0]['ids']
+        query_info[query] = [qinfo for qinfo in query_info[query] if qinfo['ids'] == best_score]  # keep all the matches that have the same score as the best match
+
+    # then count up how many matches there were for each gene over all the sequences (to account for multiple matches with the same score, the count is not an integer)
+    gene_counts = {}
+    for query in query_info:
+        counts_per_match = 1. / len(query_info[query])  # e.g. if there's four matches with the same score, give 'em each 0.25 counts
+        for qinfo in query_info[query]:
+            if qinfo['gene'] not in gene_counts:
+                gene_counts[qinfo['gene']] = 0.
+            gene_counts[qinfo['gene']] += counts_per_match
+
+    regional_mute_freq = numpy.mean([float(query_info[q][0]['ids']) / len(query_info[q][0]['qr_seq']) for q in query_info])
+
+    # TODO I think I don't need the 'mute-freqs' info any more (?)
+    return {'gene-counts' : gene_counts, 'queries' : query_info}  # , 'mute-freqs' : {region : regional_mute_freq}}
+
+# ----------------------------------------------------------------------------------------
 def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None):
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
@@ -3103,7 +3149,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
         'cmd_str' : cmd,
         'outfname' : outfname,
         'workdir' : workdir,
-        # 'threads' : n_procs},  # NOTE that this does something very different (adjusts slurm command) to the line above ^ (talks to vsearch)
+        # 'threads' : n_procs},  # NOTE that this does something very different (adjusts slurm command) to the line above ^ (which talks to vsearch)
     }]
     run_cmds(cmdfos)
 
@@ -3111,44 +3157,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
     if action == 'cluster':
         returnfo = read_vsearch_cluster_file(outfname)
     elif action == 'search':
-        query_info = {}
-        with open(outfname) as alnfile:
-            reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
-            for line in reader:
-                query = line['query']
-                istart = int(line['qilo']) - 1  # qilo/qihi: first/last nucleotide of query aligned with target (1-indexed, ignores initial gaps)
-                length = int(line['qihi']) - int(line['qilo']) + 1
-                qr_seq = seqs[query][istart : istart + length]
-                id_score = int(line['ids'])
-                if query not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but it don't matter
-                    query_info[query] = []
-                query_info[query].append({'ids' : id_score,
-                                          'gene' : line['target'],
-                                          'qr_seq' : qr_seq})
-
-        glutils.remove_glfo_files(dbdir, glfo['locus'])
-        if len(query_info) == 0:
-            raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
-
-        for query in query_info:
-            if len(query_info[query]) == 0:
-                print '%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query)
-                del query_info[query]  # uh... need to handle failures better than this
-                continue
-            query_info[query] = sorted(query_info[query], key=lambda d: d['ids'], reverse=True)
-            best_score = query_info[query][0]['ids']
-            query_info[query] = [qinfo for qinfo in query_info[query] if qinfo['ids'] == best_score]  # keep all the matches that have the same score as the best match
-
-        gene_counts = {}
-        for query in query_info:
-            counts_per_match = 1. / len(query_info[query])  # e.g. if there's four matches with the same score, give 'em each 0.25 counts
-            for qinfo in query_info[query]:
-                if qinfo['gene'] not in gene_counts:
-                    gene_counts[qinfo['gene']] = 0.
-                gene_counts[qinfo['gene']] += counts_per_match
-        regional_mute_freq = numpy.mean([float(query_info[q][0]['ids']) / len(query_info[q][0]['qr_seq']) for q in query_info])
-        # TODO I think I don't need the 'mute-freqs' info any more (?)
-        returnfo = {'gene-counts' : gene_counts, 'queries' : query_info, 'mute-freqs' : {region : regional_mute_freq}}  # NOTE <gene_counts> is note integers
+        returnfo = read_vsearch_search_file(outfname, userfields)
     else:
         assert False
     os.remove(infname)
