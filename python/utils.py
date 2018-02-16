@@ -3043,7 +3043,7 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def read_vsearch_search_file(fname, userfields):
+def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo):
     # first we add every match (i.e. gene) for each query
     query_info = {}
     with open(fname) as alnfile:
@@ -3157,7 +3157,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
     if action == 'cluster':
         returnfo = read_vsearch_cluster_file(outfname)
     elif action == 'search':
-        returnfo = read_vsearch_search_file(outfname, userfields)
+        returnfo = read_vsearch_search_file(outfname, userfields, seqs, dbdir, glfo)
     else:
         assert False
     os.remove(infname)
@@ -3165,7 +3165,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
     os.rmdir(workdir)
     if print_time:
         # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
-        print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (len(query_info), len(seqs), region, len(seqs) - len(query_info), time.time() - start)
+        print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (len(returnfo['queries']), len(seqs), region, len(seqs) - len(returnfo['queries']), time.time() - start)
 
     return returnfo
 
