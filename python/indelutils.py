@@ -167,7 +167,7 @@ def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=
     return new_seq
 
 # ----------------------------------------------------------------------------------------
-def get_indel_info(cigarstr, qrseq, glseq, gene):
+def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene):
     cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
     cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
 
