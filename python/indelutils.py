@@ -1,3 +1,4 @@
+import re
 import random
 import numpy
 import copy
@@ -173,7 +174,7 @@ def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene):
 
     codestr = ''
     qpos = 0  # position within query sequence
-    indelfo = indelutils.get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
+    indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
     tmp_indices = []
     for code, length in cigars:
         codestr += length * code
