@@ -1,3 +1,5 @@
+import sys
+import string
 import re
 import random
 import numpy
@@ -168,8 +170,14 @@ def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=
     return new_seq
 
 # ----------------------------------------------------------------------------------------
-def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene):
+def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, reverse_sense=False):
     cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
+    if reverse_sense:  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
+        trans = string.maketrans('ID', 'DI')
+        cigars = [cstr.translate(trans) for cstr in cigars]
+        if cigars[-1][-1] == 'I':  # ig-sw uses soft-clipping for the DJ bit... so switch to that convention
+            cigars[-1] = cigars[-1].replace('I', 'S')
+        cigarstr = ''.join(cigars)  # don't use <cigarstr> after here, but I might decide to later
     cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
 
     codestr = ''
@@ -223,5 +231,9 @@ def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene):
     for idl in indelfo['indels']:
         dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
     indelfo['dbg_str'] = '\n'.join(dbg_str_list)
+# ----------------------------------------------------------------------------------------
+    if reverse_sense:
+        print indelfo['dbg_str']
+# ----------------------------------------------------------------------------------------
 
     return indelfo

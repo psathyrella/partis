@@ -3043,7 +3043,11 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo):
+def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo, region, reco_info=None):
+# ----------------------------------------------------------------------------------------
+    debug = False
+# ----------------------------------------------------------------------------------------
+
     # first we add every match (i.e. gene) for each query
     query_info = {}
     with open(fname) as alnfile:
@@ -3053,12 +3057,15 @@ def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo):
             istart = int(line['qilo']) - 1  # qilo/qihi: first/last nucleotide of query aligned with target (1-indexed, ignores initial gaps)
             length = int(line['qihi']) - int(line['qilo']) + 1
             qr_seq = seqs[query][istart : istart + length]
-            id_score = int(line['ids'])
+            id_score = int(line['ids'])  # number of matches in the alignment (percent identity is 'id')
             if query not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but in the end it doesn't/shouldn't matter
                 query_info[query] = []
-            query_info[query].append({'ids' : id_score,
-                                      'gene' : line['target'],
-                                      'qr_seq' : qr_seq})
+            query_info[query].append({
+                'ids' : id_score,
+                'gene' : line['target'],
+                'qr_seq' : qr_seq,
+                'cigar' : line['caln'],
+            })
 
     glutils.remove_glfo_files(dbdir, glfo['locus'])
     if len(query_info) == 0:
@@ -3083,13 +3090,30 @@ def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo):
                 gene_counts[qinfo['gene']] = 0.
             gene_counts[qinfo['gene']] += counts_per_match
 
-    regional_mute_freq = numpy.mean([float(query_info[q][0]['ids']) / len(query_info[q][0]['qr_seq']) for q in query_info])
+    def regional_mfreq_from_ids(uid, imatch=0):
+# ----------------------------------------------------------------------------------------
+        return 1. - float(query_info[uid][imatch]['ids']) / len(query_info[uid][imatch]['qr_seq'])
+    # TODO figure out these lengths, and what I'm using qr_seq' for
+# ----------------------------------------------------------------------------------------
 
-    # TODO I think I don't need the 'mute-freqs' info any more (?)
-    return {'gene-counts' : gene_counts, 'queries' : query_info}  # , 'mute-freqs' : {region : regional_mute_freq}}
+    if debug:
+        for query in query_info:
+            if reco_info is not None:
+                print_reco_event(reco_info[query])
+            imatch = 0
+            matchfo = query_info[query][imatch]
+            indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], glfo['seqs'][region][matchfo['gene']], matchfo['gene'], reverse_sense=True)
+            post_str = '  ' + color_gene(matchfo['gene'])
+            color_mutants(glfo['seqs'][region][matchfo['gene']], matchfo['qr_seq'], print_result=True, post_str=post_str, align=True)
+            if reco_info is not None:
+                print '    %6.3f   %6.3f' % (get_mutation_rate(reco_info[query], iseq=0, restrict_to_region=region), regional_mfreq_from_ids(query))
+
+        print color('red', 'hey'), ' remove align=True'
+
+    return {'gene-counts' : gene_counts, 'queries' : query_info}
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None):
+def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, reco_info=None):
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -3098,6 +3122,17 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
     #    - If both are zero, it searches the whole database
     #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
     region = 'v'
+    userfields = [  # all 1-indexed (note: only used for 'search')
+        'query',
+        'target',
+        'qilo',  # first pos of query that aligns to target, skipping initial gaps (e.g. 1 if first pos aligns, 4 if fourth pos aligns but first three don't)
+        # 'qlo',   # same, but including initial gaps (i.e. always equal to 1 if there's an alignment, and 0 otherwise)
+        'qihi',
+        # 'qhi',
+        'ids',
+        'caln',  # cigar string,
+    ]  # 'pairs': number of columns with only nucleotides (i.e. alignment length minus number of gaps)
+
     start = time.time()
 
     prep_dir(workdir)
@@ -3119,7 +3154,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
             raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
 
     cmd = vsearch_binary
-    cmd += ' --id ' + str(1. - threshold)
+    cmd += ' --id ' + str(1. - threshold)  # reject if identity lower than this
     # cmd += ' --match '  # default 2
     # cmd += ' --mismatch '  # default -4
     if action == 'cluster':
@@ -3133,7 +3168,6 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
         # cmd += ' --maxaccept 0 --maxreject 0'  # see note above
     elif action == 'search':
         outfname = workdir + '/aln-info.tsv'
-        userfields = ['query', 'target', 'qilo', 'qihi', 'ids']
         dbdir = workdir + '/' + glutils.glfo_dir
         glutils.write_glfo(dbdir, glfo)
         cmd += ' --usearch_global ' + infname
@@ -3157,7 +3191,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
     if action == 'cluster':
         returnfo = read_vsearch_cluster_file(outfname)
     elif action == 'search':
-        returnfo = read_vsearch_search_file(outfname, userfields, seqs, dbdir, glfo)
+        returnfo = read_vsearch_search_file(outfname, userfields, seqs, dbdir, glfo, region, reco_info=reco_info)
     else:
         assert False
     os.remove(infname)
