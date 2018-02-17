@@ -413,65 +413,6 @@ class Waterer(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def get_indel_info(self, query_name, cigarstr, qrseq, glseq, gene):
-        cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
-        cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
-
-        codestr = ''
-        qpos = 0  # position within query sequence
-        indelfo = indelutils.get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
-        tmp_indices = []
-        for code, length in cigars:
-            codestr += length * code
-            if code == 'I':  # advance qr seq but not gl seq
-                indelfo['indels'].append({'type' : 'insertion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # insertion begins at <pos>
-                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
-            elif code == 'D':  # advance qr seq but not gl seq
-                indelfo['indels'].append({'type' : 'deletion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # first deleted base is <pos> (well, first base which is in the position of the first deleted base)
-                tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
-            else:
-                tmp_indices += [None  for _ in range(length)]  # indel index corresponding to this position in the alignment
-            qpos += length
-
-        qrprintstr, glprintstr = '', ''
-        iqr, igl = 0, 0
-        for icode in range(len(codestr)):
-            code = codestr[icode]
-            if code == 'M':
-                qrbase = qrseq[iqr]
-                if qrbase != glseq[igl]:
-                    qrbase = utils.color('red', qrbase)
-                qrprintstr += qrbase
-                glprintstr += glseq[igl]
-                indelfo['reversed_seq'] += qrseq[iqr]  # add the base to the overall sequence with all indels reversed
-            elif code == 'S':
-                continue
-            elif code == 'I':
-                qrprintstr += utils.color('light_blue', qrseq[iqr])
-                glprintstr += utils.color('light_blue', '*')
-                indelfo['indels'][tmp_indices[icode]]['seqstr'] += qrseq[iqr]  # and to the sequence of just this indel
-                igl -= 1
-            elif code == 'D':
-                qrprintstr += utils.color('light_blue', '*')
-                glprintstr += utils.color('light_blue', glseq[igl])
-                indelfo['reversed_seq'] += glseq[igl]  # add the base to the overall sequence with all indels reversed
-                indelfo['indels'][tmp_indices[icode]]['seqstr'] += glseq[igl]  # and to the sequence of just this indel
-                iqr -= 1
-            else:
-                raise Exception('unhandled code %s' % code)
-
-            iqr += 1
-            igl += 1
-
-        dbg_str_list = ['          %20s %s' % (gene, glprintstr),
-                        '          %20s %s' % ('query', qrprintstr)]
-        for idl in indelfo['indels']:
-            dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
-        indelfo['dbg_str'] = '\n'.join(dbg_str_list)
-
-        return indelfo
-
-    # ----------------------------------------------------------------------------------------
     def remove_query(self, query):
         # NOTE you're iterating over a deep copy of <self.info['queries']>, right? you better be!
         del self.info[query]  # this still leaves this query's gene matches in <self.info> (there may also be other traces of it)
@@ -522,7 +463,7 @@ class Waterer(object):
                 if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
                     continue
                 assert region not in qinfo['new_indels']  # only to double-check the continue just above
-                qinfo['new_indels'][region] = self.get_indel_info(qinfo['name'], read.cigarstring, qinfo['seq'][qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
+                qinfo['new_indels'][region] = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'][qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
                 qinfo['new_indels'][region]['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + qinfo['new_indels'][region]['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]
 
             # and finally add this match's information

@@ -165,3 +165,62 @@ def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=
     assert utils.codon_unmutated('cyst', new_seq, codon_positions['v'], debug=True)
 
     return new_seq
+
+# ----------------------------------------------------------------------------------------
+def get_indel_info(cigarstr, qrseq, glseq, gene):
+    cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
+    cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
+
+    codestr = ''
+    qpos = 0  # position within query sequence
+    indelfo = indelutils.get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
+    tmp_indices = []
+    for code, length in cigars:
+        codestr += length * code
+        if code == 'I':  # advance qr seq but not gl seq
+            indelfo['indels'].append({'type' : 'insertion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # insertion begins at <pos>
+            tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
+        elif code == 'D':  # advance qr seq but not gl seq
+            indelfo['indels'].append({'type' : 'deletion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # first deleted base is <pos> (well, first base which is in the position of the first deleted base)
+            tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
+        else:
+            tmp_indices += [None  for _ in range(length)]  # indel index corresponding to this position in the alignment
+        qpos += length
+
+    qrprintstr, glprintstr = '', ''
+    iqr, igl = 0, 0
+    for icode in range(len(codestr)):
+        code = codestr[icode]
+        if code == 'M':
+            qrbase = qrseq[iqr]
+            if qrbase != glseq[igl]:
+                qrbase = utils.color('red', qrbase)
+            qrprintstr += qrbase
+            glprintstr += glseq[igl]
+            indelfo['reversed_seq'] += qrseq[iqr]  # add the base to the overall sequence with all indels reversed
+        elif code == 'S':
+            continue
+        elif code == 'I':
+            qrprintstr += utils.color('light_blue', qrseq[iqr])
+            glprintstr += utils.color('light_blue', '*')
+            indelfo['indels'][tmp_indices[icode]]['seqstr'] += qrseq[iqr]  # and to the sequence of just this indel
+            igl -= 1
+        elif code == 'D':
+            qrprintstr += utils.color('light_blue', '*')
+            glprintstr += utils.color('light_blue', glseq[igl])
+            indelfo['reversed_seq'] += glseq[igl]  # add the base to the overall sequence with all indels reversed
+            indelfo['indels'][tmp_indices[icode]]['seqstr'] += glseq[igl]  # and to the sequence of just this indel
+            iqr -= 1
+        else:
+            raise Exception('unhandled code %s' % code)
+
+        iqr += 1
+        igl += 1
+
+    dbg_str_list = ['          %20s %s' % (gene, glprintstr),
+                    '          %20s %s' % ('query', qrprintstr)]
+    for idl in indelfo['indels']:
+        dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
+    indelfo['dbg_str'] = '\n'.join(dbg_str_list)
+
+    return indelfo
