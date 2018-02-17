@@ -3045,7 +3045,7 @@ def read_vsearch_cluster_file(fname):
 # ----------------------------------------------------------------------------------------
 def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo, region, reco_info=None):
 # ----------------------------------------------------------------------------------------
-    debug = False
+    debug = True
 # ----------------------------------------------------------------------------------------
 
     # first we add every match (i.e. gene) for each query
@@ -3090,11 +3090,9 @@ def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo, region, reco_
                 gene_counts[qinfo['gene']] = 0.
             gene_counts[qinfo['gene']] += counts_per_match
 
-    def regional_mfreq_from_ids(uid, imatch=0):
-# ----------------------------------------------------------------------------------------
-        return 1. - float(query_info[uid][imatch]['ids']) / len(query_info[uid][imatch]['qr_seq'])
-    # TODO figure out these lengths, and what I'm using qr_seq' for
-# ----------------------------------------------------------------------------------------
+    # def regional_mfreq_from_ids(uid, imatch=0):
+    #     return 1. - float(query_info[uid][imatch]['ids']) / len(query_info[uid][imatch]['qr_seq'])
+    # # TODO figure out these lengths, and what I'm using qr_seq' for
 
     if debug:
         for query in query_info:
@@ -3102,13 +3100,14 @@ def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo, region, reco_
                 print_reco_event(reco_info[query])
             imatch = 0
             matchfo = query_info[query][imatch]
-            indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], glfo['seqs'][region][matchfo['gene']], matchfo['gene'], reverse_sense=True)
-            post_str = '  ' + color_gene(matchfo['gene'])
-            color_mutants(glfo['seqs'][region][matchfo['gene']], matchfo['qr_seq'], print_result=True, post_str=post_str, align=True)
-            if reco_info is not None:
-                print '    %6.3f   %6.3f' % (get_mutation_rate(reco_info[query], iseq=0, restrict_to_region=region), regional_mfreq_from_ids(query))
-
-        print color('red', 'hey'), ' remove align=True'
+            indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], glfo['seqs'][region][matchfo['gene']], matchfo['gene'], vsearch_conventions=True)
+            if indelutils.has_indels(indelfo):
+                print indelfo['dbg_str']
+                # TODO
+            # post_str = '  ' + color_gene(matchfo['gene'])
+            # color_mutants(glfo['seqs'][region][matchfo['gene']], matchfo['qr_seq'], print_result=True, post_str=post_str)  #, align=True)
+            # if reco_info is not None:
+            #     print '    %6.3f   %6.3f' % (get_mutation_rate(reco_info[query], iseq=0, restrict_to_region=region), regional_mfreq_from_ids(query))
 
     return {'gene-counts' : gene_counts, 'queries' : query_info}
 

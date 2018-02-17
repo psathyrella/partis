@@ -170,19 +170,42 @@ def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=
     return new_seq
 
 # ----------------------------------------------------------------------------------------
-def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, reverse_sense=False):
+def process_vsearch_results(cigars, qrseq, glseq):
+    trans = string.maketrans('ID', 'DI')
+    cigars = [(code.translate(trans), length) for code, length in cigars]  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
+
+    # if the first bases don't align, ig-sw says the alignment doesn't start at the start of one of the sequences, while vsearch calls it an insertion/deletion (and same for the right side)
+    tmpcode, tmplength = cigars[0]  # code and length for first/left side element in cigars
+    if tmpcode == 'I':
+        qrseq = qrseq[tmplength:]
+        cigars[0] = ('S', tmplength)
+    elif tmpcode == 'D':
+        glseq = glseq[tmplength:]
+        cigars = cigars[1:]
+    tmpcode, tmplength = cigars[-1]  # same thing for the last/right side
+    if tmpcode == 'I':
+        cigars[-1] = ('S', tmplength)
+    elif tmpcode == 'D':
+        glseq = glseq[ : len(glseq) - tmplength]
+        cigars = cigars[ : len(cigars) - 1]
+
+    cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
+    return cigarstr, cigars, qrseq, glseq
+
+# ----------------------------------------------------------------------------------------
+def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=False):
     cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
-    if reverse_sense:  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
-        trans = string.maketrans('ID', 'DI')
-        cigars = [cstr.translate(trans) for cstr in cigars]
-        if cigars[-1][-1] == 'I':  # ig-sw uses soft-clipping for the DJ bit... so switch to that convention
-            cigars[-1] = cigars[-1].replace('I', 'S')
-        cigarstr = ''.join(cigars)  # don't use <cigarstr> after here, but I might decide to later
     cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
+    if vsearch_conventions:
+        assert utils.get_region(gene) == 'v'  # would need to be generalized
+        cigarstr, cigars, qrseq, glseq = process_vsearch_results(cigars, qrseq, glseq)
+
+    indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
+    if 'I' not in cigarstr and 'D' not in cigarstr:  # has to happen after we've changed from vsearch conventions
+        return indelfo
 
     codestr = ''
     qpos = 0  # position within query sequence
-    indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
     tmp_indices = []
     for code, length in cigars:
         codestr += length * code
@@ -231,9 +254,8 @@ def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, reverse_sense=False):
     for idl in indelfo['indels']:
         dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
     indelfo['dbg_str'] = '\n'.join(dbg_str_list)
-# ----------------------------------------------------------------------------------------
-    if reverse_sense:
-        print indelfo['dbg_str']
-# ----------------------------------------------------------------------------------------
+
+    if len(indelfo['reversed_seq']) != len(glseq):
+        print '  %s lengths don\'t match in indelutils.get_indelfo_from_cigar():\n    qr rev %s\n        gl %s' % (utils.color('yellow', 'warning'), indelfo['reversed_seq'], glseq)
 
     return indelfo
