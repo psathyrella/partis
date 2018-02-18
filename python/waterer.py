@@ -81,13 +81,13 @@ class Waterer(object):
             if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < min_queries_per_proc:
                 n_procs = int(max(1., float(len(self.remaining_queries)) / min_queries_per_proc))
             n_queries_written = self.write_vdjalign_input(base_infname, n_procs)
-            print '  %4s     %d    %-8d %-3d    %s' % ('summary:' if self.debug else '', self.nth_try, n_queries_written, n_procs, str(self.match_mismatch)),
+            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, n_queries_written, n_procs),
             sys.stdout.flush()
             substart = time.time()
             self.execute_commands(base_infname, base_outfname, n_procs)
             print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
             self.read_output(base_outfname, n_procs)
-            if self.nth_try > 3:  # 3
+            if self.nth_try > 3:
                 break
             self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
 
@@ -474,6 +474,9 @@ class Waterer(object):
                     print self.input_info[qinfo['name']]['seqs'][0]
                     raise Exception
                 qinfo['new_indels'][region] = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene)
+                if region == 'j':
+                    for indelfo in qinfo['new_indels'][region]['indels']:
+                        indelfo['pos'] += qrbounds[0]
                 # sys.exit()
                 qinfo['new_indels'][region]['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + qinfo['new_indels'][region]['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]
 # ----------------------------------------------------------------------------------------
@@ -783,7 +786,7 @@ class Waterer(object):
                 self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
                 self.new_indels += 1
                 if self.debug:
-                    print '      rerun: new indels\n%s' % self.info['indels'][qinfo['name']]['dbg_str']
+                    print '      rerun: new indels\n%s' % utils.pad_lines(self.info['indels'][qinfo['name']]['dbg_str'], 10)
                 return
 
             print '%s fell through indel block for %s' % (utils.color('red', 'warning'), qname)

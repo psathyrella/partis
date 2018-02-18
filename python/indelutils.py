@@ -314,13 +314,14 @@ def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vse
         ifo['seqstr'] = ''.join(ifo['seqstr'])
 
     # make the dbg str for indelfo
-    dbg_str_list = ['          %20s %s' % (gene, glprintstr),
-                    '          %20s %s' % ('query', qrprintstr)]
+    gwidth = str(len(gene))  # doesn't account for color abbreviation, but oh well
+    dbg_str_list = [('%' + gwidth + 's  %s') % (utils.color_gene(gene, width=int(gwidth), leftpad=True), glprintstr),
+                    ('%' + gwidth + 's  %s') % ('query', qrprintstr)]
     for idl in indelfo['indels']:
-        dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
+        dbg_str_list.append('%10s: %d base%s at %d (%s)' % (idl['type'], idl['len'], utils.plural(idl['len']), idl['pos'], idl['seqstr']))
     indelfo['dbg_str'] = '\n'.join(dbg_str_list)
 
     if debug:
-        print indelfo['dbg_str']
+        print utils.pad_lines(indelfo['dbg_str'], 0)
 
     return indelfo
