@@ -177,36 +177,62 @@ def process_vsearch_results(cigars, qrseq, glseq):
     # if the first bases don't align, ig-sw says the alignment doesn't start at the start of one of the sequences, while vsearch calls it an insertion/deletion (and same for the right side)
     tmpcode, tmplength = cigars[0]  # code and length for first/left side element in cigars
     if tmpcode == 'I':
-        qrseq = qrseq[tmplength:]
+        # qrseq = qrseq[tmplength:]
         cigars[0] = ('S', tmplength)
     elif tmpcode == 'D':
-        glseq = glseq[tmplength:]
+        # glseq = glseq[tmplength:]
         cigars = cigars[1:]
-    tmpcode, tmplength = cigars[-1]  # same thing for the last/right side
+
+    # same thing for the last/right side
+    tmpcode, tmplength = cigars[-1]
     if tmpcode == 'I':
         cigars[-1] = ('S', tmplength)
     elif tmpcode == 'D':
-        glseq = glseq[ : len(glseq) - tmplength]
+        # glseq = glseq[ : len(glseq) - tmplength]
         cigars = cigars[ : len(cigars) - 1]
 
+    # # vsearch sometimes spits out adjacent cigar bits that're the same code, which seems to mess with my indel fcn below, so here we collapse them
+    # while True:
+    #     found_adjacent_pair = False
+    #     for icig in range(len(cigars) - 1):
+    #         this_code = cigars[icig][0]
+    #         next_code = cigars[icig + 1][0]
+    #         if this_code == next_code:
+    #             cigars[icig] = (this_code, cigars[icig][1] + cigars[icig + 1][1])  # add together the lengths, put it in <icig>
+    #             cigars = cigars[:icig + 1] + cigars[icig + 2:]  # then remove the <icig + 1>th
+    #             found_adjacent_pair = True
+    #             break
+    #     if not found_adjacent_pair:
+    #         break
+
+    # cigars = [('M', 163), ('D', 3), ('M', 130), ('S', 56)]
     cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
     return cigarstr, cigars, qrseq, glseq
 
 # ----------------------------------------------------------------------------------------
-def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=False):
+def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=False, debug=False):
     cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
     cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
     if vsearch_conventions:
         assert utils.get_region(gene) == 'v'  # would need to be generalized
         cigarstr, cigars, qrseq, glseq = process_vsearch_results(cigars, qrseq, glseq)
 
+    # non_del_length = sum([length for code, length in cigars if code not in 'DS'])
+    # if len(qrseq) != non_del_length:
+    #     raise Exception('  cigar doesn\'t match qr seq: %d %d' % (non_del_length, len(qrseq)))
+    # non_insert_length = sum([length for code, length in cigars if code not in 'IS'])
+    # if len(glseq) != non_insert_length:
+    #     raise Exception('  cigar doesn\'t match gl seq: %d %d' % (non_insert_length, len(glseq)))
+
+
     indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
     if 'I' not in cigarstr and 'D' not in cigarstr:  # has to happen after we've changed from vsearch conventions
         return indelfo
 
-    codestr = ''
+    # add each indel to <indelfo['indels']>, and build <codestr> and <tmp_indices> to keep track of what's going on at each position
+    codestr = ''  # each position is cigar code corresponding to that position in the alignment
     qpos = 0  # position within query sequence
-    tmp_indices = []
+    tmp_indices = []  # integer for each position in the alignment, giving the index of the indel that we're within (None if we're not in an indel)
     for code, length in cigars:
         codestr += length * code
         if code == 'I':  # advance qr seq but not gl seq
@@ -219,6 +245,7 @@ def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=Fal
             tmp_indices += [None  for _ in range(length)]  # indel index corresponding to this position in the alignment
         qpos += length
 
+    #
     qrprintstr, glprintstr = '', ''
     iqr, igl = 0, 0
     for icode in range(len(codestr)):
@@ -255,7 +282,8 @@ def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=Fal
         dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
     indelfo['dbg_str'] = '\n'.join(dbg_str_list)
 
-    if len(indelfo['reversed_seq']) != len(glseq):
-        print '  %s lengths don\'t match in indelutils.get_indelfo_from_cigar():\n    qr rev %s\n        gl %s' % (utils.color('yellow', 'warning'), indelfo['reversed_seq'], glseq)
+    # if len(indelfo['reversed_seq']) != len(glseq):
+    #     print '  %s lengths don\'t match in indelutils.get_indelfo_from_cigar():' % utils.color('yellow', 'warning')
+    #     utils.color_mutants(indelfo['reversed_seq'], glseq, align=True, print_result=True, ref_label='     qr rev ', seq_label='     %s ' % utils.color_gene(gene))
 
     return indelfo
