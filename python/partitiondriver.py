@@ -63,7 +63,7 @@ class PartitionDriver(object):
         elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions' and self.current_action != 'plot-partitions' and self.current_action != 'view-alternative-naive-seqs':
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
-        self.sw_info = None
+        self.vs_info, self.sw_info = None, None
         self.duplicates = {}
         self.bcrham_proc_info = None
         self.timing_info = []  # TODO clean up this and bcrham_proc_info
@@ -241,6 +241,11 @@ class PartitionDriver(object):
             raise Exception('bad action %s' % self.current_action)
 
     # ----------------------------------------------------------------------------------------
+    def get_vsearch_annotations(self):
+        seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
+        self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, reco_info=self.reco_info)
+
+    # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
@@ -259,13 +264,14 @@ class PartitionDriver(object):
             self.args.min_observations_to_write = 1
 
         # remove unlikely alleles
+        # TODO move vsearch stuff so it gets run for annotate and partition as well, and then passed to waterer
         if not self.args.dont_remove_unlikely_alleles:
-            vs_info = utils.run_vsearch('search', {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary)
+            self.get_vsearch_annotations()
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
-            alremover.finalize(sorted(vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
+            alremover.finalize(sorted(self.vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
-            vs_info = None  # memory control (not tested)
-            alremover = None
+            # vs_info = None  # memory control (not tested)
+            alremover = None  # memory control (not tested)
 
         # (re-)add [new] alleles
         if self.args.allele_cluster:

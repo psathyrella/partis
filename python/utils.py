@@ -3043,7 +3043,7 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo, region, reco_info=None):
+def read_vsearch_search_file(fname, userfields, seqs, glfo, region, reco_info=None):
 # ----------------------------------------------------------------------------------------
     debug = True
 # ----------------------------------------------------------------------------------------
@@ -3067,15 +3067,13 @@ def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo, region, reco_
                 'cigar' : line['caln'],
             })
 
-    glutils.remove_glfo_files(dbdir, glfo['locus'])
-    if len(query_info) == 0:
-        raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
-
     # then we throw out all the matches (genes) that have id/score lower than the best one
+    failed_queries = []
     for query in query_info:
         if len(query_info[query]) == 0:
             print '%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query)
             del query_info[query]  # uh... need to handle failures better than this
+            failed_queries.append(query)
             continue
         query_info[query] = sorted(query_info[query], key=lambda d: d['ids'], reverse=True)  # sort the list of matches by decreasing score
         best_score = query_info[query][0]['ids']
@@ -3109,7 +3107,7 @@ def read_vsearch_search_file(fname, userfields, seqs, dbdir, glfo, region, reco_
             # if reco_info is not None:
             #     print '    %6.3f   %6.3f' % (get_mutation_rate(reco_info[query], iseq=0, restrict_to_region=region), regional_mfreq_from_ids(query))
 
-    return {'gene-counts' : gene_counts, 'queries' : query_info}
+    return {'gene-counts' : gene_counts, 'queries' : query_info, 'failures' : failed_queries}
 
 # ----------------------------------------------------------------------------------------
 def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, reco_info=None):
@@ -3190,7 +3188,8 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
     if action == 'cluster':
         returnfo = read_vsearch_cluster_file(outfname)
     elif action == 'search':
-        returnfo = read_vsearch_search_file(outfname, userfields, seqs, dbdir, glfo, region, reco_info=reco_info)
+        returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, reco_info=reco_info)
+        glutils.remove_glfo_files(dbdir, glfo['locus'])
     else:
         assert False
     os.remove(infname)
@@ -3199,6 +3198,10 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
     if print_time:
         # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
         print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (len(returnfo['queries']), len(seqs), region, len(seqs) - len(returnfo['queries']), time.time() - start)
+# ----------------------------------------------------------------------------------------
+        if len(query_info) == 0:
+            raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
+# ----------------------------------------------------------------------------------------
 
     return returnfo
 
