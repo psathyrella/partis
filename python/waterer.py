@@ -81,13 +81,13 @@ class Waterer(object):
             if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < min_queries_per_proc:
                 n_procs = int(max(1., float(len(self.remaining_queries)) / min_queries_per_proc))
             n_queries_written = self.write_vdjalign_input(base_infname, n_procs)
-            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, n_queries_written, n_procs),
+            print '  %4s     %d    %-8d %-3d    %s' % ('summary:' if self.debug else '', self.nth_try, n_queries_written, n_procs, str(self.match_mismatch)),
             sys.stdout.flush()
             substart = time.time()
             self.execute_commands(base_infname, base_outfname, n_procs)
             print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
             self.read_output(base_outfname, n_procs)
-            if self.nth_try > 3:
+            if self.nth_try > 3:  # 3
                 break
             self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
 
@@ -459,12 +459,23 @@ class Waterer(object):
                 assert len(qinfo['matches'][region]) == self.args.n_max_per_region[utils.regions.index(region)]  # there better not be a way to get more than we asked for
                 continue
 
+# ----------------------------------------------------------------------------------------
+            # TODO move the does-this-have-indels decision to indelutils.get_indelfo_from_cigar()
+            # ...which probably requires redoing the whole qinfo['new_indels'], self.info['indels'] stuff
             if 'I' in read.cigarstring or 'D' in read.cigarstring:  # shm indels!
                 if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
                     continue
                 assert region not in qinfo['new_indels']  # only to double-check the continue just above
-                qinfo['new_indels'][region] = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'][qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
+                # indelutils.parse_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds)
+                # qinfo['new_indels'][region] = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'][qrbounds[0] : qrbounds[1]], self.glfo['seqs'][region][gene][glbounds[0] : glbounds[1]], gene)
+                if qinfo['seq'] != self.input_info[qinfo['name']]['seqs'][0]:  # TODO uh, something better
+                    print qinfo['seq']
+                    print self.input_info[qinfo['name']]['seqs'][0]
+                    raise Exception
+                qinfo['new_indels'][region] = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene)
+                # sys.exit()
                 qinfo['new_indels'][region]['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + qinfo['new_indels'][region]['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]
+# ----------------------------------------------------------------------------------------
 
             # and finally add this match's information
             qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first

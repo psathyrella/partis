@@ -210,43 +210,75 @@ def process_vsearch_results(cigars, qrseq, glseq):
     return cigarstr, cigars, qrseq, glseq
 
 # ----------------------------------------------------------------------------------------
-def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=False, debug=False):
+def color_cigar(cigarstr):
+    return ''.join([utils.color('bold', utils.color('blue', c)) if c in 'MIDS' else c for c in cigarstr])
+
+# ----------------------------------------------------------------------------------------
+# def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=False, debug=False):
+def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vsearch_conventions=False, debug=False):
+    debug = True
+
+    if debug:
+        print '  initial:'
+        print '    %s' % color_cigar(cigarstr)
+        print '    qr %3d %3d %s' % (qrbounds[0], qrbounds[1], qrseq)
+        print '    gl %3d %3d %s' % (glbounds[0], glbounds[1], glseq)
+
     cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
     cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
+    cigars = [(code, length) for code, length in cigars if code != 'S']  # remove soft-clipping
+    cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
+    qrseq = qrseq[qrbounds[0] : qrbounds[1]]  # ...and trim qrseq and glseq
+    glseq = glseq[glbounds[0] : glbounds[1]]
+
     if vsearch_conventions:
+        assert False
         assert utils.get_region(gene) == 'v'  # would need to be generalized
         cigarstr, cigars, qrseq, glseq = process_vsearch_results(cigars, qrseq, glseq)
 
-    # non_del_length = sum([length for code, length in cigars if code not in 'DS'])
-    # if len(qrseq) != non_del_length:
-    #     raise Exception('  cigar doesn\'t match qr seq: %d %d' % (non_del_length, len(qrseq)))
-    # non_insert_length = sum([length for code, length in cigars if code not in 'IS'])
-    # if len(glseq) != non_insert_length:
-    #     raise Exception('  cigar doesn\'t match gl seq: %d %d' % (non_insert_length, len(glseq)))
+    if debug:
+        print '  parsed:'
+        print '    %s' % color_cigar(cigarstr)
+        print '    %s' % '   '.join(['%s %d' % (c, l) for c, l in cigars])
+        print '    qr %s' % qrseq
+        print '    gl %s' % glseq
 
+    # check consistency between cigar and qr/gl seqs
+    for seqtype, tmpseq, tmpcode in (('qr', qrseq, 'D'), ('gl', glseq, 'I')):
+        cigar_len = sum([length for code, length in cigars if code != tmpcode])
+        if cigar_len != len(tmpseq):
+            raise Exception('  cigar length doesn\'t match %s seq length: %d %d' % (seqtype, cigar_len, len(tmpseq)))
 
     indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
+    # TODO should probably also ignore indels on either end (I think only relevant for vsearch)
     if 'I' not in cigarstr and 'D' not in cigarstr:  # has to happen after we've changed from vsearch conventions
         return indelfo
 
     # add each indel to <indelfo['indels']>, and build <codestr> and <tmp_indices> to keep track of what's going on at each position
-    codestr = ''  # each position is cigar code corresponding to that position in the alignment
+    codestr = ''.join([length * code for code, length in cigars])  # each position is cigar code corresponding to that position in the alignment
     qpos = 0  # position within query sequence
     tmp_indices = []  # integer for each position in the alignment, giving the index of the indel that we're within (None if we're not in an indel)
+    if debug:
+        print '      code  length'
     for code, length in cigars:
-        codestr += length * code
+        if debug:
+            print '        %s     %3d' % (code, length)
         if code == 'I':  # advance qr seq but not gl seq
-            indelfo['indels'].append({'type' : 'insertion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # insertion begins at <pos>
+            indelfo['indels'].append({'type' : 'insertion', 'pos' : qpos, 'len' : length, 'seqstr' : []})  # insertion begins at <pos> (note that 'seqstr' later on gets converted from a list to a string)
             tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
         elif code == 'D':  # advance qr seq but not gl seq
-            indelfo['indels'].append({'type' : 'deletion', 'pos' : qpos, 'len' : length, 'seqstr' : ''})  # first deleted base is <pos> (well, first base which is in the position of the first deleted base)
+            indelfo['indels'].append({'type' : 'deletion', 'pos' : qpos, 'len' : length, 'seqstr' : []})  # first deleted base is <pos> (well, first base which is in the position of the first deleted base)
             tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
         else:
             tmp_indices += [None  for _ in range(length)]  # indel index corresponding to this position in the alignment
         qpos += length
 
-    #
-    qrprintstr, glprintstr = '', ''
+    if debug:
+        print '      %s  codestr' % ''.join([c if c not in 'ID' else utils.color('blue', c) for c in codestr])
+        print '      %s  indel index' % ''.join([str(ti if ti is not None else ' ') for ti in tmp_indices])
+
+    # then construct the dbg strings, indel-reversed input sequence, and 'seqstr' entries in indelfo
+    qrprintstr, glprintstr, reversed_seq = [], [], []
     iqr, igl = 0, 0
     for icode in range(len(codestr)):
         code = codestr[icode]
@@ -254,21 +286,21 @@ def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=Fal
             qrbase = qrseq[iqr]
             if qrbase != glseq[igl]:
                 qrbase = utils.color('red', qrbase)
-            qrprintstr += qrbase
-            glprintstr += glseq[igl]
-            indelfo['reversed_seq'] += qrseq[iqr]  # add the base to the overall sequence with all indels reversed
+            qrprintstr.append(qrbase)
+            glprintstr.append(glseq[igl])
+            reversed_seq.append(qrseq[iqr])  # add the base to the overall sequence with all indels reversed
         elif code == 'S':
             continue
         elif code == 'I':
-            qrprintstr += utils.color('light_blue', qrseq[iqr])
-            glprintstr += utils.color('light_blue', '*')
-            indelfo['indels'][tmp_indices[icode]]['seqstr'] += qrseq[iqr]  # and to the sequence of just this indel
+            qrprintstr.append(utils.color('light_blue', qrseq[iqr]))
+            glprintstr.append(utils.color('light_blue', '*'))
+            indelfo['indels'][tmp_indices[icode]]['seqstr'].append(qrseq[iqr])  # and to the sequence of just this indel
             igl -= 1
         elif code == 'D':
-            qrprintstr += utils.color('light_blue', '*')
-            glprintstr += utils.color('light_blue', glseq[igl])
-            indelfo['reversed_seq'] += glseq[igl]  # add the base to the overall sequence with all indels reversed
-            indelfo['indels'][tmp_indices[icode]]['seqstr'] += glseq[igl]  # and to the sequence of just this indel
+            qrprintstr.append(utils.color('light_blue', '*'))
+            glprintstr.append(utils.color('light_blue', glseq[igl]))
+            reversed_seq.append(glseq[igl])  # add the base to the overall sequence with all indels reversed
+            indelfo['indels'][tmp_indices[icode]]['seqstr'].append(glseq[igl])  # and to the sequence of just this indel
             iqr -= 1
         else:
             raise Exception('unhandled code %s' % code)
@@ -276,14 +308,21 @@ def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=Fal
         iqr += 1
         igl += 1
 
+    # convert character lists to strings (indels are rare enough that this probably isn't that much faster, but it just feels wrong not to)
+    qrprintstr = ''.join(qrprintstr)
+    glprintstr = ''.join(glprintstr)
+    indelfo['reversed_seq'] = ''.join(reversed_seq)
+    for ifo in indelfo['indels']:
+        ifo['seqstr'] = ''.join(ifo['seqstr'])
+
+    # make the dbg str for indelfo
     dbg_str_list = ['          %20s %s' % (gene, glprintstr),
                     '          %20s %s' % ('query', qrprintstr)]
     for idl in indelfo['indels']:
         dbg_str_list.append('          %10s: %d bases at %d (%s)' % (idl['type'], idl['len'], idl['pos'], idl['seqstr']))
     indelfo['dbg_str'] = '\n'.join(dbg_str_list)
 
-    # if len(indelfo['reversed_seq']) != len(glseq):
-    #     print '  %s lengths don\'t match in indelutils.get_indelfo_from_cigar():' % utils.color('yellow', 'warning')
-    #     utils.color_mutants(indelfo['reversed_seq'], glseq, align=True, print_result=True, ref_label='     qr rev ', seq_label='     %s ' % utils.color_gene(gene))
+    if debug:
+        print indelfo['dbg_str']
 
     return indelfo
