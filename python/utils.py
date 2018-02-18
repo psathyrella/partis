@@ -3045,7 +3045,7 @@ def read_vsearch_cluster_file(fname):
 # ----------------------------------------------------------------------------------------
 def read_vsearch_search_file(fname, userfields, seqs, glfo, region, reco_info=None):
 # ----------------------------------------------------------------------------------------
-    debug = True
+    debug = False
 # ----------------------------------------------------------------------------------------
 
     # first we add every match (i.e. gene) for each query
@@ -3199,7 +3199,7 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
         # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
         print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (len(returnfo['queries']), len(seqs), region, len(seqs) - len(returnfo['queries']), time.time() - start)
 # ----------------------------------------------------------------------------------------
-        if len(query_info) == 0:
+        if len(returnfo['queries']) == 0:
             raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
 # ----------------------------------------------------------------------------------------
 
