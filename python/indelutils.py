@@ -216,8 +216,6 @@ def color_cigar(cigarstr):
 # ----------------------------------------------------------------------------------------
 # def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=False, debug=False):
 def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vsearch_conventions=False, debug=False):
-    debug = True
-
     if debug:
         print '  initial:'
         print '    %s' % color_cigar(cigarstr)
