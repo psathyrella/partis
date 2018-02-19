@@ -241,25 +241,25 @@ class PartitionDriver(object):
             raise Exception('bad action %s' % self.current_action)
 
     # ----------------------------------------------------------------------------------------
-    def get_vsearch_annotations(self):
+    def get_vsearch_annotations(self, get_annotations=False):
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
-        self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, reco_info=self.reco_info)
+        self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, get_annotations=get_annotations)
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
         if len(self.input_info) < 10 * self.args.min_observations_to_write:
-            print """
-            %s: number of input sequences (%d) isn\'t very large compared to --min-observations-to-write (%d), i.e. when we write hmm files we\'re going to be doing a lot of interpolation and smoothing.
-            This is not necessarily terrible -- if you really only have %d input sequences, you will, in general, get sensible answers.
-            But:
-              - if this is a subset of a larger file, you should cache parameters using the entire file (well, a random subset of, say, ~50k sequences is typically sufficient)
-              - if you have another data set that you believe is similar to this small one (e.g. same human, so the germlines are the same), you will get more accurate results if you cache parameters on that data set, and then run inference using those parameters (i.e. use the --parameter-dir argument) on this small data set.
+            # print """
+            # %s: number of input sequences (%d) isn\'t very large compared to --min-observations-to-write (%d), i.e. when we write hmm files we\'re going to be doing a lot of interpolation and smoothing.
+            # This is not necessarily terrible -- if you really only have %d input sequences, you will, in general, get sensible answers.
+            # But:
+            #   - if this is a subset of a larger file, you should cache parameters using the entire file (well, a random subset of, say, ~50k sequences is typically sufficient)
+            #   - if you have another data set that you believe is similar to this small one (e.g. same human, so the germlines are the same), you will get more accurate results if you cache parameters on that data set, and then run inference using those parameters (i.e. use the --parameter-dir argument) on this small data set.
 
-            For now, we assume the first case (you actually want to infer parameters on this small data set), so we reset --min-observations-to-write to 1 and charge ahead.
-            It would also be sensible to compare the hmm output results (--outfname) to the smith-waterman results (which are cached in a file whose path should be printed just below).
-            """ % (utils.color('red', 'warning'), len(self.input_info), self.args.min_observations_to_write, len(self.input_info), )
+            # For now, we assume the first case (you actually want to infer parameters on this small data set), so we reset --min-observations-to-write to 1 and charge ahead.
+            # It would also be sensible to compare the hmm output results (--outfname) to the smith-waterman results (which are cached in a file whose path should be printed just below).
+            # """ % (utils.color('red', 'warning'), len(self.input_info), self.args.min_observations_to_write, len(self.input_info), )
 
             self.args.min_observations_to_write = 1
 
