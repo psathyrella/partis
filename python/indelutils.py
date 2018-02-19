@@ -317,7 +317,8 @@ def pad_indel_info(indelfo, leftstr, rightstr):
     #     dbg_indel_lines[iline] = dbg_indel_lines[iline].replace(len_str, )
 
     # aw, screw it, that ^ is hard, just remove the dbg_str
-    del indelfo['dbg_str']
+    if 'dbg_str' in indelfo:
+        del indelfo['dbg_str']
 
     for indel in indelfo['indels']:
         indel['pos'] += len(leftstr)
