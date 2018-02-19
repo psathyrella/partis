@@ -169,45 +169,6 @@ def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=
 
     return new_seq
 
-# # ----------------------------------------------------------------------------------------
-# def process_vsearch_results(cigars, qrseq, glseq):
-#     trans = string.maketrans('ID', 'DI')
-#     cigars = [(code.translate(trans), length) for code, length in cigars]  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
-
-#     # if the first bases don't align, ig-sw says the alignment doesn't start at the start of one of the sequences, while vsearch calls it an insertion/deletion (and same for the right side)
-#     tmpcode, tmplength = cigars[0]  # code and length for first/left side element in cigars
-#     if tmpcode == 'I':
-#         # qrseq = qrseq[tmplength:]
-#         cigars[0] = ('S', tmplength)
-#     # elif tmpcode == 'D':
-#     #     # glseq = glseq[tmplength:]
-#     #     cigars = cigars[1:]
-
-#     # same thing for the last/right side
-#     tmpcode, tmplength = cigars[-1]
-#     if tmpcode == 'I':
-#         cigars[-1] = ('S', tmplength)
-#     # elif tmpcode == 'D':
-#     #     # glseq = glseq[ : len(glseq) - tmplength]
-#     #     cigars = cigars[ : len(cigars) - 1]
-
-#     # # vsearch sometimes spits out adjacent cigar bits that're the same code, which seems to mess with my indel fcn below, so here we collapse them
-#     # while True:
-#     #     found_adjacent_pair = False
-#     #     for icig in range(len(cigars) - 1):
-#     #         this_code = cigars[icig][0]
-#     #         next_code = cigars[icig + 1][0]
-#     #         if this_code == next_code:
-#     #             cigars[icig] = (this_code, cigars[icig][1] + cigars[icig + 1][1])  # add together the lengths, put it in <icig>
-#     #             cigars = cigars[:icig + 1] + cigars[icig + 2:]  # then remove the <icig + 1>th
-#     #             found_adjacent_pair = True
-#     #             break
-#     #     if not found_adjacent_pair:
-#     #         break
-
-#     cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
-#     return cigarstr, cigars, qrseq, glseq
-
 # ----------------------------------------------------------------------------------------
 def color_cigar(cigarstr):
     return ''.join([utils.color('bold', utils.color('blue', c)) if c in 'MIDS' else c for c in cigarstr])
