@@ -3147,6 +3147,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
     cmd += ' --id ' + str(1. - threshold)  # reject if identity lower than this
     if match_mismatch is not None:
         match, mismatch = [int(m) for m in match_mismatch.split(':')]
+        assert mismatch < 0  # if you give it a positive one it doesn't complain, so presumably it's actually using that positive  (at least for v identification it only makes a small difference, but vsearch's default is negative)
         cmd += ' --match %d'  % match  # default 2
         cmd += ' --mismatch %d' % mismatch  # default -4
     if action == 'cluster':
@@ -3186,7 +3187,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
     elif action == 'search':
         returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, get_annotations=get_annotations)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
-        if n_passed == 0:
+        if sum(returnfo['gene-counts'].values()) == 0:
             raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
     else:
         assert False
