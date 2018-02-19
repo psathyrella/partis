@@ -459,23 +459,17 @@ class Waterer(object):
                 assert len(qinfo['matches'][region]) == self.args.n_max_per_region[utils.regions.index(region)]  # there better not be a way to get more than we asked for
                 continue
 
-# ----------------------------------------------------------------------------------------
-            # TODO move the does-this-have-indels decision to indelutils.get_indelfo_from_cigar()
-            # ...which probably requires redoing the whole qinfo['new_indels'], self.info['indels'] stuff
             indelfo = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene)
             if indelutils.has_indels(indelfo):
                 if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
                     continue
                 assert region not in qinfo['new_indels']  # only to double-check the continue just above
-                # TODO note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
-                # qinfo['new_indels'][region] = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene)
-                if region == 'j':  # this is a terrible hack
+                # note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
+                if region == 'j':  # this is a terrible hack TODO
                     for ifo in indelfo['indels']:
-                        # print '%d --> %d' % (ifo['pos'], ifo['pos'] + qrbounds[0])
                         ifo['pos'] += qrbounds[0]
-                indelfo['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + indelfo['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]  # add to reversed seq the bits to left and right of the aligned region
+                indelfo['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + indelfo['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]  # add to reversed seq the bits to left and right of the aligned region TODO
                 qinfo['new_indels'][region] = indelfo
-# ----------------------------------------------------------------------------------------
 
             # and finally add this match's information
             qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
