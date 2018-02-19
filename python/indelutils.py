@@ -302,10 +302,10 @@ def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vse
 
 # ----------------------------------------------------------------------------------------
 def pad_indel_info(indelfo, leftstr, rightstr):
-        indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
-        # dbg_indel_lines = indelfo['dbg_str'].split('\n')[2:]  # i.e. just the lines describing each indel, not the first two lines that have the qrprintstr and glprintstr
-        # if len(dbg_indel_lines) != len(indelfo['indels']):
-        #     print '  %s wrong number of dbg indel lines %d %d' % (utils.color('red', 'error'), len(dbg_indel_lines), len(indelfo['indels']))
-        # for iindel in range(len(dbg_indel_lines)):
-        for indel in swfo['indelfos'][0]['indels']:
-            indel['pos'] += padleft
+    indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
+    # dbg_indel_lines = indelfo['dbg_str'].split('\n')[2:]  # i.e. just the lines describing each indel, not the first two lines that have the qrprintstr and glprintstr
+    # if len(dbg_indel_lines) != len(indelfo['indels']):
+    #     print '  %s wrong number of dbg indel lines %d %d' % (utils.color('red', 'error'), len(dbg_indel_lines), len(indelfo['indels']))
+    # for iindel in range(len(dbg_indel_lines)):
+    for indel in indelfo['indels']:
+        indel['pos'] += padleft
