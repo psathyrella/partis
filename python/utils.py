@@ -3043,28 +3043,24 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def read_vsearch_search_file(fname, userfields, seqs, glfo, region, reco_info=None):
-# ----------------------------------------------------------------------------------------
-    debug = False
-# ----------------------------------------------------------------------------------------
-
+def read_vsearch_search_file(fname, userfields, seqs, glfo, region, reco_info=None, debug=False):
     # first we add every match (i.e. gene) for each query
     query_info = {}
     with open(fname) as alnfile:
         reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
-        for line in reader:
-            query = line['query']
-            istart = int(line['qilo']) - 1  # qilo/qihi: first/last nucleotide of query aligned with target (1-indexed, ignores initial gaps)
-            length = int(line['qihi']) - int(line['qilo']) + 1
-            qr_seq = seqs[query][istart : istart + length]
-            id_score = int(line['ids'])  # number of matches in the alignment (percent identity is 'id')
-            if query not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but in the end it doesn't/shouldn't matter
-                query_info[query] = []
-            query_info[query].append({
-                'ids' : id_score,
+        for line in reader:  # NOTE similarity to waterer.read_query()
+            # istart = int(line['qilo']) - 1
+            # length = int(line['qihi']) - int(line['qilo']) + 1
+            # qr_seq = seqs[query][istart : istart + length]
+            if line['query'] not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but in the end it doesn't/shouldn't matter
+                query_info[line['query']] = []
+            query_info[line['query']].append({
+                'ids' : int(line['ids']),
                 'gene' : line['target'],
-                'qr_seq' : qr_seq,
+                # 'qr_seq' : qr_seq,
                 'cigar' : line['caln'],
+                'qrbounds' : (int(line['qilo']) - 1, int(line['qihi'])),
+                'glbounds' : (int(line['tilo']) - 1, int(line['tihi'])),
             })
 
     # then we throw out all the matches (genes) that have id/score lower than the best one
@@ -3098,10 +3094,7 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, reco_info=No
                 print_reco_event(reco_info[query])
             imatch = 0
             matchfo = query_info[query][imatch]
-            indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], glfo['seqs'][region][matchfo['gene']], matchfo['gene'], vsearch_conventions=True)
-            if indelutils.has_indels(indelfo):
-                print indelfo['dbg_str']
-                # TODO
+            indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], matchfo['gene'], vsearch_conventions=True)
             # post_str = '  ' + color_gene(matchfo['gene'])
             # color_mutants(glfo['seqs'][region][matchfo['gene']], matchfo['qr_seq'], print_result=True, post_str=post_str)  #, align=True)
             # if reco_info is not None:
@@ -3110,7 +3103,7 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, reco_info=No
     return {'gene-counts' : gene_counts, 'queries' : query_info, 'failures' : failed_queries}
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, reco_info=None):
+def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, reco_info=None):
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -3123,9 +3116,9 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
         'query',
         'target',
         'qilo',  # first pos of query that aligns to target, skipping initial gaps (e.g. 1 if first pos aligns, 4 if fourth pos aligns but first three don't)
-        # 'qlo',   # same, but including initial gaps (i.e. always equal to 1 if there's an alignment, and 0 otherwise)
         'qihi',
-        # 'qhi',
+        'tilo',  # same, but pos of target that aligns to query
+        'tihi',
         'ids',
         'caln',  # cigar string,
     ]  # 'pairs': number of columns with only nucleotides (i.e. alignment length minus number of gaps)
@@ -3152,8 +3145,9 @@ def run_vsearch(action, seqs, workdir, threshold, consensus_fname=None, msa_fnam
 
     cmd = vsearch_binary
     cmd += ' --id ' + str(1. - threshold)  # reject if identity lower than this
-    # cmd += ' --match '  # default 2
-    # cmd += ' --mismatch '  # default -4
+    if match_mismatch is not None:
+        cmd += ' --match %d'  % match_mismatch[0]  # default 2
+        cmd += ' --mismatch %d' % match_mismatch[1]  # default -4
     if action == 'cluster':
         outfname = workdir + '/vsearch-clusters.txt'
         cmd += ' --cluster_fast ' + infname

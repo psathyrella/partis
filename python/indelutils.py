@@ -169,49 +169,57 @@ def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=
 
     return new_seq
 
-# ----------------------------------------------------------------------------------------
-def process_vsearch_results(cigars, qrseq, glseq):
-    trans = string.maketrans('ID', 'DI')
-    cigars = [(code.translate(trans), length) for code, length in cigars]  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
+# # ----------------------------------------------------------------------------------------
+# def process_vsearch_results(cigars, qrseq, glseq):
+#     trans = string.maketrans('ID', 'DI')
+#     cigars = [(code.translate(trans), length) for code, length in cigars]  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
 
-    # if the first bases don't align, ig-sw says the alignment doesn't start at the start of one of the sequences, while vsearch calls it an insertion/deletion (and same for the right side)
-    tmpcode, tmplength = cigars[0]  # code and length for first/left side element in cigars
-    if tmpcode == 'I':
-        # qrseq = qrseq[tmplength:]
-        cigars[0] = ('S', tmplength)
-    elif tmpcode == 'D':
-        # glseq = glseq[tmplength:]
-        cigars = cigars[1:]
+#     # if the first bases don't align, ig-sw says the alignment doesn't start at the start of one of the sequences, while vsearch calls it an insertion/deletion (and same for the right side)
+#     tmpcode, tmplength = cigars[0]  # code and length for first/left side element in cigars
+#     if tmpcode == 'I':
+#         # qrseq = qrseq[tmplength:]
+#         cigars[0] = ('S', tmplength)
+#     # elif tmpcode == 'D':
+#     #     # glseq = glseq[tmplength:]
+#     #     cigars = cigars[1:]
 
-    # same thing for the last/right side
-    tmpcode, tmplength = cigars[-1]
-    if tmpcode == 'I':
-        cigars[-1] = ('S', tmplength)
-    elif tmpcode == 'D':
-        # glseq = glseq[ : len(glseq) - tmplength]
-        cigars = cigars[ : len(cigars) - 1]
+#     # same thing for the last/right side
+#     tmpcode, tmplength = cigars[-1]
+#     if tmpcode == 'I':
+#         cigars[-1] = ('S', tmplength)
+#     # elif tmpcode == 'D':
+#     #     # glseq = glseq[ : len(glseq) - tmplength]
+#     #     cigars = cigars[ : len(cigars) - 1]
 
-    # # vsearch sometimes spits out adjacent cigar bits that're the same code, which seems to mess with my indel fcn below, so here we collapse them
-    # while True:
-    #     found_adjacent_pair = False
-    #     for icig in range(len(cigars) - 1):
-    #         this_code = cigars[icig][0]
-    #         next_code = cigars[icig + 1][0]
-    #         if this_code == next_code:
-    #             cigars[icig] = (this_code, cigars[icig][1] + cigars[icig + 1][1])  # add together the lengths, put it in <icig>
-    #             cigars = cigars[:icig + 1] + cigars[icig + 2:]  # then remove the <icig + 1>th
-    #             found_adjacent_pair = True
-    #             break
-    #     if not found_adjacent_pair:
-    #         break
+#     # # vsearch sometimes spits out adjacent cigar bits that're the same code, which seems to mess with my indel fcn below, so here we collapse them
+#     # while True:
+#     #     found_adjacent_pair = False
+#     #     for icig in range(len(cigars) - 1):
+#     #         this_code = cigars[icig][0]
+#     #         next_code = cigars[icig + 1][0]
+#     #         if this_code == next_code:
+#     #             cigars[icig] = (this_code, cigars[icig][1] + cigars[icig + 1][1])  # add together the lengths, put it in <icig>
+#     #             cigars = cigars[:icig + 1] + cigars[icig + 2:]  # then remove the <icig + 1>th
+#     #             found_adjacent_pair = True
+#     #             break
+#     #     if not found_adjacent_pair:
+#     #         break
 
-    # cigars = [('M', 163), ('D', 3), ('M', 130), ('S', 56)]
-    cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
-    return cigarstr, cigars, qrseq, glseq
+#     cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
+#     return cigarstr, cigars, qrseq, glseq
 
 # ----------------------------------------------------------------------------------------
 def color_cigar(cigarstr):
     return ''.join([utils.color('bold', utils.color('blue', c)) if c in 'MIDS' else c for c in cigarstr])
+
+# ----------------------------------------------------------------------------------------
+def split_cigarstr(cstr):
+    assert len(cstr) > 0
+    code = cstr[-1]
+    if code not in 'MIDS':
+        raise Exception('unhandled cigar code %s' % code)
+    lstr = cstr[:-1] if len(cstr) > 1 else '1'  # stupid vsearch doesn't write the 1 (e.g. 'D' instead of '1D')
+    return code, int(lstr)
 
 # ----------------------------------------------------------------------------------------
 # def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=False, debug=False):
@@ -222,17 +230,19 @@ def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vse
         print '    qr %3d %3d %s' % (qrbounds[0], qrbounds[1], qrseq)
         print '    gl %3d %3d %s' % (glbounds[0], glbounds[1], glseq)
 
-    cigars = re.findall('[0-9][0-9]*[A-Z]', cigarstr)  # split cigar string into its parts
-    cigars = [(cstr[-1], int(cstr[:-1])) for cstr in cigars]  # split each part into the code and the length
+    cigars = [split_cigarstr(cstr) for cstr in re.findall('[0-9]*[A-Z]', cigarstr)]  # split cigar string into its parts, then split each part into the code and the length 
+    if vsearch_conventions:
+        assert utils.get_region(gene) == 'v'  # would need to be generalized
+        cigars = [(code.translate(string.maketrans('ID', 'DI')), length) for code, length in cigars]  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
+        for iend in [0, -1]:
+            if cigars[iend][0] == 'I':  # qr extends beyond gl: ig-sw calls these soft-clips, vsearch calls them insertions
+                cigars[iend] = ('S', cigars[iend][1])
+            elif cigars[iend][0] == 'D':  # gl goes past qr: ig-sw just calls them not part of the alignment, vsearch calls them deletions
+                cigars.pop(iend)
     cigars = [(code, length) for code, length in cigars if code != 'S']  # remove soft-clipping
     cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
     qrseq = qrseq[qrbounds[0] : qrbounds[1]]  # ...and trim qrseq and glseq
     glseq = glseq[glbounds[0] : glbounds[1]]
-
-    if vsearch_conventions:
-        assert False
-        assert utils.get_region(gene) == 'v'  # would need to be generalized
-        cigarstr, cigars, qrseq, glseq = process_vsearch_results(cigars, qrseq, glseq)
 
     if debug:
         print '  parsed:'
@@ -245,11 +255,13 @@ def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vse
     for seqtype, tmpseq, tmpcode in (('qr', qrseq, 'D'), ('gl', glseq, 'I')):
         cigar_len = sum([length for code, length in cigars if code != tmpcode])
         if cigar_len != len(tmpseq):
-            raise Exception('  cigar length doesn\'t match %s seq length: %d %d' % (seqtype, cigar_len, len(tmpseq)))
+            raise Exception('cigar length %d doesn\'t match %s seq length %d' % (cigar_len, seqtype, len(tmpseq)))
 
     indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
     # TODO should probably also ignore indels on either end (I think only relevant for vsearch)
     if 'I' not in cigarstr and 'D' not in cigarstr:  # has to happen after we've changed from vsearch conventions
+        if debug:
+            print '  no indels'
         return indelfo
 
     # add each indel to <indelfo['indels']>, and build <codestr> and <tmp_indices> to keep track of what's going on at each position
@@ -301,7 +313,7 @@ def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vse
             indelfo['indels'][tmp_indices[icode]]['seqstr'].append(glseq[igl])  # and to the sequence of just this indel
             iqr -= 1
         else:
-            raise Exception('unhandled code %s' % code)
+            raise Exception('unhandled cigar code %s' % code)
 
         iqr += 1
         igl += 1
