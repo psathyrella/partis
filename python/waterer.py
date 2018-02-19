@@ -204,14 +204,6 @@ class Waterer(object):
             self.write_cachefile(cachefname)
 
         self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
-        for query in self.info['queries']:
-            indelfo = self.info[query]['indelfos'][0]
-            if not indelutils.has_indels(indelfo):
-                continue
-            if str(indelfo['indels'][0]['pos']) not in indelfo['dbg_str']:
-                print '%s bad indel str' % query
-                # utils.print_reco_event(self.info[query])
-                # assert False
 
         if self.plot_annotation_performance:
             perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
