@@ -1436,9 +1436,8 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
                 mutated_positions.append(ich)
 
     if return_len_excluding_ambig and return_mutated_positions:
-        assert False  # simplifies things to forbid it for the moment
-
-    if return_len_excluding_ambig:
+        return distance, len_excluding_ambig, mutated_positions
+    elif return_len_excluding_ambig:
         return distance, len_excluding_ambig
     elif return_mutated_positions:
         return distance, mutated_positions
@@ -1455,7 +1454,7 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
     #     return sum(ch1 != ch2 for ch1, ch2 in zip(seq1, seq2) if ambig_base not in ch1 + ch2)
 
 # ----------------------------------------------------------------------------------------
-def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False):
+def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False):  # NOTE use hamming_distance() to get the positions (yeah, I should eventually add it here as well)
     distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True)
 
     fraction = 0.
@@ -3043,21 +3042,17 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def read_vsearch_search_file(fname, userfields, seqs, glfo, region, reco_info=None, debug=False):
+def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotations=False, debug=False):
     # first we add every match (i.e. gene) for each query
     query_info = {}
     with open(fname) as alnfile:
         reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
         for line in reader:  # NOTE similarity to waterer.read_query()
-            # istart = int(line['qilo']) - 1
-            # length = int(line['qihi']) - int(line['qilo']) + 1
-            # qr_seq = seqs[query][istart : istart + length]
             if line['query'] not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but in the end it doesn't/shouldn't matter
                 query_info[line['query']] = []
             query_info[line['query']].append({
                 'ids' : int(line['ids']),
                 'gene' : line['target'],
-                # 'qr_seq' : qr_seq,
                 'cigar' : line['caln'],
                 'qrbounds' : (int(line['qilo']) - 1, int(line['qihi'])),
                 'glbounds' : (int(line['tilo']) - 1, int(line['tihi'])),
@@ -3084,26 +3079,31 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, reco_info=No
                 gene_counts[qinfo['gene']] = 0.
             gene_counts[qinfo['gene']] += counts_per_match
 
-    # def regional_mfreq_from_ids(uid, imatch=0):
-    #     return 1. - float(query_info[uid][imatch]['ids']) / len(query_info[uid][imatch]['qr_seq'])
-    # # TODO figure out these lengths, and what I'm using qr_seq' for
-
-    if debug:
+    annotations = OrderedDict()  # NOTE this is *not* a complete vdj annotation, it's just the info we have for an alignment to one region (presumably v)
+    imatch = 0  # they all have the same score at this point, so just take the first one
+    if get_annotations:  # it probably wouldn't really be much slower to just always do this
         for query in query_info:
-            if reco_info is not None:
-                print_reco_event(reco_info[query])
-            imatch = 0
             matchfo = query_info[query][imatch]
             indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], matchfo['gene'], vsearch_conventions=True)
-            # post_str = '  ' + color_gene(matchfo['gene'])
-            # color_mutants(glfo['seqs'][region][matchfo['gene']], matchfo['qr_seq'], print_result=True, post_str=post_str)  #, align=True)
-            # if reco_info is not None:
-            #     print '    %6.3f   %6.3f' % (get_mutation_rate(reco_info[query], iseq=0, restrict_to_region=region), regional_mfreq_from_ids(query))
+            tmpgl = glfo['seqs'][region][matchfo['gene']][matchfo['glbounds'][0] : matchfo['glbounds'][1]]
+            if indelutils.has_indels(indelfo):
+                tmpqr = indelfo['reversed_seq']
+            else:
+                tmpqr = seqs[query][matchfo['qrbounds'][0] : matchfo['qrbounds'][1]]
+            # color_mutants(tmpgl, tmpqr, print_result=True, print_isnps=True)
+            n_mutations, len_excluding_ambig, mutated_positions = hamming_distance(tmpgl, tmpqr, return_len_excluding_ambig=True, return_mutated_positions=True)
+            annotations[query] = {
+                region + '_gene' : matchfo['gene'],  # only works for v now, though
+                'n_' + region + '_mutations' : n_mutations,
+                region + '_mut_freq' : float(n_mutations) / len_excluding_ambig,
+                region + '_mutated_positions' : mutated_positions,
+                'indelfo' : indelfo,
+            }
 
-    return {'gene-counts' : gene_counts, 'queries' : query_info, 'failures' : failed_queries}
+    return {'gene-counts' : gene_counts, 'annotations' : annotations, 'failures' : failed_queries}
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, reco_info=None):
+def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False):
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -3182,7 +3182,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
     if action == 'cluster':
         returnfo = read_vsearch_cluster_file(outfname)
     elif action == 'search':
-        returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, reco_info=reco_info)
+        returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, get_annotations=get_annotations)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
     else:
         assert False
@@ -3190,12 +3190,15 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
     os.remove(outfname)
     os.rmdir(workdir)
     if print_time:
-        # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
-        print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (len(returnfo['queries']), len(seqs), region, len(seqs) - len(returnfo['queries']), time.time() - start)
-# ----------------------------------------------------------------------------------------
-        if len(returnfo['queries']) == 0:
-            raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
-# ----------------------------------------------------------------------------------------
+        if action == 'search':
+            # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
+            print returnfo['gene-counts']
+            n_passed = sum(returnfo['gene-counts'].values())
+            print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (n_passed, len(seqs), region, len(seqs) - n_passed, time.time() - start)
+            if n_passed == 0:
+                raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
+        else:
+            print 'can\'t yet print time for clustering'
 
     return returnfo
 
