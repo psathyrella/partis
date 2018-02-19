@@ -3115,16 +3115,15 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
     userfields = [  # all 1-indexed (note: only used for 'search')
         'query',
         'target',
-        'qilo',  # first pos of query that aligns to target, skipping initial gaps (e.g. 1 if first pos aligns, 4 if fourth pos aligns but first three don't)
-        'qihi',
-        'tilo',  # same, but pos of target that aligns to query
-        'tihi',
+        'qilo',  # first pos of query that aligns to target (1-indexed), skipping initial gaps (e.g. 1 if first pos aligns, 4 if fourth pos aligns but first three don't)
+        'qihi',  # last pos of same (1-indexed)
+        'tilo',  # same, but pos of target that aligns to query (1-indexed)
+        'tihi',  # last pos of same (1-indexed)
         'ids',
-        'caln',  # cigar string,
-    ]  # 'pairs': number of columns with only nucleotides (i.e. alignment length minus number of gaps)
+        'caln',  # cigar string
+    ]
 
     start = time.time()
-
     prep_dir(workdir)
     infname = workdir + '/input.fa'
 
@@ -3133,7 +3132,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
         for name, seq in seqs.items():
             fastafile.write('>' + name + '\n' + seq + '\n')
 
-    # run
+    # figure out which vsearch binary to use
     if vsearch_binary is None:
         vsearch_binary = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin'
         if platform.system() == 'Linux':
@@ -3143,11 +3142,13 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
         else:
             raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
 
+    # build command
     cmd = vsearch_binary
     cmd += ' --id ' + str(1. - threshold)  # reject if identity lower than this
     if match_mismatch is not None:
-        cmd += ' --match %d'  % match_mismatch[0]  # default 2
-        cmd += ' --mismatch %d' % match_mismatch[1]  # default -4
+        match, mismatch = [int(m) for m in match_mismatch.split(':')]
+        cmd += ' --match %d'  % match  # default 2
+        cmd += ' --mismatch %d' % mismatch  # default -4
     if action == 'cluster':
         outfname = workdir + '/vsearch-clusters.txt'
         cmd += ' --cluster_fast ' + infname
@@ -3167,7 +3168,6 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
         cmd += ' --userfields %s --userout %s' % ('+'.join(userfields), outfname)  # note that --sizeout --dbmatched <fname> adds up all the matches from --maxaccepts, i.e. it's not what we want
     else:
         assert False
-
     # cmd += ' --threads ' + str(n_procs)  # a.t.m. just let vsearch use all the cores (it'd be nice to be able to control it a little, but it's hard to keep it separate from the number of slurm procs, and we pretty much always want it to be different to that)
     cmd += ' --quiet'
     cmdfos = [{
@@ -3176,6 +3176,8 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
         'workdir' : workdir,
         # 'threads' : n_procs},  # NOTE that this does something very different (adjusts slurm command) to the line above ^ (which talks to vsearch)
     }]
+
+    # run
     run_cmds(cmdfos)
 
     # read output
@@ -3184,18 +3186,19 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
     elif action == 'search':
         returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, get_annotations=get_annotations)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
+        if n_passed == 0:
+            raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
     else:
         assert False
     os.remove(infname)
     os.remove(outfname)
     os.rmdir(workdir)
+
     if print_time:
         if action == 'search':
             # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
             n_passed = sum(returnfo['gene-counts'].values())
             print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (n_passed, len(seqs), region, len(seqs) - n_passed, time.time() - start)
-            if n_passed == 0:
-                raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
         else:
             print 'can\'t yet print time for clustering'
 
