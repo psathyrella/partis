@@ -3192,7 +3192,6 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
     if print_time:
         if action == 'search':
             # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
-            print returnfo['gene-counts']
             n_passed = sum(returnfo['gene-counts'].values())
             print 'vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (n_passed, len(seqs), region, len(seqs) - n_passed, time.time() - start)
             if n_passed == 0:
