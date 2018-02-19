@@ -308,4 +308,4 @@ def pad_indel_info(indelfo, leftstr, rightstr):
     #     print '  %s wrong number of dbg indel lines %d %d' % (utils.color('red', 'error'), len(dbg_indel_lines), len(indelfo['indels']))
     # for iindel in range(len(dbg_indel_lines)):
     for indel in indelfo['indels']:
-        indel['pos'] += padleft
+        indel['pos'] += len(leftstr)
