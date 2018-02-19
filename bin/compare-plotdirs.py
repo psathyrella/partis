@@ -72,7 +72,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if varname in plotconfig.gene_usage_columns:
         xtitle = 'allele'
         if hlist[0].n_bins == 2:
-            stats += ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+            stats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
     # elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
     #     xtitle = '???'
 
@@ -155,7 +155,7 @@ parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths
 parser.add_argument('--gldir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true')
-parser.add_argument('--extra-stats', default='')
+parser.add_argument('--extra-stats')
 parser.add_argument('--translegend')
 
 args = parser.parse_args()
