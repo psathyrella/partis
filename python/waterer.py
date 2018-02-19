@@ -204,6 +204,14 @@ class Waterer(object):
             self.write_cachefile(cachefname)
 
         self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
+        for query in self.info['queries']:
+            indelfo = self.info[query]['indelfos'][0]
+            if not indelutils.has_indels(indelfo):
+                continue
+            if str(indelfo['indels'][0]['pos']) not in indelfo['dbg_str']:
+                print '%s bad indel str' % query
+                # utils.print_reco_event(self.info[query])
+                # assert False
 
         if self.plot_annotation_performance:
             perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
@@ -773,7 +781,8 @@ class Waterer(object):
             # NOTE (probably) important to look for v indels first (since a.t.m. we only take the first one)
             for region in [r for r in ['v', 'j', 'd'] if r in qinfo['new_indels']]:  # TODO this doesn't allow indels in more than one region
                 self.info['indels'][qinfo['name']] = qinfo['new_indels'][region]  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
-                self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
+                assert self.info['indels'][qinfo['name']]['reversed_seq'] == qinfo['new_indels'][region]['reversed_seq']  # why tf was this second line there?
+                # self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
                 self.new_indels += 1
                 if self.debug:
                     print '      rerun: new indels\n%s' % utils.pad_lines(self.info['indels'][qinfo['name']]['dbg_str'], 10)
@@ -1247,9 +1256,8 @@ class Waterer(object):
                 swfo[seqkey][0] = leftstr + swfo[seqkey][0] + rightstr
             swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr
             if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
-                self.info['indels'][query]['reversed_seq'] = leftstr + self.info['indels'][query]['reversed_seq'] + rightstr
-                for indel in swfo['indelfos'][0]['indels']:
-                    indel['pos'] += padleft
+                assert self.info['indels'][query] is self.info[query]['indelfos'][0]  # TODO make this less scary
+                indelutils.pad_indel_info(self.info['indels'][query], leftstr, rightstr)
             for key in swfo['k_v']:
                 swfo['k_v'][key] += padleft
             swfo['codon_positions']['v'] += padleft
