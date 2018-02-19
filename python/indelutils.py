@@ -163,9 +163,10 @@ def add_single_indel(seq, indelfo, mean_length, codon_positions, indel_location=
         new_seq = deleted_seq
 
     for region in codon_positions:
-        if pos < codon_positions[region]:  # not sure that this is right if the indel is actually in the codon, but who fucking cares, right?
+        if pos < codon_positions[region]:  # this isn\'t right if the indel is actually in the codon, but in that case we just let the messed up codon through below
             codon_positions[region] += sign(indelfo['indels'][-1]) * length
-    assert utils.codon_unmutated('cyst', new_seq, codon_positions['v'], debug=True)
+    if not utils.codon_unmutated('cyst', new_seq, codon_positions['v']):
+        print '  adding indel within %s codon' % 'cyst'
 
     return new_seq
 
