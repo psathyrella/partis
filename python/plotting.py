@@ -290,7 +290,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             htmp.title += ' (abs av %.2f)' % htmp.get_mean(absval=True)
         elif stats == '0-bin':
             htmp.title += ' (right %.2f)' % htmp.bin_contents[1]
-        elif stats is not None:
+        elif stats is not None and stats != '':  # damnit, I ended up with both of the damn things as possible defaults
             raise Exception('unexpected stats str %s' % stats)
         markersize = None
         if markersizes is not None:

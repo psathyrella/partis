@@ -1469,7 +1469,7 @@ def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False): 
 # ----------------------------------------------------------------------------------------
 def subset_sequences(line, iseq, restrict_to_region, exclusion_3p=None):
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
-    muted_seq = line['seqs'][iseq]
+    muted_seqs = [line['seqs'][iseq]] if iseq is not None else copy.deepcopy(line['seqs'])
     if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
         if restrict_to_region in regions:
             bounds = line['regional_bounds'][restrict_to_region]
@@ -1480,8 +1480,8 @@ def subset_sequences(line, iseq, restrict_to_region, exclusion_3p=None):
         if exclusion_3p is not None:  # see NOTE in performanceplotter.hamming_to_true_naive()
             bounds = (bounds[0], max(bounds[0], bounds[1] - exclusion_3p))
         naive_seq = naive_seq[bounds[0] : bounds[1]]
-        muted_seq = muted_seq[bounds[0] : bounds[1]]
-    return naive_seq, muted_seq
+        muted_seqs = [mseq[bounds[0] : bounds[1]] for mseq in muted_seqs]
+    return naive_seq, (muted_seqs[0] if iseq is not None else muted_seqs)
 
 # ----------------------------------------------------------------------------------------
 def get_n_muted(line, iseq, restrict_to_region='', return_mutated_positions=False):
@@ -1498,6 +1498,19 @@ def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region='', exclusion_3
     naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region, exclusion_3p=exclusion_3p)
     fraction, distance = hamming_fraction(naive_seq, muted_seq, also_return_distance=True)
     return fraction, distance
+
+# ----------------------------------------------------------------------------------------
+def get_sfs_occurence_fractions(line, restrict_to_region=None):
+    if restrict_to_region is None:
+        naive_seq, muted_seqs = line['naive_seq'], line['seqs']  # I could just call subset_sequences() to get this, but this is a little faster since we know we don't need the copy.deepcopy()
+    else:
+        naive_seq, muted_seqs = subset_sequences(line, None, restrict_to_region=restrict_to_region)
+    mutated_positions = [hamming_distance(naive_seq, mseq, return_mutated_positions=True)[1] for mseq in muted_seqs]
+    all_positions = sorted(set([p for mp in mutated_positions for p in mp]))
+    occurence_indices = [[i for i in range(len(line['unique_ids'])) if p in mutated_positions[i]] for p in all_positions]  # for each position in <all_positions>, a list of the sequence indices that have a mutation at that position
+    occurence_fractions = [len(iocc) / float(len(line['unique_ids'])) for iocc in occurence_indices]  # fraction of all sequences that have a mutation at each position in <all_positions>
+
+    return occurence_fractions
 
 # ----------------------------------------------------------------------------------------
 def dot_product(naive_seq, seq1, seq2):

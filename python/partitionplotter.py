@@ -308,7 +308,6 @@ class PartitionPlotter(object):
                 return 'size-vs-shm-hexbin'
             else:
                 assert False
-        plotting = sys.modules['plotting']
         subd = 'shm-vs-size'
         plotdir = base_plotdir + '/' + subd
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
@@ -349,7 +348,6 @@ class PartitionPlotter(object):
     # def make_shm_vs_inverse_identity_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
     #     def get_fname(cluster_rank):
     #         return 'shm-vs-identity-icluster-%d' % cluster_rank
-    #     plotting = sys.modules['plotting']
     #     plotdir = base_plotdir + '/shm-vs-identity'
     #     utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
@@ -411,7 +409,6 @@ class PartitionPlotter(object):
 
             return seqfos, color_scale_vals, queries_to_include, title
 
-        plotting = sys.modules['plotting']
         subd = 'mds'
         plotdir = base_plotdir + '/' + subd
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
@@ -451,8 +448,35 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
+    def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
+        def addplot(occurence_fractions, fname):
+            hist = Hist(30, 0., 1.)
+            for ofrac in occurence_fractions:
+                hist.fill(ofrac)
+            self.plotting.draw_no_root(hist, plotdir=plotdir, plotname=fname, log='xy')
+            self.addfname(fnames, fname)
+
+        subd = 'sfs'
+        plotdir = base_plotdir + '/' + subd
+        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+
+        fnames = [[]]
+        all_occurence_fractions = []  # mash together all the clusters to make an overall plot
+        for iclust in range(len(sorted_clusters)):
+            if not self.plot_this_cluster(sorted_clusters, iclust):
+                continue
+            occurence_fractions = utils.get_sfs_occurence_fractions(annotations[':'.join(sorted_clusters[iclust])])
+            all_occurence_fractions += occurence_fractions
+            addplot(occurence_fractions, 'iclust-%d' % iclust)
+        addplot(all_occurence_fractions, 'all-clusters')
+
+        if not self.args.only_csv_plots:
+            self.plotting.make_html(plotdir, fnames=fnames)
+
+        return [[subd + '/' + fn for fn in ['all-clusters.svg'] + fnames[0]]]
+
+    # ----------------------------------------------------------------------------------------
     def make_cluster_size_distribution(self, base_plotdir, partition=None, infiles=None):
-        plotting = sys.modules['plotting']
         subd = 'sizes'
         plotdir = base_plotdir + '/' + subd
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
@@ -499,6 +523,7 @@ class PartitionPlotter(object):
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir)
             # fnames += self.make_shm_vs_inverse_identity_plots(sorted_clusters, annotations, plotdir)
+            fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         if not self.args.only_csv_plots:
