@@ -449,38 +449,44 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region='v', debug=False):
-        def addplot(ofracslist, fname, title, oindexlist=None, n_seqs=None):
+        def addplot(oindexlist, ofracslist, n_seqs, fname, title):
             hist = Hist(30, 0., 1.)
             for ofracs in ofracslist:
                 hist.fill(ofracs)
             fig, ax = self.plotting.mpl_init()
             hist.mpl_plot(ax, remove_empty_bins=True)
-            if n_seqs is not None:
-                ax.text(0.65, 0.8 * ax.get_ylim()[1], 'size: %d' % n_seqs, fontsize=20)
-                if oindexlist is not None:
-                    ax.text(0.65, 0.7 * ax.get_ylim()[1], 'h: %.2f' % utils.fay_wu_h(oindexlist, n_seqs), fontsize=20)
+            ax.text(0.65, 0.8 * ax.get_ylim()[1], 'size: %d' % n_seqs, fontsize=20, fontweight='bold')
+            ax.text(0.65, 0.7 * ax.get_ylim()[1], 'h: %.2f' % utils.fay_wu_h(oindexlist, n_seqs), fontsize=20, fontweight='bold')
             regionstr = restrict_to_region + ' ' if restrict_to_region is not None else ''
             self.plotting.mpl_finish(ax, plotdir, fname, title=title, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
             self.addfname(fnames, fname)
+        def gettitle(annotation):
+            naive_cdr3_seq, _ = utils.subset_sequences(annotation, iseq=0, restrict_to_region='cdr3')
+            title = ''
+            if len(naive_cdr3_seq) % 3 != 0:
+                print '  out of frame: adding %s' % ((3 - len(naive_cdr3_seq) % 3) * 'N')
+                naive_cdr3_seq += (3 - len(naive_cdr3_seq) % 3) * 'N'
+                title += ' (out of frame)'
+            title = Seq(naive_cdr3_seq).translate() + title
+            return title
 
+        from Bio.Seq import Seq
         subd = 'sfs'
         plotdir = base_plotdir + '/' + subd
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
         fnames = [[]]
-        all_occurence_fractions = []  # mash together all the clusters to make an overall plot
         for iclust in range(len(sorted_clusters)):
             if not self.plot_this_cluster(sorted_clusters, iclust):
                 continue
-            occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotations[':'.join(sorted_clusters[iclust])], restrict_to_region=restrict_to_region)
-            all_occurence_fractions += occurence_fractions
-            addplot(occurence_fractions, 'iclust-%d' % iclust, 'iclust %d' % iclust, oindexlist=occurence_indices, n_seqs=len(sorted_clusters[iclust]))
-        addplot(all_occurence_fractions, 'all-clusters', 'all families')
+            annotation = annotations[':'.join(sorted_clusters[iclust])]
+            occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotation, restrict_to_region=restrict_to_region)
+            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'iclust-%d' % iclust, gettitle(annotation))
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
 
-        return [[subd + '/' + fn for fn in ['all-clusters.svg'] + fnames[0]]]
+        return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
     def make_cluster_size_distribution(self, base_plotdir, partition=None, infiles=None):
