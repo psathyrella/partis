@@ -1500,7 +1500,7 @@ def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region='', exclusion_3
     return fraction, distance
 
 # ----------------------------------------------------------------------------------------
-def get_sfs_occurence_fractions(line, restrict_to_region=None, debug=False):
+def get_sfs_occurence_info(line, restrict_to_region=None, debug=False):
     if restrict_to_region is None:
         naive_seq, muted_seqs = line['naive_seq'], line['seqs']  # I could just call subset_sequences() to get this, but this is a little faster since we know we don't need the copy.deepcopy()
     else:
@@ -1514,8 +1514,25 @@ def get_sfs_occurence_fractions(line, restrict_to_region=None, debug=False):
         print '    %d positions are mutated in at least one sequence' % len(all_positions)
     occurence_indices = [[i for i in range(len(line['unique_ids'])) if p in mutated_positions[i]] for p in all_positions]  # for each position in <all_positions>, a list of the sequence indices that have a mutation at that position
     occurence_fractions = [len(iocc) / float(len(line['unique_ids'])) for iocc in occurence_indices]  # fraction of all sequences that have a mutation at each position in <all_positions>
+    return occurence_indices, occurence_fractions
 
-    return occurence_fractions
+# ----------------------------------------------------------------------------------------
+def fay_wu_h(occurence_indices, n_seqs, debug=True):  # from: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1461156/pdf/10880498.pdf and https://www.biorxiv.org/content/biorxiv/early/2017/10/19/145052.full.pdf
+    mutation_multiplicities = [len(oindices) for oindices in occurence_indices]  # <oindices> is a list of the indices of sequences that had this mutation, so this gives the number of sequences that had a mutation at this position
+    theta_h = 0.
+    for inm in range(1, n_seqs):
+        theta_h += mutation_multiplicities.count(inm) * inm * inm
+    theta_h *= 2. / (n_seqs * (n_seqs - 1))
+
+    theta_pi = 0.
+    for inm in range(1, n_seqs):
+        theta_pi += mutation_multiplicities.count(inm) * inm * (n_seqs - inm)
+    theta_pi *= 2. / (n_seqs * (n_seqs - 1))
+
+    if debug:
+        print '   h for %d seqs:  %6.2f - %6.2f = %6.2f' % (n_seqs, theta_pi, theta_h, theta_pi - theta_h)
+
+    return theta_pi - theta_h
 
 # ----------------------------------------------------------------------------------------
 def dot_product(naive_seq, seq1, seq2):

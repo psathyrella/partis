@@ -449,14 +449,18 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region='v', debug=False):
-        def addplot(occurence_fractions, fname, title):
+        def addplot(ofracslist, fname, title, oindexlist=None, n_seqs=None):
             hist = Hist(30, 0., 1.)
-            for ofrac in occurence_fractions:
-                hist.fill(ofrac)
+            for ofracs in ofracslist:
+                hist.fill(ofracs)
             fig, ax = self.plotting.mpl_init()
             hist.mpl_plot(ax, remove_empty_bins=True)
+            if n_seqs is not None:
+                ax.text(0.65, 0.8 * ax.get_ylim()[1], 'size: %d' % n_seqs, fontsize=20)
+                if oindexlist is not None:
+                    ax.text(0.65, 0.7 * ax.get_ylim()[1], 'h: %.2f' % utils.fay_wu_h(oindexlist, n_seqs), fontsize=20)
             regionstr = restrict_to_region + ' ' if restrict_to_region is not None else ''
-            self.plotting.mpl_finish(ax, plotdir, fname, title=title, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='xy')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
+            self.plotting.mpl_finish(ax, plotdir, fname, title=title, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
             self.addfname(fnames, fname)
 
         subd = 'sfs'
@@ -468,9 +472,9 @@ class PartitionPlotter(object):
         for iclust in range(len(sorted_clusters)):
             if not self.plot_this_cluster(sorted_clusters, iclust):
                 continue
-            occurence_fractions = utils.get_sfs_occurence_fractions(annotations[':'.join(sorted_clusters[iclust])], restrict_to_region=restrict_to_region)
+            occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotations[':'.join(sorted_clusters[iclust])], restrict_to_region=restrict_to_region)
             all_occurence_fractions += occurence_fractions
-            addplot(occurence_fractions, 'iclust-%d' % iclust, 'iclust %d' % iclust)
+            addplot(occurence_fractions, 'iclust-%d' % iclust, 'iclust %d' % iclust, oindexlist=occurence_indices, n_seqs=len(sorted_clusters[iclust]))
         addplot(all_occurence_fractions, 'all-clusters', 'all families')
 
         if not self.args.only_csv_plots:
@@ -525,11 +529,10 @@ class PartitionPlotter(object):
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir)
-            # fnames += self.make_shm_vs_inverse_identity_plots(sorted_clusters, annotations, plotdir)
             fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
-        fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
+        self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         if not self.args.only_csv_plots:
-            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds']])
+            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds', 'sfs']])
 
         print '(%.1f sec)' % (time.time()-start)
