@@ -292,7 +292,7 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True):
+    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False):
         # note: bin labels are/have to be handled elsewhere
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             # print '   integral is zero in hist::mpl_plot'
@@ -324,7 +324,11 @@ class Hist(object):
         elif self.title != '':
             kwargs['label'] = self.title
         if errors:
+            if remove_empty_bins:
+                xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
             kwargs['yerr'] = yerrs
             return ax.errorbar(xvals, yvals, **kwargs)  #, fmt='-o')
         else:
+            if remove_empty_bins:
+                xvals, yvals = zip(*[(xvals[iv], yvals[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
             return ax.plot(xvals, yvals, **kwargs)  #, fmt='-o')

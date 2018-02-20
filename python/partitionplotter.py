@@ -449,11 +449,13 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
-        def addplot(occurence_fractions, fname):
+        def addplot(occurence_fractions, fname, title):
             hist = Hist(30, 0., 1.)
             for ofrac in occurence_fractions:
                 hist.fill(ofrac)
-            self.plotting.draw_no_root(hist, plotdir=plotdir, plotname=fname, log='xy')
+            fig, ax = self.plotting.mpl_init()
+            hist.mpl_plot(ax, remove_empty_bins=True)
+            self.plotting.mpl_finish(ax, plotdir, fname, title=title, xlabel='mutation frequency', ylabel='density of mutations', xticks=[0, 1], log='xy')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
             self.addfname(fnames, fname)
 
         subd = 'sfs'
@@ -467,8 +469,8 @@ class PartitionPlotter(object):
                 continue
             occurence_fractions = utils.get_sfs_occurence_fractions(annotations[':'.join(sorted_clusters[iclust])])
             all_occurence_fractions += occurence_fractions
-            addplot(occurence_fractions, 'iclust-%d' % iclust)
-        addplot(all_occurence_fractions, 'all-clusters')
+            addplot(occurence_fractions, 'iclust-%d' % iclust, 'iclust %d' % iclust)
+        addplot(all_occurence_fractions, 'all-clusters', 'all families')
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
