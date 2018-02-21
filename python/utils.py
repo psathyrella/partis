@@ -1517,7 +1517,11 @@ def get_sfs_occurence_info(line, restrict_to_region=None, debug=False):
     return occurence_indices, occurence_fractions
 
 # ----------------------------------------------------------------------------------------
-def fay_wu_h(occurence_indices, n_seqs, debug=True):  # from: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1461156/pdf/10880498.pdf and https://www.biorxiv.org/content/biorxiv/early/2017/10/19/145052.full.pdf
+def fay_wu_h(line, n_seqs, restrict_to_region=None, occurence_indices=None, debug=True):  # from: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1461156/pdf/10880498.pdf and https://www.biorxiv.org/content/biorxiv/early/2017/10/19/145052.full.pdf
+    if occurence_indices is None:
+        occurence_indices, _ = get_sfs_occurence_info(line, restrict_to_region=restrict_to_region, debug=debug)
+    else:
+        assert line is None  # don't pass both of 'em
     mutation_multiplicities = [len(oindices) for oindices in occurence_indices]  # <oindices> is a list of the indices of sequences that had this mutation, so this gives the number of sequences that had a mutation at this position
     theta_h = 0.
     for inm in range(1, n_seqs):
