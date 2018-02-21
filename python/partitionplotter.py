@@ -251,14 +251,15 @@ class PartitionPlotter(object):
                 if self.args.queries_to_include is not None:
                     queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
                     if len(queries_to_include_in_this_cluster) > 0:
-                        base_color = 'red'
+                        unsorted_nmutelist = getnmutelist(cluster)
+                        qti_n_muted = {uid : unsorted_nmutelist[cluster.index(uid)] for uid in queries_to_include_in_this_cluster}  # add a red line for each of 'em (i.e. color that hist bin red)
                         if plot_high_mutation:
                             xtext = 1.1
                         elif float(nmedian) / self.n_max_mutations < 0.5:
                             xtext = 0.75
                         else:
                             xtext = 0.1
-                        ax.text(xtext * self.n_max_mutations, yval, ' '.join(queries_to_include_in_this_cluster), color='red', fontsize=8)
+                        ax.text(xtext * self.n_max_mutations, yval, ' '.join(sorted(queries_to_include_in_this_cluster, key=lambda q: qti_n_muted[q])), color='red', fontsize=8)
 
                 if debug:
                     print '     %5s  %-10s  %4.1f  %6.1f  %6.1f' % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, nmedian, nmean)
@@ -273,6 +274,10 @@ class PartitionPlotter(object):
                     linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
                     color = base_color
                     # alpha = gety(min_alpha, max_alpha, xmax, hist.bin_contents[ibin])
+                    if self.args.queries_to_include is not None:
+                        for nmuted in qti_n_muted.values():
+                            if hist.find_bin(nmuted) == ibin:
+                                color = 'red'
                     if hist.bin_contents[ibin] == 0.:
                         color = 'grey'
                         linewidth = min_linewidth
