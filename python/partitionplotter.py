@@ -16,6 +16,8 @@ class PartitionPlotter(object):
         self.args = args
         import plotting
         self.plotting = sys.modules['plotting']
+        from Bio.Seq import Seq
+        self.Seq = sys.modules['Bio.Seq']
 
         self.n_clusters_per_joy_plot = 50
         self.n_max_mutations = 65
@@ -25,6 +27,23 @@ class PartitionPlotter(object):
         self.n_plots_per_row = 4
 
         self.n_mds_components = 2
+
+    # ----------------------------------------------------------------------------------------
+    def init_subd(self, subd, base_plotdir):
+        plotdir = base_plotdir + '/' + subd
+        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+        return subd, plotdir
+
+    # ----------------------------------------------------------------------------------------
+    def get_cdr3_title(self, annotation):
+        naive_cdr3_seq, _ = utils.subset_sequences(annotation, iseq=0, restrict_to_region='cdr3')
+        title = ''
+        if len(naive_cdr3_seq) % 3 != 0:
+            # print '  out of frame: adding %s' % ((3 - len(naive_cdr3_seq) % 3) * 'N')
+            naive_cdr3_seq += (3 - len(naive_cdr3_seq) % 3) * 'N'
+            title += ' (out of frame)'
+        title = self.Seq.Seq(naive_cdr3_seq).translate() + title
+        return title
 
     # self.n_bins = 30
     # # ----------------------------------------------------------------------------------------
@@ -308,9 +327,7 @@ class PartitionPlotter(object):
                 return 'size-vs-shm-hexbin'
             else:
                 assert False
-        subd = 'shm-vs-size'
-        plotdir = base_plotdir + '/' + subd
-        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+        subd, plotdir = self.init_subd('shm-vs-size', base_plotdir)
 
         repertoire_size = sum([len(c) for c in sorted_clusters])
         cluster_indices = {':'.join(sorted_clusters[i]) : i for i in range(len(sorted_clusters))}  # index over all clusters, in the order that the mds plots will appear (compare to the two other indices I need within make_single_joyplot())
@@ -373,8 +390,8 @@ class PartitionPlotter(object):
         def get_fname(ic):
             return 'icluster-%d' % ic
         def get_cluster_info(full_cluster):
-            title = 'size: %d' % len(full_cluster)
             full_info = annotations[':'.join(full_cluster)]
+            title = '%s   (size: %d)' % (self.get_cdr3_title(full_info), len(full_cluster))
 
             all_seqs = set()
             kept_indices = []
@@ -409,9 +426,7 @@ class PartitionPlotter(object):
 
             return seqfos, color_scale_vals, queries_to_include, title
 
-        subd = 'mds'
-        plotdir = base_plotdir + '/' + subd
-        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+        subd, plotdir = self.init_subd('mds', base_plotdir)
 
         if debug:
             print '  making mds plots starting with %d clusters' % len(sorted_clusters)
@@ -460,20 +475,8 @@ class PartitionPlotter(object):
             regionstr = restrict_to_region + ' ' if restrict_to_region is not None else ''
             self.plotting.mpl_finish(ax, plotdir, fname, title=title, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
             self.addfname(fnames, fname)
-        def gettitle(annotation):
-            naive_cdr3_seq, _ = utils.subset_sequences(annotation, iseq=0, restrict_to_region='cdr3')
-            title = ''
-            if len(naive_cdr3_seq) % 3 != 0:
-                print '  out of frame: adding %s' % ((3 - len(naive_cdr3_seq) % 3) * 'N')
-                naive_cdr3_seq += (3 - len(naive_cdr3_seq) % 3) * 'N'
-                title += ' (out of frame)'
-            title = Seq(naive_cdr3_seq).translate() + title
-            return title
 
-        from Bio.Seq import Seq
-        subd = 'sfs'
-        plotdir = base_plotdir + '/' + subd
-        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+        subd, plotdir = self.init_subd('sfs', base_plotdir)
 
         fnames = [[]]
         for iclust in range(len(sorted_clusters)):
@@ -481,7 +484,7 @@ class PartitionPlotter(object):
                 continue
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotation, restrict_to_region=restrict_to_region)
-            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'iclust-%d' % iclust, gettitle(annotation))
+            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'iclust-%d' % iclust, self.get_cdr3_title(annotation))
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
@@ -490,9 +493,7 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_cluster_size_distribution(self, base_plotdir, partition=None, infiles=None):
-        subd = 'sizes'
-        plotdir = base_plotdir + '/' + subd
-        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+        subd, plotdir = self.init_subd('sizes', base_plotdir)
 
         if partition is not None:  # one partition
             csize_hists = {'best' : self.plotting.get_cluster_size_hist(partition)}
