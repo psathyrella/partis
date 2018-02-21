@@ -476,7 +476,7 @@ class PartitionPlotter(object):
             fig, ax = self.plotting.mpl_init()
             hist.mpl_plot(ax, remove_empty_bins=True)
             ax.text(0.65, 0.8 * ax.get_ylim()[1], 'size: %d' % n_seqs, fontsize=20, fontweight='bold')
-            ax.text(0.65, 0.7 * ax.get_ylim()[1], 'h: %.2f' % utils.fay_wu_h(oindexlist, n_seqs), fontsize=20, fontweight='bold')
+            ax.text(0.65, 0.7 * ax.get_ylim()[1], 'h: %.2f' % utils.fay_wu_h(line=None, restrict_to_region=restrict_to_region, occurence_indices=oindexlist, n_seqs=n_seqs), fontsize=20, fontweight='bold')
             regionstr = restrict_to_region + ' ' if restrict_to_region is not None else ''
             self.plotting.mpl_finish(ax, plotdir, fname, title=title, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
             self.addfname(fnames, fname)
