@@ -1523,6 +1523,8 @@ def fay_wu_h(line, restrict_to_region=None, occurence_indices=None, n_seqs=None,
         n_seqs = len(line['unique_ids'])
     else:
         assert line is None  # don't pass both of 'em
+    if n_seqs == 1:
+        return 0.
     mutation_multiplicities = [len(oindices) for oindices in occurence_indices]  # <oindices> is a list of the indices of sequences that had this mutation, so this gives the number of sequences that had a mutation at this position
     theta_h = 0.
     for inm in range(1, n_seqs):
