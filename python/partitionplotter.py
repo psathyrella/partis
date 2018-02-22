@@ -248,6 +248,7 @@ class PartitionPlotter(object):
                 yticklabels.append(repfracstr)
 
                 base_color = colors[iclust_global % len(colors)]
+                qti_n_muted = {}
                 if self.args.queries_to_include is not None:
                     queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
                     if len(queries_to_include_in_this_cluster) > 0:
@@ -274,10 +275,9 @@ class PartitionPlotter(object):
                     linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
                     color = base_color
                     # alpha = gety(min_alpha, max_alpha, xmax, hist.bin_contents[ibin])
-                    if self.args.queries_to_include is not None:
-                        for nmuted in qti_n_muted.values():
-                            if hist.find_bin(nmuted) == ibin:
-                                color = 'red'
+                    for nmuted in qti_n_muted.values():
+                        if hist.find_bin(nmuted) == ibin:
+                            color = 'red'
                     if hist.bin_contents[ibin] == 0.:
                         color = 'grey'
                         linewidth = min_linewidth
