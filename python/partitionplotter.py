@@ -468,7 +468,7 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region='v', debug=False):
+    def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region=None, debug=False):
         def addplot(oindexlist, ofracslist, n_seqs, fname, title):
             hist = Hist(30, 0., 1.)
             for ofracs in ofracslist:
