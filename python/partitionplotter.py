@@ -423,9 +423,9 @@ class PartitionPlotter(object):
             seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices]
             color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
 
-            seqfos.append({'name' : 'naive', 'seq' : full_info['naive_seq']})  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
-            color_scale_vals['naive'] = 0
-            queries_to_include = ['naive']
+            seqfos.append({'name' : '_naive', 'seq' : full_info['naive_seq']})  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
+            color_scale_vals['_naive'] = 0  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
+            queries_to_include = ['_naive']
             if self.args.queries_to_include is not None:
                 queries_to_include += self.args.queries_to_include
 
