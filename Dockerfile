@@ -23,7 +23,7 @@ RUN pip install seaborn
 RUN pip install colored_traceback
 RUN pip install psutil
 
-RUN R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
+RUN R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "bios2mds"), repos="http://cran.rstudio.com/")'
 
 COPY . /partis
 WORKDIR /partis

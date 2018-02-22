@@ -120,7 +120,7 @@ Then start a new terminal, and:
 source activate partis
 pip install colored-traceback dendropy==3.12.3
 unset R_LIBS_SITE
-R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
+R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "bios2mds"), repos="http://cran.rstudio.com/")'
 ```
 
 Then, clone and build the partis repository (as described [above](#installation)).
@@ -132,7 +132,7 @@ For Ubuntu (tested on 16.04):
 ```
 sudo apt-get install python-pip cmake scons libgsl0-dev libncurses5-dev libxml2-dev libxslt1-dev mafft r-base
 pip install --user numpy scipy scikit-learn matplotlib pandas biopython dendropy==3.12.3 pysam pyyaml seaborn colored_traceback psutil
-R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # optional -- only used for simulation
+R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "bios2mds"), repos="http://cran.rstudio.com/")'
 ```
 If you're running an old RHEL variant, with a (very) old gcc, you may need to either update gcc, or swap out `-Ofast` for something else in several places.
 
