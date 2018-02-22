@@ -489,7 +489,7 @@ class PartitionPlotter(object):
                 continue
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotation, restrict_to_region=restrict_to_region)
-            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'iclust-%d' % iclust, self.get_cdr3_title(annotation))
+            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'icluster-%d' % iclust, self.get_cdr3_title(annotation))
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
