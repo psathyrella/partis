@@ -45,50 +45,6 @@ class PartitionPlotter(object):
         title = self.Seq.Seq(naive_cdr3_seq).translate() + title
         return title
 
-    # self.n_bins = 30
-    # # ----------------------------------------------------------------------------------------
-    # def get_cdr3_length_classes(self, partition, annotations):
-    #     # NOTE this should be replaced by the fcn from utils
-    #     classes = {}
-    #     for cluster in partition:
-    #         if ':'.join(cluster) not in annotations:  # i.e. if this cluster's annotation failed in the hmm when getting annotations for the final partition (which is weird, I'm surprised there's messed-up-enough sequences at this stage that that would happen)
-    #             continue
-    #         info = annotations[':'.join(cluster)]
-    #         if info['cdr3_length'] not in classes:
-    #             classes[info['cdr3_length']] = []
-    #         classes[info['cdr3_length']].append(cluster)
-    #     return classes
-
-    # # ----------------------------------------------------------------------------------------
-    # def plot_each_within_vs_between_hist(self, distances, plotdir, plotname, plottitle):
-    #     xmax = 1.2 * max([d for dtype in distances for d in distances[dtype]])
-    #     hists = {}
-    #     for dtype in distances:
-    #         hists[dtype] = Hist(self.n_bins, 0., xmax, title=dtype)
-    #         for mut_freq in distances[dtype]:
-    #             hists[dtype].fill(mut_freq)
-    #     self.plotting.draw_no_root(hists['within'], plotname=plotname, plotdir=plotdir, more_hists=[hists['between']], plottitle=plottitle, xtitle='hamming distance', errors=True)
-
-    # # ----------------------------------------------------------------------------------------
-    # def plot_within_vs_between_hists(self, partition, annotations, base_plotdir):
-    #     classes = self.get_cdr3_length_classes(partition, annotations)
-
-    #     overall_distances = {'within' : [mut_freq for info in annotations.values() for mut_freq in info['mut_freqs']],
-    #                          'between' : []}
-    #     sub_distances = {}
-    #     def nseq(cl):
-    #         return annotations[':'.join(cl)]['naive_seq']
-    #     for cdr3_length, clusters in classes.items():  # for each cdr3 length, loop over each pair of clusters that have that cdr3 length
-    #         # NOTE/TODO I'm extremely unhappy that I have to put the naive seq length check here. But we pad cdr3 length subclasses to the same length during smith waterman, and by the time we get to here, in very rare cases the the cdr3 length has changed.
-    #         hfracs = [utils.hamming_fraction(nseq(cl_a), nseq(cl_b)) for cl_a, cl_b in itertools.combinations(clusters, 2) if len(nseq(cl_a)) == len(nseq(cl_b))]  # hamming fractions for each pair of clusters with this cdr3 length
-    #         sub_distances[cdr3_length] = {'within' : [mut_freq for cluster in clusters for mut_freq in annotations[':'.join(cluster)]['mut_freqs']],
-    #                                       'between' : hfracs}
-    #         overall_distances['between'] += hfracs
-
-    #     self.plot_each_within_vs_between_hist(overall_distances, base_plotdir + '/overall', 'within-vs-between', '')
-    #     for cdr3_length, subd in sub_distances.items():
-    #         self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
-
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, plotdir, plotname, debug=False):
         """ shm (identity to naive sequence) vs identity to some reference sequence """
