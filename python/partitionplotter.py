@@ -45,42 +45,42 @@ class PartitionPlotter(object):
         title = self.Seq.Seq(naive_cdr3_seq).translate() + title
         return title
 
-    # ----------------------------------------------------------------------------------------
-    def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, plotdir, plotname, debug=False):
-        """ shm (identity to naive sequence) vs identity to some reference sequence """
-        import matplotlib.pyplot as plt
+    # # ----------------------------------------------------------------------------------------
+    # def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, plotdir, plotname, debug=False):
+    #     """ shm (identity to naive sequence) vs identity to some reference sequence """
+    #     import matplotlib.pyplot as plt
 
-        fig, ax = self.plotting.mpl_init()
+    #     fig, ax = self.plotting.mpl_init()
 
-        if self.args.seed_unique_id is not None and self.args.seed_unique_id in cluster:
-            seed_index = cluster.index(self.args.seed_unique_id)
-            ref_seq = annotation['seqs'][seed_index]
-            ref_label = 'seed seq'
-            xref = annotation['n_mutations'][seed_index]
-        else:
-            ref_seq = utils.cons_seq(0.1, aligned_seqfos=[{'name' : cluster[iseq], 'seq' : annotation['seqs'][iseq]} for iseq in range(len(cluster))])
-            ref_label = 'consensus seq'
-            xref = utils.hamming_distance(annotation['naive_seq'], ref_seq)
+    #     if self.args.seed_unique_id is not None and self.args.seed_unique_id in cluster:
+    #         seed_index = cluster.index(self.args.seed_unique_id)
+    #         ref_seq = annotation['seqs'][seed_index]
+    #         ref_label = 'seed seq'
+    #         xref = annotation['n_mutations'][seed_index]
+    #     else:
+    #         ref_seq = utils.cons_seq(0.1, aligned_seqfos=[{'name' : cluster[iseq], 'seq' : annotation['seqs'][iseq]} for iseq in range(len(cluster))])
+    #         ref_label = 'consensus seq'
+    #         xref = utils.hamming_distance(annotation['naive_seq'], ref_seq)
 
-        xvals, yvals = zip(*[[annotation['n_mutations'][iseq], utils.hamming_distance(ref_seq, annotation['seqs'][iseq])] for iseq in range(len(cluster))])
-        hb = ax.hexbin(xvals, yvals, gridsize=40, cmap=plt.cm.Blues, bins='log')
+    #     xvals, yvals = zip(*[[annotation['n_mutations'][iseq], utils.hamming_distance(ref_seq, annotation['seqs'][iseq])] for iseq in range(len(cluster))])
+    #     hb = ax.hexbin(xvals, yvals, gridsize=40, cmap=plt.cm.Blues, bins='log')
 
-        # add a red mark for the reference sequence
-        yref = 0
-        ax.plot([xref], [yref], color='red', marker='.', markersize=10)
-        ax.text(xref, yref, ref_label, color='red', fontsize=8)
+    #     # add a red mark for the reference sequence
+    #     yref = 0
+    #     ax.plot([xref], [yref], color='red', marker='.', markersize=10)
+    #     ax.text(xref, yref, ref_label, color='red', fontsize=8)
 
-        if self.args.queries_to_include is not None:  # note similarity to code in make_single_hexbin_size_vs_shm_plot()
-            queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
-            for uid in queries_to_include_in_this_cluster:
-                iseq = cluster.index(uid)
-                xval = annotation['n_mutations'][iseq]
-                yval = utils.hamming_distance(ref_seq, annotation['seqs'][iseq])
-                ax.plot([xval], [yval], color='red', marker='.', markersize=10)
-                ax.text(xval, yval, uid, color='red', fontsize=8)
+    #     if self.args.queries_to_include is not None:  # note similarity to code in make_single_hexbin_size_vs_shm_plot()
+    #         queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
+    #         for uid in queries_to_include_in_this_cluster:
+    #             iseq = cluster.index(uid)
+    #             xval = annotation['n_mutations'][iseq]
+    #             yval = utils.hamming_distance(ref_seq, annotation['seqs'][iseq])
+    #             ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+    #             ax.text(xval, yval, uid, color='red', fontsize=8)
 
-        ylabel = 'identity to %s' % ref_label
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
+    #     ylabel = 'identity to %s' % ref_label
+    #     self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
 
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
@@ -387,6 +387,7 @@ class PartitionPlotter(object):
 
             return seqfos, color_scale_vals, queries_to_include, title
 
+        # ----------------------------------------------------------------------------------------
         subd, plotdir = self.init_subd('mds', base_plotdir)
 
         if debug:
@@ -425,16 +426,19 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region=None, debug=False):
-        def addplot(oindexlist, ofracslist, n_seqs, fname, title):
+        def addplot(oindexlist, ofracslist, n_seqs, fname, cdr3titlestr, red_text=None):
             hist = Hist(30, 0., 1.)
             for ofracs in ofracslist:
                 hist.fill(ofracs)
             fig, ax = self.plotting.mpl_init()
             hist.mpl_plot(ax, remove_empty_bins=True)
-            ax.text(0.65, 0.8 * ax.get_ylim()[1], 'size: %d' % n_seqs, fontsize=20, fontweight='bold')
-            ax.text(0.65, 0.7 * ax.get_ylim()[1], 'h: %.2f' % utils.fay_wu_h(line=None, restrict_to_region=restrict_to_region, occurence_indices=oindexlist, n_seqs=n_seqs), fontsize=20, fontweight='bold')
+            ax.text(0.65, 0.8 * ax.get_ylim()[1], 'h: %+.1f' % utils.fay_wu_h(line=None, restrict_to_region=restrict_to_region, occurence_indices=oindexlist, n_seqs=n_seqs), fontsize=17, fontweight='bold')
+            if red_text is not None:
+                ax.text(0.65, 0.7 * ax.get_ylim()[1], red_text, fontsize=17, color='red', fontweight='bold')
+            titlestr = '%s (size: %d)' % (cdr3titlestr, n_seqs)
+
             regionstr = restrict_to_region + ' ' if restrict_to_region is not None else ''
-            self.plotting.mpl_finish(ax, plotdir, fname, title=title, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
+            self.plotting.mpl_finish(ax, plotdir, fname, title=titlestr, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
             self.addfname(fnames, fname)
 
         subd, plotdir = self.init_subd('sfs', base_plotdir)
@@ -445,7 +449,10 @@ class PartitionPlotter(object):
                 continue
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotation, restrict_to_region=restrict_to_region)
-            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'icluster-%d' % iclust, self.get_cdr3_title(annotation))
+            red_text = None
+            if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:
+                red_text = '%s' % ' '.join(set(self.args.queries_to_include) & set(sorted_clusters[iclust]))
+            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'icluster-%d' % iclust, self.get_cdr3_title(annotation), red_text=red_text)
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
