@@ -60,7 +60,7 @@ class PartitionDriver(object):
                 if self.args.outfname is None and self.current_action != 'cache-parameters':
                     print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
             self.default_sw_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
-        elif self.current_action != 'view-annotations' and self.current_action != 'view-partitions' and self.current_action != 'plot-partitions' and self.current_action != 'view-alternative-naive-seqs':
+        elif self.current_action not in ['view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
             raise Exception('--infname is required for action \'%s\'' % args.action)
 
         self.vs_info, self.sw_info = None, None
@@ -223,22 +223,24 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self):
-        if self.current_action == 'cache-parameters':
+        tmpact = self.current_action
+        if tmpact == 'cache-parameters':
             self.cache_parameters()
-        elif self.current_action == 'annotate':
+        elif tmpact == 'annotate':
             self.annotate()
-        elif self.current_action == 'partition':
+        elif tmpact == 'partition':
             self.partition()
-        elif self.current_action == 'view-annotations':
-            self.read_existing_annotations(debug=True)
-        elif self.current_action == 'view-partitions':
-            self.read_existing_partitions(debug=True)
-        elif self.current_action == 'plot-partitions':
+        elif 'view-' in tmpact:
+            if tmpact == 'view-partitions' or tmpact == 'view-cluster-annotations':
+                self.read_existing_partitions(debug=True)
+            if tmpact == 'view-annotations' or tmpact == 'view-cluster-annotations':
+                self.read_existing_annotations(outfname=(None if tmpact == 'view-annotations' else self.args.outfname.replace('.csv', '-cluster-annotations.csv')), debug=True)
+        elif tmpact == 'plot-partitions':
             self.plot_existing_partitions()
-        elif self.current_action == 'view-alternative-naive-seqs':
+        elif tmpact == 'view-alternative-naive-seqs':
             self.view_alternative_naive_seqs()
         else:
-            raise Exception('bad action %s' % self.current_action)
+            raise Exception('bad action %s' % tmpact)
 
     # ----------------------------------------------------------------------------------------
     def get_vsearch_annotations(self, get_annotations=False):
@@ -344,7 +346,10 @@ class PartitionDriver(object):
                     break
 
         if debug:
-            for line in sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True):
+            sorted_annotations = sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True)
+            if self.args.cluster_indices is not None:
+                sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
+            for line in sorted_annotations:
                 label = ''
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
@@ -358,10 +363,10 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_existing_partitions(self, debug=False):
-        cp = ClusterPath()
+        cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cp.readfile(self.args.outfname)
         if debug:
-            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
+            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
         return cp
 
     # ----------------------------------------------------------------------------------------

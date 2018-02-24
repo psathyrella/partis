@@ -326,6 +326,7 @@ parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-a
 parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
 parent_parser.add_argument('--min-allele-finding-gene-length', type=int, default=150, help='if (after excluding particularly short reads) the reads for a gene are shorter than this, then don\'t look for new alleles with/on this gene')
 parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
+parent_parser.add_argument('--cluster-indices', help='indices of clusters (when sorted largest to smallest) to print for --view-annotations and --view-partitions')
 
 # ----------------------------------------------------------------------------------------
 subconfig = {
@@ -336,8 +337,9 @@ subconfig = {
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
     'view-annotations' : {'func' : view_existing_output,'help' : 'Print (to std out) the annotations from an existing annotation output csv.'},
     'view-partitions'  : {'func' : view_existing_output,'help' : 'Print (to std out) the partitions from an existing partition output csv.'},
+    'view-cluster-annotations'    : {'func' : view_existing_output, 'help' : 'Print (to std out) the partitions, and annotations for the best partition, from an existing partition output csv.'},
+    'view-alternative-naive-seqs' : {'func' : view_existing_output, 'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'},
     'plot-partitions'  : {'func' : view_existing_output,'help' : 'Plot existing partitions and cluster annotations.'},
-    'view-alternative-naive-seqs'  : {'func' : view_existing_output,'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'},
     'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'deprecated, do not use'},
 }
 
