@@ -2,7 +2,6 @@ import time
 import copy
 import sys
 import math
-import re
 import os
 import itertools
 import operator
@@ -10,16 +9,12 @@ import pysam
 import contextlib
 from collections import OrderedDict
 import csv
-import subprocess
 
 import utils
 import glutils
 import indelutils
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
-from allelefinder import AlleleFinder
-from alleleremover import AlleleRemover
-from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
@@ -229,8 +224,8 @@ class Waterer(object):
     def execute_commands(self, base_infname, base_outfname, n_procs):
 
         def get_cmd_str(iproc):
-            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
-            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
+            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname)
+            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname)
 
         cmdfos = [{'cmd_str' : get_cmd_str(iproc),
                    'workdir' : self.subworkdir(iproc, n_procs),
@@ -276,7 +271,7 @@ class Waterer(object):
         return len(written_queries)
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
@@ -294,7 +289,7 @@ class Waterer(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
+    def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname):
         """
         Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
         """
