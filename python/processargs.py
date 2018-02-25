@@ -1,6 +1,7 @@
 import os
 import random
 import sys
+import subprocess
 
 import utils
 
@@ -85,9 +86,9 @@ def process(args):
 
     if args.print_git_commit or args.action == 'version':
         print 'RUN ' + ' '.join(sys.argv)
-        tag = check_output(['git', 'tag']).split()[-1]
+        tag = subprocess.check_output(['git', 'tag']).split()[-1]
         print '       tag %s' % tag
-        print '    commit %s' % check_output(['git', 'rev-parse', 'HEAD']).strip()
+        print '    commit %s' % subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
         if args.action == 'version':
             sys.exit(0)
 
