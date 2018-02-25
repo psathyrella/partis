@@ -383,12 +383,8 @@ class Waterer(object):
             print '\n%s didn\'t read %s from %s' % (utils.color('red', 'warning'), ' '.join(not_read), self.args.workdir)
 
         if len(self.remaining_queries) > 0:
-            printstr = '       %8d' % len(self.remaining_queries)
-            printstr += '       %8d' % self.new_indels
-            printstr += '            '
             n_to_rerun = 0
             for reason in queries_to_rerun:
-                printstr += '        %8d' % len(queries_to_rerun[reason])
                 n_to_rerun += len(queries_to_rerun[reason])
             if n_to_rerun + self.new_indels + len(not_read) != len(self.remaining_queries):
                 raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels + (n missing from sam file) != remaining_queries): %d + %d + %d = %d != %d   (look in %s)'
