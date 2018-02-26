@@ -2208,6 +2208,8 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_st
             words = theselines[0].split()
             for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
                 if var in words:
+                    if words.count(var) > 1:
+                        raise Exception('found multiple instances of variable \'%s\' in line \'%s\'' % (var, theselines[0]))
                     dbgfo[header][var] = float(words[words.index(var) + 1])
 
     if debug is None:
