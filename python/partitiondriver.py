@@ -29,6 +29,7 @@ from performanceplotter import PerformancePlotter
 from partitionplotter import PartitionPlotter
 from hist import Hist
 
+# ----------------------------------------------------------------------------------------
 def timeprinter(fcn):
     def wrapper(*args, **kwargs):
         start = time.time()
@@ -40,11 +41,13 @@ def timeprinter(fcn):
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
-    def __init__(self, args, glfo, input_info, simglfo):
+    def __init__(self, args, glfo, input_info, simglfo, reco_info):
         self.args = args
         self.glfo = glfo
         self.input_info = input_info
         self.simglfo = simglfo
+        self.reco_info = reco_info
+
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         if args.infname is not None:
@@ -79,6 +82,23 @@ class PartitionDriver(object):
         self.aligned_gl_seqs = None
         if self.args.aligned_germline_fname is not None:
             self.aligned_gl_seqs = glutils.read_aligned_gl_seqs(self.args.aligned_germline_fname, self.glfo)
+
+        self.action_fcns = {
+            'cache-parameters'            : self.cache_parameters,
+            'annotate'                    : self.annotate,
+            'partition'                   : self.partition,
+            'view-annotations'            : self.read_existing_annotations,
+            'view-partitions'             : self.read_existing_partitions,
+            'view-cluster-annotations'    : self.read_existing_cluster_annotations,
+            'plot-partitions'             : self.plot_existing_partitions,
+            'view-alternative-naive-seqs' : self.view_alternative_naive_seqs,
+        }
+
+    # ----------------------------------------------------------------------------------------
+    def run(self, actions):
+        for tmpaction in actions:
+            self.current_action = tmpaction
+            self.action_fcns[tmpaction]()
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
@@ -209,31 +229,6 @@ class PartitionDriver(object):
         glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
 
     # ----------------------------------------------------------------------------------------
-    def run(self):
-# # ----------------------------------------------------------------------------------------
-#         # switch to actions
-#         self.current_action = action  # *not* necessarily the same as <self.args.action> (<self.args.action> isn't used anywhere here)
-# # ----------------------------------------------------------------------------------------
-        tmpact = self.current_action
-        if tmpact == 'cache-parameters':
-            self.cache_parameters()
-        elif tmpact == 'annotate':
-            self.annotate()
-        elif tmpact == 'partition':
-            self.partition()
-        elif 'view-' in tmpact:
-            if tmpact == 'view-partitions' or tmpact == 'view-cluster-annotations':
-                self.read_existing_partitions(debug=True)
-            if tmpact == 'view-annotations' or tmpact == 'view-cluster-annotations':
-                self.read_existing_annotations(outfname=(None if tmpact == 'view-annotations' else self.args.outfname.replace('.csv', '-cluster-annotations.csv')), debug=True)
-        elif tmpact == 'plot-partitions':
-            self.plot_existing_partitions()
-        elif tmpact == 'view-alternative-naive-seqs':
-            self.view_alternative_naive_seqs()
-        else:
-            raise Exception('bad action %s' % tmpact)
-
-    # ----------------------------------------------------------------------------------------
     def get_vsearch_annotations(self, get_annotations=False):
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
         # self.match_mismatch = '5:-4'  # TODO switch to these values
@@ -268,20 +263,20 @@ class PartitionDriver(object):
             # vs_info = None  # memory control (not tested)
             alremover = None  # memory control (not tested)
 
-# ----------------------------------------------------------------------------------------
-        self.get_vsearch_annotations(get_annotations=True)
-        self.run_waterer()
-        for query in self.sw_info['indels']:
-            if query not in self.sw_info['queries']:
-                continue
-            if query not in self.vs_info['annotations']:
-                continue
-            if not indelutils.has_indels(self.vs_info['annotations'][query]['indelfo']):
-                continue
-            indelutils.pad_indel_info(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
-        utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
-        sys.exit()
-# ----------------------------------------------------------------------------------------
+# # ----------------------------------------------------------------------------------------
+#         self.get_vsearch_annotations(get_annotations=True)
+#         self.run_waterer()
+#         for query in self.sw_info['indels']:
+#             if query not in self.sw_info['queries']:
+#                 continue
+#             if query not in self.vs_info['annotations']:
+#                 continue
+#             if not indelutils.has_indels(self.vs_info['annotations'][query]['indelfo']):
+#                 continue
+#             indelutils.pad_indel_info(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
+#         utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
+#         sys.exit()
+# # ----------------------------------------------------------------------------------------
 
         # (re-)add [new] alleles
         if self.args.allele_cluster:
@@ -330,6 +325,12 @@ class PartitionDriver(object):
     def read_existing_annotations(self, outfname=None, ignore_args_dot_queries=False, debug=False):
         if outfname is None:
             outfname = self.args.outfname
+        if self.current_action == 'view-annotations':
+            debug = True
+        elif self.current_action == 'view-cluster-annotations':
+            debug = True
+            outfname = outfname.replace('.csv', '-cluster-annotations.csv')
+
         annotations = OrderedDict()
         with open(outfname) as csvfile:
             failed_queries = set()
@@ -371,6 +372,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_existing_partitions(self, debug=False):
+        if self.current_action == 'view-partitions' or self.current_action == 'view-cluster-annotations':
+            debug = True
         cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cp.readfile(self.args.outfname)
         if debug:
@@ -395,6 +398,11 @@ class PartitionDriver(object):
             cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
             raise Exception('see above')
         self.print_subcluster_naive_seqs(self.args.queries)
+
+    # ----------------------------------------------------------------------------------------
+    def read_existing_cluster_annotations(self, debug=False):
+        self.read_existing_partitions()
+        self.read_existing_annotations()
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
