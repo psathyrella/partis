@@ -178,8 +178,11 @@ def run_simulation(args):
 def get_glfos(args, actions):
     if actions[0] == 'cache-parameters':  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
         gldir = args.default_initial_germline_dir if args.initial_germline_dir is None else args.initial_germline_dir
-    elif 'xxx-dummy-xxx' in args.parameter_dir:  # arg... terrible hack to indicate we're dealing with existing output
-        gldir = args.default_initial_germline_dir
+    elif 'xxx-dummy-xxx' in args.parameter_dir:  # terrible hack to indicate we're dealing with existing output
+        if args.initial_germline_dir is not None:  # if an explicit dir was set on the command line, use it
+            gldir = args.initial_germline_dir
+        else:  # otherwise hope the default one (probably in data/germlines/human is good enough)
+            gldir = args.default_initial_germline_dir
     else:
         gldir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
 
