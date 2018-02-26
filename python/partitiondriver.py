@@ -315,7 +315,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def annotate(self):
         print 'annotating'
-        self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)
+        if self.sw_info is None:
+            self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)
         if self.args.only_smith_waterman:
             return
         print 'hmm'
@@ -408,7 +409,8 @@ class PartitionDriver(object):
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         print 'partitioning'
-        self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)  # run smith-waterman
+        if self.sw_info is None:
+            self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)  # run smith-waterman
         if len(self.sw_info['queries']) == 0:
             if self.args.outfname is not None:
                 check_call(['touch', self.args.outfname])

@@ -206,7 +206,7 @@ def run_partitiondriver(args):
     set_default_parameter_dir(args)
 
     actions = [args.action]  # do *not* use <args.action> after this
-    if 'view-' not in args.action and 'plot-' not in args.action and not os.path.exists(args.parameter_dir):
+    if args.action in ['annotate', 'partition'] and not os.path.exists(args.parameter_dir):
         actions = ['cache-parameters'] + actions
         print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, actions[1])
 
