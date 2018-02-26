@@ -3285,3 +3285,46 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
     cp.print_partitions(abbreviate=True)
 
     return partition
+
+
+# ----------------------------------------------------------------------------------------
+def compare_vsearch_to_sw(sw_info, vs_info):
+    from hist import Hist
+    hists = {
+        # 'mfreq' : Hist(30, -0.1, 0.1),
+        # 'n_muted' : Hist(20, -10, 10),
+        # 'vs' : Hist(30, 0., 0.4),
+        # 'sw' : Hist(30, 0., 0.4),
+        'n_indels' : Hist(7, -3.5, 3.5),
+        'pos' : Hist(21, -10.5, 10.5),
+        'len' : Hist(11, -5, 5),
+        # 'type' : Hist(2, -0.5, 1.5),
+    }
+
+    for uid in sw_info['queries']:
+        if uid not in vs_info['annotations']:
+            continue
+        vsfo = vs_info['annotations'][uid]
+        swfo = sw_info[uid]
+        # swmfreq, swmutations = utils.get_mutation_rate_and_n_muted(swfo, iseq=0, restrict_to_region='v')
+        # hists['mfreq'].fill(vsfo['v_mut_freq'] - swmfreq)
+        # hists['n_muted'].fill(vsfo['n_v_mutations'] - swmutations)
+        # hists['vs'].fill(vsfo['v_mut_freq'])
+        # hists['sw'].fill(swmfreq)
+        iindel = 0
+        vsindels = vsfo['indelfo']['indels']
+        swindels = swfo['indelfos'][0]['indels']
+        hists['n_indels'].fill(len(vsindels) - len(swindels))
+        if len(vsindels) == 0 or len(swindels) == 0:
+            continue
+        vsindels = sorted(vsindels, key=lambda d: (d['len'], d['pos']), reverse=True)
+        swindels = sorted(swindels, key=lambda d: (d['len'], d['pos']), reverse=True)
+        for name in [n for n in hists if n != 'n_indels']:
+            hists[name].fill(vsindels[iindel][name] - swindels[iindel][name])
+
+    import plotting
+    for name, hist in hists.items():
+        fig, ax = plotting.mpl_init()
+        hist.mpl_plot(ax, hist, label=name, color=plotting.default_colors[hists.keys().index(name)])
+        # hist.write('_output/vsearch-test/%s/%s.csv' % (match_mismatch.replace(':', '-'), name))
+        plotting.mpl_finish(ax, '.', name, xlabel='vs - sw')

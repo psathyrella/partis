@@ -41,27 +41,15 @@ def timeprinter(fcn):
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
-    def __init__(self, args, action, initial_gldir):  # NOTE <initial_gldir> is not, in general, the same as <args.initial_germline_dir>
+    def __init__(self, args, glfo, input_info, simglfo):
         self.args = args
-        self.current_action = action  # *not* necessarily the same as <self.args.action> (<self.args.action> isn't used anywhere here)
+        self.glfo = glfo
+        self.input_info = input_info
+        self.simglfo = simglfo
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
-        self.glfo = glutils.read_glfo(initial_gldir, locus=self.args.locus, only_genes=self.args.only_genes)
-        self.simglfo = self.glfo  # TODO it would be nicer, in the future, to store the simulation germline info in the simulation file rather than doing this
-        if self.args.simulation_germline_dir is not None:
-            self.simglfo = glutils.read_glfo(self.args.simulation_germline_dir, locus=self.args.locus)  # NOTE uh, I think I don't want to apply <self.args.only_genes>
-
-        self.input_info, self.reco_info = None, None
-        if self.args.infname is not None:
-            self.input_info, self.reco_info = seqfileopener.get_seqfile_info(self.args.infname, self.args.is_data, n_max_queries=self.args.n_max_queries, args=self.args, simglfo=self.simglfo)
-            if len(self.input_info) > 1000:
-                if self.args.n_procs == 1:
-                    print '  note:! running on %d sequences spread over %d processes. This will be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --batch-system.\n' % (len(self.input_info), self.args.n_procs)
-                if self.args.outfname is None and self.current_action != 'cache-parameters':
-                    print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'
+        if args.infname is not None:
             self.default_sw_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
-        elif self.current_action not in ['view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
-            raise Exception('--infname is required for action \'%s\'' % args.action)
 
         self.vs_info, self.sw_info = None, None
         self.duplicates = {}
@@ -199,7 +187,7 @@ class PartitionDriver(object):
                 os.remove(self.default_sw_cachefname)
 
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo if self.reco_info is not None else None)  # <remove_template_genes> stuff is handled in <new_allele_info>
+            glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
 
             itry += 1
             if itry >= self.args.n_max_allele_finding_iterations:
@@ -223,6 +211,10 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self):
+# # ----------------------------------------------------------------------------------------
+#         # switch to actions
+#         self.current_action = action  # *not* necessarily the same as <self.args.action> (<self.args.action> isn't used anywhere here)
+# # ----------------------------------------------------------------------------------------
         tmpact = self.current_action
         if tmpact == 'cache-parameters':
             self.cache_parameters()
@@ -245,6 +237,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_vsearch_annotations(self, get_annotations=False):
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
+        # self.match_mismatch = '5:-4'  # TODO switch to these values
+        # , match_mismatch=self.match_mismatch
         self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, get_annotations=get_annotations)
 
     # ----------------------------------------------------------------------------------------
@@ -275,13 +269,28 @@ class PartitionDriver(object):
             # vs_info = None  # memory control (not tested)
             alremover = None  # memory control (not tested)
 
+# ----------------------------------------------------------------------------------------
+        self.get_vsearch_annotations(get_annotations=True)
+        self.run_waterer()
+        for query in self.sw_info['indels']:
+            if query not in self.sw_info['queries']:
+                continue
+            if query not in self.vs_info['annotations']:
+                continue
+            if not indelutils.has_indels(self.vs_info['annotations'][query]['indelfo']):
+                continue
+            indelutils.pad_indel_info(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
+        utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
+        sys.exit()
+# ----------------------------------------------------------------------------------------
+
         # (re-)add [new] alleles
         if self.args.allele_cluster:
             self.run_waterer()
-            alclusterer = AlleleClusterer(self.args, glfo=self.glfo, reco_info=self.reco_info, simglfo=self.simglfo if self.reco_info is not None else None)
+            alclusterer = AlleleClusterer(self.args, glfo=self.glfo, reco_info=self.reco_info, simglfo=self.simglfo)
             alcluster_alleles = alclusterer.get_alleles(self.sw_info, debug=self.args.debug_allele_finding, plotdir=None if self.args.plotdir is None else self.args.plotdir + '/sw/alcluster')
             if len(alcluster_alleles) > 0:
-                glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo if self.reco_info is not None else None, debug=True)
+                glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo, debug=True)
             alclusterer = None
         if not self.args.dont_find_new_alleles:
             self.find_new_alleles()
@@ -827,14 +836,14 @@ class PartitionDriver(object):
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --locus ' + self.args.locus
         cmd_str += ' --random-seed ' + str(self.args.seed)
-        if self.args.cache_naive_hfracs:
-            cmd_str += ' --cache-naive-hfracs'
         if n_procs > 1:  # only cache vals for sequence sets with newly-calculated vals (initial cache file is copied to each subdir)
             cmd_str += ' --only-cache-new-vals'
 
         if self.args.dont_rescale_emissions:
             cmd_str += ' --dont-rescale-emissions'
         if self.current_action == 'partition':
+            if self.args.cache_naive_hfracs:
+                cmd_str += ' --cache-naive-hfracs'
             if os.path.exists(self.hmm_cachefname):
                 cmd_str += ' --input-cachefname ' + self.hmm_cachefname
             cmd_str += ' --output-cachefname ' + self.hmm_cachefname
@@ -1399,7 +1408,7 @@ class PartitionDriver(object):
         if shuffle_input:  # shuffle nset order (this is absolutely critical when clustering with more than one process, in order to redistribute sequences among the several processes)
             random.shuffle(nsets)
 
-        if self.args.synthetic_distance_based_partition:
+        if self.current_action == 'partition' and self.args.synthetic_distance_based_partition:
             self.write_fake_cache_file(nsets)
 
         genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
@@ -1674,6 +1683,7 @@ class PartitionDriver(object):
                     print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
+                # TODO indel info in self.sw_info is only right for padded seqs at this point
                 if len(uids) > 1:  # if there's more than one sequence, we need to use the padded line
                     at_least_one_mult_hmm_line = True
                     line_to_use = padded_line
