@@ -184,7 +184,7 @@ def process(args):
     if args.flat_mute_freq is not None or args.same_mute_freq_for_all_seqs:
         assert args.mutate_from_scratch
 
-    if args.action not in ['simulate', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
+    if args.infname is None and args.action not in ['simulate', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
         raise Exception('--infname is required for action \'%s\'' % args.action)
 
     if args.outfname is None and args.action != 'cache-parameters':
