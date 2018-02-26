@@ -22,6 +22,7 @@ sys.path.insert(1, partis_dir + '/packages/baltic')
 import utils
 import glutils
 import processargs
+import seqfileopener
 from partitiondriver import PartitionDriver
 
 # ----------------------------------------------------------------------------------------
@@ -210,9 +211,9 @@ def run_partitiondriver(args):
         actions = ['cache-parameters'] + actions
         print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, actions[1])
 
-    input_info, reco_info = read_input_file(args, simglfo)
     glfo, simglfo = get_glfos(args, actions)
-    parter = PartitionDriver(argvar, action, glfo, simglfo)
+    input_info, reco_info = read_input_file(args, simglfo)
+    parter = PartitionDriver(args, actions, glfo, simglfo)
     parter.run()
     parter.clean()
 

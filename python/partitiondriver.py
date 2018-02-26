@@ -18,7 +18,6 @@ import operator
 import utils
 import glutils
 import indelutils
-import seqfileopener
 from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
