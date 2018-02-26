@@ -413,7 +413,7 @@ class PartitionDriver(object):
             self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)  # run smith-waterman
         if len(self.sw_info['queries']) == 0:
             if self.args.outfname is not None:
-                check_call(['touch', self.args.outfname])
+                ClusterPath().write(self.args.outfname, False)
             return
         if self.args.only_smith_waterman:
             return
