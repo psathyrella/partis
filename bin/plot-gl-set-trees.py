@@ -154,7 +154,7 @@ def getstatus(gene_categories, node, ref_label=None, debug=False):
         return 'internal'
     cats = [cat for cat, genes in gene_categories.items() if gene in genes]
     if len(cats) == 0:
-        raise Exception('couldn\'t find a category for %s (among %s)' % (node.name, gene_categories))
+        raise Exception('[probably need to bust plot cache/rewrite tree file] couldn\'t find a category for %s among:\n %s' % (node.name, '\n  '.join(['%s:\n     %s' % (k, ' '.join(gene_categories[k])) for k in gene_categories])))
     elif len(cats) > 1:
         raise Exception('wtf?')
     if debug:
@@ -199,12 +199,14 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
     # synchronize to somebody -- either simulation (<ref_label>) or the first one
     if ref_label is not None:
         sync_label = ref_label
+    elif 'partis' in glslabels:
+        sync_label = 'partis'
     else:
         sync_label = glslabels[0]
     for label in [l for l in glslabels if l != sync_label]:
         if debug:
-            print '    syncronizing %s names to match %s' % (label, sync_label)
-        glutils.synchronize_glfos(ref_glfo=glfos[sync_label], new_glfo=glfos[label], region=args.region, debug=debug)
+            print '  synchronizing %s names to match %s' % (label, sync_label)
+        glutils.synchronize_glfos(ref_glfo=glfos[sync_label], new_glfo=glfos[label], region=args.region, ref_label=sync_label, debug=debug)
 
     gl_sets = {label : {g : seq for g, seq in glfos[label]['seqs'][args.region].items()} for label in glfos}
     all_genes = {g : s for gls in gl_sets.values() for g, s in gls.items()}

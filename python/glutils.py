@@ -1155,11 +1155,20 @@ def find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=None, new_name=None
         return None, None, None
 
     if debug and (not debug_only_zero_distance or min_distance == 0):
-        def print_sequence_chunks(seq, colored_name, pad=0):
-            print '            %s%s%s%s%s%s   %s' % (utils.color('blue', seq[:exclusion_5p]), seq[exclusion_5p : new_cpos], utils.color('reverse_video', seq[new_cpos : new_cpos + 3]), seq[new_cpos + 3 : new_cpos + 3 + bases_to_right_of_cysteine], utils.color('blue', seq[new_cpos + 3 + bases_to_right_of_cysteine:]), ' ' * pad, colored_name)
+        new_seq_str = new_seq + ' ' * max(0, len(nearest_seq) - len(new_seq))
+        nearest_seq_str = nearest_seq + ' ' * max(0, len(new_seq) - len(nearest_seq))
+        new_print_strs, nearest_print_strs = [], []
+        for istart, istop, color in ((0, exclusion_5p, 'blue'), (exclusion_5p, new_cpos, None), (new_cpos, new_cpos + 3, 'reverse_video'), (new_cpos + 3, new_cpos + 3 + bases_to_right_of_cysteine, None), (new_cpos + 3 + bases_to_right_of_cysteine, 999999, 'blue')):  # arg, I don't like the 999999, but can't figure out a better way
+            new_print_strs += [utils.color(color, new_seq_str[istart : istop])]
+            if color == 'blue':  # don't color mutated bases in the blue (excluded) parts (tried to fix this in commented line below but it doesn't quite work)
+                nearest_print_strs += [nearest_seq_str[istart : istop]]
+            else:
+                nearest_print_strs += [utils.color_mutants(new_seq_str[istart : istop], nearest_seq_str[istart : istop])]
+            nearest_print_strs[-1] = utils.color(color, nearest_print_strs[-1])
+            # nearest_print_strs += [utils.color(color, utils.color_mutants(new_seq_str[istart : istop], nearest_seq_str[istart : istop], red_bkg=color=='blue'))]
         print '        %s gene %s with same cpos in %s for %s (blue bases are not considered):' % ('equivalent' if min_distance == 0 else 'nearest', utils.color_gene(nearest_gene), glfo_str, ' ' if new_name is None else utils.color_gene(new_name))
-        print_sequence_chunks(new_seq, 'new' if new_name is None else utils.color_gene(new_name), pad=max(0, len(nearest_seq) - len(new_seq)))
-        print_sequence_chunks(nearest_seq, utils.color_gene(nearest_gene), pad=max(0, len(new_seq) - len(nearest_seq)))
+        print '            %s   %s' % (''.join(new_print_strs), 'new' if new_name is None else utils.color_gene(new_name))
+        print '            %s   %s' % (''.join(nearest_print_strs), utils.color_gene(nearest_gene))
 
     return min_distance, nearest_gene, nearest_seq
 
@@ -1167,7 +1176,7 @@ def find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=None, new_name=None
 def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False):
     # if <new_seq> likely corresponds to an allele that's already in <glfo>, return that name and its sequence, otherwise return (None, None).
     # NOTE that the calling code, in general, is determining whether we want this sequence in the calling code's glfo.
-    # Here, we're trying to find any existing names in <glfo>, which is typically a different glfo (it's usually either default_inititial, or it's simulation)
+    # Here, we're trying to find any existing names in <glfo>, which is typically a different glfo (it's usually either default_initial or simulation)
     region = 'v'  # conserved codon stuff below will have to be changed for j
 
     if new_name is not None and new_name in glfo['seqs'][region]:
@@ -1193,29 +1202,44 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
     return None, None
 
 # ----------------------------------------------------------------------------------------
-def synchronize_glfos(ref_glfo, new_glfo, region, ref_label=None, debug=False):
+def synchronize_glfos(ref_glfo, new_glfo, region, ref_label='ref glfo', debug=False):
     assert region == 'v'  # cysteine stuff would need to be generalized
+    genes_in_common = set()
     for new_name, new_seq in new_glfo['seqs'][region].items():
         if new_name in ref_glfo['seqs'][region]:
+            if new_seq != ref_glfo['seqs'][region][new_name]:
+                print '%s different sequences for %s:' % (utils.color('red', 'error'), utils.color_gene(new_name))  # this should really probably be an exception
+                utils.color_mutants(ref_glfo['seqs'][region][new_name], new_seq, align=True, print_result=True, extra_str='  ', ref_label=ref_label + '  ')
+            genes_in_common.add(new_name)
             continue
-        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, glfo_str='ref glfo' if ref_label is None else ref_label, debug=debug)
+        if debug:
+            print '     %s:' % utils.color_gene(new_name)
+        equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, glfo_str=ref_label, debug=debug)
         if equiv_name is not None:
             if equiv_name in new_glfo['seqs'][region]:
                 print '        (already in new glfo [probably not a snpd allele, i.e. you\'ve got two alleles in your gl set that are equivalent])'
                 continue
 
             if debug:
-                print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(equiv_name))
+                print '        %s --> %s' % (utils.color_gene(new_name), utils.color_gene(equiv_name))
             remove_gene(new_glfo, new_name)
             add_new_allele(new_glfo, {'gene' : equiv_name, 'seq' : equiv_seq, 'cpos' : utils.cdn_pos(ref_glfo, region, equiv_name)}, use_template_for_codon_info=False)
 
-    # fiddle with igdiscover names
+    if debug:
+        print '  %d genes in common' % len(genes_in_common)
+
+    # try to convert igdiscover novel allele names (randomish string at end) to partis notation (e.g. +A78C)
+    assert 'igdiscover' not in ref_label # partis has to be the <ref_label> for this to work
+    if debug:
+        print '  attempting to convert igdiscover new-allele names'
     for new_name, new_seq in new_glfo['seqs'][region].items():
         if not is_novel(new_name):
             continue
         method, _, _ = split_inferred_allele_name(new_name)
         if method != 'igdiscover':
             continue
+        if debug:
+            print '     %s:' % utils.color_gene(new_name)
         better_name, better_snpfo, nearest_gene = try_to_get_name_and_mutfo_from_seq(new_name, new_seq, ref_glfo, consider_indels=False, debug=debug)
         if better_name is not None:
             remove_gene(new_glfo, new_name)
@@ -1231,8 +1255,8 @@ def synchronize_glfos(ref_glfo, new_glfo, region, ref_label=None, debug=False):
                 use_template_for_codon_info = False
                 pass  # dammit, I guess just let it do the alignment
             add_new_allele(new_glfo, newfo, use_template_for_codon_info=use_template_for_codon_info)
-            if True: #debug:
-                print '      %s --> %s' % (utils.color_gene(new_name), utils.color_gene(better_name))
+            if debug:
+                print '        %s --> %s' % (utils.color_gene(new_name), utils.color_gene(better_name))
 
     return new_glfo
 

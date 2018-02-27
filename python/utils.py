@@ -554,9 +554,12 @@ Colors['green'] = '\033[92m'
 Colors['yellow'] = '\033[93m'
 Colors['red'] = '\033[91m'
 Colors['reverse_video'] = '\033[7m'
+Colors['red_bkg'] = '\033[41m'
 Colors['end'] = '\033[0m'
 
 def color(col, seq, width=None, padside='left'):
+    if col is None:
+        return seq
     return_str = [Colors[col], seq, Colors['end']]
     if width is not None:  # make sure final string prints to correct width
         n_spaces = max(0, width - len(seq))  # if specified <width> is greater than uncolored length of <seq>, pad with spaces so that when the colors show up properly the colored sequences prints with width <width>
