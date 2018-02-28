@@ -1220,7 +1220,8 @@ def synchronize_glfos(ref_glfo, new_glfo, region, ref_label='ref glfo', debug=Fa
         equiv_name, equiv_seq = find_equivalent_gene_in_glfo(ref_glfo, new_seq, utils.cdn_pos(new_glfo, region, new_name), new_name=new_name, glfo_str=ref_label, debug=debug)
         if equiv_name is not None:
             if equiv_name in new_glfo['seqs'][region]:
-                print '        (already in new glfo [probably not a snpd allele, i.e. you\'ve got two alleles in your gl set that are equivalent])'
+                if debug:
+                    print '        (already in new glfo [probably not a snpd allele, i.e. you\'ve got two alleles in your gl set that are equivalent])'
                 continue
 
             if debug:
