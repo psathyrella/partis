@@ -159,11 +159,11 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
-        waterer = Waterer(self.args, self.input_info, self.reco_info, self.glfo,
+        waterer = Waterer(self.args, self.glfo, self.input_info, self.simglfo, self.reco_info,
                           count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
                           plot_annotation_performance=self.args.plot_annotation_performance,
-                          simglfo=self.simglfo, duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs)
+                          duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache %s' % cachefname.replace('.csv', '')
@@ -237,20 +237,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
-        """ Infer full parameter sets and write hmm files for sequences from <self.input_info>, first with Smith-Waterman, then using the SW output as seed for the HMM """
         print 'caching parameters'
-        if len(self.input_info) < 10 * self.args.min_observations_to_write:
-            # print """
-            # %s: number of input sequences (%d) isn\'t very large compared to --min-observations-to-write (%d), i.e. when we write hmm files we\'re going to be doing a lot of interpolation and smoothing.
-            # This is not necessarily terrible -- if you really only have %d input sequences, you will, in general, get sensible answers.
-            # But:
-            #   - if this is a subset of a larger file, you should cache parameters using the entire file (well, a random subset of, say, ~50k sequences is typically sufficient)
-            #   - if you have another data set that you believe is similar to this small one (e.g. same human, so the germlines are the same), you will get more accurate results if you cache parameters on that data set, and then run inference using those parameters (i.e. use the --parameter-dir argument) on this small data set.
-
-            # For now, we assume the first case (you actually want to infer parameters on this small data set), so we reset --min-observations-to-write to 1 and charge ahead.
-            # It would also be sensible to compare the hmm output results (--outfname) to the smith-waterman results (which are cached in a file whose path should be printed just below).
-            # """ % (utils.color('red', 'warning'), len(self.input_info), self.args.min_observations_to_write, len(self.input_info), )
-
+        if len(self.input_info) < 10 * self.args.min_observations_to_write:  # ok, make up your mind one way or the other here
             self.args.min_observations_to_write = 1
 
         # remove unlikely alleles
@@ -260,23 +248,8 @@ class PartitionDriver(object):
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
             alremover.finalize(sorted(self.vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
-            # vs_info = None  # memory control (not tested)
+            self.vs_info = None  # don't want to keep this around, since it has alignments against all the genes we removed
             alremover = None  # memory control (not tested)
-
-# # ----------------------------------------------------------------------------------------
-#         self.get_vsearch_annotations(get_annotations=True)
-#         self.run_waterer()
-#         for query in self.sw_info['indels']:
-#             if query not in self.sw_info['queries']:
-#                 continue
-#             if query not in self.vs_info['annotations']:
-#                 continue
-#             if not indelutils.has_indels(self.vs_info['annotations'][query]['indelfo']):
-#                 continue
-#             indelutils.pad_indel_info(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
-#         utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
-#         sys.exit()
-# # ----------------------------------------------------------------------------------------
 
         # (re-)add [new] alleles
         if self.args.allele_cluster:

@@ -19,9 +19,9 @@ from performanceplotter import PerformancePlotter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None,
-                 plot_annotation_performance=False,
-                 simglfo=None, duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None):
+    def __init__(self, args, glfo, input_info, simglfo, reco_info
+                 count_parameters=False, parameter_out_dir=None, plot_annotation_performance=False,
+                 duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None):
         self.args = args
         self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
         self.reco_info = reco_info
