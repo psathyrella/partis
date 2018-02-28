@@ -3246,7 +3246,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch=None, consensus
         if action == 'search':
             # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
             n_passed = int(round(sum(returnfo['gene-counts'].values())))
-            print '  vsearch: %d / %d %s annotations (%d failed) in %.1f sec' % (n_passed, len(seqs), region, len(seqs) - n_passed, time.time() - start)
+            print '  vsearch: %d / %d %s annotations (%d failed) with %d %s genes in %.1f sec' % (n_passed, len(seqs), region, len(seqs) - n_passed, len(returnfo['gene-counts']), region, time.time() - start)
         else:
             print 'can\'t yet print time for clustering'
 
