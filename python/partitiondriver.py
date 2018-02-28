@@ -158,12 +158,17 @@ class PartitionDriver(object):
         print ''
         sys.stdout.flush()
 
+        just_ran_vsearch = False
+        if self.vs_info is None and self.args.pre_vsearch:
+            self.get_vsearch_annotations(get_annotations=True)
+            just_ran_vsearch = True  # TODO do this a better way
+
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
         waterer = Waterer(self.args, self.glfo, self.input_info, self.simglfo, self.reco_info,
                           count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
                           plot_annotation_performance=self.args.plot_annotation_performance,
-                          duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs)
+                          duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs, vs_info=self.vs_info)
         cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
         if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
             print '  removing old sw cache %s' % cachefname.replace('.csv', '')
@@ -179,6 +184,18 @@ class PartitionDriver(object):
         self.sw_info = waterer.info
         for uid, dupes in waterer.duplicates.items():  # <waterer.duplicates> is <self.duplicates> OR'd into any new duplicates from this run
             self.duplicates[uid] = dupes
+
+        if just_ran_vsearch:
+            for query in self.sw_info['indels']:
+                if query not in self.sw_info['queries']:
+                    continue
+                if query not in self.vs_info['annotations']:
+                    continue
+                if not indelutils.has_indels(self.vs_info['annotations'][query]['indelfo']):
+                    continue
+                indelutils.pad_indel_info(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
+            utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
+            # sys.exit()
 
         if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
             print '  copying sw cache file %s to --outfname %s' % (cachefname, self.args.outfname)

@@ -21,7 +21,7 @@ class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, glfo, input_info, simglfo, reco_info,
                  count_parameters=False, parameter_out_dir=None, plot_annotation_performance=False,
-                 duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None):
+                 duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None, vs_info=None):
         self.args = args
         self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
         self.reco_info = reco_info
@@ -33,6 +33,7 @@ class Waterer(object):
         self.duplicates = {} if duplicates is None else duplicates
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
         self.aligned_gl_seqs = aligned_gl_seqs
+        self.vs_info = vs_info
 
         self.max_insertion_length = 35  # if an insertion is longer than this, we skip the proposed annotation (i.e. rerun it)
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
@@ -61,6 +62,16 @@ class Waterer(object):
 
         if not os.path.exists(self.args.ig_sw_binary):
             raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
+
+        # TODO make sure this is how you want to do this
+        if self.vs_info is not None:
+            vsfo = self.vs_info['annotations']
+            for query in self.remaining_queries:
+                if indelutils.has_indels(vsfo[query]['indelfo']):
+                    self.info['indels'][query] = vsfo[query]['indelfo']
+                    if self.debug:
+                        print '    adding indel from vsearch:'
+                        print vsfo[query]['indelfo']['dbg_str']
 
     # ----------------------------------------------------------------------------------------
     def run(self, cachefname=None):
@@ -260,8 +271,13 @@ class Waterer(object):
 
                     assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here (where "it's nice" means "it used to be the other way and it fucking sucked and a fuckton of effort went into synchronizing the treatments")
                     seq = self.input_info[query_name]['seqs'][0]
-                    if query_name in self.info['indels']:
-                        seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
+                    # TODO make sure this is how you want to do this
+                    if self.vs_info is None:
+                        if query_name in self.info['indels']:
+                            seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
+                    else:
+                        if query_name in self.vs_info['annotations'] and indelutils.has_indels(self.vs_info['annotations'][query_name]['indelfo']):
+                            seq = self.vs_info['annotations'][query_name]['indelfo']['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
                     sub_infile.write(seq + '\n')
                     written_queries.add(query_name)
                     iquery += 1
@@ -386,8 +402,11 @@ class Waterer(object):
                                 % (n_to_rerun, self.new_indels, len(not_read),
                                    n_to_rerun + self.new_indels + len(not_read),
                                    len(self.remaining_queries), self.args.workdir))
+
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
                 self.match_mismatch[1] += 1
+                if self.debug:
+                    print '    increased mismatch %d --> %d' % (self.match_mismatch[1] - 1, self.match_mismatch[1])
             elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
                 self.new_indels = 0
             else:  # shouldn't get here
@@ -459,7 +478,6 @@ class Waterer(object):
                 if region == 'j':  # this is a terrible hack TODO
                     for ifo in indelfo['indels']:
                         ifo['pos'] += qrbounds[0]
-                indelfo['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + indelfo['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]  # add to reversed seq the bits to left and right of the aligned region TODO
                 qinfo['new_indels'][region] = indelfo
 
             # and finally add this match's information

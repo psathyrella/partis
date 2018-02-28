@@ -184,13 +184,12 @@ def split_cigarstr(cstr):
     return code, int(lstr)
 
 # ----------------------------------------------------------------------------------------
-# def get_indelfo_from_cigar(cigarstr, qrseq, glseq, gene, vsearch_conventions=False, debug=False):
-def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vsearch_conventions=False, debug=False):
+def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, gene, vsearch_conventions=False, debug=False):
     if debug:
         print '  initial:'
         print '    %s' % color_cigar(cigarstr)
-        print '    qr %3d %3d %s' % (qrbounds[0], qrbounds[1], qrseq)
-        print '    gl %3d %3d %s' % (glbounds[0], glbounds[1], glseq)
+        print '    qr %3d %3d %s' % (qrbounds[0], qrbounds[1], full_qrseq)
+        print '    gl %3d %3d %s' % (glbounds[0], glbounds[1], full_glseq)
 
     cigars = [split_cigarstr(cstr) for cstr in re.findall('[0-9]*[A-Z]', cigarstr)]  # split cigar string into its parts, then split each part into the code and the length 
     if vsearch_conventions:
@@ -203,8 +202,8 @@ def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vse
                 cigars.pop(iend)
     cigars = [(code, length) for code, length in cigars if code != 'S']  # remove soft-clipping
     cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
-    qrseq = qrseq[qrbounds[0] : qrbounds[1]]  # ...and trim qrseq and glseq
-    glseq = glseq[glbounds[0] : glbounds[1]]
+    qrseq = full_qrseq[qrbounds[0] : qrbounds[1]]  # ...and trim qrseq and glseq
+    glseq = full_glseq[glbounds[0] : glbounds[1]]
 
     if debug:
         print '  parsed:'
@@ -284,6 +283,7 @@ def get_indelfo_from_cigar(cigarstr, qrseq, qrbounds, glseq, glbounds, gene, vse
     qrprintstr = ''.join(qrprintstr)
     glprintstr = ''.join(glprintstr)
     indelfo['reversed_seq'] = ''.join(reversed_seq)
+    indelfo['reversed_seq'] = full_qrseq[ : qrbounds[0]] + indelfo['reversed_seq'] + full_qrseq[qrbounds[1] : ]  # add to reversed seq the bits to left and right of the aligned region TODO
     for ifo in indelfo['indels']:
         ifo['seqstr'] = ''.join(ifo['seqstr'])
 

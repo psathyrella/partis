@@ -3090,6 +3090,15 @@ def read_vsearch_cluster_file(fname):
 
 # ----------------------------------------------------------------------------------------
 def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotations=False, debug=False):
+    def get_mutation_info(query, matchfo, indelfo):
+        tmpgl = glfo['seqs'][region][matchfo['gene']][matchfo['glbounds'][0] : matchfo['glbounds'][1]]
+        if indelutils.has_indels(indelfo):
+            tmpqr = indelfo['reversed_seq'][matchfo['qrbounds'][0] : matchfo['qrbounds'][1] - indelutils.net_length(indelfo)]
+        else:
+            tmpqr = seqs[query][matchfo['qrbounds'][0] : matchfo['qrbounds'][1]]
+        # color_mutants(tmpgl, tmpqr, print_result=True, align=True)
+        return hamming_distance(tmpgl, tmpqr, return_len_excluding_ambig=True, return_mutated_positions=True)
+
     # first we add every match (i.e. gene) for each query
     query_info = {}
     with open(fname) as alnfile:
@@ -3132,13 +3141,7 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
         for query in query_info:
             matchfo = query_info[query][imatch]
             indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], matchfo['gene'], vsearch_conventions=True)
-            tmpgl = glfo['seqs'][region][matchfo['gene']][matchfo['glbounds'][0] : matchfo['glbounds'][1]]
-            if indelutils.has_indels(indelfo):
-                tmpqr = indelfo['reversed_seq']
-            else:
-                tmpqr = seqs[query][matchfo['qrbounds'][0] : matchfo['qrbounds'][1]]
-            # color_mutants(tmpgl, tmpqr, print_result=True, print_isnps=True)
-            n_mutations, len_excluding_ambig, mutated_positions = hamming_distance(tmpgl, tmpqr, return_len_excluding_ambig=True, return_mutated_positions=True)
+            n_mutations, len_excluding_ambig, mutated_positions = get_mutation_info(query, matchfo, indelfo)
             annotations[query] = {
                 region + '_gene' : matchfo['gene'],  # only works for v now, though
                 'n_' + region + '_mutations' : n_mutations,
