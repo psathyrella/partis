@@ -1061,15 +1061,16 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
             if simplified_snpfo is not None:
                 new_name = template_gene.split('+')[0]  # original template name, before we did any snp'ing
                 snpfo = simplified_snpfo
-        if len(snpfo) > 0 and len(snpfo) <= 5:
-            new_name += '+' + stringify_mutfo(snpfo)
-        else:
-            new_name += '+' + hashstr[:5]
+        if '+' not in new_name:  # if there's a plus in <new_name> at this juncture, it means we failed to simplify snpfo, i.e. probably the template gene has a hash name
+            if len(snpfo) > 0 and len(snpfo) <= 5:
+                new_name += '+' + stringify_mutfo(snpfo)
+            else:
+                new_name += '+' + hashstr[:5]
     else:
         new_name = template_gene + '+' + hashstr[:5]
 
     if new_name.count('+') > 1:
-        raise Exception('somehow ended up with two many \'+\'s in %s' % new_name)
+        raise Exception('somehow ended up with too many \'+\'s in %s' % new_name)
 
     return new_name, snpfo
 
