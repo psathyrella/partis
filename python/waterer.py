@@ -19,7 +19,7 @@ from performanceplotter import PerformancePlotter
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, glfo, input_info, simglfo, reco_info
+    def __init__(self, args, glfo, input_info, simglfo, reco_info,
                  count_parameters=False, parameter_out_dir=None, plot_annotation_performance=False,
                  duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None):
         self.args = args
