@@ -1066,6 +1066,8 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
                 new_name += '+' + stringify_mutfo(snpfo)
             else:
                 new_name += '+' + hashstr[:5]
+        else:  # just give up and use a new hash str
+            new_name = new_name.split('+')[0] + '+' + hashstr[:5]
     else:
         new_name = template_gene + '+' + hashstr[:5]
 
