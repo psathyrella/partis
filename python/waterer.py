@@ -41,6 +41,11 @@ class Waterer(object):
         self.match_mismatch = copy.deepcopy(self.args.initial_match_mismatch)  # don't want to modify it!
         self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
 
+        self.n_max_tries = 3
+        if self.vs_info is not None:
+            self.n_max_tries = 0  # shitty convention
+            self.match_mismatch = [5, 3]  # TODO fix this
+
         self.info = {}
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
         self.info['all_best_matches'] = set()  # every gene that was a best match for at least one query
@@ -67,11 +72,14 @@ class Waterer(object):
         if self.vs_info is not None:
             vsfo = self.vs_info['annotations']
             for query in self.remaining_queries:
-                if indelutils.has_indels(vsfo[query]['indelfo']):
+                if query in vsfo and indelutils.has_indels(vsfo[query]['indelfo']):
                     self.info['indels'][query] = vsfo[query]['indelfo']
                     if self.debug:
                         print '    adding indel from vsearch:'
-                        print vsfo[query]['indelfo']['dbg_str']
+                        if 'dbg_str' in vsfo[query]['indelfo']:
+                            print vsfo[query]['indelfo']['dbg_str']
+                        else:
+                            print '  missing dbg_str for %s (maybe was removed by indelutils.pad_indel_info())' % query
 
     # ----------------------------------------------------------------------------------------
     def run(self, cachefname=None):
@@ -93,7 +101,7 @@ class Waterer(object):
             self.execute_commands(base_infname, base_outfname, n_procs)
             print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
             self.read_output(base_outfname, n_procs)
-            if self.nth_try > 3:
+            if self.nth_try > self.n_max_tries:
                 break
             self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
 
@@ -856,7 +864,7 @@ class Waterer(object):
 
         # deal with unproductive rearrangements
         if not utils.is_functional(infoline):
-            if self.nth_try < 2 and (infoline['mutated_invariants'][0] or not infoline['in_frames'][0]):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
+            if self.nth_try < (self.n_max_tries - 1) and (infoline['mutated_invariants'][0] or not infoline['in_frames'][0]):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
                 if self.debug:
                     print '      rerun: %s' % utils.is_functional_dbg_str(infoline)
                 queries_to_rerun['unproductive'].add(qname)
