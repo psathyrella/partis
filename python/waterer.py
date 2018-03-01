@@ -84,8 +84,8 @@ class Waterer(object):
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < min_queries_per_proc:
                 n_procs = int(max(1., float(len(self.remaining_queries)) / min_queries_per_proc))
-            n_queries_written = self.write_vdjalign_input(base_infname, n_procs)
-            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, n_queries_written, n_procs),
+            self.write_vdjalign_input(base_infname, n_procs)
+            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, len(self.remaining_queries), n_procs),
             sys.stdout.flush()
             substart = time.time()
             self.execute_commands(base_infname, base_outfname, n_procs)
@@ -264,34 +264,37 @@ class Waterer(object):
     def write_vdjalign_input(self, base_infname, n_procs):
         queries_per_proc = float(len(self.remaining_queries)) / n_procs
         n_queries_per_proc = int(math.ceil(queries_per_proc))
-        written_queries = set()  # make sure we actually write each query NOTE I should be able to remove this when I work out where they're disappearing to. But they don't seem to be disappearing any more, *sigh*
         if n_procs == 1:  # double check for rounding problems or whatnot
             assert n_queries_per_proc == len(self.remaining_queries)
+
+        queries_for_each_proc = [[] for _ in range(n_procs)]
+        for iproc in range(n_procs):
+            iquery = 0
+            for query_name in self.remaining_queries:  # NOTE this is wasteful to loop of all the remaining queries for each process... but maybe not that wasteful
+                if iquery >= len(self.remaining_queries):
+                    break
+                if iquery < iproc*n_queries_per_proc or iquery >= (iproc + 1)*n_queries_per_proc:  # not for this process
+                    iquery += 1
+                    continue
+                queries_for_each_proc[iproc].append(query_name)
+                iquery += 1
+
+        missing_queries = self.remaining_queries - set([q for proc_queries in queries_for_each_proc for q in proc_queries])
+        if len(missing_queries) > 0:
+            raise Exception('didn\'t write %s to %s' % (':'.join(missing_queries), self.args.workdir))
+
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
             if n_procs > 1:
                 utils.prep_dir(workdir)
             with open(workdir + '/' + base_infname, 'w') as sub_infile:
-                iquery = 0
-                for query_name in self.remaining_queries:  # NOTE this is wasteful to loop of all the remaining queries for each process... but maybe not that wasteful
-                    if iquery >= len(self.remaining_queries):
-                        break
-                    if iquery < iproc*n_queries_per_proc or iquery >= (iproc + 1)*n_queries_per_proc:  # not for this process
-                        iquery += 1
-                        continue
-                    sub_infile.write('>' + query_name + ' NUKES\n')
-
-                    assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here (where "it's nice" means "it used to be the other way and it fucking sucked and a fuckton of effort went into synchronizing the treatments")
-                    seq = self.input_info[query_name]['seqs'][0]
-                    if query_name in self.info['indels']:
+                for query_name in queries_for_each_proc[iproc]:
+                    if query_name in self.info['indels']:  # TODO make this less confusing (e.g. having it like this means you have to set the sw info with the sequence from the sw output)
                         seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
-                    sub_infile.write(seq + '\n')
-                    written_queries.add(query_name)
-                    iquery += 1
-        not_written = self.remaining_queries - written_queries
-        if len(not_written) > 0:
-            raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
-        return len(written_queries)
+                    else:
+                        assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here (where "it's nice" means "it used to be the other way and it fucking sucked and a fuckton of effort went into synchronizing the treatments")
+                        seq = self.input_info[query_name]['seqs'][0]
+                    sub_infile.write('>%s NUKES\n%s\n' % (query_name, seq))
 
     # ----------------------------------------------------------------------------------------
     def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname):
