@@ -471,9 +471,10 @@ class Waterer(object):
                                    len(self.remaining_queries), self.args.workdir))
 
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
-                self.mismatch += 1
-                if self.debug:
-                    print '    increased mismatch %d --> %d' % (self.mismatch - 1, self.mismatch)
+                if self.vs_info is None:
+                    self.mismatch += 1
+                    if self.debug:
+                        print '    increased mismatch %d --> %d' % (self.mismatch - 1, self.mismatch)
             elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
                 self.new_indels = 0
             else:  # shouldn't get here
