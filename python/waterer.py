@@ -51,14 +51,16 @@ class Waterer(object):
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
 
         self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
+        self.match_score = 5
 
-        self.n_max_tries = 3
         if self.vs_info is None:
-            self.match_mismatch = [5, 1]  # old values (1 is way too low)
+            self.n_max_tries = 3
+            # self.match_mismatch = [5, 1]  # old values (1 is way too low)
+            self.mismatch = 1
         else:  # see commented table above ^
             self.n_max_tries = 0  # shitty convention
-            self.match_mismatch = [5, 3]  # TODO fix this
-            assert self.match_mismatch[0] == 5  # well that's what the optimization was for
+            # self.match_mismatch = [5, 3]  # TODO fix this
+            assert self.match_score == 5  # well that's what the optimization was for
             self.default_mfreq = 0.075  # what to use if vsearch failed on the query
             self.mfreq_mismatch_vals = [
                 (0.01, 5),
@@ -105,13 +107,17 @@ class Waterer(object):
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
             if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < min_queries_per_proc:
                 n_procs = int(max(1., float(len(self.remaining_queries)) / min_queries_per_proc))
-            self.write_vdjalign_input(base_infname, n_procs)
-            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, len(self.remaining_queries), n_procs),
+
+            mismatches, queries_for_each_proc = self.split_queries(n_procs)  # NOTE can tell us to run more than <n_procs> (we run at least one proc for each different mismatch score)
+            self.write_input_files(base_infname, queries_for_each_proc)
+
+            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, len(self.remaining_queries), len(mismatches)),
             sys.stdout.flush()
+
             substart = time.time()
-            self.execute_commands(base_infname, base_outfname, n_procs)
+            self.execute_commands(base_infname, base_outfname, mismatches)
             print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
-            self.read_output(base_outfname, n_procs)
+            self.read_output(base_outfname, len(mismatches))
             if self.nth_try > self.n_max_tries:
                 break
             self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
@@ -265,12 +271,12 @@ class Waterer(object):
             return self.args.workdir + '/sw-try-' + str(self.nth_try) + '-proc-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
-    def execute_commands(self, base_infname, base_outfname, n_procs):
-
+    def execute_commands(self, base_infname, base_outfname, mismatches):
         def get_cmd_str(iproc):
-            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname)
-            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname)
+            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc])
+            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc])
 
+        n_procs = len(mismatches)
         cmdfos = [{'cmd_str' : get_cmd_str(iproc),
                    'workdir' : self.subworkdir(iproc, n_procs),
                    'outfname' : self.subworkdir(iproc, n_procs) + '/' + base_outfname}
@@ -282,7 +288,7 @@ class Waterer(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def split_queries_by_match_mismatch(self, input_queries, n_procs):
+    def split_queries_by_match_mismatch(self, input_queries, n_procs, debug=False):
         def get_query_mfreq(q):
             return self.vs_info['annotations'][q]['v_mut_freq'] if q in self.vs_info['annotations'] else self.default_mfreq
         def best_mismatch(q):
@@ -290,28 +296,58 @@ class Waterer(object):
             def keyfunc(pair):
                 mf, mm = pair
                 return abs(mf - mfreq_q)
-            nearest_mfreq, nearest_mismatch = min(self.mfreq_mismatch_vals, key=keyfunc)
+            nearest_mfreq, nearest_mismatch = min(self.mfreq_mismatch_vals, key=keyfunc)  # take the optimized value whose mfreq is closest to this sequence's mfreq
             return nearest_mismatch
 
-        return {best_mismatch(mqueries[0]) : mqueries for mqueries in utils.group_seqs_by_value(input_queries, best_mismatch)}
+        query_groups = utils.group_seqs_by_value(input_queries, best_mismatch)
+        mismatch_vals = [best_mismatch(queries[0]) for queries in query_groups]
+
+        # note: it'd be nice to be able to give ig-sw a different match:mismatch for each sequence (rather than running separate procs for each match:mismatch), but it initializes a matrix using the match:mismatch values before looping over sequences, so that's probably infeasible
+
+        if debug:
+            print 'start'
+            for m, queries in zip(mismatch_vals, query_groups):
+                print '  %d   %d    %s' % (m, len(queries), ' '.join(queries))
+
+        # first give one proc to each mismatch (note that this takes at least as many procs as there are different mismatch values, even if --n-procs is smaller)
+        while len(mismatch_vals) < n_procs:
+            if debug:
+                print '%d < %d' % (len(mismatch_vals), n_procs)
+            largest_group = max(query_groups, key=len)
+            piece_a, piece_b = largest_group[ : len(largest_group) / 2], largest_group[len(largest_group) / 2 : ]  # split up the largest group into two [almost] equal pieces
+            ilargest = query_groups.index(largest_group)
+            query_groups = query_groups[:ilargest] + [piece_a, piece_b] + query_groups[ilargest + 1:]
+            mismatch_vals = mismatch_vals[:ilargest] + [mismatch_vals[ilargest], mismatch_vals[ilargest]] + mismatch_vals[ilargest + 1:]
+            if debug:
+                for m, queries in zip(mismatch_vals, query_groups):
+                    print '  %d   %d    %s' % (m, len(queries), ' '.join(queries))
+
+        return mismatch_vals, query_groups
 
     # ----------------------------------------------------------------------------------------
-    def split_queries_among_procs(self, input_queries, n_procs):
+    def split_queries_evenly_among_procs(self, input_queries, n_procs):
         query_iprocs = [(input_queries[iq], iq % n_procs) for iq in range(len(input_queries))]  # loop over queries, cycling through the procs
         queries_for_each_proc = [[q for q, i in query_iprocs if i == iproc] for iproc in range(n_procs)]  # then pull out the queries for each proc
-        return queries_for_each_proc
+        mismatches = [self.mismatch for _ in range(n_procs)]  # all of 'em have the same mismatch
+        return mismatches, queries_for_each_proc
 
     # ----------------------------------------------------------------------------------------
-    def write_vdjalign_input(self, base_infname, n_procs):
+    def split_queries(self, n_procs):
         input_queries = list(self.remaining_queries)  # TODO this is ugly
-        queries_for_each_proc = self.split_queries_among_procs(input_queries, n_procs)
-        # if self.vs_info is not None:
-        #     mismatch_queries = self.split_queries_by_match_mismatch(input_queries, n_procs)
+        if self.vs_info is None:
+            mismatches, queries_for_each_proc = self.split_queries_evenly_among_procs(input_queries, n_procs)
+        else:
+            mismatches, queries_for_each_proc = self.split_queries_by_match_mismatch(input_queries, n_procs)
 
         missing_queries = self.remaining_queries - set([q for proc_queries in queries_for_each_proc for q in proc_queries])
         if len(missing_queries) > 0:
             raise Exception('didn\'t write %s to %s' % (':'.join(missing_queries), self.args.workdir))
 
+        return mismatches, queries_for_each_proc
+
+    # ----------------------------------------------------------------------------------------
+    def write_input_files(self, base_infname, queries_for_each_proc):
+        n_procs = len(queries_for_each_proc)
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
             if n_procs > 1:
@@ -326,14 +362,13 @@ class Waterer(object):
                     sub_infile.write('>%s NUKES\n%s\n' % (query_name, seq))
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname):
+    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, mismatch):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
         cmd_str += ' --locus ' + self.args.locus.upper()
         cmd_str += ' --max-drop 50'
-        match, mismatch = self.match_mismatch
-        cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
+        cmd_str += ' --match ' + str(self.match_score) + ' --mismatch ' + str(mismatch)
         cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
         cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.locus
         cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
@@ -341,14 +376,13 @@ class Waterer(object):
         return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname):
+    def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, mismatch):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = self.args.ig_sw_binary
         cmd_str += ' -l ' + self.args.locus.upper()
         cmd_str += ' -d 50'  # max drop
-        match, mismatch = self.match_mismatch
-        cmd_str += ' -m ' + str(match) + ' -u ' + str(mismatch)
+        cmd_str += ' -m ' + str(self.match_score) + ' -u ' + str(mismatch)
         cmd_str += ' -o ' + str(self.gap_open_penalty)
         cmd_str += ' -p ' + self.my_gldir + '/' + self.args.locus + '/'  # NOTE needs the trailing slash
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
@@ -437,9 +471,9 @@ class Waterer(object):
                                    len(self.remaining_queries), self.args.workdir))
 
             if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
-                self.match_mismatch[1] += 1
+                self.mismatch += 1
                 if self.debug:
-                    print '    increased mismatch %d --> %d' % (self.match_mismatch[1] - 1, self.match_mismatch[1])
+                    print '    increased mismatch %d --> %d' % (self.mismatch - 1, self.mismatch)
             elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
                 self.new_indels = 0
             else:  # shouldn't get here
