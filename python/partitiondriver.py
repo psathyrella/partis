@@ -158,7 +158,7 @@ class PartitionDriver(object):
         print ''
         sys.stdout.flush()
 
-        just_ran_vsearch = False
+        just_ran_vsearch = False  # TODO
         if self.vs_info is None and self.args.pre_vsearch:
             self.get_vsearch_annotations(get_annotations=True)
             just_ran_vsearch = True  # TODO do this a better way
@@ -185,7 +185,8 @@ class PartitionDriver(object):
         for uid, dupes in waterer.duplicates.items():  # <waterer.duplicates> is <self.duplicates> OR'd into any new duplicates from this run
             self.duplicates[uid] = dupes
 
-        if just_ran_vsearch:
+        # pad vsearch indel info so it'll match the sw indel info (if the sw indel info is just copied from the vsearch info, and you're no going to use the vsearch info for anything after, there's no reason to do this)
+        if just_ran_vsearch:  # TODO
             for query in self.sw_info['indels']:
                 if query not in self.sw_info['queries']:
                     continue
@@ -194,7 +195,7 @@ class PartitionDriver(object):
                 if not indelutils.has_indels(self.vs_info['annotations'][query]['indelfo']):
                     continue
                 indelutils.pad_indel_info(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
-            utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
+            # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
             # sys.exit()
 
         if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
@@ -723,7 +724,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_cached_hmm_naive_seqs(self, queries=None):
-        # TODO merge this with self.read_hmm_cachefile()
+        # would be nice to merge this with self.read_hmm_cachefile()
         expected_queries = self.sw_info['queries'] if queries is None else queries
         cached_naive_seqs = {}
         with open(self.hmm_cachefname) as cachefile:
@@ -796,7 +797,7 @@ class PartitionDriver(object):
         if parameter_dir is not None:
             assert overall_mute_freq is None
             mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-            mute_freq = mutehist.get_mean(ignore_overflows=True)  # TODO should I not ignore overflows here?
+            mute_freq = mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
         else:
             assert overall_mute_freq is not None
             mute_freq = overall_mute_freq
@@ -813,7 +814,7 @@ class PartitionDriver(object):
             lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)
             hi = lo
         else:  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
-            y1, y2 = 0.015, 0.015  # TODO get better numbers for this
+            y1, y2 = 0.015, 0.015  # would be nice to get better numbers for this
             lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
             y1, y2 = 0.08, 0.15
             hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
@@ -992,7 +993,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_cachefile(self):
-        # TODO merge this with self.get_cached_hmm_naive_seqs()
+        # would be nice to merge this with self.get_cached_hmm_naive_seqs()
         cachefo = {}
         if not os.path.exists(self.hmm_cachefname):
             return cachefo

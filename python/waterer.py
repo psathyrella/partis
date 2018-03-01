@@ -283,13 +283,8 @@ class Waterer(object):
 
                     assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here (where "it's nice" means "it used to be the other way and it fucking sucked and a fuckton of effort went into synchronizing the treatments")
                     seq = self.input_info[query_name]['seqs'][0]
-                    # TODO make sure this is how you want to do this
-                    if self.vs_info is None:
-                        if query_name in self.info['indels']:
-                            seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
-                    else:
-                        if query_name in self.vs_info['annotations'] and indelutils.has_indels(self.vs_info['annotations'][query_name]['indelfo']):
-                            seq = self.vs_info['annotations'][query_name]['indelfo']['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
+                    if query_name in self.info['indels']:
+                        seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
                     sub_infile.write(seq + '\n')
                     written_queries.add(query_name)
                     iquery += 1
@@ -300,9 +295,6 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname):
-        """
-        Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
-        """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
@@ -318,9 +310,6 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname):
-        """
-        Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
-        """
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = self.args.ig_sw_binary
