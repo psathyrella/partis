@@ -68,25 +68,15 @@ class Waterer(object):
         if not os.path.exists(self.args.ig_sw_binary):
             raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
 
-        # TODO make sure this is how you want to do this
-        if self.vs_info is not None:
-            vsfo = self.vs_info['annotations']
-            for query in self.remaining_queries:
-                if query in vsfo and indelutils.has_indels(vsfo[query]['indelfo']):
-                    self.info['indels'][query] = vsfo[query]['indelfo']
-                    if self.debug:
-                        print '    adding indel from vsearch:'
-                        if 'dbg_str' in vsfo[query]['indelfo']:
-                            print vsfo[query]['indelfo']['dbg_str']
-                        else:
-                            print '  missing dbg_str for %s (maybe was removed by indelutils.pad_indel_info())' % query
-
     # ----------------------------------------------------------------------------------------
     def run(self, cachefname=None):
         start = time.time()
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.sam'
         sys.stdout.flush()
+
+        if self.vs_info is not None:  # if we're reading a cache file, we should make sure to read the exact same info from there
+            self.add_vs_info()
 
         n_procs = self.args.n_fewer_procs
         min_queries_per_proc = 10  # float(len(self.remaining_queries)) / n_procs  # used to be initial queries per proc
@@ -230,6 +220,20 @@ class Waterer(object):
 
         glutils.remove_glfo_files(self.my_gldir, self.args.locus)
         sys.stdout.flush()
+
+
+    # ----------------------------------------------------------------------------------------
+    def add_vs_info(self):
+        vsfo = self.vs_info['annotations']
+        queries_with_indels = [q for q in self.remaining_queries if q in vsfo and indelutils.has_indels(vsfo[q]['indelfo'])]
+        for query in queries_with_indels:
+            self.info['indels'][query] = vsfo[query]['indelfo']
+            if self.debug:
+                print '    adding indel from vsearch:'
+                if 'dbg_str' in vsfo[query]['indelfo']:
+                    print vsfo[query]['indelfo']['dbg_str']
+                    # TODO clean this up (what would be nice is to just not store the dbg_str, but that would be hard)
+                    del vsfo[query]['indelfo']['dbg_str']  # need to delete the dbg_str so the indelfo is identical to that we [may] read from an sw-cache file
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
