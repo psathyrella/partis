@@ -9,12 +9,24 @@ import pysam
 import contextlib
 from collections import OrderedDict
 import csv
+import numpy
 
 import utils
 import glutils
 import indelutils
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
+
+# best mismatch (with a match score of 5):
+# mfreq     boundaries     mutation
+# 0.01         5              5
+# 0.05         5              5-
+# 0.15         3+             3
+# 0.2         2-3             2-3
+# 0.3          2-             2-
+# +: next higher number isn't that much worse
+# -: [...]
+# mfreq was I think the sequence-wide mfreq, but was close enough to the v value that it doesn't matter
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
@@ -38,13 +50,22 @@ class Waterer(object):
         self.max_insertion_length = 35  # if an insertion is longer than this, we skip the proposed annotation (i.e. rerun it)
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
 
-        self.match_mismatch = copy.deepcopy(self.args.initial_match_mismatch)  # don't want to modify it!
         self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
 
         self.n_max_tries = 3
-        if self.vs_info is not None:
+        if self.vs_info is None:
+            self.match_mismatch = [5, 1]  # old values (1 is way too low)
+        else:  # see commented table above ^
             self.n_max_tries = 0  # shitty convention
             self.match_mismatch = [5, 3]  # TODO fix this
+            assert self.match_mismatch[0] == 5  # well that's what the optimization was for
+            self.default_mfreq = 0.075  # what to use if vsearch failed on the query
+            self.mfreq_mismatch_vals = [
+                (0.01, 5),
+                (0.05, 5),
+                (0.15, 3),
+                (0.25, 2),
+            ]
 
         self.info = {}
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
@@ -261,10 +282,35 @@ class Waterer(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def write_vdjalign_input(self, base_infname, n_procs):
-        input_queries = list(self.remaining_queries)  # TODO this is ugly
+    def split_queries_by_match_mismatch(self, input_queries, n_procs):
+        def get_query_mfreq(q):
+            return self.vs_info['annotations'][q]['v_mut_freq'] if q in self.vs_info['annotations'] else self.default_mfreq
+        def best_mismatch(q):
+            mfreq_q = self.vs_info['annotations'][q]['v_mut_freq'] if q in self.vs_info['annotations'] else self.default_mfreq
+            def keyfunc(pair):
+                mf, mm = pair
+                return abs(mf - mfreq_q)
+            nearest_mfreq, nearest_mismatch = min(self.mfreq_mismatch_vals, key=keyfunc)
+            return nearest_mismatch
+
+        return {best_mismatch(mqueries[0]) : mqueries for mqueries in utils.group_seqs_by_value(input_queries, best_mismatch)}
+
+    # ----------------------------------------------------------------------------------------
+    def split_queries_among_procs(self, input_queries, n_procs):
         query_iprocs = [(input_queries[iq], iq % n_procs) for iq in range(len(input_queries))]  # loop over queries, cycling through the procs
         queries_for_each_proc = [[q for q, i in query_iprocs if i == iproc] for iproc in range(n_procs)]  # then pull out the queries for each proc
+        return queries_for_each_proc
+
+    # ----------------------------------------------------------------------------------------
+    def write_vdjalign_input(self, base_infname, n_procs):
+        input_queries = list(self.remaining_queries)  # TODO this is ugly
+        queries_for_each_proc = self.split_queries_among_procs(input_queries, n_procs)
+        # if self.vs_info is not None:
+        #     mismatch_queries = self.split_queries_by_match_mismatch(input_queries, n_procs)
+
+        missing_queries = self.remaining_queries - set([q for proc_queries in queries_for_each_proc for q in proc_queries])
+        if len(missing_queries) > 0:
+            raise Exception('didn\'t write %s to %s' % (':'.join(missing_queries), self.args.workdir))
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)

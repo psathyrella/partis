@@ -196,7 +196,6 @@ class PartitionDriver(object):
                     continue
                 indelutils.pad_indel_info(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
             # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
-            # sys.exit()
 
         if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
             print '  copying sw cache file %s to --outfname %s' % (cachefname, self.args.outfname)

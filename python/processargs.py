@@ -45,9 +45,6 @@ def process(args):
     args.region_end_exclusions = {r : [args.region_end_exclusion_length if ('%s_%s' % (r, e)) in utils.real_erosions else 0 for e in ['5p', '3p']] for r in utils.regions}
     args.region_end_exclusion_length = None  # there isn't really a big reason to set it to None, but this makes clear that I should only be using the dict version
 
-    args.initial_match_mismatch = utils.get_arg_list(args.initial_match_mismatch, intify=True)
-    if len(args.initial_match_mismatch) != 2:
-        raise Exception('--initial-match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
     args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
     if args.small_clusters_to_ignore is not None:

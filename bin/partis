@@ -273,7 +273,6 @@ parent_parser.add_argument('--region-end-exclusion-length', type=int, default=0,
 parent_parser.add_argument('--only-genes', help='Colon-separated list of genes to which to restrict the analysis. If any regions (V/D/J) are not represented among these genes, these regions are left unrestricted.')
 parent_parser.add_argument('--n-max-per-region', default='3:5:2', help='Number of best smith-waterman matches (per region, in the format v:d:j) to pass on to the hmm')
 parent_parser.add_argument('--gap-open-penalty', type=int, default=30, help='Penalty for indel creation in Smith-Waterman step.')
-parent_parser.add_argument('--initial-match-mismatch', default='5:1', help='Initial match:mismatch scores for smith-waterman (we run several iterations, increasing mismatch each time).')
 parent_parser.add_argument('--max-vj-mut-freq', type=float, default=0.4, help='skip sequences whose mutation rates in V and J are greater than this (it\'s really not possible to get meaningful smith-waterman matches above this)')
 parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
 parent_parser.add_argument('--n-simultaneous-seqs', type=int, help='Number of simultaneous sequences on which to run the multi-HMM (e.g. 2 for a pair hmm)')

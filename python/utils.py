@@ -2910,6 +2910,10 @@ def split_partition_with_criterion(partition, criterion_fcn):  # this would prob
     return true_clusters, false_clusters
 
 # ----------------------------------------------------------------------------------------
+def group_seqs_by_value(queries, keyfunc):
+    return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
+
+# ----------------------------------------------------------------------------------------
 def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  # <split_by_cdr3> is only needed when we're getting synthetic sw info that's a mishmash of hmm and sw annotations
     start = time.time()
     if queries is None:
@@ -2921,7 +2925,7 @@ def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  #
         else:
             return swfo[q]['naive_seq']
 
-    partition = [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
+    partition = group_seqs_by_value(queries, keyfunc)
 
     if debug:
         print '   collapsed %d queries into %d cluster%s with identical naive seqs (%.1f sec)' % (len(queries), len(partition), plural(len(partition)), time.time() - start)
