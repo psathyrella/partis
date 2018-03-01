@@ -262,26 +262,9 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def write_vdjalign_input(self, base_infname, n_procs):
-        queries_per_proc = float(len(self.remaining_queries)) / n_procs
-        n_queries_per_proc = int(math.ceil(queries_per_proc))
-        if n_procs == 1:  # double check for rounding problems or whatnot
-            assert n_queries_per_proc == len(self.remaining_queries)
-
-        queries_for_each_proc = [[] for _ in range(n_procs)]
-        for iproc in range(n_procs):
-            iquery = 0
-            for query_name in self.remaining_queries:  # NOTE this is wasteful to loop of all the remaining queries for each process... but maybe not that wasteful
-                if iquery >= len(self.remaining_queries):
-                    break
-                if iquery < iproc*n_queries_per_proc or iquery >= (iproc + 1)*n_queries_per_proc:  # not for this process
-                    iquery += 1
-                    continue
-                queries_for_each_proc[iproc].append(query_name)
-                iquery += 1
-
-        missing_queries = self.remaining_queries - set([q for proc_queries in queries_for_each_proc for q in proc_queries])
-        if len(missing_queries) > 0:
-            raise Exception('didn\'t write %s to %s' % (':'.join(missing_queries), self.args.workdir))
+        input_queries = list(self.remaining_queries)  # TODO this is ugly
+        query_iprocs = [(input_queries[iq], iq % n_procs) for iq in range(len(input_queries))]  # loop over queries, cycling through the procs
+        queries_for_each_proc = [[q for q, i in query_iprocs if i == iproc] for iproc in range(n_procs)]  # then pull out the queries for each proc
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
