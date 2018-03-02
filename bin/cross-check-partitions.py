@@ -18,6 +18,8 @@ parser.add_argument('--infiles')
 parser.add_argument('--labels')
 parser.add_argument('--locus')
 parser.add_argument('--param')
+parser.add_argument('--min-cluster-size', default=4, type=int)
+parser.add_argument('--max-cdr3-distance', default=5, type=int)
 args = parser.parse_args()
 
 args.infiles = utils.get_arg_list(args.infiles)
@@ -49,10 +51,13 @@ def naive_cdr3(info):
     return naiveseq
 
 # ----------------------------------------------------------------------------------------
-def naive_hdist(line1, line2):
+def naive_hdist_or_none(line1, line2):
     if line1['cdr3_length'] != line2['cdr3_length']:
-        return 9999999
-    return utils.hamming_distance(naive_cdr3(line1), naive_cdr3(line2))
+        return None
+    hdist = utils.hamming_distance(naive_cdr3(line1), naive_cdr3(line2))
+    if hdist > args.max_cdr3_distance:
+        return None
+    return hdist
 
 # ----------------------------------------------------------------------------------------
 def cdr3_translation(info):
@@ -63,12 +68,11 @@ def cdr3_translation(info):
     return Seq(naive_cdr3_seq).translate()
 
 # ----------------------------------------------------------------------------------------
-min_cluster_size = 4
 cpaths = [ClusterPath() for _ in range(len(args.infiles))]
 for ifile in range(len(args.infiles)):
     cpaths[ifile].readfile(args.infiles[ifile])
 partitions = [sorted(cp.partitions[cp.i_best], key=len, reverse=True) for cp in cpaths]
-partitions = [[c for c in partition if len(c) > min_cluster_size] for partition in partitions]
+partitions = [[c for c in partition if len(c) > args.min_cluster_size] for partition in partitions]
 annotations = [read_annotations(fn) for fn in args.infiles]
 
 
@@ -79,18 +83,21 @@ for if1 in range(len(args.infiles)):
         if if1 == if2:
             continue
         label2 = args.labels[if2]
-        print '  %s vs %s' % (label1, label2)
+        print '    isub-%s   isub-%s  cdr3' % (label1, label2)
+        print '     size     size   dist'
         for cluster1 in partitions[if1]:  # for each cluster in the first partition
             info1 = annotations[if1][getkey(cluster1)]
-            print '      %3d    %s' % (len(cluster1), cdr3_translation(info1))
+            print '     %3d                    %s' % (len(cluster1), cdr3_translation(info1))
             def keyfcn(c2):
-                return naive_hdist(info1, annotations[if2][getkey(c2)])
-            sorted_clusters = sorted([c for c in partitions[if2] if keyfcn(c) != 9999999], key=keyfcn)  # make a list of the clusters in the other partition that's sorted by how similar their naive sequence are
+                return naive_hdist_or_none(info1, annotations[if2][getkey(c2)])
+            sorted_clusters = sorted([c for c in partitions[if2] if keyfcn(c) is not None], key=keyfcn)  # make a list of the clusters in the other partition that's sorted by how similar their naive sequence are
             nearest_cluster_lists[label1][label2].append(sorted_clusters)
             # print '             %s' % ' '.join([str(len(c)) for c in sorted_clusters])
             for nclust in sorted_clusters:
                 nclust_naive_cdr3 = cdr3_translation(annotations[if2][getkey(nclust)])
-                print '        %3d  %s' % (len(nclust), utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3))
+                print '              %3d     %2d    %s' % (len(nclust),
+                                                           naive_hdist_or_none(info1, annotations[if2][getkey(nclust)]),
+                                                           utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True))
 
 # sorted_clusters = sorted(best_partition, key=len, reverse=True)  # sort by size
 # # sort by size
