@@ -692,7 +692,7 @@ def restrict_to_genes(glfo, only_genes, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def restrict_to_observed_genes(glfo, parameter_dir):  # remove from <glfo> any genes that were not observed in <parameter_dir>
-    only_genes = set([g for genes in utils.read_overall_gene_probs(subpdir).values() for g in genes])
+    only_genes = set([g for genes in utils.read_overall_gene_probs(parameter_dir).values() for g in genes])
     glutils.restrict_to_genes(glfo, only_genes, debug=False)
 
 # ----------------------------------------------------------------------------------------
