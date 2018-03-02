@@ -35,7 +35,7 @@ class AlleleFinder(object):
         else:
             return 3.5  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
 
-    def __init__(self, glfo, args, itry):
+    def __init__(self, glfo, args, itry=0):
         self.region = 'v'
         self.glfo = glfo
         self.args = args
@@ -1062,9 +1062,6 @@ class AlleleFinder(object):
             already_used_positions = set()
             n_new_alleles_for_this_gene = 0  # kinda messy way to implement this
             for candidfo in reversed(candidates):  # biggest <istart> first
-                if n_new_alleles_for_this_gene >= self.args.n_max_new_alleles_per_gene_per_iteration:
-                    print '%s: skipping any additional new alleles for this gene (already have %d, you can increase this by setting --n-max-new-alleles-per-gene-per-iteration)' % (utils.color('red', 'warning'), n_new_alleles_for_this_gene)
-                    break
                 these_positions = set(candidfo['positions'])
                 if len(these_positions & already_used_positions) > 0:
                     continue
