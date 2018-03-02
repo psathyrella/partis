@@ -207,24 +207,6 @@ class PartitionDriver(object):
                 utils.write_presto_annotations(self.args.outfname, self.glfo, annotations, failed_queries=failed_queries)
 
     # ----------------------------------------------------------------------------------------
-    def find_new_alleles(self):
-        """ look for new alleles with sw, write any that you find to the germline set directory in <self.workdir>, add them to <self.glfo>, and repeat until you don't find any. """
-        self.run_waterer()
-        alfinder = AlleleFinder(self.glfo, self.args)
-        new_allele_info = alfinder.increment_and_finalize(self.sw_info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since it needs to know the distribution of 5p and 3p deletions before it can increment
-        if self.args.plotdir is not None:
-            alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-        # if len(new_allele_info) == 0:
-        #     break
-
-        if os.path.exists(self.default_sw_cachefname):
-            print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
-            os.remove(self.default_sw_cachefname)
-
-        glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-        glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
-
-    # ----------------------------------------------------------------------------------------
     def get_vsearch_annotations(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
         self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, get_annotations=get_annotations)
@@ -252,8 +234,23 @@ class PartitionDriver(object):
             if len(alcluster_alleles) > 0:
                 glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo, debug=True)
             alclusterer = None
+
         if not self.args.dont_find_new_alleles:
-            self.find_new_alleles()
+            self.run_waterer()
+            alfinder = AlleleFinder(self.glfo, self.args)
+            new_allele_info = alfinder.increment_and_finalize(self.sw_info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since it needs to know the distribution of 5p and 3p deletions before it can increment
+            if self.args.plotdir is not None:
+                alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
+            # if len(new_allele_info) == 0:
+            #     break
+
+            if os.path.exists(self.default_sw_cachefname):
+                print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
+                os.remove(self.default_sw_cachefname)
+
+            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
+            glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
+                self.find_new_alleles()
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
