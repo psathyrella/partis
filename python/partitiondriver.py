@@ -250,7 +250,6 @@ class PartitionDriver(object):
 
             glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
             glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
-                self.find_new_alleles()
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
