@@ -126,6 +126,7 @@ def process(args):
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
     if args.cluster_annotation_fname is None and args.outfname is not None:
+        assert '.csv' in args.outfname
         args.cluster_annotation_fname = args.outfname.replace(utils.getsuffix(args.outfname), '-cluster-annotations.csv')
 
     if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
