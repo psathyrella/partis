@@ -158,8 +158,9 @@ class PartitionDriver(object):
         print ''
         sys.stdout.flush()
 
+        self.vs_info = None  # TODO
         just_ran_vsearch = False  # TODO
-        if self.vs_info is None and self.args.pre_vsearch:
+        if self.vs_info is None and not self.args.no_pre_vsearch:
             self.get_vsearch_annotations(get_annotations=True)
             just_ran_vsearch = True  # TODO do this a better way
 
@@ -246,10 +247,8 @@ class PartitionDriver(object):
         glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
 
     # ----------------------------------------------------------------------------------------
-    def get_vsearch_annotations(self, get_annotations=False):
+    def get_vsearch_annotations(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
-        # self.match_mismatch = '5:-4'  # TODO switch to these values
-        # , match_mismatch=self.match_mismatch
         self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, get_annotations=get_annotations)
 
     # ----------------------------------------------------------------------------------------
@@ -265,7 +264,7 @@ class PartitionDriver(object):
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args, itry=0))
             alremover.finalize(sorted(self.vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
-            self.vs_info = None  # don't want to keep this around, since it has alignments against all the genes we removed
+            self.vs_info = None  # don't want to keep this around, since it has alignments against all the genes we removed (also maybe memory control)
             alremover = None  # memory control (not tested)
 
         # (re-)add [new] alleles
