@@ -231,22 +231,6 @@ class PartitionDriver(object):
                 break
 
     # ----------------------------------------------------------------------------------------
-    def restrict_to_observed_alleles(self, subpdir):
-        # TODO do I still need this now I'm using alleleremover?
-        """ Restrict <self.glfo> to genes observed in <subpdir> """
-        if self.args.dont_write_parameters:
-            return
-        if self.args.debug:
-            print '  restricting self.glfo to alleles observed in %s' % subpdir
-        only_genes = set()
-        for region in utils.regions:
-            with open(subpdir + '/' + region + '_gene-probs.csv', 'r') as pfile:
-                reader = csv.DictReader(pfile)
-                for line in reader:
-                    only_genes.add(line[region + '_gene'])
-        glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
-
-    # ----------------------------------------------------------------------------------------
     def get_vsearch_annotations(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
         self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, get_annotations=get_annotations)
@@ -280,7 +264,6 @@ class PartitionDriver(object):
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
-        self.restrict_to_observed_alleles(self.sw_param_dir)
         self.write_hmms(self.sw_param_dir)
         if self.args.only_smith_waterman:
             return
