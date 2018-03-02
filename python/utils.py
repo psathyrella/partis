@@ -655,7 +655,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False)
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='',
-                  print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False):
+                  print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False, only_print_seq=False, align=False, return_ref=False, amino_acid=False):
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
     # NOTE now I've got <return_ref>, I can probably remove a bunch of the label/whatever arguments and do all the damn formatting in the caller
@@ -671,13 +671,19 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
 
+    tmp_ambigs = ambiguous_bases
+    tmp_gaps = gap_chars
+    if amino_acid:
+        tmp_ambigs = []
+        tmp_gaps = []
+
     return_str, isnps = [], []
     for inuke in range(len(seq)):  # would be nice to integrate this with hamming_distance()
         rchar = ref_seq[inuke]
         char = seq[inuke]
-        if char in ambiguous_bases or rchar in ambiguous_bases:
+        if char in tmp_ambigs or rchar in tmp_ambigs:
             char = color('blue', char)
-        elif char in gap_chars or rchar in gap_chars:
+        elif char in tmp_gaps or rchar in tmp_gaps:
             char = color('blue', char)
         elif char != rchar:
             char = color('red', char)
@@ -702,7 +708,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
 
     return_list = [extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str]
     if return_ref:
-        return_list.append(''.join([ch if ch not in gap_chars else color('blue', ch) for ch in ref_seq]))
+        return_list.append(''.join([ch if ch not in tmp_gaps else color('blue', ch) for ch in ref_seq]))
     if return_isnps:
         return_list.append(isnps)
     return return_list[0] if len(return_list) == 1 else return_list
