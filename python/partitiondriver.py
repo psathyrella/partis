@@ -214,8 +214,8 @@ class PartitionDriver(object):
         new_allele_info = alfinder.increment_and_finalize(self.sw_info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since it needs to know the distribution of 5p and 3p deletions before it can increment
         if self.args.plotdir is not None:
             alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-        if len(new_allele_info) == 0:
-            break
+        # if len(new_allele_info) == 0:
+        #     break
 
         if os.path.exists(self.default_sw_cachefname):
             print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
@@ -223,22 +223,6 @@ class PartitionDriver(object):
 
         glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
         glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
-
-    # ----------------------------------------------------------------------------------------
-    def restrict_to_observed_alleles(self, subpdir):
-        # TODO do I still need this now I'm using alleleremover?
-        """ Restrict <self.glfo> to genes observed in <subpdir> """
-        if self.args.dont_write_parameters:
-            return
-        if self.args.debug:
-            print '  restricting self.glfo to alleles observed in %s' % subpdir
-        only_genes = set()
-        for region in utils.regions:
-            with open(subpdir + '/' + region + '_gene-probs.csv', 'r') as pfile:
-                reader = csv.DictReader(pfile)
-                for line in reader:
-                    only_genes.add(line[region + '_gene'])
-        glutils.restrict_to_genes(self.glfo, only_genes, debug=False)
 
     # ----------------------------------------------------------------------------------------
     def get_vsearch_annotations(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')
@@ -273,7 +257,6 @@ class PartitionDriver(object):
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
-        self.restrict_to_observed_alleles(self.sw_param_dir)
         self.write_hmms(self.sw_param_dir)
         if self.args.only_smith_waterman:
             return
@@ -282,7 +265,6 @@ class PartitionDriver(object):
         print 'hmm'
         sys.stdout.flush()
         self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
-        self.restrict_to_observed_alleles(self.hmm_param_dir)
         self.write_hmms(self.hmm_param_dir)
 
         if self.args.new_allele_fname is not None:
@@ -1259,6 +1241,7 @@ class PartitionDriver(object):
         from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
+        glutils.restrict_to_observed_genes(self.glfo, parameter_dir)  # this is kind of a weird place to put this... it would make more sense to read the glfo from the parameter dir, but I don't want to mess around with changing that a.t.m.
 
         if self.args.debug:
             print 'to %s' % parameter_dir + '/hmms',

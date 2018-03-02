@@ -691,6 +691,11 @@ def restrict_to_genes(glfo, only_genes, debug=False):
         print '    removed %-2d genes from glfo (leaving %s)' % (len(genes_to_remove), '  '.join(['%s %-d' % (r, len(glfo['seqs'][r])) for r in utils.regions]))
 
 # ----------------------------------------------------------------------------------------
+def restrict_to_observed_genes(glfo, parameter_dir):  # remove from <glfo> any genes that were not observed in <parameter_dir>
+    only_genes = set([g for genes in utils.read_overall_gene_probs(subpdir).values() for g in genes])
+    glutils.restrict_to_genes(glfo, only_genes, debug=False)
+
+# ----------------------------------------------------------------------------------------
 def remove_v_genes_with_bad_cysteines(glfo, debug=False):
     prelength = len(glfo['seqs']['v'])
     n_mutated, n_out_of_frame = 0, 0

@@ -1344,9 +1344,7 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
                     counts[region][gene] = 0
                 counts[region][gene] += line_count
         if total < 1:
-            assert total == 0
-            print 'ERROR zero counts in %s' % indir + '/' + region + '_gene-probs.csv'
-            assert False
+            raise Exception('less than one count in %s' % indir + '/' + region + '_gene-probs.csv')
         for gene in counts[region]:
             probs[region][gene] = float(counts[region][gene]) / total
 
