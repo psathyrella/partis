@@ -241,15 +241,12 @@ class PartitionDriver(object):
             new_allele_info = alfinder.increment_and_finalize(self.sw_info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since it needs to know the distribution of 5p and 3p deletions before it can increment
             if self.args.plotdir is not None:
                 alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
-            # if len(new_allele_info) == 0:
-            #     break
-
-            if os.path.exists(self.default_sw_cachefname):
-                print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
-                os.remove(self.default_sw_cachefname)
-
-            glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-            glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
+            if len(new_allele_info) > 0:
+                if os.path.exists(self.default_sw_cachefname):
+                    print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
+                    os.remove(self.default_sw_cachefname)
+                glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
+                glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
