@@ -47,18 +47,15 @@ class Waterer(object):
         self.aligned_gl_seqs = aligned_gl_seqs
         self.vs_info = vs_info
 
-        self.max_insertion_length = 35  # if an insertion is longer than this, we skip the proposed annotation (i.e. rerun it)
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
 
         self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
         self.match_score = 5
 
         if self.vs_info is None:
-            self.n_max_tries = 3
             # self.match_mismatch = [5, 1]  # old values (1 is way too low)
             self.mismatch = 1
         else:  # see commented table above ^
-            self.n_max_tries = 0  # shitty convention
             # self.match_mismatch = [5, 3]  # TODO fix this
             assert self.match_score == 5  # well that's what the optimization was for
             self.default_mfreq = 0.075  # what to use if vsearch failed on the query
@@ -82,7 +79,6 @@ class Waterer(object):
         self.remaining_queries = set(self.input_info) - self.info['failed-queries']  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
 
-        self.nth_try = 1  # arg, this should be zero-indexed like everything else
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
         self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
@@ -96,32 +92,22 @@ class Waterer(object):
         start = time.time()
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.sam'
-        sys.stdout.flush()
 
         if self.vs_info is not None:  # if we're reading a cache file, we should make sure to read the exact same info from there
             self.add_vs_info()
 
-        n_procs = self.args.n_procs
-        min_queries_per_proc = 10  # float(len(self.remaining_queries)) / n_procs  # used to be initial queries per proc
-        print '  %4s   step  seqs    procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
-        while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
-            if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < min_queries_per_proc:
-                n_procs = int(max(1., float(len(self.remaining_queries)) / min_queries_per_proc))
+        mismatches, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
+        self.write_input_files(base_infname, queries_for_each_proc)
 
-            mismatches, queries_for_each_proc = self.split_queries(n_procs)  # NOTE can tell us to run more than <n_procs> (we run at least one proc for each different mismatch score)
-            self.write_input_files(base_infname, queries_for_each_proc)
+        print '  %4s    seqs    procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
+        print '  %4s    %-8d %-3d' % ('summary:' if self.debug else '', len(self.remaining_queries), len(mismatches)),
+        sys.stdout.flush()
 
-            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, len(self.remaining_queries), len(mismatches)),
-            sys.stdout.flush()
+        substart = time.time()
+        self.execute_commands(base_infname, base_outfname, mismatches)
+        print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
 
-            substart = time.time()
-            self.execute_commands(base_infname, base_outfname, mismatches)
-            print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
-            self.read_output(base_outfname, len(mismatches))
-            if self.nth_try > self.n_max_tries:
-                break
-            self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
-
+        self.read_output(base_outfname, len(mismatches))
         self.finalize(cachefname)
         print '        water time: %.1f' % (time.time()-start)
 
@@ -267,8 +253,7 @@ class Waterer(object):
         if n_procs == 1:
             return self.args.workdir
         else:
-            # return self.args.workdir + '/sw-' + str(iproc)
-            return self.args.workdir + '/sw-try-' + str(self.nth_try) + '-proc-' + str(iproc)
+            return self.args.workdir + '/sw-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, mismatches):
@@ -437,9 +422,6 @@ class Waterer(object):
         for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails', 'super-high-mutation']:
             queries_to_rerun[reason] = set()
 
-        if self.debug:
-            print '%s' % utils.color('green', 'try ' + str(self.nth_try))
-
         self.new_indels = 0
         queries_read_from_file = set()  # should be able to remove this, eventually
         for iproc in range(n_procs):
@@ -470,15 +452,7 @@ class Waterer(object):
                                    n_to_rerun + self.new_indels + len(not_read),
                                    len(self.remaining_queries), self.args.workdir))
 
-            if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
-                if self.vs_info is None:
-                    self.mismatch += 1
-                    if self.debug:
-                        print '    increased mismatch %d --> %d' % (self.mismatch - 1, self.mismatch)
-            elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
-                self.new_indels = 0
-            else:  # shouldn't get here
-                assert False
+            self.new_indels = 0  # should already be zero, but this is the remains of some more substantial code
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
@@ -621,7 +595,7 @@ class Waterer(object):
         if debug:
             print '  overlap status: %s' % status
 
-        if not recursed and status == 'nonsense' and l_reg == 'd' and self.nth_try > 2:  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
+        if not recursed and status == 'nonsense' and l_reg == 'd':  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
             assert l_reg == 'd' and r_reg == 'j'
             if debug:
                 print '  %s: synthesizing d match' % qinfo['name']
@@ -835,12 +809,6 @@ class Waterer(object):
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice: only v or j best matches)
-            if self.nth_try < 2:
-                if self.debug:
-                    print '      rerun: first-try indels'
-                queries_to_rerun['indel-fails'].add(qname)
-                return
-
             if qname in self.info['indels']:
                 if self.debug:
                     print '      rerun: s-w called indels after already calling some before -- but we don\'t allow multiple cycles'
@@ -854,7 +822,7 @@ class Waterer(object):
                 # self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
                 self.new_indels += 1
                 if self.debug:
-                    print '      rerun: new indels\n%s' % utils.pad_lines(self.info['indels'][qinfo['name']]['dbg_str'], 10)
+                    print '      rerun: new indels\n%s' % utils.pad_lines(self.info['indels'][qinfo['name']]['dbg_str'], 10)  # TODO not actually rerunning any more... so maybe just remove/disable sw's ability to call indels?
                 return
 
             print '%s fell through indel block for %s' % (utils.color('red', 'warning'), qname)
@@ -886,9 +854,9 @@ class Waterer(object):
         # check for suspiciously bad annotations
         for rp in utils.region_pairs():
             insertion_length = qinfo['qrbounds'][best[rp['right']]][0] - qinfo['qrbounds'][best[rp['left']]][1]  # start of right match minus end of left one
-            if insertion_length > self.absolute_max_insertion_length or (self.nth_try < 2 and insertion_length > self.max_insertion_length):
+            if insertion_length > self.absolute_max_insertion_length:
                 if self.debug:
-                    print '      suspiciously long insertion in %s, rerunning' % qname
+                    print '      suspiciously long insertion in %s, rerunning' % qname  # TODO not actually rerunning
                 queries_to_rerun['weird-annot.'].add(qname)
                 return
 
@@ -924,12 +892,7 @@ class Waterer(object):
 
         # deal with unproductive rearrangements
         if not utils.is_functional(infoline):
-            if self.nth_try < (self.n_max_tries - 1) and (infoline['mutated_invariants'][0] or not infoline['in_frames'][0]):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
-                if self.debug:
-                    print '      rerun: %s' % utils.is_functional_dbg_str(infoline)
-                queries_to_rerun['unproductive'].add(qname)
-                return
-            elif self.args.skip_unproductive:
+            if self.args.skip_unproductive:
                 if self.debug:
                     print '      skipping unproductive (%s)' % utils.is_functional_dbg_str(infoline)
                 self.skipped_unproductive_queries.add(qname)
