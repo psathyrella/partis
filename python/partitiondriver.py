@@ -102,6 +102,15 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def clean(self):
+        if self.args.new_allele_fname is not None:
+            new_allele_region = 'v'
+            new_alleles = [(g, seq) for g, seq in self.glfo['seqs'][new_allele_region].items() if glutils.is_snpd(g)]
+            print '  writing %d new %s to %s' % (len(new_alleles), utils.plural_str('allele', len(new_alleles)), self.args.new_allele_fname)
+            with open(self.args.new_allele_fname, 'w') as outfile:
+                for name, seq in new_alleles:
+                    outfile.write('>%s\n' % name)
+                    outfile.write('%s\n' % seq)
+
         # merge persistent and current cache files into the persistent cache file
         if self.args.persistent_cachefname is not None:
             lockfname = self.args.persistent_cachefname + '.lock'
@@ -248,7 +257,7 @@ class PartitionDriver(object):
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
-        self.write_hmms(self.sw_param_dir)
+        self.write_hmms(self.sw_param_dir)  # note that this modifies <self.glfo>
         if self.args.only_smith_waterman:
             return
 
@@ -256,16 +265,7 @@ class PartitionDriver(object):
         print 'hmm'
         sys.stdout.flush()
         self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
-        self.write_hmms(self.hmm_param_dir)
-
-        if self.args.new_allele_fname is not None:
-            new_allele_region = 'v'
-            new_alleles = [(g, seq) for g, seq in self.glfo['seqs'][new_allele_region].items() if glutils.is_snpd(g)]
-            print '  writing %d new %s to %s' % (len(new_alleles), utils.plural_str('allele', len(new_alleles)), self.args.new_allele_fname)
-            with open(self.args.new_allele_fname, 'w') as outfile:
-                for name, seq in new_alleles:
-                    outfile.write('>%s\n' % name)
-                    outfile.write('%s\n' % seq)
+        self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
     def annotate(self):
