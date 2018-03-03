@@ -100,7 +100,7 @@ for if1 in range(len(args.infiles)):
             sorted_clusters = sorted([c for c in partitions[if2] if keyfcn(c) is not None and len(c) > args.min_cluster_sizes[1]], key=keyfcn)  # make a list of the clusters in the other partition that's sorted by how similar their naive sequence are
             nearest_cluster_lists[label1][label2].append(sorted_clusters)
 
-            size_index_str = '%3d %3d' % (partitions[if1].index(cluster1), len(cluster1))
+            size_index_str = '%3d %4d' % (partitions[if1].index(cluster1), len(cluster1))
             extra_str = ''
             if len(sorted_clusters) == 0:
                 size_index_str = utils.color('yellow', size_index_str)
@@ -109,5 +109,5 @@ for if1 in range(len(args.infiles)):
             for nclust in sorted_clusters:
                 nclust_naive_cdr3 = cdr3_translation(annotations[if2][getkey(nclust)])
                 hdist = naive_hdist_or_none(info1, annotations[if2][getkey(nclust)])
-                print '               %3d %3d    %2s   %-30s' % (partitions[if2].index(nclust), len(nclust), '%d' % hdist if hdist > 0 else '',
+                print '               %3d %4d    %2s   %-30s' % (partitions[if2].index(nclust), len(nclust), '%d' % hdist if hdist > 0 else '',
                                                                  utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True))
