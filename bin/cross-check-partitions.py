@@ -17,23 +17,29 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--infiles')
 parser.add_argument('--labels')
 parser.add_argument('--locus')
-parser.add_argument('--param')
+parser.add_argument('--parameter-dirs')
 parser.add_argument('--min-cluster-sizes', default='4:2', help='first number is for outer cluster loop (first column), second is for inner loop (second column)')
 parser.add_argument('--max-cdr3-distance', default=5, type=int, help='ignore clusters with a cdr3 that differs by more than this many nucleotides')
 args = parser.parse_args()
 
 args.infiles = utils.get_arg_list(args.infiles)
 args.labels = utils.get_arg_list(args.labels)
+args.parameter_dirs = utils.get_arg_list(args.parameter_dirs)
 args.min_cluster_sizes = utils.get_arg_list(args.min_cluster_sizes, intify=True)
 assert len(args.infiles) == len(args.labels)
-glfo = glutils.read_glfo(args.param + '/hmm/germline-sets', locus=args.locus)
+if len(args.parameter_dirs) == 1:
+    print '  note: using same glfo for all infiles'
+    args.parameter_dirs = [args.parameter_dirs[0] for _ in args.labels]
+assert len(args.parameter_dirs) == len(args.labels)
+
+glfos = [glutils.read_glfo(pdir + '/hmm/germline-sets', locus=args.locus) for pdir in args.parameter_dirs]
 
 # ----------------------------------------------------------------------------------------
 def getkey(uid_list):
     return ':'.join(uid_list)
 
 # ----------------------------------------------------------------------------------------
-def read_annotations(fname):
+def read_annotations(fname, glfo):
     annotations = {}
     with open(fname.replace('.csv', '-cluster-annotations.csv')) as csvfile:
         reader = csv.DictReader(csvfile)
@@ -74,7 +80,7 @@ for ifile in range(len(args.infiles)):
     cpaths[ifile].readfile(args.infiles[ifile])
 partitions = [sorted(cp.partitions[cp.i_best], key=len, reverse=True) for cp in cpaths]
 partitions = [[c for c in partition if len(c) > args.min_cluster_sizes[0]] for partition in partitions]
-annotations = [read_annotations(fn) for fn in args.infiles]
+annotations = [read_annotations(args.infiles[ifn], glfos[ifn]) for ifn in range(len(args.infiles))]
 
 
 nearest_cluster_lists = {l1 : {l2 : [] for l2 in args.labels if l2 != l1} for l1 in args.labels}
@@ -104,3 +110,4 @@ for if1 in range(len(args.infiles)):
                 nclust_naive_cdr3 = cdr3_translation(annotations[if2][getkey(nclust)])
                 hdist = naive_hdist_or_none(info1, annotations[if2][getkey(nclust)])
                 print '               %3d %3d    %2s   %-30s' % (partitions[if2].index(nclust), len(nclust), '%d' % hdist if hdist > 0 else '',
+                                                                 utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True))
