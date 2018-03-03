@@ -1105,12 +1105,15 @@ class AlleleFinder(object):
         if not self.finalized:
             self.finalize(debug=debug)
 
-        plotdir = base_plotdir + '/allele-finding'
-        if self.itry is not None:
-            plotdir = plotdir + '/try-' + str(self.itry)
+        if only_csv:  # not implemented
+            print '    <only_csv> not yet implemented in allelefinder'
+            return
 
+        start = time.time()
         print '    plotting allele finding',
         sys.stdout.flush()
+
+        plotdir = base_plotdir + '/allele-finding/try-' + str(self.itry)
 
         for old_gene_dir in glob.glob(plotdir + '/*'):  # has to be a bit more hackey than elsewhere, since we have no way of knowing what genes might have had their own directories written last time we wrote to this dir
             if not os.path.isdir(old_gene_dir):
@@ -1119,11 +1122,6 @@ class AlleleFinder(object):
             os.rmdir(old_gene_dir)
         utils.prep_dir(plotdir, wildlings=('*.csv', '*.svg'))
 
-        if only_csv:  # not implemented
-            print '    <only_csv> not yet implemented in allelefinder'
-            return
-
-        start = time.time()
 
         if self.args.plot_and_fit_absolutely_everything is None:
             for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
