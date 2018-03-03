@@ -493,6 +493,9 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None):
+        if self.args.only_csv_plots:
+            print '  --only-csv-plots not implemented for partition plots, so skipping'
+            return
         assert (partition is None and annotations is not None) or infiles is None
         print '  plotting partitions'
         sys.stdout.flush()
