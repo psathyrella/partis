@@ -22,9 +22,6 @@ def process(args):
         args.locus = args.loci[0]
 
     args.only_genes = utils.get_arg_list(args.only_genes)
-    args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
-    args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
-    args.n_procs = args.n_procs[0]
     args.queries = utils.get_arg_list(args.queries)
     args.queries_to_include = utils.get_arg_list(args.queries_to_include)
     args.reco_ids = utils.get_arg_list(args.reco_ids)
@@ -71,15 +68,6 @@ def process(args):
     if args.only_genes is not None:
         for gene in args.only_genes:  # make sure they're all at least valid ig genes
             utils.split_gene(gene)
-
-    # if n_procs < 1 or n_procs > 9999:  # It happened, at least once. You know, probably.
-    #     raise Exception('bad n_procs %s' % n_procs)
-    if args.n_procs > args.n_max_procs:
-        print 'reducing n procs %d to --n-max-procs %d' % (args.n_procs, args.n_max_procs)
-        args.n_procs = args.n_max_procs
-    if args.n_fewer_procs > args.n_max_procs:
-        print 'reducing n procs %d to --n-max-procs %d' % (args.n_fewer_procs, args.n_max_procs)
-        args.n_fewer_procs = args.n_max_procs
 
     if args.print_git_commit or args.action == 'version':
         print 'RUN ' + ' '.join(sys.argv)

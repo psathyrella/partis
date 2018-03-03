@@ -214,6 +214,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
         print 'caching parameters'
+
         # remove unlikely alleles
         if not self.args.dont_remove_unlikely_alleles:
             self.get_vsearch_annotations()
@@ -611,6 +612,8 @@ class PartitionDriver(object):
         if self.args.n_precache_procs is not None:  # command line override
             return self.args.n_precache_procs
 
+        n_max_procs = 100
+
         if nseqs < 1000:
             seqs_per_proc = 250
         elif nseqs < 3000:
@@ -620,7 +623,7 @@ class PartitionDriver(object):
         if self.args.batch_system is not None:  # if we're using a batch system, all the overhead (and priority issues) means it makes sense to have fewer processes
             seqs_per_proc *= 4
         n_precache_procs = int(math.ceil(float(nseqs) / seqs_per_proc))
-        n_precache_procs = min(n_precache_procs, self.args.n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
+        n_precache_procs = min(n_precache_procs, n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
         if self.args.batch_system is None:  # if we're not on a batch system, make sure it's less than the number of cpus
             n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
         else:

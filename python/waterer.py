@@ -101,7 +101,7 @@ class Waterer(object):
         if self.vs_info is not None:  # if we're reading a cache file, we should make sure to read the exact same info from there
             self.add_vs_info()
 
-        n_procs = self.args.n_fewer_procs
+        n_procs = self.args.n_procs
         min_queries_per_proc = 10  # float(len(self.remaining_queries)) / n_procs  # used to be initial queries per proc
         print '  %4s   step  seqs    procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
         while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
