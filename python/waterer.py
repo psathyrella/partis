@@ -50,14 +50,10 @@ class Waterer(object):
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
 
         self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
-        self.match_score = 5
-
+        self.match_score = 5  # see commented table above ^
         if self.vs_info is None:
-            # self.match_mismatch = [5, 1]  # old values (1 is way too low)
-            self.mismatch = 1
-        else:  # see commented table above ^
-            # self.match_mismatch = [5, 3]  # TODO fix this
-            assert self.match_score == 5  # well that's what the optimization was for
+            self.mismatch = 4
+        else:
             self.default_mfreq = 0.075  # what to use if vsearch failed on the query
             self.mfreq_mismatch_vals = [
                 (0.01, 5),
@@ -99,17 +95,14 @@ class Waterer(object):
         mismatches, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
         self.write_input_files(base_infname, queries_for_each_proc)
 
-        print '  %4s    seqs    procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
-        print '  %4s    %-8d %-3d' % ('summary:' if self.debug else '', len(self.remaining_queries), len(mismatches)),
+        print '    running %d proc%s for %d seqs' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries))
         sys.stdout.flush()
-
-        substart = time.time()
         self.execute_commands(base_infname, base_outfname, mismatches)
-        print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
 
+        processing_start = time.time()
         self.read_output(base_outfname, len(mismatches))
         self.finalize(cachefname)
-        print '        water time: %.1f' % (time.time()-start)
+        print '    water time: %.1f  (ig-sw %.1f  processing %.1f)' % (time.time() - start, time.time() - processing_start, self.ig_sw_time)
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
@@ -257,6 +250,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def execute_commands(self, base_infname, base_outfname, mismatches):
+        start = time.time()
         def get_cmd_str(iproc):
             return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc])
             # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc])
@@ -271,6 +265,7 @@ class Waterer(object):
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
         sys.stdout.flush()
+        self.ig_sw_time = time.time() - start
 
     # ----------------------------------------------------------------------------------------
     def split_queries_by_match_mismatch(self, input_queries, n_procs, debug=False):
@@ -416,7 +411,8 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, n_procs=1):
-        start = time.time()
+        if self.debug:
+            print '%s' % utils.color('green', 'reading output')
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
         for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails', 'super-high-mutation']:
@@ -460,8 +456,6 @@ class Waterer(object):
             if n_procs > 1:  # still need the top-level workdir
                 os.rmdir(workdir)
 
-        if not self.debug:  # too hard to get newlines right
-            print '     %8.1f' % (time.time() - start)  # comma/no comma needs fixing for debug > 0
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
