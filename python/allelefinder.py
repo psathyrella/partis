@@ -955,6 +955,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def print_summary(self, genes_to_use):
         if len(genes_to_use) == 0:
+            print '  no genes with enough counts'
             return
 
         binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
@@ -975,11 +976,14 @@ class AlleleFinder(object):
                                                                                                                                     self.n_clonal_representatives[gene] + self.n_excluded_clonal_queries[gene],
                                                                                                                                     self.n_clones[gene], self.n_clonal_representatives[gene],
                                                                                                                                     utils.color_gene(gene))
+        print '%s: looking for new alleles among %d gene%s (%d genes didn\'t have enough counts)' % (utils.color('blue', 'try ' + str(self.itry)), len(genes_to_use), utils.plural(len(genes_to_use)), len(self.counts) - len(genes_to_use))
 
     # ----------------------------------------------------------------------------------------
     def increment_and_finalize(self, swfo, debug=False):
         assert not self.finalized
         start = time.time()
+        if debug:
+            print 'allele finding'
 
         # first prepare some things, and increment for each chosen query
         self.set_excluded_bases(swfo, debug=debug)
@@ -1009,8 +1013,8 @@ class AlleleFinder(object):
 
         # then finalize
         genes_to_use = [g for g in sorted(self.counts) if self.gene_obs_counts[g] >= self.n_total_min]
-        self.print_summary(genes_to_use)
-        print '%s: looking for new alleles among %d gene%s (%d genes didn\'t have enough counts)' % (utils.color('blue', 'try ' + str(self.itry)), len(genes_to_use), utils.plural(len(genes_to_use)), len(self.counts) - len(genes_to_use))
+        if debug:
+            self.print_summary(genes_to_use)
         # if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
         #     total = int(self.overall_mute_counts.integral(include_overflows=True))  # underflow bin is zero mutations, and we want overflow, too NOTE why the fuck isn't this quite equal to sum(self.gene_obs_counts.values())?
         #     for n_mutes in range(self.args.n_max_snps):
