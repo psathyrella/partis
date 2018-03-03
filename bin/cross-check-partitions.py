@@ -18,12 +18,13 @@ parser.add_argument('--infiles')
 parser.add_argument('--labels')
 parser.add_argument('--locus')
 parser.add_argument('--param')
-parser.add_argument('--min-cluster-size', default=4, type=int)
-parser.add_argument('--max-cdr3-distance', default=5, type=int)
+parser.add_argument('--min-cluster-sizes', default='4:2', help='first number is for outer cluster loop (first column), second is for inner loop (second column)')
+parser.add_argument('--max-cdr3-distance', default=5, type=int, help='ignore clusters with a cdr3 that differs by more than this many nucleotides')
 args = parser.parse_args()
 
 args.infiles = utils.get_arg_list(args.infiles)
 args.labels = utils.get_arg_list(args.labels)
+args.min_cluster_sizes = utils.get_arg_list(args.min_cluster_sizes, intify=True)
 assert len(args.infiles) == len(args.labels)
 glfo = glutils.read_glfo(args.param + '/hmm/germline-sets', locus=args.locus)
 
@@ -72,55 +73,34 @@ cpaths = [ClusterPath() for _ in range(len(args.infiles))]
 for ifile in range(len(args.infiles)):
     cpaths[ifile].readfile(args.infiles[ifile])
 partitions = [sorted(cp.partitions[cp.i_best], key=len, reverse=True) for cp in cpaths]
-partitions = [[c for c in partition if len(c) > args.min_cluster_size] for partition in partitions]
+partitions = [[c for c in partition if len(c) > args.min_cluster_sizes[0]] for partition in partitions]
 annotations = [read_annotations(fn) for fn in args.infiles]
 
 
 nearest_cluster_lists = {l1 : {l2 : [] for l2 in args.labels if l2 != l1} for l1 in args.labels}
 for if1 in range(len(args.infiles)):
     label1 = args.labels[if1]
+    print '%s' % utils.color(None, label1)
     for if2 in range(len(args.infiles)):
         if if1 == if2:
             continue
         label2 = args.labels[if2]
-        print '    isub-%s   isub-%s  cdr3' % (label1, label2)
-        print '     size     size   dist'
+        print '\n      %5s      %5s    cdr3' % ('', label2)
+        print '   index size  index size  dist'
         for cluster1 in partitions[if1]:  # for each cluster in the first partition
             info1 = annotations[if1][getkey(cluster1)]
-            print '     %3d                    %s' % (len(cluster1), cdr3_translation(info1))
             def keyfcn(c2):
                 return naive_hdist_or_none(info1, annotations[if2][getkey(c2)])
-            sorted_clusters = sorted([c for c in partitions[if2] if keyfcn(c) is not None], key=keyfcn)  # make a list of the clusters in the other partition that's sorted by how similar their naive sequence are
+            sorted_clusters = sorted([c for c in partitions[if2] if keyfcn(c) is not None and len(c) > args.min_cluster_sizes[1]], key=keyfcn)  # make a list of the clusters in the other partition that's sorted by how similar their naive sequence are
             nearest_cluster_lists[label1][label2].append(sorted_clusters)
-            # print '             %s' % ' '.join([str(len(c)) for c in sorted_clusters])
+
+            size_index_str = '%3d %3d' % (partitions[if1].index(cluster1), len(cluster1))
+            extra_str = ''
+            if len(sorted_clusters) == 0:
+                size_index_str = utils.color('yellow', size_index_str)
+                extra_str = utils.color('yellow', '  x')
+            print '     %s                   %-30s%s' % (size_index_str, cdr3_translation(info1), extra_str)
             for nclust in sorted_clusters:
                 nclust_naive_cdr3 = cdr3_translation(annotations[if2][getkey(nclust)])
-                print '              %3d     %2d    %s' % (len(nclust),
-                                                           naive_hdist_or_none(info1, annotations[if2][getkey(nclust)]),
-                                                           utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True))
-
-# sorted_clusters = sorted(best_partition, key=len, reverse=True)  # sort by size
-# # sort by size
-# def keyfunc(q):
-#     return len(annotations[q]['unique_ids'])
-
-# sorted_clusters = sorted(annotations, key=keyfunc, reverse=True)
-
-# # # loop over ten biggest
-# # for cluster in sorted_clusters[:10]:
-# #     print len(annotations[cluster]['unique_ids'])
-
-# # add more criteria
-# def boolfunc(q):
-#     if annotations[cluster]['cdr3_length'] < 50:
-#         return False
-#     if len(annotations[cluster]['unique_ids']) < 20:
-#         return False
-#     return True
-
-# interesting_clusters = [cluster for cluster in sorted_clusters if boolfunc(cluster)]
-# print '  found %d interesting clusters' % len(interesting_clusters)
-# for cluster in interesting_clusters:
-#     print_stuff(annotations[cluster])
-
-# sys.exit()
+                hdist = naive_hdist_or_none(info1, annotations[if2][getkey(nclust)])
+                print '               %3d %3d    %2s   %-30s' % (partitions[if2].index(nclust), len(nclust), '%d' % hdist if hdist > 0 else '',
