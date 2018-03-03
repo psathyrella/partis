@@ -7,6 +7,15 @@ import numpy
 import itertools
 from Bio.Seq import Seq
 
+# # example usage:
+# fsd=/fh/fast/matsen_e/processed-data/partis
+# ./bin/cross-check-partitions.py \
+#     --locus igh \
+#     --min-cluster-sizes 150:5 --max-cdr3-distance 5 \
+#     --param $fsd/laura-mb/v17/Hs-LN-D-5RACE-IgG:$fsd/laura-mb-2/v17/BF520-g-M9 \
+#     --labels laura-mb-D:laura-mb-2-M9 \
+#     --infiles $fsd/laura-mb/v17/partitions/Hs-LN-D-5RACE-IgG-isub-2/partition.csv:$fsd/laura-mb-2/v17/partitions/BF520-g-M9-isub-2/partition.csv
+
 partis_path = '.'  # edit this if you're not running from the main partis dir
 sys.path.insert(1, partis_path + '/python')
 import utils
