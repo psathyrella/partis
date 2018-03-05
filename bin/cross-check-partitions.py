@@ -88,9 +88,8 @@ cpaths = [ClusterPath() for _ in range(len(args.infiles))]
 for ifile in range(len(args.infiles)):
     cpaths[ifile].readfile(args.infiles[ifile])
 partitions = [sorted(cp.partitions[cp.i_best], key=len, reverse=True) for cp in cpaths]
-partitions = [[c for c in partition if len(c) > args.min_cluster_sizes[0]] for partition in partitions]
+partitions = [[c for c in partition if len(c) > args.min_cluster_sizes[1]] for partition in partitions]
 annotations = [read_annotations(args.infiles[ifn], glfos[ifn]) for ifn in range(len(args.infiles))]
-
 
 nearest_cluster_lists = {l1 : {l2 : [] for l2 in args.labels if l2 != l1} for l1 in args.labels}
 for if1 in range(len(args.infiles)):
@@ -103,13 +102,15 @@ for if1 in range(len(args.infiles)):
         print '\n      %5s      %5s    cdr3' % ('', label2)
         print '   index size  index size  dist'
         for cluster1 in partitions[if1]:  # for each cluster in the first partition
+            if len(cluster1) < args.min_cluster_sizes[0]:
+                continue
             info1 = annotations[if1][getkey(cluster1)]
             def keyfcn(c2):
                 return naive_hdist_or_none(info1, annotations[if2][getkey(c2)])
-            sorted_clusters = sorted([c for c in partitions[if2] if keyfcn(c) is not None and len(c) > args.min_cluster_sizes[1]], key=keyfcn)  # make a list of the clusters in the other partition that's sorted by how similar their naive sequence are
+            sorted_clusters = sorted([c for c in partitions[if2] if keyfcn(c) is not None], key=keyfcn)  # make a list of the clusters in the other partition that's sorted by how similar their naive sequence are
             nearest_cluster_lists[label1][label2].append(sorted_clusters)
 
-            size_index_str = '%3d %4d' % (partitions[if1].index(cluster1), len(cluster1))
+            size_index_str = '%4d %4d' % (partitions[if1].index(cluster1), len(cluster1))
             extra_str = ''
             if len(sorted_clusters) == 0:
                 size_index_str = utils.color('yellow', size_index_str)
@@ -118,5 +119,5 @@ for if1 in range(len(args.infiles)):
             for nclust in sorted_clusters:
                 nclust_naive_cdr3 = cdr3_translation(annotations[if2][getkey(nclust)])
                 hdist = naive_hdist_or_none(info1, annotations[if2][getkey(nclust)])
-                print '               %3d %4d    %2s   %-30s' % (partitions[if2].index(nclust), len(nclust), '%d' % hdist if hdist > 0 else '',
+                print '               %4d %4d    %2s   %-30s' % (partitions[if2].index(nclust), len(nclust), '%d' % hdist if hdist > 0 else '',
                                                                  utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True))
