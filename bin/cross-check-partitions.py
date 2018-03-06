@@ -6,6 +6,7 @@ import argparse
 import numpy
 import itertools
 from Bio.Seq import Seq
+import colored_traceback.always
 
 # # example usage:
 # fsd=/fh/fast/matsen_e/processed-data/partis
@@ -78,6 +79,7 @@ def naive_hdist_or_none(line1, line2):
 # ----------------------------------------------------------------------------------------
 def cdr3_translation(info):
     naive_cdr3_seq = naive_cdr3(info)
+    naive_cdr3_seq = naive_cdr3_seq[3 : len(naive_cdr3_seq) - 3]
     if len(naive_cdr3_seq) % 3 != 0:
         # print '  out of frame: adding %s' % ((3 - len(naive_cdr3_seq) % 3) * 'N')
         naive_cdr3_seq += (3 - len(naive_cdr3_seq) % 3) * 'N'
@@ -94,13 +96,13 @@ annotations = [read_annotations(args.infiles[ifn], glfos[ifn]) for ifn in range(
 nearest_cluster_lists = {l1 : {l2 : [] for l2 in args.labels if l2 != l1} for l1 in args.labels}
 for if1 in range(len(args.infiles)):
     label1 = args.labels[if1]
-    print '%s' % utils.color(None, label1)
+    print '%s' % utils.color('green', label1)
     for if2 in range(len(args.infiles)):
         if if1 == if2:
             continue
         label2 = args.labels[if2]
-        print '\n      %5s      %5s    cdr3' % ('', label2)
-        print '   index size  index size  dist'
+        print '\n       %5s      %5s    cdr3' % ('', utils.color('green', label2, width=5))
+        print '     size index  size index  dist'
         for cluster1 in partitions[if1]:  # for each cluster in the first partition
             if len(cluster1) < args.min_cluster_sizes[0]:
                 continue
@@ -110,14 +112,15 @@ for if1 in range(len(args.infiles)):
             sorted_clusters = sorted([c for c in partitions[if2] if keyfcn(c) is not None], key=keyfcn)  # make a list of the clusters in the other partition that's sorted by how similar their naive sequence are
             nearest_cluster_lists[label1][label2].append(sorted_clusters)
 
-            size_index_str = '%4d %4d' % (partitions[if1].index(cluster1), len(cluster1))
             extra_str = ''
+            inner_loop_str = ''
             if len(sorted_clusters) == 0:
-                size_index_str = utils.color('yellow', size_index_str)
-                extra_str = utils.color('yellow', '  x')
-            print '     %s                   %-30s%s' % (size_index_str, cdr3_translation(info1), extra_str)
+                # extra_str = utils.color('yellow', '-', width=3)
+                inner_loop_str = utils.color('yellow', '-    -', width=8)
+            size_index_str = '%s %3d' % (utils.color('blue', '%4d' % len(cluster1)), partitions[if1].index(cluster1))
+            print '  %-3s%s   %8s        %-30s%3s' % (extra_str, size_index_str, inner_loop_str, cdr3_translation(info1), extra_str)
             for nclust in sorted_clusters:
                 nclust_naive_cdr3 = cdr3_translation(annotations[if2][getkey(nclust)])
                 hdist = naive_hdist_or_none(info1, annotations[if2][getkey(nclust)])
-                print '               %4d %4d    %2s   %-30s' % (partitions[if2].index(nclust), len(nclust), '%d' % hdist if hdist > 0 else '',
-                                                                 utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True))
+                print '               %s %4d   %2s   %-30s' % (utils.color('blue', '%4d' % len(nclust)), partitions[if2].index(nclust), '%d' % hdist if hdist > 0 else '',
+                                                                utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True))
