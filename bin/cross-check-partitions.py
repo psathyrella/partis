@@ -28,14 +28,16 @@ parser.add_argument('--infiles')
 parser.add_argument('--labels')
 parser.add_argument('--locus')
 parser.add_argument('--parameter-dirs')
-parser.add_argument('--min-cluster-sizes', default='4:2', help='first number is for outer cluster loop (first column), second is for inner loop (second column)')
+parser.add_argument('--min-outer-size', default=10, type=int)
+parser.add_argument('--min-inner-size', default=5, type=int)
+parser.add_argument('--min-outer-rep-frac', type=float)
+parser.add_argument('--min-inner-rep-frac', type=float)
 parser.add_argument('--max-cdr3-distance', default=5, type=int, help='ignore clusters with a cdr3 that differs by more than this many nucleotides')
 args = parser.parse_args()
 
 args.infiles = utils.get_arg_list(args.infiles)
 args.labels = utils.get_arg_list(args.labels)
 args.parameter_dirs = utils.get_arg_list(args.parameter_dirs)
-args.min_cluster_sizes = utils.get_arg_list(args.min_cluster_sizes, intify=True)
 assert len(args.infiles) == len(args.labels)
 if len(args.parameter_dirs) == 1:
     print '  note: using same glfo for all infiles'
@@ -90,7 +92,18 @@ cpaths = [ClusterPath() for _ in range(len(args.infiles))]
 for ifile in range(len(args.infiles)):
     cpaths[ifile].readfile(args.infiles[ifile])
 partitions = [sorted(cp.partitions[cp.i_best], key=len, reverse=True) for cp in cpaths]
-partitions = [[c for c in partition if len(c) > args.min_cluster_sizes[1]] for partition in partitions]
+
+repertoire_sizes = [sum([len(c) for c in partition]) for partition in partitions]
+min_inner_sizes = [args.min_inner_size if args.min_inner_rep_frac is None else args.min_inner_rep_frac * repertoire_sizes[isample] for isample in range(len(args.infiles))]
+min_outer_sizes = [args.min_outer_size if args.min_outer_rep_frac is None else args.min_outer_rep_frac * repertoire_sizes[isample] for isample in range(len(args.infiles))]
+max_label_width = max([len(l) for l in args.labels])
+label_strs = [('%' + str(max_label_width) + 's') % l for l in args.labels]
+print (' %' + str(max_label_width) + 's         total    min cluster') % ''
+print (' %' + str(max_label_width) + 's    size   outer  inner') % 'sample'
+for isample in range(len(partitions)):
+    print '  %s %6d    %3d  %3d' % (label_strs[isample], repertoire_sizes[isample], min_outer_sizes[isample], min_inner_sizes[isample])
+
+partitions = [[c for c in partitions[isample] if len(c) > min_inner_sizes[isample]] for isample in range(len(partitions))]
 annotations = [read_annotations(args.infiles[ifn], glfos[ifn]) for ifn in range(len(args.infiles))]
 
 nearest_cluster_lists = {l1 : {l2 : [] for l2 in args.labels if l2 != l1} for l1 in args.labels}
@@ -104,7 +117,7 @@ for if1 in range(len(args.infiles)):
         print '\n       %5s      %5s    cdr3' % ('', utils.color('green', label2, width=5))
         print '     size index  size index  dist'
         for cluster1 in partitions[if1]:  # for each cluster in the first partition
-            if len(cluster1) < args.min_cluster_sizes[0]:
+            if len(cluster1) < min_outer_sizes[if1]:
                 continue
             info1 = annotations[if1][getkey(cluster1)]
             def keyfcn(c2):
