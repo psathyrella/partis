@@ -241,7 +241,7 @@ def get_str_float_pair_dict(strlist):
 def get_list_of_str_list(strlist):
     if strlist == '':
         return []
-    return [substr.split(':') for substr in strlist]
+    return [[] if substr == '' else substr.split(':') for substr in strlist]
 
 # ----------------------------------------------------------------------------------------
 def reconstruct_full_indelfo(indel_list, reversed_seq):
