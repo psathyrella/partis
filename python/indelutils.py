@@ -225,8 +225,10 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
             print '  no indels'
         return indelfo
 
-    # add each indel to <indelfo['indels']>, and build <codestr> and <tmp_indices> to keep track of what's going on at each position
-    codestr = ''.join([length * code for code, length in cigars])  # each position is cigar code corresponding to that position in the alignment
+    # each position is the cigar code corresponding to that position in the alignment
+    codestr = ''.join([length * code for code, length in cigars])
+
+    # add each indel to <indelfo['indels']>, and build <tmp_indices> to keep track of what's going on at each position
     qpos = 0  # position within query sequence
     tmp_indices = []  # integer for each position in the alignment, giving the index of the indel that we're within (None if we're not in an indel)
     if debug:
@@ -251,30 +253,29 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     # then construct the dbg strings, indel-reversed input sequence, and 'seqstr' entries in indelfo
     qrprintstr, glprintstr, reversed_seq = [], [], []
     iqr, igl = 0, 0
+    def append_to_printstrs(code, qrbase, glbase):
+        qrcolor, glcolor = None, None
+        if code == 'M' and qrbase != glbase:
+            qrcolor = 'red'
+        if code == 'I' or code == 'D':
+            qrcolor = 'light_blue'
+            glcolor = 'light_blue'
+        qrprintstr.append(utils.color(qrcolor, qrbase if code != 'D' else '*'))
+        glprintstr.append(utils.color(glcolor, glbase if code != 'I' else '*'))
     for icode in range(len(codestr)):
         code = codestr[icode]
+        append_to_printstrs(code, qrseq[iqr], glseq[igl])
         if code == 'M':
-            qrbase = qrseq[iqr]
-            if qrbase != glseq[igl]:
-                qrbase = utils.color('red', qrbase)
-            qrprintstr.append(qrbase)
-            glprintstr.append(glseq[igl])
             reversed_seq.append(qrseq[iqr])  # add the base to the overall sequence with all indels reversed
-        elif code == 'S':
-            continue
         elif code == 'I':
-            qrprintstr.append(utils.color('light_blue', qrseq[iqr]))
-            glprintstr.append(utils.color('light_blue', '*'))
             indelfo['indels'][tmp_indices[icode]]['seqstr'].append(qrseq[iqr])  # and to the sequence of just this indel
             igl -= 1
         elif code == 'D':
-            qrprintstr.append(utils.color('light_blue', '*'))
-            glprintstr.append(utils.color('light_blue', glseq[igl]))
             reversed_seq.append(glseq[igl])  # add the base to the overall sequence with all indels reversed
             indelfo['indels'][tmp_indices[icode]]['seqstr'].append(glseq[igl])  # and to the sequence of just this indel
             iqr -= 1
         else:
-            raise Exception('unhandled cigar code %s' % code)
+            raise Exception('unexpected cigar code %s' % code)
 
         iqr += 1
         igl += 1
@@ -283,9 +284,13 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     qrprintstr = ''.join(qrprintstr)
     glprintstr = ''.join(glprintstr)
     indelfo['reversed_seq'] = ''.join(reversed_seq)
-    indelfo['reversed_seq'] = full_qrseq[ : qrbounds[0]] + indelfo['reversed_seq'] + full_qrseq[qrbounds[1] : ]  # add to reversed seq the bits to left and right of the aligned region TODO
     for ifo in indelfo['indels']:
         ifo['seqstr'] = ''.join(ifo['seqstr'])
+
+    # at the start of this fcn we trimmed off the "non-matched" bits of the query and germline sequences, so now we have to account for them (it might be nicer to have it all done at once, but this is the way it is, for historical reasons) (where the definition of "non-matched" is a bit fuzzy depending on whether it's vsearch or ig-sw)
+    indelfo['reversed_seq'] = full_qrseq[ : qrbounds[0]] + indelfo['reversed_seq'] + full_qrseq[qrbounds[1] : ]
+    for ifo in indelfo['indels']:
+        ifo['pos'] += qrbounds[0]
 
     # make the dbg str for indelfo
     gwidth = str(len(gene))  # doesn't account for color abbreviation, but oh well
@@ -322,3 +327,30 @@ def pad_indel_info(indelfo, leftstr, rightstr):
 
     for indel in indelfo['indels']:
         indel['pos'] += len(leftstr)
+
+# ----------------------------------------------------------------------------------------
+def check_indelfo_consistency(line, debug=False):
+    for iseq in range(len(line['unique_ids'])):
+        check_single_indel_consistency(line, iseq, debug=debug)
+
+# ----------------------------------------------------------------------------------------
+def check_single_indel_consistency(line, iseq, debug=False):
+    if not has_indels(line['indelfos'][iseq]):
+        return
+
+    for ifo in line['indelfos'][iseq]['indels']:
+        if debug:
+            print '  len %d  pos %d  seqstr %s' % (ifo['len'], ifo['pos'], ifo['seqstr'])
+
+        if ifo['type'] == 'insertion':
+            deleted_str = line['input_seqs'][iseq][ifo['pos'] : ifo['pos'] + ifo['len']]
+            ref_label = 'input seq'
+        else:
+            gl_pos = ifo['pos'] - len(line['fv_insertion'])
+            deleted_str = line['v_gl_seq'][gl_pos : gl_pos + ifo['len']]
+            ref_label = 'gl seq'
+
+        if deleted_str != ifo['seqstr']:
+            print '%s inconsistent indel info for %s:' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
+            utils.color_mutants(deleted_str, ifo['seqstr'], print_result=True, extra_str='    ', ref_label=ref_label + ' ')
+            utils.print_reco_event(line)
