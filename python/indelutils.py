@@ -184,6 +184,21 @@ def split_cigarstr(cstr):
     return code, int(lstr)
 
 # ----------------------------------------------------------------------------------------
+def get_dbg_str(gapped_qr_seq, gapped_gl_seq):
+    qrprintstr, glprintstr = [], []
+    for ich in range(len(gapped_qr_seq)):
+        qrb, glb = gapped_qr_seq[ich], gapped_gl_seq[ich]
+        qrcolor, glcolor = None, None
+        if qrb in utils.gap_chars or glb in utils.gap_chars:
+            qrcolor = 'light_blue'
+            glcolor = 'light_blue'
+        elif qrb != glb:
+            qrcolor = 'red'
+        qrprintstr.append(utils.color(qrcolor, qrb if qrb not in utils.gap_chars else '*'))  # change it to a start just cause that's what it originally was... at some point should switch to just leaving it whatever gap char it was
+        glprintstr.append(utils.color(glcolor, glb if glb not in utils.gap_chars else '*'))
+    return ''.join(qrprintstr), ''.join(glprintstr)
+
+# ----------------------------------------------------------------------------------------
 def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, gene, vsearch_conventions=False, debug=False):
     if debug:
         print '  initial:'
@@ -251,38 +266,37 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
         print '      %s  indel index' % ''.join([str(ti if ti is not None else ' ') for ti in tmp_indices])
 
     # then construct the dbg strings, indel-reversed input sequence, and 'seqstr' entries in indelfo
-    qrprintstr, glprintstr, reversed_seq = [], [], []
+    reversed_seq = []
+    gapped_qr_seq, gapped_gl_seq = [], []
     iqr, igl = 0, 0
-    def append_to_printstrs(code, qrbase, glbase):
-        qrcolor, glcolor = None, None
-        if code == 'M' and qrbase != glbase:
-            qrcolor = 'red'
-        if code == 'I' or code == 'D':
-            qrcolor = 'light_blue'
-            glcolor = 'light_blue'
-        qrprintstr.append(utils.color(qrcolor, qrbase if code != 'D' else '*'))
-        glprintstr.append(utils.color(glcolor, glbase if code != 'I' else '*'))
     for icode in range(len(codestr)):
         code = codestr[icode]
-        append_to_printstrs(code, qrseq[iqr], glseq[igl])
+        qrb, glb = qrseq[iqr], glseq[igl]
         if code == 'M':
-            reversed_seq.append(qrseq[iqr])  # add the base to the overall sequence with all indels reversed
+            reversed_seq += [qrb]  # add the base to the overall sequence with all indels reversed
+            gapped_qr_seq += [qrb]
+            gapped_gl_seq += [glb]
         elif code == 'I':
-            indelfo['indels'][tmp_indices[icode]]['seqstr'].append(qrseq[iqr])  # and to the sequence of just this indel
+            indelfo['indels'][tmp_indices[icode]]['seqstr'] += [qrb]  # and to the sequence of just this indel
+            gapped_qr_seq += [qrb]
+            gapped_gl_seq += ['.']
             igl -= 1
         elif code == 'D':
-            reversed_seq.append(glseq[igl])  # add the base to the overall sequence with all indels reversed
-            indelfo['indels'][tmp_indices[icode]]['seqstr'].append(glseq[igl])  # and to the sequence of just this indel
+            reversed_seq += [glb]  # add the base to the overall sequence with all indels reversed
+            indelfo['indels'][tmp_indices[icode]]['seqstr'] += [glb]  # and to the sequence of just this indel
+            gapped_qr_seq += ['.']
+            gapped_gl_seq += [glb]
             iqr -= 1
         else:
             raise Exception('unexpected cigar code %s' % code)
-
         iqr += 1
         igl += 1
 
+    qrprintstr, glprintstr = get_dbg_str(gapped_qr_seq, gapped_gl_seq)  # TODO switch name
+
     # convert character lists to strings (indels are rare enough that this probably isn't that much faster, but it just feels wrong not to)
-    qrprintstr = ''.join(qrprintstr)
-    glprintstr = ''.join(glprintstr)
+    gapped_qr_seq = ''.join(gapped_qr_seq)
+    gapped_gl_seq = ''.join(gapped_gl_seq)
     indelfo['reversed_seq'] = ''.join(reversed_seq)
     for ifo in indelfo['indels']:
         ifo['seqstr'] = ''.join(ifo['seqstr'])
@@ -300,6 +314,12 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
         dbg_str_list.append('%10s: %d base%s at %d (%s)' % (idl['type'], idl['len'], utils.plural(idl['len']), idl['pos'], idl['seqstr']))
     indelfo['dbg_str'] = '\n'.join(dbg_str_list)
 
+# ----------------------------------------------------------------------------------------
+    indelfo['qrbounds'] = qrbounds
+    indelfo['glbounds'] = glbounds
+    indelfo['cigarstr'] = cigarstr
+# ----------------------------------------------------------------------------------------
+
     if debug:
         print utils.pad_lines(indelfo['dbg_str'], 0)
 
@@ -307,6 +327,7 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
 
 # ----------------------------------------------------------------------------------------
 def pad_indel_info(indelfo, leftstr, rightstr):
+    # TODO update for any new keys
     indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
 
     # dbg_indel_lines = indelfo['dbg_str'].split('\n')[2:]  # i.e. just the lines describing each indel, not the first two lines that have the qrprintstr and glprintstr
@@ -329,26 +350,52 @@ def pad_indel_info(indelfo, leftstr, rightstr):
         indel['pos'] += len(leftstr)
 
 # ----------------------------------------------------------------------------------------
-def check_indelfo_consistency(line, debug=False):
+def check_indelfo_consistency(glfo, line, debug=False):
     for iseq in range(len(line['unique_ids'])):
-        check_single_indel_consistency(line, iseq, debug=debug)
+        check_single_sequence_indels(glfo, line, iseq, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def check_single_indel_consistency(line, iseq, debug=False):
-    if not has_indels(line['indelfos'][iseq]):
+def check_single_sequence_indels(glfo, line, iseq, debug=False):
+
+    # add a list of gapped_qr_seqs and gapped_gl_seqs, which are None if there's no indels
+    # swich has_indels() to just checking a new bool in <line>
+
+    indelfo = line['indelfos'][iseq]
+
+    if not has_indels(indelfo):
         return
 
-    for ifo in line['indelfos'][iseq]['indels']:
+    # new_indelfo = get_indelfo_from_cigar(indelfo['cigarstr'], line['input_seqs'][iseq], indelfo['qrbounds'], glfo['seqs']['v'][line['v_gene']], indelfo['glbounds'], line['v_gene'])
+    # if len(new_indelfo['indels']) != len(indelfo['indels']):
+    #     print '%s different lengths %d %d' % (len(new_indelfo['indels']), len(indelfo['indels']))
+
+    for iindel in range(len(indelfo['indels'])):
+        ifo = indelfo['indels'][iindel]
         if debug:
             print '  len %d  pos %d  seqstr %s' % (ifo['len'], ifo['pos'], ifo['seqstr'])
+
+# ----------------------------------------------------------------------------------------
+        # new_ifo = new_indelfo['indels'][iindel]
+        # if new_ifo['seqstr'] != ifo['seqstr']:
+        #     print '\n%s inconsistent indel info for %s:' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
+        #     utils.color_mutants(new_ifo['seqstr'], ifo['seqstr'], print_result=True, extra_str='    ', ref_label=ref_label + ' ')
+        #     utils.print_reco_event(line)
+        # else:
+        #     if debug:
+        #         print '  %s' % utils.color('green', 'ok')
+# ----------------------------------------------------------------------------------------
 
         if ifo['type'] == 'insertion':
             deleted_str = line['input_seqs'][iseq][ifo['pos'] : ifo['pos'] + ifo['len']]
             ref_label = 'input seq'
         else:
-            gl_pos = ifo['pos'] - len(line['fv_insertion'])
-            deleted_str = line['v_gl_seq'][gl_pos : gl_pos + ifo['len']]
+            assert len(line['fv_insertion']) == indelfo['qrbounds'][0]
+            gl_pos = ifo['pos'] - len(line['fv_insertion']) + indelfo['glbounds'][0]
+            deleted_str = glfo['seqs']['v'][line['v_gene']][gl_pos : gl_pos + ifo['len']]
             ref_label = 'gl seq'
+            # gl_pos = ifo['pos'] - len(line['fv_insertion'])
+            # deleted_str = line['v_gl_seq'][gl_pos : gl_pos + ifo['len']]
+            # deleted_str = line['indel_reversed_seqs'][iseq][ifo['pos'] : ifo['pos'] + ifo['len']]
 
         if deleted_str != ifo['seqstr']:
             print '%s inconsistent indel info for %s:' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
