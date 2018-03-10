@@ -184,7 +184,7 @@ def split_cigarstr(cstr):
     return code, int(lstr)
 
 # ----------------------------------------------------------------------------------------
-def get_dbg_str(gapped_qr_seq, gapped_gl_seq):
+def get_dbg_str(gapped_qr_seq, gapped_gl_seq, gene, indelfo):
     qrprintstr, glprintstr = [], []
     for ich in range(len(gapped_qr_seq)):
         qrb, glb = gapped_qr_seq[ich], gapped_gl_seq[ich]
@@ -196,7 +196,15 @@ def get_dbg_str(gapped_qr_seq, gapped_gl_seq):
             qrcolor = 'red'
         qrprintstr.append(utils.color(qrcolor, qrb if qrb not in utils.gap_chars else '*'))  # change it to a start just cause that's what it originally was... at some point should switch to just leaving it whatever gap char it was
         glprintstr.append(utils.color(glcolor, glb if glb not in utils.gap_chars else '*'))
-    return ''.join(qrprintstr), ''.join(glprintstr)
+    qrprintstr = ''.join(qrprintstr)
+    glprintstr = ''.join(glprintstr)
+
+    gwidth = str(len(gene))  # doesn't account for color abbreviation, but oh well
+    dbg_str_list = [('%' + gwidth + 's  %s') % (utils.color_gene(gene, width=int(gwidth), leftpad=True), glprintstr),
+                    ('%' + gwidth + 's  %s') % ('query', qrprintstr)]
+    for idl in indelfo['indels']:
+        dbg_str_list.append('%10s: %d base%s at %d (%s)' % (idl['type'], idl['len'], utils.plural(idl['len']), idl['pos'], idl['seqstr']))
+    return'\n'.join(dbg_str_list)
 
 # ----------------------------------------------------------------------------------------
 def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, gene, vsearch_conventions=False, debug=False):
@@ -292,8 +300,6 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
         iqr += 1
         igl += 1
 
-    qrprintstr, glprintstr = get_dbg_str(gapped_qr_seq, gapped_gl_seq)  # TODO switch name
-
     # convert character lists to strings (indels are rare enough that this probably isn't that much faster, but it just feels wrong not to)
     gapped_qr_seq = ''.join(gapped_qr_seq)
     gapped_gl_seq = ''.join(gapped_gl_seq)
@@ -306,18 +312,13 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     for ifo in indelfo['indels']:
         ifo['pos'] += qrbounds[0]
 
-    # make the dbg str for indelfo
-    gwidth = str(len(gene))  # doesn't account for color abbreviation, but oh well
-    dbg_str_list = [('%' + gwidth + 's  %s') % (utils.color_gene(gene, width=int(gwidth), leftpad=True), glprintstr),
-                    ('%' + gwidth + 's  %s') % ('query', qrprintstr)]
-    for idl in indelfo['indels']:
-        dbg_str_list.append('%10s: %d base%s at %d (%s)' % (idl['type'], idl['len'], utils.plural(idl['len']), idl['pos'], idl['seqstr']))
-    indelfo['dbg_str'] = '\n'.join(dbg_str_list)
+    indelfo['dbg_str'] = get_dbg_str(gapped_qr_seq, gapped_gl_seq, gene, indelfo)
 
 # ----------------------------------------------------------------------------------------
     indelfo['qrbounds'] = qrbounds
     indelfo['glbounds'] = glbounds
     indelfo['cigarstr'] = cigarstr
+    # indelfo['gene'] = XXX  # probably worth adding, if nothing else to remind you that it can be different to the gene in the rest of the line
 # ----------------------------------------------------------------------------------------
 
     if debug:
