@@ -276,56 +276,6 @@ def get_new_alignments(glfo, region, debug=False):
     return aligned_seqs
 
 
-# ----------------------------------------------------------------------------------------
-def count_n_separate_gaps(seq, exclusion_5p=None, exclusion_3p=None):  # NOTE compare to count_gap_chars() below
-    if exclusion_5p is not None:
-        seq = seq[exclusion_5p : ]
-    if exclusion_3p is not None:
-        seq = seq[ : len(seq) - exclusion_3p]
-
-    n_gaps = 0
-    within_a_gap = False
-    for ch in seq:
-        if ch not in utils.gap_chars:
-            within_a_gap = False
-            continue
-        elif within_a_gap:
-            continue
-        within_a_gap = True
-        n_gaps += 1
-
-    return n_gaps
-
-# ----------------------------------------------------------------------------------------
-def count_gap_chars(aligned_seq, aligned_pos=None, unaligned_pos=None):  # NOTE compare to count_n_separate_gaps() above
-    """ return number of gap characters up to, but not including a position, either in unaligned or aligned sequence """
-    if aligned_pos is not None:
-        assert unaligned_pos is None
-        aligned_seq = aligned_seq[ : aligned_pos]
-        return sum([aligned_seq.count(gc) for gc in utils.gap_chars])
-    elif unaligned_pos is not None:
-        assert aligned_pos is None
-        ipos = 0  # position in unaligned sequence
-        n_gaps_passed = 0  # number of gapped positions in the aligned sequence that we pass before getting to <unaligned_pos> (i.e. while ipos < unaligned_pos)
-        while ipos < unaligned_pos or (ipos + n_gaps_passed < len(aligned_seq) and aligned_seq[ipos + n_gaps_passed] in utils.gap_chars):  # second bit handles alignments with gaps immediately before <unaligned_pos>
-            if aligned_seq[ipos + n_gaps_passed] in utils.gap_chars:
-                n_gaps_passed += 1
-            else:
-                ipos += 1
-        return n_gaps_passed
-    else:
-        assert False
-
-# ----------------------------------------------------------------------------------------
-def get_pos_in_alignment(codon, aligned_seq, seq, pos, gene):
-    """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
-    if not utils.codon_unmutated(codon, seq, pos):  # this only gets called on the gene with the *known* position, so it shouldn't fail
-        print '  %s mutated %s before alignment in %s' % (utils.color('yellow', 'warning'), codon, gene)
-    pos_in_alignment = pos + count_gap_chars(aligned_seq, unaligned_pos=pos)
-    if not utils.codon_unmutated(codon, aligned_seq, pos_in_alignment):
-        print '  %s mutated %s after alignment in %s' % (utils.color('yellow', 'warning'), codon, gene)
-    return pos_in_alignment
-
 #----------------------------------------------------------------------------------------
 def get_missing_codon_info(glfo, debug=False):
     # debug = 2
@@ -364,7 +314,7 @@ def get_missing_codon_info(glfo, debug=False):
             if known_gene is None:
                 raise Exception('couldn\'t find a known %s position\n    known but not in glfo: %s\n    known but unaligned: %s\n    known but mutated: %s' % (codon, ' '.join(known_but_not_in_glfo), ' '.join(known_but_unaligned), ' '.join(known_but_mutated)))
             # NOTE for cyst, should be 309 if alignments are imgt [which they used to usually be, but now probably aren't] (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
-            known_pos_in_alignment = get_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, known_gene)
+            known_pos_in_alignment = utils.get_codon_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, known_gene)
             if debug:
                 print '  using known position %d (aligned %d) from %s' % (known_pos, known_pos_in_alignment, known_gene)
         elif codon == 'cyst':
@@ -378,7 +328,7 @@ def get_missing_codon_info(glfo, debug=False):
         seqons = []  # (seq, pos) pairs
         bad_codons = []
         for gene in [known_gene] + list(missing_genes):
-            unaligned_pos = known_pos_in_alignment - count_gap_chars(aligned_seqs[gene], aligned_pos=known_pos_in_alignment)
+            unaligned_pos = known_pos_in_alignment - utils.count_gap_chars(aligned_seqs[gene], aligned_pos=known_pos_in_alignment)
             seq_to_check = glfo['seqs'][region][gene]
             seqons.append((seq_to_check, unaligned_pos))
             glfo[codon + '-positions'][gene] = unaligned_pos
@@ -457,7 +407,7 @@ def print_glfo(glfo, use_primary_version=False):  # NOTE kind of similar to bin/
                     extra_str = ''
                     if region in utils.conserved_codons[glfo['locus']]:
                         codon = utils.conserved_codons[glfo['locus']][region]
-                        aligned_cpos = get_pos_in_alignment(codon, seqfo['seq'], ggroupseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
+                        aligned_cpos = utils.get_codon_pos_in_alignment(codon, seqfo['seq'], ggroupseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
                         emphasis_positions = [aligned_cpos + i for i in range(3)]
                         if region == 'v':
                             if utils.cdn_pos(glfo, region, seqfo['name']) % 3 != 0:  # flag out of frame cysteines
@@ -593,7 +543,7 @@ def try_to_get_mutfo_from_name(gene_name, aligned_seq=None, unaligned_seq=None, 
             if debug:
                 print '    imgt aligned %s%d%s: %s%s%s' % (original, imgt_aligned_pos, new, aligned_seq[:imgt_aligned_pos], utils.color('red', aligned_seq[imgt_aligned_pos]), aligned_seq[imgt_aligned_pos + 1:])
             assert aligned_seq[imgt_aligned_pos] == new
-            n_gaps = count_gap_chars(aligned_seq, aligned_pos=imgt_aligned_pos)
+            n_gaps = utils.count_gap_chars(aligned_seq, aligned_pos=imgt_aligned_pos)
             unaligned_pos = imgt_aligned_pos - n_gaps
             if debug:
                 print '       unaligned %s%d%s: %s%s%s' % (original, unaligned_pos, new, unaligned_seq[:unaligned_pos], utils.color('red', unaligned_seq[unaligned_pos]), unaligned_seq[unaligned_pos + 1:])
@@ -1097,7 +1047,7 @@ def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, d
     n_snps = nearest_distance
 
     realigned_new_seq, realigned_nearest_seq = utils.align_seqs(aligned_seqs['new'], aligned_seqs[nearest_gene])  # have to re-align 'em in order to get rid of extraneous gaps from other seqs in the previous alignment
-    n_indels = count_n_separate_gaps(realigned_new_seq, exclusion_3p=exclusion_3p) + count_n_separate_gaps(realigned_nearest_seq, exclusion_3p=exclusion_3p)
+    n_indels = utils.count_n_separate_gaps(realigned_new_seq, exclusion_3p=exclusion_3p) + utils.count_n_separate_gaps(realigned_nearest_seq, exclusion_3p=exclusion_3p)
 
     if debug:
         colored_realigned_new_seq, colored_realigned_nearest_seq = utils.color_mutants(realigned_new_seq, realigned_nearest_seq, return_ref=True)  # have to re-align 'em in order to get rid of extraneous gaps from other seqs in the previous alignment

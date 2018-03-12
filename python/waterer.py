@@ -92,15 +92,22 @@ class Waterer(object):
         if self.vs_info is not None:  # if we're reading a cache file, we should make sure to read the exact same info from there
             self.add_vs_info()
 
-        mismatches, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
-        self.write_input_files(base_infname, queries_for_each_proc)
+        itry = 0
+        while True:  # if we're not running vsearch, we still gotta run twice to get shm indeld sequences
+            mismatches, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
+            self.write_input_files(base_infname, queries_for_each_proc)
 
-        print '    running %d proc%s for %d seqs' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries))
-        sys.stdout.flush()
-        self.execute_commands(base_infname, base_outfname, mismatches)
+            print '    running %d proc%s for %d seqs' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries))
+            sys.stdout.flush()
+            self.execute_commands(base_infname, base_outfname, mismatches)
 
-        processing_start = time.time()
-        self.read_output(base_outfname, len(mismatches))
+            processing_start = time.time()
+            self.read_output(base_outfname, len(mismatches))
+
+            if self.new_indels == 0 or itry > 1:
+                break
+            itry += 1
+
         self.finalize(cachefname)
         print '    water time: %.1f  (ig-sw %.1f  processing %.1f)' % (time.time() - start, time.time() - processing_start, self.ig_sw_time)
 
@@ -227,7 +234,6 @@ class Waterer(object):
         glutils.remove_glfo_files(self.my_gldir, self.args.locus)
         sys.stdout.flush()
 
-
     # ----------------------------------------------------------------------------------------
     def add_vs_info(self):
         vsfo = self.vs_info['annotations']
@@ -236,10 +242,7 @@ class Waterer(object):
             self.info['indels'][query] = vsfo[query]['indelfo']
             if self.debug:
                 print '    adding indel from vsearch:'
-                if 'dbg_str' in vsfo[query]['indelfo']:
-                    print vsfo[query]['indelfo']['dbg_str']
-                    # TODO clean this up (what would be nice is to just not store the dbg_str, but that would be hard)
-                    del vsfo[query]['indelfo']['dbg_str']  # need to delete the dbg_str so the indelfo is identical to that we [may] read from an sw-cache file
+                print indelutils.get_dbg_str(vsfo[query]['indelfo'])
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
@@ -448,7 +451,10 @@ class Waterer(object):
                                    n_to_rerun + self.new_indels + len(not_read),
                                    len(self.remaining_queries), self.args.workdir))
 
-            self.new_indels = 0  # should already be zero, but this is the remains of some more substantial code
+            # TODO double check this
+# ----------------------------------------------------------------------------------------
+            # self.new_indels = 0  # should already be zero, but this is the remains of some more substantial code
+# ----------------------------------------------------------------------------------------
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
@@ -505,15 +511,11 @@ class Waterer(object):
                 assert len(qinfo['matches'][region]) == self.args.n_max_per_region[utils.regions.index(region)]  # there better not be a way to get more than we asked for
                 continue
 
-            indelfo = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene)
+            indelfo = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene)  # note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
             if indelutils.has_indels(indelfo):
                 if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
                     continue
                 assert region not in qinfo['new_indels']  # only to double-check the continue just above
-                # note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
-                if region == 'j':  # this is a terrible hack TODO
-                    for ifo in indelfo['indels']:
-                        ifo['pos'] += qrbounds[0]
                 qinfo['new_indels'][region] = indelfo
 
             # and finally add this match's information
@@ -802,25 +804,12 @@ class Waterer(object):
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
-        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice: only v or j best matches)
-            if qname in self.info['indels']:
-                if self.debug:
-                    print '      rerun: s-w called indels after already calling some before -- but we don\'t allow multiple cycles'
-                queries_to_rerun['indel-fails'].add(qname)
-                return
-
-            # NOTE (probably) important to look for v indels first (since a.t.m. we only take the first one)
-            for region in [r for r in ['v', 'j', 'd'] if r in qinfo['new_indels']]:  # TODO this doesn't allow indels in more than one region
-                self.info['indels'][qinfo['name']] = qinfo['new_indels'][region]  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
-                assert self.info['indels'][qinfo['name']]['reversed_seq'] == qinfo['new_indels'][region]['reversed_seq']  # why tf was this second line there?
-                # self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
-                self.new_indels += 1
-                if self.debug:
-                    print '      rerun: new indels\n%s' % utils.pad_lines(self.info['indels'][qinfo['name']]['dbg_str'], 10)  # TODO not actually rerunning any more... so maybe just remove/disable sw's ability to call indels?
-                return
-
-            print '%s fell through indel block for %s' % (utils.color('red', 'warning'), qname)
-            return  # otherwise something's weird/wrong, so we want to re-run (I think we actually can't fall through to here)
+        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice/a.t.m.: only v or j best matches)
+            self.info['indels'][qinfo['name']] = self.combine_indels(qinfo)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
+            self.new_indels += 1  # tells self.run() that we need to do another iteration
+            if self.debug:
+                print '      rerun: new indels\n%s' % utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
+            return
 
         if self.debug >= 2:
             for region in utils.regions:
@@ -1084,6 +1073,13 @@ class Waterer(object):
             if fv_len == 0 and jf_len == 0:
                 continue
 
+            # TODO do i need to mess with indels here?
+# ----------------------------------------------------------------------------------------
+            if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
+                assert self.info['indels'][query] is self.info[query]['indelfos'][0]  # TODO make this less scary
+                indelutils.pad_indel_info(self.info['indels'][query], leftstr, rightstr)
+# ----------------------------------------------------------------------------------------
+
             # it would be nice to combine these shenanigans with their counterparts in pad_seqs_to_same_length() [e.g. add a fcn utils.modify_fwk_insertions(), although padding doesn't just modify the fwk insertions, so...], but I'm worried they need to be slightly different and don't want to test extensively a.t.m.
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = swfo[seqkey][0][fv_len : len(swfo[seqkey][0]) - jf_len]
@@ -1299,3 +1295,20 @@ class Waterer(object):
             print '    cdr3        uid                 padded seq'
             for query in sorted(self.info['queries'], key=lambda q: self.info[q]['cdr3_length']):
                 print '    %3d   %20s    %s' % (self.info[query]['cdr3_length'], query, self.info[query]['seqs'][0])
+
+    # ----------------------------------------------------------------------------------------
+    def combine_indels(self, qinfo):
+        vfo, jfo = None, None
+        if self.vs_info is not None and qinfo['name'] in self.info['indels']:
+            assert False  # need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
+            vfo = self.info['indels'][qinfo['name']]
+            del self.info['indels'][qinfo['name']]  # TODO um, maybe?
+            assert 'v' not in qinfo['new_indels']  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it
+        elif 'v' in qinfo['new_indels']:
+            vfo = qinfo['new_indels']['v']
+        if 'j' in qinfo['new_indels']:
+            jfo = qinfo['new_indels']['j']
+
+        # TODO make sure qinfo['seq'] is correct (i.e. fix it if it's modified because of vsearch stuff)
+
+        return indelutils.combine_indels(vfo, jfo, qinfo['seq'])

@@ -52,7 +52,7 @@ import utils
 #     return return_seq
 
 # ----------------------------------------------------------------------------------------
-def get_empty_indel():
+def get_empty_indel():  # TODO update, probably should just be None or something? it at least should be simpler
     return {'reversed_seq' : '', 'indels' : []}
 
 # ----------------------------------------------------------------------------------------
@@ -184,27 +184,40 @@ def split_cigarstr(cstr):
     return code, int(lstr)
 
 # ----------------------------------------------------------------------------------------
-def get_dbg_str(gapped_qr_seq, gapped_gl_seq, gene, indelfo):
+def get_dbg_str(indelfo):
     qrprintstr, glprintstr = [], []
-    for ich in range(len(gapped_qr_seq)):
-        qrb, glb = gapped_qr_seq[ich], gapped_gl_seq[ich]
+    for ich in range(len(indelfo['qr_gap_seq'])):
+        qrb, glb = indelfo['qr_gap_seq'][ich], indelfo['gl_gap_seq'][ich]
         qrcolor, glcolor = None, None
         if qrb in utils.gap_chars or glb in utils.gap_chars:
             qrcolor = 'light_blue'
+            glcolor = 'light_blue'
+        elif qrb in utils.ambiguous_bases:
+            qrcolor = 'light_blue'
+        elif glb in utils.ambiguous_bases:
             glcolor = 'light_blue'
         elif qrb != glb:
             qrcolor = 'red'
         qrprintstr.append(utils.color(qrcolor, qrb if qrb not in utils.gap_chars else '*'))  # change it to a start just cause that's what it originally was... at some point should switch to just leaving it whatever gap char it was
         glprintstr.append(utils.color(glcolor, glb if glb not in utils.gap_chars else '*'))
-    qrprintstr = ''.join(qrprintstr)
-    glprintstr = ''.join(glprintstr)
+    qrprintstr = indelfo['reversed_seq'][ : indelfo['qrbounds'][0]] + ''.join(qrprintstr)
+    glprintstr = ' ' * indelfo['qrbounds'][0] + ''.join(glprintstr)
 
-    gwidth = str(len(gene))  # doesn't account for color abbreviation, but oh well
-    dbg_str_list = [('%' + gwidth + 's  %s') % (utils.color_gene(gene, width=int(gwidth), leftpad=True), glprintstr),
-                    ('%' + gwidth + 's  %s') % ('query', qrprintstr)]
-    for idl in indelfo['indels']:
-        dbg_str_list.append('%10s: %d base%s at %d (%s)' % (idl['type'], idl['len'], utils.plural(idl['len']), idl['pos'], idl['seqstr']))
-    return'\n'.join(dbg_str_list)
+    gene_str = ''
+    gwidth = str(len('query'))
+    if indelfo['v_gene'] is not None:
+        gene_str = utils.color_gene(indelfo['v_gene'], width=int(gwidth), leftpad=True)
+        gwidth = str(utils.len_excluding_colors(gene_str))
+    dbg_str_list = [('  %' + gwidth + 's  %s  %s') % (gene_str, glprintstr, utils.color_gene(indelfo['j_gene']) if indelfo['j_gene'] is not None else ''),
+                    ('  %' + gwidth + 's  %s') % ('query', qrprintstr)]
+    for idl in indelfo['indels']:  # TODO for joint indels (both/all regions) positions are only right if you don't count stars in the query sequence (which might be what I want)
+        dbg_str_list.append('%10s: %d base%s at %d (%s)' % (idl['type'], idl['len'], utils.plural(idl['len']), idl['pos'], idl['seqstr']))  # kind of dumb/confusing to subtract from the pos, but otherwise we have to figure out how to print out the usually-different-length non-matched qr and gl bits
+    return '\n'.join(dbg_str_list)
+
+# ----------------------------------------------------------------------------------------
+def get_reversed_seq(qr_gap_seq, gl_gap_seq, v_5p_del_str, j_3p_del_str):
+    reversed_match_seq = [(qrb if qrb not in utils.gap_chars else glb) for qrb, glb in zip(qr_gap_seq, gl_gap_seq) if glb not in utils.gap_chars]
+    return v_5p_del_str + ''.join(reversed_match_seq) + j_3p_del_str
 
 # ----------------------------------------------------------------------------------------
 def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, gene, vsearch_conventions=False, debug=False):
@@ -274,26 +287,23 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
         print '      %s  indel index' % ''.join([str(ti if ti is not None else ' ') for ti in tmp_indices])
 
     # then construct the dbg strings, indel-reversed input sequence, and 'seqstr' entries in indelfo
-    reversed_seq = []
-    gapped_qr_seq, gapped_gl_seq = [], []
+    qr_gap_seq, gl_gap_seq = [], []
     iqr, igl = 0, 0
     for icode in range(len(codestr)):
         code = codestr[icode]
         qrb, glb = qrseq[iqr], glseq[igl]
         if code == 'M':
-            reversed_seq += [qrb]  # add the base to the overall sequence with all indels reversed
-            gapped_qr_seq += [qrb]
-            gapped_gl_seq += [glb]
+            qr_gap_seq += [qrb]
+            gl_gap_seq += [glb]
         elif code == 'I':
             indelfo['indels'][tmp_indices[icode]]['seqstr'] += [qrb]  # and to the sequence of just this indel
-            gapped_qr_seq += [qrb]
-            gapped_gl_seq += ['.']
+            qr_gap_seq += [qrb]
+            gl_gap_seq += ['.']
             igl -= 1
         elif code == 'D':
-            reversed_seq += [glb]  # add the base to the overall sequence with all indels reversed
             indelfo['indels'][tmp_indices[icode]]['seqstr'] += [glb]  # and to the sequence of just this indel
-            gapped_qr_seq += ['.']
-            gapped_gl_seq += [glb]
+            qr_gap_seq += ['.']
+            gl_gap_seq += [glb]
             iqr -= 1
         else:
             raise Exception('unexpected cigar code %s' % code)
@@ -301,28 +311,25 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
         igl += 1
 
     # convert character lists to strings (indels are rare enough that this probably isn't that much faster, but it just feels wrong not to)
-    gapped_qr_seq = ''.join(gapped_qr_seq)
-    gapped_gl_seq = ''.join(gapped_gl_seq)
-    indelfo['reversed_seq'] = ''.join(reversed_seq)
+    qr_gap_seq = ''.join(qr_gap_seq)
+    gl_gap_seq = ''.join(gl_gap_seq)
     for ifo in indelfo['indels']:
         ifo['seqstr'] = ''.join(ifo['seqstr'])
 
     # at the start of this fcn we trimmed off the "non-matched" bits of the query and germline sequences, so now we have to account for them (it might be nicer to have it all done at once, but this is the way it is, for historical reasons) (where the definition of "non-matched" is a bit fuzzy depending on whether it's vsearch or ig-sw)
-    indelfo['reversed_seq'] = full_qrseq[ : qrbounds[0]] + indelfo['reversed_seq'] + full_qrseq[qrbounds[1] : ]
     for ifo in indelfo['indels']:
         ifo['pos'] += qrbounds[0]
 
-    indelfo['dbg_str'] = get_dbg_str(gapped_qr_seq, gapped_gl_seq, gene, indelfo)
-
-# ----------------------------------------------------------------------------------------
+    # NOTE gapped seqs do _not_ contain the v 5p and j 3p deletions or fv and jf insertions, because this makes it easier to combine indels from different regions later on
+    for region in ['v', 'j']:
+        indelfo[region + '_gene'] = gene if region == utils.get_region(gene) else None
+    indelfo['qr_gap_seq'] = qr_gap_seq
+    indelfo['gl_gap_seq'] = gl_gap_seq
     indelfo['qrbounds'] = qrbounds
-    indelfo['glbounds'] = glbounds
-    indelfo['cigarstr'] = cigarstr
-    # indelfo['gene'] = XXX  # probably worth adding, if nothing else to remind you that it can be different to the gene in the rest of the line
-# ----------------------------------------------------------------------------------------
+    indelfo['reversed_seq'] = get_reversed_seq(qr_gap_seq, gl_gap_seq, full_qrseq[ : qrbounds[0]], full_qrseq[qrbounds[1] : ])
 
     if debug:
-        print utils.pad_lines(indelfo['dbg_str'], 0)
+        print utils.pad_lines(get_dbg_str(indelfo, gene=gene), 0)
 
     return indelfo
 
@@ -330,23 +337,6 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
 def pad_indel_info(indelfo, leftstr, rightstr):
     # TODO update for any new keys
     indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
-
-    # dbg_indel_lines = indelfo['dbg_str'].split('\n')[2:]  # i.e. just the lines describing each indel, not the first two lines that have the qrprintstr and glprintstr
-    # if len(dbg_indel_lines) != len(indelfo['indels']):
-    #     print '  %s wrong number of dbg indel lines %d %d' % (utils.color('red', 'error'), len(dbg_indel_lines), len(indelfo['indels']))
-
-    # dbg_indel_lines = indelfo['dbg_str'].split('\n')
-    # if len(dbg_indel_lines) != len(indelfo['indels']) - 2:
-    #     print '  %s wrong number of dbg indel lines %d %d' % (utils.color('red', 'error'), len(dbg_indel_lines) - 2, len(indelfo['indels']))
-    # for iline in range(2, len(dbg_indel_lines)):
-    #     def len_str( = ' %d ' % indelfo['indels'][iline]['len']
-    #     assert dbg_indel_lines[iline].count(len_str) == 1
-    #     dbg_indel_lines[iline] = dbg_indel_lines[iline].replace(len_str, )
-
-    # aw, screw it, that ^ is hard, just remove the dbg_str
-    if 'dbg_str' in indelfo:
-        del indelfo['dbg_str']
-
     for indel in indelfo['indels']:
         indel['pos'] += len(leftstr)
 
@@ -357,8 +347,9 @@ def check_indelfo_consistency(glfo, line, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def check_single_sequence_indels(glfo, line, iseq, debug=False):
+    # TODO figure out what to do with this fcn
 
-    # add a list of gapped_qr_seqs and gapped_gl_seqs, which are None if there's no indels
+    # add a list of qr_gap_seqs and gl_gap_seqs, which are None if there's no indels
     # swich has_indels() to just checking a new bool in <line>
 
     indelfo = line['indelfos'][iseq]
@@ -401,4 +392,45 @@ def check_single_sequence_indels(glfo, line, iseq, debug=False):
         if deleted_str != ifo['seqstr']:
             print '%s inconsistent indel info for %s:' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
             utils.color_mutants(deleted_str, ifo['seqstr'], print_result=True, extra_str='    ', ref_label=ref_label + ' ')
-            utils.print_reco_event(line)
+            # utils.print_reco_event(line)
+
+# ----------------------------------------------------------------------------------------
+def combine_indels(vfo, jfo, full_qrseq):
+    if vfo is None and jfo is None:
+        assert False  # shouldn't be possible, since it'd require a d indel?
+    elif jfo is None:
+        print get_dbg_str(vfo)
+        joint_indelfo = copy.deepcopy(vfo)
+        joint_indelfo['v_gene'] = vfo['v_gene']
+    elif vfo is None:
+        print get_dbg_str(jfo)
+        joint_indelfo = copy.deepcopy(jfo)
+        joint_indelfo['j_gene'] = jfo['j_gene']
+    else:
+        print 'v'
+        print get_dbg_str(vfo)
+        print 'j'
+        print get_dbg_str(jfo)
+
+        ungapped_qr_central_str = full_qrseq[vfo['qrbounds'][1] : jfo['qrbounds'][0]]
+        ungapped_gl_central_str = utils.ambiguous_bases[0] * (jfo['qrbounds'][0] - vfo['qrbounds'][1])  # the bit between the end of the v and the start of the j (we could instead use the d + insert stuff, but I'd rather keep it agnostic about that since all we're really trying to communicate here is where the shm indels are)
+        combined_gapped_qr_seq = vfo['qr_gap_seq'] + ungapped_qr_central_str + jfo['qr_gap_seq']  # reminder: still don't contain v 5p or j 3p deletions or fv/jf insertions
+        combined_gapped_gl_seq = vfo['gl_gap_seq'] + ungapped_gl_central_str + jfo['gl_gap_seq']
+        assert len(combined_gapped_qr_seq) == len(combined_gapped_gl_seq)
+
+        joint_indelfo = get_empty_indel()
+        joint_indelfo['v_gene'] = vfo['v_gene']
+        joint_indelfo['j_gene'] = jfo['j_gene']
+        joint_indelfo['indels'] = copy.deepcopy(vfo['indels']) + copy.deepcopy(jfo['indels'])
+        for iindel in range(len(vfo['indels']), len(joint_indelfo['indels'])):  # arg, kind of wish I didn't need this, but it's only really to keep the stupid 'pos' things right, and I wish I didn't even need them any more
+            ifo = joint_indelfo['indels'][iindel]
+            ifo['pos'] += utils.count_gap_chars(combined_gapped_qr_seq, ifo['pos'])  # NOTE this corresponds to the _new_ query position, i.e. in the reversed seq, _not_ the old one (this bullshit is why I shouldn't have used the 'pos' stuff in the first place)
+        joint_indelfo['qr_gap_seq'] = combined_gapped_qr_seq
+        joint_indelfo['gl_gap_seq'] = combined_gapped_gl_seq
+        joint_indelfo['qrbounds'] = (vfo['qrbounds'][0], jfo['qrbounds'][1])
+        joint_indelfo['reversed_seq'] = get_reversed_seq(combined_gapped_qr_seq, combined_gapped_gl_seq, full_qrseq[ : vfo['qrbounds'][0]], full_qrseq[jfo['qrbounds'][1] : ])
+        assert 'N' not in joint_indelfo['reversed_seq']  # TODO remove this
+
+    print 'combined'
+    print get_dbg_str(joint_indelfo)
+    return joint_indelfo

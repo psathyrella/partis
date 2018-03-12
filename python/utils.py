@@ -775,6 +775,61 @@ def remove_gaps(seq):
     return seq.translate(None, ''.join(gap_chars))
 
 # ----------------------------------------------------------------------------------------
+def count_n_separate_gaps(seq, exclusion_5p=None, exclusion_3p=None):  # NOTE compare to count_gap_chars() below
+    if exclusion_5p is not None:
+        seq = seq[exclusion_5p : ]
+    if exclusion_3p is not None:
+        seq = seq[ : len(seq) - exclusion_3p]
+
+    n_gaps = 0
+    within_a_gap = False
+    for ch in seq:
+        if ch not in gap_chars:
+            within_a_gap = False
+            continue
+        elif within_a_gap:
+            continue
+        within_a_gap = True
+        n_gaps += 1
+
+    return n_gaps
+
+# ----------------------------------------------------------------------------------------
+def count_gap_chars(aligned_seq, aligned_pos=None, unaligned_pos=None):  # NOTE compare to count_n_separate_gaps() above
+    """ return number of gap characters up to, but not including a position, either in unaligned or aligned sequence """
+    if aligned_pos is not None:
+        assert unaligned_pos is None
+        aligned_seq = aligned_seq[ : aligned_pos]
+        return sum([aligned_seq.count(gc) for gc in gap_chars])
+    elif unaligned_pos is not None:
+        assert aligned_pos is None
+        ipos = 0  # position in unaligned sequence
+        n_gaps_passed = 0  # number of gapped positions in the aligned sequence that we pass before getting to <unaligned_pos> (i.e. while ipos < unaligned_pos)
+        while ipos < unaligned_pos or (ipos + n_gaps_passed < len(aligned_seq) and aligned_seq[ipos + n_gaps_passed] in gap_chars):  # second bit handles alignments with gaps immediately before <unaligned_pos>
+            if aligned_seq[ipos + n_gaps_passed] in gap_chars:
+                n_gaps_passed += 1
+            else:
+                ipos += 1
+        return n_gaps_passed
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
+def get_codon_pos_in_alignment(codon, aligned_seq, seq, pos, gene):
+    """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
+    if not codon_unmutated(codon, seq, pos):  # this only gets called on the gene with the *known* position, so it shouldn't fail
+        print '  %s mutated %s before alignment in %s' % (color('yellow', 'warning'), codon, gene)
+    pos_in_alignment = pos + count_gap_chars(aligned_seq, unaligned_pos=pos)
+    if not codon_unmutated(codon, aligned_seq, pos_in_alignment):
+        print '  %s mutated %s after alignment in %s' % (color('yellow', 'warning'), codon, gene)
+    return pos_in_alignment
+
+# ----------------------------------------------------------------------------------------
+def get_pos_in_alignment(aligned_seq, pos):  # kind of annoying to have this as well as get_codon_pos_in_alignment(), but I don't want to change that function's signature
+    """ given <pos> in <seq>, find position in <aligned_seq> """
+    return pos + count_gap_chars(aligned_seq, unaligned_pos=pos)
+
+# ----------------------------------------------------------------------------------------
 def both_codons_unmutated(locus, seq, positions, debug=False, extra_str=''):
     both_ok = True
     for region, codon in conserved_codons[locus].items():
@@ -1134,6 +1189,8 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
             line['aligned_' + region + '_seqs'] = ['' for _ in range(len(line['seqs']))]
     else:
         add_alignments(glfo, aligned_gl_seqs, line)
+
+    # indelutils.check_indelfo_consistency(glfo, line, debug=True)
 
     if check_line_keys:
         new_keys = set(line) - initial_keys
@@ -3207,6 +3264,8 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', consens
     assert mismatch < 0  # if you give it a positive one it doesn't complain, so presumably it's actually using that positive  (at least for v identification it only makes a small difference, but vsearch's default is negative)
     cmd += ' --match %d'  % match  # default 2
     cmd += ' --mismatch %d' % mismatch  # default -4
+    # cmd += ' --gapopen 20I/2E'
+    # cmd += ' --gapext 2I/1E'
     if action == 'cluster':
         outfname = workdir + '/vsearch-clusters.txt'
         cmd += ' --cluster_fast ' + infname
