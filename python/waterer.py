@@ -1075,9 +1075,9 @@ class Waterer(object):
 
             # TODO do i need to mess with indels here?
 # ----------------------------------------------------------------------------------------
-            if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
-                assert self.info['indels'][query] is self.info[query]['indelfos'][0]  # TODO make this less scary
-                indelutils.pad_indel_info(self.info['indels'][query], leftstr, rightstr)
+            # if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
+            #     assert self.info['indels'][query] is self.info[query]['indelfos'][0]  # TODO make this less scary
+            #     indelutils.pad_indel_info(self.info['indels'][query], leftstr, rightstr)
 # ----------------------------------------------------------------------------------------
 
             # it would be nice to combine these shenanigans with their counterparts in pad_seqs_to_same_length() [e.g. add a fcn utils.modify_fwk_insertions(), although padding doesn't just modify the fwk insertions, so...], but I'm worried they need to be slightly different and don't want to test extensively a.t.m.
