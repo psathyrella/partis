@@ -243,16 +243,6 @@ def get_list_of_str_list(strlist):
         return []
     return [[] if substr == '' else substr.split(':') for substr in strlist]
 
-# ----------------------------------------------------------------------------------------
-def reconstruct_full_indelfo(indel_list, reversed_seq):
-    if 'reversed_seq' in indel_list:  # handle old files
-        return indel_list
-    indelfo = indelutils.get_empty_indel()
-    indelfo['indels'] = indel_list
-    if len(indel_list) > 0:
-        indelfo['reversed_seq'] = reversed_seq
-    return indelfo
-
 conversion_fcns = {}
 for key in column_configs['ints']:
     conversion_fcns[key] = int
@@ -1159,6 +1149,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
+    indelutils.consistify_indelfos(line)
     input_codon_positions = [indelutils.get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']
@@ -1189,8 +1180,6 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
             line['aligned_' + region + '_seqs'] = ['' for _ in range(len(line['seqs']))]
     else:
         add_alignments(glfo, aligned_gl_seqs, line)
-
-    # indelutils.check_indelfo_consistency(glfo, line, debug=True)
 
     if check_line_keys:
         new_keys = set(line) - initial_keys
@@ -1711,12 +1700,7 @@ def process_input_line(info, hmm_cachefile=False):
         info['indel_reversed_seqs'] = info['seqs']
 
     # process things for which we first want to know the number of seqs in the line
-    for key in info:
-        if key == 'indelfos':
-            info[key] = [reconstruct_full_indelfo(info['indelfos'][iseq], info['seqs'][iseq]) for iseq in range(len(info['unique_ids']))]
-        elif info[key] != '':
-            continue
-
+    for key in [k for k in info if info[k] == '']:
         if key in column_configs['lists']:
             info[key] = ['' for _ in range(len(info['unique_ids']))]
         elif key in column_configs['lists-of-lists']:
@@ -3264,8 +3248,6 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', consens
     assert mismatch < 0  # if you give it a positive one it doesn't complain, so presumably it's actually using that positive  (at least for v identification it only makes a small difference, but vsearch's default is negative)
     cmd += ' --match %d'  % match  # default 2
     cmd += ' --mismatch %d' % mismatch  # default -4
-    # cmd += ' --gapopen 20I/2E'
-    # cmd += ' --gapext 2I/1E'
     if action == 'cluster':
         outfname = workdir + '/vsearch-clusters.txt'
         cmd += ' --cluster_fast ' + infname

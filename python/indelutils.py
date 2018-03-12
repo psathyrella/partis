@@ -341,14 +341,60 @@ def pad_indel_info(indelfo, leftstr, rightstr):
         indel['pos'] += len(leftstr)
 
 # ----------------------------------------------------------------------------------------
-def check_indelfo_consistency(glfo, line, debug=False):
-    for iseq in range(len(line['unique_ids'])):
-        check_single_sequence_indels(glfo, line, iseq, debug=debug)
+def consistify_indelfos(line):
+    if 'indelfos' in line:  # old-style files
+        for iseq in range(len(line['unique_ids'])):
+            reconstruct_indelfo_from_indel_list(line['indelfos'][iseq], line, iseq)
+    else:  # new-style files
+        assert False
+        line['indelfos'] = [reconstruct_indelfo_from_gap_seqs(line['qr_gap_seqs'][iseq], line['gl_gap_seqs'][iseq], line['seqs'][iseq]) for iseq in range(len(line['unique_ids']))]
+    check_indelfo_consistency(line, debug=True)
 
 # ----------------------------------------------------------------------------------------
-def check_single_sequence_indels(glfo, line, iseq, debug=False):
+def reconstruct_indelfo_from_indel_list(indel_list, line, iseq):  # old-style files
+    if 'reversed_seq' in indel_list:  # handle super-old files
+        return indel_list
+
+    line['indelfos'][iseq] = get_empty_indel()
+    if len(indel_list) == 0:
+        return
+
+    qr_gap_seq, gl_gap_seq = [], []
+    for ipos in range(len(line['indel_reversed_seqs'][iseq])):
+        for ifo in indel_list:
+            if ipos == ifo['pos']:  # if this is the first base of this indel
+                if ifo['type'] == 'insertion':
+                    qr_gap_seq += ifo['seqstr'].split()
+                    gl_gap_seq += ifo['len'] * utils.gap_chars[0]
+                else:
+                    qr_gap_seq += ifo['len'] * utils.gap_chars[0]
+                    gl_gap_seq += ifo['seqstr'].split()
+        qr_gap_seq += line['indel_reversed_seqs'][iseq][ipos]  # these are guaranteed to be the same length by code in utils
+        gl_gap_seq += line['naive_seq'][ipos]
+
+    line['indelfos'][iseq]['qr_gap_seq'] = ''.join(qr_gap_seq)
+    line['indelfos'][iseq]['gl_gap_seq'] = ''.join(gl_gap_seq)
+    line['indelfos'][iseq]['indels'] = indel_list
+    line['indelfos'][iseq]['reversed_seq'] = line['indel_reversed_seqs'][iseq]
+    line['indelfos'][iseq]['qrbounds'] = (len(line['fv_insertion']), len(line['jf_insertion']))
+    line['indelfos'][iseq]['v_gene'] = line['v_gene']
+    line['indelfos'][iseq]['j_gene'] = line['j_gene']
+    # print get_dbg_str(line['indelfos'][iseq])
+
+# ----------------------------------------------------------------------------------------
+def reconstruct_indelfo_from_gap_seqs(qr_gap_seqs, gl_gap_seqs, indel_reversed_seq):  # new-style files
+    assert False
+
+# ----------------------------------------------------------------------------------------
+def check_indelfo_consistency(line, debug=False):
+    for iseq in range(len(line['unique_ids'])):
+        check_single_sequence_indels(line, iseq, debug=debug)
+
+# ----------------------------------------------------------------------------------------
+def check_single_sequence_indels(line, iseq, debug=False):
     # TODO figure out what to do with this fcn
 
+    # TODO
     # add a list of qr_gap_seqs and gl_gap_seqs, which are None if there's no indels
     # swich has_indels() to just checking a new bool in <line>
 
@@ -357,42 +403,45 @@ def check_single_sequence_indels(glfo, line, iseq, debug=False):
     if not has_indels(indelfo):
         return
 
-    # new_indelfo = get_indelfo_from_cigar(indelfo['cigarstr'], line['input_seqs'][iseq], indelfo['qrbounds'], glfo['seqs']['v'][line['v_gene']], indelfo['glbounds'], line['v_gene'])
-    # if len(new_indelfo['indels']) != len(indelfo['indels']):
-    #     print '%s different lengths %d %d' % (len(new_indelfo['indels']), len(indelfo['indels']))
+    # print get_dbg_str(indelfo)
 
-    for iindel in range(len(indelfo['indels'])):
-        ifo = indelfo['indels'][iindel]
-        if debug:
-            print '  len %d  pos %d  seqstr %s' % (ifo['len'], ifo['pos'], ifo['seqstr'])
 
-# ----------------------------------------------------------------------------------------
-        # new_ifo = new_indelfo['indels'][iindel]
-        # if new_ifo['seqstr'] != ifo['seqstr']:
-        #     print '\n%s inconsistent indel info for %s:' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
-        #     utils.color_mutants(new_ifo['seqstr'], ifo['seqstr'], print_result=True, extra_str='    ', ref_label=ref_label + ' ')
-        #     utils.print_reco_event(line)
-        # else:
-        #     if debug:
-        #         print '  %s' % utils.color('green', 'ok')
-# ----------------------------------------------------------------------------------------
+#     # new_indelfo = get_indelfo_from_cigar(indelfo['cigarstr'], line['input_seqs'][iseq], indelfo['qrbounds'], glfo['seqs']['v'][line['v_gene']], indelfo['glbounds'], line['v_gene'])
+#     # if len(new_indelfo['indels']) != len(indelfo['indels']):
+#     #     print '%s different lengths %d %d' % (len(new_indelfo['indels']), len(indelfo['indels']))
 
-        if ifo['type'] == 'insertion':
-            deleted_str = line['input_seqs'][iseq][ifo['pos'] : ifo['pos'] + ifo['len']]
-            ref_label = 'input seq'
-        else:
-            assert len(line['fv_insertion']) == indelfo['qrbounds'][0]
-            gl_pos = ifo['pos'] - len(line['fv_insertion']) + indelfo['glbounds'][0]
-            deleted_str = glfo['seqs']['v'][line['v_gene']][gl_pos : gl_pos + ifo['len']]
-            ref_label = 'gl seq'
-            # gl_pos = ifo['pos'] - len(line['fv_insertion'])
-            # deleted_str = line['v_gl_seq'][gl_pos : gl_pos + ifo['len']]
-            # deleted_str = line['indel_reversed_seqs'][iseq][ifo['pos'] : ifo['pos'] + ifo['len']]
+#     for iindel in range(len(indelfo['indels'])):
+#         ifo = indelfo['indels'][iindel]
+#         if debug:
+#             print '  len %d  pos %d  seqstr %s' % (ifo['len'], ifo['pos'], ifo['seqstr'])
 
-        if deleted_str != ifo['seqstr']:
-            print '%s inconsistent indel info for %s:' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
-            utils.color_mutants(deleted_str, ifo['seqstr'], print_result=True, extra_str='    ', ref_label=ref_label + ' ')
-            # utils.print_reco_event(line)
+# # ----------------------------------------------------------------------------------------
+#         # new_ifo = new_indelfo['indels'][iindel]
+#         # if new_ifo['seqstr'] != ifo['seqstr']:
+#         #     print '\n%s inconsistent indel info for %s:' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
+#         #     utils.color_mutants(new_ifo['seqstr'], ifo['seqstr'], print_result=True, extra_str='    ', ref_label=ref_label + ' ')
+#         #     utils.print_reco_event(line)
+#         # else:
+#         #     if debug:
+#         #         print '  %s' % utils.color('green', 'ok')
+# # ----------------------------------------------------------------------------------------
+
+#         if ifo['type'] == 'insertion':
+#             deleted_str = line['input_seqs'][iseq][ifo['pos'] : ifo['pos'] + ifo['len']]
+#             ref_label = 'input seq'
+#         else:
+#             assert len(line['fv_insertion']) == indelfo['qrbounds'][0]
+#             gl_pos = ifo['pos'] - len(line['fv_insertion']) + indelfo['glbounds'][0]
+#             deleted_str = glfo['seqs']['v'][line['v_gene']][gl_pos : gl_pos + ifo['len']]
+#             ref_label = 'gl seq'
+#             # gl_pos = ifo['pos'] - len(line['fv_insertion'])
+#             # deleted_str = line['v_gl_seq'][gl_pos : gl_pos + ifo['len']]
+#             # deleted_str = line['indel_reversed_seqs'][iseq][ifo['pos'] : ifo['pos'] + ifo['len']]
+
+#         if deleted_str != ifo['seqstr']:
+#             print '%s inconsistent indel info for %s:' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
+#             utils.color_mutants(deleted_str, ifo['seqstr'], print_result=True, extra_str='    ', ref_label=ref_label + ' ')
+#             # utils.print_reco_event(line)
 
 # ----------------------------------------------------------------------------------------
 def combine_indels(vfo, jfo, full_qrseq):
