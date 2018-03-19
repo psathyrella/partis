@@ -765,7 +765,7 @@ def remove_gaps(seq):
     return seq.translate(None, ''.join(gap_chars))
 
 # ----------------------------------------------------------------------------------------
-def count_n_separate_gaps(seq, exclusion_5p=None, exclusion_3p=None):  # NOTE compare to count_gap_chars() below
+def count_n_separate_gaps(seq, exclusion_5p=None, exclusion_3p=None):  # NOTE compare to count_gap_chars() below (and gap_len() at top)
     if exclusion_5p is not None:
         seq = seq[exclusion_5p : ]
     if exclusion_3p is not None:
@@ -785,7 +785,7 @@ def count_n_separate_gaps(seq, exclusion_5p=None, exclusion_3p=None):  # NOTE co
     return n_gaps
 
 # ----------------------------------------------------------------------------------------
-def count_gap_chars(aligned_seq, aligned_pos=None, unaligned_pos=None):  # NOTE compare to count_n_separate_gaps() above
+def count_gap_chars(aligned_seq, aligned_pos=None, unaligned_pos=None):  # NOTE compare to count_n_separate_gaps() above (and gap_len() at top)
     """ return number of gap characters up to, but not including a position, either in unaligned or aligned sequence """
     if aligned_pos is not None:
         assert unaligned_pos is None
@@ -1149,7 +1149,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
-    indelutils.consistify_indelfos(line)
+    indelutils.consistify_indelfos(glfo, line)
     input_codon_positions = [indelutils.get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']
@@ -1698,6 +1698,8 @@ def process_input_line(info, hmm_cachefile=False):
         info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
     elif 'seqs' in info:  # old-style csv output file: just copy 'em into the explicit name
         info['indel_reversed_seqs'] = info['seqs']
+
+    # NOTE indels get fixed up (espeicially/only for old-style files) in add_implicit_info(), since we want to use the implicit info to do it
 
     # process things for which we first want to know the number of seqs in the line
     for key in [k for k in info if info[k] == '']:

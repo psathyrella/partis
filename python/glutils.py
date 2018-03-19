@@ -580,7 +580,7 @@ def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_p
     mean_indel_length = 3  # I really can't think of a reason that the indel lengths are all that important, so it's staying hard-coded here for now (could of course use the mean shm indel length from recombinator, but that's confusig since we're not modeling shm here)
     already_snpd_positions = set()  # only used if a position wasn't specified (i.e. was None) in <snps_to_add> (also not used for indels, which probably makes sense)
 
-    def choose_position(seq, cpos):  # some bits of this aren't really relevant for indels, but whatever, it's fine
+    def choose_position(seq, cpos):
         chosen_pos = None
         while chosen_pos is None or chosen_pos in already_snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
             chosen_pos = random.randint(0, cpos - 1)  # len(seq) - 1)  # note that randint() is inclusive
@@ -591,12 +591,12 @@ def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_p
     new_seq = template_seq
 
     # first do indels (it's kind of arbitrary to do indels before snps, but it'd be pretty common for a deletion to annihilate a snp, and doing indels first avoids that (at the "cost" of making the snp positions more obtuse))
-    indelfo = indelutils.get_empty_indel()
     codon_positions = {'v' : new_cpos}  # do *not* use <new_cpos> itself from this point until it's re-set after the loop
-    for indel_pos in indel_positions:
-        if indel_pos is None:
-            indel_pos = choose_position(new_seq, codon_positions['v'])
-        new_seq = indelutils.add_single_indel(new_seq, indelfo, mean_indel_length, codon_positions, pos=indel_pos, keep_in_frame=True, debug=True)  # NOTE modifies <indelfo> and <codon_positions>
+    indel_location = None
+    if None in indel_positions:
+        assert indel_positions.count(None) == len(indel_positions)  # doesn't really make sense to specify one, but not all,  of them
+        indel_location = 'v'
+    new_seq, indelfo = indelutils.add_indels(len(indel_positions), new_seq, new_seq, mean_indel_length, codon_positions, indel_location=indel_location, indel_positions=indel_positions, keep_in_frame=True)
     new_cpos = codon_positions['v']  # ick
 
     # then do snps

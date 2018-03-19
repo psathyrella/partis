@@ -89,6 +89,10 @@ def process(args):
         print 'forcing --gap-open-penalty to 1000 to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)'
         args.gap_open_penalty = 1000
 
+    if args.indel_frequency is not None:
+        if args.indel_frequency < 0. or args.indel_frequency > 1.:
+            raise Exception('--indel-frequency must be in [0., 1.] (got %f)' % args.indel_frequency)
+
     if 'tr' in args.locus and args.mutation_multiplier is None:
         args.mutation_multiplier = 0.
 
