@@ -110,7 +110,7 @@ Then make a conda environment for partis:
 ```
 conda create -y -n partis
 source activate partis  # do this _every_ time you start a new terminal
-conda install -y biopython scikit-learn cmake gsl openblas pandas psutil pysam r-essentials scons seaborn
+conda install -y biopython scikit-learn cmake gsl openblas pandas psutil pysam r-essentials scons seaborn pyyaml
 conda install -y -c biocore mafft
 ```
 
@@ -402,12 +402,12 @@ Starting from this, there are a wide variety of options for manipulating how the
 
 **SHM indel control:**
 
-| option                             | description
-|------------------------------------|-----------------------------------------------------------------
-| `--indel-frequency <f>`            | fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, although this would be easy to change)
-| `--mean-indels-per-indeld-seq <N>` | once we've decided a sequence will have at least one indel, we choose the actual number of indels from a geometric distribution with this mean
-| `--mean-indel-length <N>`          | mean length of each SHM insertion or deletion
-| `--indel-location <v,cdr3>`        | if not set (default), indels are placed uniformly over the whole sequence. If set to `v` or `cdr3` indels are restricted to that portion of the sequence.
+| option                          | description
+|---------------------------------|-----------------------------------------------------------------
+| `--indel-frequency <f>`         | fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, although this would be easy to change)
+| `--n-indels-per-indeld-seq <l>` | once we've decided a sequence will have at least one indel, we choose the actual number of indels from this colon-separated list of integers
+| `--mean-indel-length <N>`       | mean length of each SHM insertion or deletion
+| `--indel-location <v,cdr3>`     | if not set (default), indels are placed uniformly over the whole sequence. If set to `v` or `cdr3` indels are restricted to that portion of the sequence.
 
 **Scratch parameters:**
 

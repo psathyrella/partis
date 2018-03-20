@@ -654,13 +654,25 @@ class Waterer(object):
                 r_length -= 1
 
         if debug:
-            print '  %4d %4d    %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
+            print '  %4d %4d      %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
             print '      %s apportioning %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion)
         assert l_portion + r_portion == overlap
         qinfo['qrbounds'][l_gene] = (qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][l_gene][1] - l_portion)
         qinfo['glbounds'][l_gene] = (qinfo['glbounds'][l_gene][0], qinfo['glbounds'][l_gene][1] - l_portion)
         qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][r_gene][1])
         qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
+        if l_reg in qinfo['new_indels'] and l_portion > 0:
+            indelfo = qinfo['new_indels'][l_reg]
+            indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][ : -l_portion]
+            indelfo['gl_gap_seq'] = indelfo['gl_gap_seq'][ : -l_portion]
+            if debug:
+                print '    removed %d base%s from right side of %s indel gap seqs' % (l_portion, utils.plural(l_portion), l_reg)
+        if r_reg in qinfo['new_indels'] and r_portion > 0:
+            indelfo = qinfo['new_indels'][r_reg]
+            indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][r_portion : ]
+            indelfo['gl_gap_seq'] = indelfo['gl_gap_seq'][r_portion : ]
+            if debug:
+                print '    removed %d base%s from left side of %s indel gap seqs' % (r_portion, utils.plural(r_portion), r_reg)
 
     # ----------------------------------------------------------------------------------------
     def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
@@ -804,22 +816,6 @@ class Waterer(object):
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
-        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice/a.t.m.: only v or j best matches)
-            self.info['indels'][qinfo['name']] = self.combine_indels(qinfo)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
-            self.new_indels += 1  # tells self.run() that we need to do another iteration
-            if self.debug:
-                print '      rerun: new indels\n%s' % utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
-            return
-
-        if self.debug >= 2:
-            for region in utils.regions:
-                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
-                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
-
-        if self.super_high_mutation(qinfo, best):
-            queries_to_rerun['super-high-mutation'].add(qname)
-            return
-
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         for rpair in utils.region_pairs():
             overlap_status = self.check_boundaries(rpair, qinfo, best)
@@ -830,6 +826,23 @@ class Waterer(object):
                 return
             else:
                 assert overlap_status == 'ok'
+
+        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice/a.t.m.: only v or j best matches)
+            self.info['indels'][qinfo['name']] = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
+            self.new_indels += 1  # tells self.run() that we need to do another iteration
+            if self.debug:
+                print '      rerun: new indels'
+                # print '      rerun: new indels\n%s' % utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
+            return
+
+        if self.debug >= 2:
+            for region in utils.regions:
+                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
+                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
+
+        if self.super_high_mutation(qinfo, best):
+            queries_to_rerun['super-high-mutation'].add(qname)
+            return
 
         # force v 5p and j 3p matches to (in most cases) go to the end of the sequence
         self.remove_probably_spurious_deletions(qinfo, best)
@@ -1297,18 +1310,20 @@ class Waterer(object):
                 print '    %3d   %20s    %s' % (self.info[query]['cdr3_length'], query, self.info[query]['seqs'][0])
 
     # ----------------------------------------------------------------------------------------
-    def combine_indels(self, qinfo):
-        vfo, jfo = None, None
+    def combine_indels(self, qinfo, best):
+        regional_indelfos = {}
         if self.vs_info is not None and qinfo['name'] in self.info['indels']:
             assert False  # need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
-            vfo = self.info['indels'][qinfo['name']]
+            regional_indelfos['v'] = self.info['indels'][qinfo['name']]
             del self.info['indels'][qinfo['name']]  # TODO um, maybe?
             assert 'v' not in qinfo['new_indels']  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it
         elif 'v' in qinfo['new_indels']:
-            vfo = qinfo['new_indels']['v']
+            regional_indelfos['v'] = qinfo['new_indels']['v']
+
+        if 'd' in qinfo['new_indels']:
+            regional_indelfos['d'] = qinfo['new_indels']['d']
         if 'j' in qinfo['new_indels']:
-            jfo = qinfo['new_indels']['j']
+            regional_indelfos['j'] = qinfo['new_indels']['j']
 
         # TODO make sure qinfo['seq'] is correct (i.e. fix it if it's modified because of vsearch stuff)
-
-        return indelutils.combine_indels(vfo, jfo, qinfo['seq'])
+        return indelutils.combine_indels(regional_indelfos, qinfo['seq'], {r : qinfo['qrbounds'][best[r]] for r in utils.regions})

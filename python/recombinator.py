@@ -264,6 +264,7 @@ class Recombinator(object):
             elif '3p' in erosion:
                 gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
         tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
+        tmpline['unique_ids'] = [None]  # this is kind of hackey, but some things in the implicit info adder use it to get the number of sequences
         tmpline['input_seqs'] = copy.deepcopy(tmpline['seqs'])
         tmpline['indelfos'] = [indelutils.get_empty_indel(), ]
         utils.add_implicit_info(self.glfo, tmpline)
@@ -505,15 +506,14 @@ class Recombinator(object):
                 if self.args.debug:
                     print '        0'
                 continue
-            reco_event.indelfos[iseq]['reversed_seq'] = reco_event.final_seqs[iseq]  # set the original sequence (i.e. with all the indels reversed)
-            n_indels = numpy.random.geometric(1. / self.args.mean_indels_per_indeld_seq)
-            if self.args.debug:
-                print '        %d' % n_indels
-            for _ in range(n_indels):
-                # NOTE modifies <indelfo> and <codon_positions>
-                reco_event.final_seqs[iseq] = indelutils.add_single_indel(reco_event.final_seqs[iseq], reco_event.indelfos[iseq],
-                                                                          self.args.mean_indel_length, reco_event.final_codon_positions[iseq],
-                                                                          indel_location=self.args.indel_location, debug=self.args.debug)
+            n_indels = numpy.random.choice(self.args.n_indels_per_indeld_seq)
+            input_seq, indelfo = indelutils.add_indels(n_indels, reco_event.final_seqs[iseq], reco_event.recombined_seq,  # NOTE modifies <indelfo> and <codon_positions>
+                                                       self.args.mean_indel_length, reco_event.final_codon_positions[iseq], indel_location=self.args.indel_location, dbg_pad=8, debug=self.args.debug)
+            reco_event.final_seqs[iseq] = input_seq
+            indelfo['v_gene'] = reco_event.genes['v']
+            indelfo['j_gene'] = reco_event.genes['j']
+            reco_event.indelfos[iseq] = indelfo
+            # TODO need to update other things, at least input_seqs?
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
@@ -568,6 +568,7 @@ class Recombinator(object):
                 mseqs[utils.regions[ireg]] = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
 
         assert len(reco_event.final_seqs) == 0
+
         for iseq in range(n_leaves):
             seq = mseqs['v'][iseq] + mseqs['d'][iseq] + mseqs['j'][iseq]
             seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
@@ -575,7 +576,6 @@ class Recombinator(object):
             reco_event.final_codon_positions.append(copy.deepcopy(reco_event.post_erosion_codon_positions))  # separate codon positions for each sequence, because of shm indels
 
         self.add_shm_indels(reco_event)
-
         reco_event.setline(irandom)  # set the line here because we use it when checking tree simulation, and want to make sure the uids are always set at the same point in the workflow
 
         self.check_tree_simulation(mean_total_height, regional_heights, scaled_trees, mseqs, reco_event)
