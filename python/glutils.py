@@ -666,8 +666,13 @@ def remove_genes(glfo, genes, debug=False):
     """ remove <genes> from <glfo> """
     if debug:
         print '  removing %s from glfo' % ' '.join([utils.color_gene(g) for g in genes])
+
     for gene in genes:
         remove_gene(glfo, gene)
+
+    for region in utils.regions:
+        if len(glfo['seqs'][region]) == 0:
+            print '%s removed all %s genes from glfo' % (utils.color('yellow', 'warning'), region)
 
 # ----------------------------------------------------------------------------------------
 def remove_gene(glfo, gene, debug=False):

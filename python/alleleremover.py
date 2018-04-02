@@ -90,5 +90,9 @@ class AlleleRemover(object):
 
         print '    keeping %d / %d %s gene%s' % (len(self.genes_to_keep), len(self.glfo['seqs'][self.region]), self.region, utils.plural(len(self.genes_to_keep)))
         # print '    removing %d %s genes: %d with no matches, %d with unconvincing matches' % (len(self.genes_to_remove), self.region, len(set(self.glfo['seqs'][self.region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep))
+        if len(self.genes_to_keep) == 0:
+            print '   would\'ve kept zero genes, instead keeping all of them'
+            self.genes_to_keep = copy.deepcopy(self.genes_to_remove)
+            self.genes_to_remove.clear()
 
         self.finalized = True

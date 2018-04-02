@@ -3167,7 +3167,7 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
             })
 
     # then we throw out all the matches (genes) that have id/score lower than the best one
-    failed_queries = []
+    failed_queries = list(set(seqs) - set(query_info))
     for query in query_info:
         if len(query_info[query]) == 0:
             print '%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query)
@@ -3294,7 +3294,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', consens
         returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, get_annotations=get_annotations)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
         if sum(returnfo['gene-counts'].values()) == 0:
-            raise Exception('vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (cmd))
+            print '%s vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (color('yellow', 'warning'), cmd)
     else:
         assert False
     os.remove(infname)
