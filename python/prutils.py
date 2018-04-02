@@ -287,7 +287,10 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
 
     if label != '':
         offset = max(0, len(extra_str) - 2)  # skootch <label> this many positions leftward into <extra_str>
+        removed_str = outstrs[0][offset : offset + utils.len_excluding_colors(label)]
         outstrs[0] = outstrs[0][ : offset] + label + outstrs[0][utils.len_excluding_colors(label) + offset : ]  # NOTE this *replaces* the bases in <extra_str> with <label>, which is only fine if they're spaces
+        if removed_str.strip() != '':
+            print '%s%s (covered by label \'%s\')' % (' ' * offset, utils.color('red', removed_str), label)
 
     if one_line:
         outstrs = outstrs[-1:]  # remove all except the query seq line
