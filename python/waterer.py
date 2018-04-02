@@ -1314,13 +1314,14 @@ class Waterer(object):
         regional_indelfos = {}
         qrbounds = {r : qinfo['qrbounds'][best[r]] for r in utils.regions}
         full_qrseq = qinfo['seq']
-        if self.vs_info is not None and qinfo['name'] in self.info['indels']:  # TODO
+        if self.vs_info is not None and qinfo['name'] in self.info['indels']:  # TODO read through this
             # TODO need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
             # TODO need to fix qinfo['seq']
             vs_indelfo = self.info['indels'][qinfo['name']]
             non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
             vs_indelfo['qr_gap_seq'] = vs_indelfo['qr_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['qr_gap_seq']) - non_v_bases]
-            vs_indelfo['gl_gap_seq'] = vs_indelfo['gl_gap_seq'][qinfo['glbounds'][best['v']][0] : len(vs_indelfo['gl_gap_seq']) - non_v_bases]
+            vs_indelfo['gl_gap_seq'] = vs_indelfo['gl_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['gl_gap_seq']) - non_v_bases]
+            assert len(vs_indelfo['qr_gap_seq']) == len(vs_indelfo['gl_gap_seq'])
 
             net_v_indel_length = indelutils.net_length(vs_indelfo)
             qrbounds['v'] = (qrbounds['v'][0], qrbounds['v'][1] + net_v_indel_length)
