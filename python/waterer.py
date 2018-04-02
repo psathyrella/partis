@@ -241,8 +241,8 @@ class Waterer(object):
         for query in queries_with_indels:
             self.info['indels'][query] = vsfo[query]['indelfo']
             if self.debug:
-                print '    adding indel from vsearch:'
-                print indelutils.get_dbg_str(vsfo[query]['indelfo'])
+                print '    adding indel from vsearch for %s' % query
+                # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
@@ -1312,11 +1312,27 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def combine_indels(self, qinfo, best):
         regional_indelfos = {}
-        if self.vs_info is not None and qinfo['name'] in self.info['indels']:
-            assert False  # need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
-            regional_indelfos['v'] = self.info['indels'][qinfo['name']]
+        qrbounds = {r : qinfo['qrbounds'][best[r]] for r in utils.regions}
+        full_qrseq = qinfo['seq']
+        if self.vs_info is not None and qinfo['name'] in self.info['indels']:  # TODO
+            # TODO need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
+            # TODO need to fix qinfo['seq']
+            vs_indelfo = self.info['indels'][qinfo['name']]
+            non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
+            vs_indelfo['qr_gap_seq'] = vs_indelfo['qr_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['qr_gap_seq']) - non_v_bases]
+            vs_indelfo['gl_gap_seq'] = vs_indelfo['gl_gap_seq'][qinfo['glbounds'][best['v']][0] : len(vs_indelfo['gl_gap_seq']) - non_v_bases]
+
+            net_v_indel_length = indelutils.net_length(vs_indelfo)
+            qrbounds['v'] = (qrbounds['v'][0], qrbounds['v'][1] + net_v_indel_length)
+            for region in ['d', 'j']:
+                qrbounds[region] = (qrbounds[region][0] + net_v_indel_length, qrbounds[region][1] + net_v_indel_length)
+                if region in qinfo['new_indels']:
+                    for ifo in qinfo['new_indels'][region]['indels']:
+                        ifo['pos'] += net_v_indel_length
+            full_qrseq = self.input_info[qinfo['name']]['seqs'][0]
             del self.info['indels'][qinfo['name']]  # TODO um, maybe?
-            assert 'v' not in qinfo['new_indels']  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it
+            assert 'v' not in qinfo['new_indels']  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it TODO make this not an assertion (probably just make it a failure in the calling fcn)
+            regional_indelfos['v'] = vs_indelfo
         elif 'v' in qinfo['new_indels']:
             regional_indelfos['v'] = qinfo['new_indels']['v']
 
@@ -1325,5 +1341,7 @@ class Waterer(object):
         if 'j' in qinfo['new_indels']:
             regional_indelfos['j'] = qinfo['new_indels']['j']
 
+        # NOTE qinfo won't be consistent with the indel reversed seq after this, but that's kind of the point, since we're just rerunning anyway
+
         # TODO make sure qinfo['seq'] is correct (i.e. fix it if it's modified because of vsearch stuff)
-        return indelutils.combine_indels(regional_indelfos, qinfo['seq'], {r : qinfo['qrbounds'][best[r]] for r in utils.regions})
+        return indelutils.combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=qinfo['name'])

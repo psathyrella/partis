@@ -102,20 +102,24 @@ def indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE similar
 
     ifo = line['indelfos'][iseq]
 
+    # eh, fuck it, there's too many ways this can go wrong
     # print ' in     \'%s\'' % line['input_seqs'][iseq]
     # print ' qr     \'%s\'' % outstrs[-1]
     # print ' qr gap \'%s\'' % ifo['qr_gap_seq']
     # print ' gl gap \'%s\'' % ifo['gl_gap_seq']
-    assert len(ifo['qr_gap_seq']) == len(ifo['gl_gap_seq'])
-    if len(outstrs[-1]) - line['v_5p_del'] - line['j_3p_del'] != len(ifo['qr_gap_seq']) - utils.gap_len(ifo['gl_gap_seq']):  # + utils.gap_len(ifo['qr_gap_seq'])
-        print '%d != %d' % (len(outstrs[-1]) - line['v_5p_del'] - line['j_3p_del'], len(ifo['qr_gap_seq']) - utils.gap_len(ifo['gl_gap_seq']))
-        assert False
+    # assert len(ifo['qr_gap_seq']) == len(ifo['gl_gap_seq'])
+    # # non_gap_len() is if there were dashes added because of no space, rstrip() is in case we fixed length problems in check_outsr_lengths()
+    # if utils.non_gap_len(outstrs[-1].rstrip()) - line['v_5p_del'] - line['j_3p_del'] != len(ifo['qr_gap_seq']) - utils.gap_len(ifo['gl_gap_seq']):
+    #     print '%d - %d - %d = %d != %d - %d = %d' % (utils.non_gap_len(outstrs[-1].rstrip()), line['v_5p_del'], line['j_3p_del'], utils.non_gap_len(outstrs[-1].rstrip()) - line['v_5p_del'] - line['j_3p_del'],
+    #                                                  len(ifo['qr_gap_seq']), utils.gap_len(ifo['gl_gap_seq']), len(ifo['qr_gap_seq']) - utils.gap_len(ifo['gl_gap_seq']))
+    #     assert False
 
     ipos, iqrgap, iglgap = 0, 0, 0  # line['v_5p_del']
     istop = len(outstrs[-1])
     new_outstrs, new_colors = [[] for _ in outstrs], [[] for _ in colors]
     while ipos < istop:
-        if ipos < line['v_5p_del'] or ipos >= istop - line['j_3p_del']:
+        outchars = [ostr[ipos] for ostr in outstrs]
+        if ipos < line['v_5p_del'] or ipos >= istop - line['j_3p_del'] or '-' in outchars or ' ' in outchars[-1]:  # '-' is to check for no-extra-space fix, and ' ' is in case we fixed length problems with check_outsr_lengths()
             for istr in range(len(outstrs)):
                 new_outstrs[istr] += [outstrs[istr][ipos]]
                 new_colors[istr] += [[]]
@@ -123,12 +127,12 @@ def indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE similar
             continue
 
         if iqrgap >= len(ifo['qr_gap_seq']) or iglgap >= len(ifo['gl_gap_seq']):
-            print ' qr     %3d  %s' % (ipos, outstrs[0])
-            print ' qr     %3d  %s' % (ipos, outstrs[1])
-            print ' qr     %3d  %s' % (ipos, outstrs[2])
-            print ' qr     %3d  %s' % (ipos, outstrs[3])
-            print ' qr gap %3d  %s' % (iqrgap, ifo['qr_gap_seq'])
-            print ' gl gap %3d  %s' % (iglgap, ifo['gl_gap_seq'])
+            print ' ins     %3d  x%sx' % (ipos, outstrs[0])
+            print '  d           x%sx' % (outstrs[1])
+            print ' vj           x%sx' % (outstrs[2])
+            print ' qr           x%sx' % (outstrs[3])
+            print ' qr gap  %s  x%sx' % (utils.color('red' if iqrgap >= len(ifo['qr_gap_seq']) else None, '%3d' % iqrgap), ifo['qr_gap_seq'])
+            print ' gl gap  %s  x%sx' % (utils.color('red' if iglgap >= len(ifo['gl_gap_seq']) else None, '%3d' % iglgap), ifo['gl_gap_seq'])
             print '%s index problem when adding indel info to print strings in prutils.indel_shenanigans() (probably due to overlapping indels)' % utils.color('red', 'error')
             break
         # print ipos, iqrgap, iglgap, ifo['qr_gap_seq'][iqrgap], ifo['gl_gap_seq'][iglgap]

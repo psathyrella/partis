@@ -3192,14 +3192,19 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
     if get_annotations:  # it probably wouldn't really be much slower to just always do this
         for query in query_info:
             matchfo = query_info[query][imatch]
-            indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], matchfo['gene'], vsearch_conventions=True)
-            n_mutations, len_excluding_ambig, mutated_positions = get_mutation_info(query, matchfo, indelfo)
+            v_indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], matchfo['gene'], vsearch_conventions=True)
+            n_mutations, len_excluding_ambig, mutated_positions = get_mutation_info(query, matchfo, v_indelfo)  # not sure this needs to just be the v_indelfo, but I'm leaving it that way for now
+            combined_indelfo = indelutils.get_empty_indel()
+            if indelutils.has_indels(v_indelfo):
+                combined_indelfo = indelutils.combine_indels({'v' : v_indelfo}, seqs[query], {'v' : matchfo['qrbounds']})
             annotations[query] = {
                 region + '_gene' : matchfo['gene'],  # only works for v now, though
                 'n_' + region + '_mutations' : n_mutations,
                 region + '_mut_freq' : float(n_mutations) / len_excluding_ambig,
                 region + '_mutated_positions' : mutated_positions,
-                'indelfo' : indelfo,
+                'qrbounds' : {region : matchfo['qrbounds']},
+                'glbounds' : {region : matchfo['glbounds']},
+                'indelfo' : combined_indelfo,
             }
 
     return {'gene-counts' : gene_counts, 'annotations' : annotations, 'failures' : failed_queries}
