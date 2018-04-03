@@ -210,9 +210,9 @@ functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 column_configs = {
     'ints' : ['n_mutations', 'cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
     'floats' : ['logprob', 'mut_freqs'],
-    'bools' : functional_columns,
+    'bools' : functional_columns + ['has_shm_indels'],
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'n_mutations', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
+    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'n_mutations', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
     'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
 }
 
@@ -265,7 +265,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # used by the synthesize_[] fcns below
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'qr_gap_seqs', 'gl_gap_seqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -281,10 +281,11 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
                         ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
-annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'naive_seq', 'indelfos', 'duplicates'] \
+annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns
+simulation_headers = ('unique_ids', 'reco_id') + index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs')
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',  # NOTE I'm not adding it to linekeys['per_seq'] since I don't want it to ever be in the regular <line> dicts, i.e. it's only added to a special dict immediately prior to writing the csv
     'full_coding_naive_seq',
@@ -1150,7 +1151,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False): 
     end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
-    indelutils.consistify_indelfos(glfo, line)
+    indelutils.deal_with_indel_stuff(line)
     input_codon_positions = [indelutils.get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']
@@ -1718,7 +1719,8 @@ def get_line_for_output(info, extra_columns=None, glfo=None):
         if key in column_configs['floats']:
             str_fcn = repr  # keeps it from losing precision (we only care because we want it to match expectation if we read it back in)
         elif 'indelfo' in key:  # just write the list of indels -- don't need the reversed seq and debug str
-            str_fcn = lambda x: str([sx['indels'] for sx in x])
+            # str_fcn = lambda x: str([sx['indels'] for sx in x])
+            continue
 
         if key == 'seqs':  # don't want it to be in the output dict
             continue

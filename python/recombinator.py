@@ -510,8 +510,7 @@ class Recombinator(object):
             input_seq, indelfo = indelutils.add_indels(n_indels, reco_event.final_seqs[iseq], reco_event.recombined_seq,  # NOTE modifies <indelfo> and <codon_positions>
                                                        self.args.mean_indel_length, reco_event.final_codon_positions[iseq], indel_location=self.args.indel_location, dbg_pad=8, debug=self.args.debug)
             reco_event.final_seqs[iseq] = input_seq
-            indelfo['v_gene'] = reco_event.genes['v']
-            indelfo['j_gene'] = reco_event.genes['j']
+            indelfo['genes'] = {r : reco_event.genes[r] for r in utils.regions}
             reco_event.indelfos[iseq] = indelfo
             # TODO need to update other things, at least input_seqs?
 

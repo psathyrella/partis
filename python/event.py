@@ -92,19 +92,18 @@ class RecombinationEvent(object):
 
     # ----------------------------------------------------------------------------------------
     def write_event(self, outfile, line):
-        columns = ('unique_ids', 'reco_id') + utils.index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'indelfos')
         mode = ''
         if os.path.isfile(outfile):
             mode = 'ab'
         else:
             mode = 'wb'
         with open(outfile, mode) as csvfile:
-            writer = csv.DictWriter(csvfile, columns)
+            writer = csv.DictWriter(csvfile, utils.simulation_headers)
             if mode == 'wb':  # write the header if file wasn't there before
                 writer.writeheader()
             for iseq in range(len(line['unique_ids'])):
                 outline = utils.get_line_for_output(utils.synthesize_single_seq_line(line, iseq))
-                outline = {k : v for k, v in outline.items() if k in columns}
+                outline = {k : v for k, v in outline.items() if k in utils.simulation_headers}
                 writer.writerow(outline)
 
     # ----------------------------------------------------------------------------------------
@@ -124,8 +123,10 @@ class RecombinationEvent(object):
         for erosion in utils.effective_erosions:
             line[erosion + '_del'] = self.effective_erosions[erosion]
         line['input_seqs'] = self.final_seqs
-        line['indelfos'] = self.indelfos
-        line['seqs'] = [line['indelfos'][iseq]['reversed_seq'] if indelutils.has_indels(line['indelfos'][iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
+        line['has_shm_indels'] = [indelutils.has_indels(self.indelfos[iseq]) for iseq in range(len(line['input_seqs']))]
+        line['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in self.indelfos]
+        line['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in self.indelfos]
+        line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(line, iseq) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
         self.set_ids(line, irandom)
 
         utils.add_implicit_info(self.glfo, line)

@@ -53,11 +53,16 @@ import utils
 
 # ----------------------------------------------------------------------------------------
 def get_empty_indel():  # TODO update, probably should just be None or something? it at least should be simpler
-    return {'reversed_seq' : '', 'indels' : [], 'genes' : None}
+    return {'has_indels' : False, 'reversed_seq' : '', 'indels' : [], 'genes' : None, 'qr_gap_seq' : '', 'gl_gap_seq' : ''}  # TODO eventually should not use this, should just have the gap seqs and the bool in the <line>
 
 # ----------------------------------------------------------------------------------------
-def has_indels(indelfo):
-    return len(indelfo['indels']) > 0
+def has_indels(infodict, iseq=None):
+    if 'input_seqs' in infodict:  # regular <line> (new way)
+        assert iseq is not None
+        return infodict['has_shm_indels'][iseq]
+    else:  # actualy indelfo (old way)
+        assert iseq is None
+        return len(infodict['indels']) > 0
 
 # ----------------------------------------------------------------------------------------
 def sign(ifo):
@@ -199,7 +204,8 @@ def add_single_indel(indelfo, pos, length, gapped_codon_positions, keep_in_frame
         indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][:pos] + length * utils.gap_chars[0] + indelfo['qr_gap_seq'][pos + length : ]
 
     if not utils.codon_unmutated('cyst', indelfo['qr_gap_seq'], gapped_codon_positions['v']):
-        print '  adding indel within %s codon' % 'cyst'
+        if debug:
+            print '  adding indel within %s codon' % 'cyst'
 
     indelfo['indels'].append(ifo)
     indelfo['indels'] = sorted(indelfo['indels'], key=lambda q: q['pos'])
@@ -385,22 +391,22 @@ def pad_indel_info(indelfo, leftstr, rightstr):
         indel['pos'] += len(leftstr)
 
 # ----------------------------------------------------------------------------------------
-def consistify_indelfos(glfo, line):
+def deal_with_indel_stuff(line):
     # TODO fix logic here -- unless we're reading a file, I think I only want to be checking consistency
     if 'indelfos' in line:
         if 'reversed_seq' not in line['indelfos'][0]:  # old-style files
             for iseq in range(len(line['unique_ids'])):
-                reconstruct_indelfo_from_indel_list(glfo, line['indelfos'][iseq], line, iseq)
-        else:  # TODO uh, maybe nothing
-            pass
-    else:  # new-style files
-        assert False
-        line['indelfos'] = [reconstruct_indelfo_from_gap_seqs(line['qr_gap_seqs'][iseq], line['gl_gap_seqs'][iseq], line['seqs'][iseq]) for iseq in range(len(line['unique_ids']))]
+                reconstruct_indelfo_from_indel_list(line['indelfos'][iseq], line, iseq)
+        line['has_shm_indels'] = [has_indels(ifo) for ifo in line['indelfos']]  # some of these might already be in there... but oh well
+        line['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in line['indelfos']]
+        line['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in line['indelfos']]
+    else:  # new-style files TODO eventually don't have the stupid indelfos any more, just gap seqs and has_indels
+        line['indelfos'] = [reconstruct_indelfo_from_gap_seqs(line, iseq) for iseq in range(len(line['unique_ids']))]
 
     check_indelfo_consistency(line)
 
 # ----------------------------------------------------------------------------------------
-def reconstruct_indelfo_from_indel_list(glfo, indel_list, line, iseq, debug=False):  # old-style files
+def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  # old-style files
     if 'reversed_seq' in indel_list:  # handle super-old files
         print '%s encountered file with super old, unhandled indel format, proceeding, but indel info may be inconsistent' % (utils.color('red', 'error'))
         return
@@ -460,13 +466,9 @@ def reconstruct_indelfo_from_indel_list(glfo, indel_list, line, iseq, debug=Fals
         print get_dbg_str(line['indelfos'][iseq])
 
 # ----------------------------------------------------------------------------------------
-def reconstruct_indelfo_from_gap_seqs(qr_gap_seqs, gl_gap_seqs, indel_reversed_seq):  # new-style files
-    assert False
-
-# ----------------------------------------------------------------------------------------
-def reconstruct_cigarstr(line, iseq, debug=False):
+def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
     def gettype(ipos):
-        qrb, glb = indelfo['qr_gap_seq'][ipos], indelfo['gl_gap_seq'][ipos]
+        qrb, glb = qr_gap_seq[ipos], gl_gap_seq[ipos]
         if qrb not in utils.gap_chars and glb not in utils.gap_chars:
             return 'M'
         elif glb in utils.gap_chars:
@@ -476,17 +478,13 @@ def reconstruct_cigarstr(line, iseq, debug=False):
         else:
             assert False  # the shouldn't both be gaps
 
-    indelfo = line['indelfos'][iseq]
-    if not has_indels(indelfo):
-        return
-
     cigars = []
-    assert len(indelfo['gl_gap_seq']) == len(indelfo['qr_gap_seq'])
+    assert len(gl_gap_seq) == len(qr_gap_seq)
     if debug:
         print '  reconstructing cigar'
-        print '     qr  %s' % indelfo['qr_gap_seq']
-        print '     gl  %s' % indelfo['gl_gap_seq']
-    for ipos in range(len(indelfo['qr_gap_seq'])):
+        print '     qr  %s' % qr_gap_seq
+        print '     gl  %s' % gl_gap_seq
+    for ipos in range(len(qr_gap_seq)):
         if ipos == 0 or gettype(ipos) != gettype(ipos - 1):
             cigars.append([gettype(ipos), 0])
         cigars[-1][1] += 1
@@ -515,6 +513,24 @@ def check_indelfo_consistency(line, debug=False):
         check_single_sequence_indels(line, iseq, debug=debug)
 
 # ----------------------------------------------------------------------------------------
+def reconstruct_indelfo_from_gap_seqs(line, iseq, use_indelfos=False, debug=False):  # either a <line> that doesn't already have <indelfos> in it (from a new-style file), or it does but we want to reconstruct the indelfos to make sure we get the same thing
+    if not has_indels(line, iseq):
+        return get_empty_indel()
+    if use_indelfos:
+        assert 'indelfos' in line  # if <indelfos> is in the line, then we're trying to reconstruct it to make sure we get the same answer
+        qr_gap_seq = line['indelfos'][iseq]['qr_gap_seq']
+        gl_gap_seq = line['indelfos'][iseq]['gl_gap_seq']
+    else:  # otherwise, we're starting from the gap seqs 'cause it's all we got
+        qr_gap_seq = line['qr_gap_seqs'][iseq]
+        gl_gap_seq = line['gl_gap_seqs'][iseq]
+
+    # make a new cigar str using the gapped sequences, then combine that cigar str with info from <line> to make a new indelfo
+    new_cigarstr = get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, iseq)
+    # TODO fix stuff on the right here -- gene and deletion info
+    new_indelfo = get_indelfo_from_cigar(new_cigarstr, line['input_seqs'][iseq], (0, len(line['input_seqs'][iseq])), line['naive_seq'], (0, len(line['naive_seq'])), line['v_gene'])  #, debug=debug)  # (line['v_5p_del'], line['j_3p_del'])
+    return new_indelfo
+
+# ----------------------------------------------------------------------------------------
 def check_single_sequence_indels(line, iseq, debug=False):
     def check_single_ifo(old_ifo, new_ifo):
         if debug:
@@ -538,10 +554,7 @@ def check_single_sequence_indels(line, iseq, debug=False):
 
     consistent = True
 
-    # make a new cigar str using the gapped sequences, then combine that cigar str with info from <line> to make a new indelfo
-    new_cigarstr = reconstruct_cigarstr(line, iseq)
-    # TODO fix stuff on right here -- gene and deletion info
-    new_indelfo = get_indelfo_from_cigar(new_cigarstr, line['input_seqs'][iseq], (0, len(line['input_seqs'][iseq])), line['naive_seq'], (0, len(line['naive_seq'])), line['v_gene'])  #, debug=debug)  # (line['v_5p_del'], line['j_3p_del'])
+    new_indelfo = reconstruct_indelfo_from_gap_seqs(line, iseq, use_indelfos=True, debug=debug)
 
     if len(new_indelfo['indels']) != len(indelfo['indels']):
         print '%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(new_indelfo['indels']), len(indelfo['indels']))
