@@ -407,7 +407,7 @@ def pad_indelfo(indelfo, leftstr, rightstr):  # TODO holy fucking shit don't hav
 # ----------------------------------------------------------------------------------------
 def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove):
     for skey in ['qr_gap_seqs', 'gl_gap_seqs']:
-        line[skey][iseq] = line[skey][iseq][len(fv_insertion_to_remove) : len(line[skey][iseq]) - len(jf_insertion_to_remove)]
+        line[skey][iseq] = line[skey][iseq][len(fv_insertion_to_remove) + line['v_5p_del'] : len(line[skey][iseq]) - len(jf_insertion_to_remove) - line['j_3p_del']]
         line['indelfos'][iseq][skey.rstrip('s')] = line[skey][iseq]  # TODO holy shit this is bad
 
     rseq = line['indelfos'][iseq]['reversed_seq']
