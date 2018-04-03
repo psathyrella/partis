@@ -384,11 +384,39 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     return indelfo
 
 # ----------------------------------------------------------------------------------------
-def pad_indel_info(indelfo, leftstr, rightstr):
+def pad_indel_info_in_line(line, iseq, leftstr, rightstr):  # TODO holy fucking shit don't have both of these fcns
     # TODO update for any new keys
+    line['qr_gap_seqs'][iseq] = leftstr + line['qr_gap_seqs'][iseq] + rightstr
+    line['gl_gap_seqs'][iseq] = leftstr + line['gl_gap_seqs'][iseq] + rightstr
+    indelfo = line['indelfos'][iseq]
+    indelfo['qr_gap_seq'] = line['qr_gap_seqs'][iseq]  # TODO holy shit fix this
+    indelfo['gl_gap_seq'] = line['gl_gap_seqs'][iseq]
     indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
     for indel in indelfo['indels']:
         indel['pos'] += len(leftstr)
+
+# ----------------------------------------------------------------------------------------
+def pad_indelfo(indelfo, leftstr, rightstr):  # TODO holy fucking shit don't have both of these fcns
+    # TODO update for any new keys
+    indelfo['qr_gap_seq'] = leftstr + indelfo['qr_gap_seq'] + rightstr
+    indelfo['gl_gap_seq'] = leftstr + indelfo['gl_gap_seq'] + rightstr
+    indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
+    for indel in indelfo['indels']:
+        indel['pos'] += len(leftstr)
+
+# ----------------------------------------------------------------------------------------
+def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove):
+    for skey in ['qr_gap_seqs', 'gl_gap_seqs']:
+        line[skey][iseq] = line[skey][iseq][len(fv_insertion_to_remove) : len(line[skey][iseq]) - len(jf_insertion_to_remove)]
+        line['indelfos'][iseq][skey.rstrip('s')] = line[skey][iseq]  # TODO holy shit this is bad
+
+    rseq = line['indelfos'][iseq]['reversed_seq']
+    rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
+    if len(jf_insertion_to_remove) + line['j_3p_del'] > 0:
+        rseq = rseq[ : -(len(jf_insertion_to_remove) + line['j_3p_del'])]
+    line['indelfos'][iseq]['reversed_seq'] = rseq
+    for indel in line['indelfos'][iseq]['indels']:
+        indel['pos'] -= len(fv_insertion_to_remove) + line['v_5p_del']
 
 # ----------------------------------------------------------------------------------------
 def deal_with_indel_stuff(line):
@@ -495,13 +523,13 @@ def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
     # TODO fix this, probably uncomment it and make it a faster check
 # # ----------------------------------------------------------------------------------------
 #     cigar_len = sum([length for code, length in cigars])
-#     if cigar_len != len(indelfo['qr_gap_seq']):
-#         raise Exception('cigar length %d doesn\'t match qr gap seq length %d' % (cigar_len, seqtype, len(indelfo['qr_gap_seq'])))
-#     if cigar_len != len(indelfo['gl_gap_seq']):
-#         raise Exception('cigar length %d doesn\'t match gl gap seq length %d' % (cigar_len, seqtype, len(indelfo['gl_gap_seq'])))
-#     utils.color_mutants(line['input_seqs'][iseq], indelfo['qr_gap_seq'], align=True, print_result=True, ref_label='input  ', seq_label='qr gap ')
-#     print len(line['input_seqs'][iseq]), len(indelfo['qr_gap_seq'])
-#     assert len(line['input_seqs'][iseq]) == utils.non_gap_len(indelfo['qr_gap_seq'])
+#     if cigar_len != len(qr_gap_seq):
+#         raise Exception('cigar length %d doesn\'t match qr gap seq length %d' % (cigar_len, seqtype, len(qr_gap_seq)))
+#     if cigar_len != len(gl_gap_seq):
+#         raise Exception('cigar length %d doesn\'t match gl gap seq length %d' % (cigar_len, seqtype, len(gl_gap_seq)))
+#     # utils.color_mutants(line['input_seqs'][iseq], qr_gap_seq, align=True, print_result=True, ref_label='input  ', seq_label='qr gap ')
+#     # print len(line['input_seqs'][iseq]), len(qr_gap_seq)
+#     # assert len(line['input_seqs'][iseq]) == utils.non_gap_len(qr_gap_seq)
 # # ----------------------------------------------------------------------------------------
 
     cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
@@ -525,9 +553,9 @@ def reconstruct_indelfo_from_gap_seqs(line, iseq, use_indelfos=False, debug=Fals
         gl_gap_seq = line['gl_gap_seqs'][iseq]
 
     # make a new cigar str using the gapped sequences, then combine that cigar str with info from <line> to make a new indelfo
-    new_cigarstr = get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, iseq)
+    new_cigarstr = get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=debug)
     # TODO fix stuff on the right here -- gene and deletion info
-    new_indelfo = get_indelfo_from_cigar(new_cigarstr, line['input_seqs'][iseq], (0, len(line['input_seqs'][iseq])), line['naive_seq'], (0, len(line['naive_seq'])), line['v_gene'])  #, debug=debug)  # (line['v_5p_del'], line['j_3p_del'])
+    new_indelfo = get_indelfo_from_cigar(new_cigarstr, line['input_seqs'][iseq], (0, len(line['input_seqs'][iseq])), line['naive_seq'], (0, len(line['naive_seq'])), line['v_gene'], debug=debug)  #, debug=debug)  # (line['v_5p_del'], line['j_3p_del'])
     return new_indelfo
 
 # ----------------------------------------------------------------------------------------

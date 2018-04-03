@@ -204,7 +204,7 @@ class PartitionDriver(object):
                     continue
                 if not indelutils.has_indels(self.vs_info['annotations'][query]['indelfo']):
                     continue
-                indelutils.pad_indel_info(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
+                indelutils.pad_indelfo(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
             # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
 
         if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
@@ -1629,7 +1629,12 @@ class PartitionDriver(object):
 
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
-                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+
+                # TODO double check this
+                # padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+                for indel_key in ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs']:  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+                    padded_line[indel_key] = [self.sw_info[uid][indel_key][0] for uid in uids]
+
                 padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
 

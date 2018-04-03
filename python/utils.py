@@ -981,16 +981,8 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     for iseq in range(nseqs):
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : len(trimmed_seqs[iseq]) - line['j_3p_del']]
         line['input_seqs'][iseq] = trimmed_input_seqs[iseq][line['v_5p_del'] : len(trimmed_input_seqs[iseq]) - line['j_3p_del']]
-
-        # also de-pad the indel info
-        if indelutils.has_indels(line['indelfos'][iseq]):
-            rseq = line['indelfos'][iseq]['reversed_seq']
-            rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
-            if len(jf_insertion_to_remove) + line['j_3p_del'] > 0:
-                rseq = rseq[ : -(len(jf_insertion_to_remove) + line['j_3p_del'])]
-            line['indelfos'][iseq]['reversed_seq'] = rseq
-            for indel in line['indelfos'][iseq]['indels']:
-                indel['pos'] -= len(fv_insertion_to_remove) + line['v_5p_del']
+        if indelutils.has_indels(line, iseq):
+            indelutils.trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove)
 
     line['fv_insertion'] = final_fv_insertion
     line['jf_insertion'] = final_jf_insertion
