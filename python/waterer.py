@@ -1086,21 +1086,19 @@ class Waterer(object):
             if fv_len == 0 and jf_len == 0:
                 continue
 
-# ----------------------------------------------------------------------------------------
-            # TODO do i need to mess with indels here?
-            # if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
-            #     assert self.info['indels'][query] is self.info[query]['indelfos'][0]  # TODO make this less scary
-            #     indelutils.pad_indel_info(self.info['indels'][query], leftstr, rightstr)
-# ----------------------------------------------------------------------------------------
-
             # it would be nice to combine these shenanigans with their counterparts in pad_seqs_to_same_length() [e.g. add a fcn utils.modify_fwk_insertions(), although padding doesn't just modify the fwk insertions, so...], but I'm worried they need to be slightly different and don't want to test extensively a.t.m.
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = swfo[seqkey][0][fv_len : len(swfo[seqkey][0]) - jf_len]
             swfo['naive_seq'] = swfo['naive_seq'][fv_len : len(swfo['naive_seq']) - jf_len]
+# ----------------------------------------------------------------------------------------
+            # TODO check this
             if query in self.info['indels']:  # NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
-                swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
-                for indel in reversed(swfo['indelfos'][0]['indels']):  # why in the world did I bother with the reversed() here? I guess maybe just as a reminder of how the list works...
-                    indel['pos'] -= fv_len
+                # swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
+                # for indel in reversed(swfo['indelfos'][0]['indels']):  # why in the world did I bother with the reversed() here? I guess maybe just as a reminder of how the list works...
+                #     indel['pos'] -= fv_len
+                assert self.info['indels'][query] is self.info[query]['indelfos'][0]  # TODO make this less scary
+                indelutils.trim_indel_info(swfo, 0, swfo['fv_insertion'], swfo['jf_insertion'], 0, 0)
+# ----------------------------------------------------------------------------------------
             for key in swfo['k_v']:
                 swfo['k_v'][key] -= fv_len
             swfo['fv_insertion'] = ''

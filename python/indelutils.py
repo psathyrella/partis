@@ -405,18 +405,18 @@ def pad_indelfo(indelfo, leftstr, rightstr):  # TODO holy fucking shit don't hav
         indel['pos'] += len(leftstr)
 
 # ----------------------------------------------------------------------------------------
-def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove):
+def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, v_5p_to_remove, j_3p_to_remove):
     for skey in ['qr_gap_seqs', 'gl_gap_seqs']:
-        line[skey][iseq] = line[skey][iseq][len(fv_insertion_to_remove) + line['v_5p_del'] : len(line[skey][iseq]) - len(jf_insertion_to_remove) - line['j_3p_del']]
+        line[skey][iseq] = line[skey][iseq][len(fv_insertion_to_remove) + v_5p_to_remove : len(line[skey][iseq]) - len(jf_insertion_to_remove) - j_3p_to_remove]
         line['indelfos'][iseq][skey.rstrip('s')] = line[skey][iseq]  # TODO holy shit this is bad
 
     rseq = line['indelfos'][iseq]['reversed_seq']
-    rseq = rseq[len(fv_insertion_to_remove) + line['v_5p_del'] : ]
-    if len(jf_insertion_to_remove) + line['j_3p_del'] > 0:
-        rseq = rseq[ : -(len(jf_insertion_to_remove) + line['j_3p_del'])]
+    rseq = rseq[len(fv_insertion_to_remove) + v_5p_to_remove : ]
+    if len(jf_insertion_to_remove) + j_3p_to_remove > 0:
+        rseq = rseq[ : -(len(jf_insertion_to_remove) + j_3p_to_remove)]
     line['indelfos'][iseq]['reversed_seq'] = rseq
     for indel in line['indelfos'][iseq]['indels']:
-        indel['pos'] -= len(fv_insertion_to_remove) + line['v_5p_del']
+        indel['pos'] -= len(fv_insertion_to_remove) + v_5p_to_remove
 
 # ----------------------------------------------------------------------------------------
 def deal_with_indel_stuff(line):
@@ -548,9 +548,13 @@ def reconstruct_indelfo_from_gap_seqs(line, iseq, use_indelfos=False, debug=Fals
         assert 'indelfos' in line  # if <indelfos> is in the line, then we're trying to reconstruct it to make sure we get the same answer
         qr_gap_seq = line['indelfos'][iseq]['qr_gap_seq']
         gl_gap_seq = line['indelfos'][iseq]['gl_gap_seq']
+        if debug:
+            print '  using \'indelfos\''
     else:  # otherwise, we're starting from the gap seqs 'cause it's all we got
         qr_gap_seq = line['qr_gap_seqs'][iseq]
         gl_gap_seq = line['gl_gap_seqs'][iseq]
+        if debug:
+            print '  using gap seqs'
 
     # make a new cigar str using the gapped sequences, then combine that cigar str with info from <line> to make a new indelfo
     new_cigarstr = get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=debug)
