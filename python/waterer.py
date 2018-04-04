@@ -762,7 +762,7 @@ class Waterer(object):
 
         if qname in self.info['indels']:
             for region in self.info['indels'][qname]['genes']:
-                if best[region] != self.info['indels'][qname]['genes'][region]:
+                if best[region] != self.info['indels'][qname]['genes'][region]:  # TODO decide wtf to do about this (probably have a special reconstruction that fixes the genes)
                     print 'arg!', utils.color_gene(self.info['indels'][qname]['genes'][region]), utils.color_gene(best[region])
                     # self.info['indels'][qname] = indelutils.reconstruct_indelfo_from_gap_seqs()
             infoline['indelfos'] = [self.info['indels'][qname]]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
@@ -1359,8 +1359,8 @@ class Waterer(object):
         full_qrseq = qinfo['seq']
         if self.vs_info is not None and qinfo['name'] in self.vs_indels:  # TODO read through this
             if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it TODO make this not an assertion (probably just make it a failure in the calling fcn)
-                print '%s sw kicked up v shm indels after vsearch already found some for %s' % (utils.color('red', 'error'), qinfo['name'])
-                print indelutils.get_dbg_str(qinfo['new_indels']['v'])
+                # print '%s sw kicked up v shm indels after vsearch already found some for %s' % (utils.color('red', 'error'), qinfo['name'])
+                # print indelutils.get_dbg_str(qinfo['new_indels']['v'])
                 return None
             # TODO need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
             # TODO need to fix qinfo['seq']

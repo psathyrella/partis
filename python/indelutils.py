@@ -282,7 +282,7 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
 
     cigars = [split_cigarstr(cstr) for cstr in re.findall('[0-9]*[A-Z]', cigarstr)]  # split cigar string into its parts, then split each part into the code and the length 
     if vsearch_conventions:
-        'v' in genes  # would need to be generalized
+        assert 'v' in genes  # would need to be generalized
         cigars = [(code.translate(string.maketrans('ID', 'DI')), length) for code, length in cigars]  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
         for iend in [0, -1]:
             if cigars[iend][0] == 'I':  # qr extends beyond gl: ig-sw calls these soft-clips, vsearch calls them insertions
@@ -576,6 +576,7 @@ def check_single_sequence_indels(line, iseq, debug=False):
     different_genes = False
     if set(new_indelfo['genes']) != set(indelfo['genes']):
         print '%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((indelfo['genes'].keys())), ' '.join(new_indelfo['genes'].keys()))
+        different_genes = True
         consistent = False
     else:
         for region in indelfo['genes']:

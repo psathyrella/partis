@@ -1678,6 +1678,16 @@ class PartitionDriver(object):
                     pcounter.increment(line_to_use)
 
                 if perfplotter is not None:
+                    messed_up = False  # TODO arrrgggggg
+                    for iseq in range(len(line_to_use['unique_ids'])):
+                        if indelutils.has_indels(self.reco_info[uids[iseq]]['indelfos'][0]) or indelutils.has_indels(line_to_use['indelfos'][iseq]):
+                            simlen = indelutils.net_length(self.reco_info[uids[iseq]]['indelfos'][0])
+                            inflen = indelutils.net_length(line_to_use['indelfos'][iseq])
+                            if simlen != inflen:  # see similar code in performanceplotter.py
+                                messed_up = True
+                                break
+                    if messed_up:
+                        continue
                     for iseq in range(len(uids)):  # NOTE this counts rearrangement-level parameters once for every mature sequence, which is inconsistent with the pcounters... but I think might make more sense here?
                         perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
 

@@ -3260,10 +3260,10 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', consens
     assert mismatch < 0  # if you give it a positive one it doesn't complain, so presumably it's actually using that positive  (at least for v identification it only makes a small difference, but vsearch's default is negative)
     cmd += ' --match %d'  % match  # default 2
     cmd += ' --mismatch %d' % mismatch  # default -4
-# # ----------------------------------------------------------------------------------------
-#     # cmd += ' --gapext %dI/%dE' % (2, 1)  # default: (2 internal)/(1 terminal)
-#     cmd += ' --gapopen %dI/%dE' % (50, 2)  # default: (20 internal)/(2 terminal)
-# # ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
+    # cmd += ' --gapext %dI/%dE' % (2, 1)  # default: (2 internal)/(1 terminal)
+    cmd += ' --gapopen %dI/%dE' % (50, 2)  # default: (20 internal)/(2 terminal)  # TODO um, maybe
+# ----------------------------------------------------------------------------------------
     if action == 'cluster':
         outfname = workdir + '/vsearch-clusters.txt'
         cmd += ' --cluster_fast ' + infname
