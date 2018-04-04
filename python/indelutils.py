@@ -53,16 +53,13 @@ import utils
 
 # ----------------------------------------------------------------------------------------
 def get_empty_indel():  # TODO update, probably should just be None or something? it at least should be simpler
-    return {'has_indels' : False, 'reversed_seq' : '', 'indels' : [], 'genes' : None, 'qr_gap_seq' : '', 'gl_gap_seq' : ''}  # TODO eventually should not use this, should just have the gap seqs and the bool in the <line>
+    # 'has_indels' : False,       # eventually would be nice to add this
+    return {'reversed_seq' : '', 'indels' : [], 'genes' : {}, 'qr_gap_seq' : '', 'gl_gap_seq' : ''}  # TODO eventually should not use this, should just have the gap seqs and the bool in the <line>
 
 # ----------------------------------------------------------------------------------------
-def has_indels(infodict, iseq=None):
-    if 'input_seqs' in infodict:  # regular <line> (new way)
-        assert iseq is not None
-        return infodict['has_shm_indels'][iseq]
-    else:  # actualy indelfo (old way)
-        assert iseq is None
-        return len(infodict['indels']) > 0
+def has_indels(indelfo):
+    # return indelfo['has_indels']  # eventually would be nice to switch to this
+    return len(indelfo['indels']) > 0
 
 # ----------------------------------------------------------------------------------------
 def sign(ifo):
@@ -386,11 +383,9 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
 # ----------------------------------------------------------------------------------------
 def pad_indel_info_in_line(line, iseq, leftstr, rightstr):  # TODO holy fucking shit don't have both of these fcns
     # TODO update for any new keys
-    line['qr_gap_seqs'][iseq] = leftstr + line['qr_gap_seqs'][iseq] + rightstr
-    line['gl_gap_seqs'][iseq] = leftstr + line['gl_gap_seqs'][iseq] + rightstr
     indelfo = line['indelfos'][iseq]
-    indelfo['qr_gap_seq'] = line['qr_gap_seqs'][iseq]  # TODO holy shit fix this
-    indelfo['gl_gap_seq'] = line['gl_gap_seqs'][iseq]
+    indelfo['qr_gap_seq'] = leftstr + indelfo['qr_gap_seq'] + rightstr
+    indelfo['gl_gap_seq'] = leftstr + indelfo['gl_gap_seq'] + rightstr
     indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
     for indel in indelfo['indels']:
         indel['pos'] += len(leftstr)
@@ -406,9 +401,10 @@ def pad_indelfo(indelfo, leftstr, rightstr):  # TODO holy fucking shit don't hav
 
 # ----------------------------------------------------------------------------------------
 def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, v_5p_to_remove, j_3p_to_remove):
-    for skey in ['qr_gap_seqs', 'gl_gap_seqs']:
-        line[skey][iseq] = line[skey][iseq][len(fv_insertion_to_remove) + v_5p_to_remove : len(line[skey][iseq]) - len(jf_insertion_to_remove) - j_3p_to_remove]
-        line['indelfos'][iseq][skey.rstrip('s')] = line[skey][iseq]  # TODO holy shit this is bad
+    for skey in ['qr_gap_seq', 'gl_gap_seq']:
+        istart = len(fv_insertion_to_remove) + v_5p_to_remove
+        istop = len(line['indelfos'][iseq][skey]) - len(jf_insertion_to_remove) - j_3p_to_remove
+        line['indelfos'][iseq][skey] = line['indelfos'][iseq][skey][istart : istop]
 
     rseq = line['indelfos'][iseq]['reversed_seq']
     rseq = rseq[len(fv_insertion_to_remove) + v_5p_to_remove : ]
@@ -419,17 +415,15 @@ def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, 
         indel['pos'] -= len(fv_insertion_to_remove) + v_5p_to_remove
 
 # ----------------------------------------------------------------------------------------
-def deal_with_indel_stuff(line):
-    # TODO fix logic here -- unless we're reading a file, I think I only want to be checking consistency
-    if 'indelfos' in line:
-        if 'reversed_seq' not in line['indelfos'][0]:  # old-style files
-            for iseq in range(len(line['unique_ids'])):
-                reconstruct_indelfo_from_indel_list(line['indelfos'][iseq], line, iseq)
-        line['has_shm_indels'] = [has_indels(ifo) for ifo in line['indelfos']]  # some of these might already be in there... but oh well
-        line['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in line['indelfos']]
-        line['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in line['indelfos']]
-    else:  # new-style files TODO eventually don't have the stupid indelfos any more, just gap seqs and has_indels
-        line['indelfos'] = [reconstruct_indelfo_from_gap_seqs(line, iseq) for iseq in range(len(line['unique_ids']))]
+def deal_with_indel_stuff(line, debug=False):  # this function sucks, because it has to handle both the case where we're reconstucting the indel info from info in a file, and the case where we're checking what's already there
+    if 'indelfos' in line and 'reversed_seq' not in line['indelfos'][0]:  # old-style files
+        for iseq in range(len(line['unique_ids'])):
+            reconstruct_indelfo_from_indel_list(line['indelfos'][iseq], line, iseq, debug=debug)
+    elif 'has_shm_indels' in line:  # new-style files
+        line['indelfos'] = [reconstruct_indelfo_from_gap_seqs(line['qr_gap_seqs'][iseq], line['gl_gap_seqs'][iseq], line, iseq, debug=debug) for iseq in range(len(line['unique_ids']))]
+        for key in ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs']:
+            if key in line:
+                del line[key]
 
     check_indelfo_consistency(line)
 
@@ -510,8 +504,8 @@ def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
     assert len(gl_gap_seq) == len(qr_gap_seq)
     if debug:
         print '  reconstructing cigar'
-        print '     qr  %s' % qr_gap_seq
-        print '     gl  %s' % gl_gap_seq
+        print '     qr  %3d  %s' % (len(qr_gap_seq), qr_gap_seq)
+        print '     gl  %3d  %s' % (len(gl_gap_seq), gl_gap_seq)
     for ipos in range(len(qr_gap_seq)):
         if ipos == 0 or gettype(ipos) != gettype(ipos - 1):
             cigars.append([gettype(ipos), 0])
@@ -541,20 +535,10 @@ def check_indelfo_consistency(line, debug=False):
         check_single_sequence_indels(line, iseq, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def reconstruct_indelfo_from_gap_seqs(line, iseq, use_indelfos=False, debug=False):  # either a <line> that doesn't already have <indelfos> in it (from a new-style file), or it does but we want to reconstruct the indelfos to make sure we get the same thing
-    if not has_indels(line, iseq):
+def reconstruct_indelfo_from_gap_seqs(qr_gap_seq, gl_gap_seq, line, iseq, debug=False):  # either a <line> that doesn't already have <indelfos> in it (from a new-style file), or it does but we want to reconstruct the indelfos to make sure we get the same thing
+    # NOTE passing gap seqs separately on purpose! don't use any that might be in <line>
+    if utils.gap_len(qr_gap_seq) == 0 and utils.gap_len(gl_gap_seq) == 0:
         return get_empty_indel()
-    if use_indelfos:
-        assert 'indelfos' in line  # if <indelfos> is in the line, then we're trying to reconstruct it to make sure we get the same answer
-        qr_gap_seq = line['indelfos'][iseq]['qr_gap_seq']
-        gl_gap_seq = line['indelfos'][iseq]['gl_gap_seq']
-        if debug:
-            print '  using \'indelfos\''
-    else:  # otherwise, we're starting from the gap seqs 'cause it's all we got
-        qr_gap_seq = line['qr_gap_seqs'][iseq]
-        gl_gap_seq = line['gl_gap_seqs'][iseq]
-        if debug:
-            print '  using gap seqs'
 
     # make a new cigar str using the gapped sequences, then combine that cigar str with info from <line> to make a new indelfo
     new_cigarstr = get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=debug)
@@ -564,6 +548,7 @@ def reconstruct_indelfo_from_gap_seqs(line, iseq, use_indelfos=False, debug=Fals
 
 # ----------------------------------------------------------------------------------------
 def check_single_sequence_indels(line, iseq, debug=False):
+    # debug = 2
     def check_single_ifo(old_ifo, new_ifo):
         if debug:
             print '  len %d  pos %d  seqstr %s' % (old_ifo['len'], old_ifo['pos'], old_ifo['seqstr']),
@@ -586,10 +571,10 @@ def check_single_sequence_indels(line, iseq, debug=False):
 
     consistent = True
 
-    new_indelfo = reconstruct_indelfo_from_gap_seqs(line, iseq, use_indelfos=True, debug=debug)
+    new_indelfo = reconstruct_indelfo_from_gap_seqs(line['indelfos'][iseq]['qr_gap_seq'], line['indelfos'][iseq]['gl_gap_seq'], line, iseq, debug=debug)
 
     if len(new_indelfo['indels']) != len(indelfo['indels']):
-        print '%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(new_indelfo['indels']), len(indelfo['indels']))
+        print '%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(indelfo['indels']), len(new_indelfo['indels']))
         consistent = False
 
     old_indel_list, new_indel_list = copy.deepcopy(indelfo['indels']), copy.deepcopy(new_indelfo['indels'])

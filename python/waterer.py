@@ -74,6 +74,7 @@ class Waterer(object):
 
         self.remaining_queries = set(self.input_info) - self.info['failed-queries']  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
+        self.vs_indels = set()
         self.indel_fails = set()
 
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
@@ -240,7 +241,8 @@ class Waterer(object):
         vsfo = self.vs_info['annotations']
         queries_with_indels = [q for q in self.remaining_queries if q in vsfo and indelutils.has_indels(vsfo[q]['indelfo'])]
         for query in queries_with_indels:
-            self.info['indels'][query] = vsfo[query]['indelfo']
+            self.vs_indels.add(query)  # this line is to tell us that this query has an indel stemming from vsearch, while the next line tells us that there's an indel (combine_indels() gets confused if we don't differentiate between the two)
+            self.info['indels'][query] = copy.deepcopy(vsfo[query]['indelfo'])
             if self.debug:
                 print '    adding indel from vsearch for %s' % query
                 # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
@@ -686,6 +688,7 @@ class Waterer(object):
         qinfo['glbounds'][l_gene] = (qinfo['glbounds'][l_gene][0], qinfo['glbounds'][l_gene][1] - l_portion)
         qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][r_gene][1])
         qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
+# ----------------------------------------------------------------------------------------
         if l_reg in qinfo['new_indels'] and l_portion > 0:
             indelfo = qinfo['new_indels'][l_reg]
             indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][ : -l_portion]
@@ -698,6 +701,7 @@ class Waterer(object):
             indelfo['gl_gap_seq'] = indelfo['gl_gap_seq'][r_portion : ]
             if debug:
                 print '    removed %d base%s from left side of %s indel gap seqs' % (r_portion, utils.plural(r_portion), r_reg)
+# ----------------------------------------------------------------------------------------
 
     # ----------------------------------------------------------------------------------------
     def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
@@ -1345,7 +1349,7 @@ class Waterer(object):
         regional_indelfos = {}
         qrbounds = {r : qinfo['qrbounds'][best[r]] for r in utils.regions}
         full_qrseq = qinfo['seq']
-        if self.vs_info is not None and qinfo['name'] in self.info['indels']:  # TODO read through this
+        if self.vs_info is not None and qinfo['name'] in self.vs_indels:  # TODO read through this
             if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it TODO make this not an assertion (probably just make it a failure in the calling fcn)
                 print '%s sw kicked up v shm indels after vsearch already found some for %s' % (utils.color('red', 'error'), qinfo['name'])
                 print indelutils.get_dbg_str(qinfo['new_indels']['v'])
@@ -1353,6 +1357,7 @@ class Waterer(object):
             # TODO need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
             # TODO need to fix qinfo['seq']
             vs_indelfo = self.info['indels'][qinfo['name']]
+            assert 'v' in vs_indelfo['genes']
             non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
             vs_indelfo['qr_gap_seq'] = vs_indelfo['qr_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['qr_gap_seq']) - non_v_bases]
             vs_indelfo['gl_gap_seq'] = vs_indelfo['gl_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['gl_gap_seq']) - non_v_bases]

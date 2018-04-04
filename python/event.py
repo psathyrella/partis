@@ -123,10 +123,8 @@ class RecombinationEvent(object):
         for erosion in utils.effective_erosions:
             line[erosion + '_del'] = self.effective_erosions[erosion]
         line['input_seqs'] = self.final_seqs
-        line['has_shm_indels'] = [indelutils.has_indels(self.indelfos[iseq]) for iseq in range(len(line['input_seqs']))]
-        line['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in self.indelfos]
-        line['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in self.indelfos]
-        line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(line, iseq) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
+        line['indelfos'] = self.indelfos
+        line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
         self.set_ids(line, irandom)
 
         utils.add_implicit_info(self.glfo, line)

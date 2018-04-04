@@ -207,7 +207,7 @@ forbidden_character_translations = string.maketrans(':;,', 'csm')
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
-column_configs = {
+io_column_configs = {
     'ints' : ['n_mutations', 'cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns + ['has_shm_indels'],
@@ -244,13 +244,13 @@ def get_list_of_str_list(strlist):
     return [[] if substr == '' else substr.split(':') for substr in strlist]
 
 conversion_fcns = {}
-for key in column_configs['ints']:
+for key in io_column_configs['ints']:
     conversion_fcns[key] = int
-for key in column_configs['floats']:
+for key in io_column_configs['floats']:
     conversion_fcns[key] = float
-for key in column_configs['bools']:
+for key in io_column_configs['bools']:
     conversion_fcns[key] = useful_bool
-for key in column_configs['literals']:
+for key in io_column_configs['literals']:
     conversion_fcns[key] = ast.literal_eval
 for region in regions:
     conversion_fcns[region + '_per_gene_support'] = get_str_float_pair_dict
@@ -264,8 +264,8 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [b + '_insertion' for b in all_boundaries] + \
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
-# used by the synthesize_[] fcns below
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs'] + \
+# NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'indelfos', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -355,7 +355,7 @@ def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=F
 
     for head, ahead in adaptive_headers.items():
         newline[head] = line[ahead]
-        if head in column_configs['lists']:
+        if head in io_column_configs['lists']:
             newline[head] = [newline[head], ]
 
     if uid is not None:
@@ -981,7 +981,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     for iseq in range(nseqs):
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : len(trimmed_seqs[iseq]) - line['j_3p_del']]
         line['input_seqs'][iseq] = trimmed_input_seqs[iseq][line['v_5p_del'] : len(trimmed_input_seqs[iseq]) - line['j_3p_del']]
-        if indelutils.has_indels(line, iseq):
+        if indelutils.has_indels(line['indelfos'][iseq]):
             indelutils.trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, line['v_5p_del'], line['j_3p_del'])
 
     line['fv_insertion'] = final_fv_insertion
@@ -1657,7 +1657,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
 # ----------------------------------------------------------------------------------------
 def process_input_line(info, hmm_cachefile=False):
     """
-    Attempt to convert all the keys and values in <info> according to the specifications in <column_configs> (e.g. splitting lists, casting to int/float, etc).
+    Attempt to convert all the keys and values in <info> according to the specifications in <io_column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
 
     if 'v_gene' in info and info['v_gene'] == '':
@@ -1678,9 +1678,9 @@ def process_input_line(info, hmm_cachefile=False):
         if info[key] == '':  # handle these below, once we know how many seqs in the line
             continue
         convert_fcn = conversion_fcns.get(key, pass_fcn)
-        if key in column_configs['lists']:
+        if key in io_column_configs['lists']:
             info[key] = [convert_fcn(val) for val in info[key].split(':')]
-        elif key in column_configs['lists-of-lists']:
+        elif key in io_column_configs['lists-of-lists']:
             info[key] = convert_fcn(info[key].split(';'))
         else:
             info[key] = convert_fcn(info[key])
@@ -1693,17 +1693,17 @@ def process_input_line(info, hmm_cachefile=False):
     elif 'seqs' in info:  # old-style csv output file: just copy 'em into the explicit name
         info['indel_reversed_seqs'] = info['seqs']
 
-    # NOTE indels get fixed up (espeicially/only for old-style files) in add_implicit_info(), since we want to use the implicit info to do it
-
     # process things for which we first want to know the number of seqs in the line
     for key in [k for k in info if info[k] == '']:
-        if key in column_configs['lists']:
+        if key in io_column_configs['lists']:
             info[key] = ['' for _ in range(len(info['unique_ids']))]
-        elif key in column_configs['lists-of-lists']:
+        elif key in io_column_configs['lists-of-lists']:
             info[key] = [[] for _ in range(len(info['unique_ids']))]
 
+    # NOTE indels get fixed up (espeicially/only for old-style files) in add_implicit_info(), since we want to use the implicit info to do it
+
     # make sure everybody's the same lengths
-    for key in [k for k in info if k in column_configs['lists']]:
+    for key in [k for k in info if k in io_column_configs['lists']]:
         if len(info[key]) != len(info['unique_ids']):
             raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
 
@@ -1713,10 +1713,15 @@ def get_line_for_output(info, extra_columns=None, glfo=None):
     outfo = {}
     for key in info:
         str_fcn = str
-        if key in column_configs['floats']:
+        if key in io_column_configs['floats']:
             str_fcn = repr  # keeps it from losing precision (we only care because we want it to match expectation if we read it back in)
-        elif 'indelfo' in key:  # just write the list of indels -- don't need the reversed seq and debug str
-            # str_fcn = lambda x: str([sx['indels'] for sx in x])
+        elif 'indelfo' in key:
+            # str_fcn = lambda x: str([sx['indels'] for sx in x])  # just write the list of indels -- don't need the reversed seq and debug str
+            outfo['has_shm_indels'] = [indelutils.has_indels(ifo) for ifo in info['indelfos']]  # some of these might already be in there... but oh well
+            outfo['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in info['indelfos']]
+            outfo['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in info['indelfos']]
+            for tmpk in ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs']:
+                outfo[tmpk] = ':'.join([str_fcn(v) for v in outfo[tmpk]])  # aaarrrgggh this is terrible
             continue
 
         if key == 'seqs':  # don't want it to be in the output dict
@@ -1724,9 +1729,9 @@ def get_line_for_output(info, extra_columns=None, glfo=None):
         if key == 'indel_reversed_seqs':  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
             outfo['indel_reversed_seqs'] = ':'.join(['' if not indelutils.has_indels(info['indelfos'][iseq]) else info['indel_reversed_seqs'][iseq]
                                                      for iseq in range(len(info['unique_ids']))])
-        elif key in column_configs['lists']:
+        elif key in io_column_configs['lists']:
             outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
-        elif key in column_configs['lists-of-lists']:
+        elif key in io_column_configs['lists-of-lists']:
             outfo[key] = copy.deepcopy(info[key])
             if '_per_gene_support' in key:
                 outfo[key] = outfo[key].items()

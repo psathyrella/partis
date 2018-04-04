@@ -195,7 +195,7 @@ class PartitionDriver(object):
         for uid, dupes in waterer.duplicates.items():  # <waterer.duplicates> is <self.duplicates> OR'd into any new duplicates from this run
             self.duplicates[uid] = dupes
 
-        # pad vsearch indel info so it'll match the sw indel info (if the sw indel info is just copied from the vsearch info, and you're no going to use the vsearch info for anything after, there's no reason to do this)
+        # pad vsearch indel info so it'll match the sw indel info (if the sw indel info is just copied from the vsearch info, and you're not going to use the vsearch info for anything after, there's no reason to do this)
         if just_ran_vsearch:  # TODO
             for query in self.sw_info['indels']:
                 if query not in self.sw_info['queries']:
@@ -1631,10 +1631,7 @@ class PartitionDriver(object):
                 uidstr = ':'.join(uids)
 
                 # TODO double check this
-                # padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
-                for indel_key in ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs']:  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
-                    padded_line[indel_key] = [self.sw_info[uid][indel_key][0] for uid in uids]
-
+                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
                 padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
 
