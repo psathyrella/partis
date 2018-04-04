@@ -272,11 +272,10 @@ def check_cigar_len(cigars, qrseq, glseq, uid=None):  # check consistency betwee
     for seqtype, tmpseq, tmpcode in (('qr', qrseq, 'D'), ('gl', glseq, 'I')):
         cigar_len = sum([length for code, length in cigars if code != tmpcode])
         if cigar_len != len(tmpseq):
-            raise Exception('%s cigar length %d doesn\'t match %s seq length %d%s' % (utils.color('red', 'error'), cigar_len, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
+            raise Exception('cigar length %d doesn\'t match %s seq length %d%s' % (cigar_len, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
 
 # ----------------------------------------------------------------------------------------
 def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, gene, vsearch_conventions=False, uid=None, debug=False):
-    debug = True
     # debug = 'D' in cigarstr or 'I' in cigarstr
     if debug:
         print '  initial%s:' % ((' for %s' % uid) if uid is not None else '')

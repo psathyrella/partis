@@ -1702,6 +1702,11 @@ def process_input_line(info, hmm_cachefile=False):
         elif key in column_configs['lists-of-lists']:
             info[key] = [[] for _ in range(len(info['unique_ids']))]
 
+    # make sure everybody's the same lengths
+    for key in [k for k in info if k in column_configs['lists']]:
+        if len(info[key]) != len(info['unique_ids']):
+            raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
+
 # ----------------------------------------------------------------------------------------
 def get_line_for_output(info, extra_columns=None, glfo=None):
     """ Reverse the action of process_input_line() """
