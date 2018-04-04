@@ -511,7 +511,7 @@ class Waterer(object):
                 assert len(qinfo['matches'][region]) == self.args.n_max_per_region[utils.regions.index(region)]  # there better not be a way to get more than we asked for
                 continue
 
-            indelfo = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene)  # note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
+            indelfo = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene, uid=qinfo['name'])  # note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
             if indelutils.has_indels(indelfo):
                 if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
                     continue

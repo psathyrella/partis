@@ -265,7 +265,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # used by the synthesize_[] fcns below
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'qr_gap_seqs', 'gl_gap_seqs'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -3186,7 +3186,7 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
     if get_annotations:  # it probably wouldn't really be much slower to just always do this
         for query in query_info:
             matchfo = query_info[query][imatch]
-            v_indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], matchfo['gene'], vsearch_conventions=True)
+            v_indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], matchfo['gene'], vsearch_conventions=True, uid=query)
             n_mutations, len_excluding_ambig, mutated_positions = get_mutation_info(query, matchfo, v_indelfo)  # not sure this needs to just be the v_indelfo, but I'm leaving it that way for now
             combined_indelfo = indelutils.get_empty_indel()
             if indelutils.has_indels(v_indelfo):

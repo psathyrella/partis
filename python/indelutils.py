@@ -268,17 +268,18 @@ def get_reversed_seq(qr_gap_seq, gl_gap_seq, v_5p_del_str, j_3p_del_str):
     return v_5p_del_str + ''.join(reversed_match_seq) + j_3p_del_str
 
 # ----------------------------------------------------------------------------------------
-def check_cigar_len(cigars, qrseq, glseq):  # check consistency between cigar and qr/gl seqs
+def check_cigar_len(cigars, qrseq, glseq, uid=None):  # check consistency between cigar and qr/gl seqs
     for seqtype, tmpseq, tmpcode in (('qr', qrseq, 'D'), ('gl', glseq, 'I')):
         cigar_len = sum([length for code, length in cigars if code != tmpcode])
         if cigar_len != len(tmpseq):
-            raise Exception('cigar length %d doesn\'t match %s seq length %d' % (cigar_len, seqtype, len(tmpseq)))
+            raise Exception('%s cigar length %d doesn\'t match %s seq length %d%s' % (utils.color('red', 'error'), cigar_len, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
 
 # ----------------------------------------------------------------------------------------
-def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, gene, vsearch_conventions=False, debug=False):
+def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, gene, vsearch_conventions=False, uid=None, debug=False):
+    debug = True
     # debug = 'D' in cigarstr or 'I' in cigarstr
     if debug:
-        print '  initial:'
+        print '  initial%s:' % ((' for %s' % uid) if uid is not None else '')
         print '    %s' % color_cigar(cigarstr)
         print '    qr %3d %3d %s' % (qrbounds[0], qrbounds[1], full_qrseq)
         print '    gl %3d %3d %s' % (glbounds[0], glbounds[1], full_glseq)
@@ -304,7 +305,7 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
         print '    qr %s' % qrseq
         print '    gl %s' % glseq
 
-    check_cigar_len(cigars, qrseq, glseq)
+    check_cigar_len(cigars, qrseq, glseq, uid=uid)
 
     indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
     # TODO should probably also ignore indels on either end (I think only relevant for vsearch)
@@ -559,7 +560,7 @@ def reconstruct_indelfo_from_gap_seqs(line, iseq, use_indelfos=False, debug=Fals
     # make a new cigar str using the gapped sequences, then combine that cigar str with info from <line> to make a new indelfo
     new_cigarstr = get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=debug)
     # TODO fix stuff on the right here -- gene and deletion info
-    new_indelfo = get_indelfo_from_cigar(new_cigarstr, line['input_seqs'][iseq], (0, len(line['input_seqs'][iseq])), line['naive_seq'], (0, len(line['naive_seq'])), line['v_gene'], debug=debug)  #, debug=debug)  # (line['v_5p_del'], line['j_3p_del'])
+    new_indelfo = get_indelfo_from_cigar(new_cigarstr, line['input_seqs'][iseq], (0, len(line['input_seqs'][iseq])), line['naive_seq'], (0, len(line['naive_seq'])), line['v_gene'], uid=line['unique_ids'][iseq], debug=debug)  #, debug=debug)  # (line['v_5p_del'], line['j_3p_del'])
     return new_indelfo
 
 # ----------------------------------------------------------------------------------------
