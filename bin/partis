@@ -264,6 +264,7 @@ parent_parser.add_argument('--also-remove-duplicate-sequences-with-different-len
 parent_parser.add_argument('--dont-remove-framework-insertions', action='store_true', help='By default we trim anything to the 5\' of V and 3\' of J in order to remove queries with identical coding regions. This turns that off.')
 parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help='Don\'t scale each hmm\'s emission probabilities to account for the branch length of each individual sequence.')
 parent_parser.add_argument('--no-indels', action='store_true', help='Tell smith-waterman not to look for indels, by drastically increasing the gap-open penalty (you can also set the penalty directly).')
+parent_parser.add_argument('--no-indel-gap-open-penalty', type=int, default=1000, help='set --gap-open-penalty to this when --no-indels is set (also used in python/waterer.py')
 parent_parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
 parent_parser.add_argument('--min-observations-to-write', type=int, default=20, help='When writing hmm model files, if we see a gene version fewer times than this, we average over other alleles, or other primary versions, etc. (see hmmwriter). NOTE default is manipulated in partitiondriver.py')
 parent_parser.add_argument('--no-per-base-mfreqs', action='store_true')

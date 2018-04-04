@@ -85,9 +85,9 @@ def process(args):
         if args.n_simultaneous_seqs is not None:
             raise Exception('can\'t specify both --n-simultaneous-seqs and --simultaneous-true-clonal-seqs')
 
-    if args.no_indels and args.gap_open_penalty < 1000:
-        print 'forcing --gap-open-penalty to 1000 to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)'
-        args.gap_open_penalty = 1000
+    if args.no_indels:
+        print 'forcing --gap-open-penalty to %d to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty
+        args.gap_open_penalty = args.no_indel_gap_open_penalty
 
     if args.indel_frequency is not None:
         if args.indel_frequency < 0. or args.indel_frequency > 1.:

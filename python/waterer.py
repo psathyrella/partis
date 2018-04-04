@@ -74,6 +74,7 @@ class Waterer(object):
 
         self.remaining_queries = set(self.input_info) - self.info['failed-queries']  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
+        self.indel_fails = set()
 
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
@@ -94,12 +95,12 @@ class Waterer(object):
 
         itry = 0
         while True:  # if we're not running vsearch, we still gotta run twice to get shm indeld sequences
-            mismatches, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
+            mismatches, gap_opens, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
             self.write_input_files(base_infname, queries_for_each_proc)
 
             print '    running %d proc%s for %d seqs' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries))
             sys.stdout.flush()
-            self.execute_commands(base_infname, base_outfname, mismatches)
+            self.execute_commands(base_infname, base_outfname, mismatches, gap_opens)
 
             processing_start = time.time()
             self.read_output(base_outfname, len(mismatches))
@@ -252,11 +253,11 @@ class Waterer(object):
             return self.args.workdir + '/sw-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
-    def execute_commands(self, base_infname, base_outfname, mismatches):
+    def execute_commands(self, base_infname, base_outfname, mismatches, gap_opens):
         start = time.time()
         def get_cmd_str(iproc):
-            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc])
-            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc])
+            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc], gap_opens[iproc])
+            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc], gap_opens[iproc] xxx update this)
 
         n_procs = len(mismatches)
         cmdfos = [{'cmd_str' : get_cmd_str(iproc),
@@ -315,6 +316,28 @@ class Waterer(object):
         return mismatches, queries_for_each_proc
 
     # ----------------------------------------------------------------------------------------
+    def get_gap_opens(self, mismatches, queries_for_each_proc):
+        failed_mismatches = {}
+        for mismatch, queries in zip(mismatches, queries_for_each_proc):
+            fqueries_in_this_mismatch = set(queries) & self.indel_fails
+            for fquery in fqueries_in_this_mismatch:  # if it's destined for this proc, keep track of the match/mismatch info, and remove it from this proc's list
+                if mismatch not in failed_mismatches:  # reminder: more than one proc can have the same mismatch
+                    failed_mismatches[mismatch] = []
+                failed_mismatches[mismatch].append(fquery)
+                queries.remove(fquery)
+        assert set([q for qlist in failed_mismatches.values() for q in qlist]) == self.indel_fails
+        self.indel_fails.clear()
+
+        gap_opens = [self.gap_open_penalty for _ in mismatches]
+        for fmismatch, fqueries in failed_mismatches.items():
+            gap_opens += [self.args.no_indel_gap_open_penalty]
+            mismatches += [fmismatch]
+            queries_for_each_proc += [fqueries]
+            print '  adding new iproc for %s with gap open %d mismatch %d' % (' '.join(fqueries), fmismatch, self.args.no_indel_gap_open_penalty)
+
+        return mismatches, gap_opens, queries_for_each_proc
+
+    # ----------------------------------------------------------------------------------------
     def split_queries(self, n_procs):
         input_queries = list(self.remaining_queries)  # TODO this is ugly
         if self.vs_info is None:
@@ -322,11 +345,13 @@ class Waterer(object):
         else:
             mismatches, queries_for_each_proc = self.split_queries_by_match_mismatch(input_queries, n_procs)
 
+        mismatches, gap_opens, queries_for_each_proc = self.get_gap_opens(mismatches, queries_for_each_proc)  # they're all the same unless we have some indel fails
+
         missing_queries = self.remaining_queries - set([q for proc_queries in queries_for_each_proc for q in proc_queries])
         if len(missing_queries) > 0:
             raise Exception('didn\'t write %s to %s' % (':'.join(missing_queries), self.args.workdir))
 
-        return mismatches, queries_for_each_proc
+        return mismatches, gap_opens, queries_for_each_proc
 
     # ----------------------------------------------------------------------------------------
     def write_input_files(self, base_infname, queries_for_each_proc):
@@ -344,29 +369,29 @@ class Waterer(object):
                         seq = self.input_info[query_name]['seqs'][0]
                     sub_infile.write('>%s NUKES\n%s\n' % (query_name, seq))
 
-    # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, mismatch):
-        # large gap-opening penalty: we want *no* gaps in the middle of the alignments
-        # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
-        cmd_str += ' --locus ' + self.args.locus.upper()
-        cmd_str += ' --max-drop 50'
-        cmd_str += ' --match ' + str(self.match_score) + ' --mismatch ' + str(mismatch)
-        cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
-        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.locus
-        cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
-        cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
-        return cmd_str
+    # # ----------------------------------------------------------------------------------------
+    # def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, mismatch):
+    #     # large gap-opening penalty: we want *no* gaps in the middle of the alignments
+    #     # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
+    #     cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
+    #     cmd_str += ' --locus ' + self.args.locus.upper()
+    #     cmd_str += ' --max-drop 50'
+    #     cmd_str += ' --match ' + str(self.match_score) + ' --mismatch ' + str(mismatch)
+    #     cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
+    #     cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.locus
+    #     cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
+    #     cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
+    #     return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, mismatch):
+    def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, mismatch, gap_open):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = self.args.ig_sw_binary
         cmd_str += ' -l ' + self.args.locus.upper()
         cmd_str += ' -d 50'  # max drop
         cmd_str += ' -m ' + str(self.match_score) + ' -u ' + str(mismatch)
-        cmd_str += ' -o ' + str(self.gap_open_penalty)
+        cmd_str += ' -o ' + str(gap_open)
         cmd_str += ' -p ' + self.my_gldir + '/' + self.args.locus + '/'  # NOTE needs the trailing slash
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         return cmd_str
@@ -828,11 +853,18 @@ class Waterer(object):
                 assert overlap_status == 'ok'
 
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice/a.t.m.: only v or j best matches)
-            self.info['indels'][qinfo['name']] = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
-            self.new_indels += 1  # tells self.run() that we need to do another iteration
-            if self.debug:
-                print '      rerun: new indels'
-                # print '      rerun: new indels\n%s' % utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
+            indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
+            if indelfo is None:
+                if self.debug:
+                    print '      rerun: indel fails'  # TODO
+                queries_to_rerun['indel-fails'].add(qname)
+                self.indel_fails.add(qname)
+            else:
+                self.info['indels'][qinfo['name']] = indelfo
+                self.new_indels += 1  # tells self.run() that we need to do another iteration
+                if self.debug:
+                    print '      rerun: new indels'
+                    # print '      rerun: new indels\n%s' % utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
             return
 
         if self.debug >= 2:
@@ -1314,6 +1346,10 @@ class Waterer(object):
         qrbounds = {r : qinfo['qrbounds'][best[r]] for r in utils.regions}
         full_qrseq = qinfo['seq']
         if self.vs_info is not None and qinfo['name'] in self.info['indels']:  # TODO read through this
+            if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it TODO make this not an assertion (probably just make it a failure in the calling fcn)
+                print '%s sw kicked up v shm indels after vsearch already found some for %s' % (utils.color('red', 'error'), qinfo['name'])
+                print indelutils.get_dbg_str(qinfo['new_indels']['v'])
+                return None
             # TODO need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
             # TODO need to fix qinfo['seq']
             vs_indelfo = self.info['indels'][qinfo['name']]
@@ -1331,7 +1367,6 @@ class Waterer(object):
                         ifo['pos'] += net_v_indel_length
             full_qrseq = self.input_info[qinfo['name']]['seqs'][0]
             del self.info['indels'][qinfo['name']]  # TODO um, maybe?
-            assert 'v' not in qinfo['new_indels']  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it TODO make this not an assertion (probably just make it a failure in the calling fcn)
             regional_indelfos['v'] = vs_indelfo
         elif 'v' in qinfo['new_indels']:
             regional_indelfos['v'] = qinfo['new_indels']['v']
