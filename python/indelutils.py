@@ -272,6 +272,14 @@ def check_cigar_len(cigars, qrseq, glseq, uid=None):  # check consistency betwee
             raise Exception('cigar length %d doesn\'t match %s seq length %d%s' % (cigar_len, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
 
 # ----------------------------------------------------------------------------------------
+def get_indelfo_from_cigar_and_line(cigarstr, line, iseq, debug=False):
+    return get_indelfo_from_cigar(cigarstr,
+                                  line['input_seqs'][iseq], (0, len(line['input_seqs'][iseq])),
+                                  line['naive_seq'], (0, len(line['naive_seq'])),
+                                  {r : line[r + '_gene'] for r in utils.regions},
+                                  uid=line['unique_ids'][iseq], debug=debug)
+
+# ----------------------------------------------------------------------------------------
 def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, genes, vsearch_conventions=False, uid=None, debug=False):
     # debug = 'D' in cigarstr or 'I' in cigarstr
     if debug:
@@ -415,15 +423,18 @@ def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, 
         indel['pos'] -= len(fv_insertion_to_remove) + v_5p_to_remove
 
 # ----------------------------------------------------------------------------------------
-def deal_with_indel_stuff(line, debug=False):  # this function sucks, because it has to handle both the case where we're reconstucting the indel info from info in a file, and the case where we're checking what's already there
+def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this function sucks, because it has to handle both the case where we're reconstucting the indel info from info in a file, and the case where we're checking what's already there
     if 'indelfos' in line and 'reversed_seq' not in line['indelfos'][0]:  # old-style files
         for iseq in range(len(line['unique_ids'])):
             reconstruct_indelfo_from_indel_list(line['indelfos'][iseq], line, iseq, debug=debug)
     elif 'has_shm_indels' in line:  # new-style files
-        line['indelfos'] = [reconstruct_indelfo_from_gap_seqs(line['qr_gap_seqs'][iseq], line['gl_gap_seqs'][iseq], {r : line[r + '_gene'] for r in utils.regions}, line, iseq, debug=debug) for iseq in range(len(line['unique_ids']))]
+        line['indelfos'] = [reconstruct_indelfo_from_gap_seqs_and_naive_seq(line['qr_gap_seqs'][iseq], line['gl_gap_seqs'][iseq], {r : line[r + '_gene'] for r in utils.regions}, line, iseq, debug=debug) for iseq in range(len(line['unique_ids']))]
         for key in ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs']:
             if key in line:
                 del line[key]
+
+    if reset_indel_genes:  # for when we get a new annotation (after reversing the indel), and it's got different genes
+        reset_indelfos_for_new_genes(line)
 
     check_indelfo_consistency(line)
 
@@ -535,15 +546,29 @@ def check_indelfo_consistency(line, debug=False):
         check_single_sequence_indels(line, iseq, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def reconstruct_indelfo_from_gap_seqs(qr_gap_seq, gl_gap_seq, indel_genes, line, iseq, debug=False):  # either a <line> that doesn't already have <indelfos> in it (from a new-style file), or it does but we want to reconstruct the indelfos to make sure we get the same thing
+def reset_indelfos_for_new_genes(line, debug=False):
+    for iseq in range(len(line['unique_ids'])):
+        reset_indelfo_for_new_genes(line, iseq, debug=debug)
+
+# ----------------------------------------------------------------------------------------
+def reset_indelfo_for_new_genes(line, iseq, debug=False):
+    if not has_indels(line['indelfos'][iseq]):
+        return
+    new_cigarstr = get_cigarstr_from_gap_seqs(line['indelfos'][iseq]['qr_gap_seq'], line['indelfos'][iseq]['gl_gap_seq'], debug=debug)  # these gap seqs still correspond to the _old_ genes, but that's ok since they'll get replaced (we're just using them to figure out where the gaps go)
+    new_indelfo = get_indelfo_from_cigar_and_line(new_cigarstr, line, iseq, debug=debug)
+    for key in new_indelfo:  # shenanigans to keep waterer.info['indels'] the same dict as waterer.info[qname]['indelfos'][0]
+        if line['indelfos'][iseq][key] != new_indelfo[key]:
+            line['indelfos'][iseq][key] = new_indelfo[key]
+
+# ----------------------------------------------------------------------------------------
+def reconstruct_indelfo_from_gap_seqs_and_naive_seq(qr_gap_seq, gl_gap_seq, indel_genes, line, iseq, debug=False):  # either a <line> that doesn't already have <indelfos> in it (from a new-style file), or it does but we want to reconstruct the indelfos to make sure we get the same thing
     # NOTE passing gap seqs separately on purpose! don't use any that might be in <line>
     if utils.gap_len(qr_gap_seq) == 0 and utils.gap_len(gl_gap_seq) == 0:
         return get_empty_indel()
 
     # make a new cigar str using the gapped sequences, then combine that cigar str with info from <line> to make a new indelfo
     new_cigarstr = get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=debug)
-    # TODO fix stuff on the right here -- gene and deletion info
-    new_indelfo = get_indelfo_from_cigar(new_cigarstr, line['input_seqs'][iseq], (0, len(line['input_seqs'][iseq])), line['naive_seq'], (0, len(line['naive_seq'])), indel_genes, uid=line['unique_ids'][iseq], debug=debug)
+    new_indelfo = get_indelfo_from_cigar_and_line(new_cigarstr, line, iseq, debug=debug)
     return new_indelfo
 
 # ----------------------------------------------------------------------------------------
@@ -571,7 +596,7 @@ def check_single_sequence_indels(line, iseq, debug=False):
 
     consistent = True
 
-    new_indelfo = reconstruct_indelfo_from_gap_seqs(line['indelfos'][iseq]['qr_gap_seq'], line['indelfos'][iseq]['gl_gap_seq'], indelfo['genes'], line, iseq, debug=debug)
+    new_indelfo = reconstruct_indelfo_from_gap_seqs_and_naive_seq(line['indelfos'][iseq]['qr_gap_seq'], line['indelfos'][iseq]['gl_gap_seq'], indelfo['genes'], line, iseq, debug=debug)
 
     different_genes = False
     if set(new_indelfo['genes']) != set(indelfo['genes']):

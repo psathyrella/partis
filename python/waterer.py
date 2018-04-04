@@ -92,7 +92,7 @@ class Waterer(object):
         base_outfname = 'query-seqs.sam'
 
         if self.vs_info is not None:  # if we're reading a cache file, we should make sure to read the exact same info from there
-            self.add_vs_info()
+            self.add_vs_indels()
 
         itry = 0
         while True:  # if we're not running vsearch, we still gotta run twice to get shm indeld sequences
@@ -237,7 +237,7 @@ class Waterer(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def add_vs_info(self):
+    def add_vs_indels(self):
         vsfo = self.vs_info['annotations']
         queries_with_indels = [q for q in self.remaining_queries if q in vsfo and indelutils.has_indels(vsfo[q]['indelfo'])]
         for query in queries_with_indels:
@@ -335,7 +335,7 @@ class Waterer(object):
             gap_opens += [self.args.no_indel_gap_open_penalty]
             mismatches += [fmismatch]
             queries_for_each_proc += [fqueries]
-            print '  adding new iproc for %s with gap open %d mismatch %d' % (' '.join(fqueries), fmismatch, self.args.no_indel_gap_open_penalty)
+            # print '  adding new iproc for %s with gap open %d mismatch %d' % (' '.join(fqueries), fmismatch, self.args.no_indel_gap_open_penalty)
 
         return mismatches, gap_opens, queries_for_each_proc
 
@@ -760,11 +760,7 @@ class Waterer(object):
         infoline['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
         infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
-        if qname in self.info['indels']:
-            for region in self.info['indels'][qname]['genes']:
-                if best[region] != self.info['indels'][qname]['genes'][region]:  # TODO decide wtf to do about this (probably have a special reconstruction that fixes the genes)
-                    print 'arg!', utils.color_gene(self.info['indels'][qname]['genes'][region]), utils.color_gene(best[region])
-                    # self.info['indels'][qname] = indelutils.reconstruct_indelfo_from_gap_seqs()
+        if qname in self.info['indels']:  # NOTE at this piont indel info isn't updated for any change in the genes (the indelfo gets updated during utils.add_implicit_info())
             infoline['indelfos'] = [self.info['indels'][qname]]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
         else:
             infoline['indelfos'] = [indelutils.get_empty_indel()]
@@ -923,7 +919,7 @@ class Waterer(object):
         # convert to regular format used elsewhere, and add implicit info
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
         try:
-            utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs)
+            utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
         except:  # AssertionError gah, I don't really like just swallowing everything... but then I *expect* it to fail here... and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed
             if self.debug:
                 print '      rerun: implicit info adding failed for %s, rerunning' % qname
