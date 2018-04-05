@@ -872,7 +872,7 @@ class Waterer(object):
                 self.info['indels'][qinfo['name']] = indelfo
                 self.new_indels += 1  # tells self.run() that we need to do another iteration
                 if self.debug:
-                    print '      rerun: new indels'
+                    print '      rerun: new indels in %s' % ' '.join(qinfo['new_indels'].keys())
                     # print '      rerun: new indels\n%s' % utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
             return
 
