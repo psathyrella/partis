@@ -243,9 +243,10 @@ class Waterer(object):
         for query in queries_with_indels:
             self.vs_indels.add(query)  # this line is to tell us that this query has an indel stemming from vsearch, while the next line tells us that there's an indel (combine_indels() gets confused if we don't differentiate between the two)
             self.info['indels'][query] = copy.deepcopy(vsfo[query]['indelfo'])
-            if self.debug:
-                print '    adding indel from vsearch for %s' % query
-                # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
+            # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
+
+        if self.debug and len(queries_with_indels) > 0:
+            print '    added %d vsearch indels%s' % (len(queries_with_indels), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else '')
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
