@@ -464,7 +464,8 @@ def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  #
             ifo = ifos_by_pos[iindel]
             if ifo['type'] == 'insertion':
                 if ifo['seqstr'] != line['input_seqs'][iseq][iqr : iqr + ifo['len']]:
-                    print '%s indel info seqstr %s doesn\'t match input seq str %s' % (utils.color('red', 'error'), ifo['seqstr'], utils.color_mutants(ifo['seqstr'], line['input_seqs'][iseq][iqr : iqr + ifo['len']]))
+                    print '%s indel info seqstr doesn\'t match input seq str:' % utils.color('red', 'error')
+                    utils.color_mutants(ifo['seqstr'], line['input_seqs'][iseq][iqr : iqr + ifo['len']], align=True, print_result=True, extra_str='        ')
                 qr_gap_seq += ifo['seqstr'].split()
                 gl_gap_seq += [ifo['len'] * utils.gap_chars[0]]
                 if debug:
@@ -472,7 +473,8 @@ def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  #
                 iqr += ifo['len']
             else:
                 if ifo['seqstr'] != line['naive_seq'][igl : igl + ifo['len']]:
-                    print '%s indel info seqstr %s doesn\'t match naive seq str %s' % (utils.color('red', 'error'), ifo['seqstr'], utils.color_mutants(ifo['seqstr'], line['naive_seq'][igl : igl + ifo['len']]))
+                    print '%s indel info seqstr doesn\'t match naive seq str:' % utils.color('red', 'error')
+                    utils.color_mutants(ifo['seqstr'], line['naive_seq'][igl : igl + ifo['len']], align=True, print_result=True, extra_str='        ')
                 qr_gap_seq += [ifo['len'] * utils.gap_chars[0]]
                 gl_gap_seq += ifo['seqstr'].split()
                 if debug:
@@ -580,7 +582,7 @@ def check_single_sequence_indels(line, iseq, debug=False):
         if new_ifo != old_ifo:
             if debug:
                 print '  %s' % utils.color('red', 'nope')
-            new_seqstr, old_seqstr = utils.color_mutants(old_ifo['seqstr'], new_ifo['seqstr'], return_ref=True, align=len(old_ifo['seqstr']) != len(new_ifo['seqstr']))
+            new_seqstr, old_seqstr = utils.color_mutants(old_ifo['seqstr'], new_ifo['seqstr'], return_ref=True, align=True) #len(old_ifo['seqstr']) != len(new_ifo['seqstr']))
             print '  pos %d --> %s    len %d --> %s    seqstr %s --> %s' % (old_ifo['pos'], utils.color(None if new_ifo['pos'] == old_ifo['pos'] else 'red', '%d' % new_ifo['pos']),
                                                                             old_ifo['len'], utils.color(None if new_ifo['len'] == old_ifo['len'] else 'red', '%d' % new_ifo['len']),
                                                                             old_seqstr, new_seqstr)
