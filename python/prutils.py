@@ -285,7 +285,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
                 '%s   %4.2f mut\n' % (get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq])]
     outstrs = ['%s%s   %s' % (extra_str, ostr, suf) for ostr, suf in zip(outstrs, suffixes)]
 
-    if label != '':
+    if label != '':  # this doesn't really work if the edge of the removed string is the middle of a color code... but oh well, it doesn't really happen any more since I shortened the kbound label from waterer.py
         offset = max(0, len(extra_str) - 2)  # skootch <label> this many positions leftward into <extra_str>
         removed_str = outstrs[0][offset : offset + utils.len_excluding_colors(label)]
         outstrs[0] = outstrs[0][ : offset] + label + outstrs[0][utils.len_excluding_colors(label) + offset : ]  # NOTE this *replaces* the bases in <extra_str> with <label>, which is only fine if they're spaces

@@ -818,9 +818,9 @@ class Waterer(object):
         #     self.check_simulation_kbounds(self.info[qname], self.reco_info[qname])
 
         if self.debug:
-            inf_label = '      ' + utils.kbound_str({r : infoline['k_' + r] for r in ['v', 'd']})
+            inf_label = ' ' + utils.kbound_str({r : infoline['k_' + r] for r in ['v', 'd']})
             if not self.args.is_data:
-                inf_label = 'inferred: ' + inf_label
+                inf_label = 'inf: ' + inf_label
                 utils.print_reco_event(self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
             utils.print_reco_event(self.info[qname], extra_str='    ', label=inf_label)
 
