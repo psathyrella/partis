@@ -1,19 +1,19 @@
 !!python/object:hmmwriter.HMM
-extras: {gene_prob: 0.023827252419955324, overall_mute_freq: 0.08169396872673118, per_gene_mute_freq: 0.1634466080605403}
+extras: {gene_prob: 0.02337472607742878, overall_mute_freq: 0.08469320672023378, per_gene_mute_freq: 0.1634466080605403}
 name: IGHV4-34_star_01
 states:
 - !!python/object:hmmwriter.State
   emissions: null
   extras: {}
   name: init
-  transitions: {IGHV4-34_star_01_0: 0.27350427350427353, insert_left_N: 0.7264957264957265}
+  transitions: {IGHV4-34_star_01_0: 0.2777777777777778, insert_left_N: 0.7222222222222222}
 - !!python/object:hmmwriter.State
   emissions:
     probs: {A: 0.25, C: 0.25, G: 0.25, T: 0.25}
     track: nukes
   extras: {ambiguous_char: N, ambiguous_emission_prob: 0.25, germline: N}
   name: insert_left_N
-  transitions: {IGHV4-34_star_01_0: 0.27350427350427353, insert_left_N: 0.7264957264957265}
+  transitions: {IGHV4-34_star_01_0: 0.2777777777777778, insert_left_N: 0.7222222222222222}
 - !!python/object:hmmwriter.State
   emissions:
     probs: {A: 0.040793182882027226, C: 0.8776204513539183, G: 0.040793182882027226, T: 0.040793182882027226}

@@ -1,467 +1,190 @@
 [92mannotate-ref-simu[0m                ./bin/partis annotate --plot-annotation-performance --plotdir test/new-results/annotate-ref-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/annotate-ref-simu.csv
-annotating
-smith-waterman 
-  vsearch: 2474 / 2569 v annotations (95 failed) with 46 v genes in 0.4 sec
-        reading sw results from test/reference-results/test/parameters/simu/sw-cache
-      info for 2557 / 2569 = 0.995   (12 failed)
-      kept 1614 (0.628) unproductive
-  plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: 4622284066800195625 8943648787476458586 2094768469373710456 -1861285893084959322 3007942268906459630 5517279218338520197
-(0.2 sec)
-        water time: 2.9
-hmm
-    prepare_for_hmm: (0.3 sec)
-    running 10 procs
-                    calcd:         vtb 2557        fwd    0
-             min-max time:  5.3 - 5.6 sec
-    read output
-  plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: 4622284066800195625 8943648787476458586 2094768469373710456 3007942268906459630 -1861285893084959322 5517279218338520197
-(0.2 sec)
-        processed 2557 hmm output lines with 2557 sequences in 2557 events  (0 failures)
-         infra time: 4.6
-      hmm step time: 10.2
-      total time: 14.1
-[92mmulti-annotate-ref-simu[0m          ./bin/partis annotate --plot-annotation-performance --simultaneous-true-clonal-seqs --plotdir test/new-results/multi-annotate-ref-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/multi-annotate-ref-simu.csv
-annotating
-smith-waterman 
-  vsearch: 2474 / 2569 v annotations (95 failed) with 46 v genes in 0.4 sec
-        reading sw results from test/reference-results/test/parameters/simu/sw-cache
-      info for 2557 / 2569 = 0.995   (12 failed)
-      kept 1614 (0.628) unproductive
-  plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: 4622284066800195625 8943648787476458586 2094768469373710456 -1861285893084959322 3007942268906459630 5517279218338520197
-(0.2 sec)
-        water time: 2.6
-hmm
-  [93mwarning[0m split apart 2 clusters that contained multiple cdr3 lengths (total clusters: 488 --> 491)
-    prepare_for_hmm: (0.2 sec)
-    running 10 procs
-                    calcd:         vtb  491        fwd    0
-             min-max time:  3.1 - 4.6 sec
-    read output
-  plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: 4622284066800195625 8943648787476458586 -1861285893084959322 2094768469373710456 3007942268906459630 5517279218338520197
-(0.2 sec)
-        processed 491 hmm output lines with 2557 sequences in 491 events  (0 failures)
-         infra time: 2.7
-      hmm step time: 7.4
-      total time: 11.0
-[92mpartition-ref-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/new-results/cache-ref-partition.csv --plotdir test/new-results/partition-ref-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/partition-ref-simu.csv
-  --n-max-queries: stopped after reading 500 queries from input file
-partitioning
-smith-waterman 
-  vsearch: 486 / 500 v annotations (14 failed) with 31 v genes in 0.1 sec
-        reading sw results from test/reference-results/test/parameters/simu/sw-cache
-      info for 499 / 500 = 0.998   (1 failed)
-      kept 314 (0.628) unproductive
-  plotting performance (0.2 sec)
-        water time: 1.3
-hmm
-caching all 499 naive sequences
-    prepare_for_hmm: (0.1 sec)
-    running 10 procs
-                no/empty cache file
-                    calcd:         vtb 499        fwd   0
-                   merged:       hfrac   0     lratio   0
-             min-max time:  1.5 - 1.9 sec
-      hmm step time: 2.1
-   collapsed 499 queries into 297 clusters with identical naive seqs (0.0 sec)
-297 clusters with 10 procs
-    prepare_for_hmm: (0.0 sec)
-       naive hfrac bounds: 0.015 0.101   (0.095 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
-    running 10 procs
-          read from cache:  naive-seqs 499   logprobs   0
-                    calcd:         vtb 124        fwd 168
-                   merged:       hfrac  32     lratio  23
-             min-max time:  1.1 - 3.4 sec
-         infra time: 0.2
-      hmm step time: 3.6
-242 clusters with 7 procs
-    prepare_for_hmm: (0.0 sec)
-    running 7 procs
-          read from cache:  naive-seqs 632   logprobs 168
-                    calcd:         vtb  44        fwd  94
-                   merged:       hfrac  28     lratio  13
-             min-max time:  1.2 - 3.0 sec
-      hmm step time: 3.1
-201 clusters with 5 procs
-    prepare_for_hmm: (0.0 sec)
-    running 5 procs
-          read from cache:  naive-seqs 680   logprobs 262
-                    calcd:         vtb  30        fwd  46
-                   merged:       hfrac  24     lratio   5
-             min-max time:  0.9 - 2.0 sec
-      hmm step time: 2.1
-172 clusters with 3 procs
-    prepare_for_hmm: (0.0 sec)
-    running 3 procs
-          read from cache:  naive-seqs 713   logprobs 308
-                    calcd:         vtb  26        fwd  73
-                   merged:       hfrac  20     lratio   8
-             min-max time:  2.9 - 5.5 sec
-      hmm step time: 5.7
-144 clusters with 2 procs
-    prepare_for_hmm: (0.0 sec)
-    running 2 procs
-          read from cache:  naive-seqs 749   logprobs 381
-                    calcd:         vtb  21        fwd  71
-                   merged:       hfrac  15     lratio  10
-             min-max time:  4.6 - 8.2 sec
-      hmm step time: 8.3
-119 clusters with 2 procs
-    prepare_for_hmm: (0.0 sec)
-    running 2 procs
-          read from cache:  naive-seqs 783   logprobs 452
-                    calcd:         vtb  11        fwd  20
-                   merged:       hfrac  10     lratio   2
-             min-max time:  2.3 - 2.7 sec
-      hmm step time: 2.8
-107 clusters with 2 procs
-    prepare_for_hmm: (0.0 sec)
-    running 2 procs
-          read from cache:  naive-seqs 799   logprobs 472
-                    calcd:         vtb   4        fwd  14
-                   merged:       hfrac   5     lratio   0
-             min-max time:  1.2 - 1.4 sec
-      hmm step time: 1.5
-102 clusters with 1 proc
-    prepare_for_hmm: (0.0 sec)
-    running 1 proc
-          read from cache:  naive-seqs 806   logprobs 486
-                    calcd:         vtb   3        fwd  77
-                   merged:       hfrac   2     lratio   1
-                     time:  9.7 sec
-      hmm step time: 9.9
-      loop time: 37.1
-getting annotations for final partition
-    prepare_for_hmm: (0.0 sec)
-    running 10 procs
-                    calcd:         vtb 101        fwd   0
-             min-max time:  0.7 - 1.5 sec
-      hmm step time: 1.6
-    read output
-  plotting performance (0.2 sec)
-        processed 101 hmm output lines with 499 sequences in 101 events  (0 failures)
-  plotting partitions
-  making mds plots starting with 101 clusters
-       size (+naive)   mds    plot   total
-        18             0.9    0.2     1.1
-        19             0.7    0.2     0.9
-        18             0.7    0.2     0.9
-        18             0.7    0.2     0.9
-        17             0.7    0.2     0.9
-        17             0.7    0.2     0.9
-        16             0.7    0.3     1.0
-        15             0.7    0.2     0.9
-         9             0.7    0.2     0.8
-        13             0.7    0.2     0.8
-        12             0.7    0.2     0.9
-        12             0.7    0.2     0.8
-         7             0.7    0.1     0.8
-        11             0.7    0.2     0.9
-         9             0.7    0.2     0.9
-        10             0.7    0.2     0.8
-        10             0.7    0.2     0.8
-        10             0.7    0.2     0.9
-         9             0.7    0.1     0.8
-         8             0.6    0.1     0.8
-         9             0.7    0.2     0.8
-         8             0.7    0.1     0.8
-         9             0.7    0.2     0.8
-         6             0.6    0.2     0.8
-    skipped 77 clusters with lengths: 7 7 7 7 7 6 6 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3 3 3 3 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-   h for 18 seqs:   21.93 -   6.19 =  15.74
-   h for 18 seqs:   81.29 -  56.95 =  24.34
-   h for 17 seqs:   41.32 -  19.18 =  22.15
-   h for 17 seqs:   50.19 -  21.43 =  28.76
-   h for 17 seqs:   51.47 -  26.53 =  24.94
-   h for 16 seqs:   89.38 -  55.02 =  34.35
-   h for 15 seqs:   27.45 -   9.41 =  18.04
-   h for 14 seqs:   41.90 -  17.33 =  24.57
-   h for 13 seqs:    2.28 -   0.88 =   1.40
-   h for 12 seqs:   77.68 -  91.59 = -13.91
-   h for 12 seqs:   32.55 -  35.09 =  -2.55
-   h for 11 seqs:   22.51 -  17.29 =   5.22
-   h for 11 seqs:    9.67 -   1.53 =   8.15
-   h for 10 seqs:    8.56 -   1.44 =   7.11
-   h for 9 seqs:   32.44 -  15.06 =  17.39
-   h for 9 seqs:   53.33 -  22.67 =  30.67
-   h for 9 seqs:   27.06 -  11.44 =  15.61
-   h for 9 seqs:   12.39 -   7.86 =   4.53
-   h for 8 seqs:   95.75 -  79.96 =  15.79
-   h for 8 seqs:   40.07 -  20.50 =  19.57
-   h for 8 seqs:   35.39 -  15.18 =  20.21
-   h for 8 seqs:   21.39 -  15.46 =   5.93
-   h for 8 seqs:   26.43 -  10.14 =  16.29
-   h for 8 seqs:    2.79 -   0.64 =   2.14
-(28.0 sec)
-      total time: 71.2
-[92mseed-partition-ref-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/new-results/cache-ref-partition.csv --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed-unique-id -7461026727843920287 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/seed-partition-ref-simu.csv
-  --n-max-queries: stopped after reading 500 queries from input file
-partitioning
-smith-waterman 
-  vsearch: 486 / 500 v annotations (14 failed) with 31 v genes in 0.1 sec
-        reading sw results from test/reference-results/test/parameters/simu/sw-cache
-      info for 499 / 500 = 0.998   (1 failed)
-      kept 314 (0.628) unproductive
-      removed 491 / 499 = 0.98 sequences with cdr3 length different from seed sequence (leaving 8)
-        water time: 0.4
-hmm
-   collapsed 8 queries into 8 clusters with identical naive seqs (0.0 sec)
-8 clusters with 10 procs
-    prepare_for_hmm: (0.0 sec)
-       naive hfrac bounds: 0.015 0.101   (0.095 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
-    running 10 procs
-          read from cache:  naive-seqs 812   logprobs 563
-                    calcd:         vtb   6        fwd  12
-                   merged:       hfrac   0     lratio   7
-             min-max time:  0.0 - 0.2 sec
-      hmm step time: 0.3
-10 clusters with 7 procs
-    prepare_for_hmm: (0.0 sec)
-    running 7 procs
-          read from cache:  naive-seqs 818   logprobs 575
-                    calcd:         vtb   0        fwd   0
-                   merged:       hfrac   0     lratio   0
-             min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/673735/hmm_cached_info.csv
-      hmm step time: 0.1
-7 clusters with 5 procs
-    prepare_for_hmm: (0.0 sec)
-    running 5 procs
-          read from cache:  naive-seqs 818   logprobs 575
-                    calcd:         vtb   2        fwd   0
-                   merged:       hfrac   2     lratio   0
-             min-max time:  0.0 - 0.2 sec
-      hmm step time: 0.3
-      removed 0 sequences in unseeded clusters, split 5 seeded clusters into 8 singletons, and merged these into 8 clusters with identical naive seqs
-        new n_procs 8 (initial seqs/proc: 0.80   new seqs/proc: 1.00
-8 clusters with 8 procs
-    prepare_for_hmm: (0.0 sec)
-    running 8 procs
-          read from cache:  naive-seqs 820   logprobs 575
-                    calcd:         vtb   0        fwd   0
-                   merged:       hfrac   0     lratio   0
-             min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/673735/hmm_cached_info.csv
-      hmm step time: 0.1
-8 clusters with 6 procs
-    prepare_for_hmm: (0.0 sec)
-    running 6 procs
-          read from cache:  naive-seqs 820   logprobs 575
-                    calcd:         vtb   1        fwd   0
-                   merged:       hfrac   1     lratio   1
-             min-max time:  0.0 - 0.1 sec
-      hmm step time: 0.1
-6 clusters with 4 procs
-    prepare_for_hmm: (0.0 sec)
-    running 4 procs
-          read from cache:  naive-seqs 821   logprobs 575
-                    calcd:         vtb   2        fwd   0
-                   merged:       hfrac   2     lratio   0
-             min-max time:  0.0 - 0.1 sec
-      hmm step time: 0.2
-4 clusters with 3 procs
-    prepare_for_hmm: (0.0 sec)
-    running 3 procs
-          read from cache:  naive-seqs 823   logprobs 575
-                    calcd:         vtb   1        fwd   0
-                   merged:       hfrac   1     lratio   0
-             min-max time:  0.0 - 0.1 sec
-      hmm step time: 0.2
-3 clusters with 2 procs
-    prepare_for_hmm: (0.0 sec)
-    running 2 procs
-          read from cache:  naive-seqs 824   logprobs 575
-                    calcd:         vtb   1        fwd   0
-                   merged:       hfrac   1     lratio   0
-             min-max time:  0.0 - 0.2 sec
-      hmm step time: 0.2
-2 clusters with 1 proc
-    prepare_for_hmm: (0.0 sec)
-    running 1 proc
-          read from cache:  naive-seqs 825   logprobs 575
-                    calcd:         vtb   1        fwd   2
-                   merged:       hfrac   1     lratio   0
-                     time:  0.4 sec
-      hmm step time: 0.5
-      loop time: 1.9
-getting annotations for final partition
-    prepare_for_hmm: (0.0 sec)
-    running 1 proc
-                    calcd:         vtb   1        fwd   0
-                     time:  0.2 sec
-      hmm step time: 0.2
-    read output
-        processed 1 hmm output lines with 8 sequences in 1 events  (0 failures)
-      total time: 2.8
-[92mvsearch-partition-ref-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/new-results/cache-ref-partition.csv --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/vsearch-partition-ref-simu.csv
-  --n-max-queries: stopped after reading 500 queries from input file
-partitioning
-smith-waterman 
-  vsearch: 486 / 500 v annotations (14 failed) with 31 v genes in 0.1 sec
-        reading sw results from test/reference-results/test/parameters/simu/sw-cache
-      info for 499 / 500 = 0.998   (1 failed)
-      kept 314 (0.628) unproductive
-        water time: 0.4
-hmm
-       naive hfrac bounds: 0.029 0.029   (0.095 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
-        collapsed 499 sequences into 297 unique naive sequences
-    using hfrac bound for vsearch 0.029
-    running vsearch 22 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . 
-      vsearch time: 1.0
-getting annotations for final partition
-    prepare_for_hmm: (0.0 sec)
-    running 10 procs
-                    calcd:         vtb 119        fwd   0
-             min-max time:  1.0 - 1.3 sec
-      hmm step time: 1.4
-    read output
-        processed 119 hmm output lines with 499 sequences in 119 events  (0 failures)
-      total time: 3.2
-[92mcache-parameters-data[0m            ./bin/partis cache-parameters --plotdir test/new-results/test/plots/data --only-csv-plots --only-overall-plots --sw-cachefname test/new-results/test/parameters/data/sw-cache.csv --infname test/mishmash.fa --parameter-dir test/new-results/test/parameters/data --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human
-caching parameters
-  vsearch: 1273 / 1412 v annotations (139 failed) with 191 v genes in 0.1 sec
-    keeping 68 / 239 v genes
-smith-waterman 
-  vsearch: 1270 / 1412 v annotations (142 failed) with 68 v genes in 0.2 sec
-  removing old sw cache test/new-results/test/parameters/data/sw-cache
-          seqs    procs     ig-sw time    processing time
-          1412     10        1.7                0.7
-      info for 1343 / 1412 = 0.951   (69 failed)
-      kept 413 (0.292) unproductive
-      removed 23 / 1343 = 0.02 duplicate sequences after trimming framework insertions (leaving 1320)
-        water time: 2.5
-    plotting allele finding     <only_csv> not yet implemented in allelefinder
-smith-waterman   (writing parameters) 
-  vsearch: 1270 / 1412 v annotations (142 failed) with 68 v genes in 0.2 sec
-          seqs    procs     ig-sw time    processing time
-          1343     10        1.7                0.7
-      info for 1343 / 1412 = 0.951   (69 failed)
-      kept 413 (0.292) unproductive
-      removed 23 / 1343 = 0.02 duplicate sequences after trimming framework insertions (leaving 1320)
-        writing sw results to test/new-results/test/parameters/data/sw-cache
-  plotting parameters (3.6 sec)
-    writing parameters (1.3 sec)
-        water time: 8.1
-  writing hmms (2.2 sec)
-hmm
-    prepare_for_hmm: (0.1 sec)
-    running 10 procs
-                    calcd:         vtb 1320        fwd    0
-             min-max time:  5.5 - 16.1 sec
-    read output
-  plotting parameters (3.4 sec)
-    writing parameters (1.3 sec)
-        processed 1320 hmm output lines with 1318 sequences in 1318 events  (2 failures)
-            [91mwarning[0m skipped 2 invalid events
-         infra time: 6.5
-      hmm step time: 22.8
-  writing hmms (2.0 sec)
-      total time: 38.8
-[92msimulate[0m                         ./bin/partis simulate --n-sim-events 500 --n-trees 500 --n-leaves 5 --parameter-dir test/new-results/test/parameters/data --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/test/simu.csv --indel-frequency 0.01 --indel-location v
-simulating
-   read 499 events from 10 files
-      total time: 4.1
-[92mcache-parameters-simu[0m            ./bin/partis cache-parameters --plotdir test/new-results/test/plots/simu --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human
-caching parameters
-  vsearch: 2492 / 2581 v annotations (89 failed) with 109 v genes in 0.2 sec
-    keeping 51 / 239 v genes
-smith-waterman 
-  vsearch: 2491 / 2581 v annotations (90 failed) with 50 v genes in 0.4 sec
-  removing old sw cache test/new-results/test/parameters/simu/sw-cache
-          seqs    procs     ig-sw time    processing time
-          2581     10        4.4                1.4
-      info for 2567 / 2581 = 0.995   (14 failed)
-      kept 1579 (0.612) unproductive
-        water time: 5.9
-    plotting allele finding     <only_csv> not yet implemented in allelefinder
-smith-waterman   (writing parameters) 
-  vsearch: 2491 / 2581 v annotations (90 failed) with 50 v genes in 0.4 sec
-          seqs    procs     ig-sw time    processing time
-          2567     10        4.4                1.6
-      info for 2567 / 2581 = 0.995   (14 failed)
-      kept 1579 (0.612) unproductive
-        writing sw results to test/new-results/test/parameters/simu/sw-cache
-  plotting parameters (3.0 sec)
-    writing parameters (1.4 sec)
-        water time: 12.3
-  writing hmms (3.8 sec)
-hmm
-    prepare_for_hmm: (0.4 sec)
-    running 10 procs
-                    calcd:         vtb 2567        fwd    0
-             min-max time:  5.4 - 6.2 sec
-    read output
-  plotting parameters (2.9 sec)
-  plotting parameters (2.9 sec)
-    writing parameters (1.3 sec)
-    writing parameters (1.2 sec)
-        processed 2567 hmm output lines with 2567 sequences in 2567 events  (0 failures)
-         infra time: 14.5
-      hmm step time: 21.0
-  writing hmms (2.1 sec)
-      total time: 48.6
-[92mannotate-new-simu[0m                ./bin/partis annotate --plot-annotation-performance --plotdir test/new-results/annotate-new-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/annotate-new-simu.csv
+[91merror[0m indel info seqstr GT doesn't match naive seq str [91mA[0mT
+  pos 204 --> 204    len 2 --> 2    seqstr GT --> [91mA[0mT
+[91merror[0m inconsistent indel info for -7283897223094569692 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m3[0m[95m-66[0m[93m03[0m  GAGGTGCAGCTGGTGGAGTCTGGAGGAGGCTTGATCCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGGTTCACCGTCAGTAGCAACTACATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCTGTGGTAGCACATACTACGCAGACTCCGTGAAGGGCCGATTCACC[1;34mG[0m[1;34mT[0mCTCCAGAGACAATTCCAAGAACACGCTGTATCTTCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAGAGACAACATAACTGCTCGCGCTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+             query  [91mC[0mAGGT[91mT[0m[91mG[0m[91mG[0mG[91mT[0mTG[91mT[0mTG[91mT[0mAG[91mC[0mCTG[91mC[0mAG[91mT[0mA[91mA[0mGCTTGA[91mG[0mCCAG[91mT[0mCTG[91mA[0m[91mA[0mGGGTCCC[91mC[0mG[91mG[0m[91mC[0m[91mG[0mCT[91mT[0mT[91mT[0m[91mT[0mT[91mA[0mTGCA[91mA[0mCCTCTGG[91mA[0mTTCACCGTCAGTA[91mA[0m[91mG[0m[91mT[0mAC[91mC[0mA[91mT[0m[91mG[0mTG[91mG[0mGCTGGGT[91mG[0m[91mT[0mG[91mT[0mCA[91mA[0m[91mC[0mCTCC[91mG[0m[91mT[0mGGAA[91mA[0m[91mT[0mGGCT[91mT[0m[91mA[0mAGT[91mA[0mGGT[91mT[0mTCAGTTAT[91mC[0mTATAG[91mT[0mTGTGGTAG[91mT[0mACAT[91mC[0mCTA[91mT[0m[91mA[0mC[91mC[0mGA[91mT[0mT[91mT[0mC[91mA[0mT[91mA[0mAAG[91mA[0mG[91mT[0mCG[91mT[0mTTCACC[1;34m*[0m[1;34m*[0mCTCC[91mC[0m[91mT[0m[91mG[0mGA[91mA[0mAATTC[91mG[0m[91mT[0mA[91mC[0mAACAC[91mC[0m[91mT[0mT[91mA[0mT[91mC[0mTCTTCAA[91mT[0mTGA[91mG[0mCAG[91mG[0mCTGAG[91mG[0mGCTGA[91mC[0mGACAC[91mC[0mG[91mT[0mT[91mC[0mTGTATTACTGTGC[91mA[0m[91mC[0mGAGACAA[91mT[0mATA[91mT[0mCTGCTCG[91mG[0mGCTG[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0mTGGGG[91mT[0mCAGGGAA[91mT[0m[91mT[0mCTGGTC[91mC[0mC[91mT[0mGTCTCC[91mA[0mC[91mT[0mG
+          deletion: 2 bases at 204 (GT)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m3[0m[95m-66[0m[93m03[0m  GAGGTGCAGCTGGTGGAGTCTGGAGGAGGCTTGATCCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGGTTCACCGTCAGTAGCAACTACATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCTGTGGTAGCACATACTACGCAGACTCCGTGAAGGGCCGATTCACC[1;34mA[0m[1;34mT[0mCTCCAGAGACAATTCCAAGAACACGCTGTATCTTCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAGAGACAACATAACTGCTCGCGCTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+             query  [91mC[0mAGGT[91mT[0m[91mG[0m[91mG[0mG[91mT[0mTG[91mT[0mTG[91mT[0mAG[91mC[0mCTG[91mC[0mAG[91mT[0mA[91mA[0mGCTTGA[91mG[0mCCAG[91mT[0mCTG[91mA[0m[91mA[0mGGGTCCC[91mC[0mG[91mG[0m[91mC[0m[91mG[0mCT[91mT[0mT[91mT[0m[91mT[0mT[91mA[0mTGCA[91mA[0mCCTCTGG[91mA[0mTTCACCGTCAGTA[91mA[0m[91mG[0m[91mT[0mAC[91mC[0mA[91mT[0m[91mG[0mTG[91mG[0mGCTGGGT[91mG[0m[91mT[0mG[91mT[0mCA[91mA[0m[91mC[0mCTCC[91mG[0m[91mT[0mGGAA[91mA[0m[91mT[0mGGCT[91mT[0m[91mA[0mAGT[91mA[0mGGT[91mT[0mTCAGTTAT[91mC[0mTATAG[91mT[0mTGTGGTAG[91mT[0mACAT[91mC[0mCTA[91mT[0m[91mA[0mC[91mC[0mGA[91mT[0mT[91mT[0mC[91mA[0mT[91mA[0mAAG[91mA[0mG[91mT[0mCG[91mT[0mTTCACC[1;34m*[0m[1;34m*[0mCTCC[91mC[0m[91mT[0m[91mG[0mGA[91mA[0mAATTC[91mG[0m[91mT[0mA[91mC[0mAACAC[91mC[0m[91mT[0mT[91mA[0mT[91mC[0mTCTTCAA[91mT[0mTGA[91mG[0mCAG[91mG[0mCTGAG[91mG[0mGCTGA[91mC[0mGACAC[91mC[0mG[91mT[0mT[91mC[0mTGTATTACTGTGC[91mA[0m[91mC[0mGAGACAA[91mT[0mATA[91mT[0mCTGCTCG[91mG[0mGCTG[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0mTGGGG[91mT[0mCAGGGAA[91mT[0m[91mT[0mCTGGTC[91mC[0mC[91mT[0mGTCTCC[91mA[0mC[91mT[0mG
+          deletion: 2 bases at 204 (AT)
+[91merror[0m indel info seqstr ACAGA doesn't match naive seq str [91mG[0mCAG[91mG[0m
+  pos 24 --> 24    len 5 --> 5    seqstr ACAGA --> [91mG[0mCAG[91mG[0m
+[91merror[0m inconsistent indel info for -5244877396933182569 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m01[0m  CAGGTGCAGCTACAGCAGTGGGGC[1;34mA[0m[1;34mC[0m[1;34mA[0m[1;34mG[0m[1;34mA[0mACTGTTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCGCTGTCTATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCAATCATAGTGGAAGCACCAACTACAACCCGTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAGGCACTTCTGCTATGGTTCGGGGAGTTATTATAGCAGGAGACTACTACTACATGGACGTCTGGGGCAAAGGGACCACGGTCACCGTCTCCTCA  [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m
+             query  [91mG[0mA[91mT[0mGT[91mA[0m[91mT[0mAG[91mT[0mTACA[91mA[0mCA[91mA[0mT[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0mAC[91mC[0m[91mA[0mTT[91mC[0mA[91mT[0mGC[91mA[0mTT[91mG[0m[91mC[0mGA[91mA[0mA[91mT[0mCC[91mA[0m[91mC[0m[91mC[0mC[91mT[0m[91mA[0m[91mC[0mC[91mG[0m[91mT[0m[91mT[0mT[91mC[0mC[91mA[0m[91mG[0mT[91mT[0m[91mG[0m[91mA[0mTA[91mC[0mGG[91mC[0m[91mC[0m[91mA[0mGTCC[91mA[0mTCA[91mC[0mT[91mA[0mGTT[91mT[0m[91mT[0mTA[91mT[0mT[91mT[0mGA[91mC[0mCT[91mC[0mG[91mG[0m[91mC[0mC[91mT[0mG[91mT[0mCA[91mA[0mCC[91mT[0m[91mT[0m[91mT[0mAGGGAA[91mA[0mG[91mA[0mGCT[91mC[0mGA[91mT[0mTG[91mC[0mAT[91mC[0mGG[91mC[0mG[91mC[0mAAT[91mT[0m[91mG[0mATCAT[91mC[0mGTG[91mT[0m[91mG[0mA[91mC[0m[91mT[0mACC[91mC[0mACT[91mC[0m[91mG[0m[91mG[0mACCC[91mC[0mT[91mG[0m[91mG[0mC[91mC[0m[91mT[0mAA[91mT[0mA[91mC[0mT[91mG[0mGAGT[91mT[0mACCATAT[91mT[0mA[91mA[0mT[91mG[0mGACACGTCCAAGA[91mG[0mC[91mG[0mAGTT[91mT[0m[91mC[0mCCCTGA[91mG[0mG[91mG[0mTGA[91mA[0m[91mG[0mTCTGT[91mC[0mA[91mG[0m[91mT[0m[91mT[0m[91mT[0mCG[91mG[0m[91mA[0mGACACGGCTGT[91mC[0m[91mC[0mA[91mG[0mTACTGT[91mC[0m[91mT[0mGAGA[91mA[0m[91mT[0mC[91mT[0mCT[91mC[0mCTG[91mT[0mTATG[91mA[0mTT[91mA[0mG[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mG[0mT[91mC[0mA[91mC[0mA[91mA[0mCA[91mC[0mG[91mT[0mG[91mT[0mCT[91mG[0mC[91mC[0m[91mC[0mC[91mC[0m[91mT[0m[91mT[0mATGG[91mG[0mCGTCTGGGGC[91mG[0m[91mG[0mAGGGACC[91mC[0mC[91mT[0mGT[91mA[0m[91mT[0mC[91mG[0mGTC[91mA[0mC[91mT[0mTCA
+          deletion: 5 bases at 24 (ACAGA)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m01[0m  CAGGTGCAGCTACAGCAGTGGGGC[1;34mG[0m[1;34mC[0m[1;34mA[0m[1;34mG[0m[1;34mG[0mACTGTTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCGCTGTCTATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCAATCATAGTGGAAGCACCAACTACAACCCGTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAGGCACTTCTGCTATGGTTCGGGGAGTTATTATAGCAGGAGACTACTACTACATGGACGTCTGGGGCAAAGGGACCACGGTCACCGTCTCCTCA  [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m
+             query  [91mG[0mA[91mT[0mGT[91mA[0m[91mT[0mAG[91mT[0mTACA[91mA[0mCA[91mA[0mT[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0mAC[91mC[0m[91mA[0mTT[91mC[0mA[91mT[0mGC[91mA[0mTT[91mG[0m[91mC[0mGA[91mA[0mA[91mT[0mCC[91mA[0m[91mC[0m[91mC[0mC[91mT[0m[91mA[0m[91mC[0mC[91mG[0m[91mT[0m[91mT[0mT[91mC[0mC[91mA[0m[91mG[0mT[91mT[0m[91mG[0m[91mA[0mTA[91mC[0mGG[91mC[0m[91mC[0m[91mA[0mGTCC[91mA[0mTCA[91mC[0mT[91mA[0mGTT[91mT[0m[91mT[0mTA[91mT[0mT[91mT[0mGA[91mC[0mCT[91mC[0mG[91mG[0m[91mC[0mC[91mT[0mG[91mT[0mCA[91mA[0mCC[91mT[0m[91mT[0m[91mT[0mAGGGAA[91mA[0mG[91mA[0mGCT[91mC[0mGA[91mT[0mTG[91mC[0mAT[91mC[0mGG[91mC[0mG[91mC[0mAAT[91mT[0m[91mG[0mATCAT[91mC[0mGTG[91mT[0m[91mG[0mA[91mC[0m[91mT[0mACC[91mC[0mACT[91mC[0m[91mG[0m[91mG[0mACCC[91mC[0mT[91mG[0m[91mG[0mC[91mC[0m[91mT[0mAA[91mT[0mA[91mC[0mT[91mG[0mGAGT[91mT[0mACCATAT[91mT[0mA[91mA[0mT[91mG[0mGACACGTCCAAGA[91mG[0mC[91mG[0mAGTT[91mT[0m[91mC[0mCCCTGA[91mG[0mG[91mG[0mTGA[91mA[0m[91mG[0mTCTGT[91mC[0mA[91mG[0m[91mT[0m[91mT[0m[91mT[0mCG[91mG[0m[91mA[0mGACACGGCTGT[91mC[0m[91mC[0mA[91mG[0mTACTGT[91mC[0m[91mT[0mGAGA[91mA[0m[91mT[0mC[91mT[0mCT[91mC[0mCTG[91mT[0mTATG[91mA[0mTT[91mA[0mG[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mG[0mT[91mC[0mA[91mC[0mA[91mA[0mCA[91mC[0mG[91mT[0mG[91mT[0mCT[91mG[0mC[91mC[0m[91mC[0mC[91mC[0m[91mT[0m[91mT[0mATGG[91mG[0mCGTCTGGGGC[91mG[0m[91mG[0mAGGGACC[91mC[0mC[91mT[0mGT[91mA[0m[91mT[0mC[91mG[0mGTC[91mA[0mC[91mT[0mTCA
+          deletion: 5 bases at 24 (GCAGG)
+[91merror[0m indel info seqstr CTAT doesn't match naive seq str CTA[91mC[0m
+  pos 101 --> 101    len 4 --> 4    seqstr CTAT --> CTA[91mC[0m
+[91merror[0m inconsistent indel info for -3158583811344898012 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m08[0m  CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCGTCAGCAGTGGTGGTTA[1;34mC[0m[1;34mT[0m[1;34mA[0m[1;34mT[0mTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGAGGGGGGTTGCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+             query  CAGGTGCAGCTGCAGGAGTCG[91mA[0mGCCCAGGACTGGTGAAG[91mG[0mCTTCG[91mA[0m[91mG[0mGA[91mT[0mCCTGTCCCTCACCTGCACT[91mC[0mTCTCTGGTG[91mC[0m[91mT[0mT[91mG[0m[91mA[0mGTCAGCAGTGGTGGTTA[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0mT[91mA[0mGA[91mA[0mCTGGATCCGGCAGCCC[91mA[0mCAGGGAA[91mA[0mG[91mA[0mACTG[91mA[0mA[91mA[0mTG[91mC[0mATTGGGTA[91mC[0mATCTATTACA[91mC[0mTGGGA[91mA[0mCACCAACTA[91mT[0mAA[91mT[0mCCCTCCCTCA[91mT[0m[91mC[0m[91mG[0mGTCGAGT[91mT[0m[91mC[0mCCATATC[91mG[0m[91mC[0mTAGACAC[91mA[0mTCCA[91mC[0mGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGA[91mT[0mAGGGGGG[91mG[0mTGCG[91mT[0m[91mG[0mCCCTGGGGCCAGGGAAC[91mA[0mCTGGTCACCGT[91mT[0mTCCTCAG
+          deletion: 4 bases at 101 (CTAT)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m08[0m  CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCGTCAGCAGTGGTGGTTA[1;34mC[0m[1;34mT[0m[1;34mA[0m[1;34mC[0mTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGAGGGGGGTTGCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+             query  CAGGTGCAGCTGCAGGAGTCG[91mA[0mGCCCAGGACTGGTGAAG[91mG[0mCTTCG[91mA[0m[91mG[0mGA[91mT[0mCCTGTCCCTCACCTGCACT[91mC[0mTCTCTGGTG[91mC[0m[91mT[0mT[91mG[0m[91mA[0mGTCAGCAGTGGTGGTTA[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0mT[91mA[0mGA[91mA[0mCTGGATCCGGCAGCCC[91mA[0mCAGGGAA[91mA[0mG[91mA[0mACTG[91mA[0mA[91mA[0mTG[91mC[0mATTGGGTA[91mC[0mATCTATTACA[91mC[0mTGGGA[91mA[0mCACCAACTA[91mT[0mAA[91mT[0mCCCTCCCTCA[91mT[0m[91mC[0m[91mG[0mGTCGAGT[91mT[0m[91mC[0mCCATATC[91mG[0m[91mC[0mTAGACAC[91mA[0mTCCA[91mC[0mGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGA[91mT[0mAGGGGGG[91mG[0mTGCG[91mT[0m[91mG[0mCCCTGGGGCCAGGGAAC[91mA[0mCTGGTCACCGT[91mT[0mTCCTCAG
+          deletion: 4 bases at 101 (CTAC)
+[91merror[0m indel info seqstr TCT doesn't match naive seq str [91mC[0mCT
+  pos 61 --> 61    len 3 --> 3    seqstr TCT --> [91mC[0mCT
+[91merror[0m inconsistent indel info for 9073810879983218451 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGAGGGTCCCTGAGACTCT[1;34mT[0m[1;34mC[0m[1;34mT[0mGTGCAGCCTCTGGATTCACCTTCAGTAGTTATGAAATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTGGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTTTATTACTGTGCGAGAACATGGATACAGCTATGGGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+             query  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGAGGGTCCCTGAGACTCT[1;34m*[0m[1;34m*[0m[1;34m*[0mGTGCAGCCTCTGGATTCACCTTCAGTAGTTATGAAATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTGGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTTTATTACTGTGCGAGAACATGGATACAGCTATGGGTCTTTG[91mC[0mCTACTGGGGCC[91mG[0mGGGAACCCTGGTCACCGTCTCCTCAG
+          deletion: 3 bases at 61 (TCT)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGAGGGTCCCTGAGACTCT[1;34mC[0m[1;34mC[0m[1;34mT[0mGTGCAGCCTCTGGATTCACCTTCAGTAGTTATGAAATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTGGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTTTATTACTGTGCGAGAACATGGATACAGCTATGGGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+             query  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGAGGGTCCCTGAGACTCT[1;34m*[0m[1;34m*[0m[1;34m*[0mGTGCAGCCTCTGGATTCACCTTCAGTAGTTATGAAATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTGGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTTTATTACTGTGCGAGAACATGGATACAGCTATGGGTCTTTG[91mC[0mCTACTGGGGCC[91mG[0mGGGAACCCTGGTCACCGTCTCCTCAG
+          deletion: 3 bases at 61 (CCT)
+[91merror[0m indel info seqstr AG doesn't match naive seq str [91mG[0mG
+  pos 139 --> 139    len 2 --> 2    seqstr AG --> [91mG[0mG
+[91merror[0m inconsistent indel info for 6257141989959731144 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m02[0m  GAGGTGCAGCTGGTGCAGTCTGGAGCAGAGGTGAAAAAGCCCGGGGAGTCTCTGAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTACCAGCTACTGGACCGGCTGGGTGCGCCAGATGCCCGGGAAAGGCTTGGAGT[1;34mA[0m[1;34mG[0mATGGGGATCATCTATCCTGGTGACTCTGATACCAGATACAGCCCGTCCTTCCAAGGCCAGGTCACCATCTCAGCCGACAAGTCCATCAGCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACTTGAATACTATGATAGTAGTGGTTATTATTACGCTGACTGGTTCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+             query  GAGGTGCAGCTG[91mC[0mTGCA[91mA[0mTCTGGAGCAGAGGTGAAAAA[91mC[0mCCCGGGGAGTCT[91mA[0mT[91mC[0mAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTAC[91mG[0mAGCTACTGGACCGGCTGGGT[91mA[0mCGCCAGATGCCCGG[91mC[0mAAAGGCTTGGAGT[1;34m*[0m[1;34m*[0mATG[91mA[0mGGATCATCTATCCT[91mA[0mGTGACTCT[91mC[0mATACCAGATACAGCCCGTCCTTCCA[91mG[0mGGCCAGGTCAC[91mT[0mATCTCAGCCGACAAGTCCATCA[91mA[0mCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTC[91mA[0mGACACCGCCATGTATTACTGTGCGAG[91mC[0mCTTGAATACTATGAT[91mG[0mGTAGT[91mT[0mGTTA[91mC[0mTA[91mA[0mTACGCTGACTGGTTCGACCCCTGGGG[91mA[0mCAGGGAACCC[91mA[0mGGTCACCG[91mC[0mCTCCTCAG
+          deletion: 2 bases at 139 (AG)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m02[0m  GAGGTGCAGCTGGTGCAGTCTGGAGCAGAGGTGAAAAAGCCCGGGGAGTCTCTGAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTACCAGCTACTGGACCGGCTGGGTGCGCCAGATGCCCGGGAAAGGCTTGGAGT[1;34mG[0m[1;34mG[0mATGGGGATCATCTATCCTGGTGACTCTGATACCAGATACAGCCCGTCCTTCCAAGGCCAGGTCACCATCTCAGCCGACAAGTCCATCAGCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACTTGAATACTATGATAGTAGTGGTTATTATTACGCTGACTGGTTCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+             query  GAGGTGCAGCTG[91mC[0mTGCA[91mA[0mTCTGGAGCAGAGGTGAAAAA[91mC[0mCCCGGGGAGTCT[91mA[0mT[91mC[0mAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTAC[91mG[0mAGCTACTGGACCGGCTGGGT[91mA[0mCGCCAGATGCCCGG[91mC[0mAAAGGCTTGGAGT[1;34m*[0m[1;34m*[0mATG[91mA[0mGGATCATCTATCCT[91mA[0mGTGACTCT[91mC[0mATACCAGATACAGCCCGTCCTTCCA[91mG[0mGGCCAGGTCAC[91mT[0mATCTCAGCCGACAAGTCCATCA[91mA[0mCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTC[91mA[0mGACACCGCCATGTATTACTGTGCGAG[91mC[0mCTTGAATACTATGAT[91mG[0mGTAGT[91mT[0mGTTA[91mC[0mTA[91mA[0mTACGCTGACTGGTTCGACCCCTGGGG[91mA[0mCAGGGAACCC[91mA[0mGGTCACCG[91mC[0mCTCCTCAG
+          deletion: 2 bases at 139 (GG)
+[91merror[0m indel info seqstr GTATTGGGT doesn't match naive seq str G[91mC[0mATTGGGT
+  pos 101 --> 101    len 9 --> 9    seqstr GTATTGGGT --> G[91mC[0mATTGGGT
+[91merror[0m inconsistent indel info for -718632746341577126 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m01[0m  CAGGTCCAGCTTGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTTTCCTGCAAGGCTTCTGGATACACCTTCACTAGCTATGCTAT[1;34mG[0m[1;34mT[0m[1;34mA[0m[1;34mT[0m[1;34mT[0m[1;34mG[0m[1;34mG[0m[1;34mG[0m[1;34mT[0mGCGCCAGGCCCCCGGACAAAGGCTTGAGTGGATGGGATGGATCAACGCTGGCAATGGTAACACAAAATATTCACAGAAGTTCCAGGGCAGAGTCACCATTACCAGGGACACATCCGCGAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAAGACACGGCTGTGTATTACTGTGCGAGAGGGTGTTGCCGTGCCGGCGAGGGTATAACTGGAACGACTAACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+            query  CAGGTCC[91mT[0mGCTT[91mC[0mTGCA[91mC[0mT[91mG[0mTGGGGCT[91mA[0mAGGTGAAGAAGCCTGGG[91mT[0mC[91mT[0mTCA[91mT[0mTGAAG[91mT[0mTTTCCTGCAAGGCTTCTGGATACACCTTC[91mG[0mC[91mC[0mAGCTATGCTAT[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[91mC[0mCGCCAG[91mA[0mCCCCCGG[91mG[0mC[91mC[0mAAGG[91mT[0mTTGAGTGGAT[91mT[0mGGATGGATCA[91mT[0mCGCTGGC[91mC[0mATGGTAACACAAAAT[91mC[0mTTC[91mG[0mC[91mG[0mGAA[91mA[0mTTCC[91mG[0m[91mT[0mGGC[91mG[0mGAGTC[91mG[0mCCATTACCAGGGACACATCCGCGAGCACA[91mA[0mCCTAC[91mC[0mT[91mC[0mGAGCTGAGC[91mG[0mGCCTGAGATCTGAAGACACGGCTGTGTATTACTGTGCGAGAGGG[91mG[0mGT[91mC[0mGCCG[91mC[0mGCCGGCGAGGGTATAACTGGAA[91mT[0mGACTAACT[91mT[0mC[91mC[0mTTGACTACTGGGGCCAGGGAACCCTGGTC[91mC[0mCCGTCTCCTCAG
+          deletion: 9 bases at 101 (GTATTGGGT)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m01[0m  CAGGTCCAGCTTGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTTTCCTGCAAGGCTTCTGGATACACCTTCACTAGCTATGCTAT[1;34mG[0m[1;34mC[0m[1;34mA[0m[1;34mT[0m[1;34mT[0m[1;34mG[0m[1;34mG[0m[1;34mG[0m[1;34mT[0mGCGCCAGGCCCCCGGACAAAGGCTTGAGTGGATGGGATGGATCAACGCTGGCAATGGTAACACAAAATATTCACAGAAGTTCCAGGGCAGAGTCACCATTACCAGGGACACATCCGCGAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAAGACACGGCTGTGTATTACTGTGCGAGAGGGTGTTGCCGTGCCGGCGAGGGTATAACTGGAACGACTAACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+            query  CAGGTCC[91mT[0mGCTT[91mC[0mTGCA[91mC[0mT[91mG[0mTGGGGCT[91mA[0mAGGTGAAGAAGCCTGGG[91mT[0mC[91mT[0mTCA[91mT[0mTGAAG[91mT[0mTTTCCTGCAAGGCTTCTGGATACACCTTC[91mG[0mC[91mC[0mAGCTATGCTAT[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[91mC[0mCGCCAG[91mA[0mCCCCCGG[91mG[0mC[91mC[0mAAGG[91mT[0mTTGAGTGGAT[91mT[0mGGATGGATCA[91mT[0mCGCTGGC[91mC[0mATGGTAACACAAAAT[91mC[0mTTC[91mG[0mC[91mG[0mGAA[91mA[0mTTCC[91mG[0m[91mT[0mGGC[91mG[0mGAGTC[91mG[0mCCATTACCAGGGACACATCCGCGAGCACA[91mA[0mCCTAC[91mC[0mT[91mC[0mGAGCTGAGC[91mG[0mGCCTGAGATCTGAAGACACGGCTGTGTATTACTGTGCGAGAGGG[91mG[0mGT[91mC[0mGCCG[91mC[0mGCCGGCGAGGGTATAACTGGAA[91mT[0mGACTAACT[91mT[0mC[91mC[0mTTGACTACTGGGGCCAGGGAACCCTGGTC[91mC[0mCCGTCTCCTCAG
+          deletion: 9 bases at 101 (GCATTGGGT)
 annotating
 smith-waterman 
   vsearch: 2491 / 2581 v annotations (90 failed) with 50 v genes in 0.4 sec
-        reading sw results from test/new-results/test/parameters/simu/sw-cache
+        reading sw results from test/reference-results/test/parameters/simu/sw-cache
       info for 2567 / 2581 = 0.995   (14 failed)
       kept 1579 (0.612) unproductive
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 20 queries with different true and inferred net shm indel lengths: -4227299259565629929 -5244877396933182569 3379613992404454972 3750212573071081393 4254629011598965130 1450894668655391208 -6373814162679655679 934146021820113682 -8728860627113638858 -6340740529440789869 -6339560879655497098 -538937593521392283 8615123987167606932 -6576259117262300105 -2535492989135331302 -4294907025528515975 -4121835864024215788 -7458932405901630752 -4208885395928241936 106919772655382600
-(0.2 sec)
+(0.3 sec)
         water time: 2.4
 hmm
     prepare_for_hmm: (0.3 sec)
     running 10 procs
                     calcd:         vtb 2567        fwd    0
-             min-max time:  5.6 - 6.0 sec
+             min-max time:  5.5 - 6.0 sec
     read output
-  plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 20 queries with different true and inferred net shm indel lengths: -5244877396933182569 3379613992404454972 -6340740529440789869 -7458932405901630752 106919772655382600 3750212573071081393 -6339560879655497098 4254629011598965130 -538937593521392283 8615123987167606932 -4227299259565629929 1450894668655391208 -6576259117262300105 -6373814162679655679 -2535492989135331302 934146021820113682 -8728860627113638858 -4294907025528515975 -4121835864024215788 -4208885395928241936
-(0.2 sec)
+  plotting performance (0.3 sec)
         processed 2567 hmm output lines with 2567 sequences in 2567 events  (0 failures)
-         infra time: 4.7
-      hmm step time: 10.8
-      total time: 14.2
-[92mmulti-annotate-new-simu[0m          ./bin/partis annotate --plot-annotation-performance --simultaneous-true-clonal-seqs --plotdir test/new-results/multi-annotate-new-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/multi-annotate-new-simu.csv
+         infra time: 4.8
+      hmm step time: 10.9
+      total time: 14.3
+[92mmulti-annotate-ref-simu[0m          ./bin/partis annotate --plot-annotation-performance --simultaneous-true-clonal-seqs --plotdir test/new-results/multi-annotate-ref-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/multi-annotate-ref-simu.csv
+[91merror[0m indel info seqstr GT doesn't match naive seq str [91mA[0mT
+  pos 204 --> 204    len 2 --> 2    seqstr GT --> [91mA[0mT
+[91merror[0m inconsistent indel info for -7283897223094569692 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m3[0m[95m-66[0m[93m03[0m  GAGGTGCAGCTGGTGGAGTCTGGAGGAGGCTTGATCCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGGTTCACCGTCAGTAGCAACTACATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCTGTGGTAGCACATACTACGCAGACTCCGTGAAGGGCCGATTCACC[1;34mG[0m[1;34mT[0mCTCCAGAGACAATTCCAAGAACACGCTGTATCTTCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAGAGACAACATAACTGCTCGCGCTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+             query  [91mC[0mAGGT[91mT[0m[91mG[0m[91mG[0mG[91mT[0mTG[91mT[0mTG[91mT[0mAG[91mC[0mCTG[91mC[0mAG[91mT[0mA[91mA[0mGCTTGA[91mG[0mCCAG[91mT[0mCTG[91mA[0m[91mA[0mGGGTCCC[91mC[0mG[91mG[0m[91mC[0m[91mG[0mCT[91mT[0mT[91mT[0m[91mT[0mT[91mA[0mTGCA[91mA[0mCCTCTGG[91mA[0mTTCACCGTCAGTA[91mA[0m[91mG[0m[91mT[0mAC[91mC[0mA[91mT[0m[91mG[0mTG[91mG[0mGCTGGGT[91mG[0m[91mT[0mG[91mT[0mCA[91mA[0m[91mC[0mCTCC[91mG[0m[91mT[0mGGAA[91mA[0m[91mT[0mGGCT[91mT[0m[91mA[0mAGT[91mA[0mGGT[91mT[0mTCAGTTAT[91mC[0mTATAG[91mT[0mTGTGGTAG[91mT[0mACAT[91mC[0mCTA[91mT[0m[91mA[0mC[91mC[0mGA[91mT[0mT[91mT[0mC[91mA[0mT[91mA[0mAAG[91mA[0mG[91mT[0mCG[91mT[0mTTCACC[1;34m*[0m[1;34m*[0mCTCC[91mC[0m[91mT[0m[91mG[0mGA[91mA[0mAATTC[91mG[0m[91mT[0mA[91mC[0mAACAC[91mC[0m[91mT[0mT[91mA[0mT[91mC[0mTCTTCAA[91mT[0mTGA[91mG[0mCAG[91mG[0mCTGAG[91mG[0mGCTGA[91mC[0mGACAC[91mC[0mG[91mT[0mT[91mC[0mTGTATTACTGTGC[91mA[0m[91mC[0mGAGACAA[91mT[0mATA[91mT[0mCTGCTCG[91mG[0mGCTG[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0mTGGGG[91mT[0mCAGGGAA[91mT[0m[91mT[0mCTGGTC[91mC[0mC[91mT[0mGTCTCC[91mA[0mC[91mT[0mG
+          deletion: 2 bases at 204 (GT)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m3[0m[95m-66[0m[93m03[0m  GAGGTGCAGCTGGTGGAGTCTGGAGGAGGCTTGATCCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGGTTCACCGTCAGTAGCAACTACATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCTGTGGTAGCACATACTACGCAGACTCCGTGAAGGGCCGATTCACC[1;34mA[0m[1;34mT[0mCTCCAGAGACAATTCCAAGAACACGCTGTATCTTCAAATGAACAGCCTGAGAGCTGAGGACACGGCTGTGTATTACTGTGCGAGAGACAACATAACTGCTCGCGCTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+             query  [91mC[0mAGGT[91mT[0m[91mG[0m[91mG[0mG[91mT[0mTG[91mT[0mTG[91mT[0mAG[91mC[0mCTG[91mC[0mAG[91mT[0mA[91mA[0mGCTTGA[91mG[0mCCAG[91mT[0mCTG[91mA[0m[91mA[0mGGGTCCC[91mC[0mG[91mG[0m[91mC[0m[91mG[0mCT[91mT[0mT[91mT[0m[91mT[0mT[91mA[0mTGCA[91mA[0mCCTCTGG[91mA[0mTTCACCGTCAGTA[91mA[0m[91mG[0m[91mT[0mAC[91mC[0mA[91mT[0m[91mG[0mTG[91mG[0mGCTGGGT[91mG[0m[91mT[0mG[91mT[0mCA[91mA[0m[91mC[0mCTCC[91mG[0m[91mT[0mGGAA[91mA[0m[91mT[0mGGCT[91mT[0m[91mA[0mAGT[91mA[0mGGT[91mT[0mTCAGTTAT[91mC[0mTATAG[91mT[0mTGTGGTAG[91mT[0mACAT[91mC[0mCTA[91mT[0m[91mA[0mC[91mC[0mGA[91mT[0mT[91mT[0mC[91mA[0mT[91mA[0mAAG[91mA[0mG[91mT[0mCG[91mT[0mTTCACC[1;34m*[0m[1;34m*[0mCTCC[91mC[0m[91mT[0m[91mG[0mGA[91mA[0mAATTC[91mG[0m[91mT[0mA[91mC[0mAACAC[91mC[0m[91mT[0mT[91mA[0mT[91mC[0mTCTTCAA[91mT[0mTGA[91mG[0mCAG[91mG[0mCTGAG[91mG[0mGCTGA[91mC[0mGACAC[91mC[0mG[91mT[0mT[91mC[0mTGTATTACTGTGC[91mA[0m[91mC[0mGAGACAA[91mT[0mATA[91mT[0mCTGCTCG[91mG[0mGCTG[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0mTGGGG[91mT[0mCAGGGAA[91mT[0m[91mT[0mCTGGTC[91mC[0mC[91mT[0mGTCTCC[91mA[0mC[91mT[0mG
+          deletion: 2 bases at 204 (AT)
+[91merror[0m indel info seqstr ACAGA doesn't match naive seq str [91mG[0mCAG[91mG[0m
+  pos 24 --> 24    len 5 --> 5    seqstr ACAGA --> [91mG[0mCAG[91mG[0m
+[91merror[0m inconsistent indel info for -5244877396933182569 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m01[0m  CAGGTGCAGCTACAGCAGTGGGGC[1;34mA[0m[1;34mC[0m[1;34mA[0m[1;34mG[0m[1;34mA[0mACTGTTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCGCTGTCTATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCAATCATAGTGGAAGCACCAACTACAACCCGTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAGGCACTTCTGCTATGGTTCGGGGAGTTATTATAGCAGGAGACTACTACTACATGGACGTCTGGGGCAAAGGGACCACGGTCACCGTCTCCTCA  [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m
+             query  [91mG[0mA[91mT[0mGT[91mA[0m[91mT[0mAG[91mT[0mTACA[91mA[0mCA[91mA[0mT[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0mAC[91mC[0m[91mA[0mTT[91mC[0mA[91mT[0mGC[91mA[0mTT[91mG[0m[91mC[0mGA[91mA[0mA[91mT[0mCC[91mA[0m[91mC[0m[91mC[0mC[91mT[0m[91mA[0m[91mC[0mC[91mG[0m[91mT[0m[91mT[0mT[91mC[0mC[91mA[0m[91mG[0mT[91mT[0m[91mG[0m[91mA[0mTA[91mC[0mGG[91mC[0m[91mC[0m[91mA[0mGTCC[91mA[0mTCA[91mC[0mT[91mA[0mGTT[91mT[0m[91mT[0mTA[91mT[0mT[91mT[0mGA[91mC[0mCT[91mC[0mG[91mG[0m[91mC[0mC[91mT[0mG[91mT[0mCA[91mA[0mCC[91mT[0m[91mT[0m[91mT[0mAGGGAA[91mA[0mG[91mA[0mGCT[91mC[0mGA[91mT[0mTG[91mC[0mAT[91mC[0mGG[91mC[0mG[91mC[0mAAT[91mT[0m[91mG[0mATCAT[91mC[0mGTG[91mT[0m[91mG[0mA[91mC[0m[91mT[0mACC[91mC[0mACT[91mC[0m[91mG[0m[91mG[0mACCC[91mC[0mT[91mG[0m[91mG[0mC[91mC[0m[91mT[0mAA[91mT[0mA[91mC[0mT[91mG[0mGAGT[91mT[0mACCATAT[91mT[0mA[91mA[0mT[91mG[0mGACACGTCCAAGA[91mG[0mC[91mG[0mAGTT[91mT[0m[91mC[0mCCCTGA[91mG[0mG[91mG[0mTGA[91mA[0m[91mG[0mTCTGT[91mC[0mA[91mG[0m[91mT[0m[91mT[0m[91mT[0mCG[91mG[0m[91mA[0mGACACGGCTGT[91mC[0m[91mC[0mA[91mG[0mTACTGT[91mC[0m[91mT[0mGAGA[91mA[0m[91mT[0mC[91mT[0mCT[91mC[0mCTG[91mT[0mTATG[91mA[0mTT[91mA[0mG[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mG[0mT[91mC[0mA[91mC[0mA[91mA[0mCA[91mC[0mG[91mT[0mG[91mT[0mCT[91mG[0mC[91mC[0m[91mC[0mC[91mC[0m[91mT[0m[91mT[0mATGG[91mG[0mCGTCTGGGGC[91mG[0m[91mG[0mAGGGACC[91mC[0mC[91mT[0mGT[91mA[0m[91mT[0mC[91mG[0mGTC[91mA[0mC[91mT[0mTCA
+          deletion: 5 bases at 24 (ACAGA)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m01[0m  CAGGTGCAGCTACAGCAGTGGGGC[1;34mG[0m[1;34mC[0m[1;34mA[0m[1;34mG[0m[1;34mG[0mACTGTTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCGCTGTCTATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCAATCATAGTGGAAGCACCAACTACAACCCGTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAGGCACTTCTGCTATGGTTCGGGGAGTTATTATAGCAGGAGACTACTACTACATGGACGTCTGGGGCAAAGGGACCACGGTCACCGTCTCCTCA  [95mh[0m[91md[0m[95m3[0m[95m-10[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m03[0m
+             query  [91mG[0mA[91mT[0mGT[91mA[0m[91mT[0mAG[91mT[0mTACA[91mA[0mCA[91mA[0mT[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0mAC[91mC[0m[91mA[0mTT[91mC[0mA[91mT[0mGC[91mA[0mTT[91mG[0m[91mC[0mGA[91mA[0mA[91mT[0mCC[91mA[0m[91mC[0m[91mC[0mC[91mT[0m[91mA[0m[91mC[0mC[91mG[0m[91mT[0m[91mT[0mT[91mC[0mC[91mA[0m[91mG[0mT[91mT[0m[91mG[0m[91mA[0mTA[91mC[0mGG[91mC[0m[91mC[0m[91mA[0mGTCC[91mA[0mTCA[91mC[0mT[91mA[0mGTT[91mT[0m[91mT[0mTA[91mT[0mT[91mT[0mGA[91mC[0mCT[91mC[0mG[91mG[0m[91mC[0mC[91mT[0mG[91mT[0mCA[91mA[0mCC[91mT[0m[91mT[0m[91mT[0mAGGGAA[91mA[0mG[91mA[0mGCT[91mC[0mGA[91mT[0mTG[91mC[0mAT[91mC[0mGG[91mC[0mG[91mC[0mAAT[91mT[0m[91mG[0mATCAT[91mC[0mGTG[91mT[0m[91mG[0mA[91mC[0m[91mT[0mACC[91mC[0mACT[91mC[0m[91mG[0m[91mG[0mACCC[91mC[0mT[91mG[0m[91mG[0mC[91mC[0m[91mT[0mAA[91mT[0mA[91mC[0mT[91mG[0mGAGT[91mT[0mACCATAT[91mT[0mA[91mA[0mT[91mG[0mGACACGTCCAAGA[91mG[0mC[91mG[0mAGTT[91mT[0m[91mC[0mCCCTGA[91mG[0mG[91mG[0mTGA[91mA[0m[91mG[0mTCTGT[91mC[0mA[91mG[0m[91mT[0m[91mT[0m[91mT[0mCG[91mG[0m[91mA[0mGACACGGCTGT[91mC[0m[91mC[0mA[91mG[0mTACTGT[91mC[0m[91mT[0mGAGA[91mA[0m[91mT[0mC[91mT[0mCT[91mC[0mCTG[91mT[0mTATG[91mA[0mTT[91mA[0mG[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mG[0mT[91mC[0mA[91mC[0mA[91mA[0mCA[91mC[0mG[91mT[0mG[91mT[0mCT[91mG[0mC[91mC[0m[91mC[0mC[91mC[0m[91mT[0m[91mT[0mATGG[91mG[0mCGTCTGGGGC[91mG[0m[91mG[0mAGGGACC[91mC[0mC[91mT[0mGT[91mA[0m[91mT[0mC[91mG[0mGTC[91mA[0mC[91mT[0mTCA
+          deletion: 5 bases at 24 (GCAGG)
+[91merror[0m indel info seqstr CTAT doesn't match naive seq str CTA[91mC[0m
+  pos 101 --> 101    len 4 --> 4    seqstr CTAT --> CTA[91mC[0m
+[91merror[0m inconsistent indel info for -3158583811344898012 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m08[0m  CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCGTCAGCAGTGGTGGTTA[1;34mC[0m[1;34mT[0m[1;34mA[0m[1;34mT[0mTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGAGGGGGGTTGCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+             query  CAGGTGCAGCTGCAGGAGTCG[91mA[0mGCCCAGGACTGGTGAAG[91mG[0mCTTCG[91mA[0m[91mG[0mGA[91mT[0mCCTGTCCCTCACCTGCACT[91mC[0mTCTCTGGTG[91mC[0m[91mT[0mT[91mG[0m[91mA[0mGTCAGCAGTGGTGGTTA[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0mT[91mA[0mGA[91mA[0mCTGGATCCGGCAGCCC[91mA[0mCAGGGAA[91mA[0mG[91mA[0mACTG[91mA[0mA[91mA[0mTG[91mC[0mATTGGGTA[91mC[0mATCTATTACA[91mC[0mTGGGA[91mA[0mCACCAACTA[91mT[0mAA[91mT[0mCCCTCCCTCA[91mT[0m[91mC[0m[91mG[0mGTCGAGT[91mT[0m[91mC[0mCCATATC[91mG[0m[91mC[0mTAGACAC[91mA[0mTCCA[91mC[0mGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGA[91mT[0mAGGGGGG[91mG[0mTGCG[91mT[0m[91mG[0mCCCTGGGGCCAGGGAAC[91mA[0mCTGGTCACCGT[91mT[0mTCCTCAG
+          deletion: 4 bases at 101 (CTAT)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m08[0m  CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCGTCAGCAGTGGTGGTTA[1;34mC[0m[1;34mT[0m[1;34mA[0m[1;34mC[0mTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGAGGGGGGTTGCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m3[0m[95m-16[0m[93m02[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+             query  CAGGTGCAGCTGCAGGAGTCG[91mA[0mGCCCAGGACTGGTGAAG[91mG[0mCTTCG[91mA[0m[91mG[0mGA[91mT[0mCCTGTCCCTCACCTGCACT[91mC[0mTCTCTGGTG[91mC[0m[91mT[0mT[91mG[0m[91mA[0mGTCAGCAGTGGTGGTTA[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0mT[91mA[0mGA[91mA[0mCTGGATCCGGCAGCCC[91mA[0mCAGGGAA[91mA[0mG[91mA[0mACTG[91mA[0mA[91mA[0mTG[91mC[0mATTGGGTA[91mC[0mATCTATTACA[91mC[0mTGGGA[91mA[0mCACCAACTA[91mT[0mAA[91mT[0mCCCTCCCTCA[91mT[0m[91mC[0m[91mG[0mGTCGAGT[91mT[0m[91mC[0mCCATATC[91mG[0m[91mC[0mTAGACAC[91mA[0mTCCA[91mC[0mGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGA[91mT[0mAGGGGGG[91mG[0mTGCG[91mT[0m[91mG[0mCCCTGGGGCCAGGGAAC[91mA[0mCTGGTCACCGT[91mT[0mTCCTCAG
+          deletion: 4 bases at 101 (CTAC)
+[91merror[0m indel info seqstr TCT doesn't match naive seq str [91mC[0mCT
+  pos 61 --> 61    len 3 --> 3    seqstr TCT --> [91mC[0mCT
+[91merror[0m inconsistent indel info for 9073810879983218451 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGAGGGTCCCTGAGACTCT[1;34mT[0m[1;34mC[0m[1;34mT[0mGTGCAGCCTCTGGATTCACCTTCAGTAGTTATGAAATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTGGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTTTATTACTGTGCGAGAACATGGATACAGCTATGGGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+             query  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGAGGGTCCCTGAGACTCT[1;34m*[0m[1;34m*[0m[1;34m*[0mGTGCAGCCTCTGGATTCACCTTCAGTAGTTATGAAATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTGGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTTTATTACTGTGCGAGAACATGGATACAGCTATGGGTCTTTG[91mC[0mCTACTGGGGCC[91mG[0mGGGAACCCTGGTCACCGTCTCCTCAG
+          deletion: 3 bases at 61 (TCT)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGAGGGTCCCTGAGACTCT[1;34mC[0m[1;34mC[0m[1;34mT[0mGTGCAGCCTCTGGATTCACCTTCAGTAGTTATGAAATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTGGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTTTATTACTGTGCGAGAACATGGATACAGCTATGGGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+             query  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGAGGGTCCCTGAGACTCT[1;34m*[0m[1;34m*[0m[1;34m*[0mGTGCAGCCTCTGGATTCACCTTCAGTAGTTATGAAATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTGGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTTTATTACTGTGCGAGAACATGGATACAGCTATGGGTCTTTG[91mC[0mCTACTGGGGCC[91mG[0mGGGAACCCTGGTCACCGTCTCCTCAG
+          deletion: 3 bases at 61 (CCT)
+[91merror[0m indel info seqstr AG doesn't match naive seq str [91mG[0mG
+  pos 139 --> 139    len 2 --> 2    seqstr AG --> [91mG[0mG
+[91merror[0m inconsistent indel info for 6257141989959731144 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m02[0m  GAGGTGCAGCTGGTGCAGTCTGGAGCAGAGGTGAAAAAGCCCGGGGAGTCTCTGAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTACCAGCTACTGGACCGGCTGGGTGCGCCAGATGCCCGGGAAAGGCTTGGAGT[1;34mA[0m[1;34mG[0mATGGGGATCATCTATCCTGGTGACTCTGATACCAGATACAGCCCGTCCTTCCAAGGCCAGGTCACCATCTCAGCCGACAAGTCCATCAGCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACTTGAATACTATGATAGTAGTGGTTATTATTACGCTGACTGGTTCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+             query  GAGGTGCAGCTG[91mC[0mTGCA[91mA[0mTCTGGAGCAGAGGTGAAAAA[91mC[0mCCCGGGGAGTCT[91mA[0mT[91mC[0mAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTAC[91mG[0mAGCTACTGGACCGGCTGGGT[91mA[0mCGCCAGATGCCCGG[91mC[0mAAAGGCTTGGAGT[1;34m*[0m[1;34m*[0mATG[91mA[0mGGATCATCTATCCT[91mA[0mGTGACTCT[91mC[0mATACCAGATACAGCCCGTCCTTCCA[91mG[0mGGCCAGGTCAC[91mT[0mATCTCAGCCGACAAGTCCATCA[91mA[0mCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTC[91mA[0mGACACCGCCATGTATTACTGTGCGAG[91mC[0mCTTGAATACTATGAT[91mG[0mGTAGT[91mT[0mGTTA[91mC[0mTA[91mA[0mTACGCTGACTGGTTCGACCCCTGGGG[91mA[0mCAGGGAACCC[91mA[0mGGTCACCG[91mC[0mCTCCTCAG
+          deletion: 2 bases at 139 (AG)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m02[0m  GAGGTGCAGCTGGTGCAGTCTGGAGCAGAGGTGAAAAAGCCCGGGGAGTCTCTGAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTACCAGCTACTGGACCGGCTGGGTGCGCCAGATGCCCGGGAAAGGCTTGGAGT[1;34mG[0m[1;34mG[0mATGGGGATCATCTATCCTGGTGACTCTGATACCAGATACAGCCCGTCCTTCCAAGGCCAGGTCACCATCTCAGCCGACAAGTCCATCAGCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTCGGACACCGCCATGTATTACTGTGCGAGACTTGAATACTATGATAGTAGTGGTTATTATTACGCTGACTGGTTCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m [95mh[0m[91mj[0m[95m5[0m[93m02[0m
+             query  GAGGTGCAGCTG[91mC[0mTGCA[91mA[0mTCTGGAGCAGAGGTGAAAAA[91mC[0mCCCGGGGAGTCT[91mA[0mT[91mC[0mAAGATCTCCTGTAAGGGTTCTGGATACAGCTTTAC[91mG[0mAGCTACTGGACCGGCTGGGT[91mA[0mCGCCAGATGCCCGG[91mC[0mAAAGGCTTGGAGT[1;34m*[0m[1;34m*[0mATG[91mA[0mGGATCATCTATCCT[91mA[0mGTGACTCT[91mC[0mATACCAGATACAGCCCGTCCTTCCA[91mG[0mGGCCAGGTCAC[91mT[0mATCTCAGCCGACAAGTCCATCA[91mA[0mCACCGCCTACCTGCAGTGGAGCAGCCTGAAGGCCTC[91mA[0mGACACCGCCATGTATTACTGTGCGAG[91mC[0mCTTGAATACTATGAT[91mG[0mGTAGT[91mT[0mGTTA[91mC[0mTA[91mA[0mTACGCTGACTGGTTCGACCCCTGGGG[91mA[0mCAGGGAACCC[91mA[0mGGTCACCG[91mC[0mCTCCTCAG
+          deletion: 2 bases at 139 (GG)
+[91merror[0m indel info seqstr GTATTGGGT doesn't match naive seq str G[91mC[0mATTGGGT
+  pos 101 --> 101    len 9 --> 9    seqstr GTATTGGGT --> G[91mC[0mATTGGGT
+[91merror[0m inconsistent indel info for -718632746341577126 (see previous lines)
+       original:
+          [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m01[0m  CAGGTCCAGCTTGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTTTCCTGCAAGGCTTCTGGATACACCTTCACTAGCTATGCTAT[1;34mG[0m[1;34mT[0m[1;34mA[0m[1;34mT[0m[1;34mT[0m[1;34mG[0m[1;34mG[0m[1;34mG[0m[1;34mT[0mGCGCCAGGCCCCCGGACAAAGGCTTGAGTGGATGGGATGGATCAACGCTGGCAATGGTAACACAAAATATTCACAGAAGTTCCAGGGCAGAGTCACCATTACCAGGGACACATCCGCGAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAAGACACGGCTGTGTATTACTGTGCGAGAGGGTGTTGCCGTGCCGGCGAGGGTATAACTGGAACGACTAACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+            query  CAGGTCC[91mT[0mGCTT[91mC[0mTGCA[91mC[0mT[91mG[0mTGGGGCT[91mA[0mAGGTGAAGAAGCCTGGG[91mT[0mC[91mT[0mTCA[91mT[0mTGAAG[91mT[0mTTTCCTGCAAGGCTTCTGGATACACCTTC[91mG[0mC[91mC[0mAGCTATGCTAT[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[91mC[0mCGCCAG[91mA[0mCCCCCGG[91mG[0mC[91mC[0mAAGG[91mT[0mTTGAGTGGAT[91mT[0mGGATGGATCA[91mT[0mCGCTGGC[91mC[0mATGGTAACACAAAAT[91mC[0mTTC[91mG[0mC[91mG[0mGAA[91mA[0mTTCC[91mG[0m[91mT[0mGGC[91mG[0mGAGTC[91mG[0mCCATTACCAGGGACACATCCGCGAGCACA[91mA[0mCCTAC[91mC[0mT[91mC[0mGAGCTGAGC[91mG[0mGCCTGAGATCTGAAGACACGGCTGTGTATTACTGTGCGAGAGGG[91mG[0mGT[91mC[0mGCCG[91mC[0mGCCGGCGAGGGTATAACTGGAA[91mT[0mGACTAACT[91mT[0mC[91mC[0mTTGACTACTGGGGCCAGGGAACCCTGGTC[91mC[0mCCGTCTCCTCAG
+          deletion: 9 bases at 101 (GTATTGGGT)
+       reconstructed:
+          [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m01[0m  CAGGTCCAGCTTGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTTTCCTGCAAGGCTTCTGGATACACCTTCACTAGCTATGCTAT[1;34mG[0m[1;34mC[0m[1;34mA[0m[1;34mT[0m[1;34mT[0m[1;34mG[0m[1;34mG[0m[1;34mG[0m[1;34mT[0mGCGCCAGGCCCCCGGACAAAGGCTTGAGTGGATGGGATGGATCAACGCTGGCAATGGTAACACAAAATATTCACAGAAGTTCCAGGGCAGAGTCACCATTACCAGGGACACATCCGCGAGCACAGCCTACATGGAGCTGAGCAGCCTGAGATCTGAAGACACGGCTGTGTATTACTGTGCGAGAGGGTGTTGCCGTGCCGGCGAGGGTATAACTGGAACGACTAACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG  [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+            query  CAGGTCC[91mT[0mGCTT[91mC[0mTGCA[91mC[0mT[91mG[0mTGGGGCT[91mA[0mAGGTGAAGAAGCCTGGG[91mT[0mC[91mT[0mTCA[91mT[0mTGAAG[91mT[0mTTTCCTGCAAGGCTTCTGGATACACCTTC[91mG[0mC[91mC[0mAGCTATGCTAT[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[1;34m*[0m[91mC[0mCGCCAG[91mA[0mCCCCCGG[91mG[0mC[91mC[0mAAGG[91mT[0mTTGAGTGGAT[91mT[0mGGATGGATCA[91mT[0mCGCTGGC[91mC[0mATGGTAACACAAAAT[91mC[0mTTC[91mG[0mC[91mG[0mGAA[91mA[0mTTCC[91mG[0m[91mT[0mGGC[91mG[0mGAGTC[91mG[0mCCATTACCAGGGACACATCCGCGAGCACA[91mA[0mCCTAC[91mC[0mT[91mC[0mGAGCTGAGC[91mG[0mGCCTGAGATCTGAAGACACGGCTGTGTATTACTGTGCGAGAGGG[91mG[0mGT[91mC[0mGCCG[91mC[0mGCCGGCGAGGGTATAACTGGAA[91mT[0mGACTAACT[91mT[0mC[91mC[0mTTGACTACTGGGGCCAGGGAACCCTGGTC[91mC[0mCCGTCTCCTCAG
+          deletion: 9 bases at 101 (GCATTGGGT)
 annotating
 smith-waterman 
   vsearch: 2491 / 2581 v annotations (90 failed) with 50 v genes in 0.4 sec
-        reading sw results from test/new-results/test/parameters/simu/sw-cache
+        reading sw results from test/reference-results/test/parameters/simu/sw-cache
       info for 2567 / 2581 = 0.995   (14 failed)
       kept 1579 (0.612) unproductive
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 20 queries with different true and inferred net shm indel lengths: -4227299259565629929 -5244877396933182569 3379613992404454972 3750212573071081393 4254629011598965130 1450894668655391208 -6373814162679655679 934146021820113682 -8728860627113638858 -6340740529440789869 -6339560879655497098 -538937593521392283 8615123987167606932 -6576259117262300105 -2535492989135331302 -4294907025528515975 -4121835864024215788 -7458932405901630752 -4208885395928241936 106919772655382600
-(0.2 sec)
-        water time: 2.1
+(0.3 sec)
+        water time: 2.3
 hmm
   [93mwarning[0m split apart 4 clusters that contained multiple cdr3 lengths (total clusters: 480 --> 486)
     prepare_for_hmm: (0.2 sec)
     running 10 procs
                     calcd:         vtb  486        fwd    0
-             min-max time:  3.3 - 6.0 sec
+             min-max time:  3.1 - 5.9 sec
     read output
-  plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 20 queries with different true and inferred net shm indel lengths: -8728860627113638858 3379613992404454972 3750212573071081393 4254629011598965130 1450894668655391208 -6373814162679655679 934146021820113682 -5244877396933182569 -4227299259565629929 -6340740529440789869 -6339560879655497098 -6576259117262300105 -2535492989135331302 -4121835864024215788 -7458932405901630752 -538937593521392283 8615123987167606932 -4294907025528515975 -4208885395928241936 106919772655382600
-(0.2 sec)
+  plotting performance (0.4 sec)
         processed 486 hmm output lines with 2567 sequences in 486 events  (0 failures)
-         infra time: 2.6
-      hmm step time: 8.7
-      total time: 11.9
-[92mpartition-new-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/new-results/cache-new-partition.csv --plotdir test/new-results/partition-new-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/partition-new-simu.csv
+         infra time: 2.9
+      hmm step time: 9.0
+      total time: 12.3
+[92mpartition-ref-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/new-results/cache-ref-partition.csv --plotdir test/new-results/partition-ref-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/partition-ref-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
 smith-waterman 
   vsearch: 489 / 500 v annotations (11 failed) with 35 v genes in 0.1 sec
-        reading sw results from test/new-results/test/parameters/simu/sw-cache
+        reading sw results from test/reference-results/test/parameters/simu/sw-cache
       info for 499 / 500 = 0.998   (1 failed)
       kept 316 (0.632) unproductive
   plotting performance (0.2 sec)
-        water time: 1.1
+        water time: 1.0
 hmm
 caching all 499 naive sequences
     prepare_for_hmm: (0.1 sec)
@@ -469,17 +192,17 @@ caching all 499 naive sequences
                 no/empty cache file
                     calcd:         vtb 499        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.8 - 2.1 sec
-      hmm step time: 2.3
+             min-max time:  1.8 - 2.2 sec
+      hmm step time: 2.4
    collapsed 499 queries into 300 clusters with identical naive seqs (0.0 sec)
 300 clusters with 10 procs
     prepare_for_hmm: (0.0 sec)
-       naive hfrac bounds: 0.015 0.102   (0.098 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.102   (0.098 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     running 10 procs
           read from cache:  naive-seqs 499   logprobs   0
                     calcd:         vtb 117        fwd 212
                    merged:       hfrac  23     lratio  27
-             min-max time:  1.4 - 2.6 sec
+             min-max time:  1.4 - 2.7 sec
          infra time: 0.2
       hmm step time: 2.9
 250 clusters with 7 procs
@@ -488,7 +211,7 @@ caching all 499 naive sequences
           read from cache:  naive-seqs 621   logprobs 212
                     calcd:         vtb  51        fwd 109
                    merged:       hfrac  25     lratio  17
-             min-max time:  0.7 - 4.0 sec
+             min-max time:  0.7 - 3.9 sec
          infra time: 0.1
       hmm step time: 4.1
 208 clusters with 5 procs
@@ -497,8 +220,8 @@ caching all 499 naive sequences
           read from cache:  naive-seqs 678   logprobs 321
                     calcd:         vtb  34        fwd  83
                    merged:       hfrac  22     lratio  11
-             min-max time:  0.9 - 3.3 sec
-      hmm step time: 3.5
+             min-max time:  0.9 - 3.4 sec
+      hmm step time: 3.6
 175 clusters with 3 procs
     prepare_for_hmm: (0.0 sec)
     running 3 procs
@@ -514,7 +237,7 @@ caching all 499 naive sequences
                     calcd:         vtb  21        fwd  55
                    merged:       hfrac  24     lratio   5
              min-max time:  3.1 - 6.2 sec
-      hmm step time: 6.4
+      hmm step time: 6.3
 116 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
@@ -529,7 +252,7 @@ caching all 499 naive sequences
           read from cache:  naive-seqs 803   logprobs 564
                     calcd:         vtb   0        fwd  16
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.0 - 1.6 sec
+             min-max time:  1.1 - 1.6 sec
       hmm step time: 1.8
 106 clusters with 1 proc
     prepare_for_hmm: (0.0 sec)
@@ -537,78 +260,26 @@ caching all 499 naive sequences
           read from cache:  naive-seqs 803   logprobs 580
                     calcd:         vtb   3        fwd  79
                    merged:       hfrac   4     lratio   0
-                     time:  8.7 sec
+                     time:  8.6 sec
       hmm step time: 8.8
       loop time: 36.0
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 10 procs
                     calcd:         vtb 102        fwd   0
-             min-max time:  1.0 - 1.6 sec
-      hmm step time: 1.7
+             min-max time:  0.9 - 1.6 sec
+      hmm step time: 1.8
     read output
-  plotting performance (0.2 sec)
+  plotting performance (0.3 sec)
         processed 102 hmm output lines with 499 sequences in 102 events  (0 failures)
-  plotting partitions
-  making mds plots starting with 102 clusters
-       size (+naive)   mds    plot   total
-        27             0.9    0.2     1.1
-        22             0.7    0.2     0.9
-        18             0.7    0.2     0.9
-        18             0.7    0.2     0.8
-        18             0.7    0.3     0.9
-        16             0.6    0.2     0.8
-        10             0.6    0.2     0.8
-        13             0.6    0.2     0.8
-        12             0.6    0.2     0.8
-        12             0.7    0.2     0.8
-        12             0.6    0.2     0.8
-        11             0.6    0.2     0.8
-        11             0.7    0.2     0.8
-         9             0.6    0.2     0.8
-        10             0.6    0.2     0.8
-        10             0.6    0.2     0.9
-        10             0.6    0.2     0.8
-         9             0.6    0.2     0.8
-         9             0.7    0.2     0.8
-         8             0.6    0.2     0.8
-         9             0.6    0.2     0.8
-         9             0.6    0.2     0.8
-         9             0.7    0.2     0.9
-         8             0.6    0.2     0.8
-    skipped 78 clusters with lengths: 7 7 7 6 6 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3 3 3 3 3 3 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-   h for 31 seqs:   22.96 -   4.17 =  18.79
-   h for 21 seqs:   95.61 -  57.49 =  38.12
-   h for 17 seqs:   55.26 -  33.61 =  21.65
-   h for 17 seqs:   36.87 -  20.01 =  16.86
-   h for 17 seqs:   47.99 -  19.76 =  28.22
-   h for 15 seqs:   83.62 -  58.10 =  25.52
-   h for 13 seqs:    3.33 -   1.00 =   2.33
-   h for 12 seqs:   82.27 - 102.45 = -20.18
-   h for 12 seqs:   33.06 -  35.30 =  -2.24
-   h for 11 seqs:   20.87 -  10.33 =  10.55
-   h for 11 seqs:   45.78 -  19.22 =  26.56
-   h for 10 seqs:   10.53 -   1.91 =   8.62
-   h for 10 seqs:    9.44 -   4.56 =   4.89
-   h for 9 seqs:   33.89 -  17.36 =  16.53
-   h for 9 seqs:   54.17 -  23.33 =  30.83
-   h for 9 seqs:   25.06 -   9.94 =  15.11
-   h for 9 seqs:   10.72 -   9.28 =   1.44
-   h for 8 seqs:   42.32 -  20.82 =  21.50
-   h for 8 seqs:  102.04 -  96.54 =   5.50
-   h for 8 seqs:   32.07 -  13.07 =  19.00
-   h for 8 seqs:   23.96 -  12.89 =  11.07
-   h for 8 seqs:   27.04 -  10.96 =  16.07
-   h for 8 seqs:   36.75 -  15.54 =  21.21
-   h for 7 seqs:    7.14 -   3.19 =   3.95
-(27.6 sec)
-      total time: 69.6
-[92mseed-partition-new-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/new-results/cache-new-partition.csv --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed-unique-id 655039640340581169 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/seed-partition-new-simu.csv
+  --only-csv-plots not implemented for partition plots, so skipping
+      total time: 42.3
+[92mseed-partition-ref-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/new-results/cache-ref-partition.csv --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed-unique-id 655039640340581169 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/seed-partition-ref-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
 smith-waterman 
   vsearch: 489 / 500 v annotations (11 failed) with 35 v genes in 0.1 sec
-        reading sw results from test/new-results/test/parameters/simu/sw-cache
+        reading sw results from test/reference-results/test/parameters/simu/sw-cache
       info for 499 / 500 = 0.998   (1 failed)
       kept 316 (0.632) unproductive
       removed 464 / 499 = 0.93 sequences with cdr3 length different from seed sequence (leaving 35)
@@ -617,7 +288,7 @@ hmm
    collapsed 35 queries into 31 clusters with identical naive seqs (0.0 sec)
 31 clusters with 10 procs
     prepare_for_hmm: (0.0 sec)
-       naive hfrac bounds: 0.015 0.102   (0.098 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.102   (0.098 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
     running 10 procs
           read from cache:  naive-seqs 808   logprobs 659
                     calcd:         vtb   5        fwd   4
@@ -631,7 +302,7 @@ hmm
                     calcd:         vtb   0        fwd   0
                    merged:       hfrac   0     lratio   0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/719893/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/221133/hmm_cached_info.csv
       hmm step time: 0.1
 33 clusters with 5 procs
     prepare_for_hmm: (0.0 sec)
@@ -640,7 +311,7 @@ hmm
                     calcd:         vtb   0        fwd   0
                    merged:       hfrac   0     lratio   0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/719893/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/221133/hmm_cached_info.csv
       hmm step time: 0.1
       removed 30 sequences in unseeded clusters, split 5 seeded clusters into 5 singletons, and merged these into 5 clusters with identical naive seqs
         new n_procs 1 (initial seqs/proc: 3.50   new seqs/proc: 5.00
@@ -651,8 +322,8 @@ hmm
                     calcd:         vtb   4        fwd   6
                    merged:       hfrac   2     lratio   2
                      time:  0.6 sec
-      hmm step time: 0.6
-      loop time: 1.2
+      hmm step time: 0.7
+      loop time: 1.3
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 1 proc
@@ -661,18 +332,18 @@ getting annotations for final partition
       hmm step time: 0.3
     read output
         processed 1 hmm output lines with 5 sequences in 1 events  (0 failures)
-      total time: 2.2
-[92mvsearch-partition-new-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/new-results/cache-new-partition.csv --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/vsearch-partition-new-simu.csv
+      total time: 2.3
+[92mvsearch-partition-ref-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/new-results/cache-ref-partition.csv --is-simu --sw-cachefname test/reference-results/test/parameters/simu/sw-cache.csv --infname test/reference-results/test/simu.csv --parameter-dir test/reference-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/vsearch-partition-ref-simu.csv
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
 smith-waterman 
   vsearch: 489 / 500 v annotations (11 failed) with 35 v genes in 0.1 sec
-        reading sw results from test/new-results/test/parameters/simu/sw-cache
+        reading sw results from test/reference-results/test/parameters/simu/sw-cache
       info for 499 / 500 = 0.998   (1 failed)
       kept 316 (0.632) unproductive
         water time: 0.4
 hmm
-       naive hfrac bounds: 0.030 0.030   (0.098 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.030 0.030   (0.098 mean mutation in parameter dir test/reference-results/test/parameters/simu/hmm)
         collapsed 499 sequences into 300 unique naive sequences
     using hfrac bound for vsearch 0.030
     running vsearch 24 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -680,9 +351,329 @@ hmm
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 10 procs
-                    calcd:         vtb 112        fwd   0
-             min-max time:  1.0 - 1.5 sec
-      hmm step time: 1.5
+                    calcd:         vtb 114        fwd   0
+             min-max time:  1.0 - 1.3 sec
+      hmm step time: 1.4
     read output
-        processed 112 hmm output lines with 499 sequences in 112 events  (0 failures)
-      total time: 3.5
+        processed 114 hmm output lines with 499 sequences in 114 events  (0 failures)
+      total time: 3.4
+[92mcache-parameters-data[0m            ./bin/partis cache-parameters --plotdir test/new-results/test/plots/data --only-csv-plots --only-overall-plots --sw-cachefname test/new-results/test/parameters/data/sw-cache.csv --infname test/mishmash.fa --parameter-dir test/new-results/test/parameters/data --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human
+caching parameters
+  vsearch: 1271 / 1412 v annotations (141 failed) with 194 v genes in 0.1 sec
+    keeping 67 / 239 v genes
+smith-waterman 
+  vsearch: 1267 / 1412 v annotations (145 failed) with 67 v genes in 0.2 sec
+  removing old sw cache test/new-results/test/parameters/data/sw-cache
+    running 10 procs for 1412 seqs
+    running 10 procs for 72 seqs
+      info for 1369 / 1412 = 0.970   (43 failed)
+      kept 436 (0.309) unproductive
+      removed 23 / 1369 = 0.02 duplicate sequences after trimming framework insertions (leaving 1346)
+    water time: 2.6  (ig-sw 0.2  processing 0.1)
+    <only_csv> not yet implemented in allelefinder
+smith-waterman   (writing parameters) 
+  vsearch: 1267 / 1412 v annotations (145 failed) with 67 v genes in 0.2 sec
+    running 10 procs for 1369 seqs
+    running 10 procs for 29 seqs
+      info for 1369 / 1412 = 0.970   (43 failed)
+      kept 436 (0.309) unproductive
+      removed 23 / 1369 = 0.02 duplicate sequences after trimming framework insertions (leaving 1346)
+        writing sw results to test/new-results/test/parameters/data/sw-cache
+  plotting parameters (3.3 sec)
+    writing parameters (2.0 sec)
+    water time: 8.7  (ig-sw 6.2  processing 0.1)
+  writing hmms (2.2 sec)
+hmm
+    prepare_for_hmm: (0.1 sec)
+    running 10 procs
+                    calcd:         vtb 1346        fwd    0
+             min-max time:  5.4 - 13.6 sec
+    read output
+  plotting parameters (3.6 sec)
+    writing parameters (2.0 sec)
+        processed 1346 hmm output lines with 1344 sequences in 1344 events  (2 failures)
+            [91mwarning[0m skipped 2 invalid events
+         infra time: 7.5
+      hmm step time: 21.3
+  writing hmms (2.1 sec)
+      total time: 38.0
+[92msimulate[0m                         ./bin/partis simulate --n-sim-events 500 --n-trees 500 --n-leaves 5 --parameter-dir test/new-results/test/parameters/data --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/test/simu.csv --indel-frequency 0.01 --indel-location v
+simulating
+   read 500 events from 10 files
+      total time: 5.1
+[92mcache-parameters-simu[0m            ./bin/partis cache-parameters --plotdir test/new-results/test/plots/simu --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human
+caching parameters
+  vsearch: 2429 / 2556 v annotations (127 failed) with 101 v genes in 0.2 sec
+    keeping 50 / 239 v genes
+smith-waterman 
+  vsearch: 2426 / 2556 v annotations (130 failed) with 48 v genes in 0.4 sec
+  removing old sw cache test/new-results/test/parameters/simu/sw-cache
+    running 10 procs for 2556 seqs
+    running 11 procs for 33 seqs
+    running 10 procs for 3 seqs
+      info for 2553 / 2556 = 0.999   (3 failed)
+      kept 1619 (0.633) unproductive
+    water time: 6.3  (ig-sw 0.1  processing 0.1)
+    <only_csv> not yet implemented in allelefinder
+smith-waterman   (writing parameters) 
+  vsearch: 2426 / 2556 v annotations (130 failed) with 48 v genes in 0.4 sec
+    running 10 procs for 2553 seqs
+    running 11 procs for 30 seqs
+      info for 2553 / 2556 = 0.999   (3 failed)
+      kept 1619 (0.633) unproductive
+        writing sw results to test/new-results/test/parameters/simu/sw-cache
+  plotting parameters (2.9 sec)
+    writing parameters (1.8 sec)
+    water time: 12.9  (ig-sw 6.6  processing 0.2)
+  writing hmms (2.0 sec)
+hmm
+    prepare_for_hmm: (0.3 sec)
+    running 10 procs
+                    calcd:         vtb 2553        fwd    0
+             min-max time:  5.3 - 5.9 sec
+    read output
+  plotting parameters (2.9 sec)
+  plotting parameters (2.9 sec)
+    writing parameters (1.8 sec)
+    writing parameters (1.3 sec)
+        processed 2553 hmm output lines with 2553 sequences in 2553 events  (0 failures)
+         infra time: 14.9
+      hmm step time: 21.1
+  writing hmms (2.1 sec)
+      total time: 47.4
+[92mannotate-new-simu[0m                ./bin/partis annotate --plot-annotation-performance --plotdir test/new-results/annotate-new-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/annotate-new-simu.csv
+annotating
+smith-waterman 
+  vsearch: 2426 / 2556 v annotations (130 failed) with 48 v genes in 0.4 sec
+        reading sw results from test/new-results/test/parameters/simu/sw-cache
+      info for 2553 / 2556 = 0.999   (3 failed)
+      kept 1619 (0.633) unproductive
+  plotting performance 
+    [93mwarning[0m skipped annotation performance evaluation on 26 queries with different true and inferred net shm indel lengths: -8254536196214884103 8416039050429079839 8961170357903178247 2819055755701137436 -5765914056434850819 3208587373517585246 -3454587721709217092 -2223075513859145004 2184104055416868783 -3695216852180600322 2184104055416868781 857459568586543384 1014983650031943145 -4436228895801962864 -5588337732228523829 -8932696142946270324 -5720938184186886665 8728662338695573356 -7680705181012929390 -7973792867977139209 -6267598088637325588 -3137462137044230093 -6852429446917226871 2791373341530489313 -41298752927334088 49944296960664168
+(0.3 sec)
+        water time: 2.4
+hmm
+    prepare_for_hmm: (0.3 sec)
+    running 10 procs
+                    calcd:         vtb 2553        fwd    0
+             min-max time:  5.6 - 6.0 sec
+    read output
+  plotting performance (0.3 sec)
+        processed 2553 hmm output lines with 2553 sequences in 2553 events  (0 failures)
+         infra time: 4.8
+      hmm step time: 11.0
+      total time: 14.4
+[92mmulti-annotate-new-simu[0m          ./bin/partis annotate --plot-annotation-performance --simultaneous-true-clonal-seqs --plotdir test/new-results/multi-annotate-new-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/multi-annotate-new-simu.csv
+annotating
+smith-waterman 
+  vsearch: 2426 / 2556 v annotations (130 failed) with 48 v genes in 0.4 sec
+        reading sw results from test/new-results/test/parameters/simu/sw-cache
+      info for 2553 / 2556 = 0.999   (3 failed)
+      kept 1619 (0.633) unproductive
+  plotting performance 
+    [93mwarning[0m skipped annotation performance evaluation on 26 queries with different true and inferred net shm indel lengths: -8254536196214884103 8416039050429079839 8961170357903178247 2819055755701137436 -5765914056434850819 3208587373517585246 -3454587721709217092 -2223075513859145004 2184104055416868783 -3695216852180600322 2184104055416868781 857459568586543384 1014983650031943145 -4436228895801962864 -5588337732228523829 -8932696142946270324 -5720938184186886665 8728662338695573356 -7680705181012929390 -7973792867977139209 -6267598088637325588 -3137462137044230093 -6852429446917226871 2791373341530489313 -41298752927334088 49944296960664168
+(0.3 sec)
+        water time: 2.7
+hmm
+  [93mwarning[0m split apart 7 clusters that contained multiple cdr3 lengths (total clusters: 486 --> 493)
+    prepare_for_hmm: (0.2 sec)
+    running 10 procs
+                    calcd:         vtb  493        fwd    0
+             min-max time:  2.9 - 4.8 sec
+    read output
+  plotting performance (0.3 sec)
+        processed 493 hmm output lines with 2553 sequences in 493 events  (0 failures)
+         infra time: 2.6
+      hmm step time: 7.6
+      total time: 11.3
+[92mpartition-new-simu[0m               ./bin/partis partition --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --biggest-logprob-cluster-to-calculate 5 --biggest-naive-seq-cluster-to-calculate 5 --persistent-cachefname test/new-results/cache-new-partition.csv --plotdir test/new-results/partition-new-simu-annotation-performance --only-csv-plots --only-overall-plots --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/partition-new-simu.csv
+  --n-max-queries: stopped after reading 500 queries from input file
+partitioning
+smith-waterman 
+  vsearch: 480 / 500 v annotations (20 failed) with 33 v genes in 0.1 sec
+        reading sw results from test/new-results/test/parameters/simu/sw-cache
+      info for 498 / 500 = 0.996   (2 failed)
+      kept 328 (0.656) unproductive
+  plotting performance 
+    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: -8254536196214884103 8416039050429079839 8961170357903178247 2819055755701137436 -5765914056434850819 3208587373517585246
+(0.2 sec)
+        water time: 1.2
+hmm
+caching all 498 naive sequences
+    prepare_for_hmm: (0.1 sec)
+    running 10 procs
+                no/empty cache file
+                    calcd:         vtb 498        fwd   0
+                   merged:       hfrac   0     lratio   0
+             min-max time:  1.8 - 2.2 sec
+      hmm step time: 2.4
+   collapsed 498 queries into 297 clusters with identical naive seqs (0.0 sec)
+297 clusters with 10 procs
+    prepare_for_hmm: (0.0 sec)
+       naive hfrac bounds: 0.015 0.104   (0.102 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+    running 10 procs
+          read from cache:  naive-seqs 498   logprobs   0
+                    calcd:         vtb 127        fwd 196
+                   merged:       hfrac  34     lratio  18
+             min-max time:  1.7 - 4.0 sec
+         infra time: 0.2
+      hmm step time: 4.2
+245 clusters with 7 procs
+    prepare_for_hmm: (0.0 sec)
+    running 7 procs
+          read from cache:  naive-seqs 635   logprobs 196
+                    calcd:         vtb  38        fwd 108
+                   merged:       hfrac  26     lratio  12
+             min-max time:  1.8 - 5.7 sec
+         infra time: 0.1
+      hmm step time: 5.9
+207 clusters with 5 procs
+    prepare_for_hmm: (0.0 sec)
+    running 5 procs
+          read from cache:  naive-seqs 680   logprobs 304
+                    calcd:         vtb  36        fwd  97
+                   merged:       hfrac  23     lratio  15
+             min-max time:  1.6 - 5.6 sec
+      hmm step time: 5.8
+169 clusters with 3 procs
+    prepare_for_hmm: (0.0 sec)
+    running 3 procs
+          read from cache:  naive-seqs 728   logprobs 401
+                    calcd:         vtb  27        fwd  86
+                   merged:       hfrac  16     lratio  13
+             min-max time:  3.9 - 5.6 sec
+      hmm step time: 5.7
+140 clusters with 2 procs
+    prepare_for_hmm: (0.0 sec)
+    running 2 procs
+          read from cache:  naive-seqs 764   logprobs 487
+                    calcd:         vtb  17        fwd  69
+                   merged:       hfrac  13     lratio   7
+             min-max time:  3.9 - 9.3 sec
+      hmm step time: 9.5
+120 clusters with 2 procs
+    prepare_for_hmm: (0.0 sec)
+    running 2 procs
+          read from cache:  naive-seqs 788   logprobs 556
+                    calcd:         vtb   7        fwd  30
+                   merged:       hfrac   7     lratio   2
+             min-max time:  2.0 - 4.0 sec
+      hmm step time: 4.2
+111 clusters with 2 procs
+    prepare_for_hmm: (0.0 sec)
+    running 2 procs
+          read from cache:  naive-seqs 800   logprobs 586
+                    calcd:         vtb   2        fwd  17
+                   merged:       hfrac   3     lratio   0
+             min-max time:  2.0 - 2.7 sec
+      hmm step time: 2.8
+108 clusters with 2 procs
+    prepare_for_hmm: (0.0 sec)
+    running 2 procs
+          read from cache:  naive-seqs 804   logprobs 603
+                    calcd:         vtb   2        fwd   9
+                   merged:       hfrac   2     lratio   1
+             min-max time:  1.0 - 1.5 sec
+      hmm step time: 1.7
+105 clusters with 1 proc
+    prepare_for_hmm: (0.0 sec)
+    running 1 proc
+          read from cache:  naive-seqs 807   logprobs 612
+                    calcd:         vtb   2        fwd  68
+                   merged:       hfrac   2     lratio   2
+                     time:  11.5 sec
+      hmm step time: 11.7
+      loop time: 51.4
+getting annotations for final partition
+    prepare_for_hmm: (0.0 sec)
+    running 10 procs
+                    calcd:         vtb 101        fwd   0
+             min-max time:  0.8 - 1.6 sec
+      hmm step time: 1.7
+    read output
+  plotting performance (0.3 sec)
+        processed 101 hmm output lines with 498 sequences in 101 events  (0 failures)
+  --only-csv-plots not implemented for partition plots, so skipping
+      total time: 57.8
+[92mseed-partition-new-simu[0m          ./bin/partis partition --n-max-queries 500 --persistent-cachefname test/new-results/cache-new-partition.csv --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed-unique-id 7319000238122952104 --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/seed-partition-new-simu.csv
+  --n-max-queries: stopped after reading 500 queries from input file
+partitioning
+smith-waterman 
+  vsearch: 480 / 500 v annotations (20 failed) with 33 v genes in 0.1 sec
+        reading sw results from test/new-results/test/parameters/simu/sw-cache
+      info for 498 / 500 = 0.996   (2 failed)
+      kept 328 (0.656) unproductive
+      removed 383 / 498 = 0.77 sequences with cdr3 length different from seed sequence (leaving 115)
+        water time: 0.4
+hmm
+   collapsed 115 queries into 63 clusters with identical naive seqs (0.0 sec)
+63 clusters with 10 procs
+    prepare_for_hmm: (0.0 sec)
+       naive hfrac bounds: 0.015 0.104   (0.102 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+    running 10 procs
+          read from cache:  naive-seqs 812   logprobs 680
+                    calcd:         vtb  27        fwd  10
+                   merged:       hfrac   1     lratio   0
+             min-max time:  0.1 - 0.5 sec
+      hmm step time: 0.6
+71 clusters with 7 procs
+    prepare_for_hmm: (0.0 sec)
+    running 7 procs
+          read from cache:  naive-seqs 830   logprobs 687
+                    calcd:         vtb   0        fwd   0
+                   merged:       hfrac   0     lratio   0
+             min-max time:  0.0 - 0.0 sec
+    nothing to merge into /tmp/dralph/hmms/581509/hmm_cached_info.csv
+      hmm step time: 0.1
+68 clusters with 5 procs
+    prepare_for_hmm: (0.0 sec)
+    running 5 procs
+          read from cache:  naive-seqs 830   logprobs 687
+                    calcd:         vtb   0        fwd   2
+                   merged:       hfrac   0     lratio   0
+             min-max time:  0.0 - 0.2 sec
+      hmm step time: 0.2
+      removed 110 sequences in unseeded clusters, split 5 seeded clusters into 5 singletons, and merged these into 2 clusters with identical naive seqs
+        new n_procs 1 (initial seqs/proc: 11.50   new seqs/proc: 2.00
+2 clusters with 1 proc
+    prepare_for_hmm: (0.0 sec)
+    running 1 proc
+          read from cache:  naive-seqs 830   logprobs 689
+                    calcd:         vtb   1        fwd   2
+                   merged:       hfrac   1     lratio   0
+                     time:  0.1 sec
+      hmm step time: 0.1
+      loop time: 1.1
+getting annotations for final partition
+    prepare_for_hmm: (0.0 sec)
+    running 1 proc
+                    calcd:         vtb   1        fwd   0
+                     time:  0.1 sec
+      hmm step time: 0.1
+    read output
+        processed 1 hmm output lines with 5 sequences in 1 events  (0 failures)
+      total time: 1.9
+[92mvsearch-partition-new-simu[0m       ./bin/partis partition --naive-vsearch --n-max-queries 500 --persistent-cachefname test/new-results/cache-new-partition.csv --is-simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.csv --infname test/new-results/test/simu.csv --parameter-dir test/new-results/test/parameters/simu --seed 1 --n-procs 10 --simulation-germline-dir data/germlines/human --outfname test/new-results/vsearch-partition-new-simu.csv
+  --n-max-queries: stopped after reading 500 queries from input file
+partitioning
+smith-waterman 
+  vsearch: 480 / 500 v annotations (20 failed) with 33 v genes in 0.1 sec
+        reading sw results from test/new-results/test/parameters/simu/sw-cache
+      info for 498 / 500 = 0.996   (2 failed)
+      kept 328 (0.656) unproductive
+        water time: 0.4
+hmm
+       naive hfrac bounds: 0.030 0.030   (0.102 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+        collapsed 498 sequences into 297 unique naive sequences
+    using hfrac bound for vsearch 0.030
+    running vsearch 20 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . 
+      vsearch time: 1.0
+getting annotations for final partition
+    prepare_for_hmm: (0.0 sec)
+    running 10 procs
+                    calcd:         vtb 115        fwd   0
+             min-max time:  0.9 - 1.5 sec
+      hmm step time: 1.6
+    read output
+        processed 115 hmm output lines with 498 sequences in 115 events  (0 failures)
+      total time: 3.4
