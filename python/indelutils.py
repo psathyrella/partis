@@ -598,17 +598,14 @@ def check_single_sequence_indels(line, iseq, debug=False):
 
     new_indelfo = reconstruct_indelfo_from_gap_seqs_and_naive_seq(line['indelfos'][iseq]['qr_gap_seq'], line['indelfos'][iseq]['gl_gap_seq'], indelfo['genes'], line, iseq, debug=debug)
 
-    different_genes = False
     if set(new_indelfo['genes']) != set(indelfo['genes']):
         print '%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((indelfo['genes'].keys())), ' '.join(new_indelfo['genes'].keys()))
-        different_genes = True
         consistent = False
     else:
         for region in indelfo['genes']:
             if new_indelfo['genes'][region] != indelfo['genes'][region]:
-                # print '%s different indel genes before %s and after %s reconstruction' % (utils.color('red', 'error'), utils.color_gene(indelfo['genes'][region]), utils.color_gene(new_indelfo['genes'][region]))
-                # consistent = False
-                different_genes = True
+                print '%s different indel genes before %s and after %s reconstruction' % (utils.color('red', 'error'), utils.color_gene(indelfo['genes'][region]), utils.color_gene(new_indelfo['genes'][region]))
+                consistent = False
 
     if len(new_indelfo['indels']) != len(indelfo['indels']):
         print '%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(indelfo['indels']), len(new_indelfo['indels']))
@@ -633,8 +630,6 @@ def check_single_sequence_indels(line, iseq, debug=False):
             consistent &= check_single_ifo(old_ifo, new_ifo)
 
     if not consistent:
-        if different_genes:
-            print '   different genes: %s  %s' % (indelfo['genes'], new_indelfo['genes'])
         print '%s inconsistent indel info for %s (see previous lines)' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
         print '       original:'
         print utils.pad_lines(get_dbg_str(indelfo), 8)

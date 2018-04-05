@@ -1640,7 +1640,7 @@ class PartitionDriver(object):
                 # if self.args.correct_boundaries and len(padded_line['unique_ids']) > 1:  # this does a decent job of correct the multi-hmms tendency to overestimate insertion and deletion lengths, but it also removes a significant portion of the multi-hmms advantage in naive hamming distance
                 #     self.correct_multi_hmm_boundaries(padded_line)
 
-                utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)
+                utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
