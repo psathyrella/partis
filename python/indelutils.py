@@ -575,20 +575,22 @@ def reconstruct_indelfo_from_gap_seqs_and_naive_seq(qr_gap_seq, gl_gap_seq, inde
 
 # ----------------------------------------------------------------------------------------
 def check_single_sequence_indels(line, iseq, debug=False):
+    debug = True
     # debug = 2
     def check_single_ifo(old_ifo, new_ifo):
-        if debug:
+        if debug > 1:
             print '  len %d  pos %d  seqstr %s' % (old_ifo['len'], old_ifo['pos'], old_ifo['seqstr']),
         if new_ifo != old_ifo:
-            if debug:
+            if debug > 1:
                 print '  %s' % utils.color('red', 'nope')
             new_seqstr, old_seqstr = utils.color_mutants(old_ifo['seqstr'], new_ifo['seqstr'], return_ref=True, align=True) #len(old_ifo['seqstr']) != len(new_ifo['seqstr']))
-            print '  pos %d --> %s    len %d --> %s    seqstr %s --> %s' % (old_ifo['pos'], utils.color(None if new_ifo['pos'] == old_ifo['pos'] else 'red', '%d' % new_ifo['pos']),
-                                                                            old_ifo['len'], utils.color(None if new_ifo['len'] == old_ifo['len'] else 'red', '%d' % new_ifo['len']),
-                                                                            old_seqstr, new_seqstr)
+            if debug:
+                print '  pos %d --> %s    len %d --> %s    seqstr %s --> %s' % (old_ifo['pos'], utils.color(None if new_ifo['pos'] == old_ifo['pos'] else 'red', '%d' % new_ifo['pos']),
+                                                                                old_ifo['len'], utils.color(None if new_ifo['len'] == old_ifo['len'] else 'red', '%d' % new_ifo['len']),
+                                                                                old_seqstr, new_seqstr)
             return False
         else:
-            if debug:
+            if debug > 1:
                 print '  %s' % utils.color('green', 'ok')
             return True
 
@@ -601,42 +603,47 @@ def check_single_sequence_indels(line, iseq, debug=False):
     new_indelfo = reconstruct_indelfo_from_gap_seqs_and_naive_seq(line['indelfos'][iseq]['qr_gap_seq'], line['indelfos'][iseq]['gl_gap_seq'], indelfo['genes'], line, iseq, debug=debug)
 
     if set(new_indelfo['genes']) != set(indelfo['genes']):
-        print '%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((indelfo['genes'].keys())), ' '.join(new_indelfo['genes'].keys()))
+        if debug:
+            print '%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((indelfo['genes'].keys())), ' '.join(new_indelfo['genes'].keys()))
         consistent = False
     else:
         for region in indelfo['genes']:
             if new_indelfo['genes'][region] != indelfo['genes'][region]:
-                print '%s different indel genes before %s and after %s reconstruction' % (utils.color('red', 'error'), utils.color_gene(indelfo['genes'][region]), utils.color_gene(new_indelfo['genes'][region]))
+                if debug:
+                    print '%s different indel genes before %s and after %s reconstruction' % (utils.color('red', 'error'), utils.color_gene(indelfo['genes'][region]), utils.color_gene(new_indelfo['genes'][region]))
                 consistent = False
 
     if len(new_indelfo['indels']) != len(indelfo['indels']):
-        print '%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(indelfo['indels']), len(new_indelfo['indels']))
+        if debug:
+            print '%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(indelfo['indels']), len(new_indelfo['indels']))
         consistent = False
 
     old_indel_list, new_indel_list = copy.deepcopy(indelfo['indels']), copy.deepcopy(new_indelfo['indels'])
     old_positions, new_positions = [ifo['pos'] for ifo in old_indel_list], [ifo['pos'] for ifo in new_indel_list]
     if old_positions == new_positions:
-        if debug:
+        if debug > 1:
             print '  same positions in old and new indelfos: %s' % ' '.join([str(p) for p in old_positions])
     elif set(new_positions) == set(old_positions):
-        if debug:  # I think this'll only happen on old simulation files (ok, I can't really call them "old" yet since I haven't fixed it, but at some point I will, and then everybody's positions will then be sorted)
+        if debug > 1:  # I think this'll only happen on old simulation files (ok, I can't really call them "old" yet since I haven't fixed it, but at some point I will, and then everybody's positions will then be sorted)
             print '  sorting both indel lists'
         old_indel_list = sorted(old_indel_list, key=lambda q: q['pos'])
         new_indel_list = sorted(new_indel_list, key=lambda q: q['pos'])
     else:
         consistent = False
-        print '  inconsistent position lists:\n  old  %s\n  new  %s' % (' '.join([str(p) for p in sorted(old_positions)]), ' '.join([str(p) for p in sorted(new_positions)]))
+        if debug:
+            print '  inconsistent position lists:\n  old  %s\n  new  %s' % (' '.join([str(p) for p in sorted(old_positions)]), ' '.join([str(p) for p in sorted(new_positions)]))
 
     if consistent:  # i.e. if nothing so far has been inconsistent
         for old_ifo, new_ifo in zip(old_indel_list, new_indel_list):
             consistent &= check_single_ifo(old_ifo, new_ifo)
 
     if not consistent:
-        print '%s inconsistent indel info for %s (see previous lines)' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
-        print '       original:'
-        print utils.pad_lines(get_dbg_str(indelfo), 8)
-        print '       reconstructed:'
-        print utils.pad_lines(get_dbg_str(new_indelfo), 8)
+        if debug:
+            print '%s inconsistent indel info for %s (see previous lines)' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
+            print '       original:'
+            print utils.pad_lines(get_dbg_str(indelfo), 8)
+            print '       reconstructed:'
+            print utils.pad_lines(get_dbg_str(new_indelfo), 8)
 
 # ----------------------------------------------------------------------------------------
 def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=False):
@@ -704,7 +711,7 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
     joint_indelfo['gl_gap_seq'] = ''.join(gl_gap_seq)
     assert len(joint_indelfo['qr_gap_seq']) == len(joint_indelfo['gl_gap_seq'])
     joint_indelfo['reversed_seq'] = get_reversed_seq(joint_indelfo['qr_gap_seq'], joint_indelfo['gl_gap_seq'], full_qrseq[ : qrbounds['v'][0]], full_qrseq[qrbounds['j'][1] : ])
-    assert 'N' not in joint_indelfo['reversed_seq']  # TODO remove this
+    # assert 'N' not in joint_indelfo['reversed_seq']  # TODO remove this
 
     joint_indelfo['qr_gap_seq'] = full_qrseq[ : qrbounds['v'][0]] + joint_indelfo['qr_gap_seq'] + full_qrseq[qrbounds['j'][1] : ]
     joint_indelfo['gl_gap_seq'] = utils.ambiguous_bases[0] * qrbounds['v'][0] + joint_indelfo['gl_gap_seq'] + utils.ambiguous_bases[0] * (len(full_qrseq) - qrbounds['j'][1])
