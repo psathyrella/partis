@@ -37,8 +37,10 @@ def glfo_fnames(gldir, locus):
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
 imgt_info_indices = ('accession-number', 'gene', 'species', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter NOTE duplicate species is 'cause I split on ' ' and '|' in utils.read_fastx(), which should maybe probably eventually be changed
-functionalities = [(sep[0] + f + sep[1]).strip() for f in ['F', 'ORF', 'P'] for sep in ['  ', '()', '[]']]   # not actually sure what the parentheses and brackets mean
-pseudogene_funcionalities = ['P', '[P]', '(P)']
+separators = ['()', '[]']  # not actually sure what the parentheses and brackets mean
+possible_functionalities = ['F', 'ORF', 'P']
+def strip_functionality(funcstr):
+    return funcstr.strip(''.join(separators))
 
 duplicate_names = {
     'v' : [
@@ -110,20 +112,24 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         print ''
 
 #----------------------------------------------------------------------------------------
-def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
-    n_skipped_pseudogenes = 0
+def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, functionalities=None):
+    n_skipped_pseudogenes, n_skipped_orfs = 0, 0
     seq_to_gene_map = {}
     for seqfo in utils.read_fastx(fname):
+        functy = None
         # first get gene name
         if seqfo['name'][:2] != 'IG' and seqfo['name'][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
             if len(seqfo['infostrs']) < len(imgt_info_indices):
                 raise Exception('info str %s is too short (len %d) to correspond to imgt info indices %s (len %d)' % (seqfo['infostrs'], len(seqfo['infostrs']), imgt_info_indices, len(imgt_info_indices)))
             gene = seqfo['infostrs'][imgt_info_indices.index('gene')]
-            functionality = seqfo['infostrs'][imgt_info_indices.index('functionality')]
-            if functionality not in functionalities:
-                raise Exception('unexpected functionality %s in %s' % (functionality, fname))
-            if skip_pseudogenes and functionality in pseudogene_funcionalities:
+            functy = strip_functionality(seqfo['infostrs'][imgt_info_indices.index('functionality')])
+            if functy not in possible_functionalities:
+                raise Exception('unexpected functionality %s in %s' % (functy, fname))
+            if skip_pseudogenes and functy == 'P':
                 n_skipped_pseudogenes += 1
+                continue
+            if skip_orfs and functy == 'ORF':
+                n_skipped_orfs += 1
                 continue
         else:  # plain fasta with just the gene name after the '>'
             gene = seqfo['name']
@@ -131,6 +137,7 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
         if not aligned and utils.get_region(gene) != utils.get_region(os.path.basename(fname)):  # if <aligned> is True, file name is expected to be whatever
             raise Exception('gene %s from %s has unexpected region %s' % (gene, os.path.basename(fname), utils.get_region(gene)))
         if gene in seqs[utils.get_region(gene)]:
+            utils.color_mutants(seqs[utils.get_region(gene)][gene], utils.remove_gaps(seqfo['seq']), align=True, print_result=True)
             raise Exception('gene name %s appears twice in %s' % (gene, fname))
 
         # then the sequence
@@ -147,6 +154,8 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
         seq_to_gene_map[seq].append(gene)
 
         seqs[utils.get_region(gene)][gene] = seq
+        if functy is not None and functionalities is not None:
+            functionalities[gene] = functy  # kind of dumb to split seqs by region but not functionalities, but I kind of wish I hadn't done seqs that way
 
     tmpcounts = [len(gl) for gl in seq_to_gene_map.values()]  # number of names corresponding to each sequence (should all be ones)
     if tmpcounts.count(1) != len(tmpcounts):
@@ -158,20 +167,22 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, aligned=False):
 
     if n_skipped_pseudogenes > 0:
         print '    skipped %d %s pseudogenes (leaving %d)' % (n_skipped_pseudogenes, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
+    if n_skipped_orfs > 0:
+        print '    skipped %d %s orfs (leaving %d)' % (n_skipped_orfs, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
 
 #----------------------------------------------------------------------------------------
-def read_germline_seqs(gldir, locus, skip_pseudogenes):
+def read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities):
     seqs = {r : OrderedDict() for r in utils.regions}
     for region in utils.getregions(locus):
-        read_fasta_file(seqs, get_fname(gldir, locus, region), skip_pseudogenes)
+        read_fasta_file(seqs, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, functionalities=functionalities)
     if not utils.has_d_gene(locus):  # choose a sequence for the dummy d
         seqs['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
     return seqs
 
 # ----------------------------------------------------------------------------------------
-def read_aligned_gl_seqs(fname, glfo):
+def read_aligned_gl_seqs(fname, glfo):  # only used in partitiondriver with --aligned-germline-fname (which I think is only used for presto output)
     aligned_gl_seqs = {r : OrderedDict() for r in utils.regions}
-    read_fasta_file(aligned_gl_seqs, fname, skip_pseudogenes=False, aligned=True)
+    read_fasta_file(aligned_gl_seqs, fname, skip_pseudogenes=False, skip_orfs=False, aligned=True)
 
     # pad all the Vs to the same length (imgt fastas just leave them all unequal lengths on the right of the alignment)
     max_aligned_length = max([len(seq) for seq in aligned_gl_seqs['v'].values()])
@@ -418,7 +429,7 @@ def print_glfo(glfo, use_primary_version=False):  # NOTE kind of similar to bin/
                     print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------
-def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False):
+def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, debug=False):
     if not os.path.exists(gldir + '/' + locus):  # NOTE doesn't re-link it if we already made the link before
         if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
             print '    note: linking new germline dir name to old name in %s' % gldir
@@ -428,8 +439,8 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, debug=False)
 
     if debug:
         print '  reading %s locus glfo from %s' % (locus, gldir)
-    glfo = {'locus' : locus}
-    glfo['seqs'] = read_germline_seqs(gldir, locus, skip_pseudogenes)
+    glfo = {'locus' : locus, 'functionalities' : {}}
+    glfo['seqs'] = read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities=glfo['functionalities'])
     read_extra_info(glfo, gldir)
     get_missing_codon_info(glfo, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
