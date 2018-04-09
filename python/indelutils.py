@@ -711,7 +711,7 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
     joint_indelfo['gl_gap_seq'] = ''.join(gl_gap_seq)
     assert len(joint_indelfo['qr_gap_seq']) == len(joint_indelfo['gl_gap_seq'])
     joint_indelfo['reversed_seq'] = get_reversed_seq(joint_indelfo['qr_gap_seq'], joint_indelfo['gl_gap_seq'], full_qrseq[ : qrbounds['v'][0]], full_qrseq[qrbounds['j'][1] : ])
-    # assert 'N' not in joint_indelfo['reversed_seq']  # TODO remove this
+    # assert 'N' not in joint_indelfo['reversed_seq']  # this happens if there's Ns in the initial sequence
 
     joint_indelfo['qr_gap_seq'] = full_qrseq[ : qrbounds['v'][0]] + joint_indelfo['qr_gap_seq'] + full_qrseq[qrbounds['j'][1] : ]
     joint_indelfo['gl_gap_seq'] = utils.ambiguous_bases[0] * qrbounds['v'][0] + joint_indelfo['gl_gap_seq'] + utils.ambiguous_bases[0] * (len(full_qrseq) - qrbounds['j'][1])

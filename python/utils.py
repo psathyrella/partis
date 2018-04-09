@@ -1143,7 +1143,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
     end['j'] = start['j'] + len(line['j_gl_seq'])
     line['regional_bounds'] = {r : (start[r], end[r]) for r in regions}
 
-    indelutils.deal_with_indel_stuff(line, reset_indel_genes=reset_indel_genes)
+    indelutils.deal_with_indel_stuff(line, reset_indel_genes=reset_indel_genes, glfo=glfo)
     input_codon_positions = [indelutils.get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']

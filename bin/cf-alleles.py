@@ -25,7 +25,28 @@ args = parser.parse_args()
 if args.glfo_dir is None:
     args.glfo_dir = 'data/germlines/' + args.species
 
-glfo = glutils.read_glfo(args.glfo_dir, args.locus)
+# ----------------------------------------------------------------------------------------
+imgt_glfo = glutils.read_glfo(args.glfo_dir, args.locus, skip_pseudogenes=True, skip_orfs=False)
+# import csv
+# with open('functionalities.csv', 'w') as outfile:
+#     writer = csv.DictWriter(outfile, ('gene', 'functionality'))
+#     writer.writeheader()
+#     for region in utils.regions:
+#         for gene in imgt_glfo['seqs'][region]:
+#             writer.writerow({'gene' : gene, 'functionality' : imgt_glfo['functionalities'][gene]})
+# sys.exit()
+my_glfo = glutils.read_glfo('data/germlines/' + args.species, args.locus)
+for region in utils.regions:
+    print region
+    for gene in my_glfo['seqs'][region]:
+        func = imgt_glfo['functionalities'].get(gene, 'n/a')
+        # if func != 'F':
+        print '    %s  %s' % (utils.color_gene(gene, width=15), func)
+        if 'OR' in gene and func != 'ORF':
+            print ' %s %s  %s' % (utils.color('red', 'x'), utils.color_gene(gene, width=15), func)
+glfo = my_glfo
+sys.exit()
+# ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
 def get_base(gene):
