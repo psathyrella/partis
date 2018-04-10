@@ -429,7 +429,7 @@ def print_glfo(glfo, use_primary_version=False):  # NOTE kind of similar to bin/
                     print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------
-def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, debug=False):
+def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
     if not os.path.exists(gldir + '/' + locus):  # NOTE doesn't re-link it if we already made the link before
         if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
             print '    note: linking new germline dir name to old name in %s' % gldir
@@ -451,6 +451,27 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
 
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
+
+    if remove_orfs:
+        orfs_removed = []
+        assert len(glfo['functionalities']) == 0
+        default_functionality_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/data/germlines/human/functionalities.csv'
+        func_info = {}  # keep them in a spaerate dict so it's easier to loop over the genes in the glfo (to ensure they're all in the functionality file)
+        with open(default_functionality_file) as ffile:
+            reader = csv.DictReader(ffile)
+            for line in reader:
+                func_info[line['gene']] = line['functionality']
+        for gene in [g for r in utils.regions for g in glfo['seqs'][r]]:
+            if gene not in func_info:
+                raise Exception('no func info for %s' % utils.color_gene(gene))
+            if func_info[gene] == 'ORF':
+                remove_gene(glfo, gene)
+                orfs_removed.append(gene)
+                continue
+            assert func_info[gene] == 'F'  # should've already removed all the pseudogenes (and there shouldn't be any other functionality)
+            glfo['functionalities'][gene] = func_info[gene]
+        if len(orfs_removed) > 0:
+            print '     removed %d ORFs: %s' % (len(orfs_removed), ' '.join([utils.color_gene(g) for g in sorted(orfs_removed)]))
 
     return glfo
 
