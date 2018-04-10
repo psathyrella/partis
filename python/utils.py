@@ -3214,7 +3214,7 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
     return {'gene-counts' : gene_counts, 'annotations' : annotations, 'failures' : failed_queries}
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_indels=False, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False):  # '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
+def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False):  # '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -3260,12 +3260,12 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_inde
     assert mismatch < 0  # if you give it a positive one it doesn't complain, so presumably it's actually using that positive  (at least for v identification it only makes a small difference, but vsearch's default is negative)
     cmd += ' --match %d'  % match  # default 2
     cmd += ' --mismatch %d' % mismatch  # default -4
-# ----------------------------------------------------------------------------------------
     # cmd += ' --gapext %dI/%dE' % (2, 1)  # default: (2 internal)/(1 terminal)
     # TODO clean this up
     gap_open = 1000 if no_indels else 50
     cmd += ' --gapopen %dI/%dE' % (gap_open, 2)  # default: (20 internal)/(2 terminal)  # TODO um, maybe
-# ----------------------------------------------------------------------------------------
+    if minseqlength is not None:
+        cmd += ' --minseqlength %d' % minseqlength
     if action == 'cluster':
         outfname = workdir + '/vsearch-clusters.txt'
         cmd += ' --cluster_fast ' + infname

@@ -389,18 +389,18 @@ def read_extra_info(glfo, gldir):
 #----------------------------------------------------------------------------------------
 def print_glfo(glfo, use_primary_version=False):  # NOTE kind of similar to bin/cf-alleles.py
     for region in utils.regions:
-        print region
+        print '%s' % utils.color('reverse_video', utils.color('green', region))
         if use_primary_version:
             groupfcn = utils.primary_version
         else:
             groupfcn = utils.gene_family
         gene_groups = set([groupfcn(g) for g in glfo['seqs'][region]])
         for ggroup in sorted(gene_groups):
-            print '  %s' % ggroup
+            print '  %s' % utils.color('blue', ggroup)
             ggroupseqs = {g : glfo['seqs'][region][g] for g in glfo['seqs'][region] if groupfcn(g) == ggroup}
             workdir = tempfile.mkdtemp()
             with tempfile.NamedTemporaryFile() as tmpfile:  # kind of hilarious that i use vsearch here, but mafft up there... oh well it shouldn't matter
-                _ = utils.run_vsearch('cluster', ggroupseqs, workdir, threshold=0.3, msa_fname=tmpfile.name)  # <threshold> is kind of random, i just set it to something that seems to group all the V genes with the same ggroup together
+                _ = utils.run_vsearch('cluster', ggroupseqs, workdir, threshold=0.3, minseqlength=5, msa_fname=tmpfile.name)  # <threshold> is kind of random, i just set it to something that seems to group all the V genes with the same ggroup together
                 msa_seqs = utils.read_fastx(tmpfile.name, ftype='fa')
             msa_info = []
             for seqfo in msa_seqs:
