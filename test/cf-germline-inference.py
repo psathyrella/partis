@@ -139,14 +139,13 @@ def get_single_performance(outdir, method, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def get_gls_fname(outdir, method, locus, sim_truth=False, data=False, annotation_performance_plots=False):  # NOTE duplicates/depends on code in test-germline-inference.py
+    if annotation_performance_plots:
+        return outdir + '/' + method + '/annotation-performance-plots/sw/mutation'
     gls_dir = get_gls_dir(outdir, method, sim_truth=sim_truth, data=data, annotation_performance_plots=annotation_performance_plots)
     return glutils.get_fname(gls_dir, locus, region)
 
 # ----------------------------------------------------------------------------------------
 def get_gls_dir(outdir, method, sim_truth=False, data=False, annotation_performance_plots=False):  # NOTE duplicates/depends on code in test-germline-inference.py
-    if annotation_performance_plots:
-        return outdir + '/' + method + '/annotation-performance-plots/sw/mutation'
-
     if data:
         if method == 'partis' or method == 'full':
             outdir += '/hmm/germline-sets'  # NOTE this is inside the datascripts output dir, also NOTE doesn't use <method> (since we only have partis for a method a.t.m., although could use --label or --extra-str to differentiate)
