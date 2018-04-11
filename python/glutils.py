@@ -1100,7 +1100,7 @@ def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, d
     return nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq
 
 # ----------------------------------------------------------------------------------------
-def find_nearest_gene_using_names(glfo, gene, debug=True):
+def find_nearest_gene_using_names(glfo, gene, debug=False):
     def handle_return(genelist, label):
         if len(genelist) > 0:
             if debug:

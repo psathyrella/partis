@@ -22,6 +22,10 @@ import heads
 sim_locus = 'igh'
 region = 'v'
 
+study_translations = {  # for zenodo
+    'jason-mg' : 'myasthenia-gravis',
+    'jason-influenza' : 'influenza',
+}
 varval_titles = {
     'mfreq' : 'SHM rate',
     'nsnp' : 'SNPs to new allele',
@@ -422,11 +426,11 @@ def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
                 old_total = sum(countfo.values())
                 orf_genes = [g for g in countfo if g not in glfo['seqs'][region]]  # this is kind of dangerous... but the genes are read from the same parameter dir that we're reading this prevalence file, so the only way it's gonna be missing is if we just removed it with the read_glfo() line above
                 for ogene in orf_genes:
-                    if region == 'v':
-                        _, nearest_gene, _ = glutils.find_nearest_gene_with_same_cpos(glfo, glfo['seqs'][region][ogene])
-                    else:
-                        nearest_gene = glutils.find_nearest_gene_using_names(glfo, ogene)
-                    print '  adding %d to %s from %s' % (countfo[ogene], utils.color_gene(nearest_gene), utils.color_gene(ogene))
+                    # if region == 'v':
+                    #     _, nearest_gene, _ = glutils.find_nearest_gene_with_same_cpos(glfo, glfo['seqs'][region][ogene])  # oops, that's dumb... of course it isn't there
+                    # else:
+                    nearest_gene = glutils.find_nearest_gene_using_names(glfo, ogene)
+                    # print '  adding %d to %s from %s' % (countfo[ogene], utils.color_gene(nearest_gene), utils.color_gene(ogene))
                     countfo[nearest_gene] += countfo[ogene]
                 for ogene in orf_genes:
                     del countfo[ogene]
@@ -451,7 +455,7 @@ def write_zenodo_files(args, baseoutdir):
         print '%-10s  %15s   %s' % (study, dset, baseoutdir)
         metafos = heads.read_metadata(study)
         for method in args.methods:
-            outdir = get_outdir(args, baseoutdir, varname='data', varval='zenodo/%s/%s/%s' % (study, dset, method.replace('-default', '')))
+            outdir = get_outdir(args, baseoutdir, varname='data', varval='zenodo/%s/%s/%s' % (study_translations.get(study, study), dset, method.replace('-default', '')))
             print '  %-15s' % method
             write_single_zenodo_subdir(outdir, args, study, dset, method, metafos[dset])
 
@@ -620,11 +624,9 @@ default_varvals = {
     ],
     'gls-gen' : None,
     'data' : {
-        'jason-mg' : [
-            # 'AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh',
-            'MK03-igh', #'MK05-igh',
-        #     'HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl',
-        ],
+        # 'jason-mg' : [
+        #     'AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh',
+        # ],
         # 'sheng-gssp' : [
         #     'lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool',
         #     # 'lp23810-m-pool', 'lp08248-m-pool',
