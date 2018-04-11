@@ -403,6 +403,23 @@ def plot_single_test(args, baseoutdir, method):
         )
 
 # ----------------------------------------------------------------------------------------
+def write_single_zenodo_subdir(args, study, dset, method, mfo):
+    data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
+    glsfname = get_gls_fname(data_outdir, method, locus=mfo['locus'], data=True)
+    gldir = glsfname.rstrip('%s/igh%s.fasta' % (mfo['locus'], region))
+    print gldir
+    sys.exit()
+
+# ----------------------------------------------------------------------------------------
+def write_zenodo_files(args, baseoutdir):
+    for study, dset in [v.split('/') for v in args.varvals]:
+        print study, dset
+        metafos = heads.read_metadata(study)
+        for method in args.methods:
+            print '  ', method
+            write_single_zenodo_subdir(args, study, dset, method, metafos[dset])
+
+# ----------------------------------------------------------------------------------------
 def plot_tests(args, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False, print_summary_table=False):
     if args.action == 'gls-gen':
         if annotation_performance_plots:
@@ -567,10 +584,11 @@ default_varvals = {
     ],
     'gls-gen' : None,
     'data' : {
-        # 'jason-mg' : [
-        #     'AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh',
-        # #     'HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl',
-        # ],
+        'jason-mg' : [
+            # 'AR02-igh', 'AR03-igh', 'AR04-igh', 'AR05-igh', 'HD07-igh', 'HD09-igh', 'HD10-igh', 'HD13-igh', 'MK02-igh', 'MK03-igh', 'MK04-igh', 'MK05-igh', 'MK08-igh',
+            'MK03-igh', #'MK05-igh',
+        #     'HD07-igk', 'HD07-igl', 'AR03-igk', 'AR03-igl',
+        ],
         # 'sheng-gssp' : [
         #     'lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool',
         #     # 'lp23810-m-pool', 'lp08248-m-pool',
@@ -656,6 +674,7 @@ parser.add_argument('--n-tests', type=int, default=3)
 parser.add_argument('--iteststart', type=int, default=0)
 parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
+parser.add_argument('--write-zenodo-files', action='store_true')
 parser.add_argument('--plot-annotation-performance', action='store_true')
 parser.add_argument('--print-table', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
@@ -692,7 +711,10 @@ if args.action == 'multi-nsnp':
     factor = numpy.median([(len(nl) + 1) / 2. for nl in args.varvals])  # i.e. the ratio of (how many alleles we'll be dividing the events among), to (how many we'd be dividing them among for the other [single-nsnp] tests)
     args.n_event_list = [int(factor * n) for n in args.n_event_list]
 
-if args.plot:
+if args.write_zenodo_files:
+    assert args.action == 'data'  # would need to implement it
+    write_zenodo_files(args, baseoutdir)
+elif args.plot:
     if args.method_vs_method:
         plot_tests(args, baseoutdir, method=None, method_vs_method=True)
     elif args.plot_annotation_performance:

@@ -194,7 +194,7 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
     glfos = {}
     for label, fname in zip(glslabels, glsfnames):
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
-        glfos[label] = glutils.read_glfo(gldir, args.locus, remove_orfs=True)  # this is gonna fail for tigger since you only have the .fa
+        glfos[label] = glutils.read_glfo(gldir, args.locus, remove_orfs='partis' in label)  # this is gonna fail for tigger since you only have the .fa
 
     # synchronize to somebody -- either simulation (<ref_label>) or the first one
     if ref_label is not None:

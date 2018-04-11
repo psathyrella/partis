@@ -453,7 +453,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
 
     if remove_orfs:
-        orfs_removed = []
+        orfs_removed = {r : [] for r in utils.regions}
         assert len(glfo['functionalities']) == 0
         default_functionality_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/data/germlines/human/functionalities.csv'
         func_info = {}  # keep them in a spaerate dict so it's easier to loop over the genes in the glfo (to ensure they're all in the functionality file)
@@ -462,16 +462,21 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
             for line in reader:
                 func_info[line['gene']] = line['functionality']
         for gene in [g for r in utils.regions for g in glfo['seqs'][r]]:
+            if is_novel(gene):
+                func_info[gene] = 'F'
             if gene not in func_info:
                 raise Exception('no func info for %s' % utils.color_gene(gene))
             if func_info[gene] == 'ORF':
                 remove_gene(glfo, gene)
-                orfs_removed.append(gene)
+                orfs_removed[utils.get_region(gene)].append(gene)
                 continue
             assert func_info[gene] == 'F'  # should've already removed all the pseudogenes (and there shouldn't be any other functionality)
             glfo['functionalities'][gene] = func_info[gene]
-        if len(orfs_removed) > 0:
-            print '     removed %d ORFs: %s' % (len(orfs_removed), ' '.join([utils.color_gene(g) for g in sorted(orfs_removed)]))
+        if len([ors for ors in orfs_removed.values()]) > 0:
+            print '     removed %2d ORFs: %s       %s' % (sum(len(ors) for ors in orfs_removed.values()), '  '.join(['%s %s' % (r, str(len(orfs_removed[r])) if len(orfs_removed[r]) > 0 else ' ') for r in utils.regions]), gldir),
+            if len(orfs_removed['v']) > 0:
+                print '   (%s)' % ' '.join([utils.color_gene(g) for g in sorted(orfs_removed['v'])]),
+            print ''
 
     return glfo
 
