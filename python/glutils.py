@@ -473,7 +473,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
             assert func_info[gene] == 'F'  # should've already removed all the pseudogenes (and there shouldn't be any other functionality)
             glfo['functionalities'][gene] = func_info[gene]
         if len([ors for ors in orfs_removed.values()]) > 0:
-            print '     removed %2d ORFs: %s       %s' % (sum(len(ors) for ors in orfs_removed.values()), '  '.join(['%s %s' % (r, str(len(orfs_removed[r])) if len(orfs_removed[r]) > 0 else ' ') for r in utils.regions]), gldir),
+            print '     removed %2d ORFs: %s' % (sum(len(ors) for ors in orfs_removed.values()), '  '.join(['%s %s' % (r, str(len(orfs_removed[r])) if len(orfs_removed[r]) > 0 else ' ') for r in utils.regions])),
             if len(orfs_removed['v']) > 0:
                 print '   (%s)' % ' '.join([utils.color_gene(g) for g in sorted(orfs_removed['v'])]),
             print ''

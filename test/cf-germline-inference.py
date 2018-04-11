@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import yaml
+import glob
 import csv
 import math
 import copy
@@ -162,7 +163,7 @@ def get_gls_dir(outdir, method, sim_truth=False, data=False, annotation_performa
     return outdir
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False):
+def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
@@ -181,8 +182,6 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
         cmdstr += ' --legend-title="%s"' % legend_title
     if pie_chart_faces:
         cmdstr += ' --pie-chart-faces'
-    if leaf_names:
-        cmdstr += ' --leaf-names'
     cmdstr += ' --locus ' + locus
     if args.plotcache:
         cmdstr += ' --use-cache'
@@ -416,9 +415,18 @@ def plot_single_test(args, baseoutdir, method):
 def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
     method_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
     gls_dir = get_gls_dir(method_outdir, method, data=True)
+    print '            %s --> %s' % (gls_dir, zenodo_dir)
     glfo = glutils.read_glfo(gls_dir, mfo['locus'], remove_orfs='partis' in method)
     glutils.write_glfo(zenodo_dir, glfo)
     if method == 'partis':
+        # allele finding plots
+        plotdir = gls_dir.replace('hmm/germline-sets', 'plots/sw/allele-finding')
+        if not os.path.exists(zenodo_dir + '/fits'):
+            os.makedirs(zenodo_dir + '/fits')
+        for genedir in glob.glob(plotdir + '/try-0/*'):  # would be nice to copy html, but links will be wrong
+            subprocess.check_call(['cp', '-r', genedir, zenodo_dir + '/fits/'])
+
+        # csv prevalence files
         for region in utils.regions:
             with open(gls_dir.replace('/germline-sets', '/%s_gene-probs.csv' % region)) as infile:
                 reader = csv.DictReader(infile)
@@ -629,17 +637,17 @@ default_varvals = {
         # ],
         # 'sheng-gssp' : [
         #     'lp23810-m-pool',  'lp23810-g-pool', 'lp08248-m-pool', 'lp08248-g-pool',
-        #     # 'lp23810-m-pool', 'lp08248-m-pool',
+        #     # 'lp23810-m-pool', 'lp08248-m-pool',  # igm only, for method-vs-method including igdiscover
         # ],
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
         # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-p3d', 'FV-igh-p7d'],
         # 'jason-influenza' : [
-        #     'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',
-        #     'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d',
-        #     'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d',
-        #     # 'FV-igh', 'GMC-igh', 'IB-igh',  # merged
+        #     # 'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',
+        #     # 'GMC-igh-m8d', 'GMC-igh-m2d', 'GMC-igh-m1h', 'GMC-igh-p1h', 'GMC-igh-p1d', 'GMC-igh-p3d', 'GMC-igh-p7d', 'GMC-igh-p14d', 'GMC-igh-p21d', 'GMC-igh-p28d',
+        #     # 'IB-igh-m8d', 'IB-igh-m2d', 'IB-igh-m1h', 'IB-igh-p1h', 'IB-igh-p1d', 'IB-igh-p3d', 'IB-igh-p7d', 'IB-igh-p14d', 'IB-igh-p21d', 'IB-igh-p28d',
+        #     'FV-igh', 'GMC-igh', 'IB-igh',  # merged
         # ],
         # 'davide-gl-valid' : ['B10', 'B11', 'B12', 'B13', 'B14', 'B16', 'B17', 'B18', 'B19', 'B20', 'B21'],
     }

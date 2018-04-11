@@ -436,14 +436,6 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
 
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False
-    if not args.leaf_names:
-        tstyle.show_leaf_name = False
-
-    # tstyle.mode = 'c'
-    # if arc_start is not None:
-    #     tstyle.arc_start = arc_start
-    # if arc_span is not None:
-    #     tstyle.arc_span = arc_span
 
     write_legend(plotdir)
     if args.title is not None:
@@ -457,6 +449,8 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
     print '      %s' % imagefname
+    etree.render(imagefname.replace(suffix, '-leaf-names' + suffix), tree_style=tstyle)
+    tstyle.show_leaf_name = False
     etree.render(imagefname, tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
@@ -485,7 +479,6 @@ parser.add_argument('--glslabels', required=True, help='colon-separated list of 
 parser.add_argument('--locus', required=True, choices=['igh', 'igk', 'igl'])
 parser.add_argument('--legends', help='colon-separated list of legend labels')
 parser.add_argument('--legend-title')
-parser.add_argument('--leaf-names', action='store_true', help='add leaf node names to the plot')
 parser.add_argument('--pie-chart-faces', action='store_true')
 parser.add_argument('--use-cache', action='store_true', help='use existing raxml output from a previous run (crashes if it isn\'t there)')
 parser.add_argument('--only-print', action='store_true', help='just print the summary, without making any plots')
@@ -517,7 +510,7 @@ if not os.path.exists(args.raxml_path):
     raise Exception('raxml binary %s doesn\'t exist (set with --raxml-path)' % args.raxml_path)
 if not os.path.exists(args.plotdir):
     os.makedirs(args.plotdir)
-args.leafheight = 20 if args.leaf_names else 10  # arg, kinda messy
+args.leafheight = 10  #20 if args.leaf_names else 10  # arg, kinda messy
 args.novel_dot_size = 2.5
 
 assert len(args.glslabels) == len(set(args.glslabels))  # no duplicates
