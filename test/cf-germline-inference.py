@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import yaml
+import csv
 import math
 import copy
 import numpy
@@ -133,6 +134,11 @@ def get_single_performance(outdir, method, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def get_gls_fname(outdir, method, locus, sim_truth=False, data=False, annotation_performance_plots=False):  # NOTE duplicates/depends on code in test-germline-inference.py
+    gls_dir = get_gls_dir(outdir, method, sim_truth=sim_truth, data=data, annotation_performance_plots=annotation_performance_plots)
+    return glutils.get_fname(gls_dir, locus, region)
+
+# ----------------------------------------------------------------------------------------
+def get_gls_dir(outdir, method, sim_truth=False, data=False, annotation_performance_plots=False):  # NOTE duplicates/depends on code in test-germline-inference.py
     if annotation_performance_plots:
         return outdir + '/' + method + '/annotation-performance-plots/sw/mutation'
 
@@ -149,7 +155,7 @@ def get_gls_fname(outdir, method, locus, sim_truth=False, data=False, annotation
         outdir += '/' + method
     else:
         assert False
-    return glutils.get_fname(outdir, locus, region)
+    return outdir
 
 # ----------------------------------------------------------------------------------------
 def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, leaf_names=False, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False):
@@ -403,12 +409,29 @@ def plot_single_test(args, baseoutdir, method):
         )
 
 # ----------------------------------------------------------------------------------------
-def write_single_zenodo_subdir(args, study, dset, method, mfo):
-    data_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
-    glsfname = get_gls_fname(data_outdir, method, locus=mfo['locus'], data=True)
-    gldir = glsfname.rstrip('%s/igh%s.fasta' % (mfo['locus'], region))
-    print gldir
-    sys.exit()
+def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
+    method_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
+    gls_dir = get_gls_dir(method_outdir, method, data=True)
+    glfo = glutils.read_glfo(gls_dir, mfo['locus'], debug=True, remove_orfs='partis' in method)
+    glutils.write_glfo(zenodo_dir, glfo, debug=True)
+    if method == 'partis':
+        for region in utils.regions:
+            with open('%s/%s_gene-probs.csv' % (zenodo_dir, region), 'w') as outfile:
+                writer = csv.DictWriter(outfile, ('%s_gene' % region, 'count'))
+                writer.writeheader()
+                with open(gls_dir.replace('/germline-sets', '/%s_gene-probs.csv' % region)) as infile:
+                    reader = csv.DictReader(infile)
+                    for line in reader:
+                        if line['%s_gene' % region] in glfo['seqs'][region]:
+                            writer.writerow(line)
+    elif method == 'tigger-default':
+        # wtf, doesn't write anything?
+        pass
+    elif method == 'igdiscover':
+        for fname in ['errorhistograms.pdf', 'V_usage.pdf', 'V_usage.tab']:
+            subprocess.check_call(['cp', '%s/work/final/%s' % (gls_dir, fname), zenodo_dir + '/'])
+    else:
+        assert False
 
 # ----------------------------------------------------------------------------------------
 def write_zenodo_files(args, baseoutdir):
@@ -417,7 +440,8 @@ def write_zenodo_files(args, baseoutdir):
         metafos = heads.read_metadata(study)
         for method in args.methods:
             print '  ', method
-            write_single_zenodo_subdir(args, study, dset, method, metafos[dset])
+            outdir = get_outdir(args, baseoutdir, varname='data', varval='zenodo/%s/%s/%s' % (study, dset, method))
+            write_single_zenodo_subdir(outdir, args, study, dset, method, metafos[dset])
 
 # ----------------------------------------------------------------------------------------
 def plot_tests(args, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False, print_summary_table=False):
