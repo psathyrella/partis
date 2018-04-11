@@ -412,20 +412,32 @@ def plot_single_test(args, baseoutdir, method):
 def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
     method_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
     gls_dir = get_gls_dir(method_outdir, method, data=True)
-    glfo = glutils.read_glfo(gls_dir, mfo['locus'], debug=True, remove_orfs='partis' in method)
-    glutils.write_glfo(zenodo_dir, glfo, debug=True)
+    glfo = glutils.read_glfo(gls_dir, mfo['locus'], remove_orfs='partis' in method)
+    glutils.write_glfo(zenodo_dir, glfo)
     if method == 'partis':
         for region in utils.regions:
-            with open('%s/%s_gene-probs.csv' % (zenodo_dir, region), 'w') as outfile:
-                writer = csv.DictWriter(outfile, ('%s_gene' % region, 'count'))
-                writer.writeheader()
-                with open(gls_dir.replace('/germline-sets', '/%s_gene-probs.csv' % region)) as infile:
-                    reader = csv.DictReader(infile)
-                    for line in reader:
-                        if line['%s_gene' % region] in glfo['seqs'][region]:
-                            writer.writerow(line)
+            with open(gls_dir.replace('/germline-sets', '/%s_gene-probs.csv' % region)) as infile:
+                reader = csv.DictReader(infile)
+                countfo = {line['%s_gene' % region] : int(line['count']) for line in reader}
+                old_total = sum(countfo.values())
+                orf_genes = [g for g in countfo if g not in glfo['seqs'][region]]  # this is kind of dangerous... but the genes are read from the same parameter dir that we're reading this prevalence file, so the only way it's gonna be missing is if we just removed it with the read_glfo() line above
+                for ogene in orf_genes:
+                    if region == 'v':
+                        _, nearest_gene, _ = glutils.find_nearest_gene_with_same_cpos(glfo, glfo['seqs'][region][ogene])
+                    else:
+                        nearest_gene = glutils.find_nearest_gene_using_names(glfo, ogene)
+                    print '  adding %d to %s from %s' % (countfo[ogene], utils.color_gene(nearest_gene), utils.color_gene(ogene))
+                    countfo[nearest_gene] += countfo[ogene]
+                for ogene in orf_genes:
+                    del countfo[ogene]
+                assert old_total == sum(countfo.values())
+                with open('%s/%s_gene-probs.csv' % (zenodo_dir, region), 'w') as outfile:
+                    writer = csv.DictWriter(outfile, ('%s_gene' % region, 'count'))
+                    writer.writeheader()
+                    for gene in countfo:
+                        writer.writerow({'%s_gene' % region : gene, 'count' : countfo[gene]})
     elif method == 'tigger-default':
-        # wtf, doesn't write anything?
+        # doesn't seem to have written anything
         pass
     elif method == 'igdiscover':
         for fname in ['errorhistograms.pdf', 'V_usage.pdf', 'V_usage.tab']:
@@ -436,11 +448,11 @@ def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
 # ----------------------------------------------------------------------------------------
 def write_zenodo_files(args, baseoutdir):
     for study, dset in [v.split('/') for v in args.varvals]:
-        print study, dset
+        print '%-10s  %15s   %s' % (study, dset, baseoutdir)
         metafos = heads.read_metadata(study)
         for method in args.methods:
-            print '  ', method
-            outdir = get_outdir(args, baseoutdir, varname='data', varval='zenodo/%s/%s/%s' % (study, dset, method))
+            outdir = get_outdir(args, baseoutdir, varname='data', varval='zenodo/%s/%s/%s' % (study, dset, method.replace('-default', '')))
+            print '  %-15s' % method
             write_single_zenodo_subdir(outdir, args, study, dset, method, metafos[dset])
 
 # ----------------------------------------------------------------------------------------

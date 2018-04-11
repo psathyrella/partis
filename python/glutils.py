@@ -1100,6 +1100,37 @@ def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, d
     return nearest_gene, n_snps, n_indels, realigned_new_seq, realigned_nearest_seq
 
 # ----------------------------------------------------------------------------------------
+def find_nearest_gene_using_names(glfo, gene, debug=True):
+    def handle_return(genelist, label):
+        if len(genelist) > 0:
+            if debug:
+                print '  found %d %s%s, returning %s' % (len(genelist), label, utils.plural(len(genelist)), utils.color_gene(genelist[0]))
+            return genelist[0]
+        else:
+            if debug:
+                print '  no %s' % label
+            return None
+
+    region = utils.get_region(gene)
+    if debug:
+        print 'looking for nearest gene to %s (%d choices)' % (utils.color_gene(gene), len(glfo['seqs'][region]))
+    family = utils.gene_family(gene)
+    primary_version, sub_version, allele = utils.split_gene(gene)
+    alleles = [g for g in glfo['seqs'][region] if utils.are_alleles(g, gene)]
+    ngene = handle_return(alleles, 'allele')
+    if ngene is not None:
+        return ngene
+    family_genes = [g for g in glfo['seqs'][region] if utils.gene_family(g) == family]
+    sv_genes = [g for g in family_genes if utils.sub_version(g) == sub_version]
+    ngene = handle_return(sv_genes, 'subversion')
+    if ngene is not None:
+        return ngene
+    ngene = handle_return(family_genes, 'family gene')
+    if ngene is not None:
+        return ngene
+    raise Exception('couldn\'t find any similar genes for %s among %s' % (gene, ' '.join(glfo['seqs'][region])))
+
+# ----------------------------------------------------------------------------------------
 def find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=None, new_name=None, exclusion_5p=0, exclusion_3p=3, glfo_str='glfo', debug=False, debug_only_zero_distance=False):  # NOTE should really be merged with find_nearest_gene_in_glfo()
     region = 'v'
     if new_cpos is None:  # try to guess it...
