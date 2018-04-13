@@ -64,7 +64,7 @@ def diffstr(difficulty):
     else:
         assert False
 def gls_sim_str(diff, iproc):
-    return '%s (%d)' % (diffstr(diff), iproc)
+    return '%s (%s)' % (diffstr(diff), str(iproc))  # cast to string 'cause sometimes it isn't a string (e.g. 'total')
 
 # ----------------------------------------------------------------------------------------
 def varvalstr(name, val):
@@ -222,12 +222,19 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
         'partis' : '#6b83ca', #758bcd',
         'full' : '#858585',
     }
+    lstyledict = {}  # 'tigger-default' : '--'}
+    linewidths = [9, 8, 5, 2]  # methods are sorted below, so it's always [full, igdiscover, partis, tigger]
+    colors = [methcolors[meth] for meth in args.methods]
+    linestyles = [lstyledict.get(m, '-') for m in args.methods]
+    alphas = [0.8 if m in ['full', 'igdiscover'] else 1 for m in args.methods]
+
     varname = args.action
     varval = 'simu'
     plotnames = ['v_hamming_to_true_naive', 'v_muted_bases']
     xtitles = ['V distance to true naive', 'inferred - true']
     meanvals = {pn : {m : [] for m in args.methods} for pn in plotnames}
     print '  annotations: %s' % get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events)
+    all_hists = {pn : [] for pn in plotnames}
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)  # duplicates code in bin/test-germline-inference.py
         plotdir = outdir + '/annotation-performance-plots'
@@ -248,12 +255,34 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
                 meanvals[plotname][meth].append(hists[meth].get_mean())
             if args.only_print:
                 continue
-            colors = [methcolors[meth] for meth in args.methods]
-            linewidths = [9, 8, 4, 3]  # methods are sorted below, so it's always [full, igdiscover, partis, tigger]
             plotting.draw_no_root(hists[args.methods[0]], log='y', plotdir=plotdir, plotname=plotname, more_hists=[hists[m] for m in args.methods[1:]], colors=colors, ytitle='sequences' if make_ytitle else None,
                                   xtitle=xtitles[plotnames.index(plotname)] if make_xtitle else '',
                                   plottitle=gls_sim_str(args.gls_gen_difficulty, iproc),
-                                  linewidths=linewidths)
+                                  linewidths=linewidths, linestyles=linestyles, alphas=alphas, remove_empty_bins=True, square_bins=True)
+            all_hists[plotname].append(hists)
+
+    print '  total plots'
+    plotdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/annotation-performance-plots'
+    print '    %s' % plotdir
+    if not args.only_print:
+        utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
+    for plotname in plotnames:
+        total_hists = {}
+        for meth in args.methods:
+            xmin = min([hdict[meth].xmin for hdict in all_hists[plotname]])
+            xmax = max([hdict[meth].xmax for hdict in all_hists[plotname]])
+            total_hists[meth] = Hist(xmax - xmin, xmin, xmax, title=all_hists[plotname][0][meth].title)
+            for hdict in all_hists[plotname]:
+                assert hdict[meth].integral(include_overflows=True) > 100  # make sure it isn't normalized (this is a shitty way to do this)
+                bin_centers = hdict[meth].get_bin_centers()
+                for ibin in range(len(hdict[meth].low_edges)):
+                    xval = bin_centers[ibin]
+                    for _ in range(int(hdict[meth].bin_contents[ibin])):
+                        total_hists[meth].fill(xval)
+        plotting.draw_no_root(total_hists[args.methods[0]], log='y', plotdir=plotdir, plotname='total-' + plotname, more_hists=[total_hists[m] for m in args.methods[1:]], colors=colors, ytitle='sequences' if make_ytitle else None,
+                              xtitle=xtitles[plotnames.index(plotname)],
+                              plottitle=gls_sim_str(args.gls_gen_difficulty, iproc='total over %d samples' % (args.n_tests - args.iteststart)),
+                              linewidths=linewidths, linestyles=linestyles, alphas=alphas, remove_empty_bins=True, square_bins=True)
 
     for plotname in plotnames:
         if 'muted_bases' in plotname:  #  mean value isn't meaningful
