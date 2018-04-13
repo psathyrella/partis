@@ -223,7 +223,8 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
         'full' : '#858585',
     }
     lstyledict = {}  # 'tigger-default' : '--'}
-    linewidths = [9, 8, 5, 2]  # methods are sorted below, so it's always [full, igdiscover, partis, tigger]
+    lwdict = {'full' : 9, 'igdiscover' : 8, 'partis' : 5, 'tigger-default' : 2}  # methods are sorted below, so it's always [full, igdiscover, partis, tigger]
+    linewidths = [lwdict[m] for m in args.methods]
     colors = [methcolors[meth] for meth in args.methods]
     linestyles = [lstyledict.get(m, '-') for m in args.methods]
     alphas = [0.8 if m in ['full', 'igdiscover'] else 1 for m in args.methods]
