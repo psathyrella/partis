@@ -181,8 +181,7 @@ class Recombinator(object):
             return False
 
         self.add_mutants(reco_event, irandom)
-
-        reco_event.write_event(self.outfname, reco_event.line)
+        reco_event.write_event(self.outfname)
 
         return True
 

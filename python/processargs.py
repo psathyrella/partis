@@ -89,7 +89,7 @@ def process(args):
         print 'forcing --gap-open-penalty to %d to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty
         args.gap_open_penalty = args.no_indel_gap_open_penalty
 
-    if args.indel_frequency is not None:
+    if args.indel_frequency > 0.:
         if args.indel_frequency < 0. or args.indel_frequency > 1.:
             raise Exception('--indel-frequency must be in [0., 1.] (got %f)' % args.indel_frequency)
     args.n_indels_per_indeld_seq = utils.get_arg_list(args.n_indels_per_indeld_seq, intify=True)
