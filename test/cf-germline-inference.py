@@ -64,7 +64,7 @@ def diffstr(difficulty):
     else:
         assert False
 def gls_sim_str(diff, iproc):
-    return '%s (%s)' % (diffstr(diff), str(iproc))  # cast to string 'cause sometimes it isn't a string (e.g. 'total')
+    return '%s%s' % (diffstr(diff), (' (%s)' % str(iproc)) if iproc != '' else '')  # cast to string 'cause sometimes it isn't a string (e.g. 'total')
 
 # ----------------------------------------------------------------------------------------
 def varvalstr(name, val):
@@ -282,7 +282,7 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
                         total_hists[meth].fill(xval)
         plotting.draw_no_root(total_hists[args.methods[0]], log='y', plotdir=plotdir, plotname='total-' + plotname, more_hists=[total_hists[m] for m in args.methods[1:]], colors=colors, ytitle='sequences' if make_ytitle else None,
                               xtitle=xtitles[plotnames.index(plotname)],
-                              plottitle=gls_sim_str(args.gls_gen_difficulty, iproc='total over %d samples' % (args.n_tests - args.iteststart)),
+                              plottitle=gls_sim_str(args.gls_gen_difficulty, iproc=''),
                               linewidths=linewidths, linestyles=linestyles, alphas=alphas, remove_empty_bins=True, square_bins=True)
 
     for plotname in plotnames:
@@ -386,7 +386,7 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
         title_color = None
         legends = [methstr(m) + ' only' for m in methods]
         legend_title = None
-        pie_chart_faces = True
+        pie_chart_faces = len(methods) > 2  # True
         print '%s:' % utils.color('green', dsets[0]),
     else:
         raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
@@ -481,8 +481,9 @@ def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
         # doesn't seem to have written anything
         pass
     elif method == 'igdiscover':
-        for fname in ['errorhistograms.pdf', 'V_usage.pdf', 'V_usage.tab']:
-            subprocess.check_call(['cp', '%s/work/final/%s' % (gls_dir, fname), zenodo_dir + '/'])
+        # for fname in ['errorhistograms.pdf', 'V_usage.pdf', 'V_usage.tab']:
+        #     subprocess.check_call(['cp', '%s/work/final/%s' % (gls_dir, fname), zenodo_dir + '/'])
+        subprocess.check_call(['cp', '-r', '%s/work/final' % gls_dir, zenodo_dir + '/'])  # aw, screw it, just write everything. The simulation stuff is already huge, anyway
     else:
         assert False
 
