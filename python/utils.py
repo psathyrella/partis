@@ -135,6 +135,9 @@ def gap_len(seq):  # NOTE see two gap-counting fcns in glutlis
     return len(filter(gap_chars.__contains__, seq))
 def non_gap_len(seq):  # NOTE see two gap-counting fcns in glutlis
     return len(seq) - gap_len(seq)
+def ambig_frac(seq):
+    ambig_seq = filter(ambiguous_bases.__contains__, seq)
+    return float(len(ambig_seq)) / len(seq)
 
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
@@ -1514,9 +1517,15 @@ def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False): 
         return fraction
 
 # ----------------------------------------------------------------------------------------
-def subset_sequences(line, iseq, restrict_to_region, exclusion_3p=None):
+def subset_sequences(line, restrict_to_region=None, exclusion_3p=None, iseq=None):
+    # NOTE don't call with <iseq> directly, instead use subset_iseq() below
+
     naive_seq = line['naive_seq']  # NOTE this includes the fv and jf insertions
-    muted_seqs = [line['seqs'][iseq]] if iseq is not None else copy.deepcopy(line['seqs'])
+    if iseq is None:
+        muted_seqs = copy.deepcopy(line['seqs'])
+    else:
+        muted_seqs = [line['seqs'][iseq]]
+
     if restrict_to_region != '':  # NOTE this is very similar to code in performanceplotter. I should eventually cut it out of there and combine them, but I'm nervous a.t.m. because of all the complications there of having the true *and* inferred sequences so I'm punting
         if restrict_to_region in regions:
             bounds = line['regional_bounds'][restrict_to_region]
@@ -1528,21 +1537,27 @@ def subset_sequences(line, iseq, restrict_to_region, exclusion_3p=None):
             bounds = (bounds[0], max(bounds[0], bounds[1] - exclusion_3p))
         naive_seq = naive_seq[bounds[0] : bounds[1]]
         muted_seqs = [mseq[bounds[0] : bounds[1]] for mseq in muted_seqs]
-    return naive_seq, (muted_seqs[0] if iseq is not None else muted_seqs)
+
+    return naive_seq, muted_seqs
+
+# ----------------------------------------------------------------------------------------
+def subset_iseq(line, iseq, restrict_to_region=None, exclusion_3p=None):
+    naive_seq, muted_seqs = subset_sequences(line, iseq=iseq, restrict_to_region=restrict_to_region, exclusion_3p=exclusion_3p)
+    return naive_seq, muted_seqs[0]  # if <iseq> is specified, it's the only one in the list (this is kind of confusing, but it's less wasteful)
 
 # ----------------------------------------------------------------------------------------
 def get_n_muted(line, iseq, restrict_to_region='', return_mutated_positions=False):
-    naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
+    naive_seq, muted_seq = subset_iseq(line, iseq, restrict_to_region=restrict_to_region)
     return hamming_distance(naive_seq, muted_seq, return_mutated_positions=return_mutated_positions)
 
 # ----------------------------------------------------------------------------------------
 def get_mutation_rate(line, iseq, restrict_to_region=''):
-    naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region)
+    naive_seq, muted_seq = subset_iseq(line, iseq, restrict_to_region=restrict_to_region)
     return hamming_fraction(naive_seq, muted_seq)
 
 # ----------------------------------------------------------------------------------------
 def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region='', exclusion_3p=None):
-    naive_seq, muted_seq = subset_sequences(line, iseq, restrict_to_region, exclusion_3p=exclusion_3p)
+    naive_seq, muted_seq = subset_iseq(line, iseq, restrict_to_region=restrict_to_region, exclusion_3p=exclusion_3p)
     fraction, distance = hamming_fraction(naive_seq, muted_seq, also_return_distance=True)
     return fraction, distance
 
@@ -1551,7 +1566,7 @@ def get_sfs_occurence_info(line, restrict_to_region=None, debug=False):
     if restrict_to_region is None:
         naive_seq, muted_seqs = line['naive_seq'], line['seqs']  # I could just call subset_sequences() to get this, but this is a little faster since we know we don't need the copy.deepcopy()
     else:
-        naive_seq, muted_seqs = subset_sequences(line, None, restrict_to_region=restrict_to_region)
+        naive_seq, muted_seqs = subset_sequences(line, restrict_to_region=restrict_to_region)
     if debug:
         print '  %d %ssequences' % (len(muted_seqs), '%s region ' % restrict_to_region if restrict_to_region is not None else '')
     mutated_positions = [hamming_distance(naive_seq, mseq, return_mutated_positions=True)[1] for mseq in muted_seqs]
@@ -3402,3 +3417,39 @@ def compare_vsearch_to_sw(sw_info, vs_info):
         hist.mpl_plot(ax, hist, label=name, color=plotting.default_colors[hists.keys().index(name)])
         # hist.write('_output/vsearch-test/%s/%s.csv' % (match_mismatch.replace(':', '-'), name))
         plotting.mpl_finish(ax, '.', name, xlabel='vs - sw')
+
+# ----------------------------------------------------------------------------------------
+def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug=False):
+    naive_seq, mature_seq = subset_iseq(line, iseq, restrict_to_region='v')  # self.info[uid]['naive_seq'], self.info[uid]['seqs'][0]
+
+    if ambig_frac(naive_seq) > max_ambig_frac or ambig_frac(mature_seq) > max_ambig_frac:
+        if debug:
+            print '  too much ambig %.2f %.2f' % (ambig_frac(naive_seq), ambig_frac(mature_seq))
+        return None, 0.
+
+    if debug:
+        color_mutants(naive_seq, mature_seq, print_result=True)
+        print ' '.join(['%3d' % s for s in isnps])
+
+    _, isnps = hamming_distance(naive_seq, mature_seq, return_mutated_positions=True)
+
+    max_abs_diff, imax = 0., None
+    for ipos in range(chunk_len, len(mature_seq) - chunk_len):
+        if debug:
+            print ipos
+
+        muts_before = [isn for isn in isnps if isn >= ipos - chunk_len and isn < ipos]
+        muts_after = [isn for isn in isnps if isn >= ipos and isn < ipos + chunk_len]
+        mfreq_before = len(muts_before) / float(chunk_len)
+        mfreq_after = len(muts_after) / float(chunk_len)
+
+        if debug:
+            print '    len(%s) / %d = %.3f' % (muts_before, chunk_len, mfreq_before)
+            print '    len(%s) / %d = %.3f' % (muts_after, chunk_len, mfreq_after)
+
+        abs_diff = abs(mfreq_before - mfreq_after)
+        if imax is None or abs_diff > max_abs_diff:
+            max_abs_diff = abs_diff
+            imax = ipos
+
+    return imax, max_abs_diff

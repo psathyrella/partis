@@ -36,7 +36,7 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def get_cdr3_title(self, annotation):
-        naive_cdr3_seq, _ = utils.subset_sequences(annotation, iseq=0, restrict_to_region='cdr3')
+        naive_cdr3_seq, _ = utils.subset_iseq(annotation, 0, restrict_to_region='cdr3')
         title = ''
         if len(naive_cdr3_seq) % 3 != 0:
             # print '  out of frame: adding %s' % ((3 - len(naive_cdr3_seq) % 3) * 'N')
