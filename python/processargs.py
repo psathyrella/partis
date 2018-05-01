@@ -172,7 +172,10 @@ def process(args):
         args.allele_cluster = False
         args.dont_find_new_alleles = True
 
-    if args.flat_mute_freq is not None or args.same_mute_freq_for_all_seqs:
+    if args.simulate_from_scratch:
+        args.rearrange_from_scratch = True
+        args.mutate_from_scratch = True
+    if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:
         assert args.mutate_from_scratch
 
     if args.infname is None and args.action not in ['simulate', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:

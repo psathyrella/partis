@@ -288,7 +288,7 @@ annotation_headers = ['unique_ids', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length',
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns
-simulation_headers = ('unique_ids', 'reco_id') + index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs')
+simulation_headers = ('unique_ids', 'reco_id') + index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs') + tuple(functional_columns)
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',  # NOTE I'm not adding it to linekeys['per_seq'] since I don't want it to ever be in the regular <line> dicts, i.e. it's only added to a special dict immediately prior to writing the csv
     'full_coding_naive_seq',

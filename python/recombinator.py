@@ -32,14 +32,11 @@ class Recombinator(object):
         self.outfname = outfname
         utils.prep_dir(self.workdir)
 
-        # set <self.parameter_dir> (note that this is in general *not* the same as self.args.parameter_dir)
-        if self.args.rearrange_from_scratch:  # currently not allowed to mutate from scratch without also rearranging from scratch (enforced in bin/partis)
-            if self.args.mutate_from_scratch:
-                self.parameter_dir = None
-            else:
-                self.parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really careful you tend to get nonsense results for a lot of things (e.g. allele finding). So it's easier to copy over a reasonable set of mut freq parameters from somewhere.
-        else:
-            self.parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
+        self.reco_parameter_dir, self.shm_parameter_dir = None, None
+        if not self.args.rearrange_from_scratch:
+            self.reco_parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
+        if not self.args.mutate_from_scratch:
+            self.shm_parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -65,7 +62,7 @@ class Recombinator(object):
                 parameter_name = parameters[2]
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
-        treegen = treegenerator.TreeGenerator(args, self.parameter_dir, seed=seed)
+        treegen = treegenerator.TreeGenerator(args, self.shm_parameter_dir, seed=seed)
         self.treefname = self.workdir + '/trees.tre'
         treegen.generate_trees(seed, self.treefname)  # NOTE not really a newick file, since I hack on the per-region branch length info at the end of each line
         with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
@@ -91,7 +88,7 @@ class Recombinator(object):
         insertion_content_probs = {}
         for bound in utils.boundaries:
             insertion_content_probs[bound] = {}
-            with open(self.parameter_dir + '/' + bound + '_insertion_content.csv', 'r') as icfile:
+            with open(self.reco_parameter_dir + '/' + bound + '_insertion_content.csv', 'r') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
@@ -118,13 +115,17 @@ class Recombinator(object):
     def read_mute_freq_stuff(self, gene):
         assert gene[:2] not in utils.boundaries  # make sure <gene> isn't actually an insertion (we used to pass insertions in here separately, but now they're smooshed onto either end of d)
         if self.args.mutate_from_scratch:
-            self.all_mute_freqs[gene] = {'overall_mean' : self.args.default_scratch_mute_freq if self.args.flat_mute_freq is None else self.args.flat_mute_freq}
+            self.all_mute_freqs[gene] = {'overall_mean' : self.args.scratch_mute_freq}
         else:
-            gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
             approved_genes = [gene]
-            if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
-                approved_genes += utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene)
-            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.parameter_dir, approved_genes)
+
+            # ok this is kind of dumb, but I need to figure out how many counts there are for this gene, even when we have only an shm parameter dir
+            tmp_reco_param_dir = self.reco_parameter_dir if self.reco_parameter_dir is not None else self.shm_parameter_dir  # will crash if the shm parameter dir doesn't have gene count info... but we should only end up using it on data/recombinator/scratch-parameters
+            gene_counts = utils.read_overall_gene_probs(tmp_reco_param_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
+            if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's in <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
+                approved_genes += utils.find_replacement_genes(tmp_reco_param_dir, min_counts=self.args.min_observations_to_write, gene_name=gene)
+
+            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, approved_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
@@ -172,12 +173,12 @@ class Recombinator(object):
 
         codons_ok = utils.both_codons_unmutated(self.glfo['locus'], reco_event.recombined_seq, reco_event.post_erosion_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
-            if self.args.rearrange_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
-                raise Exception('arg')
+            if self.args.rearrange_from_scratch and self.args.generate_germline_set:
+                raise Exception('mutated invariant codons, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
         in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.post_erosion_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
         if self.args.rearrange_from_scratch and not in_frame:
-            raise Exception('arg 2')  # if you let it try more than once, it screws up the desired allele prevalence ratios
+            raise Exception('out of frame rearrangement, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
 
         self.add_mutants(reco_event, irandom)
@@ -196,7 +197,7 @@ class Recombinator(object):
             return None
 
         version_freq_table = {}
-        with open(self.parameter_dir + '/' + utils.get_parameter_fname('all', 'r')) as infile:
+        with open(self.reco_parameter_dir + '/' + utils.get_parameter_fname('all', 'r')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:  # NOTE do *not* assume the file is sorted
@@ -463,7 +464,7 @@ class Recombinator(object):
         if self.args.mutate_from_scratch:
             command += ' model=JC69'
             command += ' input.infos.rates=none'  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
-            if self.args.flat_mute_freq is not None:
+            if self.args.flat_mute_freq:
                 command += ' rate_distribution=Constant'
             else:
                 command += ' rate_distribution=Gamma(n=4,alpha=' + self.mute_models[utils.get_region(gene)]['gamma']['alpha']+ ')'
