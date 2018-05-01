@@ -56,12 +56,11 @@ def run_simulation(args):
     if args.n_max_queries != -1:
         print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
 
-    if args.parameter_dir is None:
-        if not args.rearrange_from_scratch:
-            raise Exception('have to either set --rearrange-from-scratch or --parameter-dir')
-        if not args.mutate_from_scratch:
-            raise Exception('have to either set --mutate-from-scratch or --parameter-dir')
-    else:
+    if not args.rearrange_from_scratch and args.reco_parameter_dir is None:
+        raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir')
+    if not args.mutate_from_scratch and args.shm_parameter_dir is None:
+        raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir')
+    if args.parameter_dir is not None:
         if args.generate_germline_set:
             raise Exception('you can\'t specify --parameter-dir if you also set --generate-germline-set')
         if args.initial_germline_dir is not None:
@@ -380,9 +379,11 @@ subargs['simulate'].append({'name' : '--mean-indel-length', 'kwargs' : {'type' :
 subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' : [None, 'v', 'cdr3'], 'help' : 'where to put the indels. All options exclude the first and last five bases of the bcr sequence (None: anywhere in sequence, v: before cysteine, cdr3: within cdr3'}})
 # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
-subargs['simulate'].append({'name' : '--rearrange-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory for rearrangement-level parameters, and instead make up some plausible stuff from scratch'}})
-subargs['simulate'].append({'name' : '--mutate-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory for shm-level (mutation) parameters, and instead make up stuff from scratch (by default this means shm rate varies over positions and sequences, but is the same for all regions)'}})
+subargs['simulate'].append({'name' : '--rearrange-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory for rearrangement-level parameters, and instead make up some plausible stuff from scratch. Have to also set --shm-parameter-dir.'}})
+subargs['simulate'].append({'name' : '--mutate-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory for shm-level (mutation) parameters, and instead make up stuff from scratch (by default this means shm rate varies over positions and sequences, but is the same for all regions). Have to also set --reco-parameter-dir.'}})
 subargs['simulate'].append({'name' : '--simulate-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'same as setting both --rearrange-from-scratch and --mutate-from-scratch'}})
+subargs['simulate'].append({'name' : '--shm-parameter-dir', 'kwargs' : {'help' : 'parameter directory from which to retrieve shm-level info when --rearrange-from-scratch is set (to set germline info, use --initial-germline-dir).'}})
+subargs['simulate'].append({'name' : '--reco-parameter-dir', 'kwargs' : {'help' : 'parameter directory from which to retrieve rearrangement-level info when --mutate-from-scratch is set (to set germline info, use --initial-germline-dir).'}})
 subargs['simulate'].append({'name' : '--scratch-mute-freq', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'shm rate used by --mutate-from-scratch'}})
 subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm rate (--scratch-mute-freq) for all positions (in practice it\'s not that much flatter than the Gamma that is used by default --mutate-from-scratch). For use with --mutate-from-scratch.'}})
 subargs['simulate'].append({'name' : '--same-mute-freq-for-all-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm rate (--scratch-mute-freq) for all sequences. For use with --mutate-from-scratch. NOTE: this means we tell bppseqgen to use the same expected rate for every sequence -- there\'s still variance in the resulting number of output mutation per sequence.'}})

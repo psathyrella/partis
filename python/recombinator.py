@@ -34,9 +34,9 @@ class Recombinator(object):
 
         self.reco_parameter_dir, self.shm_parameter_dir = None, None
         if not self.args.rearrange_from_scratch:
-            self.reco_parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
+            self.reco_parameter_dir = self.args.reco_parameter_dir + '/' + self.args.parameter_type
         if not self.args.mutate_from_scratch:
-            self.shm_parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
+            self.shm_parameter_dir = self.args.shm_parameter_dir + '/' + self.args.parameter_type
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
