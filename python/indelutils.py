@@ -7,58 +7,12 @@ import copy
 
 import utils
 
-# NOTE that even the uncommented functions are kinda not completely right for multiple indels (they're fine as long as we're asking for cyst/tryp/phen positions, and indels are in v or j, which should always be true a.t.m.)
-
-# # ----------------------------------------------------------------------------------------
-# ick, needs germline info, and, screw it, I'll just go back to writing the indel-reversed sequence to file
-# def reverse_indels(input_seq, indelfo):  # reverse the action of indel reversion
-#     if not has_indels(indelfo):
-#         return input_seq
-
-#     for indel in indelfo['indels']:
-#         if indel['type'] == 'insertion':
-#             return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
-#         elif indel['type'] == 'deletion':
-#             return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
-#         else:
-#             assert False
-
-#     return return_seq
-
-# # ----------------------------------------------------------------------------------------
-#
-# This is *not* correct (the 'pos' for each indel is needs to be different -- see waterer.py).
-# Nevertheless, leaving this here to remind you not to reimplement it.
-#
-# def get_seq_with_indels_reinstated(line, iseq=0):  # reverse the action of indel reversion
-#     indelfo = line['indelfos'][iseq]
-#     return_seq = line['seqs'][iseq]
-#     if not has_indels(indelfo):
-#         return return_seq
-#
-#     # for indel in reversed(indelfo['indels']):
-#     for indel in indelfo['indels']:
-#         if indel['type'] == 'insertion':
-#             return_seq = return_seq[ : indel['pos']] + indel['seqstr'] + return_seq[indel['pos'] : ]
-#         elif indel['type'] == 'deletion':
-#             excision = return_seq[indel['pos'] : indel['pos'] + indel['len']]
-#             if excision != indel['seqstr']:
-#                 # raise Exception('ack %s %s' % (excision, indel['seqstr']))
-#                 print '%s %s %s %s' % (color('red', 'ack'), ' '.join(line['unique_ids']), excision, indel['seqstr'])
-#             return_seq = return_seq[ : indel['pos']] + return_seq[indel['pos'] + indel['len'] : ]
-#         else:
-#             assert False
-#
-#     return return_seq
-
 # ----------------------------------------------------------------------------------------
-def get_empty_indel():  # TODO update, probably should just be None or something? it at least should be simpler
-    # 'has_indels' : False,       # eventually would be nice to add this
-    return {'reversed_seq' : '', 'indels' : [], 'genes' : {}, 'qr_gap_seq' : '', 'gl_gap_seq' : ''}  # TODO eventually should not use this, should just have the gap seqs and the bool in the <line>
+def get_empty_indel():
+    return {'reversed_seq' : '', 'indels' : [], 'genes' : {}, 'qr_gap_seq' : '', 'gl_gap_seq' : ''}  # it would be nice to eventually just have the gap seqs and bool in the <line>, but it's difficult to switch over (I tried)
 
 # ----------------------------------------------------------------------------------------
 def has_indels(indelfo):
-    # return indelfo['has_indels']  # eventually would be nice to switch to this
     return len(indelfo['indels']) > 0
 
 # ----------------------------------------------------------------------------------------
@@ -156,7 +110,7 @@ def add_indels(n_indels, qrseq, glseq, mean_length, codon_positions, indel_locat
 
     # then build the indelfo
     indelfo = get_empty_indel()
-    indelfo['genes'] = {}  # TODO maybe remove the match info from indelfo? it seems like I have it so I can pass info between the aligner that made the indel call and the aligner that is using that info, but maybe it'd be better to just explicitly keep the match info somewhere else
+    indelfo['genes'] = {}  # it's kind of awkward to have the match info here, but I need some way to pasp it between the aligner that's calling the indel (typically vsearch) and the aligner that's using it (typically sw)
     indelfo['qr_gap_seq'], indelfo['gl_gap_seq'] = qrseq, glseq
     indelfo['reversed_seq'] = qrseq
     for pos in indel_positions:
@@ -312,7 +266,6 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     check_cigar_len(cigars, qrseq, glseq, uid=uid)
 
     indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
-    # TODO should probably also ignore indels on either end (I think only relevant for vsearch)
     if 'I' not in cigarstr and 'D' not in cigarstr:  # has to happen after we've changed from vsearch conventions
         if debug:
             print '  no indels'
