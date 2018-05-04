@@ -226,7 +226,7 @@ def get_reversed_seq(qr_gap_seq, gl_gap_seq, v_5p_del_str, j_3p_del_str):
     return v_5p_del_str + ''.join(reversed_match_seq) + j_3p_del_str
 
 # ----------------------------------------------------------------------------------------
-def check_cigar_len(cigars, qrseq, glseq, uid=None):  # check consistency between cigar and qr/gl seqs
+def check_cigar_len(cigars, qrseq, glseq, uid=None):  # check consistency between cigar and qr/gl seqs (similar to code in get_cigarstr_from_gap_seqs(), except that checks consistency with gap seqs)
     for seqtype, tmpseq, tmpcode in (('qr', qrseq, 'D'), ('gl', glseq, 'I')):
         cigar_len = sum([length for code, length in cigars if code != tmpcode])
         if cigar_len != len(tmpseq):
@@ -373,6 +373,7 @@ def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, 
 
 # ----------------------------------------------------------------------------------------
 def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this function sucks, because it has to handle both the case where we're reconstucting the indel info from info in a file, and the case where we're checking what's already there
+    # debug = 2
     if 'indelfos' in line and 'reversed_seq' not in line['indelfos'][0]:  # old-style files
         for iseq in range(len(line['unique_ids'])):
             reconstruct_indelfo_from_indel_list(line['indelfos'][iseq], line, iseq, debug=debug)
@@ -385,7 +386,7 @@ def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this f
     if reset_indel_genes:  # for when we get a new annotation (after reversing the indel), and it's got different genes
         reset_indelfos_for_new_genes(line)
 
-    check_indelfo_consistency(line)
+    check_indelfo_consistency(line, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  # old-style files
@@ -444,7 +445,7 @@ def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  #
     line['indelfos'][iseq]['gl_gap_seq'] = ''.join(gl_gap_seq)
     line['indelfos'][iseq]['indels'] = indel_list
     line['indelfos'][iseq]['reversed_seq'] = line['indel_reversed_seqs'][iseq]
-    line['indelfos'][iseq]['genes'] = {r : line[r + '_gene'] for r in utils.regions}  # TODO maybe don't include the gene and qrbounds info
+    line['indelfos'][iseq]['genes'] = {r : line[r + '_gene'] for r in utils.regions}
     if debug:
         print '  reconstructed indelfo'
         print get_dbg_str(line['indelfos'][iseq])
@@ -462,12 +463,13 @@ def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
         else:
             assert False  # the shouldn't both be gaps
 
-    cigars = []
-    assert len(gl_gap_seq) == len(qr_gap_seq)
     if debug:
         print '  reconstructing cigar'
         print '     qr  %3d  %s' % (len(qr_gap_seq), qr_gap_seq)
         print '     gl  %3d  %s' % (len(gl_gap_seq), gl_gap_seq)
+
+    assert len(gl_gap_seq) == len(qr_gap_seq)
+    cigars = []
     for ipos in range(len(qr_gap_seq)):
         if ipos == 0 or gettype(ipos) != gettype(ipos - 1):
             cigars.append([gettype(ipos), 0])
@@ -476,17 +478,11 @@ def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
     if debug:
         print '   cigars: %s' % cigars
 
-    # TODO fix this, probably uncomment it and make it a faster check
-# # ----------------------------------------------------------------------------------------
-#     cigar_len = sum([length for code, length in cigars])
-#     if cigar_len != len(qr_gap_seq):
-#         raise Exception('cigar length %d doesn\'t match qr gap seq length %d' % (cigar_len, seqtype, len(qr_gap_seq)))
-#     if cigar_len != len(gl_gap_seq):
-#         raise Exception('cigar length %d doesn\'t match gl gap seq length %d' % (cigar_len, seqtype, len(gl_gap_seq)))
-#     # utils.color_mutants(line['input_seqs'][iseq], qr_gap_seq, align=True, print_result=True, ref_label='input  ', seq_label='qr gap ')
-#     # print len(line['input_seqs'][iseq]), len(qr_gap_seq)
-#     # assert len(line['input_seqs'][iseq]) == utils.non_gap_len(qr_gap_seq)
-# # ----------------------------------------------------------------------------------------
+    cigar_len = sum([length for code, length in cigars])  # similar to code in check_cigar_len(), except that checks consistency with un-gapped seqs
+    if cigar_len != len(qr_gap_seq):
+        raise Exception('cigar length %d doesn\'t match qr gap seq length %d' % (cigar_len, seqtype, len(qr_gap_seq)))
+    # if cigar_len != len(gl_gap_seq):  # already checked that the two gap seqs are the same length
+    #     raise Exception('cigar length %d doesn\'t match gl gap seq length %d' % (cigar_len, seqtype, len(gl_gap_seq)))
 
     cigarstr = ''.join(['%d%s' % (l, c) for c, l in cigars])
     return cigarstr
@@ -597,8 +593,6 @@ def check_single_sequence_indels(line, iseq, print_on_err=True, debug=False):
 def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=False):
     # debug = 2
     joint_indelfo = get_empty_indel()
-    joint_indelfo['indels'] = []  # TODO probably add this stuff to get_empty_indel()
-    joint_indelfo['genes'] = {}
     if 'd' not in qrbounds:  # arbitrarily give the d one base, and the j the rest of the sequence (I think they shouldn't affect anything as long as there's no d or j indels here)
         qrbounds['d'] = (qrbounds['v'][1], qrbounds['v'][1] + 1)
     if 'j' not in qrbounds:
