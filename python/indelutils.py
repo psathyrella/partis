@@ -9,7 +9,14 @@ import utils
 
 # ----------------------------------------------------------------------------------------
 def get_empty_indel():
-    return {'reversed_seq' : '', 'indels' : [], 'genes' : {}, 'qr_gap_seq' : '', 'gl_gap_seq' : ''}  # it would be nice to eventually just have the gap seqs and bool in the <line>, but it's difficult to switch over (I tried)
+    emptdel = {  # it would be nice to eventually just have the gap seqs in the <line> (and probably add a bool), but it's difficult to switch over (I tried)
+        'qr_gap_seq' : '',  # gap seqs have all the info we really want
+        'gl_gap_seq' : '',
+        'reversed_seq' : '',  # could maybe remove this and instead use a call to remove the gaps from the qr gap seq
+        'genes' : {},  # kind of annoying, but useful/necessary
+        'indels' : [],  # only for backwards compatibility
+    }
+    return emptdel
 
 # ----------------------------------------------------------------------------------------
 def has_indels(indelfo):
@@ -342,18 +349,7 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     return indelfo
 
 # ----------------------------------------------------------------------------------------
-def pad_indel_info_in_line(line, iseq, leftstr, rightstr):  # TODO holy fucking shit don't have both of these fcns
-    # TODO update for any new keys
-    indelfo = line['indelfos'][iseq]
-    indelfo['qr_gap_seq'] = leftstr + indelfo['qr_gap_seq'] + rightstr
-    indelfo['gl_gap_seq'] = leftstr + indelfo['gl_gap_seq'] + rightstr
-    indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
-    for indel in indelfo['indels']:
-        indel['pos'] += len(leftstr)
-
-# ----------------------------------------------------------------------------------------
-def pad_indelfo(indelfo, leftstr, rightstr):  # TODO holy fucking shit don't have both of these fcns
-    # TODO update for any new keys
+def pad_indelfo(indelfo, leftstr, rightstr):
     indelfo['qr_gap_seq'] = leftstr + indelfo['qr_gap_seq'] + rightstr
     indelfo['gl_gap_seq'] = leftstr + indelfo['gl_gap_seq'] + rightstr
     indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr

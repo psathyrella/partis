@@ -1332,7 +1332,7 @@ class Waterer(object):
             # TODO double check this
             if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
                 assert self.info['indels'][query] is swfo['indelfos'][0]  # TODO make this less scary
-                indelutils.pad_indel_info_in_line(swfo, 0, leftstr, rightstr)
+                indelutils.pad_indelfo(swfo['indelfos'][0], leftstr, rightstr)
             for key in swfo['k_v']:
                 swfo['k_v'][key] += padleft
             swfo['codon_positions']['v'] += padleft
