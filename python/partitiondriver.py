@@ -167,11 +167,9 @@ class PartitionDriver(object):
         print ''
         sys.stdout.flush()
 
-        self.vs_info = None  # TODO
-        just_ran_vsearch = False  # TODO
-        if self.vs_info is None and not self.args.no_pre_vsearch:
+        self.vs_info = None  # should already be None, but we want to make sure (if --no-sw-vsearch is set we need it to be None, and if we just removed unlikely alleles we need to rerun vsearch with the likely alleles)
+        if not self.args.no_sw_vsearch:
             self.get_vsearch_annotations(get_annotations=True)
-            just_ran_vsearch = True  # TODO do this a better way
 
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
         waterer = Waterer(self.args, self.glfo, self.input_info, self.simglfo, self.reco_info,
@@ -195,17 +193,7 @@ class PartitionDriver(object):
         for uid, dupes in waterer.duplicates.items():  # <waterer.duplicates> is <self.duplicates> OR'd into any new duplicates from this run
             self.duplicates[uid] = dupes
 
-        # pad vsearch indel info so it'll match the sw indel info (if the sw indel info is just copied from the vsearch info, and you're not going to use the vsearch info for anything after, there's no reason to do this)
-        if just_ran_vsearch:  # TODO
-            for query in self.sw_info['indels']:
-                if query not in self.sw_info['queries']:
-                    continue
-                if query not in self.vs_info['annotations']:
-                    continue
-                if not indelutils.has_indels(self.vs_info['annotations'][query]['indelfo']):
-                    continue
-                indelutils.pad_indelfo(self.vs_info['annotations'][query]['indelfo'], utils.ambiguous_bases[0] * self.sw_info[query]['padlefts'][0], utils.ambiguous_bases[0] * self.sw_info[query]['padrights'][0])
-            # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)
+        # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)  # only compares indels a.t.m.
 
         if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
             print '  copying sw cache file %s to --outfname %s' % (cachefname, self.args.outfname)

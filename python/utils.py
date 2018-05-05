@@ -3378,6 +3378,16 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
 
 # ----------------------------------------------------------------------------------------
 def compare_vsearch_to_sw(sw_info, vs_info):
+    # pad vsearch indel info so it'll match the sw indel info (if the sw indel info is just copied from the vsearch info, and you're not going to use the vsearch info for anything after, there's no reason to do this)
+    for query in sw_info['indels']:
+        if query not in sw_info['queries']:
+            continue
+        if query not in vs_info['annotations']:
+            continue
+        if not indelutils.has_indels(vs_info['annotations'][query]['indelfo']):
+            continue
+        indelutils.pad_indelfo(vs_info['annotations'][query]['indelfo'], ambiguous_bases[0] * sw_info[query]['padlefts'][0], ambiguous_bases[0] * sw_info[query]['padrights'][0])
+
     from hist import Hist
     hists = {
         # 'mfreq' : Hist(30, -0.1, 0.1),

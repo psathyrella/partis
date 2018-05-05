@@ -322,7 +322,7 @@ parent_parser.add_argument('--min-allele-finding-gene-length', type=int, default
 parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 parent_parser.add_argument('--cluster-indices', help='indices of clusters (when sorted largest to smallest) to print for --view-annotations and --view-partitions')
 
-parent_parser.add_argument('--no-pre-vsearch', action='store_true')
+parent_parser.add_argument('--no-sw-vsearch', action='store_true', help='By default, we get preliminary V annotations from vsearch that we pass to sw. This improves accuracy because the vsearch shm rate estimates let us separate sequences into groups by optimal sw match/mismatch scores, and improves speed by letting us reverse shm V indels before running sw (so fewer sw iterations; also vsearch is faster than sw). Setting this option skips the preliminary vsearch step (although if caching parameters, we still use vsearch to remove less-likely genes; but no vsearch info is passed to sw)')
 
 # ----------------------------------------------------------------------------------------
 subconfig = {
