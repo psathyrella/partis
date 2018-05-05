@@ -913,18 +913,18 @@ class Waterer(object):
 
         # convert to regular format used elsewhere, and add implicit info
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
-        utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
-        # try:
-        #     utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
-        # except:  # AssertionError gah, I don't really like just swallowing everything... but then I *expect* it to fail here... and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed
-        #     exc_type, exc_value, exc_traceback = sys.exc_info()
-        #     import traceback
-        #     lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-        #     print utils.pad_lines(''.join(lines))
-        #     if self.debug:
-        #         print '      rerun: implicit info adding failed for %s, rerunning' % qname
-        #     queries_to_rerun['weird-annot.'].add(qname)
-        #     return
+        # utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)  # TODO it would be nice to switch to this, but I need to run for a while printing the errors below to make sure they're not actually happening
+        try:
+            utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
+        except:  # AssertionError gah, I don't really like just swallowing everything... but then I *expect* it to fail here... and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            import traceback
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print utils.pad_lines(''.join(lines))
+            if self.debug:
+                print '      rerun: implicit info adding failed for %s, rerunning' % qname
+            queries_to_rerun['weird-annot.'].add(qname)
+            return
 
         # deal with unproductive rearrangements
         if not utils.is_functional(infoline):
