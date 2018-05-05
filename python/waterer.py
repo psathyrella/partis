@@ -99,7 +99,7 @@ class Waterer(object):
             mismatches, gap_opens, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
             self.write_input_files(base_infname, queries_for_each_proc)
 
-            print '    running %d proc%s for %d seqs' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries))
+            print '    running %d proc%s for %d seq%s' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries), utils.plural(len(self.remaining_queries)))
             sys.stdout.flush()
             self.execute_commands(base_infname, base_outfname, mismatches, gap_opens)
 
@@ -246,7 +246,7 @@ class Waterer(object):
             # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
 
         if self.debug and len(queries_with_indels) > 0:
-            print '    added %d vsearch indels%s' % (len(queries_with_indels), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else '')
+            print '    added %d vsearch indel%s%s' % (len(queries_with_indels), utils.plural(len(queries_with_indels)), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else '')
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
@@ -1349,8 +1349,6 @@ class Waterer(object):
         if self.vs_info is not None and qinfo['name'] in self.vs_indels:
             if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, we rerun sw with <self.args.no_indel_gap_open_penalty>
                 return None
-            # TODO need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
-            # TODO need to fix qinfo['seq']
             vs_indelfo = self.info['indels'][qinfo['name']]
             assert 'v' in vs_indelfo['genes']  # a.t.m. vsearch is only looking for v genes, and if that changes in the future we'd need to rewrite this
             non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
@@ -1365,8 +1363,8 @@ class Waterer(object):
                 if region in qinfo['new_indels']:
                     for ifo in qinfo['new_indels'][region]['indels']:
                         ifo['pos'] += net_v_indel_length
-            full_qrseq = self.input_info[qinfo['name']]['seqs'][0]
-            del self.info['indels'][qinfo['name']]  # TODO um, maybe?
+            full_qrseq = self.input_info[qinfo['name']]['seqs'][0]  # should in principle replace qinfo['seq'] as well, since it's the reversed seq from vsearch, but see note below
+            del self.info['indels'][qinfo['name']]
             regional_indelfos['v'] = vs_indelfo
         elif 'v' in qinfo['new_indels']:
             regional_indelfos['v'] = qinfo['new_indels']['v']
@@ -1378,5 +1376,4 @@ class Waterer(object):
 
         # NOTE qinfo won't be consistent with the indel reversed seq after this, but that's kind of the point, since we're just rerunning anyway
 
-        # TODO make sure qinfo['seq'] is correct (i.e. fix it if it's modified because of vsearch stuff)
         return indelutils.combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=qinfo['name'])
