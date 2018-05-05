@@ -368,6 +368,7 @@ def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, 
     if len(jf_insertion_to_remove) + j_3p_to_remove > 0:
         rseq = rseq[ : -(len(jf_insertion_to_remove) + j_3p_to_remove)]
     line['indelfos'][iseq]['reversed_seq'] = rseq
+
     for indel in line['indelfos'][iseq]['indels']:
         indel['pos'] -= len(fv_insertion_to_remove) + v_5p_to_remove
 

@@ -200,7 +200,7 @@ class Waterer(object):
                 perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
 
         # remove queries with cdr3 length different to the seed sequence
-        if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in UPDATE on the other hand aren't we pretty much alwasy reading cached values if we're seed partitioning?
+        if self.args.seed_unique_id is not None:  # it might be nice to get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in? then again  aren't we pretty much always reading cached values if we're seed partitioning?
             if self.args.seed_unique_id in self.info['queries']:
                 seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']
             else:  # if it failed
@@ -342,7 +342,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def split_queries(self, n_procs):
-        input_queries = list(self.remaining_queries)  # TODO this is ugly
+        input_queries = list(self.remaining_queries)
         if self.vs_info is None:
             mismatches, queries_for_each_proc = self.split_queries_evenly_among_procs(input_queries, n_procs)
         else:
@@ -365,7 +365,7 @@ class Waterer(object):
                 utils.prep_dir(workdir)
             with open(workdir + '/' + base_infname, 'w') as sub_infile:
                 for query_name in queries_for_each_proc[iproc]:
-                    if query_name in self.info['indels']:  # TODO make this less confusing (e.g. having it like this means you have to set the sw info with the sequence from the sw output)
+                    if query_name in self.info['indels']:
                         seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
                     else:
                         assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here (where "it's nice" means "it used to be the other way and it fucking sucked and a fuckton of effort went into synchronizing the treatments")
@@ -478,11 +478,6 @@ class Waterer(object):
                                 % (n_to_rerun, self.new_indels, len(not_read),
                                    n_to_rerun + self.new_indels + len(not_read),
                                    len(self.remaining_queries), self.args.workdir))
-
-            # TODO double check this
-# ----------------------------------------------------------------------------------------
-            # self.new_indels = 0  # should already be zero, but this is the remains of some more substantial code
-# ----------------------------------------------------------------------------------------
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
@@ -861,19 +856,18 @@ class Waterer(object):
             else:
                 assert overlap_status == 'ok'
 
-        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice/a.t.m.: only v or j best matches)
-            indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
+        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through
+            indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the indel-reversed sequence, rather than the <input_info> sequence
             if indelfo is None:
-                if self.debug:
-                    print '      rerun: indel fails'  # TODO
                 queries_to_rerun['indel-fails'].add(qname)
                 self.indel_fails.add(qname)
+                if self.debug:
+                    print '      rerun: indel fails'
             else:
                 self.info['indels'][qinfo['name']] = indelfo
                 self.new_indels += 1  # tells self.run() that we need to do another iteration
                 if self.debug:
-                    print '      rerun: new indels in %s' % ' '.join(qinfo['new_indels'].keys())
-                    # print '      rerun: new indels\n%s' % utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
+                    print '      rerun: new indels in %s' % ' '.join(qinfo['new_indels'].keys())  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
             return
 
         if self.debug >= 2:
@@ -893,7 +887,7 @@ class Waterer(object):
             insertion_length = qinfo['qrbounds'][best[rp['right']]][0] - qinfo['qrbounds'][best[rp['left']]][1]  # start of right match minus end of left one
             if insertion_length > self.absolute_max_insertion_length:
                 if self.debug:
-                    print '      suspiciously long insertion in %s, rerunning' % qname  # TODO not actually rerunning
+                    print '      suspiciously long insertion in %s, rerunning' % qname
                 queries_to_rerun['weird-annot.'].add(qname)
                 return
 
@@ -919,13 +913,18 @@ class Waterer(object):
 
         # convert to regular format used elsewhere, and add implicit info
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
-        try:
-            utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
-        except:  # AssertionError gah, I don't really like just swallowing everything... but then I *expect* it to fail here... and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed
-            if self.debug:
-                print '      rerun: implicit info adding failed for %s, rerunning' % qname
-            queries_to_rerun['weird-annot.'].add(qname)
-            return
+        utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
+        # try:
+        #     utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
+        # except:  # AssertionError gah, I don't really like just swallowing everything... but then I *expect* it to fail here... and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed
+        #     exc_type, exc_value, exc_traceback = sys.exc_info()
+        #     import traceback
+        #     lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        #     print utils.pad_lines(''.join(lines))
+        #     if self.debug:
+        #         print '      rerun: implicit info adding failed for %s, rerunning' % qname
+        #     queries_to_rerun['weird-annot.'].add(qname)
+        #     return
 
         # deal with unproductive rearrangements
         if not utils.is_functional(infoline):
@@ -1131,15 +1130,9 @@ class Waterer(object):
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = swfo[seqkey][0][fv_len : len(swfo[seqkey][0]) - jf_len]
             swfo['naive_seq'] = swfo['naive_seq'][fv_len : len(swfo['naive_seq']) - jf_len]
-# ----------------------------------------------------------------------------------------
-            # TODO check this
-            if query in self.info['indels']:  # NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
-                # swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
-                # for indel in reversed(swfo['indelfos'][0]['indels']):  # why in the world did I bother with the reversed() here? I guess maybe just as a reminder of how the list works...
-                #     indel['pos'] -= fv_len
-                assert self.info['indels'][query] is self.info[query]['indelfos'][0]  # TODO make this less scary
+            if query in self.info['indels']:
+                assert self.info['indels'][query] is swfo['indelfos'][0]  # it would be nice to eventually not need the dict in both these places
                 indelutils.trim_indel_info(swfo, 0, swfo['fv_insertion'], swfo['jf_insertion'], 0, 0)
-# ----------------------------------------------------------------------------------------
             for key in swfo['k_v']:
                 swfo['k_v'][key] -= fv_len
             swfo['fv_insertion'] = ''
@@ -1329,9 +1322,8 @@ class Waterer(object):
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = leftstr + swfo[seqkey][0] + rightstr
             swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr
-            # TODO double check this
-            if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
-                assert self.info['indels'][query] is swfo['indelfos'][0]  # TODO make this less scary
+            if query in self.info['indels']:
+                assert self.info['indels'][query] is swfo['indelfos'][0]
                 indelutils.pad_indelfo(swfo['indelfos'][0], leftstr, rightstr)
             for key in swfo['k_v']:
                 swfo['k_v'][key] += padleft
@@ -1354,17 +1346,13 @@ class Waterer(object):
         regional_indelfos = {}
         qrbounds = {r : qinfo['qrbounds'][best[r]] for r in utils.regions}
         full_qrseq = qinfo['seq']
-        if self.vs_info is not None and qinfo['name'] in self.vs_indels:  # TODO read through this
-            if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, I don't even want to think about it TODO make this not an assertion (probably just make it a failure in the calling fcn)
-                # print '%s sw kicked up v shm indels after vsearch already found some for %s' % (utils.color('red', 'error'), qinfo['name'])
-                # print indelutils.get_dbg_str(qinfo['new_indels']['v'])
+        if self.vs_info is not None and qinfo['name'] in self.vs_indels:
+            if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, we rerun sw with <self.args.no_indel_gap_open_penalty>
                 return None
             # TODO need to figure out how to make sure that having the reversed seq correspond to already reversing the v, but not the j, indel
             # TODO need to fix qinfo['seq']
             vs_indelfo = self.info['indels'][qinfo['name']]
-            assert 'v' in vs_indelfo['genes']
-            # if vs_indelfo['genes']['v'] != best['v']:
-            #     print 'yep!', utils.color_gene(vs_indelfo['genes']['v']), utils.color_gene(best['v'])
+            assert 'v' in vs_indelfo['genes']  # a.t.m. vsearch is only looking for v genes, and if that changes in the future we'd need to rewrite this
             non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
             vs_indelfo['qr_gap_seq'] = vs_indelfo['qr_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['qr_gap_seq']) - non_v_bases]
             vs_indelfo['gl_gap_seq'] = vs_indelfo['gl_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['gl_gap_seq']) - non_v_bases]
