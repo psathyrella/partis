@@ -56,25 +56,18 @@ def run_simulation(args):
     if args.n_max_queries != -1:
         print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
 
-    if not args.rearrange_from_scratch and args.reco_parameter_dir is None:
-        if args.parameter_dir is not None:
-            print '  note: using --parameter-dir as --reco-parameter-dir'  # it would be cleaner/less confusing to just force --reco-parameter-dir to be on the command line, but oh well
-            args.reco_parameter_dir = args.parameter_dir
-            args.parameter_dir = None
-        else:
-            raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir')
-    if not args.mutate_from_scratch and args.shm_parameter_dir is None:
-        if args.parameter_dir is not None:
-            print '  note: using --parameter-dir as --shm-parameter-dir'  # it would be cleaner/less confusing to just force --shm-parameter-dir to be on the command line, but oh well
-            args.shm_parameter_dir = args.parameter_dir
-            args.parameter_dir = None
-        else:
-            raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir')
     if args.parameter_dir is not None:
+        if args.rearrange_from_scratch or args.mutate_from_scratch:
+            raise Exception('if setting --rearrange-from-scratch or --mutate-from-scratch, you need to use --reco-parameter-dir and/or --shm-parameter-dir rather than --parameter-dir')
         if args.generate_germline_set:
             raise Exception('you can\'t specify --parameter-dir if you also set --generate-germline-set')
         if args.initial_germline_dir is not None:
             raise Exception('you can\'t specify both --parameter-dir and --initial-germline-dir (germline info has to be read from the parameter dir)')
+    else:
+        if not args.rearrange_from_scratch and args.reco_parameter_dir is None:
+            raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir')
+        if not args.mutate_from_scratch and args.shm_parameter_dir is None:
+            raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir')
 
     utils.prep_dir(args.workdir)
 
