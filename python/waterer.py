@@ -70,7 +70,7 @@ class Waterer(object):
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
         self.info['failed-queries'] = set() if pre_failed_queries is None else copy.deepcopy(pre_failed_queries)  # not really sure about the deepcopy(), but it's probably safer?
         self.info['passed-queries'] = set()
-        self.info['duplicates'] = self.duplicates  # TODO rationalize this
+        self.info['duplicates'] = self.duplicates  # it would be really nice to rationalize this
         self.info['removed-queries'] = set()  # ...and this
 
         self.remaining_queries = set(self.input_info) - self.info['failed-queries']  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)

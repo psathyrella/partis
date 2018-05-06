@@ -56,7 +56,7 @@ class PartitionDriver(object):
         self.vs_info, self.sw_info = None, None
         self.duplicates = {}
         self.bcrham_proc_info = None
-        self.timing_info = []  # TODO clean up this and bcrham_proc_info
+        self.timing_info = []  # it would be really nice to clean up both this and bcrham_proc_info
         self.istep = None  # stupid hack to get around network file system issues (see self.subworkidr()
         self.subworkdirs = []  # arg. same stupid hack
 
@@ -169,7 +169,7 @@ class PartitionDriver(object):
 
         self.vs_info = None  # should already be None, but we want to make sure (if --no-sw-vsearch is set we need it to be None, and if we just removed unlikely alleles we need to rerun vsearch with the likely alleles)
         if not self.args.no_sw_vsearch:
-            self.get_vsearch_annotations(get_annotations=True)
+            self.set_vsearch_info(get_annotations=True)
 
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
         waterer = Waterer(self.args, self.glfo, self.input_info, self.simglfo, self.reco_info,
@@ -204,7 +204,7 @@ class PartitionDriver(object):
                 utils.write_presto_annotations(self.args.outfname, self.glfo, annotations, failed_queries=failed_queries)
 
     # ----------------------------------------------------------------------------------------
-    def get_vsearch_annotations(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')
+    def set_vsearch_info(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
         self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, get_annotations=get_annotations, no_indels=self.args.no_indels)
 
@@ -214,7 +214,7 @@ class PartitionDriver(object):
 
         # remove unlikely alleles
         if not self.args.dont_remove_unlikely_alleles:
-            self.get_vsearch_annotations()
+            self.set_vsearch_info()
             alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args))
             alremover.finalize(sorted(self.vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
@@ -1665,7 +1665,7 @@ class PartitionDriver(object):
                     pcounter.increment(line_to_use)
 
                 if perfplotter is not None:
-                    messed_up = False  # TODO arrrgggggg
+                    messed_up = False  # this would be really nice to clean up
                     for iseq in range(len(line_to_use['unique_ids'])):
                         if indelutils.has_indels(self.reco_info[uids[iseq]]['indelfos'][0]) or indelutils.has_indels(line_to_use['indelfos'][iseq]):
                             simlen = indelutils.net_length(self.reco_info[uids[iseq]]['indelfos'][0])

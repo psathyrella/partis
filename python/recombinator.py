@@ -382,7 +382,7 @@ class Recombinator(object):
             self.insert(boundary, reco_event)
 
     # ----------------------------------------------------------------------------------------
-    def write_mute_freqs(self, gene, seq, reco_event, reco_seq_fname):  # TODO unsurprisingly, this function profiles out to be kind of a dumb way to do it, in terms of run time
+    def write_mute_freqs(self, gene, seq, reco_event, reco_seq_fname):  # unsurprisingly, this function profiles out to be kind of a dumb way to do it, in terms of run time
         """ Read position-by-position mute freqs from disk for <gene>, renormalize, then write to a file for bppseqgen. """
         mute_freqs = self.get_mute_freqs(gene)
 
@@ -512,7 +512,6 @@ class Recombinator(object):
             reco_event.final_seqs[iseq] = input_seq
             indelfo['genes'] = {r : reco_event.genes[r] for r in utils.regions}
             reco_event.indelfos[iseq] = indelfo
-            # TODO need to update other things, at least input_seqs?
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
