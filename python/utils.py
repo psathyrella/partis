@@ -1325,7 +1325,6 @@ def separate_into_allelic_groups(glfo, debug=False):
                     print '        %15s      %s' % (s, ' '.join([color_gene(g, width=12) for g in allelic_groups[r][p][s]]))
     return allelic_groups  # NOTE doesn't return the same thing as separate_into_snp_groups()
 
-
 # ----------------------------------------------------------------------------------------
 def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):
     """ where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <n_max_snps> """

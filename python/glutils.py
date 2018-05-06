@@ -975,8 +975,8 @@ def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_al
     assert utils.is_normed(allele_prevalence_freqs[region])
     if debug:
         print '      counts %s' % ' '.join([('%5d' % c) for c in prevalence_counts])
-        print '       freqs %s' % ' '.join([('%5.3f' % c) for c in prevalence_freqs])
-        print '   min ratio %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))
+        print '      freqs  %s' % ' '.join([('%5.3f' % c) for c in prevalence_freqs])
+        print '      min ratio: %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))
 
 # ----------------------------------------------------------------------------------------
 def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
@@ -990,7 +990,7 @@ def process_parameter_strings(n_genes_per_region, n_alleles_per_gene):
     return n_genes_per_region, n_alleles_per_gene
 
 # ----------------------------------------------------------------------------------------
-def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=None, dont_remove_template_genes=False, debug=True):
+def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=None, dont_remove_template_genes=False, debug=False):
     """ NOTE removes genes from  <glfo> """
 
     if n_genes_per_region is None:
@@ -1001,13 +1001,13 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         min_allele_prevalence_freq = default_min_allele_prevalence_freq
 
     if debug:
-        print '    choosing germline set'
+        print ' choosing germline set'
     n_genes_per_region, n_alleles_per_gene = process_parameter_strings(n_genes_per_region, n_alleles_per_gene)  # they're passed as strings into here, but we need 'em to be dicts
     allelic_groups = utils.separate_into_allelic_groups(glfo)  # NOTE by design, these are not the same as the groups created by alleleremover
     allele_prevalence_freqs = {r : {} for r in utils.regions}
     for region in utils.regions:
         if debug:
-            print '  %s' % region
+            print '   %s' % region
         genes_to_use = set()
         for _ in range(n_genes_per_region[region]):
             choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=debug)
@@ -1023,10 +1023,18 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
             _ = generate_new_alleles(glfo, new_allele_info, debug=True, remove_template_genes=not dont_remove_template_genes)
 
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
+
+    print '  generated germline set (genes/alleles):',
+    allelic_groups = utils.separate_into_allelic_groups(glfo)
+    for region in utils.regions:
+        n_genes = sum([len(allelic_groups[region][pv].keys()) for pv in allelic_groups[region]])
+        print ' %s %2d/%-2d ' % (region, n_genes, len(glfo['seqs'][region])),
+    print ''
+
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
 
 # ----------------------------------------------------------------------------------------
-def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_region=None):
+def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_region=None, debug=False):
     allele_prevalence_freqs = read_allele_prevalence_freqs(allele_prevalence_fname)
     counts = {r : {g : 0 for g in glfo['seqs'][r]} for r in utils.regions}
     with open(outfname) as outfile:
@@ -1034,16 +1042,18 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
         for line in reader:
             for region in utils.regions:
                 counts[region][line[region + '_gene']] += 1
-    print '   checking allele prevalence freqs'
+    if debug:
+        print '   checking allele prevalence freqs'
     for region in utils.regions:
         if only_region is not None and region != only_region:
             continue
         total = sum(counts[region].values())
         width = str(max(3, len(str(max(counts[region].values())))))
-        print '       %s  (%d total)' % (region, total)
-        print ('           %' + width + 's    freq    expected') % 'obs'
-        for gene in sorted(glfo['seqs'][region], key=lambda g: counts[region][g], reverse=True):
-            print ('          %' + width + 'd     %.3f    %.3f   %s') % (counts[region][gene], float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
+        if debug:
+            print '       %s  (%d total)' % (region, total)
+            print ('           %' + width + 's    freq    expected') % 'obs'
+            for gene in sorted(glfo['seqs'][region], key=lambda g: counts[region][g], reverse=True):
+                print ('          %' + width + 'd     %.3f    %.3f   %s') % (counts[region][gene], float(counts[region][gene]) / total, allele_prevalence_freqs[region][gene], utils.color_gene(gene, width=15))
 
 # ----------------------------------------------------------------------------------------
 def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  # may modify <snpfo>, if it's passed
