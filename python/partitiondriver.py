@@ -1618,9 +1618,8 @@ class PartitionDriver(object):
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
 
-                # TODO double check this
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
-                padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]
+                padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <padded_line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
 
                 if not utils.has_d_gene(self.args.locus):
@@ -1643,7 +1642,6 @@ class PartitionDriver(object):
                     print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
-                # TODO indel info in self.sw_info is only right for padded seqs at this point
                 if len(uids) > 1:  # if there's more than one sequence, we need to use the padded line
                     at_least_one_mult_hmm_line = True
                     line_to_use = padded_line

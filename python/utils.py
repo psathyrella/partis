@@ -17,6 +17,7 @@ import csv
 import subprocess
 import multiprocessing
 import copy
+import traceback
 
 import indelutils
 
@@ -999,13 +1000,10 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     try:
         add_implicit_info(glfo, line, aligned_gl_seqs=aligned_gl_seqs)
     except:
-        print '%s failed adding implicit info to \'%s\'' % (color('red', 'error'), ':'.join(line['unique_ids']))
-        print color('red', 'padded:')
-        for k, v in padded_line.items():
-            print '%20s  %s' % (k, v)
-        print color('red', 'eroded:')
-        for k, v in line.items():
-            print '%20s  %s' % (k, v)
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        print pad_lines(''.join(lines))
+        print '  failed adding implicit info to \'%s\' (see above)' % ':'.join(line['unique_ids'])
         line['invalid'] = True
 
     return line
