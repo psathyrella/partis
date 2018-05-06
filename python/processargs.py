@@ -148,6 +148,40 @@ def process(args):
     if args.presto_output and args.aligned_germline_fname is None:
         raise Exception('in order to get presto output, you have to set --aligned-germline-fname (a fasta file with germline alignments for every germline gene)')
 
+    if args.action == 'simulate':
+        if len(args.loci) != 1:
+            raise Exception('needs to be implemented')
+        if args.batch_system is not None and args.n_procs > 1 and not args.subsimproc:
+            print '  %s setting subsimproc' % utils.color('red', 'warning')
+            args.subsimproc = True
+        if args.n_trees is None:
+            args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
+        if args.outfname is None:
+            print '  note: no --outfname specified, so nothing will be written to disk'
+        if args.n_max_queries != -1:
+            print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
+
+        # end result of this block: shm/reco parameter dirs are set (unless we're doing their bit from scratch), --parameter-dir is set to None (and if --parameter-dir was set but shm/reco were _not_ set, we've just used --parameter-dir for either/both as needed)
+        if args.parameter_dir is not None:
+            if args.rearrange_from_scratch or args.mutate_from_scratch:
+                raise Exception('can\'t set --parameter-dir if rearranging or mutating from scratch (use --reco-parameter-dir and/or --shm-parameter-dir)')
+            if args.reco_parameter_dir is not None or args.shm_parameter_dir is not None:
+                raise Exception('can\'t set --parameter-dir if either --reco-parameter-dir or --shm-parameter-dir are also set')
+            args.reco_parameter_dir = args.parameter_dir
+            args.shm_parameter_dir = args.parameter_dir
+            args.parameter_dir = None
+        if args.rearrange_from_scratch and args.reco_parameter_dir is not None:
+            raise Exception('doesn\'t make sense to set both --rearrange-from-scratch and --reco-parameter-dir')
+        if args.mutate_from_scratch and args.shm_parameter_dir is not None:
+            raise Exception('doesn\'t make sense to set both --mutate-from-scratch and --shm-parameter-dir')
+        if args.reco_parameter_dir is None and not args.rearrange_from_scratch:
+            raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir')
+        if args.shm_parameter_dir is None and not args.mutate_from_scratch:
+            raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir')
+
+        if args.generate_germline_set and not args.rearrange_from_scratch:
+            raise Exception('can only --generate-germline-set if also rearranging from scratch (set --rearrange-from-scratch)')
+
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')
 
