@@ -181,8 +181,6 @@ def process(args):
 
         if args.generate_germline_set and not args.rearrange_from_scratch:
             raise Exception('can only --generate-germline-set if also rearranging from scratch (set --rearrange-from-scratch)')
-        if args.rearrange_from_scratch and not args.generate_germline_set:
-            print '%s rearranging from scratch without setting --generate-germline-set (this is ok, but means we\'re using _all_ genes/alleles in the germline set, rather than a realistic diploid genotype)' % utils.color('yellow', 'warning')
 
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')
