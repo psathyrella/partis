@@ -32,15 +32,9 @@ class Recombinator(object):
         self.outfname = outfname
         utils.prep_dir(self.workdir)
 
-        self.paramdirs = {'reco' : None, 'shm' : None}
-        if self.args.parameter_dir is not None:
-            self.paramdirs['reco'] = self.args.parameter_dir + '/' + self.args.parameter_type
-            self.paramdirs['shm'] = self.args.parameter_dir + '/' + self.args.parameter_type
-        else:
-            if not self.args.rearrange_from_scratch:
-                self.paramdirs['reco'] = self.args.reco_parameter_dir + '/' + self.args.parameter_type
-            if not self.args.mutate_from_scratch:
-                self.paramdirs['shm'] = self.args.shm_parameter_dir + '/' + self.args.parameter_type
+        assert self.args.parameter_dir is None
+        self.reco_parameter_dir = self.args.reco_parameter_dir + '/' + self.args.parameter_type
+        self.shm_parameter_dir = self.args.shm_parameter_dir + '/' + self.args.parameter_type
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -66,7 +60,7 @@ class Recombinator(object):
                 parameter_name = parameters[2]
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
-        treegen = treegenerator.TreeGenerator(args, self.paramdirs['shm'], seed=seed)
+        treegen = treegenerator.TreeGenerator(args, self.shm_parameter_dir, seed=seed)
         self.treefname = self.workdir + '/trees.tre'
         treegen.generate_trees(seed, self.treefname)  # NOTE not really a newick file, since I hack on the per-region branch length info at the end of each line
         with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
@@ -92,7 +86,7 @@ class Recombinator(object):
         insertion_content_probs = {}
         for bound in utils.boundaries:
             insertion_content_probs[bound] = {}
-            with open(self.paramdirs['reco'] + '/' + bound + '_insertion_content.csv', 'r') as icfile:
+            with open(self.reco_parameter_dir + '/' + bound + '_insertion_content.csv', 'r') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
@@ -124,12 +118,12 @@ class Recombinator(object):
             approved_genes = [gene]
 
             # ok this is kind of dumb, but I need to figure out how many counts there are for this gene, even when we have only an shm parameter dir
-            tmp_reco_param_dir = self.paramdirs['reco'] if self.paramdirs['reco'] is not None else self.paramdirs['shm']  # will crash if the shm parameter dir doesn't have gene count info... but we should only end up using it on data/recombinator/scratch-parameters
+            tmp_reco_param_dir = self.reco_parameter_dir if self.reco_parameter_dir is not None else self.shm_parameter_dir  # will crash if the shm parameter dir doesn't have gene count info... but we should only end up using it on data/recombinator/scratch-parameters
             gene_counts = utils.read_overall_gene_probs(tmp_reco_param_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
             if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's in <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
                 approved_genes += utils.find_replacement_genes(tmp_reco_param_dir, min_counts=self.args.min_observations_to_write, gene_name=gene)
 
-            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.paramdirs['shm'], approved_genes)
+            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, approved_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
@@ -201,7 +195,7 @@ class Recombinator(object):
             return None
 
         version_freq_table = {}
-        with open(self.paramdirs['reco'] + '/' + utils.get_parameter_fname('all', 'r')) as infile:
+        with open(self.reco_parameter_dir + '/' + utils.get_parameter_fname('all', 'r')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:  # NOTE do *not* assume the file is sorted
