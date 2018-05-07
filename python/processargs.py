@@ -214,11 +214,3 @@ def process(args):
 
     if args.infname is None and args.action not in ['simulate', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
         raise Exception('--infname is required for action \'%s\'' % args.action)
-
-    if args.outfname is None and args.action != 'cache-parameters':
-        def setsmall(argval):
-            if argval is None:
-                return False
-            return argval < 1000
-        if not setsmall(args.n_max_queries) and not setsmall(args.n_random_queries):  # if neither of them were set to something small
-            print '  note: running on a lot of sequences without setting --outfname. Which is ok! But there\'ll be no persistent record of the results'

@@ -717,11 +717,11 @@ def plural_str(pstr, count):
         return pstr + 's'
 
 # ----------------------------------------------------------------------------------------
-def plural(count):  # TODO should combine these
+def plural(count, prefix=''):  # TODO should combine these
     if count == 1:
         return ''
     else:
-        return 's'
+        return prefix + 's'
 
 # ----------------------------------------------------------------------------------------
 def summarize_gene_name(gene):
