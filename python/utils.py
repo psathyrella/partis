@@ -3217,7 +3217,24 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
             n_mutations, len_excluding_ambig, mutated_positions = get_mutation_info(query, matchfo, v_indelfo)  # not sure this needs to just be the v_indelfo, but I'm leaving it that way for now
             combined_indelfo = indelutils.get_empty_indel()
             if indelutils.has_indels(v_indelfo):
-                combined_indelfo = indelutils.combine_indels({'v' : v_indelfo}, seqs[query], {'v' : matchfo['qrbounds']})
+                # huh, it actually works fine with zero-length d and j matches, so I don't need this any more
+                # # arbitrarily give the d one base, and the j the rest of the sequence (I think they shouldn't affect anything as long as there's no d or j indels here)
+                # if matchfo['qrbounds'][1] <= len(seqs[query]) - 2:  # if we've got room to give 1 base to d and 1 base to j
+                #     d_start = matchfo['qrbounds'][1]
+                # else:  # ...but if we don't, then truncate the v match
+                #     d_start = len(seqs[query]) - 2
+                # j_start = d_start + 1
+                # tmpbounds = {
+                #     'v' : (matchfo['qrbounds'][0], d_start),
+                #     'd' : (d_start, j_start),
+                #     'j' : (j_start, len(seqs[query])),
+                # }
+                tmpbounds = {  # add zero-length d and j matches
+                    'v' : matchfo['qrbounds'],
+                    'd' : (matchfo['qrbounds'][1], matchfo['qrbounds'][1]),
+                    'j' : (matchfo['qrbounds'][1], matchfo['qrbounds'][1]),
+                }
+                combined_indelfo = indelutils.combine_indels({'v' : v_indelfo}, seqs[query], tmpbounds)
             annotations[query] = {
                 region + '_gene' : matchfo['gene'],  # only works for v now, though
                 'n_' + region + '_mutations' : n_mutations,

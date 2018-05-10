@@ -594,12 +594,13 @@ def check_single_sequence_indels(line, iseq, print_on_err=True, debug=False):
 def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=False):
     # debug = 2
     joint_indelfo = get_empty_indel()
-    if 'd' not in qrbounds:  # arbitrarily give the d one base, and the j the rest of the sequence (I think they shouldn't affect anything as long as there's no d or j indels here)
-        qrbounds['d'] = (qrbounds['v'][1], qrbounds['v'][1] + 1)
-    if 'j' not in qrbounds:
-        qrbounds['j'] = (qrbounds['d'][1], len(full_qrseq))
-    if qrbounds['v'][1] > qrbounds['d'][0] or qrbounds['d'][1] > qrbounds['j'][0]:
-        raise Exception('overlapping qr bounds (fix \'em before passing into here):  %s' % '   '.join([('%s %s' % (r, qrbounds[r])) for r in utils.regions]))
+
+    # make sure the regional qrbounds consist of a nice orderly progression
+    tmpqrblist = [b for r in utils.regions for b in qrbounds[r]]
+    if tmpqrblist != sorted(tmpqrblist):
+        raise Exception('messed up qrbounds %s for qr sequence with length %d:\n  %s' % ('   '.join([('%s %s' % (r, qrbounds[r])) for r in utils.regions]), len(full_qrseq), full_qrseq))
+    if qrbounds['j'][1] > len(full_qrseq):  # qrbounds['v'][1] > len(full_qrseq) or qrbounds['d'][1] > len(full_qrseq) or qrbounds['j'][1] > len(full_qrseq):
+        raise Exception('qrbounds %s extend beyond sequence with len %d:\n  %s' % (qrbounds, len(full_qrseq), full_qrseq))
 
     if debug > 1:
         print 'combining %d indelfo%s from %s' % (len(regional_indelfos), utils.plural(len(regional_indelfos)), ' '.join([r for r in utils.regions if r in regional_indelfos]))
