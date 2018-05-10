@@ -387,6 +387,7 @@ def read_extra_info(glfo, gldir):
                     glfo[codon + '-positions'][line['gene']] = int(line[codon + '_position'])
 
 #----------------------------------------------------------------------------------------
+# groups by gene family unless <use_primary_version> is set
 def print_glfo(glfo, use_primary_version=False):  # NOTE kind of similar to bin/cf-alleles.py
     for region in utils.regions:
         print '%s' % utils.color('reverse_video', utils.color('green', region))

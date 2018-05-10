@@ -207,7 +207,7 @@ parent_parser = argparse.ArgumentParser(add_help=False)
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
 parent_parser.add_argument('--loci', help='which immunoglobulin or t-cell receptor loci?')
 parent_parser.add_argument('--chain', choices=('h', 'k', 'l'), help='DEPRECATED in favor of --locus, exists only for backwards compatibility')
-parent_parser.add_argument('--species', default='human', choices=('human', 'mouse'), help='Which species?')
+parent_parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which to restrict the analysis')
 parent_parser.add_argument('--queries-to-include', help='when using --n-random-queries, look for, and include, these additional uids (in contast to --queries, which includes *only* the indicated uids) NOTE *not* compatible with --n-max-queries, i.e. use --n-random-queries instead')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
