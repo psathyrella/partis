@@ -166,9 +166,9 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, fun
         raise Exception('please de-duplicate the fasta and re-run.')
 
     if n_skipped_pseudogenes > 0:
-        print '    skipped %d %s pseudogenes (leaving %d)' % (n_skipped_pseudogenes, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
+        print '    skipped %d %s pseudogenes (leaving %d genes)' % (n_skipped_pseudogenes, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
     if n_skipped_orfs > 0:
-        print '    skipped %d %s orfs (leaving %d)' % (n_skipped_orfs, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
+        print '    skipped %d %s orfs (leaving %d genes)' % (n_skipped_orfs, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
 
 #----------------------------------------------------------------------------------------
 def read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities):
@@ -345,10 +345,10 @@ def get_missing_codon_info(glfo, debug=False):
             glfo[codon + '-positions'][gene] = unaligned_pos
             n_added += 1
             if debug > 1:
-                tmpseq = aligned_seqs[gene]
-                tmppos = known_pos_in_alignment
+                tmpseq = aligned_seqs[gene]  # NOTE this is aligned
+                tmppos = known_pos_in_alignment  # NOTE this is aligned
                 codon_str = ''
-                if not utils.codon_unmutated(codon, tmpseq, tmppos) or not utils.in_frame_germline_v(tmpseq, tmppos):
+                if not utils.codon_unmutated(codon, tmpseq, tmppos) or (region == 'v' and not utils.in_frame_germline_v(tmpseq, tmppos)):
                     bad_codons.append(gene)
                     codon_str = utils.color('red', 'bad')
                 print '       %3s  %s%s%s   %s %3s %5s' % (codon_str,

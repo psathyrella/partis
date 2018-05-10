@@ -33,6 +33,7 @@ def fsdir():
 # ----------------------------------------------------------------------------------------
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
 regions = ['v', 'd', 'j']
+constant_regions = ['c', 'm', 'g', 'a', 'd', 'e']
 loci = {'igh' : 'vdj',
         'igk' : 'vj',
         'igl' : 'vj',
@@ -132,9 +133,9 @@ def cdn_positions(glfo, region):
     return glfo[conserved_codons[glfo['locus']][region] + '-positions']
 def cdn_pos(glfo, region, gene):
     return cdn_positions(glfo, region)[gene]
-def gap_len(seq):  # NOTE see two gap-counting fcns in glutlis
+def gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
     return len(filter(gap_chars.__contains__, seq))
-def non_gap_len(seq):  # NOTE see two gap-counting fcns in glutlis
+def non_gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
     return len(seq) - gap_len(seq)
 def ambig_frac(seq):
     ambig_seq = filter(ambiguous_bases.__contains__, seq)
@@ -811,7 +812,7 @@ def count_gap_chars(aligned_seq, aligned_pos=None, unaligned_pos=None):  # NOTE 
         assert False
 
 # ----------------------------------------------------------------------------------------
-def get_codon_pos_in_alignment(codon, aligned_seq, seq, pos, gene):
+def get_codon_pos_in_alignment(codon, aligned_seq, seq, pos, gene):  # NOTE see gap_len() and accompanying functions above
     """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
     if not codon_unmutated(codon, seq, pos):  # this only gets called on the gene with the *known* position, so it shouldn't fail
         print '  %s mutated %s before alignment in %s' % (color('yellow', 'warning'), codon, gene)
@@ -821,7 +822,7 @@ def get_codon_pos_in_alignment(codon, aligned_seq, seq, pos, gene):
     return pos_in_alignment
 
 # ----------------------------------------------------------------------------------------
-def get_pos_in_alignment(aligned_seq, pos):  # kind of annoying to have this as well as get_codon_pos_in_alignment(), but I don't want to change that function's signature
+def get_pos_in_alignment(aligned_seq, pos):  # kind of annoying to have this as well as get_codon_pos_in_alignment(), but I don't want to change that function's signature NOTE see gap_len() and accompanying functions above
     """ given <pos> in <seq>, find position in <aligned_seq> """
     return pos + count_gap_chars(aligned_seq, unaligned_pos=pos)
 
@@ -845,8 +846,8 @@ def codon_unmutated(codon, seq, position, debug=False, extra_str=''):
     return True
 
 #----------------------------------------------------------------------------------------
-def in_frame_germline_v(seq, cyst_position):  # NOTE duplication with in_frame() (this is for when all we have is the germline v gene, whereas in_frame() is for when we have the whole rearrangement line)
-    return cyst_position <= len(seq) - 3 and cyst_position % 3 == 0
+def in_frame_germline_v(seq, cyst_position, debug=False):  # NOTE duplication with in_frame() (this is for when all we have is the germline v gene, whereas in_frame() is for when we have the whole rearrangement line)
+    return cyst_position <= len(seq) - 3 and (cyst_position - count_gap_chars(seq, aligned_pos=cyst_position)) % 3 == 0
 
 #----------------------------------------------------------------------------------------
 def in_frame(seq, codon_positions, fv_insertion, v_5p_del, debug=False):  # NOTE I'm not passing the whole <line> in order to make it more explicit that <seq> and <codon_positions> need to correspond to each other, i.e. are either both for input seqs, or both for indel-reversed seqs
@@ -1231,11 +1232,15 @@ def get_locus(inputstr):
     return locus
 
 # ----------------------------------------------------------------------------------------
-def get_region(inputstr):
+def get_region(inputstr, allow_constant=False):
     """ return v, d, or j of gene or gl fname """
     region = inputstr[3].lower()  # only need the .lower() if it's a gene name
-    if region not in regions:
-        raise Exception('couldn\'t get region from input string \'%s\'' % inputstr)
+    if not allow_constant:
+        allowed_regions = regions
+    else:
+        allowed_regions = regions + constant_regions
+    if region not in allowed_regions:
+        raise Exception('unexpected region %s from %s (expected one of %s)' % (region, inputstr, allowed_regions))
     return region
 
 # ----------------------------------------------------------------------------------------
