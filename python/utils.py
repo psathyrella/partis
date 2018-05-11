@@ -33,7 +33,7 @@ def fsdir():
 # ----------------------------------------------------------------------------------------
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
 regions = ['v', 'd', 'j']
-constant_regions = ['c', 'm', 'g', 'a', 'd', 'e']
+constant_regions = ['c', 'm', 'g', 'a', 'd', 'e']  # NOTE d is in here, which is stupid but necessary, so use is_constant_gene()
 loci = {'igh' : 'vdj',
         'igk' : 'vj',
         'igl' : 'vj',
@@ -1296,6 +1296,18 @@ def sub_version(gene):
 # ----------------------------------------------------------------------------------------
 def allele(gene):
     return split_gene(gene)[2]
+
+# ----------------------------------------------------------------------------------------
+def is_constant_gene(gene):
+    region = get_region(gene, allow_constant=True)
+    if region not in constant_regions:
+        return False
+    if region != 'd':
+        return True
+    pv, sv, allele = split_gene(gene)
+    if pv == '' and sv is None:  # constant region d is like IGHD*01
+        return True
+    return False
 
 # ----------------------------------------------------------------------------------------
 def are_same_primary_version(gene1, gene2):
