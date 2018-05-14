@@ -62,19 +62,22 @@ def prepare_igdiscover_outdir(outdir):
 # ----------------------------------------------------------------------------------------
 def getpathcmd(env=None):
     cmds = ['#!/bin/bash']
-    # cmds += ['. %s/etc/profile.d/conda.sh' % args.condapath]  # NOTE have to update conda (using the old version in the next two lines) in order to get this to work
-    cmds += ['export PATH=%s/bin:$PATH' % args.condapath]
+    cmds += ['. %s/etc/profile.d/conda.sh' % args.condapath]  # NOTE have to update conda (using the old version in the next two lines) in order to get this to work
+    # cmds += ['export PATH=%s/bin:$PATH' % args.condapath]
     # cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
     return cmds
 
 # ----------------------------------------------------------------------------------------
 def update_igdiscover():
     cmds = getpathcmd('test')
-    cmds += ['conda update --all']
-    # cmds += ['conda install -c bioconda igdiscover=0.10']
-    # cmds += ['conda search -c bioconda igdiscover']
-    # cmds += ['conda update -c bioconda igdiscover']  # doesn't seem to see the new version for some reason
-    # cmds += ['%s/bin/igdiscover --version' % args.condapath]
+    # install:
+    cmds += ['conda --version']
+    cmds += ['conda config --add channels defaults']
+    cmds += ['conda config --add channels conda-forge']
+    cmds += ['conda config --add channels bioconda']
+    cmds += ['conda create -n igdiscover igdiscover']
+    cmds += ['source activate igdiscover']
+    cmds += ['%s/bin/igdiscover --version' % args.condapath]
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
@@ -99,6 +102,7 @@ def run_igdiscover(infname, outfname, outdir):
     igdiscover_outfname = outdir + '/work/final/database/%s.fasta' % args.region.upper()
 
     cmds = getpathcmd()
+    cmds += ['source activate igdiscover']
     cmds += ['cd %s' % outdir]
     cmds += ['igdiscover init --db db --single-reads %s work' % infname]  # prepares to run, putting files into <outdir>
     cmds += ['cp %s work/' % os.path.basename(args.yamlfname)]
