@@ -85,7 +85,7 @@ def run_igdiscover(infname, outfname, outdir):
     cmds += ['igdiscover run']
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=outdir + '/run.sh', print_time='igdiscover', debug=True)
 
-    template_gldir = args.glfo_dir if args.glfo_dir is not None else 'data/germlines/human'
+    template_gldir = args.glfo_dir  # if args.glfo_dir is not None else 'data/germlines/ XXX human'  # can probably delete this now that --glfo-dir is required (but leaving for now, to show how it used to be in case it comes up)
     glfo = glutils.create_glfo_from_fasta(igdiscover_outfname, args.locus, args.region, template_gldir, simulation_germline_dir=args.simulation_germline_dir)
     out_gldir = os.path.dirname(outfname).rstrip('/' + args.locus)
     assert glutils.get_fname(out_gldir, args.locus, args.region) == outfname
