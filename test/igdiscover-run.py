@@ -63,7 +63,7 @@ def prepare_igdiscover_outdir(outdir):
 def getpathcmd(env=None):
     cmds = ['#!/bin/bash']
     cmds += ['. %s/etc/profile.d/conda.sh' % args.condapath]  # NOTE have to update conda (using the old version in the next two lines) in order to get this to work
-    # cmds += ['export PATH=%s/bin:$PATH' % args.condapath]
+    cmds += ['export PATH=%s/bin:$PATH' % args.condapath]
     # cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
     return cmds
 
@@ -76,8 +76,8 @@ def update_igdiscover():
     cmds += ['conda config --add channels conda-forge']
     cmds += ['conda config --add channels bioconda']
     cmds += ['conda create -n igdiscover igdiscover']
-    cmds += ['source activate igdiscover']
-    cmds += ['%s/bin/igdiscover --version' % args.condapath]
+    cmds += ['conda activate igdiscover']
+    cmds += ['igdiscover --version']
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
