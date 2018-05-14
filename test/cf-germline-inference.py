@@ -680,7 +680,7 @@ default_varvals = {
         #     'FV-igh', 'GMC-igh', 'IB-igh',  # merged
         # ],
         # 'davide-gl-valid' : ['B10', 'B11', 'B12', 'B13', 'B14', 'B16', 'B17', 'B18', 'B19', 'B20', 'B21'],
-        'crotty-fna' : ['A01',],
+        'crotty-fna' : ['A01', 'B01', 'C01', 'D01'],
     }
 }
 all_data_groups = {
