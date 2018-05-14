@@ -48,11 +48,30 @@ def prepare_igdiscover_outdir(outdir):
         for filtername in ['pre_germline_filter', 'germline_filter']:
             for cfgvar in ['unique_js', 'unique_cdr3s']:
                 cfgdata[filtername][cfgvar] = 0
+    if args.species != 'human':
+        if args.species == 'macaque':
+            cfgdata['species'] = 'rhesus_monkey'
+        else:
+            assert False
     with open(cfgfname, 'w') as cfgfile:
         yaml.dump(cfgdata, cfgfile, width=200)
 
     if os.path.exists(outdir + '/work'):  # sigh, it spams out too much different output, can't get away without a '-r'
         subprocess.check_call(['rm', '-r', outdir + '/work'])
+
+# ----------------------------------------------------------------------------------------
+def getpathcmd():
+    cmds = ['#!/bin/bash']
+    cmds += ['export PATH=%s:$PATH' % args.condapath]
+    cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
+    return cmds
+
+# ----------------------------------------------------------------------------------------
+def update_igdiscover():
+    cmds = getpathcmd()
+    cmds += ['igdiscover --version']
+    cmds += ['conda update -c bioconda igdiscover']  # doesn't seem to see the new version for some reason
+    utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
 def run_igdiscover(infname, outfname, outdir):
@@ -75,9 +94,7 @@ def run_igdiscover(infname, outfname, outdir):
 
     igdiscover_outfname = outdir + '/work/final/database/%s.fasta' % args.region.upper()
 
-    cmds = ['#!/bin/bash']
-    cmds += ['export PATH=%s:$PATH' % args.condapath]
-    cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
+    cmds = getpathcmd()
     cmds += ['cd %s' % outdir]
     cmds += ['igdiscover init --db db --single-reads %s work' % infname]  # prepares to run, putting files into <outdir>
     cmds += ['cp %s work/' % os.path.basename(args.yamlfname)]
@@ -93,6 +110,7 @@ def run_igdiscover(infname, outfname, outdir):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
+parser.add_argument('--update-igdiscover', action='store_true', help='update to the latest igdiscover version')
 parser.add_argument('--gls-gen', action='store_true')
 parser.add_argument('--slurm', action='store_true', help='doesn\'t do shit, it\'s just for compatibility with tigger-run')
 parser.add_argument('--infname', required=True)
@@ -102,11 +120,16 @@ parser.add_argument('--simulation-germline-dir')
 parser.add_argument('--yamlfname', default=partis_dir + '/test/igdiscover.yaml')
 parser.add_argument('--region', default='v')
 parser.add_argument('--locus', default='igh')
+parser.add_argument('--species', default='human')
 parser.add_argument('--n-procs', default=1, type=int)
 parser.add_argument('--n-random-queries', type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--condapath', default=os.getenv('HOME') + '/miniconda3/bin')
 args = parser.parse_args()
+
+if args.update_igdiscover:
+    update_igdiscover()
+    sys.exit()
 
 print '%s not using --n-procs for igdiscover yet (it uses all the available threads by default)' % utils.color('red', 'note')
 if not args.gls_gen:
