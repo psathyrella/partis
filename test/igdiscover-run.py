@@ -60,17 +60,20 @@ def prepare_igdiscover_outdir(outdir):
         subprocess.check_call(['rm', '-r', outdir + '/work'])
 
 # ----------------------------------------------------------------------------------------
-def getpathcmd():
+def getpathcmd(env=None):
     cmds = ['#!/bin/bash']
-    cmds += ['export PATH=%s:$PATH' % args.condapath]
-    cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
+    cmds += ['. /home/dkralph/miniconda3/etc/profile.d/conda.sh']
+    # cmds += ['export PATH=%s:$PATH' % args.condapath]
+    # cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
     return cmds
 
 # ----------------------------------------------------------------------------------------
 def update_igdiscover():
-    cmds = getpathcmd()
-    cmds += ['igdiscover --version']
+    cmds = getpathcmd('test')
+    # cmds += ['conda install -c bioconda igdiscover=0.10']
+    # cmds += ['conda search -c bioconda igdiscover']
     cmds += ['conda update -c bioconda igdiscover']  # doesn't seem to see the new version for some reason
+    # cmds += ['%s/igdiscover --version' % args.condapath]
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
@@ -99,7 +102,7 @@ def run_igdiscover(infname, outfname, outdir):
     cmds += ['igdiscover init --db db --single-reads %s work' % infname]  # prepares to run, putting files into <outdir>
     cmds += ['cp %s work/' % os.path.basename(args.yamlfname)]
     cmds += ['cd work']
-    cmds += ['igdiscover run']
+    cmds += ['%s/igdiscover run' % args.condapath]
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=outdir + '/run.sh', print_time='igdiscover', debug=True)
 
     template_gldir = args.glfo_dir  # if args.glfo_dir is not None else 'data/germlines/ XXX human'  # can probably delete this now that --glfo-dir is required (but leaving for now, to show how it used to be in case it comes up)
