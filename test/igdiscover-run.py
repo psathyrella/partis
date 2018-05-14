@@ -102,12 +102,12 @@ def run_igdiscover(infname, outfname, outdir):
     igdiscover_outfname = outdir + '/work/final/database/%s.fasta' % args.region.upper()
 
     cmds = getpathcmd()
-    cmds += ['source activate igdiscover']
+    cmds += ['conda activate igdiscover']
     cmds += ['cd %s' % outdir]
     cmds += ['igdiscover init --db db --single-reads %s work' % infname]  # prepares to run, putting files into <outdir>
     cmds += ['cp %s work/' % os.path.basename(args.yamlfname)]
     cmds += ['cd work']
-    cmds += ['%s/bin/igdiscover run' % args.condapath]
+    cmds += ['igdiscover run']
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=outdir + '/run.sh', print_time='igdiscover', debug=True)
 
     template_gldir = args.glfo_dir  # if args.glfo_dir is not None else 'data/germlines/ XXX human'  # can probably delete this now that --glfo-dir is required (but leaving for now, to show how it used to be in case it comes up)
