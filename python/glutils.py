@@ -74,7 +74,7 @@ def is_snpd(gene):
 #----------------------------------------------------------------------------------------
 def is_novel(gene):
     primary_version, sub_version, allele = utils.split_gene(gene)
-    return is_snpd(gene) or sub_version == 'x'
+    return is_snpd(gene) or sub_version == 'x' or len(sub_version) > 4
 
 #----------------------------------------------------------------------------------------
 def convert_to_duplicate_name(glfo, gene):
@@ -500,7 +500,7 @@ def get_mutfo_from_seq(old_seq, new_seq):
 
 # ----------------------------------------------------------------------------------------
 def split_inferred_allele_name(gene_name, debug=False):
-    if '+' in gene_name:  # partis (e.g. IGHVx-y*z+G35T.A77C)
+    if '+' in gene_name:  # partis snp'd alleles (e.g. IGHVx-y*z+G35T.A77C)
         if len(gene_name.split('+')) != 2:
             raise Exception('couldn\'t split \'%s\' into two pieces from \'+\'' % gene_name)
         method = 'partis'
@@ -510,6 +510,10 @@ def split_inferred_allele_name(gene_name, debug=False):
             mutstrs = None
         else:
             mutstrs = mutstrs.split('.')
+    elif utils.sub_version(gene_name) == 'x':  # partis indel'd alleles
+        method = 'partis'
+        template_name = gene_name
+        mutstrs = None
     elif '_' in gene_name:
         template_name = gene_name.split('_')[0]
         mutstrs = gene_name.split('_')[1:]  # always a list of strings
@@ -1061,8 +1065,8 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
     new_name = template_gene
     hashstr = str(abs(hash(new_seq)))
 
-    if indelfo is not None and len(indelfo['indels']) > 0:  # call it a new gene family
-        new_name = utils.rejoin_gene(utils.get_locus(template_gene), utils.get_region(template_gene), hashstr[:5], 'x', '01')
+    if indelfo is not None and len(indelfo['indels']) > 0:  # call it a new sub-family (er, sub-version, depending on nomenclature)
+        new_name = utils.rejoin_gene(utils.get_locus(template_gene), utils.get_region(template_gene), utils.gene_family(template_gene), hashstr[:5], '01')
     elif snpfo is not None:
         if '+' in utils.allele(template_gene) and len(template_gene.split('+')) == 2:  # if template was snpd we need to fix up <snpfo>
             simplified_snpfo = simplify_snpfo(template_gene, snpfo)  # returns None if it failed to parse mutation info in template name
