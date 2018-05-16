@@ -55,7 +55,7 @@ def simulate(args):
 
         sglfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus)
         glutils.remove_v_genes_with_bad_cysteines(sglfo)
-        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, dont_remove_template_genes=args.dont_remove_template_genes)
+        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, dont_remove_template_genes=args.dont_remove_template_genes, debug=True)
         cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
     else:
         sglfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus, only_genes=(args.sim_v_genes + args.dj_genes))
@@ -75,7 +75,7 @@ def simulate(args):
     utils.separate_into_allelic_groups(sglfo, debug=True)
     glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
     cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
-    # glutils.print_glfo(sglfo)
+    glutils.print_glfo(sglfo)
 
     # run simulation
     if args.seed is not None:

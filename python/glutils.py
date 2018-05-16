@@ -624,9 +624,14 @@ def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_p
 
     def choose_position(seq, cpos):
         chosen_pos = None
-        while chosen_pos is None or chosen_pos in already_snpd_positions or not utils.codon_unmutated('cyst', tmpseq, cpos):
+        n_tries = 0
+        codon_already_mutated = not utils.codon_unmutated('cyst', seq, cpos)
+        while chosen_pos is None or chosen_pos in already_snpd_positions or (not codon_already_mutated and not utils.codon_unmutated('cyst', tmpseq, cpos)):
             chosen_pos = random.randint(0, cpos - 1)  # len(seq) - 1)  # note that randint() is inclusive
             tmpseq = seq[: chosen_pos] + 'X' + seq[chosen_pos + 1 :]  # only used for checking cyst position
+            n_tries += 1
+            if n_tries > 10000:
+                raise Exception('too many tries %d while choosing position in generate_single_new_allele()' % n_tries)
         return chosen_pos
 
     new_cpos = template_cpos
@@ -655,7 +660,10 @@ def generate_single_new_allele(template_gene, template_cpos, template_seq, snp_p
 
         new_seq = new_seq[: snp_pos] + new_base + new_seq[snp_pos + 1 :]
 
-    assert utils.codon_unmutated('cyst', new_seq, new_cpos, debug=True)  # this is probably unnecessary
+    if not utils.codon_unmutated('cyst', new_seq, new_cpos):
+        print '  reverting messed up codon'
+        new_seq = new_seq[:new_cpos] + utils.codon_table['cyst'][0] + new_seq[new_cpos + 3 :]
+        assert utils.codon_unmutated('cyst', new_seq, new_cpos, debug=True)
 
     new_name, snpfo = choose_new_allele_name(template_gene, new_seq, snpfo=snpfo, indelfo=indelfo)  # shouldn't actually change <snpfo>
 
@@ -1017,7 +1025,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         for _ in range(n_genes_per_region[region]):
             choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=debug)
         if debug:
-            print '      chose %d alleles' % len(genes_to_use)
+            print '      chose %d/%d alleles' % (len(genes_to_use), len(glfo['seqs'][region]))
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
 
         if region == 'v' and new_allele_info is not None:
