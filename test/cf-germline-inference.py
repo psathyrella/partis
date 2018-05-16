@@ -584,7 +584,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
             nindelstr = ':'.join(10 * ['2'] + 20 * ['0'])
             cmd += ' --species %s' % args.species
             cmd += ' --dont-remove-template-genes'
-            cmd += ' --n-genes-per-region 10:8:6'
+            cmd += ' --n-genes-per-region 15:23:6'
         else:
             assert False
 
