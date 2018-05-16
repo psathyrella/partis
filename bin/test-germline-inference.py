@@ -53,13 +53,13 @@ def simulate(args):
     if args.gls_gen:
         assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
 
-        sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus)
+        sglfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus)
         glutils.remove_v_genes_with_bad_cysteines(sglfo)
-        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info)
+        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, dont_remove_template_genes=args.dont_remove_template_genes)
         cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
     else:
-        sglfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=(args.sim_v_genes + args.dj_genes))
-        added_snp_names = glutils.generate_new_alleles(sglfo, args.new_allele_info, debug=True, remove_template_genes=args.remove_template_genes)  # NOTE template gene removal is the default for glutils.generate_germline_set
+        sglfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus, only_genes=(args.sim_v_genes + args.dj_genes))
+        added_snp_names = glutils.generate_new_alleles(sglfo, args.new_allele_info, debug=True, remove_template_genes=(not args.dont_remove_template_genes))  # NOTE template gene removal is the default for glutils.generate_germline_set
 
         if args.allele_prevalence_freqs is not None:
             if not utils.is_normed(args.allele_prevalence_freqs):
@@ -75,6 +75,7 @@ def simulate(args):
     utils.separate_into_allelic_groups(sglfo, debug=True)
     glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
     cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
+    # glutils.print_glfo(sglfo)
 
     # run simulation
     if args.seed is not None:
@@ -95,11 +96,13 @@ def run_other_method(args, method):
         cmd += ' --tuned-tigger-params'
     cmd += ' --infname ' + simfasta
     cmd += ' --outfname ' + get_outfname(args, method)
+    if args.species != 'human':
+        cmd += ' --species %s' % args.species
     if args.overwrite:
         cmd += ' --overwrite'
     if args.gls_gen:
         cmd += ' --gls-gen'
-        cmd += ' --glfo-dir ' + partis_dir + '/data/germlines/human'  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
+        cmd += ' --glfo-dir ' + partis_dir + '/' + args.default_germline_dir  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
     else:
         cmd += ' --glfo-dir ' + args.inf_glfo_dir
     cmd += ' --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
@@ -164,6 +167,9 @@ def run_partis_parameter_cache(args, method):
     else:
         assert False
 
+    if args.species != 'human':
+        cmd_str += ' --species %s' % args.species
+
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.n_max_queries is not None:
         cmd_str += ' --n-max-queries ' + str(args.n_max_queries)  # NOTE do *not* use --n-random-queries, since it'll change the cluster size distribution
@@ -184,7 +190,7 @@ def run_partis_parameter_cache(args, method):
 # ----------------------------------------------------------------------------------------
 def write_inf_glfo(args):  # read default glfo, restrict it to the specified alleles, and write to somewhere where all the methods can read it
     # NOTE this dir should *not* be modified by any of the methods
-    inf_glfo = glutils.read_glfo('data/germlines/human', locus=args.locus, only_genes=args.inf_v_genes + args.dj_genes)
+    inf_glfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus, only_genes=args.inf_v_genes + args.dj_genes)
     print '  writing initial inference glfo with %d v: %s' % (len(inf_glfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in inf_glfo['seqs']['v']]))
     glutils.write_glfo(args.inf_glfo_dir, inf_glfo)
 
@@ -345,7 +351,7 @@ parser.add_argument('--n-genes-per-region', default=glutils.default_n_genes_per_
 parser.add_argument('--n-sim-alleles-per-gene', default=glutils.default_n_alleles_per_gene, help='see bin/partis --help')
 parser.add_argument('--min-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float, help='see bin/partis --help')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
-parser.add_argument('--remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
+parser.add_argument('--dont-remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
 parser.add_argument('--mut-mult', type=float, help='see bin/partis --help')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
@@ -362,6 +368,7 @@ parser.add_argument('--n-tests', type=int, help='instead of just running once, r
 parser.add_argument('--iteststart', type=int, default=0, help='for use with --n-tests, if you want to add more tests on')
 parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 parser.add_argument('--partis-path', default='./bin/partis')
+parser.add_argument('--species', default='human', choices=('human', 'macaque'))
 parser.add_argument('--locus', default='igh')
 
 args = parser.parse_args()
@@ -374,6 +381,8 @@ args.methods = utils.get_arg_list(args.methods)
 available_methods = set(['simu', 'partis', 'full', 'tigger-default', 'tigger-tuned', 'igdiscover'])
 if len(set(args.methods) - available_methods) > 0:
     raise Exception('unexpected --methods: %s' % ' '.join(set(args.methods) - available_methods))
+
+args.default_germline_dir = 'data/germlines/%s' % args.species
 
 positions = {
     'snp' : utils.get_arg_list(args.snp_positions),

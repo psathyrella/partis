@@ -1021,7 +1021,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
 
         if region == 'v' and new_allele_info is not None:
-            assert len(new_allele_info) <= len(glfo['seqs'][region])
+            # assert len(new_allele_info) <= len(glfo['seqs'][region])  # hmm, not actually sure why I had this here
             template_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(new_allele_info))  # (template) genes in <new_allele_info> should all be None
             for ig in range(len(new_allele_info)):
                 new_allele_info[ig]['gene'] = template_genes[ig]

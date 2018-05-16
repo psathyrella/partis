@@ -191,6 +191,10 @@ def process(args):
     if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
         args.default_initial_germline_dir += '/' + args.species
 
+    if args.species != 'human' and not args.allele_cluster:
+        print '  non-human species \'%s\', turning on allele clustering' % args.species
+        args.allele_cluster = True
+
     if args.n_max_snps is not None and args.n_max_mutations_per_segment is not None:
         if args.n_max_snps > args.n_max_mutations_per_segment - 10:
             raise Exception('--n-max-snps should be at least ten less than --n-max-mutations-per-segment, but I got %d and %d' % (args.n_max_snps, args.n_max_mutations_per_segment))

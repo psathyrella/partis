@@ -576,20 +576,27 @@ def run_single_test(args, baseoutdir, val, n_events, method):
         nindelstr = val['indel']
         sim_v_genes *= len(val['snp'].split(':'))
     elif args.action == 'gls-gen':
-        nsnpstr = '1:1:2:3:5'
-        nindelstr = '' # '0:0:0:0:0:0:0:0'
+        if args.species == 'human':
+            nsnpstr = '1:1:2:3:5'
+            nindelstr = '' # '0:0:0:0:0:0:0:0'
+        elif args.species == 'macaque':
+            nsnpstr = ':'.join(5 * ['3'] + 5 * ['10'] + 10 * ['3'] + 10 * ['1'])
+            nindelstr = ':'.join(10 * ['2'] + 20 * ['0'])
+            cmd += ' --species %s' % args.species
+            cmd += ' --dont-remove-template-genes'
+            cmd += ' --n-genes-per-region 10:8:6'
+        else:
+            assert False
+
         if args.gls_gen_difficulty == 'easy':
-            # genes_per_region_str = '20:5:3'
-            # n_sim_alleles_per_gene_str = '1,2:1,2:1,2'
             min_allele_prevalence_freq = 0.15
             mut_mult = 0.3
         elif args.gls_gen_difficulty == 'hard':
-            # genes_per_region_str = '25:5:3'
-            # n_sim_alleles_per_gene_str = '1,2,3:1,2:1,2'
             min_allele_prevalence_freq = 0.05
             mut_mult = 1.
         else:
             assert False
+
         # cmd += ' --n-genes-per-region ' + genes_per_region_str
         # cmd += ' --n-sim-alleles-per-gene ' + n_sim_alleles_per_gene_str
         cmd += ' --min-allele-prevalence-freq ' + str(min_allele_prevalence_freq)
@@ -747,6 +754,7 @@ parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
 parser.add_argument('--gls-gen-events', type=int, default=50000)
 parser.add_argument('--gls-gen-difficulty', default='easy', choices=['easy', 'hard'])
+parser.add_argument('--species', default='human', choices=('human', 'macaque'))
 parser.add_argument('--n-random-queries', type=int)
 parser.add_argument('--n-max-jobs', type=int)
 parser.add_argument('--n-tests', type=int, default=3)
