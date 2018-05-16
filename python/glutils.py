@@ -456,7 +456,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
     if remove_orfs:
         orfs_removed = {r : [] for r in utils.regions}
         assert len(glfo['functionalities']) == 0
-        default_functionality_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/data/germlines/human/functionalities.csv'
+        default_functionality_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/data/germlines/human/functionalities.csv'  # TODO arg, this shouldn't have 'human' hard coded
         func_info = {}  # keep them in a spaerate dict so it's easier to loop over the genes in the glfo (to ensure they're all in the functionality file)
         with open(default_functionality_file) as ffile:
             reader = csv.DictReader(ffile)
@@ -510,7 +510,7 @@ def split_inferred_allele_name(gene_name, debug=False):
             mutstrs = None
         else:
             mutstrs = mutstrs.split('.')
-    elif utils.sub_version(gene_name) == 'x':  # partis indel'd alleles
+    elif utils.sub_version(gene_name) == 'x' or len(utils.sub_version(gene_name)) > 4:  # partis indel'd alleles
         method = 'partis'
         template_name = gene_name
         mutstrs = None

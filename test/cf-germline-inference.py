@@ -326,6 +326,8 @@ def get_character_str(character, charval):
             number = int(charval[1:-1])
             unitstr = charval[-1].replace('h', 'hour').replace('d', 'day')
             return '%s%d %s%s' % (plusminusstr, number, unitstr, utils.plural(number))
+        elif 'week' in charval:
+            return 'week %d' % int(charval.replace('week', ''))
         else:
             raise Exception('not sure what to do with %s' % charval)
     elif character == 'isotype':
