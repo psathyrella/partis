@@ -70,14 +70,35 @@ def getpathcmd(env=None):
 # ----------------------------------------------------------------------------------------
 def update_igdiscover():
     cmds = getpathcmd('test')
-    # install:
-    cmds += ['conda --version']
-    cmds += ['conda config --add channels defaults']
-    cmds += ['conda config --add channels conda-forge']
-    cmds += ['conda config --add channels bioconda']
-    cmds += ['conda create -n igdiscover igdiscover']
-    cmds += ['conda activate igdiscover']
-    cmds += ['igdiscover --version']
+
+    # args.env_label = 'igdiscover'
+    # # install:
+    # cmds += ['conda config --add channels defaults']
+    # cmds += ['conda config --add channels conda-forge']
+    # cmds += ['conda config --add channels bioconda']
+    # cmds += ['conda create -n %s igdiscover' % args.env_label]
+    # cmds += ['conda activate %s' % args.env_label]
+    # # update:
+    # cmds += ['conda activate %s' % args.env_label]
+    # cmds += ['igdiscover --version']
+    # cmds += ['conda update igdiscover']
+    # cmds += ['igdiscover --version']
+
+    # args.env_label = 'igdiscover-dev'
+    # install_dir = partis_dir + '/packages'
+    # # install dev version:
+    # if not os.path.exists(install_dir):
+    #     os.makedirs(install_dir)
+    # cmds += ['cd %s' % install_dir]
+    # cmds += ['git clone https://github.com/NBISweden/IgDiscover.git']
+    # cmds += ['cd IgDiscover']
+    # cmds += ['conda env create -n %s -f environment.yml' % args.env_label]
+    # cmds += ['source activate %s' % args.env_label]
+    # cmds += ['python3 -m pip install -e .']
+    # # update dev version:
+    # cmds += ['cd IgDiscover']
+    # cmds += ['git pull']
+
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
@@ -102,7 +123,7 @@ def run_igdiscover(infname, outfname, outdir):
     igdiscover_outfname = outdir + '/work/final/database/%s.fasta' % args.region.upper()
 
     cmds = getpathcmd()
-    cmds += ['conda activate igdiscover']
+    cmds += ['conda activate %s' % args.env_label]
     cmds += ['cd %s' % outdir]
     cmds += ['igdiscover init --db db --single-reads %s work' % infname]  # prepares to run, putting files into <outdir>
     cmds += ['cp %s work/' % os.path.basename(args.yamlfname)]
@@ -133,6 +154,7 @@ parser.add_argument('--n-procs', default=1, type=int)
 parser.add_argument('--n-random-queries', type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--condapath', default=os.getenv('HOME') + '/miniconda3')
+parser.add_argument('--env-label', default='igdiscover')
 args = parser.parse_args()
 
 if args.update_igdiscover:
