@@ -1515,7 +1515,7 @@ class PartitionDriver(object):
         Here, we delete the dummy D base, and give it to either V, J, or the insertion.
         """
         tmpline = copy.deepcopy(line)
-        utils.add_implicit_info(self.glfo, tmpline)
+        utils.add_implicit_info(self.glfo, tmpline, reset_indel_genes=True)
         if debug:
             print ''
             print '  dummy d hack for %s' % ' '.join(line['unique_ids'])
@@ -1567,7 +1567,7 @@ class PartitionDriver(object):
             line['dj_insertion'] = qr_base_winner + line['dj_insertion']
 
         after_line = copy.deepcopy(line)
-        utils.add_implicit_info(self.glfo, after_line)
+        utils.add_implicit_info(self.glfo, after_line, reset_indel_genes=True)
         if debug:
             utils.print_reco_event(after_line, extra_str='    ', label='after')
 
