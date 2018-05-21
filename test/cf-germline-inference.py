@@ -370,7 +370,7 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     metafos = heads.read_metadata(study)
     assert len(set([metafos[ds]['locus'] for ds in dsets]))  # make sure everybody has the same locus
     mfo = metafos[dsets[0]]
-    data_outdirs = [heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + ds for ds in dsets]
+    data_outdirs = [heads.get_datadir(study, 'processed', extra_str=args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
     if len(dsets) > 1 and len(methods) == 1:  # sample vs sample
         glslabels = dsets
@@ -444,7 +444,7 @@ def plot_single_test(args, baseoutdir, method):
 
 # ----------------------------------------------------------------------------------------
 def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
-    method_outdir = heads.get_datadir(study, 'processed', extra_str='gls-gen-paper-' + args.label) + '/' + dset
+    method_outdir = heads.get_datadir(study, 'processed', extra_str=args.label) + '/' + dset
     gls_dir = get_gls_dir(method_outdir, method, data=True)
     print '            %s --> %s' % (gls_dir, zenodo_dir)
     glfo = glutils.read_glfo(gls_dir, mfo['locus'], remove_orfs='partis' in method)
@@ -625,7 +625,7 @@ def run_data(args, baseoutdir, study, dset, method):
     cmd += ' --study ' + study
     cmd += ' --samples ' + dset
     assert args.label is not None  # it's got a default now, so it shouldn't anymore be None
-    cmd += ' --extra-str gls-gen-paper-' + args.label
+    cmd += ' --extra-str ' + args.label
     if args.no_slurm:
         cmd += ' --no-slurm'
     cmd += ' --n-procs ' + str(args.n_procs_per_test)
