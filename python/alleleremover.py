@@ -11,10 +11,9 @@ from hist import Hist
 
 # ----------------------------------------------------------------------------------------
 class AlleleRemover(object):
-    def __init__(self, glfo, args, alfinder):
+    def __init__(self, glfo, args):
         self.glfo = glfo
         self.args = args
-        self.alfinder = alfinder
 
         self.genes_to_keep = None
         self.genes_to_remove = None

@@ -215,7 +215,7 @@ class PartitionDriver(object):
         # remove unlikely alleles
         if not self.args.dont_remove_unlikely_alleles:
             self.set_vsearch_info()
-            alremover = AlleleRemover(self.glfo, self.args, AlleleFinder(self.glfo, self.args))
+            alremover = AlleleRemover(self.glfo, self.args)
             alremover.finalize(sorted(self.vs_info['gene-counts'].items(), key=operator.itemgetter(1), reverse=True), debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
             self.vs_info = None  # don't want to keep this around, since it has alignments against all the genes we removed (also maybe memory control)
