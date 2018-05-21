@@ -689,7 +689,17 @@ default_varvals = {
         #     'FV-igh', 'GMC-igh', 'IB-igh',  # merged
         # ],
         # 'davide-gl-valid' : ['B10', 'B11', 'B12', 'B13', 'B14', 'B16', 'B17', 'B18', 'B19', 'B20', 'B21'],
-        'crotty-fna' : ['A01', 'B01', 'C01', 'D01'],
+        # 'crotty-fna' : [
+        #     # 'RUj15_ALN-FNA_week3_groupD', 'RUj15_L-ILN-FNA_week3_groupD', 'RUj15_R-ILN-FNA_week3_groupD', 'RUj15_L-ILN-FNA_week9_groupD', 'RUj15_R-ILN-FNA_week15_groupD', 'RUj15_L-ILN-FNA_week15_groupD', 'RUj15_R-ILN-FNA_week21_groupD',
+        #     # 'ROp15_R-ILN-FNA_week3_groupC', 'ROp15_L-ILN-FNA_week3_groupC', 'ROp15_ALN-FNA_week3_groupC',
+        #     # 'ROp15_R-ILN-FNA_week9_groupC', 'ROp15_L-ILN-FNA_week9_groupC', 'ROp15_ALN-FNA_week9_groupC',
+        #     # 'ROp15_R-ILN-FNA_week15_groupC', 'ROp15_L-ILN-FNA_week15_groupC', 'ROp15_ALN-FNA_week15_groupC',
+        #     # 'ROp15_R-ILN-FNA_week21_groupC', 'ROp15_L-ILN-FNA_week21_groupC', 'ROp15_ALN-FNA_week21_groupC',
+        #     'RJk15_L-ILN-FNA_week3_groupB', 'RJk15_R-ILN-FNA_week3_groupB', 'RJk15_ALN-FNA_week3_groupB',
+        #     'RJk15_L-ILN-FNA_week9_groupB', 'RJk15_R-ILN-FNA_week9_groupB',
+        #     'RJk15_L-ILN-FNA_week15_groupB', 'RJk15_R-ILN-FNA_week15_groupB', 'RJk15_ALN-FNA_week15_groupB',
+        #     'RJk15_L-ILN-FNA_week21_groupB', 'RJk15_R-ILN-FNA_week21_groupB', 'RJk15_ALN-FNA_week21_groupB',
+        # ],
     }
 }
 all_data_groups = {
@@ -738,6 +748,18 @@ all_data_groups = {
     #     ['MK04-igh', 'MK05-igh'],
     #     # , 'MK08-igh'],
     # ],
+    'crotty-fna' : [
+        ['RUj15_ALN-FNA_week3_groupD', 'RUj15_L-ILN-FNA_week3_groupD', 'RUj15_R-ILN-FNA_week3_groupD'],
+        ['RUj15_ALN-FNA_week3_groupD', 'RUj15_L-ILN-FNA_week15_groupD', 'RUj15_R-ILN-FNA_week15_groupD'],
+        ['ROp15_R-ILN-FNA_week3_groupC', 'ROp15_L-ILN-FNA_week3_groupC', 'ROp15_ALN-FNA_week3_groupC'],
+        ['ROp15_R-ILN-FNA_week9_groupC', 'ROp15_L-ILN-FNA_week9_groupC', 'ROp15_ALN-FNA_week9_groupC'],
+        ['ROp15_R-ILN-FNA_week15_groupC', 'ROp15_L-ILN-FNA_week15_groupC', 'ROp15_ALN-FNA_week15_groupC'],
+        ['ROp15_R-ILN-FNA_week21_groupC', 'ROp15_L-ILN-FNA_week21_groupC', 'ROp15_ALN-FNA_week21_groupC'],
+        ['RJk15_L-ILN-FNA_week3_groupB', 'RJk15_R-ILN-FNA_week3_groupB', 'RJk15_ALN-FNA_week3_groupB'],
+        ['RJk15_L-ILN-FNA_week9_groupB', 'RJk15_R-ILN-FNA_week9_groupB'],
+        ['RJk15_L-ILN-FNA_week15_groupB', 'RJk15_R-ILN-FNA_week15_groupB', 'RJk15_ALN-FNA_week15_groupB'],
+        ['RJk15_L-ILN-FNA_week21_groupB', 'RJk15_R-ILN-FNA_week21_groupB', 'RJk15_ALN-FNA_week21_groupB'],
+    ]
 
 }
 default_varvals['data'] = ':'.join([study + '/' + heads.full_dataset(heads.read_metadata(study), dset) for study in default_varvals['data'] for dset in default_varvals['data'][study]])
