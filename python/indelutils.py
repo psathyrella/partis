@@ -308,19 +308,18 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     iqr, igl = 0, 0
     for icode in range(len(codestr)):
         code = codestr[icode]
-        qrb, glb = qrseq[iqr], glseq[igl]
         if code == 'M':
-            qr_gap_seq += [qrb]
-            gl_gap_seq += [glb]
+            qr_gap_seq += [qrseq[iqr]]
+            gl_gap_seq += [glseq[igl]]
         elif code == 'I':
-            indelfo['indels'][tmp_indices[icode]]['seqstr'] += [qrb]  # and to the sequence of just this indel
-            qr_gap_seq += [qrb]
+            indelfo['indels'][tmp_indices[icode]]['seqstr'] += [qrseq[iqr]]  # and to the sequence of just this indel
+            qr_gap_seq += [qrseq[iqr]]
             gl_gap_seq += ['.']
             igl -= 1
         elif code == 'D':
-            indelfo['indels'][tmp_indices[icode]]['seqstr'] += [glb]  # and to the sequence of just this indel
+            indelfo['indels'][tmp_indices[icode]]['seqstr'] += [glseq[igl]]  # and to the sequence of just this indel
             qr_gap_seq += ['.']
-            gl_gap_seq += [glb]
+            gl_gap_seq += [glseq[igl]]
             iqr -= 1
         else:
             raise Exception('unexpected cigar code %s' % code)
