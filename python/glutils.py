@@ -419,11 +419,12 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None):  # NOTE kind 
                 if first_cons_seq is None:  # shenanigans to account for vsearch splitting up my groups
                     first_cons_seq = clusterfo['cons_seq']
                     print '    %s    consensus (first cluster)' % clusterfo['cons_seq']
-                # else:
+                # else:  # I _shouldn't_ ever care what these are, I think?
                 #     print '    %s    extra consensus' % utils.color_mutants(first_cons_seq, clusterfo['cons_seq'])
                 for seqfo in clusterfo['seqfos']:
                     emphasis_positions = None
                     extra_str = ''
+
                     if region in utils.conserved_codons[glfo['locus']]:
                         codon = utils.conserved_codons[glfo['locus']][region]
                         aligned_cpos = utils.get_codon_pos_in_alignment(codon, seqfo['seq'], group_seqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
@@ -433,8 +434,12 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None):  # NOTE kind 
                                 extra_str += '%s %s frame (%d)' % (utils.color('red', 'bad'), codon, utils.cdn_pos(glfo, region, seqfo['name']))
                             if not utils.codon_unmutated(codon, glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])) or not utils.in_frame_germline_v(glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])):
                                 extra_str += '   %s codon' % utils.color('red', 'bad')
-                    cons_seq = first_cons_seq + '-' * (len(seqfo['seq']) - len(first_cons_seq))  # I don't know why it's sometimes a teensy bit shorter
-                    print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
+
+                    cons_seq = first_cons_seq
+                    if region == 'v':
+                        cons_seq += '-' * (len(seqfo['seq']) - len(first_cons_seq))  # I don't know why it's sometimes a teensy bit shorter
+                    align = region != 'v' and len(seqfo['seq']) != len(first_cons_seq)
+                    print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions, align=align), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
