@@ -33,6 +33,10 @@ def glfo_fasta_fnames(gldir, locus):
     return [get_fname(gldir, locus, r) for r in utils.getregions(locus)]
 def glfo_fnames(gldir, locus):
     return [get_extra_fname(gldir, locus), ] + glfo_fasta_fnames(gldir, locus)
+def functionality_fname(species, gldir=None):  # _not_ generally present (but needs to be present at the moment)
+    if gldir is None:
+        gldir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
+    return '%s/data/germlines/%s/functionalities.csv' % (gldir, species)
 
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
@@ -74,7 +78,7 @@ def is_snpd(gene):
 #----------------------------------------------------------------------------------------
 def is_novel(gene):
     primary_version, sub_version, allele = utils.split_gene(gene)
-    return is_snpd(gene) or sub_version == 'x' or len(sub_version) > 4
+    return is_snpd(gene) or sub_version == 'x' or (sub_version is not None and len(sub_version) > 4)
 
 #----------------------------------------------------------------------------------------
 def convert_to_duplicate_name(glfo, gene):
@@ -443,6 +447,7 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None):  # NOTE kind 
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
+    # NOTE <skip_pseudogenes> and <skip_orfs> only have an effect with just-downloaded imgt files (otherwise we don't in general have the functionality info)
     if not os.path.exists(gldir + '/' + locus):  # NOTE doesn't re-link it if we already made the link before
         if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
             print '    note: linking new germline dir name to old name in %s' % gldir
@@ -468,9 +473,8 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
     if remove_orfs:
         orfs_removed = {r : [] for r in utils.regions}
         assert len(glfo['functionalities']) == 0
-        default_functionality_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/data/germlines/human/functionalities.csv'  # TODO arg, this shouldn't have 'human' hard coded
         func_info = {}  # keep them in a spaerate dict so it's easier to loop over the genes in the glfo (to ensure they're all in the functionality file)
-        with open(default_functionality_file) as ffile:
+        with open(functionality_fname(os.path.basename(gldir))) as ffile:  # using basename() to get the species is hackey... but it'll typically work in the (rare) situations where this code'll get called
             reader = csv.DictReader(ffile)
             for line in reader:
                 func_info[line['gene']] = line['functionality']
