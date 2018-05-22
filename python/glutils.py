@@ -388,20 +388,22 @@ def read_extra_info(glfo, gldir):
 
 #----------------------------------------------------------------------------------------
 # groups by gene family unless <use_primary_version> is set
-def print_glfo(glfo, use_primary_version=False):  # NOTE kind of similar to bin/cf-alleles.py
-    for region in utils.regions:
+def print_glfo(glfo, use_primary_version=False, gene_groups=None):  # NOTE kind of similar to bin/cf-alleles.py
+    if gene_groups is None:
+        gene_groups = {}
+        for region in utils.regions:
+            groupfcn = utils.primary_version if use_primary_version else utils.gene_family
+            group_labels = sorted(set([groupfcn(g) for g in glfo['seqs'][region]]))
+            gene_groups[region] = [(glabel, {g : glfo['seqs'][region][g] for g in glfo['seqs'][region] if groupfcn(g) == glabel}) for glabel in group_labels]
+
+    for region in [r for r in utils.regions if r in gene_groups]:
         print '%s' % utils.color('reverse_video', utils.color('green', region))
-        if use_primary_version:
-            groupfcn = utils.primary_version
-        else:
-            groupfcn = utils.gene_family
-        gene_groups = set([groupfcn(g) for g in glfo['seqs'][region]])
-        for ggroup in sorted(gene_groups):
-            print '  %s' % utils.color('blue', ggroup)
-            ggroupseqs = {g : glfo['seqs'][region][g] for g in glfo['seqs'][region] if groupfcn(g) == ggroup}
+        for group_label, group_seqs in gene_groups[region]:
+            print '  %s' % utils.color('blue', group_label)
             workdir = tempfile.mkdtemp()
             with tempfile.NamedTemporaryFile() as tmpfile:  # kind of hilarious that i use vsearch here, but mafft up there... oh well it shouldn't matter
-                _ = utils.run_vsearch('cluster', ggroupseqs, workdir, threshold=0.3, minseqlength=5, msa_fname=tmpfile.name)  # <threshold> is kind of random, i just set it to something that seems to group all the V genes with the same ggroup together
+                _ = utils.run_vsearch('cluster', group_seqs, workdir, threshold=0.3, minseqlength=5, msa_fname=tmpfile.name)  # <threshold> is kind of random, i just set it to something that seems to group all the V genes with the same ggroup together
+                # NOTE I"m not sure why the stupid thing sometimes splits the group apart no matter what I set <threshold> to
                 msa_seqs = utils.read_fastx(tmpfile.name, ftype='fa')
             msa_info = []
             for seqfo in msa_seqs:
@@ -412,21 +414,26 @@ def print_glfo(glfo, use_primary_version=False):  # NOTE kind of similar to bin/
                     msa_info[-1]['cons_seq'] = seqfo['seq'].replace('+', '')  # gaaaaah not sure what the +s mean
                 else:
                     msa_info[-1]['seqfos'].append(seqfo)
+            first_cons_seq = None
             for clusterfo in msa_info:
-                print '    %s    %s' % (clusterfo['cons_seq'], 'consensus')
+                if first_cons_seq is None:  # shenanigans to account for vsearch splitting up my groups
+                    first_cons_seq = clusterfo['cons_seq']
+                    print '    %s    consensus (first cluster)' % clusterfo['cons_seq']
+                # else:
+                #     print '    %s    extra consensus' % utils.color_mutants(first_cons_seq, clusterfo['cons_seq'])
                 for seqfo in clusterfo['seqfos']:
                     emphasis_positions = None
                     extra_str = ''
                     if region in utils.conserved_codons[glfo['locus']]:
                         codon = utils.conserved_codons[glfo['locus']][region]
-                        aligned_cpos = utils.get_codon_pos_in_alignment(codon, seqfo['seq'], ggroupseqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
+                        aligned_cpos = utils.get_codon_pos_in_alignment(codon, seqfo['seq'], group_seqs[seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name']), seqfo['name'])
                         emphasis_positions = [aligned_cpos + i for i in range(3)]
                         if region == 'v':
                             if utils.cdn_pos(glfo, region, seqfo['name']) % 3 != 0:  # flag out of frame cysteines
                                 extra_str += '%s %s frame (%d)' % (utils.color('red', 'bad'), codon, utils.cdn_pos(glfo, region, seqfo['name']))
                             if not utils.codon_unmutated(codon, glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])) or not utils.in_frame_germline_v(glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])):
                                 extra_str += '   %s codon' % utils.color('red', 'bad')
-                    cons_seq = clusterfo['cons_seq'] + '-' * (len(seqfo['seq']) - len(clusterfo['cons_seq']))  # I don't know why it's sometimes a teensy bit shorter
+                    cons_seq = first_cons_seq + '-' * (len(seqfo['seq']) - len(first_cons_seq))  # I don't know why it's sometimes a teensy bit shorter
                     print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------

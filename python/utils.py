@@ -1341,25 +1341,20 @@ def separate_into_allelic_groups(glfo, debug=False):
     return allelic_groups  # NOTE doesn't return the same thing as separate_into_snp_groups()
 
 # ----------------------------------------------------------------------------------------
-def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):  # NOTE <n_max_snps> corresponds to v, whereas d and j are rescaled according to their lengths
-    """ where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <n_max_snps> """
+def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None, debug=False):  # NOTE <n_max_snps> corresponds to v, whereas d and j are rescaled according to their lengths
+    """ where each class contains all alleles with the same length (up to cyst if v), and within some snp threshold (n_max_v_snps for v)"""
     def getseq(gene):
         seq = glfo['seqs'][region][gene]
         if region == 'v':  # only go up through the end of the cysteine
             cpos = cdn_pos(glfo, region, gene)
             seq = seq[:cpos + 3]
         return seq
-    def get_max_snps(seq):
-        max_this_region = n_max_snps
-        if region != 'v':
-            max_this_region = max_this_region * float(len(seq)) / 300
-        return max_this_region - 2  # not sure why I originally put the 2 there, maybe just to adjust the space between where allelefinder stops looking and where alleleclusterer starts?
     def in_this_class(classfo, seq):
         for gfo in classfo:
             if len(gfo['seq']) != len(seq):
                 continue
             hdist = hamming_distance(gfo['seq'], seq)
-            if hdist < get_max_snps(seq):  # if this gene is close to any gene in the class, add it to this class
+            if hdist < n_max_snps:  # if this gene is close to any gene in the class, add it to this class
                 snp_groups[snp_groups.index(classfo)].append({'gene' : gene, 'seq' : seq, 'hdist' : hdist})
                 return True
         return False  # if we fall through, nobody in this class was close to <seq>
@@ -1376,6 +1371,10 @@ def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):  # NOTE <
                 break
         if add_new_class:
             snp_groups.append([{'gene' : gene, 'seq' : seq, 'hdist' : 0}, ])
+
+    if debug:
+        print 'separated %s genes into %d groups separated by %d snps:' % (region, len(snp_groups), n_max_snps)
+        glutils.print_glfo(glfo, gene_groups={region : [(str(igroup), {gfo['gene'] : gfo['seq'] for gfo in snp_groups[igroup]}) for igroup in range(len(snp_groups))]})
 
     return snp_groups  # NOTE this is a list of lists of dicts, whereas separate_into_allelic_groups() returns a dict of region-keyed dicts
 
