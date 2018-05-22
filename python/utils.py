@@ -1321,7 +1321,7 @@ def are_same_primary_version(gene1, gene2):
     return True
 
 # ----------------------------------------------------------------------------------------
-def separate_into_allelic_groups(glfo, debug=False):
+def separate_into_allelic_groups(glfo, allele_prevalence_freqs=None, debug=False):  # prevalence freqs are just for printing
     allelic_groups = {r : {} for r in regions}
     for region in regions:
         for gene in glfo['seqs'][region]:
@@ -1333,11 +1333,16 @@ def separate_into_allelic_groups(glfo, debug=False):
             allelic_groups[region][primary_version][sub_version].add(gene)
     if debug:
         for r in regions:
-            print r
+            print '%s%77s' % (color('reverse_video', color('green', r)), 'percent prevalence' if allele_prevalence_freqs is not None else '')
             for p in sorted(allelic_groups[r]):
                 print '    %15s' % p
                 for s in sorted(allelic_groups[r][p]):
-                    print '        %15s      %s' % (s, ' '.join([color_gene(g, width=12) for g in allelic_groups[r][p][s]]))
+                    print '        %15s      %s' % (s, ' '.join([color_gene(g, width=14) for g in allelic_groups[r][p][s]])),
+                    if len(allelic_groups[r][p][s]) < 2:  # won't work if anybody has more than two alleles
+                        print '%14s' % '',
+                    if allele_prevalence_freqs is not None:
+                        print '  %s' % ' '.join([('%4.1f' % (100 *allele_prevalence_freqs[r][g])) for g in allelic_groups[r][p][s]]),
+                    print ''
     return allelic_groups  # NOTE doesn't return the same thing as separate_into_snp_groups()
 
 # ----------------------------------------------------------------------------------------

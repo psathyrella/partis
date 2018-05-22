@@ -71,10 +71,8 @@ def simulate(args):
             glutils.write_allele_prevalence_freqs(prevalence_freqs, allele_prevalence_fname)
             cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
 
-    print '  simulating with %d v: %s' % (len(sglfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in sorted(sglfo['seqs']['v'])]))
     glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
     cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
-    # utils.separate_into_allelic_groups(sglfo, debug=True)
     # glutils.print_glfo(sglfo)
 
     # run simulation

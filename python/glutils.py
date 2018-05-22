@@ -1025,19 +1025,13 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
     if min_allele_prevalence_freq is None:
         min_allele_prevalence_freq = default_min_allele_prevalence_freq
 
-    if debug:
-        print ' choosing germline set'
     n_genes_per_region, n_alleles_per_gene = process_parameter_strings(n_genes_per_region, n_alleles_per_gene)  # they're passed as strings into here, but we need 'em to be dicts
     allelic_groups = utils.separate_into_allelic_groups(glfo)  # NOTE by design, these are not the same as the groups created by alleleremover
     allele_prevalence_freqs = {r : {} for r in utils.regions}
     for region in utils.regions:
-        if debug:
-            print '   %s' % region
         genes_to_use = set()
         for _ in range(n_genes_per_region[region]):
-            choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=debug)
-        if debug:
-            print '      chose %d/%d alleles' % (len(genes_to_use), len(glfo['seqs'][region]))
+            choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene)
         remove_genes(glfo, set(glfo['seqs'][region].keys()) - genes_to_use)  # NOTE would use glutils.restrict_to_genes() but it isn't on a regional basis
 
         if region == 'v' and new_allele_info is not None:
@@ -1047,7 +1041,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
                 new_allele_info[ig]['gene'] = template_genes[ig]
             _ = generate_new_alleles(glfo, new_allele_info, debug=True, remove_template_genes=not dont_remove_template_genes)
 
-        choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq, debug=debug)
+        choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq)
 
     print '  generated germline set (genes/alleles):',
     allelic_groups = utils.separate_into_allelic_groups(glfo)
@@ -1055,6 +1049,8 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         n_genes = sum([len(allelic_groups[region][pv].keys()) for pv in allelic_groups[region]])
         print ' %s %2d/%-2d ' % (region, n_genes, len(glfo['seqs'][region])),
     print ''
+
+    utils.separate_into_allelic_groups(glfo, allele_prevalence_freqs=allele_prevalence_freqs, debug=True)
 
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
 
