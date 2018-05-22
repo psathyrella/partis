@@ -196,17 +196,18 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
         glfos[label] = glutils.read_glfo(gldir, args.locus, remove_orfs=('partis' in label))  # this is gonna fail for tigger since you only have the .fa
 
-    # synchronize to somebody -- either simulation (<ref_label>) or the first one
-    if ref_label is not None:
-        sync_label = ref_label
-    elif 'partis' in glslabels:
-        sync_label = 'partis'
-    else:
-        sync_label = glslabels[0]
-    for label in [l for l in glslabels if l != sync_label]:
-        if debug:
-            print '  synchronizing %s names to match %s' % (label, sync_label)
-        glutils.synchronize_glfos(ref_glfo=glfos[sync_label], new_glfo=glfos[label], region=args.region, ref_label=sync_label, debug=debug)
+    if args.region == 'v':  # don't want to deal with d and j synchronization yet
+        # synchronize to somebody -- either simulation (<ref_label>) or the first one
+        if ref_label is not None:
+            sync_label = ref_label
+        elif 'partis' in glslabels:
+            sync_label = 'partis'
+        else:
+            sync_label = glslabels[0]
+        for label in [l for l in glslabels if l != sync_label]:
+            if debug:
+                print '  synchronizing %s names to match %s' % (label, sync_label)
+            glutils.synchronize_glfos(ref_glfo=glfos[sync_label], new_glfo=glfos[label], region=args.region, ref_label=sync_label, debug=debug)
 
     gl_sets = {label : {g : seq for g, seq in glfos[label]['seqs'][args.region].items()} for label in glfos}
     all_genes = {g : s for gls in gl_sets.values() for g, s in gls.items()}
@@ -485,7 +486,7 @@ parser.add_argument('--only-print', action='store_true', help='just print the su
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
 parser.add_argument('--title-color')
-parser.add_argument('--region', default='v', help='probably doesn\'t work for other regions yet')
+parser.add_argument('--region', default='v')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default='./packages/standard-RAxML/raxmlHPC-SSE3')

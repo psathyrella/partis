@@ -15,8 +15,8 @@ class AlleleRemover(object):
         self.glfo = glfo
         self.args = args
 
-        self.genes_to_keep = None
-        self.genes_to_remove = None
+        self.genes_to_keep = set()
+        self.genes_to_remove = set()
         self.dbg_strings = {}
 
         self.finalized = False
@@ -52,7 +52,7 @@ class AlleleRemover(object):
         total_counts = sum([counts for counts in easycounts.values()])
         class_counts = self.separate_into_classes(region, sorted_gene_counts, easycounts)
 
-        self.genes_to_keep = set()
+        genes_to_keep = set()
 
         if debug:
             print '  %s (groups separated by %d snps)' % (utils.color('blue', region), self.n_max_snps[region])
@@ -72,23 +72,23 @@ class AlleleRemover(object):
                 if float(gfo['counts']) / total_counts < self.args.min_allele_prevalence_fraction:  # always skip everybody that's super uncommon
                     pass  # don't keep it
                 elif ig == 0:  # keep the first one from this class
-                    self.genes_to_keep.add(gfo['gene'])
+                    genes_to_keep.add(gfo['gene'])
                     n_from_this_class += 1
                 elif utils.hamming_distance(gclass[0]['seq'], gclass[ig]['seq']) == 0:  # don't keep it if it's indistinguishable from the most common one (the matches are probably mostly really the best one)
                     pass  # don't keep it
                 elif n_from_this_class < self.args.n_alleles_per_gene:  # always keep the most common <self.args.n_alleles_per_gene> in each class [note: defaults to 1 if looking for new alleles, otherwise 2]
-                    self.genes_to_keep.add(gfo['gene'])
+                    genes_to_keep.add(gfo['gene'])
                     n_from_this_class += 1
                 else:
                     pass  # don't keep it
 
-                if debug and gfo['gene'] in self.genes_to_keep:
+                if debug and gfo['gene'] in genes_to_keep:
                     snpstr = ' ' if ig == 0 else '(%d)' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])
                     print '\n       %-s  %7s  %-3s' % (utils.color_gene(gfo['gene'], width=20), count_str(gfo['counts']), snpstr),
             if debug:
                 if n_from_this_class == 0:
                     print '\n       %-s  %7s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
-                removedfo = [gfo for gfo in gclass if gfo['gene'] not in self.genes_to_keep]
+                removedfo = [gfo for gfo in gclass if gfo['gene'] not in genes_to_keep]
                 if len(removedfo) > 0:
                     number_strs = ['(%d %s)' % (gfo['hdist'], count_str(gfo['counts'])) for gfo in removedfo]
                     name_strs = ['%s' % utils.color_gene(gfo['gene']) for gfo in removedfo]
@@ -96,13 +96,16 @@ class AlleleRemover(object):
         if debug:
             print ''
 
-        self.genes_to_remove = set(self.glfo['seqs'][region]) - self.genes_to_keep
+        genes_to_remove = set(self.glfo['seqs'][region]) - genes_to_keep
 
-        print '    keeping %d / %d %s gene%s' % (len(self.genes_to_keep), len(self.glfo['seqs'][region]), region, utils.plural(len(self.genes_to_keep)))
-        # print '    removing %d %s genes: %d with no matches, %d with unconvincing matches' % (len(self.genes_to_remove), region, len(set(self.glfo['seqs'][region]) - set(easycounts)), len(set(easycounts) - self.genes_to_keep))
-        if len(self.genes_to_keep) == 0:
+        print '    keeping %d / %d %s gene%s' % (len(genes_to_keep), len(self.glfo['seqs'][region]), region, utils.plural(len(genes_to_keep)))
+        # print '    removing %d %s genes: %d with no matches, %d with unconvincing matches' % (len(genes_to_remove), region, len(set(self.glfo['seqs'][region]) - set(easycounts)), len(set(easycounts) - genes_to_keep))
+        if len(genes_to_keep) == 0:
             print '   would\'ve kept zero genes, instead keeping all of them'
-            self.genes_to_keep = copy.deepcopy(self.genes_to_remove)
-            self.genes_to_remove.clear()
+            genes_to_keep = copy.deepcopy(genes_to_remove)
+            genes_to_remove.clear()
+
+        self.genes_to_keep |= genes_to_keep
+        self.genes_to_remove |= genes_to_remove
 
         self.finalized = True
