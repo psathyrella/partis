@@ -18,8 +18,8 @@ import indelutils
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
 # setting defaults here so that bin/test-germline-inference.py and bin/partis don't have to both have defaults in them
-default_n_genes_per_region = '42:22:6'
-default_n_alleles_per_gene = '1.33:1.1:1.'
+default_n_genes_per_region = '42:18:6'
+default_n_alleles_per_gene = '1.33:1.2:1.2'
 default_min_allele_prevalence_freq = 0.1
 
 dummy_d_genes = {l : l.upper() + 'Dx-x*x' if not utils.has_d_gene(l) else None for l in utils.loci}  # e.g. IGKDx-x*x for igk, None for igh
