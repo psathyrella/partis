@@ -1341,28 +1341,39 @@ def separate_into_allelic_groups(glfo, debug=False):
     return allelic_groups  # NOTE doesn't return the same thing as separate_into_snp_groups()
 
 # ----------------------------------------------------------------------------------------
-def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):
+def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None):  # NOTE <n_max_snps> corresponds to v, whereas d and j are rescaled according to their lengths
     """ where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <n_max_snps> """
+    def getseq(gene):
+        seq = glfo['seqs'][region][gene]
+        if region == 'v':  # only go up through the end of the cysteine
+            cpos = cdn_pos(glfo, region, gene)
+            seq = seq[:cpos + 3]
+        return seq
+    def get_max_snps(seq):
+        max_this_region = n_max_snps
+        if region != 'v':
+            max_this_region = max_this_region * float(len(seq)) / 300
+        return max_this_region - 2  # not sure why I originally put the 2 there, maybe just to adjust the space between where allelefinder stops looking and where alleleclusterer starts?
+    def in_this_class(classfo, seq):
+        for gfo in classfo:
+            if len(gfo['seq']) != len(seq):
+                continue
+            hdist = hamming_distance(gfo['seq'], seq)
+            if hdist < get_max_snps(seq):  # if this gene is close to any gene in the class, add it to this class
+                snp_groups[snp_groups.index(classfo)].append({'gene' : gene, 'seq' : seq, 'hdist' : hdist})
+                return True
+        return False  # if we fall through, nobody in this class was close to <seq>
+
     if genelist is None:
         genelist = glfo['seqs'][region].keys()
-    assert region == 'v'  # would need to change the up-to-cpos requirement if it isn't v
     snp_groups = []
     for gene in genelist:
-        cpos = cdn_pos(glfo, region, gene)
-        seq = glfo['seqs'][region][gene][:cpos + 3]  # only go up through the end of the cysteine
+        seq = getseq(gene)
         add_new_class = True  # to begin with, assume we'll add a new class for this gene
-        for gclass in snp_groups:  # then check if, instead, this gene belongs in any of the existing classes
-            for gfo in gclass:
-                if len(gfo['seq']) != len(seq):  # everybody in the class has to have the same distance from start of V (rss, I think) to end of cysteine
-                    continue
-                hdist = hamming_distance(gfo['seq'], seq)
-                if hdist < n_max_snps - 2:  # if this gene is close to any gene in the class, add it to this class
-                    add_new_class = False
-                    snp_groups[snp_groups.index(gclass)].append({'gene' : gene, 'seq' : seq, 'hdist' : hdist})
-                    break
-            if not add_new_class:
+        for classfo in snp_groups:  # then check if, instead, this gene belongs in any of the existing classes
+            if in_this_class(classfo, seq):
+                add_new_class = False
                 break
-
         if add_new_class:
             snp_groups.append([{'gene' : gene, 'seq' : seq, 'hdist' : 0}, ])
 
