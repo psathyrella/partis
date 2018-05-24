@@ -475,7 +475,7 @@ example_str = '\n    '.join(['example usage (note that this example as it is wil
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
 parser.add_argument('--plotdir', default=os.getcwd() + '/gl-set-tree-plots')
 parser.add_argument('--plotname', default='test')
-parser.add_argument('--glsfnames', required=True, help='colon-separated list of germline ighv fasta file names')
+parser.add_argument('--glsfnames', required=True, help='colon-separated list of germline ig fasta file names')
 parser.add_argument('--glslabels', required=True, help='colon-separated list of labels corresponding to --glsfnames')
 parser.add_argument('--locus', required=True, choices=['igh', 'igk', 'igl'])
 parser.add_argument('--legends', help='colon-separated list of legend labels')

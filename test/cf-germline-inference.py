@@ -21,7 +21,6 @@ sys.path.insert(1, './datascripts')
 import heads
 
 sim_locus = 'igh'
-region = 'v'
 
 study_translations = {  # for zenodo
     'jason-mg' : 'myasthenia-gravis',
@@ -118,7 +117,7 @@ def get_outdir(args, baseoutdir, varname, varval, n_events=None):
     return outdir
 
 # ----------------------------------------------------------------------------------------
-def get_single_performance(outdir, method, debug=False):
+def get_single_performance(region, outdir, method, debug=False):
     sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=sim_locus)
     iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=sim_locus)
     glutils.synchronize_glfos(ref_glfo=sglfo, new_glfo=iglfo, region=region)
@@ -138,7 +137,7 @@ def get_single_performance(outdir, method, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
-def get_gls_fname(outdir, method, locus, sim_truth=False, data=False, annotation_performance_plots=False):  # NOTE duplicates/depends on code in test-germline-inference.py
+def get_gls_fname(region, outdir, method, locus, sim_truth=False, data=False, annotation_performance_plots=False):  # NOTE duplicates/depends on code in test-germline-inference.py
     if annotation_performance_plots:
         return outdir + '/' + method + '/annotation-performance-plots/sw/mutation'
     gls_dir = get_gls_dir(outdir, method, sim_truth=sim_truth, data=data, annotation_performance_plots=annotation_performance_plots)
@@ -162,13 +161,14 @@ def get_gls_dir(outdir, method, sim_truth=False, data=False, annotation_performa
     return outdir
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False):
+def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
     cmdstr += ' --plotname ' + plotname
     cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
     cmdstr += ' --glslabels ' + ':'.join(glslabels)
+    cmdstr += ' --region ' + region
     if ref_label is not None:
         cmdstr += ' --ref-label ' + ref_label
     if title is not None:
@@ -189,7 +189,8 @@ def make_gls_tree_plot(args, plotdir, plotname, glsfnames, glslabels, locus, ref
     utils.simplerun(cmdstr, shell=True, debug=args.dry_run, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
-def print_gls_gen_summary_table(args, baseoutdir):
+def print_gls_gen_summary_table(args, region, baseoutdir):
+    assert region == 'v'  # would need to be implemented
     latex = True
     varname = args.action
     varval = 'simu'
@@ -213,7 +214,8 @@ def print_gls_gen_summary_table(args, baseoutdir):
         print '%s' % ('\\\\' if latex else '')
 
 # ----------------------------------------------------------------------------------------
-def get_gls_gen_annotation_performance_plots(args, baseoutdir):
+def get_gls_gen_annotation_performance_plots(args, region, baseoutdir):
+    assert region == 'v'  # needs to be implemented
     import plotting
     import plotconfig
     methcolors = {  # NOTE started from scolors in bin/plot-gl-set-trees.py htmlcolorcods.com, and slide each one a little rightward
@@ -249,7 +251,11 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
         make_ytitle = (iproc > 2) or (args.gls_gen_difficulty == 'easy')
 
         for plotname in plotnames:
-            hists = {meth : Hist(fname=get_gls_fname(outdir, meth, sim_locus, annotation_performance_plots=True) + '/' + plotname + '.csv', title=methstr(meth) if make_legend else None) for meth in args.methods}
+            hfnames = {meth : get_gls_fname(region, outdir, meth, sim_locus, annotation_performance_plots=True) for meth in args.methods}
+            for hfn in hfnames.values():
+                if not os.path.exists(hfn):
+                    raise Exception('%s d.n.e.: need to first run non-plotting (without --plot) --annotation-performance-plots (which involves re-running partis, I think the difference being partis is now running with --plot-annotation-performance' % hfn)
+            hists = {meth : Hist(fname=hfnames[meth] + '/' + plotname + '.csv', title=methstr(meth) if make_legend else None) for meth in args.methods}
             for meth in args.methods:
                 if hists[meth].overflow_contents() != 0.0:
                     print '  %s %s non-zero under/overflow %f' % (utils.color('red', 'error'), methstr(meth), hists[meth].overflow_contents())
@@ -295,15 +301,18 @@ def get_gls_gen_annotation_performance_plots(args, baseoutdir):
             print '   %15s  %6.3f / %d = %6.2f +/- %6.2f' % (methstr(meth), sum(meanvals[plotname][meth]), len(meanvals[plotname][meth]), mean, err)
 
 # ----------------------------------------------------------------------------------------
-def get_gls_gen_tree_plots(args, baseoutdir, method):
+def get_gls_gen_tree_plots(args, region, baseoutdir, method):
     varname = args.action
     varval = 'simu'
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
         print '%-2d                            %s' % (iproc, outdir)
-        simfname = get_gls_fname(outdir, method=None, locus=sim_locus, sim_truth=True)
-        inffname = get_gls_fname(outdir, method, sim_locus)
-        make_gls_tree_plot(args, outdir + '/' + method + '/gls-gen-plots', varvalstr(varname, varval),
+        simfname = get_gls_fname(region, outdir, method=None, locus=sim_locus, sim_truth=True)
+        inffname = get_gls_fname(region, outdir, method, sim_locus)
+        plotdir = outdir + '/' + method + '/gls-gen-plots'
+        if args.all_regions:
+            plotdir += '/' + region
+        make_gls_tree_plot(args, region, plotdir, varvalstr(varname, varval),
                            glsfnames=[simfname, inffname],
                            glslabels=['sim', 'inf'],
                            locus=sim_locus, ref_label='sim', legend_title=methstr(method), title=gls_sim_str(args.gls_gen_difficulty, iproc))  #, title_color=method)
@@ -366,7 +375,7 @@ def get_dset_legends(mfolist):
     return legends
 
 # ----------------------------------------------------------------------------------------
-def get_data_plots(args, baseoutdir, methods, study, dsets):
+def get_data_plots(args, region, baseoutdir, methods, study, dsets):
     metafos = heads.read_metadata(study)
     assert len(set([metafos[ds]['locus'] for ds in dsets]))  # make sure everybody has the same locus
     mfo = metafos[dsets[0]]
@@ -393,8 +402,11 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
     else:
         raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
     print '%s' % (' %s ' % utils.color('light_blue', 'vs')).join(glslabels)
-    make_gls_tree_plot(args, outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots', study + '-' + '-vs-'.join(dsets),
-                       glsfnames=[get_gls_fname(ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
+    plotdir = outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots'
+    if args.all_regions:  # NOTE not actually checking this by running... but it's the same as the gls-gen one, so it should be ok
+        plotdir += '/' + region
+    make_gls_tree_plot(args, region, plotdir, study + '-' + '-vs-'.join(dsets),
+                       glsfnames=[get_gls_fname(region, ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
                        glslabels=glslabels,
                        locus=mfo['locus'],
                        title=title,
@@ -404,14 +416,14 @@ def get_data_plots(args, baseoutdir, methods, study, dsets):
                        pie_chart_faces=pie_chart_faces)
 
 # ----------------------------------------------------------------------------------------
-def plot_single_test(args, baseoutdir, method):
+def plot_single_test(args, region, baseoutdir, method):
     import plotting
     plot_types = ['missing', 'spurious']
 
     def get_performance(varname, varval):
         perf_vals = {pt : [] for pt in plot_types + ['total']}
         for iproc in range(args.iteststart, args.n_tests):
-            single_vals = get_single_performance(get_outdir(args, baseoutdir, varname, varval, n_events=n_events) + '/' + str(iproc), method=method)
+            single_vals = get_single_performance(region, get_outdir(args, baseoutdir, varname, varval, n_events=n_events) + '/' + str(iproc), method=method)
             for ptype in plot_types + ['total']:
                 perf_vals[ptype].append(single_vals[ptype])
         return perf_vals
@@ -458,15 +470,15 @@ def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
             subprocess.check_call(['cp', '-r', genedir, zenodo_dir + '/fits/'])
 
         # csv prevalence files
-        for region in utils.regions:
-            with open(gls_dir.replace('/germline-sets', '/%s_gene-probs.csv' % region)) as infile:
+        for tmpreg in utils.regions:
+            with open(gls_dir.replace('/germline-sets', '/%s_gene-probs.csv' % tmpreg)) as infile:
                 reader = csv.DictReader(infile)
-                countfo = {line['%s_gene' % region] : int(line['count']) for line in reader}
+                countfo = {line['%s_gene' % tmpreg] : int(line['count']) for line in reader}
                 old_total = sum(countfo.values())
-                orf_genes = [g for g in countfo if g not in glfo['seqs'][region]]  # this is kind of dangerous... but the genes are read from the same parameter dir that we're reading this prevalence file, so the only way it's gonna be missing is if we just removed it with the read_glfo() line above
+                orf_genes = [g for g in countfo if g not in glfo['seqs'][tmpreg]]  # this is kind of dangerous... but the genes are read from the same parameter dir that we're reading this prevalence file, so the only way it's gonna be missing is if we just removed it with the read_glfo() line above
                 for ogene in orf_genes:
-                    # if region == 'v':
-                    #     _, nearest_gene, _ = glutils.find_nearest_gene_with_same_cpos(glfo, glfo['seqs'][region][ogene])  # oops, that's dumb... of course it isn't there
+                    # if tmpreg == 'v':
+                    #     _, nearest_gene, _ = glutils.find_nearest_gene_with_same_cpos(glfo, glfo['seqs'][tmpreg][ogene])  # oops, that's dumb... of course it isn't there
                     # else:
                     nearest_gene = glutils.find_nearest_gene_using_names(glfo, ogene)
                     # print '  adding %d to %s from %s' % (countfo[ogene], utils.color_gene(nearest_gene), utils.color_gene(ogene))
@@ -474,11 +486,11 @@ def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
                 for ogene in orf_genes:
                     del countfo[ogene]
                 assert old_total == sum(countfo.values())
-                with open('%s/%s_gene-probs.csv' % (zenodo_dir, region), 'w') as outfile:
-                    writer = csv.DictWriter(outfile, ('%s_gene' % region, 'count'))
+                with open('%s/%s_gene-probs.csv' % (zenodo_dir, tmpreg), 'w') as outfile:
+                    writer = csv.DictWriter(outfile, ('%s_gene' % tmpreg, 'count'))
                     writer.writeheader()
                     for gene in countfo:
-                        writer.writerow({'%s_gene' % region : gene, 'count' : countfo[gene]})
+                        writer.writerow({'%s_gene' % tmpreg : gene, 'count' : countfo[gene]})
     elif method == 'tigger-default':
         # doesn't seem to have written anything
         pass
@@ -500,22 +512,22 @@ def write_zenodo_files(args, baseoutdir):
             write_single_zenodo_subdir(outdir, args, study, dset, method, metafos[dset])
 
 # ----------------------------------------------------------------------------------------
-def plot_tests(args, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False, print_summary_table=False):
+def plot_tests(args, region, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False, print_summary_table=False):
     if args.action == 'gls-gen':
         if annotation_performance_plots:
             assert method is None
-            get_gls_gen_annotation_performance_plots(args, baseoutdir)
+            get_gls_gen_annotation_performance_plots(args, region, baseoutdir)
         elif print_summary_table:
             assert method is None
-            print_gls_gen_summary_table(args, baseoutdir)
+            print_gls_gen_summary_table(args, region, baseoutdir)
         else:
-            get_gls_gen_tree_plots(args, baseoutdir, method)
+            get_gls_gen_tree_plots(args, region, baseoutdir, method)
     elif args.action == 'data':
         dsetfos = [v.split('/') for v in args.varvals]  # (study, dset)
         if method_vs_method:
             assert method is None
             for study, dset in dsetfos:
-                get_data_plots(args, baseoutdir, args.methods, study, [dset])
+                get_data_plots(args, region, baseoutdir, args.methods, study, [dset])
         else:
             sample_groups = []
             for study in all_data_groups:
@@ -523,14 +535,14 @@ def plot_tests(args, baseoutdir, method, method_vs_method=False, annotation_perf
                     if len([s for s in samples if [study, s] in dsetfos]) == len(samples):  # if they're all in <dsetfos>
                         sample_groups.append((study, samples))
             for study, samples in sample_groups:
-                get_data_plots(args, baseoutdir, [method], study, samples)
+                get_data_plots(args, region, baseoutdir, [method], study, samples)
                 for sample in samples:
                     dsetfos.remove([study, sample])
             for study, dset in dsetfos:
                 print 'hmmmm %s (probably need to set --method-vs-method' % dset  # crashes below since both method and dset lists are of length one
-                # get_data_plots(args, baseoutdir, [method], study, [dset])
+                # get_data_plots(args, region, baseoutdir, [method], study, [dset])
     else:
-        plot_single_test(args, baseoutdir, method)
+        plot_single_test(args, region, baseoutdir, method)
 
 # ----------------------------------------------------------------------------------------
 def get_base_cmd(args, n_events, method):
@@ -772,6 +784,7 @@ parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalenc
 parser.add_argument('--methods', default='partis') # not using <choices> 'cause it's harder since it's a list
 parser.add_argument('--method-vs-method', action='store_true')
 parser.add_argument('--v-genes', default='IGHV4-39*01')
+parser.add_argument('--all-regions', action='store_true')  # it'd be nicer to just have an arg for which region we're running on, but i need a way to keep the directory structure for single-region plots the same as before I generalized to d and j
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
 parser.add_argument('--gls-gen-events', type=int, default=50000)
@@ -824,15 +837,16 @@ if args.write_zenodo_files:
     assert args.action == 'data'  # would need to implement it
     write_zenodo_files(args, baseoutdir)
 elif args.plot:
-    if args.method_vs_method:
-        plot_tests(args, baseoutdir, method=None, method_vs_method=True)
-    elif args.plot_annotation_performance:
-        plot_tests(args, baseoutdir, method=None, annotation_performance_plots=True)
-    elif args.print_table:
-        plot_tests(args, baseoutdir, method=None, print_summary_table=True)
-    else:
-        for method in [m for m in args.methods if m != 'simu']:
-            plot_tests(args, baseoutdir, method)
+    for region in ['v'] if not args.all_regions else utils.loci[sim_locus]:  # this is messy... but it makes it so existing result directory structures are still parseable (i.e. the structure only changes if you set --all-regions)
+        if args.method_vs_method:
+            plot_tests(args, region, baseoutdir, method=None, method_vs_method=True)
+        elif args.plot_annotation_performance:
+            plot_tests(args, region, baseoutdir, method=None, annotation_performance_plots=True)
+        elif args.print_table:
+            plot_tests(args, region, baseoutdir, method=None, print_summary_table=True)
+        else:
+            for method in [m for m in args.methods if m != 'simu']:
+                plot_tests(args, region, baseoutdir, method)
 else:
     for method in args.methods:
         run_tests(args, baseoutdir, method)
