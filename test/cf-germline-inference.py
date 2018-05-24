@@ -838,6 +838,7 @@ if args.write_zenodo_files:
     write_zenodo_files(args, baseoutdir)
 elif args.plot:
     for region in ['v'] if not args.all_regions else utils.loci[sim_locus]:  # this is messy... but it makes it so existing result directory structures are still parseable (i.e. the structure only changes if you set --all-regions)
+        print '%s' % utils.color('reverse_video', utils.color('green', region))
         if args.method_vs_method:
             plot_tests(args, region, baseoutdir, method=None, method_vs_method=True)
         elif args.plot_annotation_performance:
