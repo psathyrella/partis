@@ -140,6 +140,9 @@ class AlleleRemover(object):
             missing_genes = set(self.simglfo['seqs'][region]) - genes_to_keep
             if len(missing_genes) > 0:
                 print '    %s %d simulation genes (counts): %s' % (utils.color('red', 'missing'), len(missing_genes), '  '.join([('%s %d' % (utils.color_gene(g), self.simcounts[region][g])) for g in sorted(missing_genes)]))
+            completely_absent_genes = missing_genes - genes_to_remove
+            if len(completely_absent_genes) > 0:
+                print '%s %d simulation genes completely absent: %s' % (utils.color('red', 'warning'), len(completely_absent_genes),  '  '.join([('%s %d' % (utils.color_gene(g), self.simcounts[region][g])) for g in sorted(completely_absent_genes)]))
 
         self.genes_to_keep |= genes_to_keep
         self.genes_to_remove |= genes_to_remove
