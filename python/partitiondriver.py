@@ -195,6 +195,13 @@ class PartitionDriver(object):
 
         # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)  # only compares indels a.t.m.
 
+        # d j allele removal (just printing for now
+        alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
+        alremover.finalize(gene_counts=None, sw_info=self.sw_info, regions=['d', 'j'], debug=self.args.debug_allele_finding)
+        print '  (not actually removing d and j alleleremover genes'
+        # glutils.remove_genes(self.glfo, alremover.genes_to_remove, debug=True)
+        # glutils.write_glfo('_output/glfo-test', self.glfo)
+
         if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
             print '  copying sw cache file %s to --outfname %s' % (cachefname, self.args.outfname)
             check_call(['cp', cachefname, self.args.outfname])
@@ -215,7 +222,7 @@ class PartitionDriver(object):
         # remove unlikely alleles (can only remove v alleles here, since we're using vsearch annotations, but that's ok since it's mostly a speed optimization)
         if not self.args.dont_remove_unlikely_alleles:
             self.set_vsearch_info()
-            alremover = AlleleRemover(self.glfo, self.args)
+            alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
             alremover.finalize({'v' : self.vs_info['gene-counts']}, debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
             self.vs_info = None  # don't want to keep this around, since it has alignments against all the genes we removed (also maybe memory control)
