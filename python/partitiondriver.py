@@ -160,11 +160,8 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, count_parameters=False, write_parameters=False, write_cachefile=False, look_for_cachefile=False):
-        print 'smith-waterman',
-        if write_parameters:
-            print '  (writing parameters)',
-        print ''
+    def run_waterer(self, count_parameters=False, write_parameters=False, write_cachefile=False, look_for_cachefile=False, dbg_str=''):
+        print 'smith-waterman%s' % (('  (%s)' % dbg_str) if dbg_str != '' else '')
         sys.stdout.flush()
 
         self.vs_info = None  # should already be None, but we want to make sure (if --no-sw-vsearch is set we need it to be None, and if we just removed unlikely alleles we need to rerun vsearch with the likely alleles)
@@ -195,12 +192,13 @@ class PartitionDriver(object):
 
         # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)  # only compares indels a.t.m.
 
-        # d j allele removal (just printing for now
-        alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
-        alremover.finalize(gene_counts=None, sw_info=self.sw_info, regions=['d', 'j'], debug=self.args.debug_allele_finding)
-        print '  (not actually removing d and j alleleremover genes'
-        # glutils.remove_genes(self.glfo, alremover.genes_to_remove, debug=True)
-        # glutils.write_glfo('_output/glfo-test', self.glfo)
+        # d j allele removal (just printing for now)
+        if count_parameters:  # I'm not sure this is precisely the criterion I want, but it does the job of not running dj removal printing when we're just annotating with existing parameters (which was causing a crash [key error] with inconsistent glfo)
+            alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
+            alremover.finalize(gene_counts=None, sw_info=self.sw_info, regions=['d', 'j'], debug=self.args.debug_allele_finding)
+            print '  (not actually removing d and j alleleremover genes)'
+            # glutils.remove_genes(self.glfo, alremover.genes_to_remove, debug=True)
+            # glutils.write_glfo('_output/glfo-test', self.glfo)
 
         if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
             print '  copying sw cache file %s to --outfname %s' % (cachefname, self.args.outfname)
@@ -230,7 +228,7 @@ class PartitionDriver(object):
 
         # (re-)add [new] alleles
         if self.args.allele_cluster:
-            self.run_waterer()
+            self.run_waterer(dbg_str='new-allele clustering')
             alclusterer = AlleleClusterer(self.args, glfo=self.glfo, reco_info=self.reco_info, simglfo=self.simglfo)
             alcluster_alleles = alclusterer.get_alleles(self.sw_info, debug=self.args.debug_allele_finding, plotdir=None if self.args.plotdir is None else self.args.plotdir + '/sw/alcluster')
             if len(alcluster_alleles) > 0:
@@ -238,7 +236,7 @@ class PartitionDriver(object):
             alclusterer = None
 
         if not self.args.dont_find_new_alleles:
-            self.run_waterer()
+            self.run_waterer(dbg_str='new-allele fitting')
             alfinder = AlleleFinder(self.glfo, self.args)
             new_allele_info = alfinder.increment_and_finalize(self.sw_info, debug=self.args.debug_allele_finding)  # incrementing and finalizing are intertwined since it needs to know the distribution of 5p and 3p deletions before it can increment
             if self.args.plotdir is not None:
@@ -251,7 +249,7 @@ class PartitionDriver(object):
                 glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
 
         # get and write sw parameters
-        self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True)
+        self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True, dbg_str='writing parameters')
         self.write_hmms(self.sw_param_dir)  # note that this modifies <self.glfo>
         if self.args.only_smith_waterman:
             return
