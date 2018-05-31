@@ -17,7 +17,7 @@ def simplify_state_name(state_name):
         return state_name
 
 # ----------------------------------------------------------------------------------------
-def read_mute_counts(indir, gene, locus):
+def read_mute_counts(indir, gene, locus, debug=False):
     if gene == glutils.dummy_d_genes[locus]:
         return {}
     observed_counts = {}
@@ -27,10 +27,12 @@ def read_mute_counts(indir, gene, locus):
             pos = int(line['position'])
             assert pos not in observed_counts
             observed_counts[pos] = {n : int(line[n + '_obs']) for n in utils.nukes}
+    if debug:
+        print '    read %d per-base mute counts from %s' % (len(observed_counts), indir)
     return observed_counts  # raw per-{ACGT} counts for each position, summed over genes ("raw" as in not a weighted average over a bunch of genes as in read_mute_freqs_with_weights())
 
 # ----------------------------------------------------------------------------------------
-def read_mute_freqs_with_weights(indir, approved_genes):  # it would be nice to eventually align the genes before combining
+def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it would be nice to eventually align the genes before combining
     # returns:
     #  - mute_freqs: inverse error-weighted average mute freq over all genes for each position
     #     - also includes weighted and unweigthed means over positions
@@ -40,6 +42,9 @@ def read_mute_freqs_with_weights(indir, approved_genes):  # it would be nice to 
 
     if approved_genes[0] == glutils.dummy_d_genes[utils.get_locus(approved_genes[0])]:
         return {'overall_mean' : 0.5, 'unweighted_overall_mean' : 0.5}
+
+    if debug:
+        print '    reading mute freqs from %s for %d gene%s: %s' % (indir, len(approved_genes), utils.plural(len(approved_genes)), utils.color_genes(approved_genes))
 
     # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
     observed_freqs = {}
@@ -88,6 +93,19 @@ def read_mute_freqs_with_weights(indir, approved_genes):  # it would be nice to 
     unweighted_denom = sum([len(observed_freqs[pos]) for pos in observed_freqs])
     if unweighted_denom > 0.:
         mute_freqs['unweighted_overall_mean'] = sum([obs['freq'] for pos in observed_freqs for obs in observed_freqs[pos]]) / unweighted_denom
+
+    if debug:
+        iskipstart = 35
+        positions = sorted(observed_freqs)
+        # if len(pos_to_print) > 100:
+        #     pos_to_print = pos_to_print[:50] + pos_to_print[len(pos_to_print) - 50 : ]
+        if len(positions) > 2 * iskipstart:  # i.e. for v genes skip all the middle positions
+            print '      %s%s%s' % (' '.join([('%4d' % p) for p in positions[:iskipstart]]), utils.color('blue', ' [...] '), ' '.join([('%4d' % p) for p in positions[len(positions) - iskipstart :]]))
+            print '      %s%s%s' % (' '.join([('%4.2f' % mute_freqs[p]) for p in positions[:iskipstart]]), utils.color('blue', ' [...] '), ' '.join([('%4.2f' % mute_freqs[p]) for p in positions[len(positions) - iskipstart :]]))
+        else:
+            print '      %s' % ' '.join([('%4d' % p) for p in positions])
+            print '      %s' % ' '.join([('%4.2f' % mute_freqs[p]) for p in positions])
+        print '        overall mean: %5.3f (unweighted %5.3f)' % (mute_freqs['overall_mean'], mute_freqs['unweighted_overall_mean'])
 
     return mute_freqs
 

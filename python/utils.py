@@ -752,6 +752,10 @@ def color_gene(gene, width=None, leftpad=False):
             return_str += (width - n_chars) * ' '
     return return_str
 
+# ----------------------------------------------------------------------------------------
+def color_genes(genelist):  # now that I've added this fcn, I should really go and use this in all the places where the list comprehension is written out
+    return ' '.join([color_gene(g) for g in genelist])
+
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):
     """ Convert between (0,1,2,3) and (A,C,G,T) """
@@ -1398,7 +1402,7 @@ def read_single_gene_count(indir, gene, expect_zero_counts=False, debug=False):
         print '          %s %s not found in %s_gene-probs.csv, returning zero' % (color('red', 'warning'), gene, region)
 
     if debug:
-        print '      %d observations of %s' % (count, color_gene(gene))
+        print '      read %d observations of %s from %s' % (count, color_gene(gene), indir)
 
     return count
 
