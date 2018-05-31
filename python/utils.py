@@ -1402,7 +1402,7 @@ def read_single_gene_count(indir, gene, expect_zero_counts=False, debug=False):
         print '          %s %s not found in %s_gene-probs.csv, returning zero' % (color('red', 'warning'), gene, region)
 
     if debug:
-        print '      read %d observations of %s from %s' % (count, color_gene(gene), indir)
+        print '    read %d observations of %s from %s' % (count, color_gene(gene), indir)
 
     return count
 

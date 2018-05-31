@@ -175,6 +175,15 @@ def color_state_name(name, saniname):
         raise Exception('couldn\'t handle name %s' % name)
 
 # ----------------------------------------------------------------------------------------
+def are_sequential_states(st_a, st_b, saniname):
+    try:
+        pos_a = int(color_state_name(st_a, saniname))
+        pos_b = int(color_state_name(st_b, saniname))
+        return pos_a + 1 == pos_b
+    except:
+        return False
+
+# ----------------------------------------------------------------------------------------
 class HMM(object):
     def __init__(self, name, tracks):
         self.name = name
@@ -186,14 +195,19 @@ class HMM(object):
         namelist = [s.name for s in self.states] + ['end']  # just for sorting
         print '  final hmm info (probs *%d):' % factor
         print '    transitions:'
+        # trivial_transition_states = []  # eh, sometimes you want to see these though, for instance if they're scattered among the states that already have end state transitions
         for state in self.states:
-            if len(state.transitions) > 1:
-                total = 0.  # ok this is checked in lots of other places, but when I first wrote this I forgot to add 'end' to <namelist> above ^, so... here it stays (plus it gets used for printing)
-                for to_state in [s for s in namelist if s in state.transitions]:
-                    print '      %8s  %4.1f  %7s%s' % (color_state_name(state.name, saniname) if total == 0. else '', factor * state.transitions[to_state], color_state_name(to_state, saniname), utils.color('red', '<--') if state.transitions[to_state] < utils.eps else '' )
-                    total += state.transitions[to_state]
-                if not utils.is_normed(total):
-                    raise Exception('transition probs not normalized: %s' % state.transitions)
+            # if len(state.transitions) == 1 and are_sequential_states(state.name, state.transitions.keys()[0], saniname):
+            #     trivial_transition_states.append(state.name)
+            #     continue
+            total = 0.  # ok this is checked in lots of other places, but when I first wrote this I forgot to add 'end' to <namelist> above ^, so... here it stays (plus it gets used for printing)
+            for to_state in [s for s in namelist if s in state.transitions]:
+                print '      %8s  %5.1f  %7s%s' % (color_state_name(state.name, saniname) if total == 0. else '', factor * state.transitions[to_state], color_state_name(to_state, saniname), utils.color('red', '<--') if state.transitions[to_state] < utils.eps else '' )
+                total += state.transitions[to_state]
+            if not utils.is_normed(total):
+                raise Exception('transition probs not normalized: %s' % state.transitions)
+        # if len(trivial_transition_states) > 0:
+        #     print '         didn\'t print %d states that had only one possible transition to the next positions\'s state: %s' % (len(trivial_transition_states), ' '.join([color_state_name(s, saniname) for s in trivial_transition_states]))
         print '      emissions:'
         for state in self.states:
             if state.emissions is None:
@@ -247,6 +261,7 @@ class HmmWriter(object):
 
         if self.debug:
             print '%s   %d positions' % (utils.color_gene(gene_name), len(self.germline_seq))
+            print '  reading info from %s' % self.indir
 
         self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
         approved_genes = [gene_name]
@@ -283,6 +298,8 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_states(self):
         # NOTE it'd kinda make more sense for the fv and jf insertions to only have one state (rather than 4), but for the moment I'm just leaving with 4 'cause it's easier to leave them the same as the physical insertions
+        if self.debug:
+            print '  adding states (no dbg printing yet)'
         self.add_init_state()
         # then left side insertions
         for insertion in self.insertions:
@@ -424,7 +441,6 @@ class HmmWriter(object):
             assert utils.is_normed(test_total)
 
         if self.debug:
-            # print '    read deletion probs:%s' % (' (used info from more than one gene: %s)' % ' '.join(genes_used)) if len(genes_used) > 1 else ''
             if len(genes_used) > 1:
                 print '       used info from more than one gene: %s' % ' '.join(genes_used)
             all_dlengths = sorted(set([dl for e in eprobs for dl in eprobs[e]]))
@@ -581,12 +597,12 @@ class HmmWriter(object):
                 added_positions = [p for p in sorted(newvals) if p not in oldvals]
                 modified_positions = [p for p in sorted(newvals) if p in oldvals and newvals[p] != oldvals[p]]
                 if len(added_positions) > 0:
-                    print '   added mutation %5s info for %d positions: %s' % (vtype, len(added_positions), ' '.join([('%d' % p) for p in added_positions]))
+                    print '    added default mutation %5s info (e.g. %s) for %d positions: %s' % (vtype, newvals[added_positions[0]], len(added_positions), ' '.join([('%d' % p) for p in added_positions]))
                 if len(modified_positions) > 0:
-                    print '   modified mutation %5s info for %d positions:' % (vtype, len(modified_positions))
-                    print '          %s' % '  '.join([('%4d' % p) for p in modified_positions])
-                    print '      old %s' % '  '.join([(('%4' + ('.2f' if vtype == 'freq' else 's')) % oldvals[p]) for p in modified_positions])
-                    print '      new %s' % '  '.join([(('%4' + ('.2f' if vtype == 'freq' else 's')) % newvals[p]) for p in modified_positions])
+                    print '    modified mutation %5s info for %d positions:' % (vtype, len(modified_positions))
+                    print '           %s' % '  '.join([('%4d' % p) for p in modified_positions])
+                    print '       old %s' % '  '.join([(('%4' + ('.2f' if vtype == 'freq' else 's')) % oldvals[p]) for p in modified_positions])
+                    print '       new %s' % '  '.join([(('%4' + ('.2f' if vtype == 'freq' else 's')) % newvals[p]) for p in modified_positions])
 
     # ----------------------------------------------------------------------------------------
     def get_mean_insert_length(self, insertion, debug=False):
@@ -648,9 +664,9 @@ class HmmWriter(object):
         inverse_length = 0.0
         if mean_length > 0.0:
             inverse_length = 1.0 / mean_length
-        if insertion != 'fv' and insertion != 'jf' and mean_length < 1.0:
-            if self.debug:
-                print '      small mean insert length %f' % mean_length
+
+        # if self.debug and insertion != 'fv' and insertion != 'jf' and mean_length < 1.0:
+        #     print '      small mean %s insert length %f' % (insertion, mean_length)
 
         return inverse_length
 
@@ -667,10 +683,10 @@ class HmmWriter(object):
                     non_zero_sum += prob
             self_transition_prob = non_zero_sum / float(non_zero_sum + self.insertion_probs[insertion][0])  # NOTE this otter be less than 1, since we only get here if the mean length is less than 1
             assert self_transition_prob >= 0.0 and self_transition_prob <= 1.0
-            if insertion != 'fv' and insertion != 'jf':  # we pretty much expect this for unphysical insertions
-                if self.debug:
-                    print '    WARNING using insert self-transition probability hack for %s insertion p(>0) / p(0) = %f / %f = %f' % (insertion, non_zero_sum, non_zero_sum + self.insertion_probs[insertion][0], self_transition_prob)
-                    print '      ', self.insertion_probs[insertion]
+
+            # if self.debug and insertion != 'fv' and insertion != 'jf':  # we pretty much expect this for unphysical insertions
+            #     print '    using insert self-transition probability hack for %s insertion p(>0) / p(0) = %f / %f = %f    (%s)' % (insertion, non_zero_sum, non_zero_sum + self.insertion_probs[insertion][0], self_transition_prob, self.insertion_probs[insertion])
+
             return self_transition_prob
 
     # ----------------------------------------------------------------------------------------

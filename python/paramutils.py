@@ -95,11 +95,9 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
         mute_freqs['unweighted_overall_mean'] = sum([obs['freq'] for pos in observed_freqs for obs in observed_freqs[pos]]) / unweighted_denom
 
     if debug:
-        iskipstart = 35
+        iskipstart = 35  # i.e. for v genes skip the middle positions
         positions = sorted(observed_freqs)
-        # if len(pos_to_print) > 100:
-        #     pos_to_print = pos_to_print[:50] + pos_to_print[len(pos_to_print) - 50 : ]
-        if len(positions) > 2 * iskipstart:  # i.e. for v genes skip all the middle positions
+        if len(positions) > 2 * iskipstart:
             print '      %s%s%s' % (' '.join([('%4d' % p) for p in positions[:iskipstart]]), utils.color('blue', ' [...] '), ' '.join([('%4d' % p) for p in positions[len(positions) - iskipstart :]]))
             print '      %s%s%s' % (' '.join([('%4.2f' % mute_freqs[p]) for p in positions[:iskipstart]]), utils.color('blue', ' [...] '), ' '.join([('%4.2f' % mute_freqs[p]) for p in positions[len(positions) - iskipstart :]]))
         else:
