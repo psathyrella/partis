@@ -202,7 +202,7 @@ class HMM(object):
             #     continue
             total = 0.  # ok this is checked in lots of other places, but when I first wrote this I forgot to add 'end' to <namelist> above ^, so... here it stays (plus it gets used for printing)
             for to_state in [s for s in namelist if s in state.transitions]:
-                print '      %8s  %5.1f  %7s%s' % (color_state_name(state.name, saniname) if total == 0. else '', factor * state.transitions[to_state], color_state_name(to_state, saniname), utils.color('red', '<--') if state.transitions[to_state] < utils.eps else '' )
+                print '      %8s  %5.1f  %7s%s' % (color_state_name(state.name, saniname) if total == 0. else '', factor * state.transitions[to_state], color_state_name(to_state, saniname), utils.color('red', ' <--') if state.transitions[to_state] < utils.eps else '' )
                 total += state.transitions[to_state]
             if not utils.is_normed(total):
                 raise Exception('transition probs not normalized: %s' % state.transitions)
@@ -233,9 +233,15 @@ class HmmWriter(object):
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
-        self.n_max_to_interpolate = args.min_observations_to_write
+        self.n_max_to_interpolate = 20  # we interpolate for empty insertion + deletion bins if neighboring (non-empty) bins have fewer than this many entries (i.e. if filled bins have at least this many entries, we _don't_ interpolate between them)
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
-        self.mute_freq_bounds = {'lo' : 0.01, 'hi' : 0.5}  # don't let any position mutate less frequently than 1% of the time, or more frequently than half the time
+# ----------------------------------------------------------------------------------------
+        self.mute_freq_bounds = {'lo' : 0.01, 'hi' : 0.35}  # don't let any position mutate less frequently than 1% of the time, or more frequently than half the time
+
+        # TODO apply this stuff also to the overall means
+        # self.default_mute_freq = 0.1
+# ----------------------------------------------------------------------------------------
+
         self.enforced_flat_mfreq_length = {  # i.e. distance over which the mute freqs are typically screwed up. I'm not really sure why these vary so much, but it's probably to do with how the s-w step works
             'v_3p' : 9,
             'd_5p' : 9,
@@ -263,13 +269,13 @@ class HmmWriter(object):
             print '%s   %d positions' % (utils.color_gene(gene_name), len(self.germline_seq))
             print '  reading info from %s' % self.indir
 
-        self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
         approved_genes = [gene_name]
-        # NOTE this never happens any more, since partitiondriver.cache_parameters() resets <args.min_observations_to_write> if it's arger than 10*(number of sequences)
-        if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average also over all the genes that find_replacement_genes() gives us
-            if self.debug:
-                print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_to_write)
-            approved_genes += utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.debug)
+        # turned off for now (switched to an approach that relies more on smooth priors rather than averaging over many genes)
+        # self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
+        # if self.n_occurences < self.args.min_observations_per_gene:  # if we didn't see it enough, average also over all the genes that find_replacement_genes() gives us
+        #     if self.debug:
+        #         print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_per_gene)
+        #     approved_genes += utils.find_replacement_genes(self.indir, self.args.min_observations_per_gene, gene_name, debug=self.debug)
 
         self.erosion_probs = self.read_erosion_info(approved_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(approved_genes)
@@ -565,6 +571,10 @@ class HmmWriter(object):
 
         # first add anybody that's missing and apply some hard bounds/sanity checks
         for pos in range(gl_length):
+            # print self.mute_counts[pos]
+            # total_counts = sum(self.mute_counts[pos].values())
+            # print total_counts
+            # sys.exit()
             if pos not in self.mute_counts:  # NOTE pseudocount also set in get_emission_prob()
                 self.mute_counts[pos] = {n : 1 for n in utils.nukes}
                 if self.germline_seq[pos] in utils.nukes:  # probably only fails if it's ambiguous
@@ -584,10 +594,6 @@ class HmmWriter(object):
                 '3p' : [max(0, gl_length - affected_length), gl_length],
             }
             for pos in range(*affected_bounds[erosion[-2:]]):
-                if pos not in self.mute_freqs:
-                    print 'arg'
-                    for x in range(gl_length):
-                        print '    %d' % x
                 distance_to_end = pos if '_5p' in erosion else gl_length - pos - 1
                 w1, w2 = affected_length - distance_to_end, distance_to_end  # i.e. the actual end position is 100% overall mean
                 self.mute_freqs[pos] = (w1 * self.mute_freqs['overall_mean'] + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, it's always equal to <affected_length>
