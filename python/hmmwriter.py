@@ -8,6 +8,7 @@ from scipy.stats import norm
 import csv
 import time
 import copy
+import numpy
 
 import utils
 import glutils
@@ -94,7 +95,7 @@ def interpolate_bins(values, n_max_to_interpolate, bin_eps, debug=False, max_bin
         for x in sorted(values.keys()):
             print '     %3d %f' % (x, values[x])
 
-    if values[full_bins[-1]] < n_max_to_interpolate:  # if the last full bin doesn't have enough entries, we add on a linearly-decreasing tail with slope such that it hits zero the same distance out as the last full bin is from zero
+    if full_bins[-1] > 0 and values[full_bins[-1]] < n_max_to_interpolate:  # if the last full bin doesn't have enough entries, we add on a linearly-decreasing tail with slope such that it hits zero the same distance out as the last full bin is from zero
         slope = - float(values[full_bins[-1]]) / full_bins[-1]
         new_bin_val = values[full_bins[-1]]
         for new_bin in range(full_bins[-1] + 1, 2*full_bins[-1] + 1):
@@ -202,7 +203,7 @@ class HMM(object):
             #     continue
             total = 0.  # ok this is checked in lots of other places, but when I first wrote this I forgot to add 'end' to <namelist> above ^, so... here it stays (plus it gets used for printing)
             for to_state in [s for s in namelist if s in state.transitions]:
-                print '      %8s  %5.1f  %7s%s' % (color_state_name(state.name, saniname) if total == 0. else '', factor * state.transitions[to_state], color_state_name(to_state, saniname), utils.color('red', ' <--') if state.transitions[to_state] < utils.eps else '' )
+                print '      %8s  %5.1f  %7s%s' % (color_state_name(state.name, saniname) if total == 0. else '', factor * state.transitions[to_state], color_state_name(to_state, saniname), utils.color('red', ' <-- %f' % state.transitions[to_state]) if state.transitions[to_state] < utils.eps else '' )
                 total += state.transitions[to_state]
             if not utils.is_normed(total):
                 raise Exception('transition probs not normalized: %s' % state.transitions)
@@ -235,12 +236,8 @@ class HmmWriter(object):
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
         self.n_max_to_interpolate = 20  # we interpolate for empty insertion + deletion bins if neighboring (non-empty) bins have fewer than this many entries (i.e. if filled bins have at least this many entries, we _don't_ interpolate between them)
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
-# ----------------------------------------------------------------------------------------
         self.mute_freq_bounds = {'lo' : 0.01, 'hi' : 0.35}  # don't let any position mutate less frequently than 1% of the time, or more frequently than half the time
-
-        # TODO apply this stuff also to the overall means
-        # self.default_mute_freq = 0.1
-# ----------------------------------------------------------------------------------------
+        self.default_mute_freq = 0.1  # prior for positional mute freqs
 
         self.enforced_flat_mfreq_length = {  # i.e. distance over which the mute freqs are typically screwed up. I'm not really sure why these vary so much, but it's probably to do with how the s-w step works
             'v_3p' : 9,
@@ -270,8 +267,8 @@ class HmmWriter(object):
             print '  reading info from %s' % self.indir
 
         approved_genes = [gene_name]
+        self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
         # turned off for now (switched to an approach that relies more on smooth priors rather than averaging over many genes)
-        # self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
         # if self.n_occurences < self.args.min_observations_per_gene:  # if we didn't see it enough, average also over all the genes that find_replacement_genes() gives us
         #     if self.debug:
         #         print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_per_gene)
@@ -571,20 +568,38 @@ class HmmWriter(object):
 
         # first add anybody that's missing and apply some hard bounds/sanity checks
         for pos in range(gl_length):
-            # print self.mute_counts[pos]
-            # total_counts = sum(self.mute_counts[pos].values())
-            # print total_counts
-            # sys.exit()
+            # add missing values
             if pos not in self.mute_counts:  # NOTE pseudocount also set in get_emission_prob()
-                self.mute_counts[pos] = {n : 1 for n in utils.nukes}
-                if self.germline_seq[pos] in utils.nukes:  # probably only fails if it's ambiguous
-                    self.mute_counts[pos][self.germline_seq[pos]] += 10
-            if pos not in self.mute_freqs:
-                self.mute_freqs[pos] = self.mute_freqs['overall_mean']
+                if self.germline_seq[pos] in utils.nukes:  # NOTE counts and mute freqs no longer correspond to each other after this
+                    self.mute_counts[pos] = {n : (1 if n == self.germline_seq[pos] else 0) for n in utils.nukes}
+                else:
+                    self.mute_counts[pos] = {n : 1 for n in utils.nukes}
+                self.mute_freqs[pos] = self.default_mute_freq  # will get reset below
+            if pos not in self.mute_freqs:  # shouldn't happen, I think?
+                print '%s pos %d not in mute freqs' % (utils.color('red', 'error'), pos)
+                self.mute_freqs[pos] = self.default_mute_freq
+
+            # apply hard bounds (regardless of total counts)
             if self.mute_freqs[pos] < self.mute_freq_bounds['lo']:
                 self.mute_freqs[pos] = self.mute_freq_bounds['lo']
             if self.mute_freqs[pos] > self.mute_freq_bounds['hi']:
                 self.mute_freqs[pos] = self.mute_freq_bounds['hi']
+
+            # apply default/prior mute freq (kind of similar to adding missing values)
+            total_counts = sum(self.mute_counts[pos].values())
+            if total_counts < self.args.min_observations_per_gene:
+                w1, w2 = self.args.min_observations_per_gene - total_counts, total_counts  # i.e. zero observations would be 100% the default mute freq
+                # if self.debug:
+                #     print '%2d: %2d  %2d  %2d   %5.3f --> %5.3f' % (pos, total_counts, w1, w2, self.mute_freqs[pos], (w1 * self.default_mute_freq + w2 * self.mute_freqs[pos]) / float(w1 + w2))
+                self.mute_freqs[pos] = (w1 * self.default_mute_freq + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, the denominator is always equal to <self.args.min_observations_per_gene>
+
+        # recalculate mean values
+        new_overall_mean = float(numpy.mean([self.mute_freqs[p] for p in range(gl_length)]))
+        if abs(new_overall_mean - self.mute_freqs['overall_mean']) / self.mute_freqs['overall_mean'] > self.eps:
+            if self.debug:
+                print '     modified overall mean: %f --> %f' % (self.mute_freqs['overall_mean'], new_overall_mean)
+            self.mute_freqs['unweighted_overall_mean'] = new_overall_mean
+            self.mute_freqs['overall_mean'] = new_overall_mean  # is no longer the weighted average
 
         # then make mfreqs near the ends closer to the overall mean
         for erosion in [re for re in utils.real_erosions if re[0] == self.region]:
@@ -596,16 +611,16 @@ class HmmWriter(object):
             for pos in range(*affected_bounds[erosion[-2:]]):
                 distance_to_end = pos if '_5p' in erosion else gl_length - pos - 1
                 w1, w2 = affected_length - distance_to_end, distance_to_end  # i.e. the actual end position is 100% overall mean
-                self.mute_freqs[pos] = (w1 * self.mute_freqs['overall_mean'] + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, it's always equal to <affected_length>
+                self.mute_freqs[pos] = (w1 * self.mute_freqs['overall_mean'] + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, the denominator is always equal to <affected_length>
 
         if self.debug:
             for vtype, oldvals, newvals in (('count', old_mute_counts, self.mute_counts), ('freq', old_mute_freqs, self.mute_freqs)):
-                added_positions = [p for p in sorted(newvals) if p not in oldvals]
-                modified_positions = [p for p in sorted(newvals) if p in oldvals and newvals[p] != oldvals[p]]
+                added_positions = [p for p in range(gl_length) if p not in oldvals]
+                modified_positions = [p for p in range(gl_length) if p in oldvals and newvals[p] != oldvals[p]]
                 if len(added_positions) > 0:
-                    print '    added default mutation %5s info (e.g. %s) for %d positions: %s' % (vtype, newvals[added_positions[0]], len(added_positions), ' '.join([('%d' % p) for p in added_positions]))
+                    print '     added default mutation %5s info (e.g. %s) for %d positions: %s' % (vtype, newvals[added_positions[0]], len(added_positions), ' '.join([('%d' % p) for p in added_positions]))
                 if len(modified_positions) > 0:
-                    print '    modified mutation %5s info for %d positions:' % (vtype, len(modified_positions))
+                    print '     modified mutation %5s info for %d positions:' % (vtype, len(modified_positions))
                     print '           %s' % '  '.join([('%4d' % p) for p in modified_positions])
                     print '       old %s' % '  '.join([(('%4' + ('.2f' if vtype == 'freq' else 's')) % oldvals[p]) for p in modified_positions])
                     print '       new %s' % '  '.join([(('%4' + ('.2f' if vtype == 'freq' else 's')) % newvals[p]) for p in modified_positions])

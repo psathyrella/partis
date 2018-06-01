@@ -1225,8 +1225,6 @@ class PartitionDriver(object):
         start = time.time()
 
         from hmmwriter import HmmWriter
-        if len(self.input_info) < 10 * self.args.min_observations_to_write:  # this is a crappy way to do this, but oh, well for now
-            self.args.min_observations_to_write = 1
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
         glutils.restrict_to_observed_genes(self.glfo, parameter_dir)  # this is kind of a weird place to put this... it would make more sense to read the glfo from the parameter dir, but I don't want to mess around with changing that a.t.m.

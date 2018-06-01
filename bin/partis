@@ -242,7 +242,7 @@ parent_parser.add_argument('--dont-rescale-emissions', action='store_true', help
 parent_parser.add_argument('--no-indels', action='store_true', help='Tell smith-waterman not to look for indels, by drastically increasing the gap-open penalty (you can also set the penalty directly).')
 parent_parser.add_argument('--no-indel-gap-open-penalty', type=int, default=1000, help='set --gap-open-penalty to this when --no-indels is set (also used in python/waterer.py')
 parent_parser.add_argument('--seed', type=int, default=int(time.time()), help='Random seed for use (mostly) by recombinator (to allow reproducibility)')
-parent_parser.add_argument('--min-observations-per-gene', type=int, default=20, help='If a gene is observed fewer times than this, we average over other alleles/primary versions/etc. (e.g. in recombinator and hmmwriter [turned off a.t.m.])')
+parent_parser.add_argument('--min-observations-per-gene', type=int, default=20, help='If a gene is observed fewer times than this, we average over other alleles/primary versions/etc. (e.g. in recombinator and hmmwriter). Also used as a more general "this isn\'t very many observations" value.')
 parent_parser.add_argument('--no-per-base-mfreqs', action='store_true')
 parent_parser.add_argument('--region-end-exclusion-length', type=int, default=0, help='when counting/writing parameters, ignore this many bases abutting non-templated insertions for calculating mutation frequencies (note: doesn\'t make a difference (hence set to 0 by default) probably because we\'re setting a strongish prior on these bases when writing hmms anyway')
 
