@@ -589,8 +589,6 @@ class HmmWriter(object):
             total_counts = sum(self.mute_counts[pos].values())
             if total_counts < self.args.min_observations_per_gene:
                 w1, w2 = self.args.min_observations_per_gene - total_counts, total_counts  # i.e. zero observations would be 100% the default mute freq
-                # if self.debug:
-                #     print '%2d: %2d  %2d  %2d   %5.3f --> %5.3f' % (pos, total_counts, w1, w2, self.mute_freqs[pos], (w1 * self.default_mute_freq + w2 * self.mute_freqs[pos]) / float(w1 + w2))
                 self.mute_freqs[pos] = (w1 * self.default_mute_freq + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, the denominator is always equal to <self.args.min_observations_per_gene>
 
         # recalculate mean values
