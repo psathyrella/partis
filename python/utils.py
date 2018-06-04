@@ -850,7 +850,7 @@ def codon_unmutated(codon, seq, position, debug=False, extra_str=''):
     return True
 
 #----------------------------------------------------------------------------------------
-def in_frame_germline_v(seq, cyst_position, debug=False):  # NOTE duplication with in_frame() (this is for when all we have is the germline v gene, whereas in_frame() is for when we have the whole rearrangement line)
+def in_frame_germline_v(seq, cyst_position):  # NOTE duplication with in_frame() (this is for when all we have is the germline v gene, whereas in_frame() is for when we have the whole rearrangement line)
     return cyst_position <= len(seq) - 3 and (cyst_position - count_gap_chars(seq, aligned_pos=cyst_position)) % 3 == 0
 
 #----------------------------------------------------------------------------------------

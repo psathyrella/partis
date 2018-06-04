@@ -292,7 +292,7 @@ def get_new_alignments(glfo, region, debug=False):
 
 
 #----------------------------------------------------------------------------------------
-def get_missing_codon_info(glfo, debug=False):
+def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, debug=False):
     # debug = 2
 
     for region, codon in utils.conserved_codons[glfo['locus']].items():
@@ -304,6 +304,14 @@ def get_missing_codon_info(glfo, debug=False):
 
         if debug:
             print '      missing %d %s positions' % (len(missing_genes), codon)
+
+        if template_glfo is not None:  # add one of the genes from the template glfo
+            template_gene = template_glfo[codon + '-positions'].keys()[0]
+            renamed_template_gene = template_gene + '_TEMPLATE'
+            if renamed_template_gene in glfo['seqs'][region]:  # ok there's not really any way that could happen
+                raise Exception('%s already in glfo' % renamed_template_gene)
+            glfo['seqs'][region][renamed_template_gene] = template_glfo['seqs'][region][template_gene]  # not using add_new_allele() since we don't expect to have any existing codon info, which'll probably cause that fcn to get confused
+            glfo[codon + '-positions'][renamed_template_gene] = template_glfo[codon + '-positions'][template_gene]
 
         aligned_seqs = get_new_alignments(glfo, region, debug=debug)
 
@@ -327,7 +335,11 @@ def get_missing_codon_info(glfo, debug=False):
                 known_gene, known_pos = gene, pos
                 break
             if known_gene is None:
-                raise Exception('couldn\'t find a known %s position\n    known but not in glfo: %s\n    known but unaligned: %s\n    known but mutated: %s' % (codon, ' '.join(known_but_not_in_glfo), ' '.join(known_but_unaligned), ' '.join(known_but_mutated)))
+                print 'genes with missing codon info: %s' % ' '.join(sorted(missing_genes))
+                print '        known but not in glfo: %s' % ' '.join(sorted(known_but_not_in_glfo))
+                print '          known but unaligned: %s' % ' '.join(sorted(known_but_unaligned))
+                print '            known but mutated: %s' % ' '.join(sorted(known_but_mutated))
+                raise Exception('couldn\'t find a known %s position (see above)' % codon)
             # NOTE for cyst, should be 309 if alignments are imgt [which they used to usually be, but now probably aren't] (imgt says 104th codon --> subtract 1 to get zero-indexing, then multiply by three 3 * (104 - 1) = 309
             known_pos_in_alignment = utils.get_codon_pos_in_alignment(codon, aligned_seqs[known_gene], glfo['seqs'][region][known_gene], known_pos, known_gene)
             if debug:
@@ -348,26 +360,30 @@ def get_missing_codon_info(glfo, debug=False):
             seqons.append((seq_to_check, unaligned_pos))
             glfo[codon + '-positions'][gene] = unaligned_pos
             n_added += 1
+
+            tmpseq = aligned_seqs[gene]  # NOTE this is aligned
+            tmppos = known_pos_in_alignment  # NOTE this is aligned
+            if not utils.codon_unmutated(codon, tmpseq, tmppos) or (region == 'v' and not utils.in_frame_germline_v(tmpseq, tmppos)):
+                bad_codons.append(gene)
             if debug > 1:
-                tmpseq = aligned_seqs[gene]  # NOTE this is aligned
-                tmppos = known_pos_in_alignment  # NOTE this is aligned
-                codon_str = ''
-                if not utils.codon_unmutated(codon, tmpseq, tmppos) or (region == 'v' and not utils.in_frame_germline_v(tmpseq, tmppos)):
-                    bad_codons.append(gene)
-                    codon_str = utils.color('red', 'bad')
-                print '       %3s  %s%s%s   %s %3s %5s' % (codon_str,
+                print '       %3s  %s%s%s   %s %3s %5s' % (utils.color('red', 'bad') if gene in bad_codons else '',
                                                            tmpseq[:tmppos],
                                                            utils.color('reverse_video', tmpseq[tmppos : tmppos + 3]),
                                                            tmpseq[tmppos + 3:],
                                                            utils.color_gene(gene, width=12 if region == 'v' else 8),
-                                                           codon_str,
+                                                           utils.color('red', 'bad') if gene in bad_codons else '',
                                                            'new' if gene != known_gene else '')
 
         check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)  # kind of redundant with the check that happens in the loop above, but prints some summary info
         if len(bad_codons) > 0:
-            print '%s %d bad %s positions. You should probably fix these by hand' % (utils.color('red', 'warning'), len(bad_codons), codon)
+            print '%s %d bad %s positions' % (utils.color('red', 'warning'), len(bad_codons), codon)
+            if remove_bad_genes:
+                remove_genes(glfo, bad_codons, debug=True)
         if debug:
             print '      added %d %s positions' % (n_added, codon)
+
+        if template_glfo is not None:
+            remove_gene(glfo, renamed_template_gene)
 
 #----------------------------------------------------------------------------------------
 def remove_extraneouse_info(glfo, debug=False):
@@ -383,6 +399,9 @@ def remove_extraneouse_info(glfo, debug=False):
 def read_extra_info(glfo, gldir):
     for codon in utils.conserved_codons[glfo['locus']].values():
         glfo[codon + '-positions'] = {}
+    if not os.path.exists(get_extra_fname(gldir, glfo['locus'])):
+        print '  %s extra file %s not found (i.e. no codon positions for glfo)' % (utils.color('yellow', 'warning'), get_extra_fname(gldir, glfo['locus']))
+        return
     with open(get_extra_fname(gldir, glfo['locus'])) as csvfile:
         reader = csv.DictReader(csvfile)
         for line in reader:
@@ -442,11 +461,12 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None):  # NOTE kind 
                     cons_seq = first_cons_seq
                     if region == 'v':
                         cons_seq += '-' * (len(seqfo['seq']) - len(first_cons_seq))  # I don't know why it's sometimes a teensy bit shorter
-                    align = region != 'v' and len(seqfo['seq']) != len(first_cons_seq)
+                    # align = region != 'v' and len(seqfo['seq']) != len(first_cons_seq)  # i think it might be really slow to align all the v ones
+                    align = len(seqfo['seq']) != len(first_cons_seq)  # i think it might be really slow to align all the v ones
                     print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions, align=align), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------
-def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
+def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
     # NOTE <skip_pseudogenes> and <skip_orfs> only have an effect with just-downloaded imgt files (otherwise we don't in general have the functionality info)
     if not os.path.exists(gldir + '/' + locus):  # NOTE doesn't re-link it if we already made the link before
         if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
@@ -460,7 +480,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
     glfo = {'locus' : locus, 'functionalities' : {}}
     glfo['seqs'] = read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities=glfo['functionalities'])
     read_extra_info(glfo, gldir)
-    get_missing_codon_info(glfo, debug=debug)
+    get_missing_codon_info(glfo, template_glfo=template_glfo, remove_bad_genes=remove_bad_genes, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
 
     for region, codon in utils.conserved_codons[glfo['locus']].items():
@@ -731,7 +751,7 @@ def remove_v_genes_with_bad_cysteines(glfo, debug=False):
 def remove_genes(glfo, genes, debug=False):
     """ remove <genes> from <glfo> """
     if debug:
-        print '  removing %s from glfo' % ' '.join([utils.color_gene(g) for g in genes])
+        print '  removing %d gene%s from glfo: %s' % (len(genes), utils.plural(len(genes)), ' '.join([utils.color_gene(g) for g in genes]))
 
     for gene in genes:
         remove_gene(glfo, gene)
