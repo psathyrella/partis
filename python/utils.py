@@ -129,9 +129,13 @@ conserved_codons = {l : {'v' : 'cyst',
                           'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
                      for l in loci}
 
+def cdn(glfo, region):  # returns None for d
+    return conserved_codons[glfo['locus']].get(region, None)
 def cdn_positions(glfo, region):
-    return glfo[conserved_codons[glfo['locus']][region] + '-positions']
+    return glfo[cdn(glfo, region) + '-positions']
 def cdn_pos(glfo, region, gene):
+    if cdn(glfo, region) is None:
+        return None
     return cdn_positions(glfo, region)[gene]
 def gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
     return len(filter(gap_chars.__contains__, seq))

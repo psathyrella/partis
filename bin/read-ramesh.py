@@ -140,10 +140,8 @@ outdir = 'macaque/ramesh-cleaned'
 
 # ----------------------------------------------------------------------------------------
 for locus in ['igh', 'igk', 'igl']:
-    # glfo = glutils.read_glfo('macaque/imgt-downloaded', locus, debug=True)
-    # glutils.write_glfo('macaque/imgt-parsed', glfo, debug=True)
-    # glfo = glutils.read_glfo('data/germlines/macaque', locus, debug=True)
+    ref_glfo = glutils.read_glfo('data/germlines/macaque', locus, debug=True)
     glfo = glutils.read_glfo(outdir, locus, debug=True)
-    glutils.print_glfo(glfo, print_separate_cons_seqs=True)
-
-sys.exit()
+    merged_glfo = glutils.get_merged_glfo(ref_glfo, glfo, debug=True)
+    # glutils.print_glfo(merged_glfo, print_separate_cons_seqs=True)
+    glutils.write_glfo('datascripts/meta/crotty-fna/imgt-plus-ramesh', merged_glfo, debug=True)

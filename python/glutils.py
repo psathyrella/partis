@@ -310,8 +310,8 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
             renamed_template_gene = template_gene + '_TEMPLATE'
             if renamed_template_gene in glfo['seqs'][region]:  # ok there's not really any way that could happen
                 raise Exception('%s already in glfo' % renamed_template_gene)
-            glfo['seqs'][region][renamed_template_gene] = template_glfo['seqs'][region][template_gene]  # not using add_new_allele() since we don't expect to have any existing codon info, which'll probably cause that fcn to get confused
-            glfo[codon + '-positions'][renamed_template_gene] = template_glfo[codon + '-positions'][template_gene]
+            newfo = {'gene' : renamed_template_gene, 'seq' : template_glfo['seqs'][region][template_gene], 'cpos' : template_glfo[codon + '-positions'][template_gene]}
+            add_new_allele(glfo, newfo, use_template_for_codon_info=False)
 
         aligned_seqs = get_new_alignments(glfo, region, debug=debug)
 
@@ -384,6 +384,37 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
 
         if template_glfo is not None:
             remove_gene(glfo, renamed_template_gene)
+
+# ----------------------------------------------------------------------------------------
+def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of the arguments
+    if debug:
+        print '  merging glfos'
+    assert set(glfo_a['seqs']) == set(glfo_b['seqs'])
+    merged_glfo = copy.deepcopy(glfo_a)
+    for region in glfo_b['seqs']:
+        duplicate_genes, duplicate_seqs = [], []
+        merged_seqs = set(merged_glfo['seqs'][region].values())
+        for gene, seq in glfo_b['seqs'][region].items():
+            if gene in merged_glfo['seqs'][region]:
+                duplicate_genes.append(gene)
+                continue
+            if seq in merged_seqs:
+                duplicate_seqs.append(seq)
+                continue
+            add_new_allele(merged_glfo, {'gene' : gene, 'seq' : seq, 'cpos' : utils.cdn_pos(glfo_b, region, gene)}, use_template_for_codon_info=False)
+            merged_seqs.add(seq)
+        if debug:
+            print '   %s: %d + %d --> %d' % (region, len(glfo_a['seqs'][region]), len(glfo_b['seqs'][region]), len(merged_glfo['seqs'][region]))
+            if len(duplicate_genes) > 0:
+                print '     %d genes in both: %s' % (len(duplicate_genes), utils.color_genes(duplicate_genes))
+        for dgene in duplicate_genes:
+            if glfo_a['seqs'][region][dgene] != glfo_b['seqs'][region][dgene]:
+                print '      %s different seqs for name %s' % (utils.color('red', 'warning'), utils.color_gene(dgene))
+                utils.color_mutants(glfo_a['seqs'][region][dgene], glfo_b['seqs'][region][dgene], align=True, print_result=True, extra_str='        ')
+        if len(duplicate_seqs) > 0:
+            print '     %d seqs in both (but with different names)' % len(duplicate_seqs)
+
+    return merged_glfo
 
 #----------------------------------------------------------------------------------------
 def remove_extraneouse_info(glfo, debug=False):
@@ -783,10 +814,11 @@ def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_
 
 # ----------------------------------------------------------------------------------------
 def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
+    # NOTE <use_template_for_codon_info> has default True
     """
-    Add a new allele to <glfo>, specified by <newfo> which is of the
-    form: {'gene' : 'IGHV3-71*01+C35T.T47G', 'seq' : 'ACTG yadda yadda CGGGT', 'template-gene' : 'IGHV3-71*01'}
+    Add an allele to <glfo>, specified by <newfo> which has mandatory keys: ['gene', 'seq'] and optional keys: ['cpos', 'template-gene', 'remove-template-gene'] (note c in 'cpos' is for 'codon', not 'cysteinie', i.e. it's not just for v)
     If <remove_template_genes>, or if 'remove-template-gene' in <newfo>, we also remove 'template-gene' from <glfo>.
+    Fails if name or seq is already in glfo.
     """
     region = utils.get_region(newfo['gene'])
 
@@ -803,14 +835,16 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     glfo['seqs'][region][newfo['gene']] = newfo['seq']
 
     if region in utils.conserved_codons[glfo['locus']]:
-        codon = utils.conserved_codons[glfo['locus']][region]
+        codon = utils.cdn(glfo, region)
         if use_template_for_codon_info:
+            if 'cpos' in newfo and newfo['cpos'] is not None:
+                raise Exception('cpos set in newfo, but <use_template_for_codon_info> also set to True')
             if 'template-gene' not in newfo:
                 raise Exception('no template gene specified in newfo')
             if newfo['template-gene'] not in glfo[codon + '-positions']:
                 raise Exception('template gene %s not found in codon info' % newfo['template-gene'])
             glfo[codon + '-positions'][newfo['gene']] = glfo[codon + '-positions'][newfo['template-gene']]
-        elif 'cpos' in newfo:  # if it's generated with indels from a known gene, then we store the cpos
+        elif 'cpos' in newfo and newfo['cpos'] is not None:  # codon position explicitly set in newfo
             glfo[codon + '-positions'][newfo['gene']] = newfo['cpos']
         else:
             get_missing_codon_info(glfo)
