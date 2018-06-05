@@ -44,10 +44,14 @@ def trim_and_remove_genes(region, gene, seq, glfo, template_glfo, debug=False):
             print '        extra bases %s' % utils.color_gene(gene)
         extra_bases = len(aligned_nearest_template_seq) - len(aligned_nearest_template_seq.lstrip('-'))
         seq = seq[extra_bases:]
-        glfo['seqs'][region][gene] = seq
-        glfo['cyst-positions'][gene] -= extra_bases
         if debug:
             print '          removed %d bases' % extra_bases
+        if seq in glfo['seqs'][region].values():
+            print '    trimmed seq already in glfo under name %s, so removing it' % ' '.join([utils.color_gene(g) for g, s in glfo['seqs'][region].items() if s == seq])
+            glutils.remove_gene(glfo, gene, debug=True)
+            return
+        glfo['seqs'][region][gene] = seq
+        glfo['cyst-positions'][gene] -= extra_bases
         # utils.color_mutants(nearest_template_seq, seq, print_result=True, ref_label='template ', align=True, extra_str='            ')
         assert utils.codon_unmutated('cyst', glfo['seqs'][region][gene], glfo['cyst-positions'][gene], debug=True)
 
@@ -123,11 +127,12 @@ def parse_ramesh_seqs(glseqs, outdir, debug=False):
                         print '   %d ambiguous bases: %s' % (len(seq) * utils.ambig_frac(seq), utils.color_gene(gene))
                     glutils.remove_gene(glfo, gene)
 
-        glutils.print_glfo(glfo)
+        # glutils.print_glfo(glfo)
 
         # write final result
         glutils.write_glfo(outdir, glfo, debug=True)
 
+# ----------------------------------------------------------------------------------------
 fname = 'macaque/ramesh-v1/coding.fa'
 outdir = 'macaque/ramesh-cleaned'
 # parse_ramesh_seqs(read_ramesh_file(fname, outdir), outdir, debug=True)
@@ -139,12 +144,6 @@ for locus in ['igh', 'igk', 'igl']:
     # glutils.write_glfo('macaque/imgt-parsed', glfo, debug=True)
     # glfo = glutils.read_glfo('data/germlines/macaque', locus, debug=True)
     glfo = glutils.read_glfo(outdir, locus, debug=True)
-    glutils.print_glfo(glfo)
-sys.exit()
+    glutils.print_glfo(glfo, print_separate_cons_seqs=True)
 
-# ----------------------------------------------------------------------------------------
-for locus in ['igh']:  # ['igh', 'igk', 'igl']:
-    glfo = glutils.read_glfo('macaque/ramesh', locus, debug=True)
-    # glutils.write_glfo('macaque/imgt-parsed', glfo, debug=True)
-    # glfo = glutils.read_glfo('data/germlines/macaque', locus, debug=True)
-    # glutils.print_glfo(glfo)
+sys.exit()
