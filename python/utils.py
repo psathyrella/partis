@@ -156,12 +156,13 @@ index_keys = {}
 for i in range(len(index_columns)):  # dict so we can access them by name instead of by index number
     index_keys[index_columns[i]] = i
 
-# ----------------------------------------------------------------------------------------
-def get_codon(fname):
-    codon = fname.split('-')[0]
-    if codon not in [c for locus in loci for c in conserved_codons[locus].values()]:
-        raise Exception('couldn\'t get codon from file name %s' % fname)
-    return codon
+# don't think this has been used in a long time
+# # ----------------------------------------------------------------------------------------
+# def get_codon(fname):
+#     codon = fname.split('-')[0]
+#     if codon not in [c for locus in loci for c in conserved_codons[locus].values()]:
+#         raise Exception('couldn\'t get codon from file name %s' % fname)
+#     return codon
 
 # ----------------------------------------------------------------------------------------
 # Info specifying which parameters are assumed to correlate with which others. Taken from mutual

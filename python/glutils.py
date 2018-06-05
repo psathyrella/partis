@@ -411,7 +411,7 @@ def read_extra_info(glfo, gldir):
 
 #----------------------------------------------------------------------------------------
 # groups by gene family unless <use_primary_version> is set
-def print_glfo(glfo, use_primary_version=False, gene_groups=None):  # NOTE kind of similar to bin/cf-alleles.py
+def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate_cons_seqs=False):  # NOTE kind of similar to bin/cf-alleles.py
     if gene_groups is None:
         gene_groups = {}
         for region in utils.regions:
@@ -430,20 +430,25 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None):  # NOTE kind 
                 msa_seqs = utils.read_fastx(tmpfile.name, ftype='fa')
             msa_info = []
             for seqfo in msa_seqs:
+                # print '    %s    %s' % (seqfo['seq'], seqfo['name'])
                 if seqfo['name'][0] == '*':  # start of new cluster (centroid is first, and is marked with a '*')
                     centroid = seqfo['name'].lstrip('*')
                     msa_info.append({'centroid' : centroid, 'seqfos' : [{'name' : centroid, 'seq' : seqfo['seq']}]})
                 elif seqfo['name'] == 'consensus':
-                    msa_info[-1]['cons_seq'] = seqfo['seq'].replace('+', '')  # gaaaaah not sure what the +s mean
+                    msa_info[-1]['cons_seq'] = seqfo['seq'].replace('+', '-')  # gaaaaah not sure what the +s mean
                 else:
                     msa_info[-1]['seqfos'].append(seqfo)
+
             first_cons_seq = None
             for clusterfo in msa_info:
+                align = region == 'd'
                 if first_cons_seq is None:  # shenanigans to account for vsearch splitting up my groups
                     first_cons_seq = clusterfo['cons_seq']
                     print '    %s    consensus (first cluster)' % clusterfo['cons_seq']
-                # else:  # I _shouldn't_ ever care what these are, I think?
-                #     print '    %s    extra consensus' % utils.color_mutants(first_cons_seq, clusterfo['cons_seq'])
+                else:  # these are mostly necessary for d
+                    if print_separate_cons_seqs:
+                        # print '    %s    extra consensus' % utils.color_mutants(first_cons_seq, clusterfo['cons_seq'], align=align)  # not very informative to print this, since the first-cluster-consensus was already printed without the proper gaps to make this make sense
+                        print '    %s    extra consensus' % clusterfo['cons_seq']
                 for seqfo in clusterfo['seqfos']:
                     emphasis_positions = None
                     extra_str = ''
@@ -458,12 +463,10 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None):  # NOTE kind 
                             if not utils.codon_unmutated(codon, glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])) or not utils.in_frame_germline_v(glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])):
                                 extra_str += '   %s codon' % utils.color('red', 'bad')
 
-                    cons_seq = first_cons_seq
-                    if region == 'v':
-                        cons_seq += '-' * (len(seqfo['seq']) - len(first_cons_seq))  # I don't know why it's sometimes a teensy bit shorter
-                    # align = region != 'v' and len(seqfo['seq']) != len(first_cons_seq)  # i think it might be really slow to align all the v ones
-                    align = len(seqfo['seq']) != len(first_cons_seq)  # i think it might be really slow to align all the v ones
-                    print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], emphasis_positions=emphasis_positions, align=align), utils.color_gene(seqfo['name']), extra_str)
+                    # NOTE if you <align> below here the codon info is wrong (and I _think_ I've fixed it so I no longer ever need to align)
+
+                    cons_seq = clusterfo['cons_seq'] if print_separate_cons_seqs else first_cons_seq
+                    print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], align=align, emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
