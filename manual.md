@@ -9,6 +9,7 @@ Partis is free software under the GPL v3, and is described in the following pape
 This manual is divided into the following pages:
 
   * [Installation](https://github.com/psathyrella/partis/blob/master/docs/install.md)
+  * [Installation](docs/install.md)
   * [Quick start](https://github.com/psathyrella/partis/blob/master/docs/quick-start.md)
   * [Subcommands](https://github.com/psathyrella/partis/blob/master/docs/subcommands.md)
   * [Parallelization](https://github.com/psathyrella/partis/blob/master/docs/parallel.md)
