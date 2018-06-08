@@ -2,7 +2,6 @@ import time
 import copy
 import sys
 import math
-import re
 import os
 import itertools
 import operator
@@ -10,23 +9,32 @@ import pysam
 import contextlib
 from collections import OrderedDict
 import csv
-import subprocess
+import numpy
+import traceback
 
 import utils
 import glutils
 import indelutils
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
-from allelefinder import AlleleFinder
-from alleleremover import AlleleRemover
-from clusterpath import ClusterPath
+
+# best mismatch (with a match score of 5):
+# mfreq     boundaries     mutation
+# 0.01         5              5
+# 0.05         5              5-
+# 0.15         3+             3
+# 0.2         2-3             2-3
+# 0.3          2-             2-
+# +: next higher number isn't that much worse
+# -: [...]
+# mfreq was I think the sequence-wide mfreq, but was close enough to the v value that it doesn't matter
 
 # ----------------------------------------------------------------------------------------
 class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
-    def __init__(self, args, input_info, reco_info, glfo, count_parameters=False, parameter_out_dir=None,
-                 plot_annotation_performance=False,
-                 simglfo=None, duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None):
+    def __init__(self, args, glfo, input_info, simglfo, reco_info,
+                 count_parameters=False, parameter_out_dir=None, plot_annotation_performance=False,
+                 duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None, vs_info=None):
         self.args = args
         self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
         self.reco_info = reco_info
@@ -38,12 +46,22 @@ class Waterer(object):
         self.duplicates = {} if duplicates is None else duplicates
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
         self.aligned_gl_seqs = aligned_gl_seqs
+        self.vs_info = vs_info
 
-        self.max_insertion_length = 35  # if an insertion is longer than this, we skip the proposed annotation (i.e. rerun it)
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
 
-        self.match_mismatch = copy.deepcopy(self.args.initial_match_mismatch)  # don't want to modify it!
         self.gap_open_penalty = self.args.gap_open_penalty  # not modifying it now, but just to make sure we don't in the future
+        self.match_score = 5  # see commented table above ^
+        if self.vs_info is None:
+            self.mismatch = 4
+        else:
+            self.default_mfreq = 0.075  # what to use if vsearch failed on the query
+            self.mfreq_mismatch_vals = [
+                (0.01, 5),
+                (0.05, 5),
+                (0.15, 3),
+                (0.25, 2),
+            ]
 
         self.info = {}
         self.info['queries'] = []  # list of queries that *passed* sw, i.e. for which we have information
@@ -52,13 +70,14 @@ class Waterer(object):
         self.info['indels'] = {}  # NOTE if we find shm indels in a sequence, we store the indel info in here, and rerun sw with the reversed sequence (i.e. <self.info> contains the sw inference on the reversed sequence -- if you want the original sequence, get that from <self.input_info>)
         self.info['failed-queries'] = set() if pre_failed_queries is None else copy.deepcopy(pre_failed_queries)  # not really sure about the deepcopy(), but it's probably safer?
         self.info['passed-queries'] = set()
-        self.info['duplicates'] = self.duplicates  # TODO rationalize this
+        self.info['duplicates'] = self.duplicates  # it would be really nice to rationalize this
         self.info['removed-queries'] = set()  # ...and this
 
         self.remaining_queries = set(self.input_info) - self.info['failed-queries']  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
         self.new_indels = 0  # number of new indels that were kicked up this time through
+        self.vs_indels = set()
+        self.indel_fails = set()
 
-        self.nth_try = 1  # arg, this should be zero-indexed like everything else
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
         self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
@@ -72,27 +91,28 @@ class Waterer(object):
         start = time.time()
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.sam'
-        sys.stdout.flush()
 
-        n_procs = self.args.n_fewer_procs
-        min_queries_per_proc = 10  # float(len(self.remaining_queries)) / n_procs  # used to be initial queries per proc
-        print '  %4s   step  seqs    procs     ig-sw time    processing time' % ('summary:' if self.debug else '')
-        while len(self.remaining_queries) > 0:  # we remove queries from <self.remaining_queries> as we're satisfied with their output
-            if self.nth_try > 1 and float(len(self.remaining_queries)) / n_procs < min_queries_per_proc:
-                n_procs = int(max(1., float(len(self.remaining_queries)) / min_queries_per_proc))
-            n_queries_written = self.write_vdjalign_input(base_infname, n_procs)
-            print '  %4s     %d    %-8d %-3d' % ('summary:' if self.debug else '', self.nth_try, n_queries_written, n_procs),
+        if self.vs_info is not None:  # if we're reading a cache file, we should make sure to read the exact same info from there
+            self.add_vs_indels()
+
+        itry = 0
+        while True:  # if we're not running vsearch, we still gotta run twice to get shm indeld sequences
+            mismatches, gap_opens, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
+            self.write_input_files(base_infname, queries_for_each_proc)
+
+            print '    running %d proc%s for %d seq%s' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries), utils.plural(len(self.remaining_queries)))
             sys.stdout.flush()
-            substart = time.time()
-            self.execute_commands(base_infname, base_outfname, n_procs)
-            print '      %-8.1f%s' % (time.time() - substart, '\n' if self.debug else ''),
-            self.read_output(base_outfname, n_procs)
-            if self.nth_try > 3:
+            self.execute_commands(base_infname, base_outfname, mismatches, gap_opens)
+
+            processing_start = time.time()
+            self.read_output(base_outfname, len(mismatches))
+
+            if self.new_indels == 0 or itry > 1:
                 break
-            self.nth_try += 1  # it's set to 1 before we begin the first try, and increases to 2 just before we start the second try
+            itry += 1
 
         self.finalize(cachefname)
-        print '        water time: %.1f' % (time.time()-start)
+        print '    water time: %.1f  (ig-sw %.1f  processing %.1f)' % (time.time() - start, time.time() - processing_start, self.ig_sw_time)
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
@@ -181,7 +201,7 @@ class Waterer(object):
                 perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
 
         # remove queries with cdr3 length different to the seed sequence
-        if self.args.seed_unique_id is not None:  # TODO I should really get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in UPDATE on the other hand aren't we pretty much alwasy reading cached values if we're seed partitioning?
+        if self.args.seed_unique_id is not None:  # it might be nice to get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in? then again  aren't we pretty much always reading cached values if we're seed partitioning?
             if self.args.seed_unique_id in self.info['queries']:
                 seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']
             else:  # if it failed
@@ -218,20 +238,32 @@ class Waterer(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
+    def add_vs_indels(self):
+        vsfo = self.vs_info['annotations']
+        queries_with_indels = [q for q in self.remaining_queries if q in vsfo and indelutils.has_indels(vsfo[q]['indelfo'])]
+        for query in queries_with_indels:
+            self.vs_indels.add(query)  # this line is to tell us that this query has an indel stemming from vsearch, while the next line tells us that there's an indel (combine_indels() gets confused if we don't differentiate between the two)
+            self.info['indels'][query] = copy.deepcopy(vsfo[query]['indelfo'])
+            # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
+
+        if self.debug and len(queries_with_indels) > 0:
+            print '    added %d vsearch indel%s%s' % (len(queries_with_indels), utils.plural(len(queries_with_indels)), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else '')
+
+    # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
         if n_procs == 1:
             return self.args.workdir
         else:
-            # return self.args.workdir + '/sw-' + str(iproc)
-            return self.args.workdir + '/sw-try-' + str(self.nth_try) + '-proc-' + str(iproc)
+            return self.args.workdir + '/sw-' + str(iproc)
 
     # ----------------------------------------------------------------------------------------
-    def execute_commands(self, base_infname, base_outfname, n_procs):
-
+    def execute_commands(self, base_infname, base_outfname, mismatches, gap_opens):
+        start = time.time()
         def get_cmd_str(iproc):
-            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
-            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, n_procs)
+            return self.get_ig_sw_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc], gap_opens[iproc])
+            # return self.get_vdjalign_cmd_str(self.subworkdir(iproc, n_procs), base_infname, base_outfname, mismatches[iproc], gap_opens[iproc] xxx update this)
 
+        n_procs = len(mismatches)
         cmdfos = [{'cmd_str' : get_cmd_str(iproc),
                    'workdir' : self.subworkdir(iproc, n_procs),
                    'outfname' : self.subworkdir(iproc, n_procs) + '/' + base_outfname}
@@ -241,71 +273,129 @@ class Waterer(object):
         for iproc in range(n_procs):
             os.remove(self.subworkdir(iproc, n_procs) + '/' + base_infname)
         sys.stdout.flush()
+        self.ig_sw_time = time.time() - start
 
     # ----------------------------------------------------------------------------------------
-    def write_vdjalign_input(self, base_infname, n_procs):
-        queries_per_proc = float(len(self.remaining_queries)) / n_procs
-        n_queries_per_proc = int(math.ceil(queries_per_proc))
-        written_queries = set()  # make sure we actually write each query NOTE I should be able to remove this when I work out where they're disappearing to. But they don't seem to be disappearing any more, *sigh*
-        if n_procs == 1:  # double check for rounding problems or whatnot
-            assert n_queries_per_proc == len(self.remaining_queries)
+    def split_queries_by_match_mismatch(self, input_queries, n_procs, debug=False):
+        def get_query_mfreq(q):
+            return self.vs_info['annotations'][q]['v_mut_freq'] if q in self.vs_info['annotations'] else self.default_mfreq
+        def best_mismatch(q):
+            mfreq_q = self.vs_info['annotations'][q]['v_mut_freq'] if q in self.vs_info['annotations'] else self.default_mfreq
+            def keyfunc(pair):
+                mf, mm = pair
+                return abs(mf - mfreq_q)
+            nearest_mfreq, nearest_mismatch = min(self.mfreq_mismatch_vals, key=keyfunc)  # take the optimized value whose mfreq is closest to this sequence's mfreq
+            return nearest_mismatch
+
+        query_groups = utils.group_seqs_by_value(input_queries, best_mismatch)
+        mismatch_vals = [best_mismatch(queries[0]) for queries in query_groups]
+
+        # note: it'd be nice to be able to give ig-sw a different match:mismatch for each sequence (rather than running separate procs for each match:mismatch), but it initializes a matrix using the match:mismatch values before looping over sequences, so that's probably infeasible
+
+        if debug:
+            print 'start'
+            for m, queries in zip(mismatch_vals, query_groups):
+                print '  %d   %d    %s' % (m, len(queries), ' '.join(queries))
+
+        # first give one proc to each mismatch (note that this takes at least as many procs as there are different mismatch values, even if --n-procs is smaller)
+        while len(mismatch_vals) < n_procs:
+            if debug:
+                print '%d < %d' % (len(mismatch_vals), n_procs)
+            largest_group = max(query_groups, key=len)
+            piece_a, piece_b = largest_group[ : len(largest_group) / 2], largest_group[len(largest_group) / 2 : ]  # split up the largest group into two [almost] equal pieces
+            ilargest = query_groups.index(largest_group)
+            query_groups = query_groups[:ilargest] + [piece_a, piece_b] + query_groups[ilargest + 1:]
+            mismatch_vals = mismatch_vals[:ilargest] + [mismatch_vals[ilargest], mismatch_vals[ilargest]] + mismatch_vals[ilargest + 1:]
+            if debug:
+                for m, queries in zip(mismatch_vals, query_groups):
+                    print '  %d   %d    %s' % (m, len(queries), ' '.join(queries))
+
+        return mismatch_vals, query_groups
+
+    # ----------------------------------------------------------------------------------------
+    def split_queries_evenly_among_procs(self, input_queries, n_procs):
+        query_iprocs = [(input_queries[iq], iq % n_procs) for iq in range(len(input_queries))]  # loop over queries, cycling through the procs
+        queries_for_each_proc = [[q for q, i in query_iprocs if i == iproc] for iproc in range(n_procs)]  # then pull out the queries for each proc
+        mismatches = [self.mismatch for _ in range(n_procs)]  # all of 'em have the same mismatch
+        return mismatches, queries_for_each_proc
+
+    # ----------------------------------------------------------------------------------------
+    def get_gap_opens(self, mismatches, queries_for_each_proc):
+        failed_mismatches = {}
+        for mismatch, queries in zip(mismatches, queries_for_each_proc):
+            fqueries_in_this_mismatch = set(queries) & self.indel_fails
+            for fquery in fqueries_in_this_mismatch:  # if it's destined for this proc, keep track of the match/mismatch info, and remove it from this proc's list
+                if mismatch not in failed_mismatches:  # reminder: more than one proc can have the same mismatch
+                    failed_mismatches[mismatch] = []
+                failed_mismatches[mismatch].append(fquery)
+                queries.remove(fquery)
+        assert set([q for qlist in failed_mismatches.values() for q in qlist]) == self.indel_fails
+        self.indel_fails.clear()
+
+        gap_opens = [self.gap_open_penalty for _ in mismatches]
+        for fmismatch, fqueries in failed_mismatches.items():
+            gap_opens += [self.args.no_indel_gap_open_penalty]
+            mismatches += [fmismatch]
+            queries_for_each_proc += [fqueries]
+            # print '  adding new iproc for %s with gap open %d mismatch %d' % (' '.join(fqueries), fmismatch, self.args.no_indel_gap_open_penalty)
+
+        return mismatches, gap_opens, queries_for_each_proc
+
+    # ----------------------------------------------------------------------------------------
+    def split_queries(self, n_procs):
+        input_queries = list(self.remaining_queries)
+        if self.vs_info is None:
+            mismatches, queries_for_each_proc = self.split_queries_evenly_among_procs(input_queries, n_procs)
+        else:
+            mismatches, queries_for_each_proc = self.split_queries_by_match_mismatch(input_queries, n_procs)
+
+        mismatches, gap_opens, queries_for_each_proc = self.get_gap_opens(mismatches, queries_for_each_proc)  # they're all the same unless we have some indel fails
+
+        missing_queries = self.remaining_queries - set([q for proc_queries in queries_for_each_proc for q in proc_queries])
+        if len(missing_queries) > 0:
+            raise Exception('didn\'t write %s to %s' % (':'.join(missing_queries), self.args.workdir))
+
+        return mismatches, gap_opens, queries_for_each_proc
+
+    # ----------------------------------------------------------------------------------------
+    def write_input_files(self, base_infname, queries_for_each_proc):
+        n_procs = len(queries_for_each_proc)
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
             if n_procs > 1:
                 utils.prep_dir(workdir)
             with open(workdir + '/' + base_infname, 'w') as sub_infile:
-                iquery = 0
-                for query_name in self.remaining_queries:  # NOTE this is wasteful to loop of all the remaining queries for each process... but maybe not that wasteful
-                    if iquery >= len(self.remaining_queries):
-                        break
-                    if iquery < iproc*n_queries_per_proc or iquery >= (iproc + 1)*n_queries_per_proc:  # not for this process
-                        iquery += 1
-                        continue
-                    sub_infile.write('>' + query_name + ' NUKES\n')
-
-                    assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here (where "it's nice" means "it used to be the other way and it fucking sucked and a fuckton of effort went into synchronizing the treatments")
-                    seq = self.input_info[query_name]['seqs'][0]
+                for query_name in queries_for_each_proc[iproc]:
                     if query_name in self.info['indels']:
                         seq = self.info['indels'][query_name]['reversed_seq']  # use the query sequence with shm insertions and deletions reversed
-                    sub_infile.write(seq + '\n')
-                    written_queries.add(query_name)
-                    iquery += 1
-        not_written = self.remaining_queries - written_queries
-        if len(not_written) > 0:
-            raise Exception('didn\'t write %s to %s' % (':'.join(not_written), self.args.workdir))
-        return len(written_queries)
+                    else:
+                        assert len(self.input_info[query_name]['seqs']) == 1  # sw can't handle multiple simultaneous sequences, but it's nice to have the same headers/keys everywhere, so we use the plural versions (with lists) even here (where "it's nice" means "it used to be the other way and it fucking sucked and a fuckton of effort went into synchronizing the treatments")
+                        seq = self.input_info[query_name]['seqs'][0]
+                    sub_infile.write('>%s NUKES\n%s\n' % (query_name, seq))
+
+    # # ----------------------------------------------------------------------------------------
+    # def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, mismatch):
+    #     # large gap-opening penalty: we want *no* gaps in the middle of the alignments
+    #     # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
+    #     cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
+    #     cmd_str += ' --locus ' + self.args.locus.upper()
+    #     cmd_str += ' --max-drop 50'
+    #     cmd_str += ' --match ' + str(self.match_score) + ' --mismatch ' + str(mismatch)
+    #     cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
+    #     cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.locus
+    #     cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
+    #     cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
+    #     return cmd_str
 
     # ----------------------------------------------------------------------------------------
-    def get_vdjalign_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
-        """
-        Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
-        """
-        # large gap-opening penalty: we want *no* gaps in the middle of the alignments
-        # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        cmd_str = os.getenv('HOME') + '/.local/bin/vdjalign align-fastq -q'
-        cmd_str += ' --locus ' + self.args.locus.upper()
-        cmd_str += ' --max-drop 50'
-        match, mismatch = self.match_mismatch
-        cmd_str += ' --match ' + str(match) + ' --mismatch ' + str(mismatch)
-        cmd_str += ' --gap-open ' + str(self.gap_open_penalty)
-        cmd_str += ' --vdj-dir ' + self.my_gldir + '/' + self.args.locus
-        cmd_str += ' --samtools-dir ' + self.args.partis_dir + '/packages/samtools'
-        cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
-        return cmd_str
-
-    # ----------------------------------------------------------------------------------------
-    def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, n_procs=None):
-        """
-        Run smith-waterman alignment (from Connor's ighutils package) on the seqs in <base_infname>, and toss all the top matches into <base_outfname>.
-        """
+    def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, mismatch, gap_open):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
         cmd_str = self.args.ig_sw_binary
         cmd_str += ' -l ' + self.args.locus.upper()
         cmd_str += ' -d 50'  # max drop
-        match, mismatch = self.match_mismatch
-        cmd_str += ' -m ' + str(match) + ' -u ' + str(mismatch)
-        cmd_str += ' -o ' + str(self.gap_open_penalty)
+        cmd_str += ' -m ' + str(self.match_score) + ' -u ' + str(mismatch)
+        cmd_str += ' -o ' + str(gap_open)
         cmd_str += ' -p ' + self.my_gldir + '/' + self.args.locus + '/'  # NOTE needs the trailing slash
         cmd_str += ' ' + workdir + '/' + base_infname + ' ' + workdir + '/' + base_outfname
         return cmd_str
@@ -353,14 +443,12 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, n_procs=1):
-        start = time.time()
+        if self.debug:
+            print '%s' % utils.color('green', 'reading output')
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
         for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails', 'super-high-mutation']:
             queries_to_rerun[reason] = set()
-
-        if self.debug:
-            print '%s' % utils.color('green', 'try ' + str(self.nth_try))
 
         self.new_indels = 0
         queries_read_from_file = set()  # should be able to remove this, eventually
@@ -383,24 +471,14 @@ class Waterer(object):
             print '\n%s didn\'t read %s from %s' % (utils.color('red', 'warning'), ' '.join(not_read), self.args.workdir)
 
         if len(self.remaining_queries) > 0:
-            printstr = '       %8d' % len(self.remaining_queries)
-            printstr += '       %8d' % self.new_indels
-            printstr += '            '
             n_to_rerun = 0
             for reason in queries_to_rerun:
-                printstr += '        %8d' % len(queries_to_rerun[reason])
                 n_to_rerun += len(queries_to_rerun[reason])
             if n_to_rerun + self.new_indels + len(not_read) != len(self.remaining_queries):
                 raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels + (n missing from sam file) != remaining_queries): %d + %d + %d = %d != %d   (look in %s)'
                                 % (n_to_rerun, self.new_indels, len(not_read),
                                    n_to_rerun + self.new_indels + len(not_read),
                                    len(self.remaining_queries), self.args.workdir))
-            if self.nth_try < 2 or self.new_indels == 0:  # increase the mismatch score if it's the first try, or if there's no new indels
-                self.match_mismatch[1] += 1
-            elif self.new_indels > 0:  # if there were some indels, rerun with the same parameters (but when the input is written the indel will be "reversed' in the sequences that's passed to ighutil)
-                self.new_indels = 0
-            else:  # shouldn't get here
-                assert False
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
@@ -408,8 +486,6 @@ class Waterer(object):
             if n_procs > 1:  # still need the top-level workdir
                 os.rmdir(workdir)
 
-        if not self.debug:  # too hard to get newlines right
-            print '     %8.1f' % (time.time() - start)  # comma/no comma needs fixing for debug > 0
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
@@ -459,16 +535,11 @@ class Waterer(object):
                 assert len(qinfo['matches'][region]) == self.args.n_max_per_region[utils.regions.index(region)]  # there better not be a way to get more than we asked for
                 continue
 
-            indelfo = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, gene)
+            indelfo = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, {region : gene}, uid=qinfo['name'])  # note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
             if indelutils.has_indels(indelfo):
                 if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
                     continue
                 assert region not in qinfo['new_indels']  # only to double-check the continue just above
-                # note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
-                if region == 'j':  # this is a terrible hack TODO
-                    for ifo in indelfo['indels']:
-                        ifo['pos'] += qrbounds[0]
-                indelfo['reversed_seq'] = qinfo['seq'][ : qrbounds[0]] + indelfo['reversed_seq'] + qinfo['seq'][qrbounds[1] : ]  # add to reversed seq the bits to left and right of the aligned region TODO
                 qinfo['new_indels'][region] = indelfo
 
             # and finally add this match's information
@@ -544,7 +615,7 @@ class Waterer(object):
         if debug:
             print '  overlap status: %s' % status
 
-        if not recursed and status == 'nonsense' and l_reg == 'd' and self.nth_try > 2:  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
+        if not recursed and status == 'nonsense' and l_reg == 'd':  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
             assert l_reg == 'd' and r_reg == 'j'
             if debug:
                 print '  %s: synthesizing d match' % qinfo['name']
@@ -607,13 +678,27 @@ class Waterer(object):
                 r_length -= 1
 
         if debug:
-            print '  %4d %4d    %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
+            print '  %4d %4d      %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
             print '      %s apportioning %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion)
         assert l_portion + r_portion == overlap
         qinfo['qrbounds'][l_gene] = (qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][l_gene][1] - l_portion)
         qinfo['glbounds'][l_gene] = (qinfo['glbounds'][l_gene][0], qinfo['glbounds'][l_gene][1] - l_portion)
         qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][r_gene][1])
         qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
+# ----------------------------------------------------------------------------------------
+        if l_reg in qinfo['new_indels'] and l_portion > 0:
+            indelfo = qinfo['new_indels'][l_reg]
+            indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][ : -l_portion]
+            indelfo['gl_gap_seq'] = indelfo['gl_gap_seq'][ : -l_portion]
+            if debug:
+                print '    removed %d base%s from right side of %s indel gap seqs' % (l_portion, utils.plural(l_portion), l_reg)
+        if r_reg in qinfo['new_indels'] and r_portion > 0:
+            indelfo = qinfo['new_indels'][r_reg]
+            indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][r_portion : ]
+            indelfo['gl_gap_seq'] = indelfo['gl_gap_seq'][r_portion : ]
+            if debug:
+                print '    removed %d base%s from left side of %s indel gap seqs' % (r_portion, utils.plural(r_portion), r_reg)
+# ----------------------------------------------------------------------------------------
 
     # ----------------------------------------------------------------------------------------
     def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
@@ -672,7 +757,11 @@ class Waterer(object):
         infoline['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
         infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
-        infoline['indelfos'] = [self.info['indels'].get(qname, indelutils.get_empty_indel()), ]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
+        if qname in self.info['indels']:  # NOTE at this piont indel info isn't updated for any change in the genes (the indelfo gets updated during utils.add_implicit_info())
+            infoline['indelfos'] = [self.info['indels'][qname]]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
+        else:
+            infoline['indelfos'] = [indelutils.get_empty_indel()]
+
         infoline['duplicates'] = [self.duplicates.get(qname, []), ]  # note that <self.duplicates> doesn't handle simultaneous seqs, i.e. it's for just a single sequence
 
         infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
@@ -725,9 +814,9 @@ class Waterer(object):
         #     self.check_simulation_kbounds(self.info[qname], self.reco_info[qname])
 
         if self.debug:
-            inf_label = '      ' + utils.kbound_str({r : infoline['k_' + r] for r in ['v', 'd']})
+            inf_label = ' ' + utils.kbound_str({r : infoline['k_' + r] for r in ['v', 'd']})
             if not self.args.is_data:
-                inf_label = 'inferred: ' + inf_label
+                inf_label = 'inf: ' + inf_label
                 utils.print_reco_event(self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
             utils.print_reco_event(self.info[qname], extra_str='    ', label=inf_label)
 
@@ -757,41 +846,6 @@ class Waterer(object):
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
-        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through (in practice: only v or j best matches)
-            if self.nth_try < 2:
-                if self.debug:
-                    print '      rerun: first-try indels'
-                queries_to_rerun['indel-fails'].add(qname)
-                return
-
-            if qname in self.info['indels']:
-                if self.debug:
-                    print '      rerun: s-w called indels after already calling some before -- but we don\'t allow multiple cycles'
-                queries_to_rerun['indel-fails'].add(qname)
-                return
-
-            # NOTE (probably) important to look for v indels first (since a.t.m. we only take the first one)
-            for region in [r for r in ['v', 'j', 'd'] if r in qinfo['new_indels']]:  # TODO this doesn't allow indels in more than one region
-                self.info['indels'][qinfo['name']] = qinfo['new_indels'][region]  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the reversed sequence
-                assert self.info['indels'][qinfo['name']]['reversed_seq'] == qinfo['new_indels'][region]['reversed_seq']  # why tf was this second line there?
-                # self.info['indels'][qinfo['name']]['reversed_seq'] = qinfo['new_indels'][region]['reversed_seq']
-                self.new_indels += 1
-                if self.debug:
-                    print '      rerun: new indels\n%s' % utils.pad_lines(self.info['indels'][qinfo['name']]['dbg_str'], 10)
-                return
-
-            print '%s fell through indel block for %s' % (utils.color('red', 'warning'), qname)
-            return  # otherwise something's weird/wrong, so we want to re-run (I think we actually can't fall through to here)
-
-        if self.debug >= 2:
-            for region in utils.regions:
-                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
-                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
-
-        if self.super_high_mutation(qinfo, best):
-            queries_to_rerun['super-high-mutation'].add(qname)
-            return
-
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         for rpair in utils.region_pairs():
             overlap_status = self.check_boundaries(rpair, qinfo, best)
@@ -803,13 +857,36 @@ class Waterer(object):
             else:
                 assert overlap_status == 'ok'
 
+        if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through
+            indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the indel-reversed sequence, rather than the <input_info> sequence
+            if indelfo is None:
+                queries_to_rerun['indel-fails'].add(qname)
+                self.indel_fails.add(qname)
+                if self.debug:
+                    print '      rerun: indel fails'
+            else:
+                self.info['indels'][qinfo['name']] = indelfo
+                self.new_indels += 1  # tells self.run() that we need to do another iteration
+                if self.debug:
+                    print '      rerun: new indels in %s' % ' '.join(qinfo['new_indels'].keys())  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
+            return
+
+        if self.debug >= 2:
+            for region in utils.regions:
+                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
+                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
+
+        if self.super_high_mutation(qinfo, best):
+            queries_to_rerun['super-high-mutation'].add(qname)
+            return
+
         # force v 5p and j 3p matches to (in most cases) go to the end of the sequence
         self.remove_probably_spurious_deletions(qinfo, best)
 
         # check for suspiciously bad annotations
         for rp in utils.region_pairs():
             insertion_length = qinfo['qrbounds'][best[rp['right']]][0] - qinfo['qrbounds'][best[rp['left']]][1]  # start of right match minus end of left one
-            if insertion_length > self.absolute_max_insertion_length or (self.nth_try < 2 and insertion_length > self.max_insertion_length):
+            if insertion_length > self.absolute_max_insertion_length:
                 if self.debug:
                     print '      suspiciously long insertion in %s, rerunning' % qname
                 queries_to_rerun['weird-annot.'].add(qname)
@@ -838,21 +915,19 @@ class Waterer(object):
         # convert to regular format used elsewhere, and add implicit info
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
         try:
-            utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs)
-        except:  # AssertionError gah, I don't really like just swallowing everything... but then I *expect* it to fail here... and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed
+            utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
+        except:  # gah, I don't really like just swallowing everything... but then I *expect* it to fail here, and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed (and I want all the different exceptions, i.e. I kind of do want to just swallow everything here)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print utils.pad_lines(''.join(lines))
             if self.debug:
-                print '      rerun: implicit info adding failed for %s, rerunning' % qname
+                print '      rerun: implicit info adding failed for %s (see above), rerunning' % qname
             queries_to_rerun['weird-annot.'].add(qname)
             return
 
         # deal with unproductive rearrangements
         if not utils.is_functional(infoline):
-            if self.nth_try < 2 and (infoline['mutated_invariants'][0] or not infoline['in_frames'][0]):  # rerun with higher mismatch score (sometimes unproductiveness is the result of a really screwed up annotation rather than an actual unproductive sequence). Note that stop codons aren't really indicative of screwed up annotations, so they don't count.
-                if self.debug:
-                    print '      rerun: %s' % utils.is_functional_dbg_str(infoline)
-                queries_to_rerun['unproductive'].add(qname)
-                return
-            elif self.args.skip_unproductive:
+            if self.args.skip_unproductive:
                 if self.debug:
                     print '      skipping unproductive (%s)' % utils.is_functional_dbg_str(infoline)
                 self.skipped_unproductive_queries.add(qname)
@@ -1054,10 +1129,9 @@ class Waterer(object):
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = swfo[seqkey][0][fv_len : len(swfo[seqkey][0]) - jf_len]
             swfo['naive_seq'] = swfo['naive_seq'][fv_len : len(swfo['naive_seq']) - jf_len]
-            if query in self.info['indels']:  # NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
-                swfo['indelfos'][0]['reversed_seq'] = swfo['seqs'][0]
-                for indel in reversed(swfo['indelfos'][0]['indels']):  # why in the world did I bother with the reversed() here? I guess maybe just as a reminder of how the list works...
-                    indel['pos'] -= fv_len
+            if query in self.info['indels']:
+                assert self.info['indels'][query] is swfo['indelfos'][0]  # it would be nice to eventually not need the dict in both these places
+                indelutils.trim_indel_info(swfo, 0, swfo['fv_insertion'], swfo['jf_insertion'], 0, 0)
             for key in swfo['k_v']:
                 swfo['k_v'][key] -= fv_len
             swfo['fv_insertion'] = ''
@@ -1247,9 +1321,9 @@ class Waterer(object):
             for seqkey in ['seqs', 'input_seqs']:
                 swfo[seqkey][0] = leftstr + swfo[seqkey][0] + rightstr
             swfo['naive_seq'] = leftstr + swfo['naive_seq'] + rightstr
-            if query in self.info['indels']:  # also pad the reversed sequence and change indel positions NOTE unless there's no indel, the dict in self.info['indels'][query] *is* the dict in swfo['indelfos'][0]
-                assert self.info['indels'][query] is self.info[query]['indelfos'][0]  # TODO make this less scary
-                indelutils.pad_indel_info(self.info['indels'][query], leftstr, rightstr)
+            if query in self.info['indels']:
+                assert self.info['indels'][query] is swfo['indelfos'][0]
+                indelutils.pad_indelfo(swfo['indelfos'][0], leftstr, rightstr)
             for key in swfo['k_v']:
                 swfo['k_v'][key] += padleft
             swfo['codon_positions']['v'] += padleft
@@ -1265,3 +1339,40 @@ class Waterer(object):
             print '    cdr3        uid                 padded seq'
             for query in sorted(self.info['queries'], key=lambda q: self.info[q]['cdr3_length']):
                 print '    %3d   %20s    %s' % (self.info[query]['cdr3_length'], query, self.info[query]['seqs'][0])
+
+    # ----------------------------------------------------------------------------------------
+    def combine_indels(self, qinfo, best):
+        regional_indelfos = {}
+        qrbounds = {r : qinfo['qrbounds'][best[r]] for r in utils.regions}
+        full_qrseq = qinfo['seq']
+        if self.vs_info is not None and qinfo['name'] in self.vs_indels:
+            if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, we rerun sw with <self.args.no_indel_gap_open_penalty>
+                return None
+            vs_indelfo = self.info['indels'][qinfo['name']]
+            assert 'v' in vs_indelfo['genes']  # a.t.m. vsearch is only looking for v genes, and if that changes in the future we'd need to rewrite this
+            non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
+            vs_indelfo['qr_gap_seq'] = vs_indelfo['qr_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['qr_gap_seq']) - non_v_bases]
+            vs_indelfo['gl_gap_seq'] = vs_indelfo['gl_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['gl_gap_seq']) - non_v_bases]
+            assert len(vs_indelfo['qr_gap_seq']) == len(vs_indelfo['gl_gap_seq'])
+
+            net_v_indel_length = indelutils.net_length(vs_indelfo)
+            qrbounds['v'] = (qrbounds['v'][0], qrbounds['v'][1] + net_v_indel_length)
+            for region in ['d', 'j']:
+                qrbounds[region] = (qrbounds[region][0] + net_v_indel_length, qrbounds[region][1] + net_v_indel_length)
+                if region in qinfo['new_indels']:
+                    for ifo in qinfo['new_indels'][region]['indels']:
+                        ifo['pos'] += net_v_indel_length
+            full_qrseq = self.input_info[qinfo['name']]['seqs'][0]  # should in principle replace qinfo['seq'] as well, since it's the reversed seq from vsearch, but see note below
+            del self.info['indels'][qinfo['name']]
+            regional_indelfos['v'] = vs_indelfo
+        elif 'v' in qinfo['new_indels']:
+            regional_indelfos['v'] = qinfo['new_indels']['v']
+
+        if 'd' in qinfo['new_indels']:
+            regional_indelfos['d'] = qinfo['new_indels']['d']
+        if 'j' in qinfo['new_indels']:
+            regional_indelfos['j'] = qinfo['new_indels']['j']
+
+        # NOTE qinfo won't be consistent with the indel reversed seq after this, but that's kind of the point, since we're just rerunning anyway
+
+        return indelutils.combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=qinfo['name'])

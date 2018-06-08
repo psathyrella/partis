@@ -35,7 +35,7 @@ class AlleleFinder(object):
         else:
             return 3.5  # i.e. check everything that's more than <factor> sigma away (where "check" means actually do the fits, as long as it passes all the other prefiltering steps)
 
-    def __init__(self, glfo, args, itry):
+    def __init__(self, glfo, args, itry=0):
         self.region = 'v'
         self.glfo = glfo
         self.args = args
@@ -955,6 +955,7 @@ class AlleleFinder(object):
     # ----------------------------------------------------------------------------------------
     def print_summary(self, genes_to_use):
         if len(genes_to_use) == 0:
+            print '  no genes with enough counts'
             return
 
         binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
@@ -975,11 +976,14 @@ class AlleleFinder(object):
                                                                                                                                     self.n_clonal_representatives[gene] + self.n_excluded_clonal_queries[gene],
                                                                                                                                     self.n_clones[gene], self.n_clonal_representatives[gene],
                                                                                                                                     utils.color_gene(gene))
+        print '%s: looking for new alleles among %d gene%s (%d genes didn\'t have enough counts)' % (utils.color('blue', 'try ' + str(self.itry)), len(genes_to_use), utils.plural(len(genes_to_use)), len(self.counts) - len(genes_to_use))
 
     # ----------------------------------------------------------------------------------------
     def increment_and_finalize(self, swfo, debug=False):
         assert not self.finalized
         start = time.time()
+        if debug:
+            print 'allele finding'
 
         # first prepare some things, and increment for each chosen query
         self.set_excluded_bases(swfo, debug=debug)
@@ -1009,8 +1013,8 @@ class AlleleFinder(object):
 
         # then finalize
         genes_to_use = [g for g in sorted(self.counts) if self.gene_obs_counts[g] >= self.n_total_min]
-        self.print_summary(genes_to_use)
-        print '%s: looking for new alleles among %d gene%s (%d genes didn\'t have enough counts)' % (utils.color('blue', 'try ' + str(self.itry)), len(genes_to_use), utils.plural(len(genes_to_use)), len(self.counts) - len(genes_to_use))
+        if debug:
+            self.print_summary(genes_to_use)
         # if not self.args.always_find_new_alleles:  # NOTE this is (on purpose) summed over all genes -- genes with homozygous unknown alleles would always fail this criterion
         #     total = int(self.overall_mute_counts.integral(include_overflows=True))  # underflow bin is zero mutations, and we want overflow, too NOTE why the fuck isn't this quite equal to sum(self.gene_obs_counts.values())?
         #     for n_mutes in range(self.args.n_max_snps):
@@ -1062,9 +1066,6 @@ class AlleleFinder(object):
             already_used_positions = set()
             n_new_alleles_for_this_gene = 0  # kinda messy way to implement this
             for candidfo in reversed(candidates):  # biggest <istart> first
-                if n_new_alleles_for_this_gene >= self.args.n_max_new_alleles_per_gene_per_iteration:
-                    print '%s: skipping any additional new alleles for this gene (already have %d, you can increase this by setting --n-max-new-alleles-per-gene-per-iteration)' % (utils.color('red', 'warning'), n_new_alleles_for_this_gene)
-                    break
                 these_positions = set(candidfo['positions'])
                 if len(these_positions & already_used_positions) > 0:
                     continue
@@ -1104,12 +1105,15 @@ class AlleleFinder(object):
         if not self.finalized:
             self.finalize(debug=debug)
 
-        plotdir = base_plotdir + '/allele-finding'
-        if self.itry is not None:
-            plotdir = plotdir + '/try-' + str(self.itry)
+        if only_csv:  # not implemented
+            print '    <only_csv> not yet implemented in allelefinder'
+            return
 
+        start = time.time()
         print '    plotting allele finding',
         sys.stdout.flush()
+
+        plotdir = base_plotdir + '/allele-finding/try-' + str(self.itry)
 
         for old_gene_dir in glob.glob(plotdir + '/*'):  # has to be a bit more hackey than elsewhere, since we have no way of knowing what genes might have had their own directories written last time we wrote to this dir
             if not os.path.isdir(old_gene_dir):
@@ -1118,11 +1122,6 @@ class AlleleFinder(object):
             os.rmdir(old_gene_dir)
         utils.prep_dir(plotdir, wildlings=('*.csv', '*.svg'))
 
-        if only_csv:  # not implemented
-            print '    <only_csv> not yet implemented in allelefinder'
-            return
-
-        start = time.time()
 
         if self.args.plot_and_fit_absolutely_everything is None:
             for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow

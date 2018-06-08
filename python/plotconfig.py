@@ -31,7 +31,8 @@ xtitles = {
     'j-mean-freq' : 'mutation freq',
     'v_fraction_correct_vs_mute_freq' : 'mut freq',
     'd_fraction_correct_vs_mute_freq' : 'mut freq',
-    'j_fraction_correct_vs_mute_freq' : 'mut freq'
+    'j_fraction_correct_vs_mute_freq' : 'mut freq',
+    'mfreq-diff' : 'max abs mfreq discontinuity',
 }
 for rstr in [r + '_' for r in utils.regions] + ['', ]:
     xtitles[rstr + 'hamming_to_true_naive'] = 'hamming distance'
@@ -68,6 +69,7 @@ plot_titles = {
     'd_allele_fraction_correct_vs_per_gene_support' : 'D gene',
     'j_allele_fraction_correct_vs_per_gene_support' : 'J gene',
     'shm_indel_length' : 'total/net SHM indel length',
+    'mfreq-diff' : 'chimera detection',
 }
 for region in utils.regions:
     for end in ['5', '3']:

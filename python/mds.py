@@ -154,7 +154,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         color_map = {uid : colors[iclust] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
     elif color_scale_vals is not None:  # map with a number for each sequence (e.g. number of mutations) that we use to make a new color scale
         cmap = plt.cm.Blues
-        sorted_vals = sorted([v for k, v in color_scale_vals.items() if k != 'naive'])
+        sorted_vals = sorted([v for k, v in color_scale_vals.items() if k != '_naive'])
         vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white
         norm = matplotlib.colors.Normalize(vmin=vmin, vmax=sorted_vals[-1])
         color_map = {uid : cmap(norm(color_scale_vals[uid])) for uid in pcvals}

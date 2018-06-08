@@ -26,20 +26,17 @@ class Recombinator(object):
     def __init__(self, args, glfo, seed, workdir, outfname):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir> # rm workdir
         self.args = args
         self.glfo = glfo
+        if len(glfo['seqs']['v']) > 100:  # this is kind of a shitty criterion, but I don't know what would be better (we basically just want to warn people if they're simulating from data/germlines/human)
+            print '  note: simulating with a very large number (%d) of V genes (the use of realistic diploid sets can be controlled by using inferred germline sets that you\'ve got lying around (--reco-parameter-dir), or with --generate-germline-set)' % len(glfo['seqs']['v'])
 
         # NOTE in general *not* the same as <self.args.workdir> and <self.args.outfname>
         self.workdir = tempfile.mkdtemp()
         self.outfname = outfname
         utils.prep_dir(self.workdir)
 
-        # set <self.parameter_dir> (note that this is in general *not* the same as self.args.parameter_dir)
-        if self.args.rearrange_from_scratch:  # currently not allowed to mutate from scratch without also rearranging from scratch (enforced in bin/partis)
-            if self.args.mutate_from_scratch:
-                self.parameter_dir = None
-            else:
-                self.parameter_dir = self.args.scratch_mute_freq_dir  # if you make up mute freqs from scratch, unless you're really careful you tend to get nonsense results for a lot of things (e.g. allele finding). So it's easier to copy over a reasonable set of mut freq parameters from somewhere.
-        else:
-            self.parameter_dir = self.args.parameter_dir + '/' + self.args.parameter_type
+        assert self.args.parameter_dir is None
+        self.reco_parameter_dir = self.args.reco_parameter_dir + '/' + self.args.parameter_type if self.args.reco_parameter_dir is not None else None
+        self.shm_parameter_dir = self.args.shm_parameter_dir + '/' + self.args.parameter_type if self.args.shm_parameter_dir is not None else None
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -65,7 +62,7 @@ class Recombinator(object):
                 parameter_name = parameters[2]
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
-        treegen = treegenerator.TreeGenerator(args, self.parameter_dir, seed=seed)
+        treegen = treegenerator.TreeGenerator(args, self.shm_parameter_dir, seed=seed)
         self.treefname = self.workdir + '/trees.tre'
         treegen.generate_trees(seed, self.treefname)  # NOTE not really a newick file, since I hack on the per-region branch length info at the end of each line
         with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
@@ -91,7 +88,7 @@ class Recombinator(object):
         insertion_content_probs = {}
         for bound in utils.boundaries:
             insertion_content_probs[bound] = {}
-            with open(self.parameter_dir + '/' + bound + '_insertion_content.csv', 'r') as icfile:
+            with open(self.reco_parameter_dir + '/' + bound + '_insertion_content.csv', 'r') as icfile:
                 reader = csv.DictReader(icfile)
                 total = 0
                 for line in reader:
@@ -118,13 +115,17 @@ class Recombinator(object):
     def read_mute_freq_stuff(self, gene):
         assert gene[:2] not in utils.boundaries  # make sure <gene> isn't actually an insertion (we used to pass insertions in here separately, but now they're smooshed onto either end of d)
         if self.args.mutate_from_scratch:
-            self.all_mute_freqs[gene] = {'overall_mean' : self.args.default_scratch_mute_freq if self.args.flat_mute_freq is None else self.args.flat_mute_freq}
+            self.all_mute_freqs[gene] = {'overall_mean' : self.args.scratch_mute_freq}
         else:
-            gene_counts = utils.read_overall_gene_probs(self.parameter_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
             approved_genes = [gene]
-            if gene_counts < self.args.min_observations_to_write:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
-                approved_genes += utils.find_replacement_genes(self.parameter_dir, min_counts=self.args.min_observations_to_write, gene_name=gene)
-            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.parameter_dir, approved_genes)
+
+            # ok this is kind of dumb, but I need to figure out how many counts there are for this gene, even when we have only an shm parameter dir
+            tmp_reco_param_dir = self.reco_parameter_dir if self.reco_parameter_dir is not None else self.shm_parameter_dir  # will crash if the shm parameter dir doesn't have gene count info... but we should only end up using it on data/recombinator/scratch-parameters
+            gene_counts = utils.read_overall_gene_probs(tmp_reco_param_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
+            if gene_counts < self.args.min_observations_per_gene:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's in <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
+                approved_genes += utils.find_replacement_genes(tmp_reco_param_dir, min_counts=self.args.min_observations_per_gene, gene_name=gene)
+
+            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, approved_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
@@ -172,17 +173,16 @@ class Recombinator(object):
 
         codons_ok = utils.both_codons_unmutated(self.glfo['locus'], reco_event.recombined_seq, reco_event.post_erosion_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
-            if self.args.rearrange_from_scratch and self.args.generate_germline_set:  # if you let it try more than once, it screws up the desired allele prevalence ratios
-                raise Exception('arg')
+            if self.args.rearrange_from_scratch and self.args.generate_germline_set:
+                raise Exception('mutated invariant codons, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
         in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.post_erosion_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
         if self.args.rearrange_from_scratch and not in_frame:
-            raise Exception('arg 2')  # if you let it try more than once, it screws up the desired allele prevalence ratios
+            raise Exception('out of frame rearrangement, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return False
 
         self.add_mutants(reco_event, irandom)
-
-        reco_event.write_event(self.outfname, reco_event.line)
+        reco_event.write_event(self.outfname)
 
         return True
 
@@ -197,7 +197,7 @@ class Recombinator(object):
             return None
 
         version_freq_table = {}
-        with open(self.parameter_dir + '/' + utils.get_parameter_fname('all', 'r')) as infile:
+        with open(self.reco_parameter_dir + '/' + utils.get_parameter_fname('all', 'r')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:  # NOTE do *not* assume the file is sorted
@@ -264,6 +264,7 @@ class Recombinator(object):
             elif '3p' in erosion:
                 gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
         tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
+        tmpline['unique_ids'] = [None]  # this is kind of hackey, but some things in the implicit info adder use it to get the number of sequences
         tmpline['input_seqs'] = copy.deepcopy(tmpline['seqs'])
         tmpline['indelfos'] = [indelutils.get_empty_indel(), ]
         utils.add_implicit_info(self.glfo, tmpline)
@@ -381,7 +382,7 @@ class Recombinator(object):
             self.insert(boundary, reco_event)
 
     # ----------------------------------------------------------------------------------------
-    def write_mute_freqs(self, gene, seq, reco_event, reco_seq_fname):  # TODO unsurprisingly, this function profiles out to be kind of a dumb way to do it, in terms of run time
+    def write_mute_freqs(self, gene, seq, reco_event, reco_seq_fname):  # unsurprisingly, this function profiles out to be kind of a dumb way to do it, in terms of run time
         """ Read position-by-position mute freqs from disk for <gene>, renormalize, then write to a file for bppseqgen. """
         mute_freqs = self.get_mute_freqs(gene)
 
@@ -463,7 +464,7 @@ class Recombinator(object):
         if self.args.mutate_from_scratch:
             command += ' model=JC69'
             command += ' input.infos.rates=none'  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
-            if self.args.flat_mute_freq is not None:
+            if self.args.flat_mute_freq:
                 command += ' rate_distribution=Constant'
             else:
                 command += ' rate_distribution=Gamma(n=4,alpha=' + self.mute_models[utils.get_region(gene)]['gamma']['alpha']+ ')'
@@ -505,15 +506,12 @@ class Recombinator(object):
                 if self.args.debug:
                     print '        0'
                 continue
-            reco_event.indelfos[iseq]['reversed_seq'] = reco_event.final_seqs[iseq]  # set the original sequence (i.e. with all the indels reversed)
-            n_indels = numpy.random.geometric(1. / self.args.mean_indels_per_indeld_seq)
-            if self.args.debug:
-                print '        %d' % n_indels
-            for _ in range(n_indels):
-                # NOTE modifies <indelfo> and <codon_positions>
-                reco_event.final_seqs[iseq] = indelutils.add_single_indel(reco_event.final_seqs[iseq], reco_event.indelfos[iseq],
-                                                                          self.args.mean_indel_length, reco_event.final_codon_positions[iseq],
-                                                                          indel_location=self.args.indel_location, debug=self.args.debug)
+            n_indels = numpy.random.choice(self.args.n_indels_per_indeld_seq)
+            input_seq, indelfo = indelutils.add_indels(n_indels, reco_event.final_seqs[iseq], reco_event.recombined_seq,  # NOTE modifies <indelfo> and <codon_positions>
+                                                       self.args.mean_indel_length, reco_event.final_codon_positions[iseq], indel_location=self.args.indel_location, dbg_pad=8, debug=self.args.debug)
+            reco_event.final_seqs[iseq] = input_seq
+            indelfo['genes'] = {r : reco_event.genes[r] for r in utils.regions}
+            reco_event.indelfos[iseq] = indelfo
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom):
@@ -568,6 +566,7 @@ class Recombinator(object):
                 mseqs[utils.regions[ireg]] = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
 
         assert len(reco_event.final_seqs) == 0
+
         for iseq in range(n_leaves):
             seq = mseqs['v'][iseq] + mseqs['d'][iseq] + mseqs['j'][iseq]
             seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
@@ -575,7 +574,6 @@ class Recombinator(object):
             reco_event.final_codon_positions.append(copy.deepcopy(reco_event.post_erosion_codon_positions))  # separate codon positions for each sequence, because of shm indels
 
         self.add_shm_indels(reco_event)
-
         reco_event.setline(irandom)  # set the line here because we use it when checking tree simulation, and want to make sure the uids are always set at the same point in the workflow
 
         self.check_tree_simulation(mean_total_height, regional_heights, scaled_trees, mseqs, reco_event)

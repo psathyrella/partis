@@ -190,7 +190,7 @@ class AlleleClusterer(object):
     def print_cluster(self, iclust, clusterfo, sorted_glcounts, new_seq, true_sorted_glcounts, mean_cluster_mfreqs, has_indels):
         if iclust > 0:
             print ''
-        print '    %-3d  %4d   %6.3f' % (iclust, len(clusterfo['seqfos']), mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j']),
+        print '    %-3d  %4d   %6.3f' % (iclust, len(clusterfo['seqfos']), mean_cluster_mfreqs['v'] / mean_cluster_mfreqs['j'] if mean_cluster_mfreqs['j'] > 0. else 0.),
         for igene in range(len(sorted_glcounts)):
             if igene > 0:
                 print '%22s' % '',

@@ -7,6 +7,8 @@ import yaml
 from scipy.stats import norm
 import csv
 import time
+import copy
+import numpy
 
 import utils
 import glutils
@@ -93,7 +95,7 @@ def interpolate_bins(values, n_max_to_interpolate, bin_eps, debug=False, max_bin
         for x in sorted(values.keys()):
             print '     %3d %f' % (x, values[x])
 
-    if values[full_bins[-1]] < n_max_to_interpolate:  # if the last full bin doesn't have enough entries, we add on a linearly-decreasing tail with slope such that it hits zero the same distance out as the last full bin is from zero
+    if full_bins[-1] > 0 and values[full_bins[-1]] < n_max_to_interpolate:  # if the last full bin doesn't have enough entries, we add on a linearly-decreasing tail with slope such that it hits zero the same distance out as the last full bin is from zero
         slope = - float(values[full_bins[-1]]) / full_bins[-1]
         new_bin_val = values[full_bins[-1]]
         for new_bin in range(full_bins[-1] + 1, 2*full_bins[-1] + 1):
@@ -156,12 +158,62 @@ class State(object):
             assert utils.is_normed(total)
 
 # ----------------------------------------------------------------------------------------
+def color_state_name(name, saniname):
+    if name in ['init', 'end']:
+        return name
+
+    if saniname + '_' in name:
+        namestr = name.replace(saniname + '_', '')
+        try:
+            int(namestr)
+        except:
+            raise Exception('couldn\'t convert %s (from %s) to integer' % (namestr, name))
+        return '%d' % int(namestr)
+    elif 'insert' in name:
+        _, side, base = name.split('_')
+        return '%s %s' % (side, base)
+    else:
+        raise Exception('couldn\'t handle name %s' % name)
+
+# ----------------------------------------------------------------------------------------
+def are_sequential_states(st_a, st_b, saniname):
+    try:
+        pos_a = int(color_state_name(st_a, saniname))
+        pos_b = int(color_state_name(st_b, saniname))
+        return pos_a + 1 == pos_b
+    except:
+        return False
+
+# ----------------------------------------------------------------------------------------
 class HMM(object):
     def __init__(self, name, tracks):
         self.name = name
         self.tracks = tracks
         self.states = []
         self.extras = {}  # any extra info you want to add
+    def prnt(self, saniname):
+        factor = 100  # easier to read as percents
+        namelist = [s.name for s in self.states] + ['end']  # just for sorting
+        print '  final hmm info (probs *%d):' % factor
+        print '    transitions:'
+        # trivial_transition_states = []  # eh, sometimes you want to see these though, for instance if they're scattered among the states that already have end state transitions
+        for state in self.states:
+            # if len(state.transitions) == 1 and are_sequential_states(state.name, state.transitions.keys()[0], saniname):
+            #     trivial_transition_states.append(state.name)
+            #     continue
+            total = 0.  # ok this is checked in lots of other places, but when I first wrote this I forgot to add 'end' to <namelist> above ^, so... here it stays (plus it gets used for printing)
+            for to_state in [s for s in namelist if s in state.transitions]:
+                print '      %8s  %5.1f  %7s%s' % (color_state_name(state.name, saniname) if total == 0. else '', factor * state.transitions[to_state], color_state_name(to_state, saniname), utils.color('red', ' <-- %f' % state.transitions[to_state]) if state.transitions[to_state] < utils.eps else '' )
+                total += state.transitions[to_state]
+            if not utils.is_normed(total):
+                raise Exception('transition probs not normalized: %s' % state.transitions)
+        # if len(trivial_transition_states) > 0:
+        #     print '         didn\'t print %d states that had only one possible transition to the next positions\'s state: %s' % (len(trivial_transition_states), ' '.join([color_state_name(s, saniname) for s in trivial_transition_states]))
+        print '      emissions:'
+        for state in self.states:
+            if state.emissions is None:
+                continue
+            print '          %7s   %s' % (color_state_name(state.name, saniname), '  '.join([('%s %4.1f%s' % (b, factor * p, utils.color('red', 'x') if p < utils.eps else '')) for b, p in state.emissions['probs'].items()]))
     def add_state(self, state):
         state.check()
         self.states.append(state)
@@ -169,6 +221,7 @@ class HMM(object):
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
     def __init__(self, base_indir, outdir, gene_name, glfo, args, debug=False):
+        # debug = gene_name in ['IGHD3-10*01', 'IGHJ2*01']  # True
         self.region = utils.get_region(gene_name)
         self.raw_name = gene_name  # i.e. unsanitized
         self.germline_seqs = glfo['seqs']  # all germline alleles
@@ -181,9 +234,11 @@ class HmmWriter(object):
         # parameters with values that I more or less made up
         self.precision = '16'  # number of digits after the decimal for probabilities
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
-        self.n_max_to_interpolate = args.min_observations_to_write
+        self.n_max_to_interpolate = 20  # we interpolate for empty insertion + deletion bins if neighboring (non-empty) bins have fewer than this many entries (i.e. if filled bins have at least this many entries, we _don't_ interpolate between them)
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
-        self.mute_freq_bounds = {'lo' : 0.01, 'hi' : 0.5}  # don't let any position mutate less frequently than 1% of the time, or more frequently than half the time
+        self.mute_freq_bounds = {'lo' : 0.01, 'hi' : 0.35}  # don't let any position mutate less frequently than 1% of the time, or more frequently than half the time
+        self.default_mute_freq = 0.1  # prior for positional mute freqs
+
         self.enforced_flat_mfreq_length = {  # i.e. distance over which the mute freqs are typically screwed up. I'm not really sure why these vary so much, but it's probably to do with how the s-w step works
             'v_3p' : 9,
             'd_5p' : 9,
@@ -208,20 +263,21 @@ class HmmWriter(object):
         assert len(utils.ambiguous_bases) == 1 and utils.ambiguous_bases[0] == 'N'  # maybe need to update some stuff below if this changes
 
         if self.debug:
-            print '%s' % utils.color_gene(gene_name)
+            print '%s   %d positions' % (utils.color_gene(gene_name), len(self.germline_seq))
+            print '  reading info from %s' % self.indir
 
-        self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
         approved_genes = [gene_name]
-        # NOTE this never happens any more, since partitiondriver.cache_parameters() resets <args.min_observations_to_write> if it's arger than 10*(number of sequences)
-        if self.n_occurences < self.args.min_observations_to_write:  # if we didn't see it enough, average also over all the genes that find_replacement_genes() gives us
-            if self.debug:
-                print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_to_write)
-            approved_genes += utils.find_replacement_genes(self.indir, self.args.min_observations_to_write, gene_name, debug=self.debug)
+        self.n_occurences = utils.read_single_gene_count(self.indir, gene_name, debug=self.debug)  # how many times did we observe this gene in data?
+        # turned off for now (switched to an approach that relies more on smooth priors rather than averaging over many genes)
+        # if self.n_occurences < self.args.min_observations_per_gene:  # if we didn't see it enough, average also over all the genes that find_replacement_genes() gives us
+        #     if self.debug:
+        #         print '      only saw it %d times (wanted %d), so use info from all other genes' % (self.n_occurences, self.args.min_observations_per_gene)
+        #     approved_genes += utils.find_replacement_genes(self.indir, self.args.min_observations_per_gene, gene_name, debug=self.debug)
 
         self.erosion_probs = self.read_erosion_info(approved_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(approved_genes)
-        self.mute_freqs = paramutils.read_mute_freqs_with_weights(self.indir, approved_genes)  # weighted averages over genes
-        self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus)  # raw per-{ACGT} counts
+        self.mute_freqs = paramutils.read_mute_freqs_with_weights(self.indir, approved_genes, debug=self.debug)  # weighted averages over genes
+        self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus, debug=self.debug)  # raw per-{ACGT} counts
         self.process_mutation_info()  # smooth/interpolation/whatnot for <self.mute_freqs> and <self.mute_counts>
         # NOTE i'm using a hybrid approach with mute_freqs and mute_counts -- the only thing I get from mute_counts is the ratios of the different bases, whereas the actual freq comes from mute_freqs (which has all the corrections/smooth/bullshit)
 
@@ -236,6 +292,8 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def write(self):
         self.add_states()
+        if self.debug:
+            self.hmm.prnt(self.saniname)
         assert os.path.exists(self.outdir)
         with open(self.outdir + '/' + self.saniname + '.yaml', 'w') as outfile:
             yaml.dump(self.hmm, outfile, width=150)
@@ -243,6 +301,8 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_states(self):
         # NOTE it'd kinda make more sense for the fv and jf insertions to only have one state (rather than 4), but for the moment I'm just leaving with 4 'cause it's easier to leave them the same as the physical insertions
+        if self.debug:
+            print '  adding states (no dbg printing yet)'
         self.add_init_state()
         # then left side insertions
         for insertion in self.insertions:
@@ -271,7 +331,7 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def add_lefthand_insert_states(self, insertion):
-        if not insertion in utils.boundaries:
+        if insertion not in utils.boundaries:
             nukelist = ['N', ]
         else:
             nukelist = utils.nukes
@@ -327,6 +387,9 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def read_erosion_info(self, approved_genes):
+        if self.debug:
+            print '    reading deletion probs'
+
         # NOTE that d erosion lengths depend on each other... but I don't think that's modellable with an hmm. At least for the moment we integrate over the other erosion
         eprobs = {}
         genes_used = set()
@@ -380,13 +443,21 @@ class HmmWriter(object):
                 test_total += eprobs[erosion][n_eroded]
             assert utils.is_normed(test_total)
 
-        if len(genes_used) > 1 and self.debug:  # if length is 1, we will have just used the actual gene
-            print '    used erosion info from:', ' '.join(genes_used)
+        if self.debug:
+            if len(genes_used) > 1:
+                print '       used info from more than one gene: %s' % ' '.join(genes_used)
+            all_dlengths = sorted(set([dl for e in eprobs for dl in eprobs[e]]))
+            print '             %s' % '  '.join([('%5d' % dl) for dl in all_dlengths])
+            for end in eprobs:
+                print '      %5s   %s' % (end, '  '.join([('%5.3f' % eprobs[end][dl]) if dl in eprobs[end] else '  -  ' for dl in all_dlengths]))
 
         return eprobs
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_info(self, approved_genes):
+        if self.debug:
+            print '    reading insertion probs'
+
         iprobs, icontentprobs = {}, {}
         genes_used = set()
         for insertion in self.insertions:
@@ -419,15 +490,18 @@ class HmmWriter(object):
             # print '   interpolate insertions'
             interpolate_bins(iprobs[insertion], self.n_max_to_interpolate, bin_eps=self.eps)  #, max_bin=len(self.germline_seq))  # NOTE that we normalize *after* this
 
-            if 0 not in iprobs[insertion] or len(iprobs[insertion]) < 2:  # all hell breaks loose lower down if we haven't got shit in the way of information
+            # all hell breaks loose lower down if there isn't enough information
+            if 0 not in iprobs[insertion]:
                 if self.debug:
-                    print '    WARNING adding pseudocount to 1-bin in insertion probs'
+                    print '      adding pseudocount to length 0 for for %s' % insertion
                 iprobs[insertion][0] = 1
-                iprobs[insertion][1] = 1
+            if len(iprobs[insertion]) < 2:
                 if self.debug:
-                    print '      ', iprobs[insertion]
+                    print '      fewer than 2 lengths for %s (%s), so adding pseudocounts to lengths 0 and 1' % (insertion, iprobs[insertion])
+                iprobs[insertion][0] = iprobs[insertion].get(0, 0.) + 1
+                iprobs[insertion][1] = iprobs[insertion].get(1, 0.) + 1
 
-            assert 0 in iprobs[insertion] and len(iprobs[insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information
+            assert 0 in iprobs[insertion] and len(iprobs[insertion]) >= 2  # all hell breaks loose lower down if we haven't got shit in the way of information (ok this just duplicates the if statements above now, but oh well)
 
             # and finally, normalize
             total = 0.0
@@ -448,6 +522,12 @@ class HmmWriter(object):
         if len(genes_used) > 1:  # if length is 1, we will have just used the actual gene
             if self.debug:
                 print '    insertions used:', ' '.join(genes_used)
+
+        if self.debug:
+            all_ilengths = sorted(set([el for b in iprobs for el in iprobs[b]]))
+            print '             %s' % '  '.join([('%5d' % il) for il in all_ilengths])
+            for bound in iprobs:
+                print '      %5s   %s' % (bound, '  '.join([('%5.3f' % iprobs[bound][il]) if il in iprobs[bound] else '  -  ' for il in all_ilengths]))
 
         return iprobs, icontentprobs
 
@@ -482,19 +562,42 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def process_mutation_info(self):  # NOTE lots of shenanigans also in paramutils.read_mute_freqs_with_weights() (but not paramutils.read_mute_counts())
         gl_length = len(self.germline_seq)
+        if self.debug:
+            old_mute_counts = copy.deepcopy(self.mute_counts)
+            old_mute_freqs = copy.deepcopy(self.mute_freqs)
 
         # first add anybody that's missing and apply some hard bounds/sanity checks
         for pos in range(gl_length):
+            # add missing values
             if pos not in self.mute_counts:  # NOTE pseudocount also set in get_emission_prob()
-                self.mute_counts[pos] = {n : 1 for n in utils.nukes}
-                if self.germline_seq[pos] in utils.nukes:  # probably only fails if it's ambiguous
-                    self.mute_counts[pos][self.germline_seq[pos]] += 10
-            if pos not in self.mute_freqs:
-                self.mute_freqs[pos] = self.mute_freqs['overall_mean']
+                if self.germline_seq[pos] in utils.nukes:  # NOTE counts and mute freqs no longer correspond to each other after this
+                    self.mute_counts[pos] = {n : (1 if n == self.germline_seq[pos] else 0) for n in utils.nukes}
+                else:
+                    self.mute_counts[pos] = {n : 1 for n in utils.nukes}
+                self.mute_freqs[pos] = self.default_mute_freq  # will get reset below
+            if pos not in self.mute_freqs:  # shouldn't happen, I think?
+                print '%s pos %d not in mute freqs' % (utils.color('red', 'error'), pos)
+                self.mute_freqs[pos] = self.default_mute_freq
+
+            # apply hard bounds (regardless of total counts)
             if self.mute_freqs[pos] < self.mute_freq_bounds['lo']:
                 self.mute_freqs[pos] = self.mute_freq_bounds['lo']
             if self.mute_freqs[pos] > self.mute_freq_bounds['hi']:
                 self.mute_freqs[pos] = self.mute_freq_bounds['hi']
+
+            # apply default/prior mute freq (kind of similar to adding missing values)
+            total_counts = sum(self.mute_counts[pos].values())
+            if total_counts < self.args.min_observations_per_gene:
+                w1, w2 = self.args.min_observations_per_gene - total_counts, total_counts  # i.e. zero observations would be 100% the default mute freq
+                self.mute_freqs[pos] = (w1 * self.default_mute_freq + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, the denominator is always equal to <self.args.min_observations_per_gene>
+
+        # recalculate mean values
+        new_overall_mean = float(numpy.mean([self.mute_freqs[p] for p in range(gl_length)]))
+        if abs(new_overall_mean - self.mute_freqs['overall_mean']) / self.mute_freqs['overall_mean'] > self.eps:
+            if self.debug:
+                print '     modified overall mean: %f --> %f' % (self.mute_freqs['overall_mean'], new_overall_mean)
+            self.mute_freqs['unweighted_overall_mean'] = new_overall_mean
+            self.mute_freqs['overall_mean'] = new_overall_mean  # is no longer the weighted average
 
         # then make mfreqs near the ends closer to the overall mean
         for erosion in [re for re in utils.real_erosions if re[0] == self.region]:
@@ -504,13 +607,21 @@ class HmmWriter(object):
                 '3p' : [max(0, gl_length - affected_length), gl_length],
             }
             for pos in range(*affected_bounds[erosion[-2:]]):
-                if pos not in self.mute_freqs:
-                    print 'arg'
-                    for x in range(gl_length):
-                        print '    %d' % x
                 distance_to_end = pos if '_5p' in erosion else gl_length - pos - 1
                 w1, w2 = affected_length - distance_to_end, distance_to_end  # i.e. the actual end position is 100% overall mean
-                self.mute_freqs[pos] = (w1 * self.mute_freqs['overall_mean'] + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, it's always equal to <affected_length>
+                self.mute_freqs[pos] = (w1 * self.mute_freqs['overall_mean'] + w2 * self.mute_freqs[pos]) / float(w1 + w2)  # yeah, the denominator is always equal to <affected_length>
+
+        if self.debug:
+            for vtype, oldvals, newvals in (('count', old_mute_counts, self.mute_counts), ('freq', old_mute_freqs, self.mute_freqs)):
+                added_positions = [p for p in range(gl_length) if p not in oldvals]
+                modified_positions = [p for p in range(gl_length) if p in oldvals and newvals[p] != oldvals[p]]
+                if len(added_positions) > 0:
+                    print '     added default mutation %5s info (e.g. %s) for %d positions: %s' % (vtype, newvals[added_positions[0]], len(added_positions), ' '.join([('%d' % p) for p in added_positions]))
+                if len(modified_positions) > 0:
+                    print '     modified mutation %5s info for %d positions:' % (vtype, len(modified_positions))
+                    print '           %s' % '  '.join([('%4d' % p) for p in modified_positions])
+                    print '       old %s' % '  '.join([(('%4' + ('.2f' if vtype == 'freq' else 's')) % oldvals[p]) for p in modified_positions])
+                    print '       new %s' % '  '.join([(('%4' + ('.2f' if vtype == 'freq' else 's')) % newvals[p]) for p in modified_positions])
 
     # ----------------------------------------------------------------------------------------
     def get_mean_insert_length(self, insertion, debug=False):
@@ -572,9 +683,9 @@ class HmmWriter(object):
         inverse_length = 0.0
         if mean_length > 0.0:
             inverse_length = 1.0 / mean_length
-        if insertion != 'fv' and insertion != 'jf' and mean_length < 1.0:
-            if self.debug:
-                print '      small mean insert length %f' % mean_length
+
+        # if self.debug and insertion != 'fv' and insertion != 'jf' and mean_length < 1.0:
+        #     print '      small mean %s insert length %f' % (insertion, mean_length)
 
         return inverse_length
 
@@ -591,10 +702,10 @@ class HmmWriter(object):
                     non_zero_sum += prob
             self_transition_prob = non_zero_sum / float(non_zero_sum + self.insertion_probs[insertion][0])  # NOTE this otter be less than 1, since we only get here if the mean length is less than 1
             assert self_transition_prob >= 0.0 and self_transition_prob <= 1.0
-            if insertion != 'fv' and insertion != 'jf':  # we pretty much expect this for unphysical insertions
-                if self.debug:
-                    print '    WARNING using insert self-transition probability hack for %s insertion p(>0) / p(0) = %f / %f = %f' % (insertion, non_zero_sum, non_zero_sum + self.insertion_probs[insertion][0], self_transition_prob)
-                    print '      ', self.insertion_probs[insertion]
+
+            # if self.debug and insertion != 'fv' and insertion != 'jf':  # we pretty much expect this for unphysical insertions
+            #     print '    using insert self-transition probability hack for %s insertion p(>0) / p(0) = %f / %f = %f    (%s)' % (insertion, non_zero_sum, non_zero_sum + self.insertion_probs[insertion][0], self_transition_prob, self.insertion_probs[insertion])
+
             return self_transition_prob
 
     # ----------------------------------------------------------------------------------------

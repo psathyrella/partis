@@ -28,10 +28,8 @@ class ClusterPath(object):
             self.add_partition(partition, logprob=0., n_procs=1)
 
     # ----------------------------------------------------------------------------------------
-    def get_headers(self, is_data, smc_particles):
+    def get_headers(self, is_data):
         headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
-        if smc_particles > 1:
-            headers += ['path_index', 'logweight']
         if not is_data:
             headers += ['n_true_clusters', 'ccf_under', 'ccf_over']
         if self.seed_unique_id is not None:
@@ -74,7 +72,7 @@ class ClusterPath(object):
     # ----------------------------------------------------------------------------------------
     def remove_first_partition(self):
         # NOTE after you do this, none of the 'best' shit is any good any more
-        # NOTE also that this is only used for smc
+        # NOTE this was I think only used for smc
         self.partitions.pop(0)
         self.logprobs.pop(0)
         self.n_procs.pop(0)
@@ -142,7 +140,7 @@ class ClusterPath(object):
         return ccf_str
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, smc_print=False):
+    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None):
         #  NOTE it's nicer to *not* sort by cluster size here, since preserving the order tends to frequently make it obvious which clusters are merging as your eye scans downwards through the output
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
@@ -150,21 +148,12 @@ class ClusterPath(object):
             delta_str = ''
         print '      %s  %-12.2f%-7s   %-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, len(self.partitions[ip]), self.n_procs[ip]),
 
-        # logweight (and inverse of number of potential parents)
-        if self.logweights[ip] is not None and smc_print:
-            way_str, logweight_str = '', ''
-            expon = math.exp(self.logweights[ip])
-            n_ways = 0 if expon == 0. else 1. / expon
-            way_str = ('%.1f' % n_ways) if n_ways < 1e7 else ('%8.1e' % n_ways)
-            logweight_str = '%8.3f' % self.logweights[ip]
-
         print '    ' + self.get_ccf_str(ip),
 
-        if self.logweights[ip] is not None and smc_print:
-            print '   %10s    %8s   ' % (way_str, logweight_str),
-
         # clusters
-        for cluster in sorted(self.partitions[ip], key=lambda c: len(c), reverse=True):
+        sorted_clusters = sorted(self.partitions[ip], key=lambda c: len(c), reverse=True)
+        for iclust in range(len(sorted_clusters)):
+            cluster = sorted_clusters[iclust]
             if abbreviate:
                 cluster_str = ':'.join(['o' if len(uid) > 3 else uid for uid in cluster])
             else:
@@ -176,6 +165,9 @@ class ClusterPath(object):
 
             if self.seed_unique_id is not None and self.seed_unique_id in cluster:
                 cluster_str = utils.color('reverse_video', cluster_str)
+
+            if highlight_cluster_indices is not None and iclust in highlight_cluster_indices:
+                cluster_str = utils.color('red', cluster_str)
             
             if abbreviate:
                 print ' %s' % cluster_str,
@@ -184,7 +176,7 @@ class ClusterPath(object):
         print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, smc_print=False, calc_missing_values='none'):
+    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, calc_missing_values='none', highlight_cluster_indices=None):
         assert calc_missing_values in ['none', 'all', 'best']
         if reco_info is not None and calc_missing_values == 'all':
             self.calculate_missing_values(reco_info)
@@ -193,8 +185,6 @@ class ClusterPath(object):
             print '    %7s %10s   %-7s %5s  %4s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
             if reco_info is not None or self.we_have_a_ccf:
                 print ' %5s %5s' % ('purity', 'completeness'),
-            if self.logweights[0] is not None and smc_print:
-                print '  %10s  %7s' % ('pot.parents', 'logweight'),
             print ''
 
         for ip in self.get_surrounding_partitions(n_partitions=n_to_print):
@@ -207,7 +197,7 @@ class ClusterPath(object):
                 mark = mark[:-2] + '* '
             if mark.count(' ') < len(mark):
                 mark = utils.color('yellow', mark)
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, smc_print=smc_print)
+            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices)
 
     # ----------------------------------------------------------------------------------------
     def get_surrounding_partitions(self, n_partitions):
@@ -262,21 +252,21 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def init_outfile(self, outfname, is_data, smc_particles=1):
+    def init_outfile(self, outfname, is_data):
         outfile = open(outfname, 'w')
-        writer = csv.DictWriter(outfile, self.get_headers(is_data, smc_particles))
+        writer = csv.DictWriter(outfile, self.get_headers(is_data))
         writer.writeheader()
         return outfile, writer
 
     # ----------------------------------------------------------------------------------------
-    def write(self, outfname, is_data, smc_particles=1, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none'):
+    def write(self, outfname, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none'):
         """ self-contained writing function """
-        outfile, writer = self.init_outfile(outfname, is_data, smc_particles)
+        outfile, writer = self.init_outfile(outfname, is_data)
         self.write_partitions(writer, reco_info, true_partition, is_data, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
         outfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, reco_info, true_partition, is_data, smc_particles=1, path_index=None, n_to_write=None, calc_missing_values='none'):
+    def write_partitions(self, writer, reco_info, true_partition, is_data, path_index=None, n_to_write=None, calc_missing_values='none'):
         """ use this if you're writing several paths to the same file"""
 
         # ----------------------------------------------------------------------------------------
@@ -307,7 +297,7 @@ class ClusterPath(object):
             self.calculate_missing_values(reco_info)
 
         # ----------------------------------------------------------------------------------------
-        headers = self.get_headers(is_data, smc_particles)
+        headers = self.get_headers(is_data)
         for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
             part = self.partitions[ipart]
             cluster_str = ''

@@ -220,7 +220,8 @@ def shift_hist_overflows(hists, xmin, xmax):
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
-                 xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None):
+                 xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
+                 square_bins=False):
     assert os.path.exists(plotdir)
 
     hists = [hist,]
@@ -308,7 +309,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         alpha = 1.
         if alphas is not None:
             alpha = alphas[ih]
-        htmp.mpl_plot(ax, color=tmpcolors[ih], linewidth=linewidth, linestyle=tmplinestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize)
+        htmp.mpl_plot(ax, color=tmpcolors[ih], linewidth=linewidth, linestyle=tmplinestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize, remove_empty_bins=remove_empty_bins, square_bins=square_bins)
 
     # TODO combine xline, yline, and xyline (I don't want to go find everwhere that calls this right now)
     if xline is not None:

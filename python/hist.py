@@ -292,7 +292,7 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False):
+    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False, square_bins=False):
         # note: bin labels are/have to be handled elsewhere
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             # print '   integral is zero in hist::mpl_plot'
@@ -324,6 +324,7 @@ class Hist(object):
         elif self.title != '':
             kwargs['label'] = self.title
         if errors:
+            assert not square_bins  # would need to be implemented
             if remove_empty_bins:
                 xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
             kwargs['yerr'] = yerrs
@@ -331,4 +332,13 @@ class Hist(object):
         else:
             if remove_empty_bins:
                 xvals, yvals = zip(*[(xvals[iv], yvals[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
-            return ax.plot(xvals, yvals, **kwargs)  #, fmt='-o')
+            if square_bins:
+                import numpy
+                import matplotlib.pyplot as plt
+                npbins = list(numpy.arange(int(xvals[0]) - 0.5, int(xvals[-1]) - 0.5))
+                npbins.append(npbins[-1] + 1)
+                kwargs = {k : kwargs[k] for k in kwargs if k not in ['marker', 'markersize']}
+                kwargs['histtype'] = 'step'
+                return plt.hist(xvals, npbins, weights=yvals, **kwargs)
+            else:
+                return ax.plot(xvals, yvals, **kwargs)  #, fmt='-o')

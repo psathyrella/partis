@@ -36,7 +36,7 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def get_cdr3_title(self, annotation):
-        naive_cdr3_seq, _ = utils.subset_sequences(annotation, iseq=0, restrict_to_region='cdr3')
+        naive_cdr3_seq, _ = utils.subset_iseq(annotation, 0, restrict_to_region='cdr3')
         title = ''
         if len(naive_cdr3_seq) % 3 != 0:
             # print '  out of frame: adding %s' % ((3 - len(naive_cdr3_seq) % 3) * 'N')
@@ -45,86 +45,42 @@ class PartitionPlotter(object):
         title = self.Seq.Seq(naive_cdr3_seq).translate() + title
         return title
 
-    # self.n_bins = 30
     # # ----------------------------------------------------------------------------------------
-    # def get_cdr3_length_classes(self, partition, annotations):
-    #     # NOTE this should be replaced by the fcn from utils
-    #     classes = {}
-    #     for cluster in partition:
-    #         if ':'.join(cluster) not in annotations:  # i.e. if this cluster's annotation failed in the hmm when getting annotations for the final partition (which is weird, I'm surprised there's messed-up-enough sequences at this stage that that would happen)
-    #             continue
-    #         info = annotations[':'.join(cluster)]
-    #         if info['cdr3_length'] not in classes:
-    #             classes[info['cdr3_length']] = []
-    #         classes[info['cdr3_length']].append(cluster)
-    #     return classes
+    # def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, plotdir, plotname, debug=False):
+    #     """ shm (identity to naive sequence) vs identity to some reference sequence """
+    #     import matplotlib.pyplot as plt
 
-    # # ----------------------------------------------------------------------------------------
-    # def plot_each_within_vs_between_hist(self, distances, plotdir, plotname, plottitle):
-    #     xmax = 1.2 * max([d for dtype in distances for d in distances[dtype]])
-    #     hists = {}
-    #     for dtype in distances:
-    #         hists[dtype] = Hist(self.n_bins, 0., xmax, title=dtype)
-    #         for mut_freq in distances[dtype]:
-    #             hists[dtype].fill(mut_freq)
-    #     self.plotting.draw_no_root(hists['within'], plotname=plotname, plotdir=plotdir, more_hists=[hists['between']], plottitle=plottitle, xtitle='hamming distance', errors=True)
+    #     fig, ax = self.plotting.mpl_init()
 
-    # # ----------------------------------------------------------------------------------------
-    # def plot_within_vs_between_hists(self, partition, annotations, base_plotdir):
-    #     classes = self.get_cdr3_length_classes(partition, annotations)
+    #     if self.args.seed_unique_id is not None and self.args.seed_unique_id in cluster:
+    #         seed_index = cluster.index(self.args.seed_unique_id)
+    #         ref_seq = annotation['seqs'][seed_index]
+    #         ref_label = 'seed seq'
+    #         xref = annotation['n_mutations'][seed_index]
+    #     else:
+    #         ref_seq = utils.cons_seq(0.1, aligned_seqfos=[{'name' : cluster[iseq], 'seq' : annotation['seqs'][iseq]} for iseq in range(len(cluster))])
+    #         ref_label = 'consensus seq'
+    #         xref = utils.hamming_distance(annotation['naive_seq'], ref_seq)
 
-    #     overall_distances = {'within' : [mut_freq for info in annotations.values() for mut_freq in info['mut_freqs']],
-    #                          'between' : []}
-    #     sub_distances = {}
-    #     def nseq(cl):
-    #         return annotations[':'.join(cl)]['naive_seq']
-    #     for cdr3_length, clusters in classes.items():  # for each cdr3 length, loop over each pair of clusters that have that cdr3 length
-    #         # NOTE/TODO I'm extremely unhappy that I have to put the naive seq length check here. But we pad cdr3 length subclasses to the same length during smith waterman, and by the time we get to here, in very rare cases the the cdr3 length has changed.
-    #         hfracs = [utils.hamming_fraction(nseq(cl_a), nseq(cl_b)) for cl_a, cl_b in itertools.combinations(clusters, 2) if len(nseq(cl_a)) == len(nseq(cl_b))]  # hamming fractions for each pair of clusters with this cdr3 length
-    #         sub_distances[cdr3_length] = {'within' : [mut_freq for cluster in clusters for mut_freq in annotations[':'.join(cluster)]['mut_freqs']],
-    #                                       'between' : hfracs}
-    #         overall_distances['between'] += hfracs
+    #     xvals, yvals = zip(*[[annotation['n_mutations'][iseq], utils.hamming_distance(ref_seq, annotation['seqs'][iseq])] for iseq in range(len(cluster))])
+    #     hb = ax.hexbin(xvals, yvals, gridsize=40, cmap=plt.cm.Blues, bins='log')
 
-    #     self.plot_each_within_vs_between_hist(overall_distances, base_plotdir + '/overall', 'within-vs-between', '')
-    #     for cdr3_length, subd in sub_distances.items():
-    #         self.plot_each_within_vs_between_hist(subd, base_plotdir + '/within-vs-between', 'cdr3-length-%d' % cdr3_length, 'CDR3 %d' % cdr3_length)
+    #     # add a red mark for the reference sequence
+    #     yref = 0
+    #     ax.plot([xref], [yref], color='red', marker='.', markersize=10)
+    #     ax.text(xref, yref, ref_label, color='red', fontsize=8)
 
-    # ----------------------------------------------------------------------------------------
-    def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, plotdir, plotname, debug=False):
-        """ shm (identity to naive sequence) vs identity to some reference sequence """
-        import matplotlib.pyplot as plt
+    #     if self.args.queries_to_include is not None:  # note similarity to code in make_single_hexbin_size_vs_shm_plot()
+    #         queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
+    #         for uid in queries_to_include_in_this_cluster:
+    #             iseq = cluster.index(uid)
+    #             xval = annotation['n_mutations'][iseq]
+    #             yval = utils.hamming_distance(ref_seq, annotation['seqs'][iseq])
+    #             ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+    #             ax.text(xval, yval, uid, color='red', fontsize=8)
 
-        fig, ax = self.plotting.mpl_init()
-
-        if self.args.seed_unique_id is not None and self.args.seed_unique_id in cluster:
-            seed_index = cluster.index(self.args.seed_unique_id)
-            ref_seq = annotation['seqs'][seed_index]
-            ref_label = 'seed seq'
-            xref = annotation['n_mutations'][seed_index]
-        else:
-            ref_seq = utils.cons_seq(0.1, aligned_seqfos=[{'name' : cluster[iseq], 'seq' : annotation['seqs'][iseq]} for iseq in range(len(cluster))])
-            ref_label = 'consensus seq'
-            xref = utils.hamming_distance(annotation['naive_seq'], ref_seq)
-
-        xvals, yvals = zip(*[[annotation['n_mutations'][iseq], utils.hamming_distance(ref_seq, annotation['seqs'][iseq])] for iseq in range(len(cluster))])
-        hb = ax.hexbin(xvals, yvals, gridsize=40, cmap=plt.cm.Blues, bins='log')
-
-        # add a red mark for the reference sequence
-        yref = 0
-        ax.plot([xref], [yref], color='red', marker='.', markersize=10)
-        ax.text(xref, yref, ref_label, color='red', fontsize=8)
-
-        if self.args.queries_to_include is not None:  # note similarity to code in make_single_hexbin_size_vs_shm_plot()
-            queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
-            for uid in queries_to_include_in_this_cluster:
-                iseq = cluster.index(uid)
-                xval = annotation['n_mutations'][iseq]
-                yval = utils.hamming_distance(ref_seq, annotation['seqs'][iseq])
-                ax.plot([xval], [yval], color='red', marker='.', markersize=10)
-                ax.text(xval, yval, uid, color='red', fontsize=8)
-
-        ylabel = 'identity to %s' % ref_label
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
+    #     ylabel = 'identity to %s' % ref_label
+    #     self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
 
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
@@ -248,6 +204,7 @@ class PartitionPlotter(object):
                 yticklabels.append(repfracstr)
 
                 base_color = colors[iclust_global % len(colors)]
+                qti_n_muted = {}
                 if self.args.queries_to_include is not None:
                     queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
                     if len(queries_to_include_in_this_cluster) > 0:
@@ -274,10 +231,9 @@ class PartitionPlotter(object):
                     linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
                     color = base_color
                     # alpha = gety(min_alpha, max_alpha, xmax, hist.bin_contents[ibin])
-                    if self.args.queries_to_include is not None:
-                        for nmuted in qti_n_muted.values():
-                            if hist.find_bin(nmuted) == ibin:
-                                color = 'red'
+                    for nmuted in qti_n_muted.values():
+                        if hist.find_bin(nmuted) == ibin:
+                            color = 'red'
                     if hist.bin_contents[ibin] == 0.:
                         color = 'grey'
                         linewidth = min_linewidth
@@ -423,14 +379,15 @@ class PartitionPlotter(object):
             seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices]
             color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
 
-            seqfos.append({'name' : 'naive', 'seq' : full_info['naive_seq']})  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
-            color_scale_vals['naive'] = 0
-            queries_to_include = ['naive']
+            seqfos.append({'name' : '_naive', 'seq' : full_info['naive_seq']})  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
+            color_scale_vals['_naive'] = 0  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
+            queries_to_include = ['_naive']
             if self.args.queries_to_include is not None:
                 queries_to_include += self.args.queries_to_include
 
             return seqfos, color_scale_vals, queries_to_include, title
 
+        # ----------------------------------------------------------------------------------------
         subd, plotdir = self.init_subd('mds', base_plotdir)
 
         if debug:
@@ -468,17 +425,20 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region='v', debug=False):
-        def addplot(oindexlist, ofracslist, n_seqs, fname, title):
+    def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region=None, debug=False):
+        def addplot(oindexlist, ofracslist, n_seqs, fname, cdr3titlestr, red_text=None):
             hist = Hist(30, 0., 1.)
             for ofracs in ofracslist:
                 hist.fill(ofracs)
             fig, ax = self.plotting.mpl_init()
             hist.mpl_plot(ax, remove_empty_bins=True)
-            ax.text(0.65, 0.8 * ax.get_ylim()[1], 'size: %d' % n_seqs, fontsize=20, fontweight='bold')
-            ax.text(0.65, 0.7 * ax.get_ylim()[1], 'h: %.2f' % utils.fay_wu_h(line=None, restrict_to_region=restrict_to_region, occurence_indices=oindexlist, n_seqs=n_seqs), fontsize=20, fontweight='bold')
+            ax.text(0.65, 0.8 * ax.get_ylim()[1], 'h: %+.1f' % utils.fay_wu_h(line=None, restrict_to_region=restrict_to_region, occurence_indices=oindexlist, n_seqs=n_seqs), fontsize=17, fontweight='bold')
+            if red_text is not None:
+                ax.text(0.65, 0.7 * ax.get_ylim()[1], red_text, fontsize=17, color='red', fontweight='bold')
+            titlestr = '%s (size: %d)' % (cdr3titlestr, n_seqs)
+
             regionstr = restrict_to_region + ' ' if restrict_to_region is not None else ''
-            self.plotting.mpl_finish(ax, plotdir, fname, title=title, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
+            self.plotting.mpl_finish(ax, plotdir, fname, title=titlestr, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
             self.addfname(fnames, fname)
 
         subd, plotdir = self.init_subd('sfs', base_plotdir)
@@ -489,7 +449,10 @@ class PartitionPlotter(object):
                 continue
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotation, restrict_to_region=restrict_to_region)
-            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'iclust-%d' % iclust, self.get_cdr3_title(annotation))
+            red_text = None
+            if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:
+                red_text = '%s' % ' '.join(set(self.args.queries_to_include) & set(sorted_clusters[iclust]))
+            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'icluster-%d' % iclust, self.get_cdr3_title(annotation), red_text=red_text)
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
@@ -530,6 +493,9 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None):
+        if self.args.only_csv_plots:
+            print '  --only-csv-plots not implemented for partition plots, so skipping'
+            return
         assert (partition is None and annotations is not None) or infiles is None
         print '  plotting partitions'
         sys.stdout.flush()

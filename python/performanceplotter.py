@@ -127,11 +127,6 @@ class PerformancePlotter(object):
                 self.skipped_queries.append(':'.join(inf_line['unique_ids']))
                 # note that you can't really evaluate the rest of the performance vars in any particularly meaningful way when the indel info is different (like I tried to do below) since you have to decide how to assign the indel'd bases (like, is it correct to assign the indel'd bases to a deletion? or to an insertion? or to the j?)
                 return
-                # true_line = copy.deepcopy(true_line)
-                # utils.remove_all_implicit_info(true_line)
-                # true_line['indelfos'][iseq] = indelutils.get_empty_indel()
-                # true_line['seqs'][iseq] = true_line['input_seqs'][iseq]
-                # utils.add_implicit_info(simglfo, true_line)
 
         mutfo = {lt : {mt : {} for mt in ['freq', 'total']} for lt in ['sim', 'inf']}
         for rstr in plotconfig.rstrings:

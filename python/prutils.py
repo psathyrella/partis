@@ -1,6 +1,7 @@
 import copy
 import sys
 
+import indelutils
 import utils
 
 # ----------------------------------------------------------------------------------------
@@ -30,23 +31,27 @@ def check_outsr_lengths(line, outstrs, fix=False):
     raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
 
 # ----------------------------------------------------------------------------------------
-def indel_shenanigans(line, outstrs, colors, indels, iseq):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
-    # <outstrs> convention: [indels, d, vj, query]
-    def is_qr(index):
-        return index == 3
-    def use_stars(ifo, index):
-        if ifo['type'] == 'insertion': # for insertions, query sequence should *not* have stars
-            return not is_qr(index)
-        elif ifo['type'] == 'deletion':
-            return is_qr(index)
-        else:
-            assert False
+def is_qr(index):
+    return index == 3
+
+# ----------------------------------------------------------------------------------------
+def use_stars(itype, index):
+    if itype == 'insertion': # for insertions, query sequence should *not* have stars
+        return not is_qr(index)
+    elif itype == 'deletion':
+        return is_qr(index)
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
+def old_indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
+    # <outstrs> convention: [inserts, d, vj, query]
     def reinstate(ifo, istr):
         indelstr = ifo['seqstr']
 
         if outstrs[istr][ifo['pos']] not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
             indelstr = ' ' * len(ifo['seqstr'])
-        elif use_stars(ifo, istr):
+        elif use_stars(ifo['type'], istr):
             indelstr = '*' * len(ifo['seqstr'])
 
         if ifo['type'] == 'deletion':
@@ -59,10 +64,104 @@ def indel_shenanigans(line, outstrs, colors, indels, iseq):  # NOTE similar to/o
                 for inuke  in range(ifo['pos'], ifo['pos'] + ifo['len']):
                     colors[istr][inuke] += ['light_blue', 'reverse_video']
 
-    for ifo in indels['indels']:
+    ifo = line['indelfos'][iseq]
+    for ifo in ifo['indels']:
         for istr in range(len(outstrs)):
             reinstate(ifo, istr)
         check_outsr_lengths(line, outstrs)
+
+    return outstrs, colors
+
+# ----------------------------------------------------------------------------------------
+def indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
+    if debug:
+        print '%s' % utils.color('blue', 'shenanigans')
+
+    def get_itype(qrchar, glchar):
+        if qrchar not in utils.gap_chars and glchar not in utils.gap_chars:
+            return None
+        elif glchar not in utils.gap_chars:
+            return 'deletion'
+        elif qrchar not in utils.gap_chars:
+            return 'insertion'
+        else:
+            return 'uh'  # i guess it's possible if there's overlapping indels, but I don't want to think about that a.t.m.
+    def choose_char(ostrchar, istr, qrchar, glchar):  # <char> is the character that's there already
+        if ostrchar not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
+            return ' '
+        elif use_stars(get_itype(qrchar, glchar), istr):
+            return '*'
+        elif qrchar not in utils.gap_chars and glchar not in utils.gap_chars:
+            return char
+        elif glchar not in utils.gap_chars:
+            return glchar
+        elif qrchar not in utils.gap_chars:
+            return qrchar
+        else:
+            assert False
+
+    ifo = line['indelfos'][iseq]
+
+    # eh, fuck it, there's too many ways this can go wrong
+    # print ' in     \'%s\'' % line['input_seqs'][iseq]
+    # print ' qr     \'%s\'' % outstrs[-1]
+    # print ' qr gap \'%s\'' % ifo['qr_gap_seq']
+    # print ' gl gap \'%s\'' % ifo['gl_gap_seq']
+    # assert len(ifo['qr_gap_seq']) == len(ifo['gl_gap_seq'])
+    # # non_gap_len() is if there were dashes added because of no space, rstrip() is in case we fixed length problems in check_outsr_lengths()
+    # if utils.non_gap_len(outstrs[-1].rstrip()) - line['v_5p_del'] - line['j_3p_del'] != len(ifo['qr_gap_seq']) - utils.gap_len(ifo['gl_gap_seq']):
+    #     print '%d - %d - %d = %d != %d - %d = %d' % (utils.non_gap_len(outstrs[-1].rstrip()), line['v_5p_del'], line['j_3p_del'], utils.non_gap_len(outstrs[-1].rstrip()) - line['v_5p_del'] - line['j_3p_del'],
+    #                                                  len(ifo['qr_gap_seq']), utils.gap_len(ifo['gl_gap_seq']), len(ifo['qr_gap_seq']) - utils.gap_len(ifo['gl_gap_seq']))
+    #     assert False
+
+    ipos, iqrgap, iglgap = 0, 0, 0  # line['v_5p_del']
+    istop = len(outstrs[-1])
+    new_outstrs, new_colors = [[] for _ in outstrs], [[] for _ in colors]
+    while ipos < istop:
+        outchars = [ostr[ipos] for ostr in outstrs]
+        if ipos < line['v_5p_del'] or ipos >= istop - line['j_3p_del'] or '-' in outchars or ' ' in outchars[-1]:  # '-' is to check for no-extra-space fix, and ' ' is in case we fixed length problems with check_outsr_lengths()
+            for istr in range(len(outstrs)):
+                new_outstrs[istr] += [outstrs[istr][ipos]]
+                new_colors[istr] += [[]]
+            ipos += 1
+            continue
+
+        if iqrgap >= len(ifo['qr_gap_seq']) or iglgap >= len(ifo['gl_gap_seq']):
+            print ' ins     %3d  x%sx' % (ipos, outstrs[0])
+            print '  d           x%sx' % (outstrs[1])
+            print ' vj           x%sx' % (outstrs[2])
+            print ' qr           x%sx' % (outstrs[3])
+            print ' qr gap  %s  x%sx' % (utils.color('red' if iqrgap >= len(ifo['qr_gap_seq']) else None, '%3d' % iqrgap), ifo['qr_gap_seq'])
+            print ' gl gap  %s  x%sx' % (utils.color('red' if iglgap >= len(ifo['gl_gap_seq']) else None, '%3d' % iglgap), ifo['gl_gap_seq'])
+            print '%s index problem when adding indel info to print strings in prutils.indel_shenanigans() (probably due to overlapping indels)' % utils.color('red', 'error')
+            break
+        # print ipos, iqrgap, iglgap, ifo['qr_gap_seq'][iqrgap], ifo['gl_gap_seq'][iglgap]
+        if ifo['qr_gap_seq'][iqrgap] not in utils.gap_chars and ifo['gl_gap_seq'][iglgap] not in utils.gap_chars:
+            for istr in range(len(outstrs)):
+                new_outstrs[istr] += [outstrs[istr][ipos]]
+                new_colors[istr] += [[]]
+            ipos += 1
+            iqrgap += 1
+            iglgap += 1
+        else:
+            for istr in range(len(outstrs)):
+                new_char = choose_char(outstrs[istr][ipos], istr, ifo['qr_gap_seq'][iqrgap], ifo['gl_gap_seq'][iglgap])
+                new_outstrs[istr] += [new_char]
+                new_colors[istr] += [[]]
+                if iseq > 0 and is_qr(istr):  # the germline lines are printed based on the *first* query sequence in a multi-seq alignment, and it'd be kinda hard to really account for all subsequent sequences' indels, so we compromise by blueing the insertions in the subsequent query sequences (deletions are already blue stars). Note that they still don't line up right.
+                    new_colors[istr][-1] += ['light_blue', 'reverse_video']
+            if ifo['gl_gap_seq'][iglgap] not in utils.gap_chars:  # if this is a dot in the gl gap seq, then this base was an insertion in the query sequence, i.e. we removed it for the reversed seq, i.e. we don't want to increment <ipos>
+                ipos += 1
+            iqrgap += 1
+            iglgap += 1
+
+    outstrs = [''.join(ostr) for ostr in new_outstrs]
+    colors = new_colors
+    check_outsr_lengths(line, outstrs)
+
+    if debug:
+        for ostr in outstrs:
+            print '    %s' % ostr
 
     return outstrs, colors
 
@@ -175,7 +274,9 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     check_outsr_lengths(line, outstrs, fix=True)
 
     colors = [[[] for _ in range(len(ostr))] for ostr in outstrs]
-    outstrs, colors = indel_shenanigans(line, outstrs, colors, line['indelfos'][iseq], iseq)
+    if indelutils.has_indels(line['indelfos'][iseq]):
+        # outstrs, colors = old_indel_shenanigans(line, iseq, outstrs, colors)
+        outstrs, colors = indel_shenanigans(line, iseq, outstrs, colors)
     outstrs = add_colors(outstrs, colors, line)
 
     suffixes = ['insert%s\n'       % ('s' if utils.has_d_gene(utils.get_locus(line['v_gene'])) else ''),
@@ -184,9 +285,12 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
                 '%s   %4.2f mut\n' % (get_uid_str(line, iseq, seed_uid), line['mut_freqs'][iseq])]
     outstrs = ['%s%s   %s' % (extra_str, ostr, suf) for ostr, suf in zip(outstrs, suffixes)]
 
-    if label != '':
+    if label != '':  # this doesn't really work if the edge of the removed string is the middle of a color code... but oh well, it doesn't really happen any more since I shortened the kbound label from waterer.py
         offset = max(0, len(extra_str) - 2)  # skootch <label> this many positions leftward into <extra_str>
+        removed_str = outstrs[0][offset : offset + utils.len_excluding_colors(label)]
         outstrs[0] = outstrs[0][ : offset] + label + outstrs[0][utils.len_excluding_colors(label) + offset : ]  # NOTE this *replaces* the bases in <extra_str> with <label>, which is only fine if they're spaces
+        if removed_str.strip() != '':
+            print '%s%s (covered by label \'%s\')' % (' ' * offset, utils.color('red', removed_str), label)
 
     if one_line:
         outstrs = outstrs[-1:]  # remove all except the query seq line

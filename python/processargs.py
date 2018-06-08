@@ -1,6 +1,7 @@
 import os
 import random
 import sys
+import subprocess
 
 import utils
 
@@ -21,9 +22,6 @@ def process(args):
         args.locus = args.loci[0]
 
     args.only_genes = utils.get_arg_list(args.only_genes)
-    args.n_procs = utils.get_arg_list(args.n_procs, intify=True)
-    args.n_fewer_procs = args.n_procs[0] if len(args.n_procs) == 1 else args.n_procs[1]
-    args.n_procs = args.n_procs[0]
     args.queries = utils.get_arg_list(args.queries)
     args.queries_to_include = utils.get_arg_list(args.queries_to_include)
     args.reco_ids = utils.get_arg_list(args.reco_ids)
@@ -39,12 +37,11 @@ def process(args):
         raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
     args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
 
+    args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify=True)
+
     args.region_end_exclusions = {r : [args.region_end_exclusion_length if ('%s_%s' % (r, e)) in utils.real_erosions else 0 for e in ['5p', '3p']] for r in utils.regions}
     args.region_end_exclusion_length = None  # there isn't really a big reason to set it to None, but this makes clear that I should only be using the dict version
 
-    args.initial_match_mismatch = utils.get_arg_list(args.initial_match_mismatch, intify=True)
-    if len(args.initial_match_mismatch) != 2:
-        raise Exception('--initial-match-mismatch should be of the form \'match:mismatch\', but I got ' + str(args.n_max_per_region))
     args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
     if args.small_clusters_to_ignore is not None:
@@ -72,20 +69,11 @@ def process(args):
         for gene in args.only_genes:  # make sure they're all at least valid ig genes
             utils.split_gene(gene)
 
-    # if n_procs < 1 or n_procs > 9999:  # It happened, at least once. You know, probably.
-    #     raise Exception('bad n_procs %s' % n_procs)
-    if args.n_procs > args.n_max_procs:
-        print 'reducing n procs %d to --n-max-procs %d' % (args.n_procs, args.n_max_procs)
-        args.n_procs = args.n_max_procs
-    if args.n_fewer_procs > args.n_max_procs:
-        print 'reducing n procs %d to --n-max-procs %d' % (args.n_fewer_procs, args.n_max_procs)
-        args.n_fewer_procs = args.n_max_procs
-
     if args.print_git_commit or args.action == 'version':
         print 'RUN ' + ' '.join(sys.argv)
-        tag = check_output(['git', 'tag']).split()[-1]
+        tag = subprocess.check_output(['git', 'tag']).split()[-1]
         print '       tag %s' % tag
-        print '    commit %s' % check_output(['git', 'rev-parse', 'HEAD']).strip()
+        print '    commit %s' % subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
         if args.action == 'version':
             sys.exit(0)
 
@@ -97,9 +85,14 @@ def process(args):
         if args.n_simultaneous_seqs is not None:
             raise Exception('can\'t specify both --n-simultaneous-seqs and --simultaneous-true-clonal-seqs')
 
-    if args.no_indels and args.gap_open_penalty < 1000:
-        print 'forcing --gap-open-penalty to 1000 to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)'
-        args.gap_open_penalty = 1000
+    if args.no_indels:
+        print 'forcing --gap-open-penalty to %d to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty
+        args.gap_open_penalty = args.no_indel_gap_open_penalty
+
+    if args.indel_frequency > 0.:
+        if args.indel_frequency < 0. or args.indel_frequency > 1.:
+            raise Exception('--indel-frequency must be in [0., 1.] (got %f)' % args.indel_frequency)
+    args.n_indels_per_indeld_seq = utils.get_arg_list(args.n_indels_per_indeld_seq, intify=True)
 
     if 'tr' in args.locus and args.mutation_multiplier is None:
         args.mutation_multiplier = 0.
@@ -126,6 +119,7 @@ def process(args):
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
     if args.cluster_annotation_fname is None and args.outfname is not None:
+        assert '.csv' in args.outfname
         args.cluster_annotation_fname = args.outfname.replace(utils.getsuffix(args.outfname), '-cluster-annotations.csv')
 
     if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
@@ -154,6 +148,40 @@ def process(args):
     if args.presto_output and args.aligned_germline_fname is None:
         raise Exception('in order to get presto output, you have to set --aligned-germline-fname (a fasta file with germline alignments for every germline gene)')
 
+    if args.action == 'simulate':
+        if len(args.loci) != 1:
+            raise Exception('needs to be implemented')
+        if args.batch_system is not None and args.n_procs > 1 and not args.subsimproc:
+            print '  %s setting subsimproc' % utils.color('red', 'warning')
+            args.subsimproc = True
+        if args.n_trees is None:
+            args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
+        if args.outfname is None:
+            print '  note: no --outfname specified, so nothing will be written to disk'
+        if args.n_max_queries != -1:
+            print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
+
+        # end result of this block: shm/reco parameter dirs are set (unless we're doing their bit from scratch), --parameter-dir is set to None (and if --parameter-dir was set but shm/reco were _not_ set, we've just used --parameter-dir for either/both as needed)
+        if args.parameter_dir is not None:
+            if args.rearrange_from_scratch or args.mutate_from_scratch:
+                raise Exception('can\'t set --parameter-dir if rearranging or mutating from scratch (use --reco-parameter-dir and/or --shm-parameter-dir)')
+            if args.reco_parameter_dir is not None or args.shm_parameter_dir is not None:
+                raise Exception('can\'t set --parameter-dir if either --reco-parameter-dir or --shm-parameter-dir are also set')
+            args.reco_parameter_dir = args.parameter_dir
+            args.shm_parameter_dir = args.parameter_dir
+            args.parameter_dir = None
+        if args.rearrange_from_scratch and args.reco_parameter_dir is not None:
+            raise Exception('doesn\'t make sense to set both --rearrange-from-scratch and --reco-parameter-dir')
+        if args.mutate_from_scratch and args.shm_parameter_dir is not None:
+            raise Exception('doesn\'t make sense to set both --mutate-from-scratch and --shm-parameter-dir')
+        if args.reco_parameter_dir is None and not args.rearrange_from_scratch:
+            raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir')
+        if args.shm_parameter_dir is None and not args.mutate_from_scratch:
+            raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir')
+
+        if args.generate_germline_set and not args.rearrange_from_scratch:
+            raise Exception('can only --generate-germline-set if also rearranging from scratch (set --rearrange-from-scratch)')
+
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')
 
@@ -162,6 +190,10 @@ def process(args):
 
     if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
         args.default_initial_germline_dir += '/' + args.species
+
+    if args.species != 'human' and not args.allele_cluster:
+        print '  non-human species \'%s\', turning on allele clustering' % args.species
+        args.allele_cluster = True
 
     if args.n_max_snps is not None and args.n_max_mutations_per_segment is not None:
         if args.n_max_snps > args.n_max_mutations_per_segment - 10:
@@ -178,5 +210,11 @@ def process(args):
         args.allele_cluster = False
         args.dont_find_new_alleles = True
 
-    if args.flat_mute_freq is not None or args.same_mute_freq_for_all_seqs:
+    if args.simulate_from_scratch:
+        args.rearrange_from_scratch = True
+        args.mutate_from_scratch = True
+    if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:
         assert args.mutate_from_scratch
+
+    if args.infname is None and args.action not in ['simulate', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
+        raise Exception('--infname is required for action \'%s\'' % args.action)

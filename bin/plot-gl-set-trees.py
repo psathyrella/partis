@@ -154,7 +154,7 @@ def getstatus(gene_categories, node, ref_label=None, debug=False):
         return 'internal'
     cats = [cat for cat, genes in gene_categories.items() if gene in genes]
     if len(cats) == 0:
-        raise Exception('couldn\'t find a category for %s (among %s)' % (node.name, gene_categories))
+        raise Exception('[probably need to bust plot cache/rewrite tree file] couldn\'t find a category for %s among:\n %s' % (node.name, '\n  '.join(['%s:\n     %s' % (k, ' '.join(gene_categories[k])) for k in gene_categories])))
     elif len(cats) > 1:
         raise Exception('wtf?')
     if debug:
@@ -193,18 +193,27 @@ def write_results(outdir, gene_categories, gl_sets):
 def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None, debug=False):
     glfos = {}
     for label, fname in zip(glslabels, glsfnames):
+        if os.path.isdir(fname):
+            raise Exception('directory passed instead of germline file name: %s' % fname)
+        if os.path.basename(os.path.dirname(fname)) != args.locus:
+            raise Exception('unexpected germline directory structure (should have locus \'%s\' at end): %s' % (args.locus, fname))
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
-        glfos[label] = glutils.read_glfo(gldir, args.locus)  # this is gonna fail for tigger since you only have the .fa
+        glfos[label] = glutils.read_glfo(gldir, args.locus, remove_orfs=('partis' in label))  # this is gonna fail for tigger since you only have the .fa
 
-    # synchronize to somebody -- either simulation (<ref_label>) or the first one
-    if ref_label is not None:
-        sync_label = ref_label
-    else:
-        sync_label = glslabels[0]
-    for label in [l for l in glslabels if l != sync_label]:
-        if debug:
-            print '    syncronizing %s names to match %s' % (label, sync_label)
-        glutils.synchronize_glfos(ref_glfo=glfos[sync_label], new_glfo=glfos[label], region=args.region, debug=debug)
+    if args.region != 'v':
+        print '  not synchronizing gl sets for %s' % args.region
+    if args.region == 'v':  # don't want to deal with d and j synchronization yet
+        # synchronize to somebody -- either simulation (<ref_label>) or the first one
+        if ref_label is not None:
+            sync_label = ref_label
+        elif 'partis' in glslabels:
+            sync_label = 'partis'
+        else:
+            sync_label = glslabels[0]
+        for label in [l for l in glslabels if l != sync_label]:
+            if debug:
+                print '  synchronizing %s names to match %s' % (label, sync_label)
+            glutils.synchronize_glfos(ref_glfo=glfos[sync_label], new_glfo=glfos[label], region=args.region, ref_label=sync_label, debug=debug)
 
     gl_sets = {label : {g : seq for g, seq in glfos[label]['seqs'][args.region].items()} for label in glfos}
     all_genes = {g : s for gls in gl_sets.values() for g, s in gls.items()}
@@ -434,14 +443,6 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
 
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False
-    if not args.leaf_names:
-        tstyle.show_leaf_name = False
-
-    # tstyle.mode = 'c'
-    # if arc_start is not None:
-    #     tstyle.arc_start = arc_start
-    # if arc_span is not None:
-    #     tstyle.arc_span = arc_span
 
     write_legend(plotdir)
     if args.title is not None:
@@ -455,6 +456,8 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
     print '      %s' % imagefname
+    etree.render(imagefname.replace(suffix, '-leaf-names' + suffix), tree_style=tstyle)
+    tstyle.show_leaf_name = False
     etree.render(imagefname, tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
@@ -478,19 +481,18 @@ example_str = '\n    '.join(['example usage (note that this example as it is wil
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=example_str)
 parser.add_argument('--plotdir', default=os.getcwd() + '/gl-set-tree-plots')
 parser.add_argument('--plotname', default='test')
-parser.add_argument('--glsfnames', required=True, help='colon-separated list of germline ighv fasta file names')
+parser.add_argument('--glsfnames', required=True, help='colon-separated list of germline ig fasta file names')
 parser.add_argument('--glslabels', required=True, help='colon-separated list of labels corresponding to --glsfnames')
 parser.add_argument('--locus', required=True, choices=['igh', 'igk', 'igl'])
 parser.add_argument('--legends', help='colon-separated list of legend labels')
 parser.add_argument('--legend-title')
-parser.add_argument('--leaf-names', action='store_true', help='add leaf node names to the plot')
 parser.add_argument('--pie-chart-faces', action='store_true')
 parser.add_argument('--use-cache', action='store_true', help='use existing raxml output from a previous run (crashes if it isn\'t there)')
 parser.add_argument('--only-print', action='store_true', help='just print the summary, without making any plots')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--title')
 parser.add_argument('--title-color')
-parser.add_argument('--region', default='v', help='probably doesn\'t work for other regions yet')
+parser.add_argument('--region', default='v')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
 parser.add_argument('--raxml-path', default='./packages/standard-RAxML/raxmlHPC-SSE3')
@@ -515,7 +517,7 @@ if not os.path.exists(args.raxml_path):
     raise Exception('raxml binary %s doesn\'t exist (set with --raxml-path)' % args.raxml_path)
 if not os.path.exists(args.plotdir):
     os.makedirs(args.plotdir)
-args.leafheight = 20 if args.leaf_names else 10  # arg, kinda messy
+args.leafheight = 10  #20 if args.leaf_names else 10  # arg, kinda messy
 args.novel_dot_size = 2.5
 
 assert len(args.glslabels) == len(set(args.glslabels))  # no duplicates

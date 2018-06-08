@@ -56,7 +56,7 @@ Glomerator::Glomerator(HMMHolder &hmms, GermLines &gl, vector<vector<Sequence> >
 
 // ----------------------------------------------------------------------------------------
 Glomerator::~Glomerator() {
-  cout << FinalString() << endl;
+  cout << FinalString(true) << endl;
   WriteCacheFile();
   fclose(progress_file_);
   remove((args_->outfile() + ".progress").c_str());

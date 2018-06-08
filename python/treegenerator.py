@@ -87,7 +87,8 @@ def rescale_tree(treestr, new_height, debug=False):
 class TreeGenerator(object):
     def __init__(self, args, parameter_dir, seed):
         self.args = args
-        self.set_branch_lengths(parameter_dir)  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
+        self.parameter_dir = parameter_dir
+        self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
         if self.args.debug:
             print '  generating %d trees,' % self.args.n_trees,
@@ -95,7 +96,7 @@ class TreeGenerator(object):
                 print 'all with %s leaves' % str(self.args.n_leaves)
             else:
                 print 'n-leaves from %s distribution with parameter %s' % (self.args.n_leaf_distribution, str(self.args.n_leaves))
-            print '        mean branch lengths from %s' % parameter_dir
+            print '        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch')
             for mtype in ['all',] + utils.regions:
                 print '         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
 
@@ -108,9 +109,9 @@ class TreeGenerator(object):
         return -(3./4) * math.log(argument)
 
     #----------------------------------------------------------------------------------------
-    def get_mute_hist(self, mtype, parameter_dir):
+    def get_mute_hist(self, mtype):
         if self.args.mutate_from_scratch:
-            mean_mute_val = self.args.default_scratch_mute_freq if self.args.flat_mute_freq is None else self.args.flat_mute_freq
+            mean_mute_val = self.args.scratch_mute_freq
             if self.args.same_mute_freq_for_all_seqs:
                 hist = Hist(1, mean_mute_val - utils.eps, mean_mute_val + utils.eps)
                 hist.fill(mean_mute_val)
@@ -126,15 +127,15 @@ class TreeGenerator(object):
                     hist.fill(val)
                 hist.normalize()
         else:
-            hist = Hist(fname=parameter_dir + '/' + mtype + '-mean-mute-freqs.csv')
+            hist = Hist(fname=self.parameter_dir + '/' + mtype + '-mean-mute-freqs.csv')
 
         return hist
 
     #----------------------------------------------------------------------------------------
-    def set_branch_lengths(self, parameter_dir):
+    def set_branch_lengths(self):
         self.branch_lengths = {}
         for mtype in ['all'] + utils.regions:
-            hist = self.get_mute_hist(mtype, parameter_dir)
+            hist = self.get_mute_hist(mtype)
             hist.normalize(include_overflows=False, expect_overflows=True)  # if it was written with overflows included, it'll need to be renormalized
             lengths, probs = [], []
             for ibin in range(1, hist.n_bins + 1):  # ignore under/overflow bins

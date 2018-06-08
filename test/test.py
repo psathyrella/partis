@@ -124,13 +124,16 @@ class Tester(object):
         elif 'cache-parameters-' in ptest:
             argfo['action'] = 'cache-parameters'
             if True:  #args.make_plots:
-                argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + input_dtype, '--only-csv-plots', '--only-overall-plots']
+                argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + input_dtype]
         else:
             argfo['action'] = ptest
 
         if '--plot-annotation-performance' in argfo['extras']:
             self.perfdirs[ptest] = ptest + '-annotation-performance'
-            argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[ptest], '--only-csv-plots']
+            argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[ptest]]
+
+        if '--plotdir' in argfo['extras']:
+            argfo['extras'] += ['--only-csv-plots', '--only-overall-plots']
 
         if ptest == 'simulate':
             argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]

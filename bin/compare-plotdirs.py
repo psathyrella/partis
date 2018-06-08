@@ -55,7 +55,6 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     xline, bounds, figsize = None, None, None
     stats = args.extra_stats
     translegend = [0.0, -0.2]
-    log = ''
     xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
     if xtitle == '':  # arg, plotting.py thinks default should be None, hist.py thinks it's ''
         xtitle = None
@@ -142,7 +141,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                           shift_overflows=(os.path.basename(outdir) != 'gene-call'), plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, alphas=alphas, errors=True,
-                          figsize=figsize, no_labels=no_labels, log=log, translegend=translegend)
+                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -157,6 +156,7 @@ parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--extra-stats')
 parser.add_argument('--translegend')
+parser.add_argument('--log', default='')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
