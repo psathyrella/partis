@@ -1293,7 +1293,7 @@ def find_nearest_gene_with_same_cpos(glfo, new_seq, new_cpos=None, new_name=None
                 nearest_print_strs += [utils.color_mutants(new_seq_str[istart : istop], nearest_seq_str[istart : istop])]
             nearest_print_strs[-1] = utils.color(color, nearest_print_strs[-1])
             # nearest_print_strs += [utils.color(color, utils.color_mutants(new_seq_str[istart : istop], nearest_seq_str[istart : istop], red_bkg=color=='blue'))]
-        print '        %s gene %s with same cpos in %s for %s (blue bases are not considered):' % ('equivalent' if min_distance == 0 else 'nearest', utils.color_gene(nearest_gene), glfo_str, ' ' if new_name is None else utils.color_gene(new_name))
+        print '        %s gene %s with same cpos in %s for %s (blue bases are not considered):' % (utils.color('blue', 'equivalent') if min_distance == 0 else 'nearest', utils.color_gene(nearest_gene), glfo_str, ' ' if new_name is None else utils.color_gene(new_name))
         print '            %s   %s' % (''.join(new_print_strs), 'new' if new_name is None else utils.color_gene(new_name))
         print '            %s   %s' % (''.join(nearest_print_strs), utils.color_gene(nearest_gene))
 
@@ -1330,14 +1330,15 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
 
 # ----------------------------------------------------------------------------------------
 def synchronize_glfos(ref_glfo, new_glfo, region, ref_label='ref glfo', debug=False):
+    # note that this modifies not only the names in <new_glfo>, but also the sequences (since we want equivalent genes to have identical sequences after synchronization)
     assert region == 'v'  # cysteine stuff would need to be generalized
-    genes_in_common = set()
+    genes_in_common, equivalent_gene_pairs = [], []
     for new_name, new_seq in new_glfo['seqs'][region].items():
         if new_name in ref_glfo['seqs'][region]:
             if new_seq != ref_glfo['seqs'][region][new_name]:
                 print '%s different sequences for %s:' % (utils.color('red', 'error'), utils.color_gene(new_name))  # this should really probably be an exception
                 utils.color_mutants(ref_glfo['seqs'][region][new_name], new_seq, align=True, print_result=True, extra_str='  ', ref_label=ref_label + '  ')
-            genes_in_common.add(new_name)
+            genes_in_common.append(new_name)
             continue
         if debug:
             print '     %s:' % utils.color_gene(new_name)
@@ -1350,11 +1351,19 @@ def synchronize_glfos(ref_glfo, new_glfo, region, ref_label='ref glfo', debug=Fa
 
             if debug:
                 print '        %s --> %s' % (utils.color_gene(new_name), utils.color_gene(equiv_name))
+            equivalent_gene_pairs.append((new_name, equiv_name))
             remove_gene(new_glfo, new_name)
             add_new_allele(new_glfo, {'gene' : equiv_name, 'seq' : equiv_seq, 'cpos' : utils.cdn_pos(ref_glfo, region, equiv_name)}, use_template_for_codon_info=False)
 
     if debug:
         print '  %d genes in common' % len(genes_in_common)
+        print '  %d (%d) different genes in %s (new)' % (len(ref_glfo['seqs'][region]) - len(genes_in_common) - len(equivalent_gene_pairs), len(new_glfo['seqs'][region]) - len(genes_in_common) - len(equivalent_gene_pairs), ref_label)
+        print '  %d equivalent genes: ' % len(equivalent_gene_pairs)
+        gene_str_width = max([utils.len_excluding_colors(utils.color_gene(g)) for g, _ in equivalent_gene_pairs])  # only care about the first one
+        def novelstr(g):
+            return utils.color('blue', 'x') if is_novel(g) else ' '
+        for name, ename in equivalent_gene_pairs:
+            print '            %s %s  %s %s' % (novelstr(name), utils.color_gene(name, width=gene_str_width), novelstr(ename), utils.color_gene(ename, width=gene_str_width))
 
     # try to convert igdiscover novel allele names (randomish string at end) to partis notation (e.g. +A78C)
     assert 'igdiscover' not in ref_label # partis has to be the <ref_label> for this to work

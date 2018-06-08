@@ -193,9 +193,15 @@ def write_results(outdir, gene_categories, gl_sets):
 def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None, debug=False):
     glfos = {}
     for label, fname in zip(glslabels, glsfnames):
+        if os.path.isdir(fname):
+            raise Exception('directory passed instead of germline file name: %s' % fname)
+        if os.path.basename(os.path.dirname(fname)) != args.locus:
+            raise Exception('unexpected germline directory structure (should have locus \'%s\' at end): %s' % (args.locus, fname))
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
         glfos[label] = glutils.read_glfo(gldir, args.locus, remove_orfs=('partis' in label))  # this is gonna fail for tigger since you only have the .fa
 
+    if args.region != 'v':
+        print '  not synchronizing gl sets for %s' % args.region
     if args.region == 'v':  # don't want to deal with d and j synchronization yet
         # synchronize to somebody -- either simulation (<ref_label>) or the first one
         if ref_label is not None:
