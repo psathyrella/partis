@@ -14,6 +14,7 @@ from subprocess import Popen, check_call, PIPE, CalledProcessError, check_output
 import copy
 import multiprocessing
 import operator
+import traceback
 
 import utils
 import glutils
@@ -1631,7 +1632,16 @@ class PartitionDriver(object):
                 # if self.args.correct_boundaries and len(padded_line['unique_ids']) > 1:  # this does a decent job of correcting the multi-hmm's tendency to overestimate insertion and deletion lengths, but it also removes a significant portion of the multi-hmm's advantage in naive hamming distance
                 #     self.correct_multi_hmm_boundaries(padded_line)
 
-                utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
+                try:
+                    utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
+                except:  # I really don't like just swallowing it, but it's crashing deep in the new[ish] indel code on an extraordinarily rare and I think super screwed up sequence, and I can't replicate it without running on the entire stupid huge sample
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+                    print '      %s implicit info adding failed for %s when reading hmm output (so adding to failed queries):' % (utils.color('red', 'warning'), uidstr)
+                    print utils.pad_lines(''.join(lines))
+                    hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
+                    continue
+
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
