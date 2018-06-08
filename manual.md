@@ -8,11 +8,10 @@ Partis is free software under the GPL v3, and is described in the following pape
 
 This manual is divided into the following pages:
 
-  * [Installation](https://github.com/psathyrella/partis/blob/master/docs/install.md)
   * [Installation](docs/install.md)
-  * [Quick start](https://github.com/psathyrella/partis/blob/master/docs/quick-start.md)
-  * [Subcommands](https://github.com/psathyrella/partis/blob/master/docs/subcommands.md)
-  * [Parallelization](https://github.com/psathyrella/partis/blob/master/docs/parallel.md)
+  * [Quick start](docs/quick-start.md)
+  * [Subcommands](docs/subcommands.md)
+  * [Parallelization](docs/parallel.md)
 
 Details of the multitude of flags not vital enough to document here, but which can be used to control many aspects of behavior can be found by running each subcommand's help, for instance `partis cache-parameters --help` or `partis simulate --help`.
 

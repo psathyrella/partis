@@ -27,8 +27,8 @@ To then reattach to this running container, run `docker attach container-1`.
 
 #### Installation from scratch
 
-To install without Docker, you first want to read the [Dockerfile](https://github.com/psathyrella/partis/blob/master/Dockerfile) carefully to figure out the dependencies you'll need to install.
-We currently recommend using conda, as in the Dockerfile, but [pip]((https://github.com/psathyrella/partis/blob/master/docs/pip-install.md) has also worked well in the past.
+To install without Docker, you first want to read the [Dockerfile](../Dockerfile) carefully to figure out the dependencies you'll need to install.
+We currently recommend using conda, as in the Dockerfile, but [pip]((docs/pip-install.md) has also worked well in the past.
 
 If you don't have conda installed, follow the full installation instructions [here](https://docs.anaconda.com/anaconda/install/), e.g. for [linux](https://docs.anaconda.com/anaconda/install/linux).
 
