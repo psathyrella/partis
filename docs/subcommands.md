@@ -40,6 +40,10 @@ By default, this uses the most accurate and slowest method: hierarchical agglome
 
 There are also a number of options for speeding things up either by sacrificing accuracy for speed, or by ignoring sequences you don't care about:
 
+##### subsampling
+
+The simplest way to go faster is to only use some of your sequences. You can choose a random subset with `--n-random-queries <n>` (random seed is set with `--seed <n>`), or take the first `n` sequences with `--n-max-queries <n>`. You can also limit it to specific sequence ids using `--queries <a:b:c>`, where `a:b:c` is a colon-separated list of sequence ids.
+
 ##### `--seed-unique-id <id>`
 
 Ignores sequences that are not clonally related to the sequence specified by `<id>`, and is consequently vastly faster than partitioning the entire sample. You can specify the sequence rather than the id with `--seed-seq <seq>`.
@@ -60,38 +64,16 @@ If you're mostly interested in larger clonal families, you can tell it to cluste
 
 Cases where memory is a limiting factor typically stem from a sample with several very large families. Some recent optimizations mean that this doesn't really happen any more, but limiting clonal family size with `--max-cluster-size N` nevertheless can reduce memory usage. Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
 
-<!-- ---------------------------------------------------------------------------------------- -->
-##### cluster annotations
+##### naive sequence uncertainties
 
-To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-simultaneous-seqs` arguments.
-For instance, if you knew from partitioning that three sequences `a`, `b`, and `c` were clonal, you could run:
-
-``` partis annotate --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
-
-In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step.
-This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the alternative naive sequences for the sub-clusters.
-For instance:
+In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step. This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the naive sequence for each sub-cluster (actually this just moves the cache file that's a normal part of partitioning to a persistent location). For instance:
 
 ```
 partis partition --infname test/example.fa --outfname _output/example.csv --calculate-alternative-naive-seqs
 partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>  # try piping this to less by adding "| less -RS"
 ```
 
-if you don't specify `--queries` in the second step, it's ok, since it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.
-<!-- ---------------------------------------------------------------------------------------- -->
-
-##### cpu and memory usage
-Because, at least to a first approximation, accurate clustering entails all-against-all comparison, partitioning is in a fundamentally different computational regime than are single-sequence problems such as annotation.
-In order to arrive at a method that can be useful in practice, we have tried to combat this inherent difficulty with a number of different levels of both approximations and caching, several of which are described in the papers.
-As in many such cases, this frequently amounts to an attempt to make judicious compromises between cpu and memory usage which are appropriate in each individual circumstance.
-Because the computational difficulty of the clustering problem is entirely dependent on the detailed structure of each repertoire, however, it is not always possible to make the optimal choice ahead of time.
-For instance, five hundred thousand sequences from a repertoire that consists almost entirely of a single, highly-mutated clone will have very different computational requirements (more!) to one which is more evenly spread among different naive rearrangements and has more typical mutation levels.
-
-Which is a roundabout way of saying: if you find that the sample which you'd like to run on is taking forever with the number of cores you have available, or if it's exhausting your available memory, you have a few options:
-
-  - `--n-max-queries N`/`--n-random-queries N`: run on one (or several) subsets of the sample independently. Reducing the sample size by a factor of, say, four, will typically make it run eight times faster and use an eighth the memory.
-  - `--naive-vsearch` a very fast, but less accurate version (see above)
-  - `--seed-unique-id <uid>` only find clusters clonally related to `<uid>` (see above)
+if you don't know which `--queries` to put in the second step, just run without setting `--queries`, and it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.
 
 ### output formats
 
