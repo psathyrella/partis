@@ -1,33 +1,34 @@
-  * [Subcommands](https://github.com/psathyrella/partis/blob/master/docs/subcommands.md)
-    - [annotate](#annotate) find most likely annotations
-    - [partition](#partition) cluster sequences into clonally-related families
-      - [faster methods](#faster-methods)
-      - [cluster annotations](#cluster-annotations)
-    - [view-annotations](#view-annotations) Print (to stdout) the annotations from an existing annotation output csv.
-    - [view-partitions](#view-partitions)  Print (to stdout) the partitions from an existing partition output csv.
-    - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
-      - [germline sets](#germline-sets)
-    - [simulate](#simulate) make simulated sequences
-
-
-
 ### Subcommands
 
-The main script has a number of actions:
+The `partis` command has a number of actions:
 
-```./bin/partis annotate | partition | view-annotations | view-partitions | cache-parameters | simulate```,
+  - [annotate](#annotate) find most likely annotations
+  - [partition](#partition) cluster sequences into clonally-related families
+    - [faster methods](#faster-methods)
+    - [cluster annotations](#cluster-annotations)
+  - [view-annotations](#view-annotations) Print (to stdout) the annotations from an existing annotation output csv.
+  - [view-partitions](#view-partitions)  Print (to stdout) the partitions from an existing partition output csv.
+  - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
+    - [germline sets](#germline-sets)
+  - [simulate](#simulate) make simulated sequences
 
-each of which is described in more detail below.
-For more information you can also type `./bin/partis --help` and `./bin/partis <subcommand> --help`.
+For information on the options for each subcommand not documented in this manual run `./bin/partis <subcommand> --help`.
 
-The fist step in all cases is to infer a set of parameters particular to the input sequence file.
+For the sake of brevity, the commands below invoke partis with no path, which will work if you've either:
+  - linked the binary into to a directory that's already in your path, e.g. `ln -s /path/to/<partis_dir/bin/partis ~/bin/` or
+  - added the partis `bin/` to your path: `export PATH=/path/to/<partis_dir/bin/:$PATH`
+The other option is to specify the full path `/path/to/<partis_dir>/bin/partis`.
+
+The fist step for each sample is to infer a set of parameters particular to that sample.
 These are written to `--parameter-dir`, and then used for all subsequent runs.
+<!-- ---------------------------------------------------------------------------------------- -->
 If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path (parameters for `path/to/seqs.fa` will go in `_output/path_to_seqs/`).
-This default is designed such that with typical workflows, if your input files have different paths, their parameters will go in different places.
+This default is designed such that with typical workflows, if your input files have different paths, their parameters will go in different places: if you different input files with identical paths and base names, it will of course use incorrect parameters.
 
 That said, the consequences of using the wrong parameter directory for a set of sequences are potentially dire.
 So if you're doing any monkey business, you need to be aware of where partis is telling you that it's putting parameters (it's printed to stdout).
 For instance, if you run with one set of sequences in an input file, and then toss some **other** sequences into the same file, partis won't know anything about it, and will use the same (now-inappropriate) parameters.
+<!-- ---------------------------------------------------------------------------------------- -->
 
 If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
 
@@ -43,7 +44,7 @@ If however, you're doing less typical things (running on a subset of sequences i
 
 In order to find the most likely annotation (VDJ assignment, deletion boundaries, etc.) for each sequence, run
 
-```./bin/partis annotate --infname test/example.fa --outfname _output/example.csv```
+```partis annotate --infname test/example.fa --outfname _output/example.csv```
 
 The output csv file will by default contain the following columns:
 
@@ -81,13 +82,13 @@ The output csv file will by default contain the following columns:
 All columns listed as "colon-separated lists" are trivial/length one for single sequence annotation, i.e. are only length greater than one (contain actual colons) when the multi-hmm has been used for simultaneous annotation on several clonally-related sequences (typically through the cluster annotation output but partition action).
 You can view a colored ascii representation of the rearrangement events with the `view-annotations` action (see below).
 An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
-Additional columns (for instance, cdr3_seqs) can be specified with the `--extra-annotation-columns` option (run `./bin/partis annotate --help` to see the choices).
+Additional columns (for instance, cdr3_seqs) can be specified with the `--extra-annotation-columns` option (run `partis annotate --help` to see the choices).
 
 ### partition
 
 In order to cluster sequences into clonal families, run
 
-```./bin/partis partition --infname test/example.fa --outfname _output/example.csv```
+```partis partition --infname test/example.fa --outfname _output/example.csv```
 
 This writes a list of partitions (see table below for the csv headers), with one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions.
 It also writes the annotation for each cluster in the most likely partition to a separate file (by default `<--outfname>.replace('.csv', '-cluster-annotations.csv')`, change this with `--cluster-annotation-fname`).
@@ -140,15 +141,15 @@ Care must be exercised when interpreting the resulting partition, since it will 
 To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-simultaneous-seqs` arguments.
 For instance, if you knew from partitioning that three sequences `a`, `b`, and `c` were clonal, you could run:
 
-``` ./bin/partis annotate --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
+``` partis annotate --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
 
 In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step.
 This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the alternative naive sequences for the sub-clusters.
 For instance:
 
 ```
-./bin/partis partition --infname test/example.fa --outfname _output/example.csv --calculate-alternative-naive-seqs
-./bin/partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>  # try piping this to less by adding "| less -RS"
+partis partition --infname test/example.fa --outfname _output/example.csv --calculate-alternative-naive-seqs
+partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>  # try piping this to less by adding "| less -RS"
 ```
 
 if you don't specify `--queries` in the second step, it's ok, since it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.
@@ -170,13 +171,13 @@ Which is a roundabout way of saying: if you find that the sample which you'd lik
 
 To, e.g. run on the output csv from the `annotate` action:
 
-``` ./bin/partis view-annotations --outfname annotate-output.csv```
+``` partis view-annotations --outfname annotate-output.csv```
 
 ### view-partitions
 
 To, e.g. run on the output csv from the `partition` action:
 
-``` ./bin/partis view-partitions --outfname partition-output.csv```
+``` partis view-partitions --outfname partition-output.csv```
 
 ### cache-parameters
 
@@ -190,7 +191,7 @@ These files are then passed as input to a second, HMM-based, annotation step, wh
 
 For example:
 
-``` ./bin/partis cache-parameters --infname test/example.fa --parameter-dir _output/example```
+``` partis cache-parameters --infname test/example.fa --parameter-dir _output/example```
 
 When caching parameters, the parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
@@ -215,10 +216,10 @@ This mode uses the previously-inferred parameters from that sample, located in `
 By default, for instance, if a sample at the path `/path/to/sample.fa` was previously partitioned, the parameters would have been written to `_output/_path_to_sample/`.
 You could thus write the mature sequences resulting from three simulated rearrangement events to the file `simu.csv` by running
 
-```./bin/partis simulate --parameter-dir _output/_path_to_sample --outfname simu.csv --n-sim-events 3 --debug 1```,
+```partis simulate --parameter-dir _output/_path_to_sample --outfname simu.csv --n-sim-events 3 --debug 1```,
 
 where `--debug 1` prints to stdout what the rearrangement events look like as they're being made.
-Starting from this, there are a wide variety of options for manipulating how the characteristics of the simulation deviate from the template data sample (for information on defaults, run `./bin/partis simulate --help`).
+Starting from this, there are a wide variety of options for manipulating how the characteristics of the simulation deviate from the template data sample (for information on defaults, run `partis simulate --help`).
 
 **Miscellaneous:**
 
@@ -294,7 +295,7 @@ You first need to either give it an explicit list of genes to use, or tell it to
 | `--sim-v-genes <v-list>` | colon-separated list of V genes to use for simulation
 | `--inf-v-genes <v-list>` | start from this list of V genes, and try to infer the genes from --sim-v-genes
 | `--dj-genes <dj-list>`   | D and J genes used for both simulation and inference
-| `--gls-gen`              | instead of using explicit gene lists, generate a full germline set from scratch (see --generate-germline-set in `./bin/partis --help` for details)
+| `--gls-gen`              | instead of using explicit gene lists, generate a full germline set from scratch (see --generate-germline-set in `partis simulate --help` for details)
 
 You can then add novel alleles to the germline set by telling it how many novel alleles, with how many SNPs and/or indels, and where to introduce the SNPs/indels:
 
