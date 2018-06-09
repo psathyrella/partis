@@ -18,5 +18,5 @@ WORKDIR /partis
 RUN ./bin/build.sh
 RUN conda install -y r-essentials \
     && unset R_LIBS_SITE \
-    && R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'
+    && R --vanilla --slave -e 'install.packages("TreeSim", repos="http://cran.rstudio.com/")'  # add other packages here
 CMD ./test/test.py --quick

@@ -20,7 +20,7 @@ The `sudo` may not be necessary for some systems. With `docker run`, we create a
 
 Docker's default escape key is ctrl-p, which unfortunately conflicts with common command line shortcuts. To change this put`{"detachKeys": "ctrl-q,q"}` into the file `~/.docker/config.json` which will swap it to ctrl-q.
 
-When finished, you _don't_ want to just exit and `docker run` again -- this will create a new container, and you'll have to recompile.
+When finished, you _don't_ want to just exit and `docker run` again -- this will create a new container.
 One solution is to run Docker inside [tmux](https://hackernoon.com/a-gentle-introduction-to-tmux-8d784c404340?gi=70388a0228fb) in which case you can just leave the container open.
 Alternatively, you can detach from the container with `ctrl-q q` (or whatever you've remapped ctrl-p q to).
 To then reattach to this running container, run `docker attach container-1`.
