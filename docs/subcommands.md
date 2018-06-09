@@ -1,52 +1,101 @@
+  - [annotate](#annotate) find most likely annotation for each sequence
+  - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
+  - [output formats](#output-formats) parsing output from annotation and partitioning
+  - [view-annotations](#view-annotations) print the annotations from an existing annotation output csv
+  - [view-partitions](#view-partitions)  print the partitions from an existing partition output csv.
+  - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, runs automatically before annotation and partitioning)
+    - [germline sets](#germline-sets)
+  - [simulate](#simulate) make simulated sequences
+
 ### Subcommands
 
 The `partis` command has a number of actions:
 
-  - [annotate](#annotate) find most likely annotations
-  - [partition](#partition) cluster sequences into clonally-related families
-    - [faster methods](#faster-methods)
-    - [cluster annotations](#cluster-annotations)
-  - [view-annotations](#view-annotations) Print (to stdout) the annotations from an existing annotation output csv.
-  - [view-partitions](#view-partitions)  Print (to stdout) the partitions from an existing partition output csv.
-  - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set
-    - [germline sets](#germline-sets)
-  - [simulate](#simulate) make simulated sequences
+```./bin/partis annotate | partition | view-annotations | view-partitions | cache-parameters | simulate```
 
-For information on the options for each subcommand not documented in this manual run `./bin/partis <subcommand> --help`.
+For information on options for each subcommand that are not documented in this manual run `./bin/partis <subcommand> --help`.
 
 For the sake of brevity, the commands below invoke partis with no path, which will work if you've either:
   - linked the binary into to a directory that's already in your path, e.g. `ln -s /path/to/<partis_dir/bin/partis ~/bin/` or
   - added the partis `bin/` to your path: `export PATH=/path/to/<partis_dir/bin/:$PATH`
-The other option is to specify the full path `/path/to/<partis_dir>/bin/partis`.
-
-The fist step for each sample is to infer a set of parameters particular to that sample.
-These are written to `--parameter-dir`, and then used for all subsequent runs.
-<!-- ---------------------------------------------------------------------------------------- -->
-If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path (parameters for `path/to/seqs.fa` will go in `_output/path_to_seqs/`).
-This default is designed such that with typical workflows, if your input files have different paths, their parameters will go in different places: if you different input files with identical paths and base names, it will of course use incorrect parameters.
-
-That said, the consequences of using the wrong parameter directory for a set of sequences are potentially dire.
-So if you're doing any monkey business, you need to be aware of where partis is telling you that it's putting parameters (it's printed to stdout).
-For instance, if you run with one set of sequences in an input file, and then toss some **other** sequences into the same file, partis won't know anything about it, and will use the same (now-inappropriate) parameters.
-<!-- ---------------------------------------------------------------------------------------- -->
-
-If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
-
-Whether caching parameters or running on pre-existing parameters, the hmm needs smith-waterman annotations as input.
-While this preliminary smith-waterman step is fairly fast, it's also easy to cache the results so you only have to do it once.
-By default these smith-waterman annotations are written to a csv file in `--parameter-dir` during parameter caching.
-The default filename is a hash of the concatenated input sequence id strings
-(Because all sequences need to be aligned and padded to the same length before partititioning, the smith-waterman annotation information for each sequence depends slightly on all the other sequences in the file, hence the hash.)
-These defaults should ensure that with typical workflows, smith-waterman only runs once.
-If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
+The other option is to specify the full path with each call `/path/to/<partis_dir>/bin/partis`.
 
 ### annotate
 
 In order to find the most likely annotation (VDJ assignment, deletion boundaries, etc.) for each sequence, run
 
-```partis annotate --infname test/example.fa --outfname _output/example.csv```
+```partis annotate --infname test/example.fa --outfname _output/example.csv```.
 
-The output csv file will by default contain the following columns:
+For information on parsing the output file, see [below](#output-formats).
+
+### partition
+
+In order to cluster sequences into clonal families, run
+
+```partis partition --infname test/example.fa --outfname _output/example.csv```
+
+For information on parsing the output file, see [below](#output-formats).
+
+By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clusters, and full likelihood calculation for more similar clusters. This method is typically appropriate (finishing in minutes to tens of hours) for tens of thousands of sequences on a laptop, or hundreds of thousands on a server. Because the usual optimizations that prevent clustering time from scaling quadratically with sample size do not translate well to BCR rearrangement space (at least not if you care about getting accurate clusters), run time varies significantly from sample to sample, hence the large range of quoted run times.
+
+There are also a number of options for speeding things up either by sacrificing accuracy for speed, or by ignoring sequences you don't care about:
+
+##### `--seed-unique-id <id>`
+
+Ignores sequences that are not clonally related to the sequence specified by `<id>`, and is consequently vastly faster than partitioning the entire sample. You can specify the sequence rather than the id with `--seed-seq <seq>`.
+
+##### `--naive-vsearch`
+
+As for the default clustering method, first calculates the naive ancestor for each sequence, but then passes these to vsearch for very fast, very heuristic clustering.
+Vsearch is extremely fast, because it includes a large number of optimizations to avoid all-against-all comparison, and thus scales much better than quadratically.
+Because these optimizations (like any purely distance-based approach) know nothing about VDJ rearrangement or SHM, however, they significantly compromise accuracy.
+This is nevertheless a thoroughly reasonably way to get a rough idea of the lineage structure of your sample.
+After running vsearch clustering, you can always pass families of interest (e.g. with `--seed-unique-id`) to the more accurate clustering method.
+
+##### ignore smaller clusters
+
+If you're mostly interested in larger clonal families, you can tell it to cluster as normal for several partitition steps, then discard smaller families (for a description of partition steps, see the paper). Any large families will have accumulated appreciable size within the first few partition steps, and since most real repertoires are dominated by smaller clusters, this will dramatically decrease the remaining sample size. This is turned on by setting `--small-clusters-to-ignore <sizes>`, where `<sizes>` is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or an inclusive range of sizes (e.g. `1-10`). The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters <n>` (default 3).
+
+##### limit maximum cluster size
+
+Cases where memory is a limiting factor typically stem from a sample with several very large families. Some recent optimizations mean that this doesn't really happen any more, but limiting clonal family size with `--max-cluster-size N` nevertheless can reduce memory usage. Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
+
+<!-- ---------------------------------------------------------------------------------------- -->
+##### cluster annotations
+
+To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-simultaneous-seqs` arguments.
+For instance, if you knew from partitioning that three sequences `a`, `b`, and `c` were clonal, you could run:
+
+``` partis annotate --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
+
+In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step.
+This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the alternative naive sequences for the sub-clusters.
+For instance:
+
+```
+partis partition --infname test/example.fa --outfname _output/example.csv --calculate-alternative-naive-seqs
+partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>  # try piping this to less by adding "| less -RS"
+```
+
+if you don't specify `--queries` in the second step, it's ok, since it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.
+<!-- ---------------------------------------------------------------------------------------- -->
+
+##### cpu and memory usage
+Because, at least to a first approximation, accurate clustering entails all-against-all comparison, partitioning is in a fundamentally different computational regime than are single-sequence problems such as annotation.
+In order to arrive at a method that can be useful in practice, we have tried to combat this inherent difficulty with a number of different levels of both approximations and caching, several of which are described in the papers.
+As in many such cases, this frequently amounts to an attempt to make judicious compromises between cpu and memory usage which are appropriate in each individual circumstance.
+Because the computational difficulty of the clustering problem is entirely dependent on the detailed structure of each repertoire, however, it is not always possible to make the optimal choice ahead of time.
+For instance, five hundred thousand sequences from a repertoire that consists almost entirely of a single, highly-mutated clone will have very different computational requirements (more!) to one which is more evenly spread among different naive rearrangements and has more typical mutation levels.
+
+Which is a roundabout way of saying: if you find that the sample which you'd like to run on is taking forever with the number of cores you have available, or if it's exhausting your available memory, you have a few options:
+
+  - `--n-max-queries N`/`--n-random-queries N`: run on one (or several) subsets of the sample independently. Reducing the sample size by a factor of, say, four, will typically make it run eight times faster and use an eighth the memory.
+  - `--naive-vsearch` a very fast, but less accurate version (see above)
+  - `--seed-unique-id <uid>` only find clusters clonally related to `<uid>` (see above)
+
+### output formats
+
+The annotation csv contains the following columns by default:
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
@@ -84,14 +133,8 @@ You can view a colored ascii representation of the rearrangement events with the
 An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
 Additional columns (for instance, cdr3_seqs) can be specified with the `--extra-annotation-columns` option (run `partis annotate --help` to see the choices).
 
-### partition
-
-In order to cluster sequences into clonal families, run
-
-```partis partition --infname test/example.fa --outfname _output/example.csv```
-
-This writes a list of partitions (see table below for the csv headers), with one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions.
-It also writes the annotation for each cluster in the most likely partition to a separate file (by default `<--outfname>.replace('.csv', '-cluster-annotations.csv')`, change this with `--cluster-annotation-fname`).
+The partition action writes a list of partitions, with one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions.
+It also writes the annotation for each cluster in the most likely partition to a separate file (by default `<--outfname>.replace('.csv', '-cluster-annotations.csv')`, you can change this file name with `--cluster-annotation-fname`).
 
 |   column header  |  description
 |------------------|----------------------------------------------------------------------------
@@ -101,71 +144,6 @@ It also writes the annotation for each cluster in the most likely partition to a
 | n_procs          |  Number of processes which were simultaneously running for this clusterpath. In practice, final output is usually only written for n_procs = 1
 
 An example of how to parse these output csvs is in `bin/example-output-processing.py`.
-
-By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clsuters, and full likelihood calculation for more similar clusters.
-Like most clustering algorithms, this scales rather closer than you'd like to quadratically than it does to linearly.
-We thus also have two faster and more approximate methods.
-
-##### faster methods
-
-*--seed-unique-id*
-
-Only looks for sequences which are clonally related to the sequence id specified by `--seed-unique-id` (you can also specify `--seed-seq`).
-Because this completely avoids the all-against-all comparisons which render full data set partitioning depressingly close to quadratic in sample size, it is vastly faster
-It is an excellent option if you have, ahead of time, sequences about which you are particularly interested.
-You can also combine it with, for instance `--naive-vsearch`, by seeding with sequences from particularly interesting (probably large) clusters from that approximate method.
-
-*--naive-vsearch*
-
-First calculates naive (unmutated ancestor) for each sequence, then passes these into vsearch for very fast, very heuristic clustering.
-The initial naive sequence calculation is easy to parallelize, so is fast if you have access to a fair number of processors.
-Vsearch is also very fast, because it makes a large number of heuristic approximations to avoid all-against-all comparison, and thus scales significantly better than quadratically.
-With `--n-procs` around 10 for the vsearch step, this should take only of order minutes for a million sequences.
-If your sample is too large to comfortably partition with the default method using your computational resources, one option is to run naive vsearch clustering, and use clusters from this step in which you're particularly interested to seed `--seed-unique-id`.
-
-*ignore smaller clusters*
-
-Since in many cases we are most interested in the largest clonal families, you can also specify that, after a few partitition steps, smaller families are discarded.
-The idea is that any large clusters will accumulate appreciable size within the first few partition steps, and since most real repertoires are dominated by small clusters (especially singletons), we can learn what we need from these larger clusters without spending time trying to accurately infer the details of the very small clusters.
-What counts as a "small" cluster is controlled by `--small-clusters-to-ignore`, which is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or an inclusive range (e.g. `1-10`).
-The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters` (default 3).
-
-*limit maximum cluster size*
-
-Cases where memory is a limiting factor typically stem from a sample with several very large clones.
-This can be ameliorated by artificially capping clonal family size with `--max-cluster-size N`.
-Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
-
-##### cluster annotations
-
-To annotate an arbitrary collection of sequences using simultaneous multi-HMM inference (which is much more accurate than annotating the sequences individually), you can combine the `--queries` and `--n-simultaneous-seqs` arguments.
-For instance, if you knew from partitioning that three sequences `a`, `b`, and `c` were clonal, you could run:
-
-``` partis annotate --infname in.fa --queries a:b:c --n-simultaneous-seqs 3 --outfname abc-annotation.csv```
-
-In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step.
-This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the alternative naive sequences for the sub-clusters.
-For instance:
-
-```
-partis partition --infname test/example.fa --outfname _output/example.csv --calculate-alternative-naive-seqs
-partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>  # try piping this to less by adding "| less -RS"
-```
-
-if you don't specify `--queries` in the second step, it's ok, since it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.
-
-##### cpu and memory usage
-Because, at least to a first approximation, accurate clustering entails all-against-all comparison, partitioning is in a fundamentally different computational regime than are single-sequence problems such as annotation.
-In order to arrive at a method that can be useful in practice, we have tried to combat this inherent difficulty with a number of different levels of both approximations and caching, several of which are described in the papers.
-As in many such cases, this frequently amounts to an attempt to make judicious compromises between cpu and memory usage which are appropriate in each individual circumstance.
-Because the computational difficulty of the clustering problem is entirely dependent on the detailed structure of each repertoire, however, it is not always possible to make the optimal choice ahead of time.
-For instance, five hundred thousand sequences from a repertoire that consists almost entirely of a single, highly-mutated clone will have very different computational requirements (more!) to one which is more evenly spread among different naive rearrangements and has more typical mutation levels.
-
-Which is a roundabout way of saying: if you find that the sample which you'd like to run on is taking forever with the number of cores you have available, or if it's exhausting your available memory, you have a few options:
-
-  - `--n-max-queries N`/`--n-random-queries N`: run on one (or several) subsets of the sample independently. Reducing the sample size by a factor of, say, four, will typically make it run eight times faster and use an eighth the memory.
-  - `--naive-vsearch` a very fast, but less accurate version (see above)
-  - `--seed-unique-id <uid>` only find clusters clonally related to `<uid>` (see above)
 
 ### view-annotations
 
@@ -197,6 +175,29 @@ When caching parameters, the parameter csvs from Smith-Waterman and the HMM are 
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
 The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model files for each observed allele.
 
+<!-- ---------------------------------------------------------------------------------------- -->
+The fist step for each sample is to infer a set of parameters particular to that sample.
+These are written to `--parameter-dir`, and then used for all subsequent runs.
+<!-- ---------------------------------------------------------------------------------------- -->
+If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path (parameters for `path/to/seqs.fa` will go in `_output/path_to_seqs/`).
+This default is designed such that with typical workflows, if your input files have different paths, their parameters will go in different places: if you different input files with identical paths and base names, it will of course use incorrect parameters.
+
+That said, the consequences of using the wrong parameter directory for a set of sequences are potentially dire.
+So if you're doing any monkey business, you need to be aware of where partis is telling you that it's putting parameters (it's printed to stdout).
+For instance, if you run with one set of sequences in an input file, and then toss some **other** sequences into the same file, partis won't know anything about it, and will use the same (now-inappropriate) parameters.
+<!-- ---------------------------------------------------------------------------------------- -->
+
+If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
+
+Whether caching parameters or running on pre-existing parameters, the hmm needs smith-waterman annotations as input.
+While this preliminary smith-waterman step is fairly fast, it's also easy to cache the results so you only have to do it once.
+By default these smith-waterman annotations are written to a csv file in `--parameter-dir` during parameter caching.
+The default filename is a hash of the concatenated input sequence id strings
+(Because all sequences need to be aligned and padded to the same length before partititioning, the smith-waterman annotation information for each sequence depends slightly on all the other sequences in the file, hence the hash.)
+These defaults should ensure that with typical workflows, smith-waterman only runs once.
+If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
+
+<!-- ---------------------------------------------------------------------------------------- -->
 #### germline sets
 
 By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in data/germlines.
