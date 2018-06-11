@@ -46,11 +46,11 @@ Then make a conda environment for partis:
 ```
 conda create -y -n partis
 source activate partis  # do this _every_ time you start a new terminal
-conda install -y biopython scikit-learn cmake gsl openblas pandas psutil pysam scons seaborn pyyaml
-conda install -y -c biocore mafft
 ```
 
-Then open a new terminal, and:
+Then run the conda install commands from the [Dockerfile](../Dockerfile).
+
+Finally, open a new terminal, and:
 
 ```
 source activate partis
