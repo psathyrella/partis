@@ -9,16 +9,14 @@ The `partition` action, on the other hand, writes two csv files: one with a list
 This cluster annotation file is by default written to the same path as the partition file, but with `-cluster-annotations` inserted before the suffix (you can change this with `--cluster-annotation-fname`).
 These two files will eventually be combined into a single yaml file.
 
+If you just want to view the results, use the partis [`view-annotations`](subcommands#view-annotations) and [`view-partitions`](subcommands#view-partitions) actions.
 If you want to directly access the csv columns, the [partition](#partition-headers) and [annotation](#annotation-headers) headers are listed below.
-Unless you're doing something very simple with them, though, it will probably be easier to use existing code within partis for manipulating them.
-If you just want to view the results, use the [`view-annotations`](subcommands#view-annotations) and [`view-partitions`](subcommands#view-partitions) actions.
-If, on the other hand, you need to do some additional calculations, there are a wide variety of utility functions available.
-Simple example parsing scripts are provided for [annotation](../bin/example-parse-annotations.py) and [partition](../bin/example-parse-partitions.py) output files.
+While by default a fairly minimal set of annotation information is written to file, many more keys are added to the in-memory dictionary when the file is read back in.
+Any of these keys, together with several additional ones, can be added to the output file by setting `--extra-annotation-columns` (for all the choices, see `partis annotate --help|grep -C5 extra-annotation`).
 
-While by default a fairly minimal set of annotation information is written to file, when reading in the file many more keys are added to the dictionary in memory (`utils.add_implicit_info()` in the examples).
-
-
-(to add non-default columns, see `--extra-annotation-columns` in `partis annotate --help`)
+If, on the other hand, you need to do some additional calculations, there is a lot of existing code to facilitate this.
+To get you started, there are simple example parsing scripts for [annotation](../bin/example-parse-annotations.py) and [partition](../bin/example-parse-partitions.py) output files.
+If more detailed calculations are necessary, you can of course just add the necessary code to the example scripts.
 
 #### annotation file headers
 
