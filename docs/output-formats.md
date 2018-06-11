@@ -54,6 +54,7 @@ The annotation csv contains the following columns by default:
 | duplicates     |  colon-separated list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed.
 
 while the following (together with any in-memory key) can be added using `--extra-annotation-columns`:
+
 |   name                  |  description
 |-------------------------|----------------------------------------------------------------------------
 | cdr3_seqs				  |  nucleotide CDR3 sequence, including bounding conserved codons
