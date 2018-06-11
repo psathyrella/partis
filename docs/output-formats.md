@@ -1,21 +1,28 @@
 ### output formats
 
+  * [annotation file headers](#annotation-file-headers)
+  * [in-memory annotation dictionary keys](#in-memory)
+  * [partition file headers](#partition-file-headers)
+
 The `annotate` action writes a single csv file with annotations for each sequence in the input.
 The `partition` action, on the other hand, writes two csv files: one with a list of the most likely partitions and their relative likelihoods, and another with annotations for each cluster in the most likely partition.
+This cluster annotation file is by default written to the same path as the partition file, but with `-cluster-annotations` inserted before the suffix (you can change this with `--cluster-annotation-fname`).
+These two files will eventually be combined into a single yaml file.
 
-Both the annotation and partition output 
+If you want to directly access the csv columns, the [partition](#partition-headers) and [annotation](#annotation-headers) headers are listed below.
+Unless you're doing something very simple with them, though, it will probably be easier to use existing code within partis for manipulating them.
+If you just want to view the results, use the [`view-annotations`](subcommands#view-annotations) and [`view-partitions`](subcommands#view-partitions) actions.
+If, on the other hand, you need to do some additional calculations, there are a wide variety of utility functions available.
+Simple example parsing scripts are provided for [annotation](../bin/example-parse-annotations.py) and [partition](../bin/example-parse-partitions.py) output files.
 
-An example of how to parse these output csvs is in `bin/example-output-processing.py`.
+While by default a fairly minimal set of annotation information is written to file, when reading in the file many more keys are added to the dictionary in memory (`utils.add_implicit_info()` in the examples).
 
-#### parsing
 
-> addition keys
+(to add non-default columns, see `--extra-annotation-columns` in `partis annotate --help`)
 
-#### annotations
+#### annotation file headers
 
-#### partitions
-
-The annotation csv contains the following columns by default (to add non-default columns, see `--extra-annotation-columns` in `partis annotate --help`):
+The annotation csv contains the following columns by default:
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
@@ -50,8 +57,29 @@ The annotation csv contains the following columns by default (to add non-default
 
 All columns listed as "colon-separated lists" are trivial/length one for single sequence annotation, i.e. are only length greater than one (contain actual colons) when the multi-hmm has been used for simultaneous annotation on several clonally-related sequences (typically through the cluster annotation output but partition action).
 You can view a colored ascii representation of the rearrangement events with the `view-annotations` action (see below).
-An example of how to parse this output csv (say, if you want to further process the results) is in `bin/example-output-processing.py`.
 Additional columns (for instance, cdr3_seqs) can be specified with the `--extra-annotation-columns` option (run `partis annotate --help` to see the choices).
+
+#### in-memory annotation dictionary keys
+
+aligned_d_seqs
+aligned_j_seqs
+aligned_v_seqs
+cdr3_seqs
+codon_positions
+d_gl_seq
+d_qr_seqs
+full_coding_input_seqs
+full_coding_naive_seq
+invalid
+j_gl_seq
+j_qr_seqs
+lengths
+regional_bounds
+v_gl_seq
+v_qr_seqs
+
+
+#### partition file headers
 
 The partition action writes a list of partitions, with one line for the most likely partition (with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions.
 It also writes the annotation for each cluster in the most likely partition to a separate file (by default `<--outfname>.replace('.csv', '-cluster-annotations.csv')`, you can change this file name with `--cluster-annotation-fname`).
