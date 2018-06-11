@@ -136,6 +136,8 @@ This is kind of dumb, and will be fixed soon, but shouldn't have a big effect si
 
 ### simulate
 
+Note that in order to run simulation, you have to have R installed, along with several [extra packages](install.md#simulation).
+
 In the simplest simulation mode, partis mimics the characteristics of a particular template data sample as closely as possible: germline set, gene usage frequencies, insertion and deletion lengths, somatic hypermutation rates and per-position dependencies, etc. (as well as the correlations between these).
 This mode uses the previously-inferred parameters from that sample, located in `--parameter-dir`.
 By default, for instance, if a sample at the path `/path/to/sample.fa` was previously partitioned, the parameters would have been written to `_output/_path_to_sample/`.
