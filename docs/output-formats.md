@@ -22,9 +22,9 @@ If more detailed calculations are necessary, you can of course just add the nece
 
 The annotation csv contains the following columns by default:
 
-|   default headers      |  description
-|------------------------|----------------------------------------------------------------------------
-| unique_ids             |  colon-separated list of sequence identification strings
+|   name         |  description
+|----------------|----------------------------------------------------------------------------
+| unique_ids     |  colon-separated list of sequence identification strings
 | v_gene         |  V gene in most likely annotation
 | d_gene         |  D gene in most likely annotation
 | j_gene         |  J gene in most likely annotation
@@ -53,7 +53,8 @@ The annotation csv contains the following columns by default:
 | qr_gap_seqs        |  colon-separated list of query sequences with gaps at shm indel positions (alignment matches gl_gap_seqs)
 | duplicates     |  colon-separated list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed.
 
-|   optional headers      |  description
+while the following (together with any in-memory key) can be added using `--extra-annotation-columns`:
+|   name                  |  description
 |-------------------------|----------------------------------------------------------------------------
 | cdr3_seqs				  |  nucleotide CDR3 sequence, including bounding conserved codons
 | full_coding_naive_seq	  |  in cases where the input reads do not extend through the entire V and J regions, the input_seqs and naive_seq keys will also not cover the whole coding regions. In such cases full_coding_naive_seq and full_coding_input_seqs can be used to tack on the missing bits.
