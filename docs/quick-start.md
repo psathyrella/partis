@@ -8,7 +8,7 @@ To group them into clonal families, replace `annotate` with `partition`.
 Note that all input must be plus strand sequences.
 If you're using Docker, and you mounted your host filesystem as described [here](install.md#installation-with-docker), you should replace `/path/to` with the appropriate host mount point within Docker.
 To parallelize on your local machine, add `--n-procs N`.
-The slurm and sge batch systems are also supported (details [here](parallele.md)).
+The slurm and sge batch systems are also supported (details [here](parallel.md)).
 
 Typically, you can expect to annotate 10 thousand sequences on an 8-core desktop in about five minutes, and partition in 25 minutes.
 
