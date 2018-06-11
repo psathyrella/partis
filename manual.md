@@ -11,6 +11,7 @@ This manual is divided into the following pages:
   * [Installation](docs/install.md)
   * [Quick start](docs/quick-start.md)
   * [Subcommands](docs/subcommands.md)
+  * [Output formats](docs/output-formats.md)
   * [Parallelization](docs/parallel.md)
 
 Details of the multitude of flags not vital enough to document here, but which can be used to control many aspects of behavior can be found by running each subcommand's help, for instance `partis cache-parameters --help` or `partis simulate --help`.

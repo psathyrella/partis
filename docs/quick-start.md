@@ -21,6 +21,8 @@ The workdir defaults to a subdirectory of `/tmp` (`/tmp/$USER/hmms/<random.randi
 
 Permament parameter files, on the other hand, are written to `--parameter-dir`, which defaults to a subdirectory of the current directory (see [here](subcommands.md#cache-parameters)).
 
+The details of the output formats are described [here](output-formats.md).
+
 ###### Text output and logging
   - If you're looking at partis ascii art annotation output, you'll want to make sure the ansi color codes in stdout are displayed properly:
     - less -RS (S disables line wrapping -- use left/right arrows to move side-to-side)
