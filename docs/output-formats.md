@@ -11,7 +11,7 @@ These two files will eventually be combined into a single yaml file.
 
 If you just want to view an ascii representation of the results, use the partis [`view-annotations`](subcommands.md#view-annotations) and [`view-partitions`](subcommands.md#view-partitions) actions.
 If you want to directly access the csv columns, the [partition](#partition-file-headers) and [annotation](#annotation-file-headers) headers are listed below.
-While by default a fairly minimal set of annotation information is written to file, many more keys are added to the in-memory dictionary when the file is read back in.
+While by default a fairly minimal set of annotation information is written to file, many more keys are present in the dictionary in memory.
 Any of these keys, together with several additional ones, can be added to the output file by setting `--extra-annotation-columns` (for all the choices, see `partis annotate --help|grep -C5 extra-annotation`).
 
 If, on the other hand, you need to do some additional calculations, there is a lot of existing code to facilitate this.
@@ -22,7 +22,7 @@ If more detailed calculations are necessary, you can of course just add the nece
 
 The annotation csv contains the following columns by default:
 
-|   column header        |  description
+|   default headers      |  description
 |------------------------|----------------------------------------------------------------------------
 | unique_ids             |  colon-separated list of sequence identification strings
 | v_gene         |  V gene in most likely annotation
@@ -48,34 +48,42 @@ The annotation csv contains the following columns by default:
 | v_per_gene_support |  approximate probability supporting the top V gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
 | d_per_gene_support |  approximate probability supporting the top D gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
 | j_per_gene_support |  approximate probability supporting the top J gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
-| indelfos       |  colon-separated list of information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])`
 | indel_reversed_seqs  |  colon-separated list of input sequences with indels "reversed" (i.e. undone), and with constant regions (fv/jf insertions) removed. Empty string if there are no indels, i.e. if it's the same as 'input_seqs'
+| gl_gap_seqs        |  colon-separated list of germline sequences with gaps at shm indel positions (alignment matches qr_gap_seqs)
+| qr_gap_seqs        |  colon-separated list of query sequences with gaps at shm indel positions (alignment matches gl_gap_seqs)
 | duplicates     |  colon-separated list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed.
 
+|   optional headers      |  description
+|-------------------------|----------------------------------------------------------------------------
+| cdr3_seqs				  |  nucleotide CDR3 sequence, including bounding conserved codons
+| full_coding_naive_seq	  |  in cases where the input reads do not extend through the entire V and J regions, the input_seqs and naive_seq keys will also not cover the whole coding regions. In such cases full_coding_naive_seq and full_coding_input_seqs can be used to tack on the missing bits.
+| full_coding_input_seqs  |  see full_coding_naive_seq
 
-All columns listed as "colon-separated lists" are trivial/length one for single sequence annotation, i.e. are only length greater than one (contain actual colons) when the multi-hmm has been used for simultaneous annotation on several clonally-related sequences (typically through the cluster annotation output but partition action).
-You can view a colored ascii representation of the rearrangement events with the `view-annotations` action (see below).
-Additional columns (for instance, cdr3_seqs) can be specified with the `--extra-annotation-columns` option (run `partis annotate --help` to see the choices).
+All columns listed as "colon-separated lists" are trivial/length one for single sequence annotation, i.e. are only length greater than one (contain actual colons) when the multi-hmm has been used for simultaneous annotation on several clonally-related sequences (typically in the cluster annotation file from partitioning, but can also be set using `--n-simultaneous-seqs` and `--simultaneous-true-clonal-seqs`).
+
+deprecated keys (only present in old files):
+
+|   column header        |  description
+|------------------------|----------------------------------------------------------------------------
+| indelfos       |  colon-separated list of information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])`
 
 #### in-memory annotation dictionary keys
 
-aligned_d_seqs
-aligned_j_seqs
-aligned_v_seqs
-cdr3_seqs
-codon_positions
-d_gl_seq
-d_qr_seqs
-full_coding_input_seqs
-full_coding_naive_seq
-invalid
-j_gl_seq
-j_qr_seqs
-lengths
-regional_bounds
-v_gl_seq
-v_qr_seqs
-
+|   key                   |  value
+|-------------------------|----------------------------------------------------------------------------
+| codon_positions		  |  zero-indexed indel-reversed-sequence positions of the conserved cyst and tryp/phen codons, e.g. `{'v': 285, 'j': 336}`
+| v_gl_seq				  |  portion of v germline gene aligned to the indel-reversed sequence (i.e. with 5p and 3p deletions removed). Colon-separated list.
+| d_gl_seq				  |  see v_gl_seq
+| j_gl_seq				  |  see v_gl_seq
+| v_qr_seqs               |  porition of indel-reversed sequence aligned to the v region. Colon-separated list.
+| d_qr_seqs				  |  see v_qr_seqs
+| j_qr_seqs				  |  see v_qr_seqs
+| lengths				  |  lengths aligned to each of the v, d, and j regions, e.g. `{'j': 48, 'd': 26, 'v': 296}`
+| regional_bounds		  |  indices corresponding to the boundaries of the v, d, and j regions (python slice conventions), e.g. `{'j': (322, 370), 'd': (296, 322), 'v': (0, 296)}`
+| aligned_v_seqs		  |  colon-separated list of indel-reversed sequences aligned to germline sequences given by `--aligned-germline-fname`. Only used for presto output
+| aligned_d_seqs          |  see aligned_v_seqs
+| aligned_j_seqs		  |  see aligned_v_seqs
+| invalid				  |  indicates an invalid rearrangement event
 
 #### partition file headers
 

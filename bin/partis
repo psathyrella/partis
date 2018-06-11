@@ -258,7 +258,7 @@ parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq or
 parent_parser.add_argument('--name-column', help='csv column name for sequence ids')
 parent_parser.add_argument('--seq-column', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--outfname', help='output file name')
-parent_parser.add_argument('--presto-output', action='store_true', help='write output file in presto format')
+parent_parser.add_argument('--presto-output', action='store_true', help='Write output file in presto format. Since this format depends on a particular IMGT alignment (and we can\'t include that in this repo), you must also pass a fasta file with alignments for all the V, D, and J germline genes using --aligned-germline-fname.')
 parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the the (fairly minimal) set of information written by default to annotation output files (choose from: %s' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
 parent_parser.add_argument('--linearham', action='store_true', help='write hmm input file in linearham format')
 parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.csv)')
@@ -277,7 +277,7 @@ parent_parser.add_argument('--only-overall-plots', action='store_true', help='do
 parent_parser.add_argument('--default-initial-germline-dir', default=partis_dir + '/data/germlines', help='For internal use only. To specify your own germline directory from which to start, use --initial-germline-dir instead.')
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
 parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (used if --is-simu is set, altough if the default germline info is similar to that used for simulation it may not be necessary)')
-parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene')
+parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene (if using with --presto-output, must contain an alignment also for all D and J genes)')
 
 parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help='number of alleles to assume per gene when removing spurious alleles during parameter caching (default is set in processargs.py -- 1 if looking for new alleles, otherwise 2) NOTE difference to --n-sim-alleles-per-gene')
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
