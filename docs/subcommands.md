@@ -11,9 +11,9 @@
 
 The `partis` command has a number of actions:
 
-```./bin/partis annotate | partition | view-annotations | view-partitions | cache-parameters | simulate```
+```partis annotate | partition | view-annotations | view-partitions | cache-parameters | simulate```
 
-For information on options for each subcommand that are not documented in this manual run `./bin/partis <subcommand> --help`.
+For information on options for each subcommand that are not documented in this manual run `partis <subcommand> --help`.
 
 For the sake of brevity, the commands below invoke partis with no path, which will work if you've either:
   - linked the binary into to a directory that's already in your path, e.g. `ln -s /path/to/<partis_dir/bin/partis ~/bin/` or
@@ -101,37 +101,27 @@ As such, partis first runs ig-sw's Smith-Waterman algorithm on the data set.
 The smith-waterman annotations are used to build and write out a parameter set, which is in turn used to make a set of HMM model files for each observed allele.
 These files are then passed as input to a second, HMM-based, annotation step, which again outputs (more accurate) parameter values and HMM model files.
 
-For example:
+To explicitly run this parameter caching step by itself:
 
 ``` partis cache-parameters --infname test/example.fa --parameter-dir _output/example```
 
-When caching parameters, the parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
+The resulting parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
-The hmm model files go in the `hmms` subdirectory, which contains yaml HMM model files for each observed allele.
+The hmm model files go in the `hmms/` subdirectory, which contains yaml HMM model files for each observed allele.
 
-<!-- ---------------------------------------------------------------------------------------- -->
-The fist step for each sample is to infer a set of parameters particular to that sample.
-These are written to `--parameter-dir`, and then used for all subsequent runs.
-<!-- ---------------------------------------------------------------------------------------- -->
-If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path (parameters for `path/to/seqs.fa` will go in `_output/path_to_seqs/`).
-This default is designed such that with typical workflows, if your input files have different paths, their parameters will go in different places: if you different input files with identical paths and base names, it will of course use incorrect parameters.
-
-That said, the consequences of using the wrong parameter directory for a set of sequences are potentially dire.
-So if you're doing any monkey business, you need to be aware of where partis is telling you that it's putting parameters (it's printed to stdout).
-For instance, if you run with one set of sequences in an input file, and then toss some **other** sequences into the same file, partis won't know anything about it, and will use the same (now-inappropriate) parameters.
-<!-- ---------------------------------------------------------------------------------------- -->
+If you don't specify `--parameter-dir`, it defaults to a location in the current directory that amounts to a slight bastardization of your input file path (e.g. parameters for `path/to/seqs.fa` will go in `_output/path_to_seqs/`).
+This default is designed such that with typical workflows, if your input files have different paths, their parameters will go in different places.
+If you run once, and then put different sequences in the same input file, this convention obviously horribly breaks (you'll be applying the parameters from the sequences in the old file contents to the new file).
 
 If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, partis assumes that it needs to cache parameters, and does that before running the requested action.
 
 Whether caching parameters or running on pre-existing parameters, the hmm needs smith-waterman annotations as input.
 While this preliminary smith-waterman step is fairly fast, it's also easy to cache the results so you only have to do it once.
-By default these smith-waterman annotations are written to a csv file in `--parameter-dir` during parameter caching.
-The default filename is a hash of the concatenated input sequence id strings
+By default these smith-waterman annotations are written to a csv file in `--parameter-dir` during parameter caching (default path is `<parameter_dir>/sw-cache-<hash>.csv` where `<hash>` is a hash of the input sequence ids).
 (Because all sequences need to be aligned and padded to the same length before partititioning, the smith-waterman annotation information for each sequence depends slightly on all the other sequences in the file, hence the hash.)
 These defaults should ensure that with typical workflows, smith-waterman only runs once.
 If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
 
-<!-- ---------------------------------------------------------------------------------------- -->
 #### germline sets
 
 By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in data/germlines.

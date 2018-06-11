@@ -26,8 +26,8 @@ The annotation csv contains the following columns by default:
 |----------------|----------------------------------------------------------------------------
 | unique_ids     |  colon-separated list of sequence identification strings
 | v_gene         |  V gene in most likely annotation
-| d_gene         |  
-| j_gene         |  
+| d_gene         |  see v_gene
+| j_gene         |  see v_gene
 | cdr3_length    |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
 | mut_freqs      |  colon-separated list of sequence mutation frequencies
 | input_seqs     |  colon-separated list of input sequences, with constant regions (fv/jf insertions) removed
@@ -46,8 +46,8 @@ The annotation csv contains the following columns by default:
 | in_frames          |  true if the net effect of VDJ rearrangement and SHM indels leaves both the start and end of the CDR3 (IMGT cyst and tryp/phen) in frame with respect to the start of the germline V sequence
 | stops              |  true if there's a stop codon in frame with respect to the start of the germline V sequence
 | v_per_gene_support |  approximate probability supporting the top V gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
-| d_per_gene_support |  approximate probability supporting the top D gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
-| j_per_gene_support |  approximate probability supporting the top J gene matches, as a semicolon-separated list of colon-separated gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
+| d_per_gene_support |  see v_per_gene_support
+| j_per_gene_support |  see v_per_gene_support
 | indel_reversed_seqs  |  colon-separated list of input sequences with indels "reversed" (i.e. undone), and with constant regions (fv/jf insertions) removed. Empty string if there are no indels, i.e. if it's the same as 'input_seqs'
 | gl_gap_seqs        |  colon-separated list of germline sequences with gaps at shm indel positions (alignment matches qr_gap_seqs)
 | qr_gap_seqs        |  colon-separated list of query sequences with gaps at shm indel positions (alignment matches gl_gap_seqs)
@@ -70,6 +70,8 @@ deprecated keys (only present in old files):
 | indelfos       |  colon-separated list of information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])`
 
 #### in-memory annotation dictionary keys
+
+Extra information available in the dictionary in memory, but not written to disc by default (can be written by setting `--extra-annotation-columns`):
 
 |   key                   |  value
 |-------------------------|----------------------------------------------------------------------------
