@@ -163,11 +163,11 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, fun
 
     tmpcounts = [len(gl) for gl in seq_to_gene_map.values()]  # number of names corresponding to each sequence (should all be ones)
     if tmpcounts.count(1) != len(tmpcounts):
-        print '  mutliple names in %s for the following sequences:' % fname
+        print '  %s mutliple names in %s for the following sequences:' % (utils.color('red', 'warning'), fname)
         for seq, genelist in seq_to_gene_map.items():
             if len(genelist) > 1:
                 print '    %-50s   %s' % (' '.join(genelist), seq)
-        raise Exception('please de-duplicate the fasta and re-run.')
+        print '  it is highly recommended to remove the duplicates to avoid ambiguity'
 
     if n_skipped_pseudogenes > 0:
         print '    skipped %d %s pseudogenes (leaving %d genes)' % (n_skipped_pseudogenes, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
