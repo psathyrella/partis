@@ -26,18 +26,18 @@ The annotation csv contains the following columns by default:
 |----------------|----------------------------------------------------------------------------
 | unique_ids     |  colon-separated list of sequence identification strings
 | v_gene         |  V gene in most likely annotation
-| d_gene         |  D gene in most likely annotation
-| j_gene         |  J gene in most likely annotation
+| d_gene         |  
+| j_gene         |  
 | cdr3_length    |  CDR3 length of most likely annotation (IMGT scheme, i.e. including both codons in their entirety)
 | mut_freqs      |  colon-separated list of sequence mutation frequencies
 | input_seqs     |  colon-separated list of input sequences, with constant regions (fv/jf insertions) removed
 | naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation
 | v_3p_del       |  length of V 3' deletion in most likely annotation
-| d_5p_del       |  length of D 5' deletion in most likely annotation
-| d_3p_del       |  length of D 3' deletion in most likely annotation
-| j_5p_del       |  length of J 5' deletion in most likely annotation
+| d_5p_del       |  see v_3p_del
+| d_3p_del       |  see v_3p_del
+| j_5p_del       |  see v_3p_del
 | v_5p_del       |  length of an "effective" V 5' deletion in the most likely annotation, corresponding to a read which does not extend through the entire V segment
-| j_3p_del       |  length of an "effective" J 3' deletion in the most likely annotation, corresponding to a read which does not extend through the entire J segment
+| j_3p_del       |  see v_5p_del
 | vd_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the V and D segments
 | dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
 | fv_insertion       |  constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
