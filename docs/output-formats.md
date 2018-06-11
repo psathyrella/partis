@@ -1,7 +1,7 @@
 ### output formats
 
   * [annotation file headers](#annotation-file-headers)
-  * [in-memory annotation dictionary keys](#in-memory)
+  * [in-memory annotation dictionary keys](#in-memory-annotation-dictionary-keys)
   * [partition file headers](#partition-file-headers)
 
 The `annotate` action writes a single csv file with annotations for each sequence in the input.
