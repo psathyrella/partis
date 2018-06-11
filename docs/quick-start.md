@@ -6,7 +6,7 @@ Once you have partis installed, to annotate a file `/path/to/yourseqs.fa` with B
 
 To group them into clonal families, replace `annotate` with `partition`.
 Note that all input must be plus strand sequences.
-If you're using Docker, and you mounted your host filesystem as described [here](install.md), you should replace `/path/to` with the appropriate host mount point within Docker.
+If you're using Docker, and you mounted your host filesystem as described [here](install.md#installation-with-docker), you should replace `/path/to` with the appropriate host mount point within Docker.
 To parallelize on your local machine, add `--n-procs N`.
 The slurm and sge batch systems are also supported (details [here](parallele.md)).
 
