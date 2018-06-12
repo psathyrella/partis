@@ -27,7 +27,7 @@ To then reattach to this running container, run `docker attach container-1`.
 
 #### Installation from scratch
 
-To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile).
+To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile) (ignoring the `FROM` line).
 If you're on a debian variant, run the apt-get install as written.
 On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/brew for apt-get.
 
@@ -39,7 +39,7 @@ If you might need pip in the future, you should expect some difficulty with havi
 In most cases you can prevent conda from finding the packages in `~/.local` (and consequently breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
 You may also need to `unset LD_LIBRARY_PATH`.
 
-Once conda is installed, run the rest of the commands in the Dockerfile whose lines are marked with `RUN`, except substitute the line `WORKDIR /partis` with `cd partis/`.
+Once conda is installed, run the rest of the commands in the Dockerfile whose lines are marked with `RUN` or `CMD`, except substitute the line `WORKDIR /partis` with `cd partis/`.
 
 In order to avoid polluting your environment, we do not automatically add partis to your path.
 Several methods of accomplishing this are described [here](subcommands.md#subcommands).
