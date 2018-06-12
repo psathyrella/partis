@@ -27,38 +27,28 @@ To then reattach to this running container, run `docker attach container-1`.
 
 #### Installation from scratch
 
-To install without Docker, you first want to read the [Dockerfile](../Dockerfile) carefully to figure out the dependencies you'll need to install.
+To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile).
 We currently recommend using conda, as in the Dockerfile, but [pip]((docs/pip-install.md) has also worked well in the past.
+
+If you're on a debian variant, simply run the apt-get installs as written.
+On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/homebrew for apt-get.
 
 If you don't have conda installed, follow the full installation instructions [here](https://docs.anaconda.com/anaconda/install/), e.g. for [linux](https://docs.anaconda.com/anaconda/install/linux).
 
-Any time you're using conda, it needs to be in your path, for instance:
+Any time you're using conda, it needs to be in your path, typically with:
 ```
 export PATH=<path_to_conda>:$PATH
 ```
+
 If you've used pip in the past, but you won't need it in the future, you should also completely remove `~/.local`.
 If you might need pip in the future, you should expect some difficulty with having both conda and pip on the same system.
 In most cases you can prevent conda from finding the packages in `~/.local` (and consequently breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
 You may also need to `unset LD_LIBRARY_PATH`.
 
-Then make a conda environment for partis:
+Once conda is installed, simply run the rest of the commands in the Dockerfile whose lines are marked with `RUN`, except substitute the line `WORKDIR /partis` with `cd partis/`.
 
-```
-conda create -y -n partis python=2.7
-source activate partis  # do this _every_ time you start a new terminal
-```
-
-Then run the conda install commands from the [Dockerfile](../Dockerfile).
-
-Finally, open a new terminal, and:
-
-```
-source activate partis
-pip install colored-traceback dendropy==3.12.3
-git clone git@github.com:psathyrella/partis
-cd partis
-./bin/build.sh
-```
+In order to avoid polluting your environment, this doesn't automatically add partis to your path.
+Several methods of accomplishing this are described [here](subcommands.md#subcommands).
 
 #### Simulation
 
