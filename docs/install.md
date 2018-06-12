@@ -44,7 +44,7 @@ You may also need to `unset LD_LIBRARY_PATH`.
 Then make a conda environment for partis:
 
 ```
-conda create -y -n partis
+conda create -y -n partis python=2.7
 source activate partis  # do this _every_ time you start a new terminal
 ```
 
