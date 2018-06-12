@@ -9,8 +9,8 @@ It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler
 
 It is described in the following papers:
 
-* Ralph, DK, & Matsen IV, FA (2016). [Consistency of \[...\] Enables Accurate B Cell Receptor Sequence Annotation.](http://doi.org/10.1371/journal.pcbi.1004409) *PLOS Computational Biology*, 12(1), e1004409.
-* Ralph, DK, & Matsen IV, FA (2016). [Likelihood-based Inference of B-cell Clonal Families.](http://dx.doi.org/10.1371/journal.pcbi.1005086) *PLOS Computational Biology*, 12(10), e1005086.
-* Ralph, DK, & Matsen IV, FA (in review) [Per-sample immunoglobulin germline inference \[...\]](https://arxiv.org/abs/1711.05843) 
+  * [HMM framework and BCR annotation](http://doi.org/10.1371/journal.pcbi.1004409) Ralph, DK, & Matsen IV, FA (2016). _Consistency of \[...\] Enables Accurate B Cell Receptor Sequence Annotation._ PLOS Computational Biology, 12(1), e1004409.
+  * [Clonal family inference](http://dx.doi.org/10.1371/journal.pcbi.1005086) Ralph, DK, & Matsen IV, FA (2016). _Likelihood-based Inference of B-cell Clonal Families._ PLOS Computational Biology, 12(10), e1005086.
+  * [Germline inference](https://arxiv.org/abs/1711.05843) Ralph, DK, & Matsen IV, FA (in review at PLOS Computational Biology) _Per-sample immunoglobulin germline inference \[...\]_ 
 
 Partis is free software under the GPL v3.
