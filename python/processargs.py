@@ -148,6 +148,12 @@ def process(args):
     if args.presto_output and args.aligned_germline_fname is None:
         raise Exception('in order to get presto output, you have to set --aligned-germline-fname (a fasta file with germline alignments for every germline gene)')
 
+    if args.simulate_from_scratch:
+        args.rearrange_from_scratch = True
+        args.mutate_from_scratch = True
+    if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:
+        assert args.mutate_from_scratch
+
     if args.action == 'simulate':
         if len(args.loci) != 1:
             raise Exception('needs to be implemented')
@@ -209,12 +215,6 @@ def process(args):
         args.dont_remove_unlikely_alleles = True
         args.allele_cluster = False
         args.dont_find_new_alleles = True
-
-    if args.simulate_from_scratch:
-        args.rearrange_from_scratch = True
-        args.mutate_from_scratch = True
-    if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:
-        assert args.mutate_from_scratch
 
     if args.infname is None and args.action not in ['simulate', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
         raise Exception('--infname is required for action \'%s\'' % args.action)
