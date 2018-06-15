@@ -546,15 +546,18 @@ class Recombinator(object):
         if self.args.debug:
             print '  chose tree with total height %f' % treegenerator.get_mean_height(chosen_tree)
             print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treegenerator.get_mean_height(scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
-            print treegenerator.get_ascii_tree(chosen_tree, extra_str='    ')
+            print '    tree passed to bppseqgen:'
+            print treegenerator.get_ascii_tree(chosen_tree, extra_str='      ')
 
         n_leaves = treegenerator.get_n_leaves(chosen_tree)
         cmdfos = []
+        regional_naive_seqs = {}  # only used for tree checking
         for region in utils.regions:
             simstr = reco_event.eroded_seqs[region]
             if region == 'd':
                 simstr = reco_event.insertions['vd'] + simstr + reco_event.insertions['dj']
             cmdfos.append(self.prepare_bppseqgen(simstr, scaled_trees[region], n_leaves, reco_event.genes[region], reco_event, seed=irandom))
+            regional_naive_seqs[region] = simstr
 
         utils.run_cmds([cfo for cfo in cmdfos if cfo is not None], sleep=False)  # shenanigan is to handle zero-length regional seqs
 
@@ -575,50 +578,56 @@ class Recombinator(object):
 
         self.add_shm_indels(reco_event)
         reco_event.setline(irandom)  # set the line here because we use it when checking tree simulation, and want to make sure the uids are always set at the same point in the workflow
-
-        self.check_tree_simulation(mean_total_height, regional_heights, scaled_trees, mseqs, reco_event)
+        # self.check_tree_simulation(mean_total_height, regional_heights, chosen_tree, scaled_trees, regional_naive_seqs, mseqs, reco_event)
+        # self.print_validation_values()
 
         if self.args.debug:
             utils.print_reco_event(reco_event.line, extra_str='    ')
 
     # ----------------------------------------------------------------------------------------
-    def infer_tree_from_leaves(self, region, in_tree, leafseqs):
+    def infer_tree_from_leaves(self, region, in_tree, leafseqs, naive_seq):
+        if 'dendropy' not in sys.modules:
+            import dendropy
+        dendropy = sys.modules['dendropy']
+        taxon_namespace = dendropy.TaxonNamespace()
         with tempfile.NamedTemporaryFile() as tmpfile:
+            tmpfile.write('>%s\n%s\n' % ('naive', naive_seq))
             for iseq in range(len(leafseqs)):
                 tmpfile.write('>t%s\n%s\n' % (iseq+1, leafseqs[iseq]))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
             tmpfile.flush()  # BEWARE if you forget this you are fucked
             with open(os.devnull, 'w') as fnull:
                 out_tree = subprocess.check_output('./bin/FastTree -gtr -nt ' + tmpfile.name, shell=True, stderr=fnull)
+            out_dtree = dendropy.Tree.get_from_string(out_tree, 'newick', taxon_namespace=taxon_namespace)
+            out_dtree.reroot_at_node(out_dtree.find_node_with_taxon_label('naive'), update_bipartitions=True)
+            out_tree = out_dtree.as_string(schema='newick', suppress_rooting=True)
 
         in_height = treegenerator.get_mean_height(in_tree)
         out_height = treegenerator.get_mean_height(out_tree)
         base_width = 100
-        print '  %s trees: input/output' % region
-        print treegenerator.get_ascii_tree(in_tree, extra_str='        ', width=base_width)
+        print '  %s trees:' % ('full sequence' if region == 'all' else region)
+        print '    %s' % utils.color('blue', 'input:')
+        print treegenerator.get_ascii_tree(in_tree, extra_str='      ', width=base_width)
+        print '    %s' % utils.color('blue', 'output:')
         print treegenerator.get_ascii_tree(out_tree, extra_str='        ', width=int(base_width*out_height/in_height))
 
-        if 'dendropy' not in sys.modules:
-            import dendropy
-        in_dtree = sys.modules['dendropy'].Tree.get_from_string(in_tree, 'newick')
-        out_dtree = sys.modules['dendropy'].Tree.get_from_string(out_tree, 'newick')
+        in_dtree = dendropy.Tree.get_from_string(in_tree, 'newick', taxon_namespace=taxon_namespace)
+
         if self.args.debug:
             print '                   heights: %.3f   %.3f' % (in_height, out_height)
-            print '      symmetric difference: %d' % in_dtree.symmetric_difference(out_dtree)
-            print '        euclidean distance: %f' % in_dtree.euclidean_distance(out_dtree)
-            print '              r-f distance: %f' % in_dtree.robinson_foulds_distance(out_dtree)
+            print '      symmetric difference: %d' % dendropy.calculate.treecompare.symmetric_difference(in_dtree, out_dtree)
+            print '        euclidean distance: %f' % dendropy.calculate.treecompare.euclidean_distance(in_dtree, out_dtree)
+            print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
     # ----------------------------------------------------------------------------------------
-    def check_tree_simulation(self, mean_total_height, regional_heights, scaled_trees, mseqs, reco_event, debug=False):
+    def check_tree_simulation(self, mean_total_height, regional_heights, chosen_tree, scaled_trees, regional_naive_seqs, mseqs, reco_event, debug=False):
         assert reco_event.line is not None  # make sure we already set it
+
+        # check the height for each region
         mean_observed = {n : 0.0 for n in ['all'] + utils.regions}
         for iseq in range(len(reco_event.final_seqs)):
-            if debug:
-                print '   %4d  %.3f  %.3f' % (iseq, reco_event.line['mut_freqs'][iseq], mean_total_height)
             mean_observed['all'] += reco_event.line['mut_freqs'][iseq]
             for region in utils.regions:  # NOTE for simulating, we mash the insertions in with the D, but this isn't accounted for here
                 rrate = utils.get_mutation_rate(reco_event.line, iseq=iseq, restrict_to_region=region)
-                if debug:
-                    print '       %.3f  %.3f' % (rrate, regional_heights[region])
                 mean_observed[region] += rrate
         if debug:
             print '             in          out'
@@ -635,9 +644,9 @@ class Recombinator(object):
             if debug:
                 print '  %4s    %7.3f     %7.3f' % (rname, input_height, mean_observed[rname])
 
-        # need to root them
-        # for region in utils.regions:
-        #     self.infer_tree_from_leaves(region, scaled_trees[region], mseqs[region])  # NOTE haven't yet reverted codons
+        self.infer_tree_from_leaves('all', chosen_tree, reco_event.final_seqs, reco_event.line['naive_seq'])
+        # for region in utils.regions:  # sample size starts getting small for each region
+        #     self.infer_tree_from_leaves(region, scaled_trees[region], mseqs[region], regional_naive_seqs[region])  # NOTE mseqs don't have codon reversion
 
     # ----------------------------------------------------------------------------------------
     def print_validation_values(self):

@@ -36,10 +36,12 @@ class OneLeafTree(object):
         return '%s:%.15f;' % (self.leaves[0].name, self.leaves[0].length)
 
 # ----------------------------------------------------------------------------------------
-def get_ascii_tree(treestr, extra_str='', width=80):
-    if 'Bio.Phylo' not in sys.modules:
-        from Bio import Phylo
-    if get_n_leaves(treestr) > 1:  # if more than one leaf
+def get_ascii_tree(treestr, extra_str='', width=100):
+    if get_mean_height(treestr) == 0.:  # we really want the max height, but since we only care whether it's zero or not this is the same
+        return '%szero height' % extra_str
+    elif get_n_leaves(treestr) > 1:  # if more than one leaf
+        if 'Bio.Phylo' not in sys.modules:  # NOTE dendropy seems a lot nicer... use that for new stuff
+            from Bio import Phylo
         tmpf = StringIO()
         sys.modules['Bio.Phylo'].draw_ascii(sys.modules['Bio.Phylo'].read(StringIO(treestr), 'newick'), file=tmpf, column_width=width)
         return '\n'.join(['%s%s' % (extra_str, line) for line in tmpf.getvalue().split('\n')])
