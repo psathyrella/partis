@@ -42,6 +42,7 @@ The annotation csv contains the following columns by default:
 | dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
 | fv_insertion       |  constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
 | jf_insertion       |  constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
+| codon_positions    |  zero-indexed V and J conserved codon positions in the indel-reversed sequence[s]
 | mutated_invariants |  true if the conserved codons corresponding to the start and end of the CDR3 code for the same amino acid as in their original germline (cyst and tryp/phen, in IMGT numbering)
 | in_frames          |  true if the net effect of VDJ rearrangement and SHM indels leaves both the start and end of the CDR3 (IMGT cyst and tryp/phen) in frame with respect to the start of the germline V sequence
 | stops              |  true if there's a stop codon in frame with respect to the start of the germline V sequence
@@ -67,7 +68,7 @@ deprecated keys (only present in old files):
 
 |   column header        |  description
 |------------------------|----------------------------------------------------------------------------
-| indelfos       |  colon-separated list of information on any SHM indels that were inferred in the Smith-Waterman step. Written as a literal python dict; can be read in python with `ast.literal_eval(line['indelfo'])`
+| indelfos       |  colon-separated list of information on any SHM indels that were inferred in the Smith-Waterman step
 
 #### in-memory annotation dictionary keys
 
