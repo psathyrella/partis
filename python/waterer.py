@@ -115,30 +115,54 @@ class Waterer(object):
         print '    water time: %.1f  (ig-sw %.1f  processing %.1f)' % (time.time() - start, time.time() - processing_start, self.ig_sw_time)
 
     # ----------------------------------------------------------------------------------------
+    def clean_cache(self, cache_path):
+        print '  removing old sw cache %s' % cache_path
+        if os.path.exists(cache_path + '.csv'):
+            os.remove(cache_path + '.csv')
+        if os.path.exists(cache_path + '-glfo'):
+            glutils.remove_glfo_files(cache_path + '-glfo', self.args.locus)
+        if os.path.exists(cache_path + '.yaml'):
+            os.remove(cache_path + '.yaml')
+
+    # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
         start = time.time()
-        cachebase = cachefname.replace('.csv', '')
+        cachebase = utils.getprefix(cachefname)
         print '        reading sw results from %s' % cachebase
 
-        if os.path.exists(cachebase + '-glfo'):  # NOTE overwrites original <self.glfo>
-            self.glfo = glutils.read_glfo(cachebase + '-glfo', self.args.locus)
-            glutils.write_glfo(self.my_gldir, self.glfo)
-        else:
-            print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
+        if utils.getsuffix(cachefname) == '.csv':  # old way
+            if os.path.exists(cachebase + '-glfo'):  # NOTE replaces original <self.glfo>
+                self.glfo = glutils.read_glfo(cachebase + '-glfo', self.args.locus)
+            else:
+                print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
 
-        with open(cachefname) as cachefile:
-            reader = csv.DictReader(cachefile)
-            for line in reader:  # NOTE failed queries are *not* written to the cache file -- they're assumed to be whatever's in input info that's missing
-                utils.process_input_line(line)
-                assert len(line['unique_ids']) == 1
+            with open(cachefname) as cachefile:
+                reader = csv.DictReader(cachefile)
+                for line in reader:  # NOTE failed queries are *not* written to the cache file -- they're assumed to be whatever's in input info that's missing
+                    utils.process_input_line(line)
+                    assert len(line['unique_ids']) == 1
+                    if line['unique_ids'][0] not in self.input_info:
+                        continue
+                    for region in utils.regions:  # uh... should do this more cleanly at some point
+                        del line[region + '_per_gene_support']
+                    utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
+                    if indelutils.has_indels(line['indelfos'][0]):
+                        self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
+                    self.add_to_info(line)
+        elif utils.getsuffix(cachefname) == '.yaml':  # new way
+            self.glfo, annotation_list = utils.read_yaml_annotations(cachefname)
+            for line in annotation_list:  # NOTE failed queries are *not* written to the cache file -- they're assumed to be whatever's in input info that's missing
+                assert len(line['unique_ids']) == 1  # would only fail if this was not actually an sw cache file, but it's still nice to check since so many places in waterer assume it's length 1
                 if line['unique_ids'][0] not in self.input_info:
                     continue
-                for region in utils.regions:  # uh... should do this more cleanly at some point
-                    del line[region + '_per_gene_support']
                 utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
                 if indelutils.has_indels(line['indelfos'][0]):
                     self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
                 self.add_to_info(line)
+        else:
+            raise Exception('unhandled sw cache file suffix for %s' % cachefname)
+
+        glutils.write_glfo(self.my_gldir, self.glfo)
 
         self.finalize(cachefname=None, just_read_cachefile=True)
         print '        water time: %.1f' % (time.time()-start)
@@ -148,17 +172,13 @@ class Waterer(object):
         if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:  # hackey workaround: (in case you want to use trimmed/padded seqs for something, but shouldn't be used in general)
             self.pad_seqs_to_same_length()
 
-        cachebase = cachefname.replace('.csv', '')
+        cachebase = utils.getprefix(cachefname)
         print '        writing sw results to %s' % cachebase
-        glutils.write_glfo(cachebase + '-glfo', self.glfo)
-        with open(cachefname, 'w') as outfile:
-            csv_headers = utils.annotation_headers + utils.sw_cache_headers  # NOTE I'm not adding self.args.extra_annotation_columns here, since if they're in the sw cache file I'd have to deal with removing them when I read it
-            writer = csv.DictWriter(outfile, csv_headers)
-            writer.writeheader()
-            for query in self.info['queries']:  # NOTE does *not* write failed queries
-                outline = utils.get_line_for_output(self.info[query])  # convert lists to colon-separated strings and whatnot (doens't modify input dictionary)
-                outline = {k : v for k, v in outline.items() if k in csv_headers}  # remove the columns we don't want to output
-                writer.writerow(outline)
+
+        if utils.getsuffix(cachefname) == '.csv':
+            glutils.write_glfo(cachebase + '-glfo', self.glfo)
+
+        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers=utils.sw_cache_headers)  # NOTE does *not* write failed queries NOTE I'm not adding self.args.extra_annotation_columns here, since if they're in the sw cache file I'd have to deal with removing them when I read it
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
@@ -780,6 +800,9 @@ class Waterer(object):
 
         infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
         infoline['codon_positions'] = codon_positions
+
+        infoline['padlefts'] = ['']
+        infoline['padrights'] = ['']
 
         return infoline
 

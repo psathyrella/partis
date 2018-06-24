@@ -297,13 +297,13 @@ annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cd
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns + ['codon_positions']
-simulation_headers = ('unique_ids', 'reco_id') + index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs') + tuple(functional_columns)
+simulation_headers = ('unique_ids', 'reco_id', 'invalid') + index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs') + tuple(functional_columns)
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',  # NOTE I'm not adding it to linekeys['per_seq'] since I don't want it to ever be in the regular <line> dicts, i.e. it's only added to a special dict immediately prior to writing the csv
     'full_coding_naive_seq',
     'full_coding_input_seqs',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
-sw_cache_headers = ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
+sw_cache_headers = [h for h in annotation_headers if h not in [r + '_per_gene_support' for r in regions]] + ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
 bcrham_dbgstrs = {
     'partition' : {  # corresponds to stdout from glomerator.cc
@@ -3191,10 +3191,14 @@ def getprefix(fname):  # basename before the dot
     return os.path.splitext(fname)[0]
 
 # ----------------------------------------------------------------------------------------
-def getsuffix(fname):  # basename before the dot
+def getsuffix(fname):
     if len(os.path.splitext(fname)) != 2:
         raise Exception('couldn\'t split %s into two pieces using dot' % fname)
     return os.path.splitext(fname)[1]
+
+# ----------------------------------------------------------------------------------------
+def insert_before_suffix(insert_str, fname):
+    return fname.replace(getsuffix(fname), '%s%s' % (insert_str, getsuffix(fname)))
 
 # ----------------------------------------------------------------------------------------
 def read_vsearch_cluster_file(fname):
@@ -3535,35 +3539,42 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
     return imax, max_abs_diff
 
 # ----------------------------------------------------------------------------------------
-def write_annotations(fname, glfo, annotation_list, is_simu=False):
+def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False):
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
         os.makedirs(os.path.dirname(os.path.abspath(fname)))
 
     if getsuffix(fname) == '.csv':
-        write_csv_annotations(fname, glfo, annotation_list, is_simu=is_simu)
+        write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs)
     elif getsuffix(fname) == '.yaml':
-        write_yaml_annotations(fname, glfo, annotation_list, is_simu=is_simu)
+        write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=synth_single_seqs)
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
 # ----------------------------------------------------------------------------------------
-def write_csv_annotations(fname, glfo, annotation_list, is_simu=False):
+def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False):
     with open(fname, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, simulation_headers if is_simu else annotation_headers)
+        writer = csv.DictWriter(csvfile, headers)
         writer.writeheader()
         for line in annotation_list:
-            for iseq in range(len(line['unique_ids'])):
-                outline = get_line_for_output(synthesize_single_seq_line(line, iseq))  # would be faster to do this after removing the keys you don't need
-                outline = {k : v for k, v in outline.items() if k in (simulation_headers if is_simu else annotation_headers)}
+            if synth_single_seqs:
+                for iseq in range(len(line['unique_ids'])):
+                    outline = get_line_for_output(synthesize_single_seq_line(line, iseq))  # would be faster to do this after removing the keys you don't need
+                    outline = {k : v for k, v in outline.items() if k in headers}
+                    writer.writerow(outline)
+            else:
+                outline = get_line_for_output(line)
+                outline = {k : v for k, v in outline.items() if k in headers}
                 writer.writerow(outline)
 
 # ----------------------------------------------------------------------------------------
-def get_yamlfo_for_output(line, extra_columns=None, glfo=None, is_simu=False):  # NOTE duplicates code in get_line_for_output()
+def get_yamlfo_for_output(line, headers, extra_columns=None, glfo=None):  # NOTE duplicates code in get_line_for_output()
     yamlfo = {}
     transfer_indel_info(line, yamlfo)
-    yamlfo.update({k : line[k] for k in (simulation_headers if is_simu else annotation_headers) if k not in yamlfo})
+    if len(set(headers) - set(line) - set(yamlfo)) > 0:
+        raise Exception('missing requested headers %s' % ' '.join(set(headers) - set(line) - set(yamlfo)))
+    yamlfo.update({k : line[k] for k in headers if k not in yamlfo})
     yamlfo['indel_reversed_seqs'] = [yamlfo['indel_reversed_seqs'][iseq] if yamlfo['has_shm_indels'][iseq] else '' for iseq in range(len(yamlfo['unique_ids']))]  # set indel_reversed_seqs to empty strings unless there's actually indels
 
     if extra_columns is not None:
@@ -3576,9 +3587,11 @@ def get_yamlfo_for_output(line, extra_columns=None, glfo=None, is_simu=False):  
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-def write_yaml_annotations(fname, glfo, annotation_list, is_simu=False):
+def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False):
+    if synth_single_seqs:
+        raise Exception('think about this')
     version_info = {'partis-yaml' : 0.1}
-    yaml_annotations = [get_yamlfo_for_output(l, is_simu=is_simu) for l in annotation_list]
+    yaml_annotations = [get_yamlfo_for_output(l, headers) for l in annotation_list]
     with open(fname, 'w') as yamlfile:
         yaml.dump({'version-info' : version_info}, yamlfile, width=500)
         yaml.dump({'germline-info' : glfo}, yamlfile, width=500)
@@ -3586,7 +3599,7 @@ def write_yaml_annotations(fname, glfo, annotation_list, is_simu=False):
 
 # ----------------------------------------------------------------------------------------
 def read_yaml_annotations(fname, debug=False):  # corresponds to process_input_line()
-    annotations = OrderedDict()
+    annotation_list = []
     with open(fname) as yamlfile:
         yamlfo = yaml.load(yamlfile)
         if debug:
@@ -3596,5 +3609,5 @@ def read_yaml_annotations(fname, debug=False):  # corresponds to process_input_l
             if not line['invalid']:
                 line['seqs'] = [line['indel_reversed_seqs'][iseq] if line['indel_reversed_seqs'][iseq] != '' else line['input_seqs'][iseq] for iseq in range(len(line['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
                 add_implicit_info(glfo, line)
-            annotations[tuple(line['unique_ids'])] = line
-    return glfo, annotations
+            annotation_list.append(line)
+    return glfo, annotation_list

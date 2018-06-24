@@ -118,14 +118,16 @@ def process(args):
         if '-e' in args.batch_options or '-o' in args.batch_options:
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
+    if args.sw_cachefname is not None and utils.getsuffix(args.sw_cachefname) != '.yaml':
+        print '  %s ignoring non-yaml sw cache suffix (will write cache to %s)' % (utils.color('yellow', 'warning'), args.sw_cachefname.replace(utils.getsuffix(args.sw_cachefname), '.yaml'))
+
     if args.cluster_annotation_fname is None and args.outfname is not None:
-        assert '.csv' in args.outfname
-        args.cluster_annotation_fname = args.outfname.replace(utils.getsuffix(args.outfname), '-cluster-annotations.csv')
+        args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
 
     if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
         if args.outfname is None:
             raise Exception('have to specify --outfname in order to calculate alternative naive sequences')
-        args.persistent_cachefname = args.outfname.replace('.csv', '-hmm-cache.csv')
+        args.persistent_cachefname = utils.insert_before_suffix('-hmm-cache', args.outfname)
         if args.calculate_alternative_naive_seqs and os.path.exists(args.persistent_cachefname):
             if os.stat(args.persistent_cachefname).st_size == 0:
                 print '  note: removing existing zero-length persistent cache file %s' % args.persistent_cachefname

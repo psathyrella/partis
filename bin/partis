@@ -47,8 +47,9 @@ def run_simulation(args):
     glfo = glutils.read_glfo(input_gldir, args.locus, only_genes=args.only_genes)
     if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
         glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname, debug=args.debug)  # NOTE removes unwanted genes from <glfo>
-        print '  writing generated germline set to %s/' % args.outfname.replace('.csv', '-glfo')  # it would be reeeeaaaaally nice to switch to yaml simulation files so the glfo can go in the same file as the events
-        glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
+        if utils.getsuffix(args.outfname) == '.csv':
+            print '  writing generated germline set to %s/' % args.outfname.replace('.csv', '-glfo')
+            glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
     if args.subsimproc:
         working_gldir = args.workdir + '/' + glutils.glfo_dir
         glutils.write_glfo(working_gldir, glfo)
@@ -75,7 +76,7 @@ def run_simulation(args):
         for ievt in range(n_events):
             event = reco.combine(random_ints[ievt])
             events.append(event)
-        utils.write_annotations(outfname, glfo, events, is_simu=True)
+        utils.write_annotations(outfname, glfo, events, headers=utils.simulation_headers, synth_single_seqs=True)
 
     def get_workdir(iproc):
         return args.workdir + '/sub-' + str(iproc)
@@ -259,11 +260,12 @@ parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq or .csv (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
 parent_parser.add_argument('--name-column', help='csv column name for sequence ids')
 parent_parser.add_argument('--seq-column', help='csv column name for nucleotide sequences')
+parent_parser.add_argument('--valid-suffixes', choices=['.yaml', '.csv'], help='handled output file formats')
 parent_parser.add_argument('--outfname', help='output file name')
 parent_parser.add_argument('--presto-output', action='store_true', help='Write output file in presto format. Since this format depends on a particular IMGT alignment (and we can\'t include that in this repo), you must also pass a fasta file with alignments for all the V, D, and J germline genes using --aligned-germline-fname.')
 parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the the (fairly minimal) set of information written by default to annotation output files (choose from: %s' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
 parent_parser.add_argument('--linearham', action='store_true', help='write hmm input file in linearham format')
-parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.csv)')
+parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.<suffix>)')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, a default location is used (and printed to std out). If it does not exist, we infer parameters before proceeding to the desired action.')
 parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you should almost certainly use the hmm ones, but sw is occasionally useful for debugging)')
 parent_parser.add_argument('--persistent-cachefname', help='Name of file which will be used as an initial cache file (if it exists), and to which all cached info will be written out before exiting.')

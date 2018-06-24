@@ -52,7 +52,10 @@ class PartitionDriver(object):
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
         if args.infname is not None:
-            self.default_sw_cachefname = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys())))) + '.csv'  # maybe I shouldn't abs it? collisions are probably still unlikely, and I don't like the extra dash in my file name
+            if self.args.sw_cachefname is None:
+                self.sw_cache_path = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys()))))  # remain suffix-agnostic
+            else:
+                self.sw_cache_path = utils.getprefix(self.args.sw_cachefname)
 
         self.vs_info, self.sw_info = None, None
         self.duplicates = {}
@@ -71,7 +74,6 @@ class PartitionDriver(object):
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
-        self.annotation_fname = self.hmm_outfname.replace('.csv', '_annotations.csv')
 
         if self.args.outfname is not None:
             utils.prep_dir(dirname=None, fname=self.args.outfname, allow_other_files=True)
@@ -175,13 +177,13 @@ class PartitionDriver(object):
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
                           plot_annotation_performance=self.args.plot_annotation_performance,
                           duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs, vs_info=self.vs_info)
-        cachefname = self.default_sw_cachefname if self.args.sw_cachefname is None else self.args.sw_cachefname
-        if not look_for_cachefile and os.path.exists(cachefname):  # i.e. if we're not explicitly told to look for it, and it's there, then it's probably out of date
-            print '  removing old sw cache %s' % cachefname.replace('.csv', '')
-            os.remove(cachefname)
-            if os.path.exists(cachefname.replace('.csv', '-glfo')):  # it should always be there now, but there could be some old sw cache files lying around from before they had their own glfo dirs
-                glutils.remove_glfo_files(cachefname.replace('.csv', '-glfo'), self.args.locus)
 
+        cachefname = self.sw_cache_path + '.yaml'  # try to use the new-style .yaml (for reading and writing)
+        if look_for_cachefile:
+            if os.path.exists(self.sw_cache_path + '.csv'):  # ...but if there's already an old csv, use that
+                cachefname = self.sw_cache_path + '.csv'
+        else:  # i.e. if we're not explicitly told to look for it (and it exists) then it should be out of date
+            waterer.clean_cache(self.sw_cache_path)
         if look_for_cachefile and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
         else:
@@ -243,9 +245,7 @@ class PartitionDriver(object):
             if self.args.plotdir is not None:
                 alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
             if len(new_allele_info) > 0:
-                if os.path.exists(self.default_sw_cachefname):
-                    print '    removing sw cache file %s (it has outdated germline info)' % self.default_sw_cachefname
-                    os.remove(self.default_sw_cachefname)
+                self.clean_sw_cache()  # it has outdated germline info
                 glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
                 glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
 
@@ -279,7 +279,7 @@ class PartitionDriver(object):
             debug = True
         elif self.current_action == 'view-cluster-annotations':
             debug = True
-            outfname = outfname.replace('.csv', '-cluster-annotations.csv')
+            outfname = self.args.cluster_annotation_fname
 
         annotations = OrderedDict()
         with open(outfname) as csvfile:
@@ -335,7 +335,7 @@ class PartitionDriver(object):
         if self.args.plotdir is None:
             raise Exception('--plotdir must be specified')
         cpath = self.read_existing_partitions()
-        annotations = self.read_existing_annotations(outfname=self.args.outfname.replace('.csv', '-cluster-annotations.csv'))
+        annotations = self.read_existing_annotations(outfname=self.args.cluster_annotation_fname)
         partplotter = PartitionPlotter(self.args)
         partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
 

@@ -13,6 +13,8 @@ import itertools
 
 import utils
 
+delimit_info = {'.csv' : ',', '.tsv' : '\t'}
+
 # ----------------------------------------------------------------------------------------
 def get_more_names(potential_names):
     potential_names += [''.join(ab) for ab in itertools.combinations(potential_names, 2)]
@@ -101,21 +103,17 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
 
 # ----------------------------------------------------------------------------------------
 def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False):
-    """ return list of sequence info from files of several types """
-
     suffix = utils.getsuffix(infname)
-    if len(re.findall('\.[ct]sv', suffix)) > 0:
-        if suffix == '.csv':
-            delimiter = ','
-        elif suffix == '.tsv':
-            delimiter = '\t'
-        else:
-            assert False
-        seqfile = open(infname)
-        reader = csv.DictReader(seqfile, delimiter=delimiter)
-    else:
+    if suffix in delimit_info:
+        seqfile = open(infname)  # closes on function exit. no, this isn't the best way to do this
+        reader = csv.DictReader(seqfile, delimiter=delimit_info[suffix])
+    elif suffix in ['.fa', '.fasta', '.fastx']:
         reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
                                   queries=(args.queries if (args is not None and not args.abbreviate) else None))  # NOTE also can't filter on args.queries here if we're also translating
+    elif suffix == '.yaml':
+        glfo, reader = utils.read_yaml_annotations(infname)
+    else:
+        raise Exception('unhandled file extension %s' % suffix)
 
     input_info = OrderedDict()
     reco_info = None
@@ -152,7 +150,8 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None
             iname += 1
         if 'input_seqs' not in line and 'seq' not in line:
             raise Exception('couldn\'t find a sequence column in %s (you can set this with --seq-column)' % infname)
-        utils.process_input_line(line)
+        if suffix != '.yaml':
+            utils.process_input_line(line)
         if len(line['unique_ids']) > 1:
             raise Exception('can\'t yet handle multi-seq csv input files')
         uid = line['unique_ids'][0]

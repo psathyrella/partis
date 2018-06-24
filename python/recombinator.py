@@ -276,7 +276,7 @@ class Recombinator(object):
             probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
             if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
                 probs = [self.allele_prevalence_freqs[region][g] for g in self.glfo['seqs'][region].keys()]
-            tmpline[region + '_gene'] = numpy.random.choice(self.glfo['seqs'][region].keys(), p=probs)  # order is arbitrary, but guaranteed to be the same as the previous line (https://docs.python.org/2/library/stdtypes.html#dict.items)
+            tmpline[region + '_gene'] = str(numpy.random.choice(self.glfo['seqs'][region].keys(), p=probs))  # order is arbitrary, but guaranteed to be the same as the previous line (https://docs.python.org/2/library/stdtypes.html#dict.items)
         for effrode in utils.effective_erosions:
             tmpline[effrode + '_del'] = 0
         for effbound in utils.effective_boundaries:
