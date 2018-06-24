@@ -23,15 +23,13 @@ dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, args, glfo, seed, workdir, outfname):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir> # rm workdir
+    def __init__(self, args, glfo, seed, workdir):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir> # rm workdir
         self.args = args
         self.glfo = glfo
         if len(glfo['seqs']['v']) > 100:  # this is kind of a shitty criterion, but I don't know what would be better (we basically just want to warn people if they're simulating from data/germlines/human)
             print '  note: simulating with a very large number (%d) of V genes (the use of realistic diploid sets can be controlled by using inferred germline sets that you\'ve got lying around (--reco-parameter-dir), or with --generate-germline-set)' % len(glfo['seqs']['v'])
 
-        # NOTE in general *not* the same as <self.args.workdir> and <self.args.outfname>
         self.workdir = tempfile.mkdtemp()
-        self.outfname = outfname
         utils.prep_dir(self.workdir)
 
         assert self.args.parameter_dir is None
@@ -68,11 +66,6 @@ class Recombinator(object):
         with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
             self.treeinfo = treefile.readlines()
         os.remove(self.treefname)
-
-        if os.path.exists(self.outfname):
-            os.remove(self.outfname)
-        elif not os.path.exists(os.path.dirname(os.path.abspath(self.outfname))):
-            os.makedirs(os.path.dirname(os.path.abspath(self.outfname)))
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
 
@@ -130,13 +123,16 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
         """ keep running self.try_to_combine() until you get a good event """
-        failed = True
+        line = None
         itry = 0
-        while failed:
+        while line is None:
             if itry > 0 and self.args.debug:
                 print '    unproductive event -- rerunning (try %d)  ' % itry  # probably a weirdly long v_3p or j_5p deletion
-            failed = not self.try_to_combine(initial_irandom + itry)
+            line = self.try_to_combine(initial_irandom + itry)
             itry += 1
+            if itry > 9999:
+                raise Exception('too many tries %d in recombinator' % itry)
+        return line
 
     # ----------------------------------------------------------------------------------------
     def try_to_combine(self, irandom):
@@ -175,16 +171,15 @@ class Recombinator(object):
         if not codons_ok:
             if self.args.rearrange_from_scratch and self.args.generate_germline_set:
                 raise Exception('mutated invariant codons, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
-            return False
+            return None
         in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.post_erosion_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
         if self.args.rearrange_from_scratch and not in_frame:
             raise Exception('out of frame rearrangement, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
-            return False
+            return None
 
         self.add_mutants(reco_event, irandom)
-        reco_event.write_event(self.outfname)
 
-        return True
+        return reco_event.line
 
     # ----------------------------------------------------------------------------------------
     def freqtable_index(self, line):

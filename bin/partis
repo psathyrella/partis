@@ -70,9 +70,12 @@ def run_simulation(args):
 
     # ----------------------------------------------------------------------------------------
     def make_events(n_events, iproc, workdir, outfname, random_ints):
-        reco = Recombinator(args, glfo, seed=args.seed+iproc, workdir=workdir, outfname=outfname)
+        reco = Recombinator(args, glfo, seed=args.seed+iproc, workdir=workdir)
+        events = []
         for ievt in range(n_events):
-            reco.combine(random_ints[ievt])
+            event = reco.combine(random_ints[ievt])
+            events.append(event)
+        utils.write_annotations(outfname, glfo, events, is_simu=True)
 
     def get_workdir(iproc):
         return args.workdir + '/sub-' + str(iproc)

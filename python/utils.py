@@ -3535,10 +3535,35 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
     return imax, max_abs_diff
 
 # ----------------------------------------------------------------------------------------
-def get_yamlfo_for_output(line, extra_columns=None, glfo=None):  # NOTE duplicates code in get_line_for_output()
+def write_annotations(fname, glfo, annotation_list, is_simu=False):
+    if os.path.exists(fname):
+        os.remove(fname)
+    elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
+        os.makedirs(os.path.dirname(os.path.abspath(fname)))
+
+    if getsuffix(fname) == '.csv':
+        write_csv_annotations(fname, glfo, annotation_list, is_simu=is_simu)
+    elif getsuffix(fname) == '.yaml':
+        write_yaml_annotations(fname, glfo, annotation_list, is_simu=is_simu)
+    else:
+        raise Exception('unhandled file extension %s' % getsuffix(fname))
+
+# ----------------------------------------------------------------------------------------
+def write_csv_annotations(fname, glfo, annotation_list, is_simu=False):
+    with open(fname, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, simulation_headers if is_simu else annotation_headers)
+        writer.writeheader()
+        for line in annotation_list:
+            for iseq in range(len(line['unique_ids'])):
+                outline = get_line_for_output(synthesize_single_seq_line(line, iseq))  # would be faster to do this after removing the keys you don't need
+                outline = {k : v for k, v in outline.items() if k in (simulation_headers if is_simu else annotation_headers)}
+                writer.writerow(outline)
+
+# ----------------------------------------------------------------------------------------
+def get_yamlfo_for_output(line, extra_columns=None, glfo=None, is_simu=False):  # NOTE duplicates code in get_line_for_output()
     yamlfo = {}
     transfer_indel_info(line, yamlfo)
-    yamlfo.update({k : line[k] for k in annotation_headers if k not in yamlfo})
+    yamlfo.update({k : line[k] for k in (simulation_headers if is_simu else annotation_headers) if k not in yamlfo})
     yamlfo['indel_reversed_seqs'] = [yamlfo['indel_reversed_seqs'][iseq] if yamlfo['has_shm_indels'][iseq] else '' for iseq in range(len(yamlfo['unique_ids']))]  # set indel_reversed_seqs to empty strings unless there's actually indels
 
     if extra_columns is not None:
@@ -3551,9 +3576,9 @@ def get_yamlfo_for_output(line, extra_columns=None, glfo=None):  # NOTE duplicat
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-def write_yaml_annotations(fname, glfo, annotations):
+def write_yaml_annotations(fname, glfo, annotation_list, is_simu=False):
     version_info = {'partis-yaml' : 0.1}
-    yaml_annotations = [get_yamlfo_for_output(l) for l in annotations.values()]
+    yaml_annotations = [get_yamlfo_for_output(l, is_simu=is_simu) for l in annotation_list]
     with open(fname, 'w') as yamlfile:
         yaml.dump({'version-info' : version_info}, yamlfile, width=500)
         yaml.dump({'germline-info' : glfo}, yamlfile, width=500)

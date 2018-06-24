@@ -91,22 +91,6 @@ class RecombinationEvent(object):
         line['unique_ids'] = [str(hash(ustr)) for ustr in uidstrs]
 
     # ----------------------------------------------------------------------------------------
-    def write_event(self, outfile):
-        mode = ''
-        if os.path.isfile(outfile):
-            mode = 'ab'
-        else:
-            mode = 'wb'
-        with open(outfile, mode) as csvfile:
-            writer = csv.DictWriter(csvfile, utils.simulation_headers)
-            if mode == 'wb':  # write the header if file wasn't there before
-                writer.writeheader()
-            for iseq in range(len(self.line['unique_ids'])):
-                outline = utils.get_line_for_output(utils.synthesize_single_seq_line(self.line, iseq))
-                outline = {k : v for k, v in outline.items() if k in utils.simulation_headers}
-                writer.writerow(outline)
-
-    # ----------------------------------------------------------------------------------------
     def setline(self, irandom=None):  # don't access <self.line> directly
         if self.line is not None:
             return self.line
