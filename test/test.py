@@ -56,7 +56,7 @@ class Tester(object):
         self.n_sim_events = '500'
         # n_data_inference_queries = '50'
         self.logfname = self.dirs['new'] + '/test.log'
-        self.sw_cachenames = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
+        self.sw_cache_paths = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
 
         self.tests = OrderedDict()
@@ -140,7 +140,7 @@ class Tester(object):
         else:
             if input_dtype == 'simu':
                 argfo['extras'] += ['--is-simu', ]
-            argfo['extras'] += ['--sw-cachefname', self.sw_cachenames[input_stype][input_dtype] + '.csv']
+            argfo['extras'] += ['--sw-cachefname', self.sw_cache_paths[input_stype][input_dtype] + '.yaml']
             argfo['extras'] += ['--infname', self.infnames[input_stype][input_dtype]]
             argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype][input_dtype]]
 
@@ -179,6 +179,7 @@ class Tester(object):
         #     elif len(globfnames) != 1:
         #         raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
         #     check_call(['rm', '-v', globfnames[0]])
+        # xxx needs updating for yaml cache files
         #     sw_cache_gldir = globfnames[0].replace('.csv', '-glfo')
         #     glutils.remove_glfo_files(sw_cache_gldir, args.locus)
 
