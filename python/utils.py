@@ -3588,8 +3588,6 @@ def get_yamlfo_for_output(line, headers, extra_columns=None, glfo=None):  # NOTE
 
 # ----------------------------------------------------------------------------------------
 def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False):
-    if synth_single_seqs:
-        raise Exception('think about this')
     version_info = {'partis-yaml' : 0.1}
     yaml_annotations = [get_yamlfo_for_output(l, headers) for l in annotation_list]
     with open(fname, 'w') as yamlfile:
@@ -3598,7 +3596,7 @@ def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_s
         yaml.dump({'events' : yaml_annotations}, yamlfile, width=500)
 
 # ----------------------------------------------------------------------------------------
-def read_yaml_annotations(fname, debug=False):  # corresponds to process_input_line()
+def read_yaml_annotations(fname, synth_single_seqs=False, debug=False):  # corresponds to process_input_line()
     annotation_list = []
     with open(fname) as yamlfile:
         yamlfo = yaml.load(yamlfile)
@@ -3609,5 +3607,9 @@ def read_yaml_annotations(fname, debug=False):  # corresponds to process_input_l
             if not line['invalid']:
                 line['seqs'] = [line['indel_reversed_seqs'][iseq] if line['indel_reversed_seqs'][iseq] != '' else line['input_seqs'][iseq] for iseq in range(len(line['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
                 add_implicit_info(glfo, line)
-            annotation_list.append(line)
+            if synth_single_seqs and len(line['unique_ids']) > 1:
+                for iseq in range(len(line['unique_ids'])):
+                    annotation_list.append(synthesize_single_seq_line(line, iseq))
+            else:
+                annotation_list.append(line)
     return glfo, annotation_list

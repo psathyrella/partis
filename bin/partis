@@ -76,7 +76,7 @@ def run_simulation(args):
         for ievt in range(n_events):
             event = reco.combine(random_ints[ievt])
             events.append(event)
-        utils.write_annotations(outfname, glfo, events, headers=utils.simulation_headers, synth_single_seqs=True)
+        utils.write_annotations(outfname, glfo, events, headers=utils.simulation_headers, synth_single_seqs=utils.getsuffix(outfname) == '.csv')  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading)
 
     def get_workdir(iproc):
         return args.workdir + '/sub-' + str(iproc)
