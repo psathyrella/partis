@@ -3,9 +3,6 @@ import glob
 import os
 
 env = Environment(ENV=os.environ)
-yaml_cpp = env.Command(['_build/libyaml-cpp.a'],
-                       glob.glob('yaml-cpp/src/{*.cpp,*.h}'),
-                       ['mkdir -p _build/yaml-cpp; cd _build/yaml-cpp; cmake ../../yaml-cpp; make yaml-cpp; ln -sf yaml-cpp/libyaml-cpp.a ../'])
 
 VariantDir('_build', 'src')
 
