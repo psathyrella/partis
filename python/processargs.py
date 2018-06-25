@@ -118,9 +118,6 @@ def process(args):
         if '-e' in args.batch_options or '-o' in args.batch_options:
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
-    if args.sw_cachefname is not None and utils.getsuffix(args.sw_cachefname) != '.yaml':
-        print '  %s ignoring non-yaml sw cache suffix (will write cache to %s)' % (utils.color('yellow', 'warning'), args.sw_cachefname.replace(utils.getsuffix(args.sw_cachefname), '.yaml'))
-
     if args.cluster_annotation_fname is None and args.outfname is not None:
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
 

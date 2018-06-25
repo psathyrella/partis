@@ -178,7 +178,7 @@ class PartitionDriver(object):
                           plot_annotation_performance=self.args.plot_annotation_performance,
                           duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs, vs_info=self.vs_info)
 
-        cachefname = self.sw_cache_path + '.yaml'  # try to use the new-style .yaml (for reading and writing)
+        cachefname = self.sw_cache_path + ('.yaml' if self.args.sw_cachefname is None else utils.getsuffix(self.args.sw_cachefname))  # use yaml, unless csv was explicitly set on the command line
         if look_for_cachefile:
             if os.path.exists(self.sw_cache_path + '.csv'):  # ...but if there's already an old csv, use that
                 cachefname = self.sw_cache_path + '.csv'
