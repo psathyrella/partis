@@ -18,7 +18,7 @@ import subprocess
 import multiprocessing
 import copy
 import traceback
-import yaml
+import json
 
 import indelutils
 
@@ -3590,16 +3590,21 @@ def get_yamlfo_for_output(line, headers, extra_columns=None, glfo=None):  # NOTE
 def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False):
     version_info = {'partis-yaml' : 0.1}
     yaml_annotations = [get_yamlfo_for_output(l, headers) for l in annotation_list]
+    yamldata = {'version-info' : version_info,
+                'germline-info' : glfo,
+                'events' : yaml_annotations}
     with open(fname, 'w') as yamlfile:
-        yaml.dump({'version-info' : version_info}, yamlfile, width=500)
-        yaml.dump({'germline-info' : glfo}, yamlfile, width=500)
-        yaml.dump({'events' : yaml_annotations}, yamlfile, width=500)
+        # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)
+        json.dump(yamldata, yamlfile, {'sort_keys' : True, 'indent' : 4})  # way tf faster than full yaml
 
 # ----------------------------------------------------------------------------------------
 def read_yaml_annotations(fname, synth_single_seqs=False, debug=False):  # corresponds to process_input_line()
     annotation_list = []
     with open(fname) as yamlfile:
-        yamlfo = yaml.load(yamlfile)
+
+        # yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)
+        yamlfo = json.load(yamlfile)  # way tf faster than full yaml
+
         if debug:
             print '  reading yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
         glfo = yamlfo['germline-info']
@@ -3612,4 +3617,5 @@ def read_yaml_annotations(fname, synth_single_seqs=False, debug=False):  # corre
                     annotation_list.append(synthesize_single_seq_line(line, iseq))
             else:
                 annotation_list.append(line)
+
     return glfo, annotation_list
