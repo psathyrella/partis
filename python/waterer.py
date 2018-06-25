@@ -144,7 +144,8 @@ class Waterer(object):
                     if line['unique_ids'][0] not in self.input_info:
                         continue
                     for region in utils.regions:  # uh... should do this more cleanly at some point
-                        del line[region + '_per_gene_support']
+                        if region + '_per_gene_support' in line:
+                            del line[region + '_per_gene_support']
                     utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
                     if indelutils.has_indels(line['indelfos'][0]):
                         self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
