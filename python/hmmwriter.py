@@ -15,6 +15,11 @@ import glutils
 import paramutils
 from hist import Hist
 
+try:
+    from yaml import CLoader
+except ImportError:
+    raise Exception('missing libyaml bindings (probably need to install libyaml-dev, then reinstall pyyaml)')
+
 # ----------------------------------------------------------------------------------------
 def get_bin_list(values, bin_type):
     assert bin_type == 'all' or bin_type == 'empty' or bin_type == 'full'
@@ -296,7 +301,7 @@ class HmmWriter(object):
             self.hmm.prnt(self.saniname)
         assert os.path.exists(self.outdir)
         with open(self.outdir + '/' + self.saniname + '.yaml', 'w') as outfile:
-            yaml.dump(self.hmm, outfile, width=150)
+            yaml.dump(self.hmm, outfile, width=150, Dumper=yaml.CDumper)
 
     # ----------------------------------------------------------------------------------------
     def add_states(self):
