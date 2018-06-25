@@ -140,7 +140,7 @@ class Tester(object):
         else:
             if input_dtype == 'simu':
                 argfo['extras'] += ['--is-simu', ]
-            argfo['extras'] += ['--sw-cachefname', self.sw_cache_paths[input_stype][input_dtype] + '.yaml']
+            argfo['extras'] += ['--sw-cachefname', self.sw_cache_paths[input_stype][input_dtype] + '.csv']  # '.yaml'
             argfo['extras'] += ['--infname', self.infnames[input_stype][input_dtype]]
             argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype][input_dtype]]
 
