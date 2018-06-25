@@ -2,7 +2,6 @@ FROM continuumio/anaconda
 
 RUN apt-get update && apt-get install -y \
   build-essential \
-  cmake \
   libgsl-dev \
   libncurses-dev \
   libxt6 \
