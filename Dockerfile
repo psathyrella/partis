@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y \
   libgsl-dev \
   libncurses-dev \
   libxt6 \
+  libboost-dev \
+  libyaml-cpp-dev \
+  libyaml-dev \
   libz-dev
 
 RUN conda update -y conda
