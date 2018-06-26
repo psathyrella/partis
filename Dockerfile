@@ -2,10 +2,10 @@ FROM continuumio/anaconda
 
 RUN apt-get update && apt-get install -y \
   build-essential \
+  libboost-dev \
   libgsl-dev \
   libncurses-dev \
   libxt6 \
-  libboost-dev \
   libyaml-cpp-dev \
   libyaml-dev \
   libz-dev
