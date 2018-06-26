@@ -118,6 +118,9 @@ def process(args):
         if '-e' in args.batch_options or '-o' in args.batch_options:
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
+    if args.outfname is not None and utils.getsuffix(args.outfname) != '.yaml':
+        print '  %s --outfname uses deprecated file format %s. This will still work fine, but the new default .yaml format is cleaner and also includes germline info.' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
+
     if args.cluster_annotation_fname is None and args.outfname is not None:
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
 

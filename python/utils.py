@@ -3614,7 +3614,7 @@ def read_yaml_annotations(fname, n_max_queries=-1, synth_single_seqs=False, dont
 
         if debug:
             print '  reading yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
-        glfo = yamlfo['germline-info']
+        glfo = yamlfo['germline-info']  # it would probably be good to run this through the checks that glutils.read_glfo() does, but on the other hand since we're reading from our own yaml file, those have almost certainly already been done
         n_queries_read = 0
         for line in yamlfo['events']:
             if not line['invalid']:

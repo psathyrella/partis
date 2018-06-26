@@ -127,43 +127,33 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname):
         start = time.time()
-        cachebase = utils.getprefix(cachefname)
+        print '        reading sw results from %s' % cachefname
 
         if utils.getsuffix(cachefname) == '.csv':  # old way
-            print '        reading sw results from %s' % cachefname
+            cachebase = utils.getprefix(cachefname)
             if os.path.exists(cachebase + '-glfo'):  # NOTE replaces original <self.glfo>
                 self.glfo = glutils.read_glfo(cachebase + '-glfo', self.args.locus)
             else:
                 print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
-
-            # maybe replace this with a general csv annotation reader (with nice header control)? (draft is commented in utils.py)
-            with open(cachefname) as cachefile:
-                reader = csv.DictReader(cachefile)
-                for line in reader:  # NOTE failed queries are *not* written to the cache file -- they're assumed to be whatever's in input info that's missing
-                    utils.process_input_line(line)
-                    assert len(line['unique_ids']) == 1
-                    if line['unique_ids'][0] not in self.input_info:
-                        continue
-                    for region in utils.regions:  # new files shouldn't have this, but I think I need to leave it for reading older files
-                        if region + '_per_gene_support' in line:
-                            del line[region + '_per_gene_support']
-                    utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
-                    if indelutils.has_indels(line['indelfos'][0]):
-                        self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
-                    self.add_to_info(line)
+            cachefile = open(cachefname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop over <reader>)
+            reader = csv.DictReader(cachefile)
         elif utils.getsuffix(cachefname) == '.yaml':  # new way
-            print '        reading sw results from %s' % cachefname
-            self.glfo, annotation_list = utils.read_yaml_annotations(cachefname, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em and use aligned gl seqs
-            for line in annotation_list:  # NOTE failed queries are *not* written to the cache file -- they're assumed to be whatever's in input info that's missing
-                assert len(line['unique_ids']) == 1  # would only fail if this was not actually an sw cache file, but it's still nice to check since so many places in waterer assume it's length 1
-                if line['unique_ids'][0] not in self.input_info:
-                    continue
-                utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
-                if indelutils.has_indels(line['indelfos'][0]):
-                    self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
-                self.add_to_info(line)
+            self.glfo, reader = utils.read_yaml_annotations(cachefname, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em and use aligned gl seqs
         else:
             raise Exception('unhandled sw cache file suffix for %s' % cachefname)
+
+        for line in reader:  # NOTE failed queries are *not* written to the cache file -- they're assumed to be whatever's in input info that's missing
+            if utils.getsuffix(cachefname) == '.csv':
+                utils.process_input_line(line)
+                for key in [k for k in [r + '_per_gene_support' for r in utils.regions] if k in line]:  # new files shouldn't have this, but I think I need to leave it for reading older files
+                    del line[key]
+            assert len(line['unique_ids']) == 1  # would only fail if this was not actually an sw cache file, but it's still nice to check since so many places in waterer assume it's length 1
+            if line['unique_ids'][0] not in self.input_info:
+                continue
+            utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
+            if indelutils.has_indels(line['indelfos'][0]):
+                self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
+            self.add_to_info(line)
 
         glutils.write_glfo(self.my_gldir, self.glfo)
 
@@ -175,10 +165,10 @@ class Waterer(object):
         if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:  # hackey workaround: (in case you want to use trimmed/padded seqs for something, but shouldn't be used in general)
             self.pad_seqs_to_same_length()
 
-        cachebase = utils.getprefix(cachefname)
         print '        writing sw results to %s' % cachefname
 
         if utils.getsuffix(cachefname) == '.csv':
+            cachebase = utils.getprefix(cachefname)
             glutils.write_glfo(cachebase + '-glfo', self.glfo)
 
         utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers=utils.sw_cache_headers)  # NOTE does *not* write failed queries NOTE I'm not adding self.args.extra_annotation_columns here, since if they're in the sw cache file I'd have to deal with removing them when I read it
