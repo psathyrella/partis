@@ -111,7 +111,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None
         reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
                                   queries=(args.queries if (args is not None and not args.abbreviate) else None))  # NOTE also can't filter on args.queries here if we're also translating
     elif suffix == '.yaml':
-        glfo, reader = utils.read_yaml_annotations(infname, synth_single_seqs=True)  # not really sure that long term I want to synthesize single seq lines, but for backwards compatibility it's nice a.t.m.
+        glfo, reader = utils.read_yaml_annotations(infname, n_max_queries=n_max_queries, synth_single_seqs=True, dont_add_implicit_info=True)  # not really sure that long term I want to synthesize single seq lines, but for backwards compatibility it's nice a.t.m.
     else:
         raise Exception('unhandled file extension %s' % suffix)
 
@@ -165,7 +165,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None
             uid = new_uid
         inseq = line['input_seqs'][0]
 
-        # # it would be nice to check here for forbidden characters (in addition to in the .fa code above), but it's hard because we won't have read the csv properly above it has them
+        # # it would be nice to check here for forbidden characters (in addition to in the .fa code above), but it's hard because we won't have read the csv properly above if it has them
         # if any(fc in uid for fc in utils.forbidden_characters):
         #     raise Exception('found a forbidden character (one of %s) in sequence id \'%s\'' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid))
         if args is not None:
@@ -181,7 +181,7 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None
         if uid in input_info:
             raise Exception('found uid \'%s\' twice in input file %s' % (uid, infname))
 
-        if len(inseq.translate(None, ''.join(utils.alphabet))) > 0:
+        if any(c not in utils.alphabet for c in inseq):
             unexpected_chars = set([ch for ch in inseq if ch not in utils.alphabet])
             raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s:\n  %s' % (utils.plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), utils.nukes + utils.ambiguous_bases, uid, inseq))
 

@@ -138,8 +138,10 @@ def cdn_pos(glfo, region, gene):
     if cdn(glfo, region) is None:
         return None
     return cdn_positions(glfo, region)[gene]
+def remove_gaps(seq):
+    return ''.join([c for c in seq if c not in gap_chars])
 def gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
-    return len(filter(gap_chars.__contains__, seq))
+    return len([c for c in seq if c in gap_chars])
 def non_gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
     return len(seq) - gap_len(seq)
 def ambig_frac(seq):
@@ -777,10 +779,6 @@ def int_to_nucleotide(number):
     else:
         print 'ERROR nucleotide number not in [0,3]'
         sys.exit()
-
-#----------------------------------------------------------------------------------------
-def remove_gaps(seq):
-    return seq.translate(None, ''.join(gap_chars))
 
 # ----------------------------------------------------------------------------------------
 def count_n_separate_gaps(seq, exclusion_5p=None, exclusion_3p=None):  # NOTE compare to count_gap_chars() below (and gap_len() at top)
@@ -3538,6 +3536,15 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 
     return imax, max_abs_diff
 
+# # ----------------------------------------------------------------------------------------
+# def read_annotations(fname, headers, glfo=None, synth_single_seqs=False):
+#     if getsuffix(fname) == '.csv':
+#         read_csv_annotations(fname, headers, glfo, synth_single_seqs=synth_single_seqs)
+#     elif getsuffix(fname) == '.yaml':
+#         read_yaml_annotations(fname, headers, synth_single_seqs=synth_single_seqs xxx dont_add_implicit_info xxx)
+#     else:
+#         raise Exception('unhandled file extension %s' % getsuffix(fname))
+
 # ----------------------------------------------------------------------------------------
 def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False):
     if os.path.exists(fname):
@@ -3595,10 +3602,10 @@ def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_s
                 'events' : yaml_annotations}
     with open(fname, 'w') as yamlfile:
         # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)
-        json.dump(yamldata, yamlfile, {'sort_keys' : True, 'indent' : 4})  # way tf faster than full yaml
+        json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml
 
 # ----------------------------------------------------------------------------------------
-def read_yaml_annotations(fname, synth_single_seqs=False, debug=False):  # corresponds to process_input_line()
+def read_yaml_annotations(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, debug=False):  # corresponds to process_input_line()
     annotation_list = []
     with open(fname) as yamlfile:
 
@@ -3608,14 +3615,20 @@ def read_yaml_annotations(fname, synth_single_seqs=False, debug=False):  # corre
         if debug:
             print '  reading yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
         glfo = yamlfo['germline-info']
+        n_queries_read = 0
         for line in yamlfo['events']:
             if not line['invalid']:
                 line['seqs'] = [line['indel_reversed_seqs'][iseq] if line['indel_reversed_seqs'][iseq] != '' else line['input_seqs'][iseq] for iseq in range(len(line['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
-                add_implicit_info(glfo, line)
+                if not dont_add_implicit_info:  # it's kind of slow, although most of the time you probably want all the extra info
+                    add_implicit_info(glfo, line)
             if synth_single_seqs and len(line['unique_ids']) > 1:
                 for iseq in range(len(line['unique_ids'])):
                     annotation_list.append(synthesize_single_seq_line(line, iseq))
             else:
                 annotation_list.append(line)
+
+            n_queries_read += len(line['unique_ids'])
+            if n_max_queries > 0 and n_queries_read >= n_max_queries:
+                break
 
     return glfo, annotation_list
