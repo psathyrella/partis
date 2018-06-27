@@ -118,11 +118,16 @@ def process(args):
         if '-e' in args.batch_options or '-o' in args.batch_options:
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
-    if args.outfname is not None:
+    if args.outfname is not None and not args.presto_output:
         if utils.getsuffix(args.outfname) not in ['.csv', '.yaml']:
             raise Exception('unhandled --outfname suffix %s' % utils.getsuffix(args.outfname))
         if utils.getsuffix(args.outfname) != '.yaml':
             print '  %s --outfname uses deprecated file format %s. This will still work fine, but the new default .yaml format is cleaner and also includes germline info.' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
+    if args.presto_output:
+        if utils.getsuffix(args.outfname) != '.tsv':
+            raise Exception('--outfname suffix has to be .tsv for --presto-output (got %s)' % utils.getsuffix(args.outfname))
+        if args.aligned_germline_fname is None:
+            raise Exception('in order to get presto output, you have to set --aligned-germline-fname to a fasta file with germline alignments for every germline gene, an example is located in data/germlines/imgt-aligned-igh.fa (this isn\'t set by default because imgt alignments are subject to change)')
 
     if args.cluster_annotation_fname is None and args.outfname is not None:
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
@@ -149,9 +154,6 @@ def process(args):
 
     if args.parameter_type != 'hmm':
         print '  using non-default parameter type \'%s\'' % args.parameter_type
-
-    if args.presto_output and args.aligned_germline_fname is None:
-        raise Exception('in order to get presto output, you have to set --aligned-germline-fname (a fasta file with germline alignments for every germline gene)')
 
     if args.simulate_from_scratch:
         args.rearrange_from_scratch = True
