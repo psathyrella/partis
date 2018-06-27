@@ -7,7 +7,10 @@ import utils
 
 # ----------------------------------------------------------------------------------------
 class ClusterPath(object):
-    def __init__(self, initial_path_index=0, seed_unique_id=None, partition=None):
+    def __init__(self, initial_path_index=0, seed_unique_id=None, partition=None, fname=None):
+        # TODO init from fname, and change all calls (?)
+
+        # could probably remove path index since there's very little chance of doing smc in the future, but the path-merging code in glomerator was _very_ difficult to write, so I'm reluctant to nuke it
         self.initial_path_index = initial_path_index  # NOTE this is set to None if it's nonsensical, e.g. if we're merging several paths with different indices
 
         # NOTE make *damn* sure if you add another list here that you also take care of it in remove_first_partition()
@@ -262,44 +265,21 @@ class ClusterPath(object):
     def write(self, outfname, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none'):
         """ self-contained writing function """
         outfile, writer = self.init_outfile(outfname, is_data)
-        self.write_partitions(writer, reco_info, true_partition, is_data, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
+        self.write_partitions(writer, is_data, reco_info=reco_info, true_partition=true_partition, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
         outfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, reco_info, true_partition, is_data, path_index=None, n_to_write=None, calc_missing_values='none'):
-        """ use this if you're writing several paths to the same file"""
-
-        # ----------------------------------------------------------------------------------------
-        def get_bad_clusters(part):
-            bad_clusters = []  # inferred clusters that aren't really all from the same event
-            for ic in range(len(part)):
-                same_event = utils.from_same_event(reco_info, part[ic])  # are all the sequences from the same event?
-                entire_cluster = True  # ... and if so, are they the entire true cluster?
-                if same_event:
-                    reco_id = reco_info[part[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
-                    true_cluster = true_partition[reco_id]
-                    for uid in true_cluster:
-                        if uid not in part[ic]:
-                            entire_cluster = False
-                            break
-                else:
-                    entire_cluster = False
-                if not same_event or not entire_cluster:
-                    bad_clusters.append(':'.join(part[ic]))
-
-            if len(bad_clusters) > 25:
-                bad_clusters = ['too', 'long']
-
-            return bad_clusters
+    def write_partitions(self, writer, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None):
+        """ for use by itself only when writing several paths to the same file (i.e. for smc) """
 
         assert calc_missing_values in ['none', 'all', 'best']
         if reco_info is not None and calc_missing_values == 'all':
             self.calculate_missing_values(reco_info)
 
-        # ----------------------------------------------------------------------------------------
         headers = self.get_headers(is_data)
         for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
             part = self.partitions[ipart]
+            # TODO stop with the str += b.s.
             cluster_str = ''
             for ic in range(len(part)):
                 if ic > 0:
@@ -318,7 +298,7 @@ class ClusterPath(object):
             if 'n_true_clusters' in headers:
                 row['n_true_clusters'] = len(true_partition)
             if 'bad_clusters' in headers:
-                row['bad_clusters'] = ';'.join(get_bad_clusters(part))
+                row['bad_clusters'] = ';'.join(self.get_bad_clusters(part, reco_info))
             if 'path_index' in headers:
                 row['path_index'] = path_index
                 row['logweight'] = self.logweights[ipart]
@@ -326,6 +306,29 @@ class ClusterPath(object):
                 row['seed_unique_id'] = self.seed_unique_id
 
             writer.writerow(row)
+
+    # ----------------------------------------------------------------------------------------
+    def get_bad_clusters(self, partition, reco_info):
+        bad_clusters = []  # inferred clusters that aren't really all from the same event
+        for ic in range(len(partition)):
+            same_event = utils.from_same_event(reco_info, partition[ic])  # are all the sequences from the same event?
+            entire_cluster = True  # ... and if so, are they the entire true cluster?
+            if same_event:
+                reco_id = reco_info[partition[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
+                true_cluster = true_partition[reco_id]
+                for uid in true_cluster:
+                    if uid not in partition[ic]:
+                        entire_cluster = False
+                        break
+            else:
+                entire_cluster = False
+            if not same_event or not entire_cluster:
+                bad_clusters.append(':'.join(partition[ic]))
+
+        if len(bad_clusters) > 25:
+            bad_clusters = ['too', 'long']
+
+        return bad_clusters
 
     # ----------------------------------------------------------------------------------------
     def write_presto_partitions(self, outfname, input_info):

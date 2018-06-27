@@ -335,8 +335,10 @@ class PartitionDriver(object):
     def read_existing_partitions(self, debug=False):
         if self.current_action == 'view-partitions' or self.current_action == 'view-cluster-annotations':
             debug = True
+# ----------------------------------------------------------------------------------------
         cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cp.readfile(self.args.outfname)
+# ----------------------------------------------------------------------------------------
         if debug:
             cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
         return cp
@@ -640,12 +642,12 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_clusterpaths(self, outfname, cpath):
-        outfile, writer = cpath.init_outfile(outfname, self.args.is_data)
+        # TODO move contents of this fcn to the caller (also, don't I already have the true partition somewhere?)
+
         true_partition = None
         if not self.args.is_data:
             true_partition = utils.get_true_partition(self.reco_info)
-        cpath.write_partitions(writer=writer, reco_info=self.reco_info, true_partition=true_partition, is_data=self.args.is_data, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
-        outfile.close()
+        cpath.write(outfname, self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
 
         if self.args.presto_output:
             outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
