@@ -1726,7 +1726,6 @@ class PartitionDriver(object):
 
         self.check_for_unexpectedly_missing_keys(annotations_to_use, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
 
-        # write output file
         if outfname is not None:
             self.write_annotations(annotations_to_use, outfname, hmm_failures, dont_write_failed_queries=dont_write_failed_queries)  # [0] takes the best annotation... if people want other ones later it's easy to change
 
@@ -1778,27 +1777,13 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_annotations(self, annotations, outfname, hmm_failures, dont_write_failed_queries=False):
-        outpath = outfname
-        if outpath[0] != '/':  # if full output path wasn't specified on the command line, write to current directory
-            outpath = os.getcwd() + '/' + outpath
+        headers = utils.annotation_headers
+        if self.args.extra_annotation_columns is not None:
+            headers += self.args.extra_annotation_columns
+        failed_queries = None
+        if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
+            failed_queries = [{'unique_ids' : [uid], 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
+        utils.write_annotations(outfname, self.glfo, annotations.values(), headers=headers, extra_columns=self.args.extra_annotation_columns, failed_queries=failed_queries)
 
-        with open(outpath, 'w') as outfile:
-            csv_headers = utils.annotation_headers
-            if self.args.extra_annotation_columns is not None:
-                csv_headers += self.args.extra_annotation_columns
-            writer = csv.DictWriter(outfile, csv_headers)
-            writer.writeheader()
-            # hmm annotations
-            for line in annotations.values():
-                outline = utils.get_line_for_output(line, extra_columns=self.args.extra_annotation_columns, glfo=self.glfo)  # convert lists to colon-separated strings and whatnot (doesn't modify <line>)
-                outline = {k : v for k, v in outline.items() if k in csv_headers}  # remove the columns we don't want to output
-                writer.writerow(outline)
-
-            if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
-                for fid in self.sw_info['failed-queries'] | hmm_failures:  # both use single-seq ids a.t.m.
-                    writer.writerow({'unique_ids' : fid, 'input_seqs' : ':'.join([self.input_info[f]['seqs'][0] for f in fid.split(':')])})  # .split() stuff is to handle in the future multi-seq ids
-
-        # presto!
         if self.args.presto_output:
-            failed_queries = {fid : self.input_info[fid]['seqs'][0] for fid in self.sw_info['failed-queries'] | hmm_failures}
             utils.write_presto_annotations(outpath, self.glfo, annotations, failed_queries=failed_queries)

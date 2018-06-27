@@ -18,6 +18,7 @@ import subprocess
 import multiprocessing
 import copy
 import traceback
+import yaml
 import json
 
 import indelutils
@@ -513,8 +514,9 @@ def write_presto_annotations(outfname, glfo, annotations, failed_queries):
             writer.writerow(get_line_with_presto_headers(full_line))
 
         # and write empty lines for seqs that failed either in sw or the hmm
-        for uid, seq in failed_queries.items():
-            writer.writerow({'SEQUENCE_ID' : uid, 'SEQUENCE_INPUT' : seq})
+        for failfo in failed_queries:
+            assert len(failfo['unique_ids']) == 1
+            writer.writerow({'SEQUENCE_ID' : failfo['unique_ids'][0], 'SEQUENCE_INPUT' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
@@ -3546,62 +3548,71 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 #         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
 # ----------------------------------------------------------------------------------------
-def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False):
+def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False, extra_columns=None, failed_queries=None):
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
         os.makedirs(os.path.dirname(os.path.abspath(fname)))
 
     if getsuffix(fname) == '.csv':
-        write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs)
+        write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs, extra_columns=extra_columns, glfo=glfo, failed_queries=failed_queries)
     elif getsuffix(fname) == '.yaml':
-        write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=synth_single_seqs)
+        write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=synth_single_seqs, extra_columns=extra_columns, failed_queries=failed_queries)
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
 # ----------------------------------------------------------------------------------------
-def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False):
+def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False, extra_columns=None, glfo=None, failed_queries=None):
     with open(fname, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, headers)
         writer.writeheader()
         for line in annotation_list:
             if synth_single_seqs:
                 for iseq in range(len(line['unique_ids'])):
-                    outline = get_line_for_output(synthesize_single_seq_line(line, iseq))  # would be faster to do this after removing the keys you don't need
+                    outline = get_line_for_output(synthesize_single_seq_line(line, iseq), extra_columns=extra_columns, glfo=glfo)  # would be faster to do this after removing the keys you don't need
                     outline = {k : v for k, v in outline.items() if k in headers}
                     writer.writerow(outline)
             else:
-                outline = get_line_for_output(line)
+                outline = get_line_for_output(line, extra_columns=extra_columns, glfo=glfo)
                 outline = {k : v for k, v in outline.items() if k in headers}
                 writer.writerow(outline)
+        if failed_queries is not None:
+            for failfo in failed_queries:
+                writer.writerow(failfo)
 
 # ----------------------------------------------------------------------------------------
 def get_yamlfo_for_output(line, headers, extra_columns=None, glfo=None):  # NOTE duplicates code in get_line_for_output()
     yamlfo = {}
     transfer_indel_info(line, yamlfo)
-    if len(set(headers) - set(line) - set(yamlfo)) > 0:
-        raise Exception('missing requested headers %s' % ' '.join(set(headers) - set(line) - set(yamlfo)))
-    yamlfo.update({k : line[k] for k in headers if k not in yamlfo})
+    yamlfo.update({k : line[k] for k in line if k in headers and k not in yamlfo})
     yamlfo['indel_reversed_seqs'] = [yamlfo['indel_reversed_seqs'][iseq] if yamlfo['has_shm_indels'][iseq] else '' for iseq in range(len(yamlfo['unique_ids']))]  # set indel_reversed_seqs to empty strings unless there's actually indels
 
     if extra_columns is not None:
         for key in extra_columns:
             if key in line:  # i.e. it's a (probably implicit) header that's in our standard <line>, but that we don't write to file, so we don't need to add it
-                outfo[key] = line[key]
+                yamlfo[key] = line[key]
             else:
                 add_extra_column(key, line, yamlfo, glfo=glfo, csv=False)
+
+    # should remove these after this has been running by default for a while
+    if len(set(headers) - set(yamlfo)) > 0:
+        raise Exception('missing requested headers %s' % ' '.join(set(headers) - set(yamlfo)))
+    if len(set(yamlfo) - set(headers)) > 0:
+        raise Exception('extra headers in yamlfo %s' % ' '.join(set(yamlfo) - set(headers)))
 
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False):
+def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False, extra_columns=None, failed_queries=None):
     version_info = {'partis-yaml' : 0.1}
-    yaml_annotations = [get_yamlfo_for_output(l, headers) for l in annotation_list]
+    yaml_annotations = [get_yamlfo_for_output(l, headers, extra_columns=extra_columns, glfo=glfo) for l in annotation_list]
+    if failed_queries is not None:
+        yaml_annotations += failed_queries
     yamldata = {'version-info' : version_info,
                 'germline-info' : glfo,
                 'events' : yaml_annotations}
     with open(fname, 'w') as yamlfile:
-        # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)
+        # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)  # slower, but easier to read by hand for debugging
         json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml
 
 # ----------------------------------------------------------------------------------------
