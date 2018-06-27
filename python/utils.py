@@ -3577,7 +3577,8 @@ def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=Fal
                 writer.writerow(outline)
         if failed_queries is not None:
             for failfo in failed_queries:
-                writer.writerow(failfo)
+                assert len(failfo['unique_ids']) == 1
+                writer.writerow({'unique_ids' : failfo['unique_ids'][0], 'invalid' : failfo['invalid'], 'input_seqs' : failfo['input_seqs'][0]})  # this is ugly, but the corresponding one in the yaml fcn is nice
 
 # ----------------------------------------------------------------------------------------
 def get_yamlfo_for_output(line, headers, extra_columns=None, glfo=None):  # NOTE duplicates code in get_line_for_output()

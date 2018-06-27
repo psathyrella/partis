@@ -1782,7 +1782,7 @@ class PartitionDriver(object):
             headers += self.args.extra_annotation_columns
         failed_queries = None
         if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
-            failed_queries = [{'unique_ids' : [uid], 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
+            failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
         if not self.args.presto_output:
             utils.write_annotations(outfname, self.glfo, annotations.values(), headers=headers, extra_columns=self.args.extra_annotation_columns, failed_queries=failed_queries)
 
