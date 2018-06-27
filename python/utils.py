@@ -18,7 +18,6 @@ import subprocess
 import multiprocessing
 import copy
 import traceback
-import yaml
 import json
 
 import indelutils
@@ -3612,6 +3611,7 @@ def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_s
                 'germline-info' : glfo,
                 'events' : yaml_annotations}
     with open(fname, 'w') as yamlfile:
+        # import yaml
         # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)  # slower, but easier to read by hand for debugging
         json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml
 
@@ -3620,6 +3620,7 @@ def read_yaml_annotations(fname, n_max_queries=-1, synth_single_seqs=False, dont
     annotation_list = []
     with open(fname) as yamlfile:
 
+        # import yaml
         # yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)
         yamlfo = json.load(yamlfile)  # way tf faster than full yaml
 
