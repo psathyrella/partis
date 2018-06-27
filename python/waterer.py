@@ -140,7 +140,7 @@ class Waterer(object):
         elif utils.getsuffix(cachefname) == '.yaml':  # new way
             self.glfo, reader = utils.read_yaml_annotations(cachefname, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em and use aligned gl seqs
         else:
-            raise Exception('unhandled sw cache file suffix for %s' % cachefname)
+            raise Exception('unhandled sw cache file suffix %s' % cachefname)
 
         for line in reader:  # NOTE failed queries are *not* written to the cache file -- they're assumed to be whatever's in input info that's missing
             if utils.getsuffix(cachefname) == '.csv':

@@ -80,7 +80,7 @@ Extra information available in the dictionary in memory, but not written to disc
 | v_gl_seq				  |  portion of v germline gene aligned to the indel-reversed sequence (i.e. with 5p and 3p deletions removed). Colon-separated list.
 | d_gl_seq				  |  see v_gl_seq
 | j_gl_seq				  |  see v_gl_seq
-| v_qr_seqs               |  porition of indel-reversed sequence aligned to the v region. Colon-separated list.
+| v_qr_seqs               |  portion of indel-reversed sequence aligned to the v region. Colon-separated list.
 | d_qr_seqs				  |  see v_qr_seqs
 | j_qr_seqs				  |  see v_qr_seqs
 | lengths				  |  lengths aligned to each of the v, d, and j regions, e.g. `{'j': 48, 'd': 26, 'v': 296}`

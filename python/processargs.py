@@ -129,8 +129,8 @@ def process(args):
         if args.aligned_germline_fname is None:
             raise Exception('in order to get presto output, you have to set --aligned-germline-fname to a fasta file with germline alignments for every germline gene, an example is located in data/germlines/imgt-aligned-igh.fa (this isn\'t set by default because imgt alignments are subject to change)')
 
-    if args.cluster_annotation_fname is None and args.outfname is not None:
-        args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
+    if args.cluster_annotation_fname is None and args.outfname is not None:  # a.t.m. (and maybe in the future) the partition file is a csv, but we want the annotations to default to yaml, so if you want csv cluster annotations you have to set --cluster-annotation-fname explicitly
+        args.cluster_annotation_fname = utils.getprefix(args.outfname) + '-cluster-annotations.yaml'  # utils.insert_before_suffix('-cluster-annotations', args.outfname)
 
     if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
         if args.outfname is None:

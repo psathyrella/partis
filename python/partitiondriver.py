@@ -279,30 +279,41 @@ class PartitionDriver(object):
             debug = True
         elif self.current_action == 'view-cluster-annotations':
             debug = True
-            outfname = self.args.cluster_annotation_fname
+            if os.path.exists(self.args.cluster_annotation_fname):
+                outfname = self.args.cluster_annotation_fname
+            else:  # current default has csv partitions file with yaml annotation file, but if we're reading/looking for old output, we should look for csv annotation file
+                outfname = self.args.cluster_annotation_fname.replace('.yaml', '.csv')
 
-        annotations = OrderedDict()
-        with open(outfname) as csvfile:
-            failed_queries = set()
+        if utils.getsuffix(outfname) == '.csv':  # old way
+            csvfile = open(outfname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop over <reader>)
             reader = csv.DictReader(csvfile)
-            n_queries_read = 0
-            for line in reader:
-                if line['v_gene'] == '':
-                    failed_queries.add(line['unique_ids'])
-                    continue
-                if self.args.queries is not None and not ignore_args_dot_queries:  # when printing subcluster naive seqs, we want to read all the ones that have any overlap with self.args.queries, not just the exact cluster of self.args.queries
-                    uids = set(line['unique_ids'].split(':'))  # avoid processing the whole input line if we don't need to
-                    if len(set(self.args.queries) & uids) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
-                        continue
-                utils.process_input_line(line)
-                if self.args.reco_ids is not None and line['reco_id'] not in self.args.reco_ids:
-                    continue
-                utils.add_implicit_info(self.glfo, line)
-                annotations[':'.join(line['unique_ids'])] = line
+        elif utils.getsuffix(outfname) == '.yaml':  # new way
+            # NOTE replaces <self.glfo>, which is definitely what we want (it's the point of putting glfo in the yaml file), but it's still different behavior than if reading a csv
+            self.glfo, reader = utils.read_yaml_annotations(outfname, n_max_queries=self.args.n_max_queries, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em
+        else:
+            raise Exception('unhandled annotation file suffix %s' % outfname)
 
-                n_queries_read += 1
-                if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
-                    break
+        n_queries_read = 0
+        failed_query_strs = set()
+        annotations = OrderedDict()
+        for line in reader:
+            if utils.getsuffix(outfname) == '.csv':
+                utils.process_input_line(line)
+            uidstr = ':'.join(line['unique_ids'])
+            if ('invalid' in line and line['invalid']) or line['v_gene'] == '':  # first way is the new way, but we have to check the empty-v-gene way too for old files
+                failed_query_strs.add(uidstr)
+                continue
+            if self.args.queries is not None and not ignore_args_dot_queries:  # second bit is because when printing subcluster naive seqs, we want to read all the ones that have any overlap with self.args.queries, not just the exact cluster of self.args.queries
+                if len(set(self.args.queries) & set(line['unique_ids'])) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
+                    continue
+            if self.args.reco_ids is not None and line['reco_id'] not in self.args.reco_ids:
+                continue
+            utils.add_implicit_info(self.glfo, line)
+            annotations[uidstr] = line
+
+            n_queries_read += 1
+            if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
+                break
 
         if debug:
             sorted_annotations = sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True)
@@ -315,8 +326,8 @@ class PartitionDriver(object):
                     label = 'inferred:'
                 utils.print_reco_event(line, extra_str='  ', label=label)
 
-        if len(failed_queries) > 0:
-            print '\n%d failed queries' % len(failed_queries)
+        if len(failed_query_strs) > 0:
+            print '\n%d failed queries' % len(failed_query_strs)
 
         return annotations
 
@@ -351,7 +362,9 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def read_existing_cluster_annotations(self, debug=False):
+        print utils.color('green', 'partitions:')
         self.read_existing_partitions()
+        print utils.color('green', 'cluster annotations:')
         self.read_existing_annotations()
 
     # ----------------------------------------------------------------------------------------
