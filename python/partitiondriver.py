@@ -593,7 +593,9 @@ class PartitionDriver(object):
         start = time.time()
         while n_procs > 0:
             print '%d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))
-            cpath = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
+            # TODO i guess I'm just annihilating old cpath information from previous steps? Maybe that's how I really want it, but it seems like if we're trying to write a lot of partition steps to output that we'd need to save some
+            # ...I think this is because I used to have a self.<cpath or something>, but I removed it at some point
+            cpath, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
@@ -667,16 +669,19 @@ class PartitionDriver(object):
         partition_to_annotate = sorted(partition_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(partition_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print 'getting annotations for final partition%s' % ('s' if self.args.write_additional_cluster_annotations is not None else '')
-        self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition_to_annotate, read_output=False)  # it would be nice to rearrange <self.read_hmm_output()> so I could remove this option
+        self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition_to_annotate, read_output=False)
         if n_procs > 1:
-            _ = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
-        best_annotations = self.read_annotation_output(self.hmm_outfname, outfname=self.args.cluster_annotation_fname, print_annotations=self.args.print_cluster_annotations, dont_write_failed_queries=True, count_parameters=self.args.count_parameters)
+            self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
+        best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
+        if self.args.cluster_annotation_fname is not None:
+            self.write_annotations(best_annotations, self.args.cluster_annotation_fname, hmm_failures, dont_write_failed_queries=True)
+
         if self.args.write_additional_cluster_annotations is not None:  # remove the clusters that aren't actually in the best partition
             keys_to_remove = [uidstr for uidstr in best_annotations if uidstr.split(':') not in cpath.partitions[cpath.i_best]]
             for uidstr in keys_to_remove:
                 del best_annotations[uidstr]
             if len(best_annotations) != len(cpath.partitions[cpath.i_best]):
-                if len(best_annotations) < len(cpath.partitions[cpath.i_best]):  # if <best_annotations> is too short, it should be because there was a failed annotationg (which'll be printed in self.read_annotation_output())
+                if len(best_annotations) < len(cpath.partitions[cpath.i_best]):  # if <best_annotations> is too short, it should be because there was a failed annotation
                     print '    %s read fewer cluster annotations than there are clusters in the best partition (should be accounted for above)' % utils.color('yellow', 'warning')
                 else:
                     raise Exception('something went wrong when removing extra clusters from best_annotations (%d vs %d)' % (len(best_annotations), len(cpath.partitions[cpath.i_best])))
@@ -932,7 +937,6 @@ class PartitionDriver(object):
         self.prepare_for_hmm(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
         glutils.write_glfo(self.my_gldir, self.glfo)
 
-
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
         if n_procs > 1:
@@ -944,9 +948,19 @@ class PartitionDriver(object):
 
         glutils.remove_glfo_files(self.my_gldir, self.args.locus)
 
-        new_cpath = None
+        cpath, annotations = None, None
         if read_output:
-            new_cpath = self.read_hmm_output(algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs)
+            if self.current_action == 'partition' or n_procs > 1:
+                cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
+
+            if self.current_action != 'partition' or count_parameters:  # TODO isn't current action actually the current action now? (oh, wait, no, it's not, when precaching naive seqs. TODO figure out a better way of doing that)
+                assert algorithm == 'viterbi'  # TODO clean this up
+                annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
+                if self.args.outfname is not None:
+                    self.write_annotations(annotations, self.args.outfname, hmm_failures)
+
+            if os.path.exists(self.hmm_infname):
+                os.remove(self.hmm_infname)
 
         step_time = time.time() - start
         if step_time - exec_time > 0.1:
@@ -954,7 +968,7 @@ class PartitionDriver(object):
         print '      hmm step time: %.1f' % step_time
         self.timing_info.append({'exec' : exec_time, 'total' : step_time})  # NOTE in general, includes pre-cache step
 
-        return new_cpath
+        return cpath, annotations
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_cachefile(self):
@@ -1436,23 +1450,6 @@ class PartitionDriver(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def read_hmm_output(self, algorithm, n_procs, count_parameters, parameter_out_dir, precache_all_naive_seqs):
-        cpath = None  # would be nice to figure out a cleaner way to do this
-        if self.current_action == 'partition' or n_procs > 1:
-            cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
-
-        if self.current_action != 'partition' or count_parameters:
-            if algorithm == 'viterbi':
-                self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, outfname=self.args.outfname)
-            elif algorithm == 'forward':
-                self.read_forward_output(self.hmm_outfname)
-
-        if os.path.exists(self.hmm_infname):
-            os.remove(self.hmm_infname)
-
-        return cpath
-
-    # ----------------------------------------------------------------------------------------
     def check_did_bcrham_fail(self, line, errorfo):
         if line['errors'] == '':  # no problems
             return False
@@ -1470,25 +1467,6 @@ class PartitionDriver(object):
                 failed = True
 
         return failed
-
-    # ----------------------------------------------------------------------------------------
-    def read_forward_output(self, annotation_fname):
-        probs = OrderedDict()
-        with open(annotation_fname, 'r') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for line in reader:
-                if line['errors'] != '':
-                    print '  bcrham errors (%s) for %s' % (line['errors'], line['unique_ids'])
-                probs[line['unique_ids']] = float(line['logprob'])
-
-        if self.args.outfname is not None:
-            with open(self.args.outfname, 'w') as outfile:
-                writer = csv.DictWriter(outfile, ('unique_ids', 'logprob'))
-                writer.writeheader()
-                for uids, prob in probs.items():
-                    writer.writerow({'unique_ids' : uids, 'logprob' : prob})
-
-        os.remove(annotation_fname)
 
     # ----------------------------------------------------------------------------------------
     def correct_multi_hmm_boundaries(self, line, debug=False):
@@ -1598,7 +1576,7 @@ class PartitionDriver(object):
             print '  %s couldn\'t account for %d missing input uid%s%s' % (utils.color('red', 'warning'), len(missing_input_keys), utils.plural(len(missing_input_keys)), ': %s' % ' '.join(missing_input_keys) if len(missing_input_keys) < 15 else '')
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, annotation_fname, outfname=None, count_parameters=False, parameter_out_dir=None, print_annotations=False, dont_write_failed_queries=False):
+    def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None, print_annotations=False):
         """ Read bcrham annotation output """
         print '    read output'
         sys.stdout.flush()
@@ -1731,15 +1709,12 @@ class PartitionDriver(object):
 
         self.check_for_unexpectedly_missing_keys(annotations_to_use, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
 
-        if outfname is not None:
-            self.write_annotations(annotations_to_use, outfname, hmm_failures, dont_write_failed_queries=dont_write_failed_queries)  # [0] takes the best annotation... if people want other ones later it's easy to change
-
         # annotation (VJ CDR3) clustering
         if self.args.annotation_clustering is not None:
             self.deal_with_annotation_clustering(annotations_to_use, outfname)
 
         os.remove(annotation_fname)
-        return annotations_to_use
+        return annotations_to_use, hmm_failures
 
     # ----------------------------------------------------------------------------------------
     def deal_with_annotation_clustering(self, annotations, outfname):
