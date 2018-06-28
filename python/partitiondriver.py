@@ -411,7 +411,11 @@ class PartitionDriver(object):
 
         self.check_partition(cpath.partitions[cpath.i_best])
         if self.args.outfname is not None:
-            self.write_clusterpaths(self.args.outfname, cpath)  # [last agglomeration step]
+            cpath.write(self.args.outfname, self.args.is_data, reco_info=self.reco_info, true_partition=(utils.get_true_partition(self.reco_info) if not self.args.is_data else None), n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
+            if self.args.presto_output:
+                outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
+                print '    backing up partis output before converting to presto: %s' % outstr.strip()
+                cpath.write_presto_partitions(self.args.outfname, self.input_info)
 
     # ----------------------------------------------------------------------------------------
     def split_seeded_clusters(self, old_cpath):
@@ -639,20 +643,6 @@ class PartitionDriver(object):
             n_precache_procs = min(n_precache_procs, self.args.n_procs)  # aw, screw it, just limit it to --n-procs
 
         return n_precache_procs
-
-    # ----------------------------------------------------------------------------------------
-    def write_clusterpaths(self, outfname, cpath):
-        # TODO move contents of this fcn to the caller (also, don't I already have the true partition somewhere?)
-
-        true_partition = None
-        if not self.args.is_data:
-            true_partition = utils.get_true_partition(self.reco_info)
-        cpath.write(outfname, self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
-
-        if self.args.presto_output:
-            outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
-            print '    backing up partis output before converting to presto: %s' % outstr.strip()
-            cpath.write_presto_partitions(self.args.outfname, self.input_info)
 
     # ----------------------------------------------------------------------------------------
     def get_cluster_annotations(self, cpath):
