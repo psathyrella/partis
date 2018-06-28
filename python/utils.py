@@ -220,15 +220,6 @@ forbidden_character_translations = string.maketrans(':;,', 'csm')
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
-io_column_configs = {
-    'ints' : ['n_mutations', 'cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
-    'floats' : ['logprob', 'mut_freqs'],
-    'bools' : functional_columns + ['has_shm_indels', 'invalid'],
-    'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'n_mutations', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
-    'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
-}
-
 # ----------------------------------------------------------------------------------------
 def useful_bool(bool_str):
     if bool_str == 'True':
@@ -256,19 +247,6 @@ def get_list_of_str_list(strlist):
         return []
     return [[] if substr == '' else substr.split(':') for substr in strlist]
 
-conversion_fcns = {}
-for key in io_column_configs['ints']:
-    conversion_fcns[key] = int
-for key in io_column_configs['floats']:
-    conversion_fcns[key] = float
-for key in io_column_configs['bools']:
-    conversion_fcns[key] = useful_bool
-for key in io_column_configs['literals']:
-    conversion_fcns[key] = ast.literal_eval
-for region in regions:
-    conversion_fcns[region + '_per_gene_support'] = get_str_float_pair_dict
-conversion_fcns['duplicates'] = get_list_of_str_list
-
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 linekeys = {}
 linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
@@ -279,7 +257,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'indelfos', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'indelfos', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -295,13 +273,14 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
                         ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
 # ----------------------------------------------------------------------------------------
+special_indel_columns_for_output = ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns + ['codon_positions']
 simulation_headers = ('unique_ids', 'reco_id', 'invalid') + index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs') + tuple(functional_columns)
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
-    'cdr3_seqs',  # NOTE I'm not adding it to linekeys['per_seq'] since I don't want it to ever be in the regular <line> dicts, i.e. it's only added to a special dict immediately prior to writing the csv
+    'cdr3_seqs',
     'full_coding_naive_seq',
     'full_coding_input_seqs',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
@@ -331,6 +310,30 @@ bcrham_dbgstr_types = {
         'min-max' : ['time', ]
     },
 }
+
+# ----------------------------------------------------------------------------------------
+io_column_configs = {
+    'ints' : ['n_mutations', 'cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
+    'floats' : ['logprob', 'mut_freqs'],
+    'bools' : functional_columns + ['has_shm_indels', 'invalid'],
+    'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
+    # 'lists' : ['unique_ids', 'seqs', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'n_mutations', 'mut_freqs', 'padlefts', 'padrights'] + ['aligned_' + r + '_seqs' for r in regions] + functional_columns,  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
+    'lists' : linekeys['per_seq'],
+    'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
+}
+
+conversion_fcns = {}
+for key in io_column_configs['ints']:
+    conversion_fcns[key] = int
+for key in io_column_configs['floats']:
+    conversion_fcns[key] = float
+for key in io_column_configs['bools']:
+    conversion_fcns[key] = useful_bool
+for key in io_column_configs['literals']:
+    conversion_fcns[key] = ast.literal_eval
+for region in regions:
+    conversion_fcns[region + '_per_gene_support'] = get_str_float_pair_dict
+conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
 def synthesize_single_seq_line(line, iseq):
@@ -1762,12 +1765,10 @@ def process_input_line(info, hmm_cachefile=False):
             raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
 
 # ----------------------------------------------------------------------------------------
-def add_extra_column(key, info, outfo, glfo=None, csv=False):
-    if key == 'cdr3_seqs':  # NOTE not in utils.linekeys['per_seq'] (see note there)
+def add_extra_column(key, info, outfo, glfo=None):
+    if key == 'cdr3_seqs':
         cdr3_seqs = [info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3] for iseq in range(len(info['unique_ids']))]
         outfo[key] = cdr3_seqs
-        if csv:
-            outfo[key] = ':'.join(outfo[key])
     elif key == 'full_coding_naive_seq':
         assert glfo is not None
         delstr_5p = glfo['seqs']['v'][info['v_gene']][ : info['v_5p_del']]  # bit missing from the input sequence
@@ -1780,58 +1781,54 @@ def add_extra_column(key, info, outfo, glfo=None, csv=False):
     elif key == 'full_coding_input_seqs':
         full_coding_input_seqs = [info['v_5p_del'] * ambiguous_bases[0] + info['input_seqs'][iseq] + info['j_3p_del'] * ambiguous_bases[0] for iseq in range(len(info['unique_ids']))]
         outfo[key] = full_coding_input_seqs
-        if csv:
-            outfo[key] = ':'.join(outfo[key])
         # for iseq in range(len(info['unique_ids'])):
         #     print info['unique_ids'][iseq]
         #     color_mutants(info['input_seqs'][iseq], full_coding_input_seqs[iseq], print_result=True, align=True, extra_str='  ')
     else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
-        raise Exception('unsuported extra annotation column \'%s\'' % key)
+        raise Exception('unsupported extra annotation column \'%s\'' % key)
 
 # ----------------------------------------------------------------------------------------
 def transfer_indel_info(info, outfo):  # NOTE reverse of this happens in indelutils.deal_with_indel_stuff()
-    # in memory, I need the indel info under the 'indelfos' key (for historical reasons that I don't want to change a.t.m.), but I want to mask that complexity for output
+    """
+    for keys in special_indel_columns_for_output: in memory, I need the indel info under the 'indelfos' key (for historical reasons that I don't want to change a.t.m.), but I want to mask that complexity for output
+    """
     outfo['has_shm_indels'] = [indelutils.has_indels(ifo) for ifo in info['indelfos']]
     outfo['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in info['indelfos']]
     outfo['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in info['indelfos']]
+    outfo['indel_reversed_seqs'] = ['' if not indelutils.has_indels(info['indelfos'][iseq]) else info['indel_reversed_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
 
 # ----------------------------------------------------------------------------------------
-def get_line_for_output(info, extra_columns=None, glfo=None):  # NOTE duplicates code in get_yamlfo_for_output() (NOTE doesn't apply annotation_headers, since sometimes we want other headers, e.g. simulation_headers)
+def get_line_for_output(headers, info, glfo=None):
     """ Reverse the action of process_input_line() """
     outfo = {}
-    for key in info:
+    transfer_indel_info(info, outfo)
+    for key in headers:
+        if key in ['seqs', 'indelfo', 'indelfos']:
+            continue
+
+        if key not in special_indel_columns_for_output:  # these four were already added to <outfo> (and are not in <info>), but everyone else needs to be transferred from <info> to <outfo>
+            if key in info:
+                if key in io_column_configs['lists-of-lists']:
+                    outfo[key] = copy.deepcopy(info[key])
+                else:
+                    outfo[key] = info[key]
+            else:
+                add_extra_column(key, info, outfo, glfo=glfo)
+
         str_fcn = str
         if key in io_column_configs['floats']:
             str_fcn = repr  # keeps it from losing precision (we only care because we want it to match expectation if we read it back in)
-        elif 'indelfo' in key:
-            # str_fcn = lambda x: str([sx['indels'] for sx in x])  # just write the list of indels -- don't need the reversed seq and debug str
-            transfer_indel_info(info, outfo)
-            for tmpk in ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs']:
-                outfo[tmpk] = ':'.join([str_fcn(v) for v in outfo[tmpk]])  # aaarrrgggh this is terrible
-            continue
 
-        if key == 'seqs':  # don't want it to be in the output dict
-            continue
-        if key == 'indel_reversed_seqs':  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
-            outfo['indel_reversed_seqs'] = ':'.join(['' if not indelutils.has_indels(info['indelfos'][iseq]) else info['indel_reversed_seqs'][iseq]
-                                                     for iseq in range(len(info['unique_ids']))])
-        elif key in io_column_configs['lists']:
-            outfo[key] = ':'.join([str_fcn(v) for v in info[key]])
+        if key in io_column_configs['lists']:
+            outfo[key] = ':'.join([str_fcn(v) for v in outfo[key]])
         elif key in io_column_configs['lists-of-lists']:
-            outfo[key] = copy.deepcopy(info[key])
             if '_per_gene_support' in key:
                 outfo[key] = outfo[key].items()
             for isl in range(len(outfo[key])):
                 outfo[key][isl] = ':'.join([str_fcn(s) for s in outfo[key][isl]])
             outfo[key] = ';'.join(outfo[key])
         else:
-            outfo[key] = str_fcn(info[key])
-
-    if extra_columns is not None:
-        for key in extra_columns:
-            if key in outfo:  # i.e. it's a (probably implicit) header that's in our standard <line>, but that we don't write to file, so we don't need to add it
-                continue
-            add_extra_column(key, info, outfo, glfo=glfo, csv=True)
+            outfo[key] = str_fcn(outfo[key])
 
     return outfo
 
@@ -3537,43 +3534,32 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 
     return imax, max_abs_diff
 
-# # ----------------------------------------------------------------------------------------
-# def read_annotations(fname, headers, glfo=None, synth_single_seqs=False):
-#     if getsuffix(fname) == '.csv':
-#         read_csv_annotations(fname, headers, glfo, synth_single_seqs=synth_single_seqs)
-#     elif getsuffix(fname) == '.yaml':
-#         read_yaml_annotations(fname, headers, synth_single_seqs=synth_single_seqs xxx dont_add_implicit_info xxx)
-#     else:
-#         raise Exception('unhandled file extension %s' % getsuffix(fname))
-
 # ----------------------------------------------------------------------------------------
-def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False, extra_columns=None, failed_queries=None):
+def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False, failed_queries=None):
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
         os.makedirs(os.path.dirname(os.path.abspath(fname)))
 
     if getsuffix(fname) == '.csv':
-        write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs, extra_columns=extra_columns, glfo=glfo, failed_queries=failed_queries)
+        write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs, glfo=glfo, failed_queries=failed_queries)
     elif getsuffix(fname) == '.yaml':
-        write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=synth_single_seqs, extra_columns=extra_columns, failed_queries=failed_queries)
+        write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries)
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
 # ----------------------------------------------------------------------------------------
-def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False, extra_columns=None, glfo=None, failed_queries=None):
+def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False, glfo=None, failed_queries=None):
     with open(fname, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, headers)
         writer.writeheader()
         for line in annotation_list:
             if synth_single_seqs:
                 for iseq in range(len(line['unique_ids'])):
-                    outline = get_line_for_output(synthesize_single_seq_line(line, iseq), extra_columns=extra_columns, glfo=glfo)  # would be faster to do this after removing the keys you don't need
-                    outline = {k : v for k, v in outline.items() if k in headers}
+                    outline = get_line_for_output(headers, synthesize_single_seq_line(line, iseq), glfo=glfo)
                     writer.writerow(outline)
             else:
-                outline = get_line_for_output(line, extra_columns=extra_columns, glfo=glfo)
-                outline = {k : v for k, v in outline.items() if k in headers}
+                outline = get_line_for_output(headers, line, glfo=glfo)
                 writer.writerow(outline)
         if failed_queries is not None:
             for failfo in failed_queries:
@@ -3581,31 +3567,21 @@ def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=Fal
                 writer.writerow({'unique_ids' : failfo['unique_ids'][0], 'invalid' : failfo['invalid'], 'input_seqs' : failfo['input_seqs'][0]})  # this is ugly, but the corresponding one in the yaml fcn is nice
 
 # ----------------------------------------------------------------------------------------
-def get_yamlfo_for_output(line, headers, extra_columns=None, glfo=None):  # NOTE duplicates code in get_line_for_output()
+def get_yamlfo_for_output(line, headers, glfo=None):
     yamlfo = {}
     transfer_indel_info(line, yamlfo)
-    yamlfo.update({k : line[k] for k in line if k in headers and k not in yamlfo})
-    yamlfo['indel_reversed_seqs'] = [yamlfo['indel_reversed_seqs'][iseq] if yamlfo['has_shm_indels'][iseq] else '' for iseq in range(len(yamlfo['unique_ids']))]  # set indel_reversed_seqs to empty strings unless there's actually indels
-
-    if extra_columns is not None:
-        for key in extra_columns:
-            if key in line:  # i.e. it's a (probably implicit) header that's in our standard <line>, but that we don't write to file, so we don't need to add it
-                yamlfo[key] = line[key]
-            else:
-                add_extra_column(key, line, yamlfo, glfo=glfo, csv=False)
-
-    # should remove these after this has been running by default for a while
-    if len(set(headers) - set(yamlfo)) > 0:
-        raise Exception('missing requested headers %s' % ' '.join(set(headers) - set(yamlfo)))
-    if len(set(yamlfo) - set(headers)) > 0:
-        raise Exception('extra headers in yamlfo %s' % ' '.join(set(yamlfo) - set(headers)))
-
+    for key in [k for k in headers if k not in yamlfo]:
+        if key in line:
+            yamlfo[key] = line[key]
+        else:
+            add_extra_column(key, line, yamlfo, glfo=glfo)
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False, extra_columns=None, failed_queries=None):
+# TODO rename
+def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False, failed_queries=None):
     version_info = {'partis-yaml' : 0.1}
-    yaml_annotations = [get_yamlfo_for_output(l, headers, extra_columns=extra_columns, glfo=glfo) for l in annotation_list]
+    yaml_annotations = [get_yamlfo_for_output(l, headers, glfo=glfo) for l in annotation_list]
     if failed_queries is not None:
         yaml_annotations += failed_queries
     yamldata = {'version-info' : version_info,
@@ -3617,6 +3593,7 @@ def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_s
         json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml
 
 # ----------------------------------------------------------------------------------------
+# TODO rename
 def read_yaml_annotations(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, debug=False):  # corresponds to process_input_line()
     annotation_list = []
     with open(fname) as yamlfile:

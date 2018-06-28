@@ -335,10 +335,8 @@ class PartitionDriver(object):
     def read_existing_partitions(self, debug=False):
         if self.current_action == 'view-partitions' or self.current_action == 'view-cluster-annotations':
             debug = True
-# ----------------------------------------------------------------------------------------
         cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cp.readfile(self.args.outfname)
-# ----------------------------------------------------------------------------------------
         if debug:
             cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
         return cp
@@ -384,6 +382,7 @@ class PartitionDriver(object):
 
         print 'hmm'
 
+        # TODO is this really worth doing? I think maybe just so we have better naive sequences for the pre-bcrham collapse
         # cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
             print 'caching all %d naive sequences' % len(self.sw_info['queries'])
@@ -1764,7 +1763,7 @@ class PartitionDriver(object):
         if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
             failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
         if not self.args.presto_output:
-            utils.write_annotations(outfname, self.glfo, annotations.values(), headers=headers, extra_columns=self.args.extra_annotation_columns, failed_queries=failed_queries)
+            utils.write_annotations(outfname, self.glfo, annotations.values(), headers=headers, failed_queries=failed_queries)
 
         if self.args.presto_output:
             utils.write_presto_annotations(outfname, self.glfo, annotations, failed_queries=failed_queries)
