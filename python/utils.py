@@ -1746,7 +1746,7 @@ def process_input_line(info, hmm_cachefile=False):
     if 'indel_reversed_seqs' in info and 'input_seqs' in info:  # new-style csv output and simulation files, i.e. it stores 'indel_reversed_seqs' instead of 'seqs'
         if info['indel_reversed_seqs'] == '':
             info['indel_reversed_seqs'] = ['' for _ in range(len(info['unique_ids']))]
-        info['seqs'] = [info['indel_reversed_seqs'][iseq] if info['indel_reversed_seqs'][iseq] != '' else info['input_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
+        transfer_indel_reversed_seqs(info)
     elif 'seqs' in info:  # old-style csv output file: just copy 'em into the explicit name
         info['indel_reversed_seqs'] = info['seqs']
 
@@ -1786,6 +1786,11 @@ def add_extra_column(key, info, outfo, glfo=None):
         #     color_mutants(info['input_seqs'][iseq], full_coding_input_seqs[iseq], print_result=True, align=True, extra_str='  ')
     else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
         raise Exception('unsupported extra annotation column \'%s\'' % key)
+
+# ----------------------------------------------------------------------------------------
+def transfer_indel_reversed_seqs(line):
+    # if there's no indels, we will have just written 'input_seqs' to the file, and left 'indel_reversed_seqs' empty
+    line['seqs'] = [line['indel_reversed_seqs'][iseq] if line['indel_reversed_seqs'][iseq] != '' else line['input_seqs'][iseq] for iseq in range(len(line['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
 def transfer_indel_info(info, outfo):  # NOTE reverse of this happens in indelutils.deal_with_indel_stuff()
@@ -3578,7 +3583,6 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-# TODO rename
 def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False, failed_queries=None):
     version_info = {'partis-yaml' : 0.1}
     yaml_annotations = [get_yamlfo_for_output(l, headers, glfo=glfo) for l in annotation_list]
@@ -3593,7 +3597,6 @@ def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_s
         json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml
 
 # ----------------------------------------------------------------------------------------
-# TODO rename
 def read_yaml_annotations(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, debug=False):  # corresponds to process_input_line()
     annotation_list = []
     with open(fname) as yamlfile:
@@ -3608,7 +3611,7 @@ def read_yaml_annotations(fname, n_max_queries=-1, synth_single_seqs=False, dont
         n_queries_read = 0
         for line in yamlfo['events']:
             if not line['invalid']:
-                line['seqs'] = [line['indel_reversed_seqs'][iseq] if line['indel_reversed_seqs'][iseq] != '' else line['input_seqs'][iseq] for iseq in range(len(line['unique_ids']))]  # if there's no indels, we just store 'input_seqs' and leave 'indel_reversed_seqs' empty
+                transfer_indel_reversed_seqs(line)
                 if not dont_add_implicit_info:  # it's kind of slow, although most of the time you probably want all the extra info
                     add_implicit_info(glfo, line)
             if synth_single_seqs and len(line['unique_ids']) > 1:
