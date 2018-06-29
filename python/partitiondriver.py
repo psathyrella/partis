@@ -382,10 +382,9 @@ class PartitionDriver(object):
 
         print 'hmm'
 
-        # TODO is this really worth doing? I think maybe just so we have better naive sequences for the pre-bcrham collapse
-        # cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
+        # pre-cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
-            print 'caching all %d naive sequences' % len(self.sw_info['queries'])
+            print 'caching all %d naive sequences' % len(self.sw_info['queries'])  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.naive_vsearch or self.args.naive_swarm:
@@ -953,6 +952,7 @@ class PartitionDriver(object):
                 cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
 
             if self.current_action != 'partition' or count_parameters:  # TODO isn't current action actually the current action now? (oh, wait, no, it's not, when precaching naive seqs. TODO figure out a better way of doing that)
+                # TODO arg. yes, clean up this fucking current action thing
                 assert algorithm == 'viterbi'  # TODO clean this up
                 annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
                 if self.args.outfname is not None:

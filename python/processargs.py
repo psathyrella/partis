@@ -122,13 +122,14 @@ def process(args):
         if utils.getsuffix(args.outfname) not in ['.csv', '.yaml']:
             raise Exception('unhandled --outfname suffix %s' % utils.getsuffix(args.outfname))
         if utils.getsuffix(args.outfname) != '.yaml':
-            print '  %s --outfname uses deprecated file format %s. This will still work fine, but the new default .yaml format is cleaner and also includes germline info.' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
+            print '  %s --outfname uses deprecated file format %s. This will still work fine, but the new default .yaml format is more sensible, and also includes annotations, partitions, and germline info in the same file.' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
     if args.presto_output:
         if utils.getsuffix(args.outfname) != '.tsv':
             raise Exception('--outfname suffix has to be .tsv for --presto-output (got %s)' % utils.getsuffix(args.outfname))
         if args.aligned_germline_fname is None:
             raise Exception('in order to get presto output, you have to set --aligned-germline-fname to a fasta file with germline alignments for every germline gene, an example is located in data/germlines/imgt-aligned-igh.fa (this isn\'t set by default because imgt alignments are subject to change)')
 
+    # TODO arg but then it's confusing if people have to use csv for partition action but yaml for annotation, should probably switch partition file also to yaml
     if args.cluster_annotation_fname is None and args.outfname is not None:  # a.t.m. (and maybe in the future) the partition file is a csv, but we want the annotations to default to yaml, so if you want csv cluster annotations you have to set --cluster-annotation-fname explicitly
         args.cluster_annotation_fname = utils.getprefix(args.outfname) + '-cluster-annotations.yaml'  # utils.insert_before_suffix('-cluster-annotations', args.outfname)
 
