@@ -307,8 +307,11 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def view_alternative_naive_seqs(self):
         if self.args.queries is None:
-            _, cpath = self.read_existing_output(print_results=True, read_partitions=True)
-            raise Exception('%s in order to view alternative naive sequences, you have to specify (with --queries) a set of uids in which you\'re interested. Choose something from the above' % utils.color('red', 'error'))
+            _, cpath = self.read_existing_output(read_partitions=True)
+            clusterstrs = []
+            for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
+                clusterstrs.append('      %s' % ':'.join(cluster))
+            raise Exception('in order to view alternative naive sequences, you have to specify (with --queries) a cluster from the final partition. Choose from the following:\n%s' % '\n'.join(clusterstrs))
         self.print_subcluster_naive_seqs(self.args.queries)
 
     # ----------------------------------------------------------------------------------------
