@@ -138,7 +138,7 @@ class Waterer(object):
             cachefile = open(cachefname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop over <reader>)
             reader = csv.DictReader(cachefile)
         elif utils.getsuffix(cachefname) == '.yaml':  # new way
-            self.glfo, reader = utils.read_yaml_annotations(cachefname, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em and use aligned gl seqs
+            self.glfo, reader, _ = utils.read_yaml_output(cachefname, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em and use aligned gl seqs
         else:
             raise Exception('unhandled sw cache file suffix %s' % cachefname)
 

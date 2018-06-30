@@ -129,9 +129,8 @@ def process(args):
         if args.aligned_germline_fname is None:
             raise Exception('in order to get presto output, you have to set --aligned-germline-fname to a fasta file with germline alignments for every germline gene, an example is located in data/germlines/imgt-aligned-igh.fa (this isn\'t set by default because imgt alignments are subject to change)')
 
-    # TODO arg but then it's confusing if people have to use csv for partition action but yaml for annotation, should probably switch partition file also to yaml
-    if args.cluster_annotation_fname is None and args.outfname is not None:  # a.t.m. (and maybe in the future) the partition file is a csv, but we want the annotations to default to yaml, so if you want csv cluster annotations you have to set --cluster-annotation-fname explicitly
-        args.cluster_annotation_fname = utils.getprefix(args.outfname) + '-cluster-annotations.yaml'  # utils.insert_before_suffix('-cluster-annotations', args.outfname)
+    if args.cluster_annotation_fname is None and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':  # if it wasn't set on the command line (<outfname> _was_ set), _and_ if we were asked for a csv, then use the old file name format
+        args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
 
     if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
         if args.outfname is None:
@@ -152,6 +151,8 @@ def process(args):
             raise Exception('can\'t plot performance unless --plotdir is specified')
         if not args.is_simu:
             raise Exception('can\'t plot performance unless --is-simu is set')
+    if args.action == 'plot-partitions' and args.plotdir is None:
+        raise Exception('--plotdir must be specified ')
 
     if args.parameter_type != 'hmm':
         print '  using non-default parameter type \'%s\'' % args.parameter_type
@@ -224,5 +225,5 @@ def process(args):
         args.allele_cluster = False
         args.dont_find_new_alleles = True
 
-    if args.infname is None and args.action not in ['simulate', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
+    if args.infname is None and args.action not in ['simulate', 'view-output', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs']:
         raise Exception('--infname is required for action \'%s\'' % args.action)

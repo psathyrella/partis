@@ -102,7 +102,9 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
                                                                                                       (' and specifically kept %s' % ' '.join(included_queries)) if len(included_queries) > 0 else '')
 
 # ----------------------------------------------------------------------------------------
-def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False):
+def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False):
+    # NOTE renamed this from get_seqfile_info() since I'm changing the return values, but I don't want to update the calls everywhere (e.g. in compareutils)
+    yaml_glfo = None
     suffix = utils.getsuffix(infname)
     if suffix in delimit_info:
         seqfile = open(infname)  # closes on function exit. no, this isn't the best way to do this
@@ -111,7 +113,9 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None
         reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
                                   queries=(args.queries if (args is not None and not args.abbreviate) else None))  # NOTE also can't filter on args.queries here if we're also translating
     elif suffix == '.yaml':
-        glfo, reader = utils.read_yaml_annotations(infname, n_max_queries=n_max_queries, synth_single_seqs=True, dont_add_implicit_info=True)  # not really sure that long term I want to synthesize single seq lines, but for backwards compatibility it's nice a.t.m.
+        yaml_glfo, reader, _ = utils.read_yaml_output(infname, n_max_queries=n_max_queries, synth_single_seqs=True, dont_add_implicit_info=True)  # not really sure that long term I want to synthesize single seq lines, but for backwards compatibility it's nice a.t.m.
+        if not is_data:
+            simglfo = yaml_glfo  # doesn't replace the contents, of course
     else:
         raise Exception('unhandled file extension %s' % suffix)
 
@@ -206,4 +210,4 @@ def get_seqfile_info(infname, is_data, n_max_queries=-1, args=None, simglfo=None
     if len(input_info) == 0:
         raise Exception('didn\'t read any sequences from %s' % infname)
 
-    return input_info, reco_info
+    return input_info, reco_info, yaml_glfo

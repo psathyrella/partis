@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--annotation-file', default=partis_dir + '/test/reference-results/annotate-ref-simu.yaml')
 args = parser.parse_args()
 
-glfo, annotations = utils.read_yaml_annotations(args.annotation_file)
+glfo, annotations, _ = utils.read_yaml_output(args.annotation_file)
 print 'print one annotation, then break:'
 for line in annotations.values():
     utils.print_reco_event(line)  # print ascii-art representation of the rearrangement event

@@ -142,7 +142,7 @@ class Glomerator(object):
             raise Exception('couldn\'t find the required number of paths in file %s' % infname)
 
         for path_index in range(n_paths):
-            paths[path_index].readlines(lines_list[path_index])
+            paths[path_index].readlines(lines_list[path_index], process_csv=True)
 
         for cp in paths:
             if cp is None:
@@ -160,7 +160,7 @@ class Glomerator(object):
         # DEAR FUTURE SELF this won't make any sense until you find that picture you took of the white board
         if previous_info is not None and smc_particles > 1:  # if we're doing smc, this has to happen *beforehand*, since the previous paths are separate for each process (cont'd at XX)
             assert len(previous_info) == len(fileinfos)  # both are the number of processes we're merging into one
-            # TODO prevent this from adding duplicate adjacent partitions (well... not that important)
+            # it would be nice to prevent this from adding duplicate adjacent partitions (well... not that important)
             if debug:
                 print 'prepend previous history'
             for ifile in range(len(fileinfos)):
@@ -242,7 +242,7 @@ class Glomerator(object):
                 if debug:
                     print '  no previous history'
             else:
-                # TODO prevent this from adding duplicate adjacent partitions
+                # it would be nice to prevent this from adding duplicate adjacent partitions
                 if debug:
                     print 'prepend previous history'
                 if debug:

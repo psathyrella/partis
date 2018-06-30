@@ -90,17 +90,17 @@ class PartitionDriver(object):
             'cache-parameters'            : self.cache_parameters,
             'annotate'                    : self.annotate,
             'partition'                   : self.partition,
-            'view-annotations'            : self.read_existing_annotations,
-            'view-partitions'             : self.read_existing_partitions,
-            'view-cluster-annotations'    : self.read_existing_cluster_annotations,
-            'plot-partitions'             : self.plot_existing_partitions,
+            'view-output'                 : self.read_existing_output,
+            'view-annotations'            : self.read_existing_output,
+            'view-partitions'             : self.read_existing_output,
+            'plot-partitions'             : self.read_existing_output,
             'view-alternative-naive-seqs' : self.view_alternative_naive_seqs,
         }
 
     # ----------------------------------------------------------------------------------------
     def run(self, actions):
         for tmpaction in actions:
-            self.current_action = tmpaction
+            self.current_action = tmpaction  # NOTE gets changed on the fly in one or two places below (which is kind of hackey, but I can't figure out a way to improve on it. Bottom line is that the control flow for different actions is really complicated)
             self.action_fcns[tmpaction]()
 
     # ----------------------------------------------------------------------------------------
@@ -258,7 +258,9 @@ class PartitionDriver(object):
         # get and write hmm parameters
         print 'hmm'
         sys.stdout.flush()
-        self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
+        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
+        if self.args.outfname is not None:
+            self.write_output(annotations, hmm_failures)
         self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
@@ -269,35 +271,17 @@ class PartitionDriver(object):
         if self.args.only_smith_waterman:
             return
         print 'hmm'
-        self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters)
+        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters)
+        if self.args.outfname is not None:
+            self.write_output(annotations, hmm_failures)
 
     # ----------------------------------------------------------------------------------------
-    def read_existing_annotations(self, outfname=None, ignore_args_dot_queries=False, debug=False):
-        if outfname is None:
-            outfname = self.args.outfname
-        if self.current_action == 'view-annotations':
-            debug = True
-        elif self.current_action == 'view-cluster-annotations':
-            debug = True
-            if os.path.exists(self.args.cluster_annotation_fname):
-                outfname = self.args.cluster_annotation_fname
-            else:  # current default has csv partitions file with yaml annotation file, but if we're reading/looking for old output, we should look for csv annotation file
-                outfname = self.args.cluster_annotation_fname.replace('.yaml', '.csv')
-
-        if utils.getsuffix(outfname) == '.csv':  # old way
-            csvfile = open(outfname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop over <reader>)
-            reader = csv.DictReader(csvfile)
-        elif utils.getsuffix(outfname) == '.yaml':  # new way
-            # NOTE replaces <self.glfo>, which is definitely what we want (it's the point of putting glfo in the yaml file), but it's still different behavior than if reading a csv
-            self.glfo, reader = utils.read_yaml_annotations(outfname, n_max_queries=self.args.n_max_queries, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em
-        else:
-            raise Exception('unhandled annotation file suffix %s' % outfname)
-
+    def parse_existing_annotations(self, annotation_lines, ignore_args_dot_queries=False, process_csv=False):
         n_queries_read = 0
         failed_query_strs = set()
         annotations = OrderedDict()
-        for line in reader:
-            if utils.getsuffix(outfname) == '.csv':
+        for line in annotation_lines:
+            if process_csv:
                 utils.process_input_line(line)
             uidstr = ':'.join(line['unique_ids'])
             if ('invalid' in line and line['invalid']) or line['v_gene'] == '':  # first way is the new way, but we have to check the empty-v-gene way too for old files
@@ -315,57 +299,69 @@ class PartitionDriver(object):
             if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
                 break
 
-        if debug:
-            sorted_annotations = sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True)
-            if self.args.cluster_indices is not None:
-                sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
-            for line in sorted_annotations:
-                label = ''
-                if self.args.infname is not None and self.reco_info is not None:
-                    utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
-                    label = 'inferred:'
-                utils.print_reco_event(line, extra_str='  ', label=label)
-
         if len(failed_query_strs) > 0:
             print '\n%d failed queries' % len(failed_query_strs)
 
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def read_existing_partitions(self, debug=False):
-        if self.current_action == 'view-partitions' or self.current_action == 'view-cluster-annotations':
-            debug = True
-        cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        cp.readfile(self.args.outfname)
-        if debug:
-            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
-        return cp
-
-    # ----------------------------------------------------------------------------------------
-    def plot_existing_partitions(self):
-        if self.args.plotdir is None:
-            raise Exception('--plotdir must be specified')
-        cpath = self.read_existing_partitions()
-        annotations = self.read_existing_annotations(outfname=self.args.cluster_annotation_fname)
-        partplotter = PartitionPlotter(self.args)
-        partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
-
-    # ----------------------------------------------------------------------------------------
     def view_alternative_naive_seqs(self):
         if self.args.queries is None:
-            print '%s in order to view alternative naive sequences, you have to specify (with --queries) a set of uids in which you\'re interested. Choose something from here:' % utils.color('red', 'error')
-            cp = ClusterPath()
-            cp.readfile(self.args.outfname)
-            cp.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
-            raise Exception('see above')
+            _, cpath = self.read_existing_output(print_results=True, read_partitions=True)
+            raise Exception('%s in order to view alternative naive sequences, you have to specify (with --queries) a set of uids in which you\'re interested. Choose something from the above' % utils.color('red', 'error'))
         self.print_subcluster_naive_seqs(self.args.queries)
 
     # ----------------------------------------------------------------------------------------
-    def read_existing_cluster_annotations(self, debug=False):
-        print utils.color('green', 'partitions:')
-        self.read_existing_partitions()
-        print utils.color('green', 'cluster annotations:')
-        self.read_existing_annotations()
+    def read_existing_output(self, outfname=None, print_results=False, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):
+        tmpact = self.current_action
+        if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
+            print_results = True
+
+        if outfname is None:
+            outfname = self.args.outfname
+
+        annotation_lines = []
+        cpath = None
+        if utils.getsuffix(outfname) == '.csv':  # old way
+            if tmpact == 'view-partitions' or tmpact == 'plot-partitions' or read_partitions:
+                cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, fname=outfname)
+            if tmpact == 'view-annotations' or tmpact == 'plot-partitions' or read_annotations:
+                csvfile = open(outfname if cpath is None else self.args.cluster_annotation_fname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop over <reader>)
+                annotation_lines = csv.DictReader(csvfile)
+                if 'unique_ids' not in annotation_lines.fieldnames:
+                    raise Exception('not an annotation file: %s' % outfname)
+        elif utils.getsuffix(outfname) == '.yaml':  # new way
+            # NOTE replaces <self.glfo>, which is definitely what we want (it's the point of putting glfo in the yaml file), but it's still different behavior than if reading a csv
+            self.glfo, annotation_lines, partition_lines = utils.read_yaml_output(outfname, n_max_queries=self.args.n_max_queries, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em
+            if len(partition_lines) > 0:
+                cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition_lines=partition_lines)
+        else:
+            raise Exception('unhandled annotation file suffix %s' % outfname)
+
+        annotations = self.parse_existing_annotations(annotation_lines, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
+
+        if self.current_action == 'plot-partitions':
+            partplotter = PartitionPlotter(self.args)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
+
+        if print_results:
+            if cpath is not None:
+                print utils.color('green', 'partitions:')
+                cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
+
+            if len(annotations) > 0:
+                print utils.color('green', 'annotations:')
+                sorted_annotations = sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True)
+                if self.args.cluster_indices is not None:
+                    sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
+                for line in sorted_annotations:
+                    label = ''
+                    if self.args.infname is not None and self.reco_info is not None:
+                        utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
+                        label = 'inferred:'
+                    utils.print_reco_event(line, extra_str='  ', label=label)
+
+        return annotations, cpath
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
@@ -382,7 +378,7 @@ class PartitionDriver(object):
 
         print 'hmm'
 
-        # pre-cache hmm naive seq for each single query NOTE <self.current_action> is (and needs to be) still set to partition for this
+        # pre-cache hmm naive seq for each single query NOTE <self.current_action> is still 'partition' for this
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
             print 'caching all %d naive sequences' % len(self.sw_info['queries'])  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
@@ -400,7 +396,7 @@ class PartitionDriver(object):
 
         if self.args.debug:
             print 'final'
-            cpath.print_partitions(self.reco_info, print_header=True, calc_missing_values='all' if (len(self.input_info) < 500) else 'best')
+            cpath.print_partitions(self.reco_info, print_header=True, calc_missing_values=('all' if (len(self.input_info) < 500) else 'best'))
             if not self.args.is_data:
                 true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
                 true_cp.add_partition(utils.get_true_partition(self.reco_info), -1., 1)
@@ -408,12 +404,6 @@ class PartitionDriver(object):
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
         self.check_partition(cpath.partitions[cpath.i_best])
-        if self.args.outfname is not None:
-            cpath.write(self.args.outfname, self.args.is_data, reco_info=self.reco_info, true_partition=(utils.get_true_partition(self.reco_info) if not self.args.is_data else None), n_to_write=self.args.n_partitions_to_write, calc_missing_values='best')
-            if self.args.presto_output:
-                outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
-                print '    backing up partis output before converting to presto: %s' % outstr.strip()
-                cpath.write_presto_partitions(self.args.outfname, self.input_info)
 
     # ----------------------------------------------------------------------------------------
     def split_seeded_clusters(self, old_cpath):
@@ -591,9 +581,7 @@ class PartitionDriver(object):
         start = time.time()
         while n_procs > 0:
             print '%d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))
-            # TODO i guess I'm just annihilating old cpath information from previous steps? Maybe that's how I really want it, but it seems like if we're trying to write a lot of partition steps to output that we'd need to save some
-            # ...I think this is because I used to have a self.<cpath or something>, but I removed it at some point
-            cpath, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
+            cpath, _, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
@@ -662,7 +650,7 @@ class PartitionDriver(object):
 
         if len(partition_to_annotate) == 0:
             return
-        action_cache = self.current_action
+        action_cache = self.current_action  # hackey, but probably not worth trying (more) to improve
         self.current_action = 'annotate'
         partition_to_annotate = sorted(partition_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(partition_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
@@ -671,10 +659,10 @@ class PartitionDriver(object):
         if n_procs > 1:
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
-        if self.args.cluster_annotation_fname is not None:
-            self.write_annotations(best_annotations, self.args.cluster_annotation_fname, hmm_failures, dont_write_failed_queries=True)
+        if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
+            self.write_output(best_annotations, hmm_failures, cpath=cpath, dont_write_failed_queries=True)
 
-        if self.args.write_additional_cluster_annotations is not None:  # remove the clusters that aren't actually in the best partition
+        if self.args.write_additional_cluster_annotations is not None:  # remove the clusters that aren't actually in the best partition (we need them for partition plotting)
             keys_to_remove = [uidstr for uidstr in best_annotations if uidstr.split(':') not in cpath.partitions[cpath.i_best]]
             for uidstr in keys_to_remove:
                 del best_annotations[uidstr]
@@ -946,17 +934,13 @@ class PartitionDriver(object):
 
         glutils.remove_glfo_files(self.my_gldir, self.args.locus)
 
-        cpath, annotations = None, None
+        cpath, annotations, hmm_failures = None, None, None
         if read_output:
             if self.current_action == 'partition' or n_procs > 1:
                 cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
 
-            if self.current_action != 'partition' or count_parameters:  # TODO isn't current action actually the current action now? (oh, wait, no, it's not, when precaching naive seqs. TODO figure out a better way of doing that)
-                # TODO arg. yes, clean up this fucking current action thing
-                assert algorithm == 'viterbi'  # TODO clean this up
+            if algorithm == 'viterbi' and not precache_all_naive_seqs:
                 annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
-                if self.args.outfname is not None:
-                    self.write_annotations(annotations, self.args.outfname, hmm_failures)
 
             if os.path.exists(self.hmm_infname):
                 os.remove(self.hmm_infname)
@@ -967,7 +951,7 @@ class PartitionDriver(object):
         print '      hmm step time: %.1f' % step_time
         self.timing_info.append({'exec' : exec_time, 'total' : step_time})  # NOTE in general, includes pre-cache step
 
-        return cpath, annotations
+        return cpath, annotations, hmm_failures
 
     # ----------------------------------------------------------------------------------------
     def read_hmm_cachefile(self):
@@ -1007,17 +991,19 @@ class PartitionDriver(object):
         sub_uidstrs = sorted(sub_uidstrs, key=lambda x: x.count(':'))
 
         if uidstr_of_interest is None:
-            print '%s couldn\'t find exact requested cluster in the cache file, so using biggest cluster that has some overlap with the requested cluster for the reference sequence' % utils.color('yellow', 'warning')
+            print '%s couldn\'t find exact requested cluster (size %d) in the cache file, so using biggest cluster that has some overlap with the requested cluster (size %d) for the reference sequence' % (utils.color('yellow', 'warning'), len(uids_of_interest), len(sub_uidstrs[-1].split(':')))
             uidstr_of_interest = sub_uidstrs[-1]
         cache_file_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
         print '  subcluster naive sequences for %s (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
 
-        cluster_annotations = self.read_existing_annotations(outfname=self.args.cluster_annotation_fname, ignore_args_dot_queries=True)
+        cluster_annotations, _ = self.read_existing_output(ignore_args_dot_queries=True, read_partitions=True, read_annotations=True)  # we don't really need to read the partitions, but the fcn gets confused otherwise and doesn't read the right cluster annotation file (for deprecated csv files)
         if uidstr_of_interest in cluster_annotations:
             cluster_annotation_line = cluster_annotations[uidstr_of_interest]
         else:
             print '%s couldn\'t find exact requested cluster in the cluster annotation file, so using biggest cluster that has some overlap with the requested cluster for the cluster annotation' % utils.color('yellow', 'warning')
             clusters_with_overlap = sorted([c for c in cluster_annotations if len(set(c.split(':')) & uids_of_interest) > 0], key=lambda x: x.count(':'))
+            if len(clusters_with_overlap) == 0:
+                raise Exception('couldn\'t find any clusters with overlap')
             print 'with overlap: %s' % clusters_with_overlap
             cluster_annotation_line = cluster_annotations[clusters_with_overlap[-1]]
 
@@ -1028,7 +1014,7 @@ class PartitionDriver(object):
             utils.color_mutants(cluster_annotation_naive_seq, cache_file_naive_seq, print_result=True, ref_label='cluster annotation  ', seq_label='cache file  ', extra_str='     ')
             print ''
 
-        utils.print_reco_event(utils.synthesize_single_seq_line(cluster_annotation_line, iseq=0), extra_str='         %15s ' % '', label='iseq 0')
+        utils.print_reco_event(utils.synthesize_single_seq_line(cluster_annotation_line, iseq=0), extra_str='         %15s ' % '', label='annotation for a single (arbitrary) sequence:')
 
         print ''
         print ''
@@ -1755,15 +1741,36 @@ class PartitionDriver(object):
         utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
-    def write_annotations(self, annotations, outfname, hmm_failures, dont_write_failed_queries=False):
-        headers = utils.annotation_headers
-        if self.args.extra_annotation_columns is not None:
-            headers += self.args.extra_annotation_columns
+    def write_output(self, annotations, hmm_failures, cpath=None, dont_write_failed_queries=False):
         failed_queries = None
         if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
             failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
-        if not self.args.presto_output:
-            utils.write_annotations(outfname, self.glfo, annotations.values(), headers=headers, failed_queries=failed_queries)
 
+# ----------------------------------------------------------------------------------------
         if self.args.presto_output:
             utils.write_presto_annotations(outfname, self.glfo, annotations, failed_queries=failed_queries)
+# ----------------------------------------------------------------------------------------
+            outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
+            print '    backing up partis output before converting to presto: %s' % outstr.strip()
+            cpath.write_presto_partitions(self.args.outfname, self.input_info)
+# ----------------------------------------------------------------------------------------
+            return
+
+        partition_lines = None
+        if cpath is not None:
+            true_partition = utils.get_true_partition(self.reco_info) if not self.args.is_data else None
+            partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(self.input_info) < 500) else 'best'))
+
+        headers = utils.annotation_headers
+        if self.args.extra_annotation_columns is not None:
+            headers += self.args.extra_annotation_columns
+
+        if utils.getsuffix(self.args.outfname) == '.csv':
+            if cpath is not None:
+                cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)
+            annotation_fname = self.args.outfname if cpath is None else self.args.cluster_annotation_fname
+            utils.write_annotations(annotation_fname, self.glfo, annotations.values(), headers=headers, failed_queries=failed_queries)
+        elif utils.getsuffix(self.args.outfname) == '.yaml':
+            utils.write_annotations(self.args.outfname, self.glfo, annotations.values(), headers=headers, failed_queries=failed_queries, partition_lines=partition_lines)
+        else:
+            raise Exception('unhandled annotation file suffix %s' % self.args.outfname)

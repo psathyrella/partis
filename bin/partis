@@ -141,42 +141,39 @@ def run_simulation(args):
             raise Exception('workdir (%s) not empty: %s' % (args.workdir, ' '.join(os.listdir(args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
 
 # ----------------------------------------------------------------------------------------
-def get_glfos(args, actions):
-    if actions[0] == 'cache-parameters':  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir)
+def read_inputs(args, actions):
+    if actions[0] == 'cache-parameters' or 'xxx-dummy-xxx' in args.parameter_dir:  # if we're caching parameters, read initial gl info from <args.initial_germline_dir> (then the final glfo gets written to the parameter dir) (  # xxx thing is terrible hack to indicate we're dealing with existing output)
         gldir = args.default_initial_germline_dir if args.initial_germline_dir is None else args.initial_germline_dir
-    elif 'xxx-dummy-xxx' in args.parameter_dir:  # terrible hack to indicate we're dealing with existing output
-        if args.initial_germline_dir is not None:  # if an explicit dir was set on the command line, use it
-            gldir = args.initial_germline_dir
-        else:  # otherwise hope the default one (probably in data/germlines/human is good enough)
-            gldir = args.default_initial_germline_dir
     else:
         gldir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
+    glfo = glutils.read_glfo(gldir, locus=args.locus, only_genes=args.only_genes)  # NOTE gets overwritten if we're reading from a yaml output file
 
-    glfo = glutils.read_glfo(gldir, locus=args.locus, only_genes=args.only_genes)
     simglfo = None
     if not args.is_data:
-        if args.simulation_germline_dir is not None:  # if an explicit dir was set on the command line
+        if args.infname is not None and utils.getsuffix(args.infname) == '.yaml':
+            simglfo = None  # cause we'll read it from the input file
+        elif args.simulation_germline_dir is not None:  # if an explicit dir was set on the command line
             simglfo = glutils.read_glfo(args.simulation_germline_dir, locus=args.locus)  # probably don't apply <args.only_genes> (?)
         else:
             simglfo = glfo  # TODO it would be nicer, in the future, to store the simulation germline info in the simulation file rather than doing this
-    return glfo, simglfo
 
-# ----------------------------------------------------------------------------------------
-def read_input_file(args, simglfo):
     if args.infname is None:
-        return None, None
-    input_info, reco_info = seqfileopener.get_seqfile_info(args.infname, args.is_data, n_max_queries=args.n_max_queries, args=args, simglfo=simglfo)
+        return None, None, glfo, simglfo
+
+    input_info, reco_info, yaml_glfo = seqfileopener.read_sequence_file(args.infname, args.is_data, n_max_queries=args.n_max_queries, args=args, simglfo=simglfo)
+    if yaml_glfo is not None:
+        simglfo = yaml_glfo
+
     if len(input_info) > 1000 and args.n_procs == 1:
         print '  note: running on %d sequences with only %d process%s. This may be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --batch-system.' % (len(input_info), args.n_procs, utils.plural(args.n_procs, prefix='e'))
     if len(input_info) > 1000 and args.outfname is None:
         print '  note: running on a lot of sequences (%d) without setting --outfname. Which is ok, but there will be no persistent record of the results.' % len(input_info)
-    return input_info, reco_info
+    return input_info, reco_info, glfo, simglfo
 
 # ----------------------------------------------------------------------------------------
 def get_default_parameter_dir(args):
     if args.infname is not None:
-        label = args.infname[ : args.infname.rfind('.')]  # probably ok not to use the full path here
-        label = label.replace('/', '_')
+        label = args.infname[ : args.infname.rfind('.')].replace('/', '_')
     else:
         label = 'xxx-dummy-xxx'  # gah, this is a terrible way to do this. But I can't set it to None, and I need some way to communicate that it isn't a valid pdir, so...
     pdir = '_output/' + label
@@ -192,11 +189,11 @@ def run_partitiondriver(args):
         actions = ['cache-parameters'] + actions
         print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, actions[1])
 
-    glfo, simglfo = get_glfos(args, actions)
-    input_info, reco_info = read_input_file(args, simglfo)
+    input_info, reco_info, glfo, simglfo = read_inputs(args, actions)
     parter = PartitionDriver(args, glfo, input_info, simglfo, reco_info)
     parter.run(actions)
-    parter.clean()
+    if 'view-' not in args.action:
+        parter.clean()
 
 # ----------------------------------------------------------------------------------------
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
@@ -297,7 +294,7 @@ parent_parser.add_argument('--n-max-snps', type=int, default=8, help='when new-a
 parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23, help='when new-allele finding, exclude sequences which have more than this many mutations in the V segment')
 parent_parser.add_argument('--min-allele-finding-gene-length', type=int, default=150, help='if (after excluding particularly short reads) the reads for a gene are shorter than this, then don\'t look for new alleles with/on this gene')
 parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
-parent_parser.add_argument('--cluster-indices', help='indices of clusters (when sorted largest to smallest) to print for --view-annotations and --view-partitions')
+parent_parser.add_argument('--cluster-indices', help='indices of clusters (when sorted largest to smallest) to print for the \'view-output\' action.')
 
 parent_parser.add_argument('--no-sw-vsearch', action='store_true', help='By default, we get preliminary V annotations from vsearch that we pass to sw. This improves accuracy because the vsearch shm rate estimates let us separate sequences into groups by optimal sw match/mismatch scores, and improves speed by letting us reverse shm V indels before running sw (so fewer sw iterations; also vsearch is faster than sw). Setting this option skips the preliminary vsearch step (although if caching parameters, we still use vsearch to remove less-likely genes; but no vsearch info is passed to sw)')
 
@@ -308,9 +305,9 @@ subconfig = {
     'annotate'         : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
     'partition'        : {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'},
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
-    'view-annotations' : {'func' : run_partitiondriver, 'help' : 'Print (to std out) the annotations from an existing annotation output csv.'},
-    'view-partitions'  : {'func' : run_partitiondriver, 'help' : 'Print (to std out) the partitions from an existing partition output csv.'},
-    'view-cluster-annotations'    : {'func' : run_partitiondriver, 'help' : 'Print (to std out) the partitions, and annotations for the best partition, from an existing partition output csv.'},
+    'view-output'      : {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'},
+    'view-annotations' : {'func' : run_partitiondriver, 'help' : 'Print annotations from an existing annotation output csv.'},
+    'view-partitions'  : {'func' : run_partitiondriver, 'help' : 'Print partitions from an existing partition output csv.'},
     'view-alternative-naive-seqs' : {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'},
     'plot-partitions'  : {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'},
     'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'deprecated, do not use'},

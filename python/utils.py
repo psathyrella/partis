@@ -21,6 +21,7 @@ import traceback
 import json
 
 import indelutils
+from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -731,7 +732,7 @@ def plural_str(pstr, count):
         return pstr + 's'
 
 # ----------------------------------------------------------------------------------------
-def plural(count, prefix=''):  # TODO should combine these
+def plural(count, prefix=''):  # I should really combine these
     if count == 1:
         return ''
     else:
@@ -1172,7 +1173,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
     line['mut_freqs'] = [hfrac for hfrac, _ in hfracfo]
     line['n_mutations'] = [n_mutations for _, n_mutations in hfracfo]
 
-    # set validity (alignment addition [below] can also set invalid)  # TODO clean up this checking stuff
+    # set validity (alignment addition [below] can also set invalid)  # it would be nice to clean up this checking stuff
     line['invalid'] = False
     seq_length = len(line['seqs'][0])  # they shouldn't be able to be different lengths
     for chkreg in regions:
@@ -1700,11 +1701,11 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
 
     if os.path.exists(dirname):
         for wild in wildlings:
-            for fname in glob.glob(dirname + '/' + wild):
-                if os.path.exists(fname):
-                    os.remove(fname)
+            for ftmp in glob.glob(dirname + '/' + wild):
+                if os.path.exists(ftmp):
+                    os.remove(ftmp)
                 else:
-                    print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), fname)
+                    print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), ftmp)
         remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn not in subdirs]  # allow subdirs to still be present
         if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
             raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
@@ -2956,7 +2957,7 @@ def find_genes_that_have_hmms(parameter_dir):
 
 # ----------------------------------------------------------------------------------------
 def choose_seed_unique_id(locus, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
-    _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False, n_max_queries=n_max_queries, quiet=not debug)
+    _, reco_info, _ = seqfileopener.read_sequence_file(simfname, is_data=False, n_max_queries=n_max_queries, quiet=not debug)
     true_partition = get_true_partition(reco_info)
 
     nth_seed = 0  # don't always take the first one we find
@@ -3351,9 +3352,9 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_inde
     cmd += ' --match %d'  % match  # default 2
     cmd += ' --mismatch %d' % mismatch  # default -4
     # cmd += ' --gapext %dI/%dE' % (2, 1)  # default: (2 internal)/(1 terminal)
-    # TODO clean this up
+    # it would be nice to clean this up
     gap_open = 1000 if no_indels else 50
-    cmd += ' --gapopen %dI/%dE' % (gap_open, 2)  # default: (20 internal)/(2 terminal)  # TODO um, maybe
+    cmd += ' --gapopen %dI/%dE' % (gap_open, 2)  # default: (20 internal)/(2 terminal)
     if minseqlength is not None:
         cmd += ' --minseqlength %d' % minseqlength
     if action == 'cluster':
@@ -3443,7 +3444,6 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
     os.remove(outfname)
     os.rmdir(workdir)
 
-    from clusterpath import ClusterPath
     cp = ClusterPath()
     cp.add_partition(partition, logprob=0., n_procs=1)
     cp.print_partitions(abbreviate=True)
@@ -3540,16 +3540,17 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
     return imax, max_abs_diff
 
 # ----------------------------------------------------------------------------------------
-def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False, failed_queries=None):
+def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False, failed_queries=None, partition_lines=None):
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
         os.makedirs(os.path.dirname(os.path.abspath(fname)))
 
     if getsuffix(fname) == '.csv':
+        assert partition_lines is None
         write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs, glfo=glfo, failed_queries=failed_queries)
     elif getsuffix(fname) == '.yaml':
-        write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries)
+        write_yaml_output(fname, headers, glfo=glfo, annotation_list=annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries, partition_lines=partition_lines)
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
@@ -3583,13 +3584,19 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_seqs=False, failed_queries=None):
+def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_single_seqs=False, failed_queries=None, partition_lines=None):
+    if annotation_list is None:
+        annotation_list = []
+    if partition_lines is None:
+        partition_lines = []
+
     version_info = {'partis-yaml' : 0.1}
     yaml_annotations = [get_yamlfo_for_output(l, headers, glfo=glfo) for l in annotation_list]
     if failed_queries is not None:
         yaml_annotations += failed_queries
     yamldata = {'version-info' : version_info,
                 'germline-info' : glfo,
+                'partitions' : partition_lines,
                 'events' : yaml_annotations}
     with open(fname, 'w') as yamlfile:
         # import yaml
@@ -3597,31 +3604,37 @@ def write_yaml_annotations(fname, headers, glfo, annotation_list, synth_single_s
         json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml
 
 # ----------------------------------------------------------------------------------------
-def read_yaml_annotations(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, debug=False):  # corresponds to process_input_line()
+def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info):
     annotation_list = []
-    with open(fname) as yamlfile:
+    n_queries_read = 0
+    for line in yamlfo['events']:
+        if not line['invalid']:
+            transfer_indel_reversed_seqs(line)
+            if not dont_add_implicit_info:  # it's kind of slow, although most of the time you probably want all the extra info
+                add_implicit_info(glfo, line)  # don't use the germline info in <yamlfo>, in case we decide we want to modify it in the calling fcn
+        if synth_single_seqs and len(line['unique_ids']) > 1:
+            for iseq in range(len(line['unique_ids'])):
+                annotation_list.append(synthesize_single_seq_line(line, iseq))
+        else:
+            annotation_list.append(line)
 
+        n_queries_read += len(line['unique_ids'])
+        if n_max_queries > 0 and n_queries_read >= n_max_queries:
+            break
+
+    return annotation_list
+
+# ----------------------------------------------------------------------------------------
+def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, debug=False):  # corresponds to process_input_line()
+    with open(fname) as yamlfile:
+        if debug:
+            print '  reading yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
         # import yaml
         # yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)
         yamlfo = json.load(yamlfile)  # way tf faster than full yaml
 
-        if debug:
-            print '  reading yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
-        glfo = yamlfo['germline-info']  # it would probably be good to run this through the checks that glutils.read_glfo() does, but on the other hand since we're reading from our own yaml file, those have almost certainly already been done
-        n_queries_read = 0
-        for line in yamlfo['events']:
-            if not line['invalid']:
-                transfer_indel_reversed_seqs(line)
-                if not dont_add_implicit_info:  # it's kind of slow, although most of the time you probably want all the extra info
-                    add_implicit_info(glfo, line)
-            if synth_single_seqs and len(line['unique_ids']) > 1:
-                for iseq in range(len(line['unique_ids'])):
-                    annotation_list.append(synthesize_single_seq_line(line, iseq))
-            else:
-                annotation_list.append(line)
+        glfo = yamlfo['germline-info']  # it would probably be good to run the glfo through the checks that glutils.read_glfo() does, but on the other hand since we're reading from our own yaml file, those have almost certainly already been done
+        annotation_list = parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info)
+        partition_lines = yamlfo['partitions']
 
-            n_queries_read += len(line['unique_ids'])
-            if n_max_queries > 0 and n_queries_read >= n_max_queries:
-                break
-
-    return glfo, annotation_list
+    return glfo, annotation_list, partition_lines

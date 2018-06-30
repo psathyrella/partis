@@ -7,9 +7,7 @@ import utils
 
 # ----------------------------------------------------------------------------------------
 class ClusterPath(object):
-    def __init__(self, initial_path_index=0, seed_unique_id=None, partition=None, fname=None):
-        # TODO init from fname, and change all calls (?)
-
+    def __init__(self, initial_path_index=0, seed_unique_id=None, partition=None, fname=None, partition_lines=None):  # <partition> is a fully-formed partition, while <partition_lines> is straight from reading a file (perhaps could combine them, but I don't want to think through it now)
         # could probably remove path index since there's very little chance of doing smc in the future, but the path-merging code in glomerator was _very_ difficult to write, so I'm reluctant to nuke it
         self.initial_path_index = initial_path_index  # NOTE this is set to None if it's nonsensical, e.g. if we're merging several paths with different indices
 
@@ -29,6 +27,10 @@ class ClusterPath(object):
 
         if partition is not None:
             self.add_partition(partition, logprob=0., n_procs=1)
+        elif fname is not None:
+            self.readfile(fname)
+        elif partition_lines is not None:
+            self.readlines(partition_lines)
 
     # ----------------------------------------------------------------------------------------
     def get_headers(self, is_data):
@@ -89,30 +91,42 @@ class ClusterPath(object):
             raise Exception('can\'t read NoneType partition file')
         if os.stat(fname).st_size == 0:
             raise Exception('partition file %s has size zero' % fname)
-        with open(fname, 'r') as infile:
-            reader = csv.DictReader(infile)
-            lines = [line for line in reader]
-            self.readlines(lines)
+        if utils.getsuffix(fname) == '.csv':
+            with open(fname, 'r') as infile:
+                reader = csv.DictReader(infile)
+                if 'partition' not in reader.fieldnames:
+                    raise Exception('\'partition\' not among headers in %s, maybe this isn\'t a partition file?' % fname)
+                lines = [line for line in reader]  # not sure that I really need this step
+            process_csv = True
+        elif utils.getsuffix(fname) == '.yaml':
+            _, _, lines = utils.read_yaml_output(fname)
+            process_csv = False
+        else:
+            raise Exception('unhandled annotation file suffix %s' % outfname)
+
+        self.readlines(lines, process_csv=process_csv)
 
     # ----------------------------------------------------------------------------------------
-    def readlines(self, lines):
+    def readlines(self, lines, process_csv=False):
         for line in lines:
             if 'path_index' in line and int(line['path_index']) != self.initial_path_index:  # if <lines> contains more than one path_index, that means they represent more than one path, so you need to use glomerator, not just one ClusterPath
                 raise Exception('path index in lines %d doesn\'t match my initial path index %d' % (int(line['path_index']), self.initial_path_index))
-            if 'partition' not in line:
-                raise Exception('\'partition\' not among headers, maybe this isn\'t a partition file?')
             if 'seed_unique_id' in line and line['seed_unique_id'] != '':
                 if self.seed_unique_id is None:
                     self.seed_unique_id = line['seed_unique_id']
                 if line['seed_unique_id'] != self.seed_unique_id:
                     print '%s seed uids for each line not all the same %s %s' % (utils.color('yellow', 'warning'), line['seed_unique_id'], self.seed_unique_id)
-            partitionstr = line['partition']
-            partition = [cluster_str.split(':') for cluster_str in partitionstr.split(';')]
+
+            if process_csv:
+                line['partition'] = [cluster_str.split(':') for cluster_str in line['partition'].split(';')]
+
             ccfs = [None, None]
-            if 'ccf_under' in line and 'ccf_over' in line and line['ccf_under'] != '' and line['ccf_over'] != '':
-                ccfs = [float(line['ccf_under']), float(line['ccf_over'])]
+            if 'ccf_under' in line and 'ccf_over' in line:  # I don't know what I want to do if there's one but not the other, but it shouldn't be possible
+                if line['ccf_under'] != '' and line['ccf_over'] != '':
+                    ccfs = [float(line['ccf_under']), float(line['ccf_over'])]
                 self.we_have_a_ccf = True
-            self.add_partition(partition, float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), ccfs=ccfs)
+
+            self.add_partition(line['partition'], float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), ccfs=ccfs)
 
     # ----------------------------------------------------------------------------------------
     def calculate_missing_values(self, reco_info, only_ip=None):
@@ -137,7 +151,7 @@ class ClusterPath(object):
             #     ccf_str = '   -  -    '
             # else:
             #     ccf_str = ' %5.2f %5.2f    ' % tuple(self.ccfs[ip])
-        else:  # TODO clean this up
+        else:
             ccf_str = '   -  -    '
 
         return ccf_str
@@ -236,7 +250,7 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def set_synthetic_logweight_history(self, reco_info):
-        # TODO switch clusterpath.cc back to using these
+        # not sure if it's still relevant, but note here said: "switch clusterpath.cc back to using these"
         def potential_n_parents(partition):
             combifactor = 0
             for cluster in partition:
@@ -255,41 +269,35 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def init_outfile(self, outfname, is_data):
-        outfile = open(outfname, 'w')
-        writer = csv.DictWriter(outfile, self.get_headers(is_data))
-        writer.writeheader()
-        return outfile, writer
+    def write(self, outfname, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', partition_lines=None):
+        if utils.getsuffix(outfname) != '.csv':
+            raise Exception('unhandled file extension %s' % outfname)
+        if partition_lines is None:
+            partition_lines = self.get_partition_lines(is_data, reco_info=reco_info, true_partition=true_partition, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
+        with open(outfname, 'w') as outfile:
+            writer = csv.DictWriter(outfile, self.get_headers(is_data))
+            writer.writeheader()
+            for row in partition_lines:
+                row['partition'] = ';'.join([':'.join(cluster) for cluster in row['partition']])
+                if 'bad_clusters' in row:
+                    row['bad_clusters'] = ';'.join(row['bad_clusters'])
+                writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def write(self, outfname, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none'):
-        """ self-contained writing function """
-        outfile, writer = self.init_outfile(outfname, is_data)
-        self.write_partitions(writer, is_data, reco_info=reco_info, true_partition=true_partition, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
-        outfile.close()
-
-    # ----------------------------------------------------------------------------------------
-    def write_partitions(self, writer, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None):
-        """ for use by itself only when writing several paths to the same file (i.e. for smc) """
-
+    def get_partition_lines(self, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None):
         assert calc_missing_values in ['none', 'all', 'best']
         if reco_info is not None and calc_missing_values == 'all':
             self.calculate_missing_values(reco_info)
 
         headers = self.get_headers(is_data)
+        lines = []
         for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
             part = self.partitions[ipart]
-            # TODO stop with the str += b.s.
-            cluster_str = ''
-            for ic in range(len(part)):
-                if ic > 0:
-                    cluster_str += ';'
-                cluster_str += ':'.join(part[ic])
 
             row = {'logprob' : self.logprobs[ipart],
                    'n_clusters' : len(part),
                    'n_procs' : self.n_procs[ipart],
-                   'partition' : cluster_str}
+                   'partition' : part}
             if 'ccf_under' in headers:
                 if reco_info is not None and calc_missing_values == 'best' and ipart == self.i_best:
                     self.calculate_missing_values(reco_info, only_ip=ipart)
@@ -298,14 +306,16 @@ class ClusterPath(object):
             if 'n_true_clusters' in headers:
                 row['n_true_clusters'] = len(true_partition)
             if 'bad_clusters' in headers:
-                row['bad_clusters'] = ';'.join(self.get_bad_clusters(part, reco_info))
+                row['bad_clusters'] = self.get_bad_clusters(part, reco_info)
             if 'path_index' in headers:
                 row['path_index'] = path_index
                 row['logweight'] = self.logweights[ipart]
             if 'seed_unique_id' in headers:
                 row['seed_unique_id'] = self.seed_unique_id
 
-            writer.writerow(row)
+            lines.append(row)
+
+        return lines
 
     # ----------------------------------------------------------------------------------------
     def get_bad_clusters(self, partition, reco_info):

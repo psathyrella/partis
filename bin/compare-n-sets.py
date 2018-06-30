@@ -113,7 +113,7 @@ def func(n, a, b):
 
 # ----------------------------------------------------------------------------------------
 def peruse_forward_scores():
-    _, reco_info = seqfileopener.get_seqfile_info(simfname, is_data=False)  #, n_max_queries=10000)
+    _, reco_info, _ = seqfileopener.read_sequence_file(simfname, is_data=False)  #, n_max_queries=10000)
     logprobs, partialcorr_logprobs, corr_logprobs = OrderedDict(), OrderedDict(), OrderedDict()
     for n_set in n_set_list:
         print n_set
