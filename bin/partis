@@ -263,7 +263,7 @@ parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='s
 parent_parser.add_argument('--n-simultaneous-seqs', type=int, help='Number of simultaneous sequences on which to run the multi-HMM (e.g. 2 for a pair hmm)')
 parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true', help='Run true clonal sequences together simultaneously with the multi-HMM.')
 
-parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq or .csv (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
+parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
 parent_parser.add_argument('--name-column', help='csv column name for sequence ids')
 parent_parser.add_argument('--seq-column', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--outfname', help='output file name')
