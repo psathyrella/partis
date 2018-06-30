@@ -988,11 +988,10 @@ class PartitionDriver(object):
                 uidstr_of_interest = uidstr
         if len(sub_uidstrs) == 0:
             print '  couldn\'t find any clusters in %s with uid of interest %s' % (self.hmm_cachefname, uids_of_interest)
-        sub_uidstrs = sorted(sub_uidstrs, key=lambda x: x.count(':'))
+        # sub_uidstrs = sorted(sub_uidstrs, key=lambda x: x.count(':'))  # was using this for something, but then I stopped (I was using it to keep going with a sub/superset if uidstr_of_interest ended up None, but that doesn't work becuase in the loop above we skipped everybody with no overlap, which can include some that overlap with the newly-selected superset)
 
         if uidstr_of_interest is None:
-            print '%s couldn\'t find exact requested cluster (size %d) in the cache file, so using biggest cluster that has some overlap with the requested cluster (size %d) for the reference sequence' % (utils.color('yellow', 'warning'), len(uids_of_interest), len(sub_uidstrs[-1].split(':')))
-            uidstr_of_interest = sub_uidstrs[-1]
+            raise Exception('hmm cache file doesn\'t have a cluster with the exact requested uids (run without setting --queries to get a list of available clusters): %s' % uids_of_interest)
         cache_file_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
         print '  subcluster naive sequences for %s (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
 
@@ -1000,12 +999,13 @@ class PartitionDriver(object):
         if uidstr_of_interest in cluster_annotations:
             cluster_annotation_line = cluster_annotations[uidstr_of_interest]
         else:
-            print '%s couldn\'t find exact requested cluster in the cluster annotation file, so using biggest cluster that has some overlap with the requested cluster for the cluster annotation' % utils.color('yellow', 'warning')
-            clusters_with_overlap = sorted([c for c in cluster_annotations if len(set(c.split(':')) & uids_of_interest) > 0], key=lambda x: x.count(':'))
-            if len(clusters_with_overlap) == 0:
-                raise Exception('couldn\'t find any clusters with overlap')
-            print 'with overlap: %s' % clusters_with_overlap
-            cluster_annotation_line = cluster_annotations[clusters_with_overlap[-1]]
+            raise Exception('annotations don\'t have cluster corresponding to that found in hmm cache file')
+            # I think this might have been broken, but in any case I don't really need it so commenting it out for now (see note above about having already skipped some clusters that we would want if we were going to switch the cluster of interest):
+            # clusters_with_overlap = sorted([c for c in cluster_annotations if len(set(c.split(':')) & uids_of_interest) > 0], key=lambda x: x.count(':'))
+            # if len(clusters_with_overlap) == 0:
+            #     raise Exception('couldn\'t find any clusters with overlap')
+            # print 'with overlap: %s' % clusters_with_overlap
+            # cluster_annotation_line = cluster_annotations[clusters_with_overlap[-1]]
 
         cluster_annotation_v_gene = cluster_annotation_line['v_gene']
         cluster_annotation_naive_seq = cluster_annotation_line['naive_seq']
