@@ -10,19 +10,35 @@ sys.path.insert(1, partis_dir + '/python')
 
 import utils
 import glutils
+from clusterpath import ClusterPath
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--annotation-file', default=partis_dir + '/test/reference-results/annotate-ref-simu.yaml')
+parser.add_argument('--fname', default=partis_dir + '/test/reference-results/partition-ref-simu.yaml')
 args = parser.parse_args()
 
-glfo, annotations, _ = utils.read_yaml_output(args.annotation_file)
-print 'print one annotation, then break:'
-for line in annotations.values():
-    utils.print_reco_event(line)  # print ascii-art representation of the rearrangement event
-    print '\n\navailable keys:'
-    for key, val in line.items():
-        print '%20s %s' % (key, val)
+glfo, annotation_list, partition_lines = utils.read_yaml_output(args.fname)
+annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
+
+if len(partition_lines) == 0:
+    print 'no partitions read from %s' % args.fname
+else:
+    print utils.color('green', 'list of partitions:')
+    cpath = ClusterPath(partition_lines=partition_lines)
+    cpath.print_partitions(abbreviate=True)  # 'abbreviate' print little 'o's instead of the full sequence ids
+
+# print annotations for the biggest cluster in the most likely partition
+most_likely_partition = cpath.partitions[cpath.i_best]  # a partition is represented as a list of lists of strings, with each string a sequence id
+sorted_clusters = sorted(most_likely_partition, key=len, reverse=True)
+print '\n%s' % utils.color('green', 'annotation for the biggest cluster:')
+for cluster in sorted_clusters:
+    cluster_annotation = annotations[':'.join(cluster)]
+    utils.print_reco_event(cluster_annotation)
     break
+
+# print '\n\n%s' % utils.color('green', 'available keys:')
+# for key, val in cluster_annotation.items():
+#     print '%20s %s' % (key, val)
+
 
 # for old csv files:
 # parser.add_argument('--annotation-file', default=partis_dir + '/test/reference-results/annotate-ref-simu.csv')
