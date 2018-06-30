@@ -335,6 +335,7 @@ class PartitionDriver(object):
                     raise Exception('not an annotation file: %s' % outfname)
         elif utils.getsuffix(outfname) == '.yaml':  # new way
             # NOTE replaces <self.glfo>, which is definitely what we want (it's the point of putting glfo in the yaml file), but it's still different behavior than if reading a csv
+            assert self.glfo is None  # make sure bin/partis successfully figured out that we would be reading the glfo from the yaml output file
             self.glfo, annotation_lines, partition_lines = utils.read_yaml_output(outfname, n_max_queries=self.args.n_max_queries, dont_add_implicit_info=True)  # add implicit info below, so we can skip some of 'em
             if len(partition_lines) > 0:
                 cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition_lines=partition_lines)

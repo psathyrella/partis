@@ -115,7 +115,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     elif suffix == '.yaml':
         yaml_glfo, reader, _ = utils.read_yaml_output(infname, n_max_queries=n_max_queries, synth_single_seqs=True, dont_add_implicit_info=True)  # not really sure that long term I want to synthesize single seq lines, but for backwards compatibility it's nice a.t.m.
         if not is_data:
-            simglfo = yaml_glfo  # doesn't replace the contents, of course
+            simglfo = yaml_glfo  # doesn't replace the contents, of course, which is why we return it
     else:
         raise Exception('unhandled file extension %s' % suffix)
 
