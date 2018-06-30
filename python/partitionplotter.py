@@ -468,8 +468,7 @@ class PartitionPlotter(object):
         elif infiles is not None:  # plot the mean of a partition from each file
             subset_hists = []
             for fname in infiles:
-                cp = ClusterPath()
-                cp.readfile(fname)
+                cp = ClusterPath(fname=fname)
                 subset_hists.append(self.plotting.get_cluster_size_hist(cp.partitions[cp.i_best]))
             csize_hists = {'best' : self.plotting.make_mean_hist(subset_hists)}
             for ih in range(len(subset_hists)):

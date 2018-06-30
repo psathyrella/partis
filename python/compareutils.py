@@ -209,8 +209,7 @@ def parse_changeo(args, info, outfname, csvdir):
     if 'plotting' not in sys.modules:
         import plotting
 
-    cpath = ClusterPath()
-    cpath.readfile(outfname)
+    cpath = ClusterPath(fname=outfname)
     hist = sys.modules['plotting'].get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     metric_vals = None
@@ -251,8 +250,7 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
     if 'plotting' not in sys.modules:
         import plotting
 
-    cpath = ClusterPath()
-    cpath.readfile(outfname)
+    cpath = ClusterPath(fname=outfname)
     hist = sys.modules['plotting'].get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     vname = action
@@ -314,9 +312,7 @@ def parse_synthetic(args, info, outdir, true_partition, base_outfname):
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
         vname = stype
-        cpath = ClusterPath()
-        outfname = base_outfname.replace('.csv', '-' + vname + '.csv')
-        cpath.readfile(outfname)
+        cpath = ClusterPath(fname=base_outfname.replace('.csv', '-' + vname + '.csv'))
         partition = cpath.partitions[cpath.i_best]
         hist = sys.modules['plotting'].get_cluster_size_hist(partition)
         ccfs = cpath.ccfs[cpath.i_best]
@@ -1162,8 +1158,7 @@ def get_seed_info(args, seqfname, n_leaves):
 
 # ----------------------------------------------------------------------------------------
 def get_seed_cluster(outfname):
-    cpath = ClusterPath()
-    cpath.readfile(outfname)
+    cpath = ClusterPath(fname=outfname)
     partition = cpath.partitions[cpath.i_best]
     queries = None
     for cluster in partition:

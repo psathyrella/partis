@@ -354,8 +354,7 @@ class Tester(object):
         for ptest in ptest_list:
             if ptest not in self.perf_info[version_stype][input_stype]:
                 self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
-            cp = ClusterPath(-1)
-            cp.readfile(self.dirs[version_stype] + '/' + ptest + '.csv')
+            cp = ClusterPath(fname=self.dirs[version_stype] + '/' + ptest + '.csv')
             ccfs = cp.ccfs[cp.i_best]
             if None in ccfs:
                 raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.csv')
@@ -693,16 +692,14 @@ else:
 
 def get_typical_variances():
     raise Exception('needs updating to work as a function')
-    # cp = ClusterPath()
-    # cp.readfile('tmp.csv')
+    # cp = ClusterPath(fname='tmp.csv')
     # cp.print_partitions()
     # sys.exit()
     # cps = []
     # adj_mis, ccf_unders, ccf_overs = [], [], []
     # for iseed in range(6):
     #     # print 'seed %d' % iseed
-    #     cp = ClusterPath()
-    #     cp.readfile('%d.csv' % iseed)
+    #     cp = ClusterPath(fname='%d.csv' % iseed)
     #     cp.print_partitions()  #(cp.i_best)  #, abbreviate=False)
     #     adj_mis.append(cp.adj_mis[cp.i_best])
     #     ccf_unders.append(cp.ccfs[cp.i_best][0])
