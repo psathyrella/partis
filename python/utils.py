@@ -496,7 +496,7 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
         if head == 'aligned_v_plus_unaligned_dj':
             presto_line[phead] = line['aligned_v_seqs'][0] + line['vd_insertion'] + line['d_qr_seqs'][0] + line['dj_insertion'] + line['j_qr_seqs'][0]
         elif phead == 'JUNCTION_LENGTH':
-            presto_line[phead] = line['cdr3_length'] + 6
+            presto_line[phead] = line['cdr3_length']  # + 6  oops, no +6... what I call cdr3 length is properly junction length (but would be a colossal clusterfuck to change)
         elif head == 'unique_ids' or head == 'input_seqs':
             presto_line[phead] = line[head][0]
         else:
@@ -506,9 +506,6 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
 
 # ----------------------------------------------------------------------------------------
 def write_presto_annotations(outfname, glfo, annotations, failed_queries):
-    # outstr = subprocess.check_output(['mv', '-v', outfname, outfname + '.partis'])
-    # print '    backing up partis output before converting to presto: %s' % outstr.strip()
-
     with open(outfname, 'w') as outfile:
         writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
         writer.writeheader()

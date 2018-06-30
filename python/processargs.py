@@ -124,8 +124,10 @@ def process(args):
         if utils.getsuffix(args.outfname) != '.yaml':
             print '  %s --outfname uses deprecated file format %s. This will still work fine, but the new default .yaml format is more sensible, and also includes annotations, partitions, and germline info in the same file.' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
     if args.presto_output:
-        if utils.getsuffix(args.outfname) != '.tsv':
-            raise Exception('--outfname suffix has to be .tsv for --presto-output (got %s)' % utils.getsuffix(args.outfname))
+        if args.action == 'annotate' and utils.getsuffix(args.outfname) != '.tsv':
+            raise Exception('--outfname suffix has to be .tsv for annotation with --presto-output (got %s)' % utils.getsuffix(args.outfname))
+        if args.action == 'partition' and utils.getsuffix(args.outfname) not in ['.fa', 'fasta']:
+            raise Exception('--outfname suffix has to be .fa or .fasta for partition with --presto-output (got %s)' % utils.getsuffix(args.outfname))
         if args.aligned_germline_fname is None:
             raise Exception('in order to get presto output, you have to set --aligned-germline-fname to a fasta file with germline alignments for every germline gene, an example is located in data/germlines/imgt-aligned-igh.fa (this isn\'t set by default because imgt alignments are subject to change)')
 

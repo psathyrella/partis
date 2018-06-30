@@ -342,10 +342,10 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def write_presto_partitions(self, outfname, input_info):
-        outfile = open(outfname, 'w')
-        iclust = 0
-        for cluster in self.partitions[self.i_best]:
-            for uid in cluster:
-                assert len(input_info[uid]['seqs'][0]) == 1
-                outfile.write('>%s|CLONE=%d\n%s\n' % (uid, iclust, input_info[uid]['seqs'][0]))
-            iclust += 1
+        with open(outfname, 'w') as outfile:
+            iclust = 0
+            for cluster in self.partitions[self.i_best]:
+                for uid in cluster:
+                    assert len(input_info[uid]['seqs']) == 1
+                    outfile.write('>%s|CLONE=%d\n%s\n' % (uid, iclust, input_info[uid]['seqs'][0]))
+                iclust += 1

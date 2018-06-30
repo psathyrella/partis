@@ -1750,14 +1750,11 @@ class PartitionDriver(object):
         if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
             failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
 
-# ----------------------------------------------------------------------------------------
         if self.args.presto_output:
-            utils.write_presto_annotations(outfname, self.glfo, annotations, failed_queries=failed_queries)
-# ----------------------------------------------------------------------------------------
-            outstr = check_output(['mv', '-v', self.args.outfname, self.args.outfname + '.partis'])
-            print '    backing up partis output before converting to presto: %s' % outstr.strip()
-            cpath.write_presto_partitions(self.args.outfname, self.input_info)
-# ----------------------------------------------------------------------------------------
+            if cpath is None:  # can't write presto annotations for multi-sequence annotations, so can't write cluster annotations
+                utils.write_presto_annotations(self.args.outfname, self.glfo, annotations, failed_queries=failed_queries)
+            else:
+                cpath.write_presto_partitions(self.args.outfname, self.input_info)
             return
 
         partition_lines = None
