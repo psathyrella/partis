@@ -134,7 +134,7 @@ You could thus write the mature sequences resulting from three simulated rearran
 ```partis simulate --parameter-dir _output/_path_to_sample --outfname simu.yaml --n-sim-events 3 --debug 1```,
 
 where `--debug 1` prints to stdout what the rearrangement events look like as they're being made.
-The resulting output file follows the [annotation csv](output-formats.md) format, with an additional column `reco_id` to identify clonal families (it's a hash of the rearrangement parameters).
+The resulting output file follows regular output [format](output-formats.md), with an additional column `reco_id` to identify clonal families (it's a hash of the rearrangement parameters).
 When subsequently running inference on simulation, you typically want to pass the `--is-simu` option.
 During parameter caching, this will write a separate parameter directory with the true parameters (in a addition to `sw/` and `hmm/`).
 During annotation and partitioning, with `--debug 1` it will print the true rearrangements and partitions along with the inferred ones.
