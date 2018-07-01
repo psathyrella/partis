@@ -5,7 +5,7 @@
   * [output file example](#output-file-example)
 
 
-All output is written to a unified yaml file (for documentation on the old csv formats, see [here](https://github.com/psathyrella/partis/blob/0f1d8969af888a343d04524c3b8f21075896d8e4/manual.md)).
+All output is written to a unified yaml file (for documentation on the old csv formats, see [here](https://github.com/psathyrella/partis/blob/0f1d8969af888a343d04524c3b8f21075896d8e4/docs/output-formats.md)).
 The `annotate` action writes annotations for each single sequence in the input.
 The `partition` action writes a list of the most likely partitions and their relative likelihoods, as well as annotations for each cluster in the most likely partition.
 
