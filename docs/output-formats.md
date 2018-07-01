@@ -53,7 +53,7 @@ The following keys are written to output by default:
 | dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
 | fv_insertion       |  constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
 | jf_insertion       |  constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
-| codon_positions    |  zero-indexed V and J conserved codon positions in the indel-reversed sequence[s]
+| codon_positions	 |  zero-indexed indel-reversed-sequence positions of the conserved cyst and tryp/phen codons, e.g. `{'v': 285, 'j': 336}`
 | mutated_invariants |  true if the conserved codons corresponding to the start and end of the CDR3 code for the same amino acid as in their original germline (cyst and tryp/phen, in IMGT numbering)
 | in_frames          |  true if the net effect of VDJ rearrangement and SHM indels leaves both the start and end of the CDR3 (IMGT cyst and tryp/phen) in frame with respect to the start of the germline V sequence
 | stops              |  true if there's a stop codon in frame with respect to the start of the germline V sequence
@@ -69,7 +69,6 @@ While the following keys are available in the dictionary in memory, but not writ
 
 |   key                   |  value
 |-------------------------|----------------------------------------------------------------------------
-| codon_positions		  |  zero-indexed indel-reversed-sequence positions of the conserved cyst and tryp/phen codons, e.g. `{'v': 285, 'j': 336}`
 | v_gl_seq				  |  portion of v germline gene aligned to the indel-reversed sequence (i.e. with 5p and 3p deletions removed). Colon-separated list.
 | d_gl_seq				  |  see v_gl_seq
 | j_gl_seq				  |  see v_gl_seq
