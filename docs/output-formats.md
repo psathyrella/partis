@@ -30,9 +30,9 @@ The yaml output file contains four top-level headers:
 
 #### description of keys
 
-They are either per-family keys (that have one value for the entire rearrangement event) and per-sequence keys (that consist of a list of values, one for each sequence).
+Keys in the annotation dictionary are either per-family keys (that have one value for the entire rearrangement event) or per-sequence keys (that consist of a list of values, one for each sequence).
 The latter are marked with `[per-seq]` below.
-The following keys are written to output by default.
+The following keys are written to output by default:
 
 |   name         |  description
 |----------------|----------------------------------------------------------------------------
