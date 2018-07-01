@@ -1,26 +1,112 @@
 ### output formats
 
-  * [annotation file headers](#annotation-file-headers)
-  * [in-memory annotation dictionary keys](#in-memory-annotation-dictionary-keys)
-  * [partition file headers](#partition-file-headers)
+  * [output file overview](#output-file-overview)
+  * [default annotation file headers](#default-annotation-file-headers)
 
-The `annotate` action writes a single csv file with annotations for each sequence in the input.
-The `partition` action, on the other hand, writes two csv files: one with a list of the most likely partitions and their relative likelihoods, and another with annotations for each cluster in the most likely partition.
-This cluster annotation file is by default written to the same path as the partition file, but with `-cluster-annotations` inserted before the suffix (you can change this with `--cluster-annotation-fname`).
-These two files will eventually be combined into a single yaml file.
 
-If you just want to view an ascii representation of the results, use the partis [`view-annotations`](subcommands.md#view-annotations) and [`view-partitions`](subcommands.md#view-partitions) actions.
-If you want to directly access the csv columns, the [partition](#partition-file-headers) and [annotation](#annotation-file-headers) headers are listed below.
-While by default a fairly minimal set of annotation information is written to file, many more keys are present in the dictionary in memory.
-Any of these keys, together with several additional ones, can be added to the output file by setting `--extra-annotation-columns` (for all the choices, see `partis annotate --help|grep -C5 extra-annotation`).
+All output is written to a unified yaml file (for documentation on the old csv formats, see [here](https://github.com/psathyrella/partis/blob/0f1d8969af888a343d04524c3b8f21075896d8e4/manual.md)).
+The `annotate` action writes annotations for each single sequence in the input.
+The `partition` action, on the other hand, writes a list of the most likely partitions and their relative likelihoods, as well as annotations for each cluster in the most likely partition.
 
-If, on the other hand, you need to do some additional calculations, there is a lot of existing code to facilitate this.
-To get you started, there are simple example parsing scripts for [annotation](../bin/example-parse-annotations.py) and [partition](../bin/example-parse-partitions.py) output files.
-If more detailed calculations are necessary, you can of course just add the necessary code to the example scripts.
+If you just want to print the results to the terminal, use the partis [`view-output`](subcommands.md#view-output) action.
+While by default a fairly minimal set of annotation information is written to file, many more keys are present in the dictionary in memory (see below).
+Any of these keys, together with several additional ones, can be added to the output file by setting `--extra-annotation-columns` (for all the choices, see below, or run `partis annotate --help|grep -C5 extra-annotation`).
 
-#### annotation file headers
+An example parsing script can be found [here](../bin/example-parse-output.py).
 
-The annotation csv contains the following columns by default:
+#### output file overview
+
+The yaml output file contains four top-level headers.
+To keep track of the output file version, we have `version-info`:
+
+`version-info: {partis-yaml: 0.1}`
+
+The set of germline genes corresponding to the annotations is in `germline-info`:
+
+```
+germline-info:
+  cyst-positions: {IGHV3-48*04: 285, IGHV3-74*01: 285, IGHV4-31*10: 288}
+  functionalities: {}
+  locus: igh
+  seqs:
+    d: !!python/object/apply:collections.OrderedDict
+    - - [IGHD1-20*01, GGTATAACTGGAACGAC]
+      - [IGHD2-2*01, AGGATATTGTAGTAGTACCAGCTGCTATGCC]
+      - [IGHD5-18*01, GTGGATACAGCTATGGTTAC]
+    j: !!python/object/apply:collections.OrderedDict
+    - - [IGHJ3*02, TGATGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG]
+      - [IGHJ4*01, ACTACTTTGACTACTGGGGCCAAGGAACCCTGGTCACCGTCTCCTCAG]
+      - [IGHJ6*01, ATTACTACTACTACTACGGTATGGACGTCTGGGGGCAAGGGACCACGGTCACCGTCTCCTCAG]
+    v: !!python/object/apply:collections.OrderedDict
+    - - [IGHV3-48*04, GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTAGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGA]
+      - [IGHV3-74*01, GAGGTGCAGCTGGTGGAGTCCGGGGGAGGCTTAGTTCAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTACTGGATGCACTGGGTCCGCCAAGCTCCAGGGAAGGGGCTGGTGTGGGTCTCACGTATTAATAGTGATGGGAGTAGCACAAGCTACGCGGACTCCGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACACGCTGTATCTGCAAATGAACAGTCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCAAGAGA]
+      - [IGHV4-31*10, CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGTTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGGATCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTGCATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTACCATATCAGTAGACCCGTCCAAGAACCAGTTCTCCCTGAAGCCGAGCTCTGTGACTGCCGCGGACACGGCCGTGGATTACTGTGCGAGAGA]
+  tryp-positions: {IGHJ3*02: 16, IGHJ4*01: 14, IGHJ6*01: 29}
+```
+
+The annotations are stored under `events`, for instance here is an annotation for three clonally-related sequences:
+
+```
+events:
+- cdr3_length: 45
+  codon_positions: {j: 330, v: 288}
+  d_3p_del: 1
+  d_5p_del: 0
+  d_gene: IGHD5-18*01
+  d_per_gene_support: !!python/object/apply:collections.OrderedDict
+  - - [IGHD5-18*01, 1.0]
+  dj_insertion: A
+  duplicates:
+  - []
+  - []
+  - []
+  fv_insertion: ''
+  gl_gap_seqs: ['', '', CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGTTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGGATCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTGCATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTACCATATCAGTAGACCCGTCCAAGAACCAGTTCTCCCTGAAGCCGAGCTCTGTGACTGCCGCGGACACGGCCGTGGATTACTGTGCGAGGTGGATACAGCTATGGTTAAATGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG]
+  has_shm_indels: [false, false, true]
+  in_frames: [true, true, false]
+  indel_reversed_seqs: ['', '', CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGTTGAAGCCTTCACAGACCGTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGGGGTGGTTACTACTGGAGCTGGATCCGCCAGTACCCAGCGAAGTGCCTGGAGTGGGTTGGGTGCATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTTCCATATCTGTAGACCCGTCCAAGAACCAGTTTTCCCTGAAGCCGAGCTCTGTGACTGCCGCGGACACGGCCGTGGATTACTGTGCGAGGTGGATACAGCTATGGTTAAATGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG]
+  input_seqs: [!!python/unicode CAGGTGCAGATGCAGGAGTCGGGCCCAGGACTATTGAAGCCTACACAGACCCTGTCCCTCACCTGCACTGTCTTTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGTACCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTGCATCTATTACAGTGGGAGCACGTACTACAACCCGTCCCTCAAGAGTCTAGTTACCATACCAGTAGACCCGTCCAAGAACCAGTTCTCCCTGAAGCCGAGCTCTGTGACTGCCGCGGACACGGCCGTGGATTACTGTGCGACGTGGATACAACTATGGTTAAATGCTTTTGATATCTGGGGCCAAGGGACAATGATCACCGTCTATTCAG, !!python/unicode CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGTTGAAGCCTTCACAGACCGTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGGAGTGGTTACTACTGGAACTGGATCCGCCAGTACCCAGCGAAGTGCCTGGAGTGGATTGGGTGCATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAATTACCATATCAGTAGACTCGTCCAAGAACCATTTTTCCCTGAAGCCGAGCTCTGTAACTGCCGCGGACACGGCCGTGGATTACTGTGCGAGGTGGATACAGCTATGGTTAAATGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGGCTCTTCAG,
+    !!python/unicode CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGTTGAAGCCTTCACAGACCGTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGGGGTGGTTACTACTGGAGCTGGATCCGCCAGTACCCAGCGAAGTGCCTGGAGTGGGTTGGGTGCATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTTCCATATCTGTAGACCCGTCCAAGAACAGTTTTCCCTGAAGCCGAGCTCTGTGACTGCCGCGGACACGGCCGTGGATTACTGTGCGAGGTGGATACAGCTATGGTTAAATGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG]
+  invalid: false
+  j_3p_del: 0
+  j_5p_del: 2
+  j_gene: IGHJ3*02
+  j_per_gene_support: !!python/object/apply:collections.OrderedDict
+  - - [IGHJ3*02, 1.0]
+  jf_insertion: ''
+  mut_freqs: [0.03571428571428571, 0.03571428571428571, 0.024725274725274724]
+  mutated_invariants: [false, false, false]
+  n_mutations: [13, 13, 9]
+  naive_seq: CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGTTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGGATCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTGCATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTACCATATCAGTAGACCCGTCCAAGAACCAGTTCTCCCTGAAGCCGAGCTCTGTGACTGCCGCGGACACGGCCGTGGATTACTGTGCGAGGTGGATACAGCTATGGTTAAATGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
+  qr_gap_seqs: ['', '', !!python/unicode CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGTTGAAGCCTTCACAGACCGTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGGGGTGGTTACTACTGGAGCTGGATCCGCCAGTACCCAGCGAAGTGCCTGGAGTGGGTTGGGTGCATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTTCCATATCTGTAGACCCGTCCAAGAA.CAGTTTTCCCTGAAGCCGAGCTCTGTGACTGCCGCGGACACGGCCGTGGATTACTGTGCGAGGTGGATACAGCTATGGTTAAATGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG]
+  stops: [false, false, true]
+  unique_ids: [a, c, b]
+  v_3p_del: 3
+  v_5p_del: 0
+  v_gene: IGHV4-31*10
+  v_per_gene_support: !!python/object/apply:collections.OrderedDict
+  - - [IGHV4-31*10, 1.0]
+  vd_insertion: ''
+```
+
+and finally, the list of partitions is stored under `partitions`:
+
+```
+partitions:
+- logprob: -174.72939717720863
+  n_clusters: 2
+  n_procs: 1
+  partition:
+  - [a]
+  - [c, b]
+- logprob: -159.79270720880572
+  n_clusters: 1
+  n_procs: 1
+  partition:
+  - [a, c, b]
+```
+
+#### default annotation file headers
 
 |   name         |  description
 |----------------|----------------------------------------------------------------------------
