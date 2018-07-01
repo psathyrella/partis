@@ -37,9 +37,9 @@ class ClusterPath(object):
         headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
         if not is_data:
             headers += ['n_true_clusters', 'ccf_under', 'ccf_over']
+            # headers += ['bad_clusters']  # uncomment to also write the clusters that aren't perfect
         if self.seed_unique_id is not None:
             headers += ['seed_unique_id', ]
-        # headers += 'bad_clusters'  # can also write the clusters that aren't perfect
         return headers
 
     # ----------------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ class ClusterPath(object):
             if 'n_true_clusters' in headers:
                 row['n_true_clusters'] = len(true_partition)
             if 'bad_clusters' in headers:
-                row['bad_clusters'] = self.get_bad_clusters(part, reco_info)
+                row['bad_clusters'] = self.get_bad_clusters(part, reco_info, true_partition)
             if 'path_index' in headers:
                 row['path_index'] = path_index
                 row['logweight'] = self.logweights[ipart]
@@ -318,14 +318,15 @@ class ClusterPath(object):
         return lines
 
     # ----------------------------------------------------------------------------------------
-    def get_bad_clusters(self, partition, reco_info):
+    def get_bad_clusters(self, partition, reco_info, true_partition):
         bad_clusters = []  # inferred clusters that aren't really all from the same event
         for ic in range(len(partition)):
             same_event = utils.from_same_event(reco_info, partition[ic])  # are all the sequences from the same event?
             entire_cluster = True  # ... and if so, are they the entire true cluster?
             if same_event:
                 reco_id = reco_info[partition[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
-                true_cluster = true_partition[reco_id]
+                true_cluster = [cluster for cluster in true_partition if reco_info[cluster[0]]['reco_id'] == reco_id]
+                assert len(true_cluster) == 1
                 for uid in true_cluster:
                     if uid not in partition[ic]:
                         entire_cluster = False
