@@ -325,8 +325,9 @@ class ClusterPath(object):
             entire_cluster = True  # ... and if so, are they the entire true cluster?
             if same_event:
                 reco_id = reco_info[partition[ic][0]]['reco_id']  # they've all got the same reco_id then, so pick an aribtrary one
-                true_cluster = [cluster for cluster in true_partition if reco_info[cluster[0]]['reco_id'] == reco_id]
-                assert len(true_cluster) == 1
+                true_clusters = [cluster for cluster in true_partition if reco_info[cluster[0]]['reco_id'] == reco_id]  # NOTE I think this doesn't work right with shm indels in the cdr3
+                assert len(true_clusters) == 1
+                true_cluster = true_clusters[0]
                 for uid in true_cluster:
                     if uid not in partition[ic]:
                         entire_cluster = False
