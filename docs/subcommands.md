@@ -1,8 +1,6 @@
   - [annotate](#annotate) find most likely annotation for each sequence
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
-  - [output formats](#output-formats) parsing output from annotation and partitioning
-  - [view-annotations](#view-annotations) print the annotations from an existing annotation output csv
-  - [view-partitions](#view-partitions)  print the partitions from an existing partition output csv.
+  - [view-output](#view-output) print the partitions and/or annotations from an existing output file
   - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, runs automatically before annotation and partitioning)
     - [germline sets](#germline-sets)
   - [simulate](#simulate) make simulated sequences
@@ -11,11 +9,11 @@
 
 The `partis` command has a number of actions:
 
-```partis annotate | partition | view-annotations | view-partitions | cache-parameters | simulate```
+```partis annotate | partition | view-output | cache-parameters | simulate```
 
 For information on options for each subcommand that are not documented in this manual run `partis <subcommand> --help`.
 
-For the sake of brevity, the commands below invoke partis with no path, which will work if you've either:
+For the sake of brevity, the commands below invoke partis with no leading path, which will work if you've either:
   - linked the binary into to a directory that's already in your path, e.g. `ln -s /path/to/<partis_dir/bin/partis ~/bin/` or
   - added the partis `bin/` to your path: `export PATH=/path/to/<partis_dir/bin/:$PATH`
 The other option is to specify the full path with each call `/path/to/<partis_dir>/bin/partis`.
@@ -24,17 +22,17 @@ The other option is to specify the full path with each call `/path/to/<partis_di
 
 In order to find the most likely annotation (VDJ assignment, deletion boundaries, etc.) for each sequence, run
 
-```partis annotate --infname test/example.fa --outfname _output/example.csv```.
+```partis annotate --infname test/example.fa --outfname _output/example.yaml```.
 
-For information on parsing the output file, see [below](#output-formats).
+For information on parsing the output file, see [here](#output-formats.md).
 
 ### partition
 
 In order to cluster sequences into clonal families, run
 
-```partis partition --infname test/example.fa --outfname _output/example.csv```
+```partis partition --infname test/example.fa --outfname _output/example.yaml```
 
-For information on parsing the output file, see [below](#output-formats).
+For information on parsing the output file, see [here](#output-formats.md).
 
 By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clusters, and full likelihood calculation for more similar clusters. This method is typically appropriate (finishing in minutes to tens of hours) for tens of thousands of sequences on a laptop, or hundreds of thousands on a server. Because the usual optimizations that prevent clustering time from scaling quadratically with sample size do not translate well to BCR rearrangement space (at least not if you care about getting accurate clusters), run time varies significantly from sample to sample, hence the large range of quoted run times.
 
@@ -69,27 +67,17 @@ Cases where memory is a limiting factor typically stem from a sample with severa
 In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step. This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the naive sequence for each sub-cluster (actually this just moves the cache file that's a normal part of partitioning to a persistent location). For instance:
 
 ```
-partis partition --infname test/example.fa --outfname _output/example.csv --calculate-alternative-naive-seqs
-partis view-alternative-naive-seqs --outfname _output/example.csv --queries <queries of interest>  # try piping this to less by adding "| less -RS"
+partis partition --infname test/example.fa --outfname _output/example.yaml --calculate-alternative-naive-seqs
+partis view-alternative-naive-seqs --outfname _output/example.yaml --queries <queries of interest>  # try piping this to less by adding "| less -RS"
 ```
 
 if you don't know which `--queries` to put in the second step, just run without setting `--queries`, and it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.
 
-### view-annotations
+### view-output
 
-To, e.g. run on the output csv from the `annotate` action:
+To print the partitions and/or annotations in an existing output file, run
 
-``` partis view-annotations --outfname annotate-output.csv --parameter-dir <param_dir>```
-
-The `--parameter-dir` is only necessary if any novel alleles turned up while caching parameters.
-
-### view-partitions
-
-To, e.g. run on the output csv from the `partition` action:
-
-``` partis view-partitions --outfname partition-output.csv --parameter-dir <param_dir>```
-
-The `--parameter-dir` is only necessary if any novel alleles turned up while caching parameters.
+``` partis view-annotations --outfname _output/example.yaml ```
 
 ### cache-parameters
 
@@ -117,7 +105,7 @@ If `--parameter-dir` (whether explicitly set or left as default) doesn't exist, 
 
 Whether caching parameters or running on pre-existing parameters, the hmm needs smith-waterman annotations as input.
 While this preliminary smith-waterman step is fairly fast, it's also easy to cache the results so you only have to do it once.
-By default these smith-waterman annotations are written to a csv file in `--parameter-dir` during parameter caching (default path is `<parameter_dir>/sw-cache-<hash>.csv` where `<hash>` is a hash of the input sequence ids).
+By default these smith-waterman annotations are written to a yaml file in `--parameter-dir` during parameter caching (default path is `<parameter_dir>/sw-cache-<hash>.yaml` where `<hash>` is a hash of the input sequence ids).
 (Because all sequences need to be aligned and padded to the same length before partititioning, the smith-waterman annotation information for each sequence depends slightly on all the other sequences in the file, hence the hash.)
 These defaults should ensure that with typical workflows, smith-waterman only runs once.
 If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
@@ -125,7 +113,7 @@ If however, you're doing less typical things (running on a subset of sequences i
 #### germline sets
 
 By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in data/germlines.
-The resulting per-sample germline sets are written as three fasta files and a meta-info csv to `<--parameter-dir>/hmm/germline-sets`.
+The resulting per-sample germline sets are written both to the output yaml file (if you've set `--outfname`), and to `<--parameter-dir>/hmm/germline-sets` (as three fasta files and a meta-info csv).
 
 By default, this only looks for alleles that are separated by point mutations from existing genes.
 This is appropriate for humans, and probably for mice and macaque as well, since the known germline sets are fairly complete.
@@ -141,9 +129,9 @@ Note that in order to run simulation, you have to have R installed, along with s
 In the simplest simulation mode, partis mimics the characteristics of a particular template data sample as closely as possible: germline set, gene usage frequencies, insertion and deletion lengths, somatic hypermutation rates and per-position dependencies, etc. (as well as the correlations between these).
 This mode uses the previously-inferred parameters from that sample, located in `--parameter-dir`.
 By default, for instance, if a sample at the path `/path/to/sample.fa` was previously partitioned, the parameters would have been written to `_output/_path_to_sample/`.
-You could thus write the mature sequences resulting from three simulated rearrangement events to the file `simu.csv` by running
+You could thus write the mature sequences resulting from three simulated rearrangement events to the file `simu.yaml` by running
 
-```partis simulate --parameter-dir _output/_path_to_sample --outfname simu.csv --n-sim-events 3 --debug 1```,
+```partis simulate --parameter-dir _output/_path_to_sample --outfname simu.yaml --n-sim-events 3 --debug 1```,
 
 where `--debug 1` prints to stdout what the rearrangement events look like as they're being made.
 The resulting output file follows the [annotation csv](output-formats.md) format, with an additional column `reco_id` to identify clonal families (it's a hash of the rearrangement parameters).

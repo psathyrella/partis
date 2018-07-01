@@ -2,7 +2,7 @@
 
 Once you have partis installed, to annotate a file `/path/to/yourseqs.fa` with BCR sequences you'd run
 
-```/path/to/<partis_dir>/bin/partis annotate --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-annotate.csv```.
+```/path/to/<partis_dir>/bin/partis annotate --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-annotate.yaml```.
 
 To group them into clonal families, replace `annotate` with `partition`.
 Note that all input must be plus strand sequences.
@@ -17,7 +17,7 @@ To change this, use the `--species {human,mouse,macaque}` and `--locus {tra,trb,
 
 In addition to any output files specified with `--oufname`, partis writes to two directories on your file system.
 Temporary working files go in `--workdir`, which is entirely removed upon successful completion.
-The workdir defaults to a subdirectory of `/tmp` (`/tmp/$USER/hmms/<random.randint>`), and shouldn't need to be modified unless you're running on multiple nodes (see below), in which case it needs to be on a network mount they can all see.
+The workdir defaults to a subdirectory of `/tmp` (`/tmp/$USER/hmms/<random.randint>`), and this default shouldn't need to be changed unless you're running over multiple machines (see below), in which case it needs to be on a network mount that they can all see.
 
 Permament parameter files, on the other hand, are written to `--parameter-dir`, which defaults to a subdirectory of the current directory (see [here](subcommands.md#cache-parameters)).
 

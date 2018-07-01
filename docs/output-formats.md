@@ -5,7 +5,7 @@
   * [output file example](#output-file-example)
 
 
-All output is written to a unified yaml file (for documentation on the old csv formats, see [here](https://github.com/psathyrella/partis/blob/0f1d8969af888a343d04524c3b8f21075896d8e4/docs/output-formats.md)).
+All output is written to a unified yaml file (for documentation on the old csv formats, see [here](https://github.com/psathyrella/partis/blob/9d78600ba6b7d511825f27724de1f8e937a5ada3/docs/output-formats.md)).
 The `annotate` action writes annotations for each single sequence in the input.
 The `partition` action writes a list of the most likely partitions and their relative likelihoods, as well as annotations for each cluster in the most likely partition.
 
@@ -35,6 +35,7 @@ The following keys are written to output by default:
 |   name         |  description
 |----------------|----------------------------------------------------------------------------
 | unique_ids     |  colon-separated list of sequence identification strings
+| reco_id        |  simulation only: hash of rearrangement parameters that is the same for all clonally-related sequences
 | v_gene         |  V gene in most likely annotation
 | d_gene         |  see v_gene
 | j_gene         |  see v_gene
