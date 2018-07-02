@@ -112,7 +112,7 @@ The following keys describe the partitions:
 The following file contains the partitions and annotations for three sequences with ids 'a', 'b', and 'c'.
 There are two partitions, one with 'a' by itself and 'b' and 'c' together; then the most likely partition where all three are together.
 The annotations are for the most likely partition, and thus describe a single rearrangement event with three sequences.
-Note that while theis examples is in full yaml (since it's more human readble), in practice we read and write output files using the json subset of yaml because it's much faster.
+Note that while this examples is in full yaml (since it's more human readble), in practice we read and write output files using the json subset of yaml because it's much faster.
 
 ```
 version-info: {partis-yaml: 0.1}
