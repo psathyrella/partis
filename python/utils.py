@@ -1795,10 +1795,14 @@ def transfer_indel_info(info, outfo):  # NOTE reverse of this happens in indelut
     """
     for keys in special_indel_columns_for_output: in memory, I need the indel info under the 'indelfos' key (for historical reasons that I don't want to change a.t.m.), but I want to mask that complexity for output
     """
-    outfo['has_shm_indels'] = [indelutils.has_indels(ifo) for ifo in info['indelfos']]
-    outfo['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in info['indelfos']]
-    outfo['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in info['indelfos']]
-    outfo['indel_reversed_seqs'] = ['' if not indelutils.has_indels(info['indelfos'][iseq]) else info['indel_reversed_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
+    if special_indel_columns_for_output[0] in info:  # they're only already transferred if we're reading simulation files for merging
+        for sicfo in special_indel_columns_for_output:
+            outfo[sicfo] = info[sicfo]
+    else:
+        outfo['has_shm_indels'] = [indelutils.has_indels(ifo) for ifo in info['indelfos']]
+        outfo['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in info['indelfos']]
+        outfo['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in info['indelfos']]
+        outfo['indel_reversed_seqs'] = ['' if not indelutils.has_indels(info['indelfos'][iseq]) else info['indel_reversed_seqs'][iseq] for iseq in range(len(info['unique_ids']))]  # if no indels, it's the same as 'input_seqs', so set indel_reversed_seqs to empty strings
 
 # ----------------------------------------------------------------------------------------
 def get_line_for_output(headers, info, glfo=None):
@@ -1836,22 +1840,43 @@ def get_line_for_output(headers, info, glfo=None):
     return outfo
 
 # ----------------------------------------------------------------------------------------
+def merge_simulation_files(outfname, file_list, cleanup=True, n_total_expected=None, n_per_proc_expected=None):
+    if getsuffix(outfname) == '.csv':  # old way
+        n_event_list = merge_csvs(outfname, file_list)
+    elif getsuffix(outfname) == '.yaml':  # new way
+        n_event_list = merge_yamls(outfname, file_list)
+    else:
+        raise Exception('unhandled annotation file suffix %s' % args.outfname)
+
+    print '   read %d events from %d csv files' % (sum(n_event_list), len(file_list))
+    if n_total_expected is not None:
+        if n_event_list.count(n_per_proc_expected) != len(n_event_list):
+            raise Exception('expected %d events per proc, but read: %s' % (n_per_proc_expected, ' '.join([str(n) for n in n_event_list])))
+        if n_total_expected != sum(n_event_list):
+            print '  %s expected %d total events but read %d (per-file couts: %s)' % (color('yellow', 'warning'), n_total_expected, sum(n_event_list), ' '.join([str(n) for n in n_event_list]))
+
+# ----------------------------------------------------------------------------------------
 def merge_csvs(outfname, csv_list, cleanup=True):
     """ NOTE copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
     header = None
     outfo = []
-    # print 'merging'
+    n_event_list = []
     for infname in csv_list:
-        # print '  ', infname
-        workdir = os.path.dirname(infname)
+        if getsuffix(infname) != '.csv':
+            raise Exception('unhandled suffix, expected .csv: %s' % infname)
         with open(infname, 'r') as sub_outfile:
             reader = csv.DictReader(sub_outfile)
             header = reader.fieldnames
+            n_event_list.append(0)
+            last_reco_id = None
             for line in reader:
                 outfo.append(line)
+                if last_reco_id is None or line['reco_id'] != last_reco_id:
+                    last_reco_id = line['reco_id']
+                    n_event_list[-1] += 1
         if cleanup:
             os.remove(infname)
-            os.rmdir(workdir)
+            os.rmdir(os.path.dirname(infname))
 
     outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
     if not os.path.exists(outdir):
@@ -1861,6 +1886,37 @@ def merge_csvs(outfname, csv_list, cleanup=True):
         writer.writeheader()
         for line in outfo:
             writer.writerow(line)
+
+    return n_event_list
+
+# ----------------------------------------------------------------------------------------
+def merge_yamls(outfname, yaml_list, cleanup=True):
+    """ NOTE copy of merge_csvs(), which is (apparently) a copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
+    merged_annotation_list = []
+    ref_glfo = None
+    n_event_list = []
+    for infname in yaml_list:
+        glfo, annotation_list, partition_lines = read_yaml_output(infname, dont_add_implicit_info=True)
+        n_event_list.append(len(annotation_list))
+        if len(partition_lines) > 0:
+            raise Exception('can\'t yet handle partition merging (use glomerator.py)')
+        if ref_glfo is None:
+            ref_glfo = glfo
+        if glfo != ref_glfo:
+            raise Exception('can only merge files with identical germline info')
+        merged_annotation_list += annotation_list
+        if cleanup:
+            os.remove(infname)
+            os.rmdir(os.path.dirname(infname))
+
+    if getsuffix(outfname) != '.yaml':
+        raise Exception('wrong function for %s' % outfname)
+    outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    write_annotations(outfname, ref_glfo, merged_annotation_list, headers=simulation_headers)
+
+    return n_event_list
 
 # ----------------------------------------------------------------------------------------
 def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
