@@ -936,8 +936,8 @@ class Waterer(object):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
             print utils.pad_lines(''.join(lines))
-            if self.debug:
-                print '      rerun: implicit info adding failed for %s (see above), rerunning' % qname
+            # if self.debug:
+            print '      rerun: implicit info adding failed for %s (see above), rerunning' % qname
             queries_to_rerun['weird-annot.'].add(qname)
             return
 
