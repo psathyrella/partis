@@ -140,7 +140,7 @@ class Tester(object):
         else:
             if input_dtype == 'simu':
                 argfo['extras'] += ['--is-simu', ]
-            argfo['extras'] += ['--sw-cachefname', self.sw_cache_paths[input_stype][input_dtype] + '.csv']  # '.yaml'
+            argfo['extras'] += ['--sw-cachefname', self.sw_cache_paths[input_stype][input_dtype] + '.yaml']  # '.csv'
             argfo['extras'] += ['--infname', self.infnames[input_stype][input_dtype]]
             argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype][input_dtype]]
 
@@ -172,6 +172,7 @@ class Tester(object):
         #     raise Exception('found reference sw cache files %s -- but you really want ref sw to run from scratch' % ' '.join(ref_globfnames))
 
         # # delete any old sw cache files
+        # xxx needs updating for yaml cache files
         # for dtype in self.dtypes:
         #     globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
         #     if len(globfnames) == 0:  # not there
@@ -179,7 +180,6 @@ class Tester(object):
         #     elif len(globfnames) != 1:
         #         raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
         #     check_call(['rm', '-v', globfnames[0]])
-        # xxx needs updating for yaml cache files
         #     sw_cache_gldir = globfnames[0].replace('.csv', '-glfo')
         #     glutils.remove_glfo_files(sw_cache_gldir, args.locus)
 
@@ -206,7 +206,7 @@ class Tester(object):
                 cmd_str += ' --outfname ' + self.infnames['new']['simu']
                 cmd_str += ' --indel-frequency 0.01 --indel-location v'
             elif 'cache-parameters-' not in name:
-                cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'
+                cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'  # '.yaml'
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
             print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
