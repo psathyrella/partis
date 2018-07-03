@@ -17,15 +17,17 @@ parser.add_argument('--fname', default=partis_dir + '/test/reference-results/par
 args = parser.parse_args()
 
 glfo, annotation_list, cpath = utils.read_yaml_output(args.fname)
-annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
 
 if len(cpath.partitions) == 0:
-    print 'no partitions read from %s' % args.fname
-else:
-    print utils.color('green', 'list of partitions:')
-    cpath.print_partitions(abbreviate=True)  # 'abbreviate' print little 'o's instead of the full sequence ids
+    print 'no partitions read from %s, so just printing first annotation:' % args.fname
+    utils.print_reco_event(annotation_list[0])
+    sys.exit(0)
+
+print utils.color('green', 'list of partitions:')
+cpath.print_partitions(abbreviate=True)  # 'abbreviate' print little 'o's instead of the full sequence ids
 
 # print annotations for the biggest cluster in the most likely partition
+annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
 most_likely_partition = cpath.partitions[cpath.i_best]  # a partition is represented as a list of lists of strings, with each string a sequence id
 sorted_clusters = sorted(most_likely_partition, key=len, reverse=True)
 print '\n%s' % utils.color('green', 'annotation for the biggest cluster:')

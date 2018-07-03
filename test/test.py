@@ -336,8 +336,8 @@ class Tester(object):
         for ptest in ptest_list:
             if ptest not in self.perf_info[version_stype][input_stype]:
                 self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
-            _, _, cp = utils.read_yaml_output(fname=self.dirs[version_stype] + '/' + ptest + '.yaml', skip_annotations=True)
-            ccfs = cp.ccfs[cp.i_best]
+            _, _, cpath = utils.read_yaml_output(fname=self.dirs[version_stype] + '/' + ptest + '.yaml', skip_annotations=True)
+            ccfs = cpath.ccfs[cpath.i_best]
             if None in ccfs:
                 raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.yaml')
             self.perf_info[version_stype][input_stype][ptest]['purity'], self.perf_info[version_stype][input_stype][ptest]['completeness'] = ccfs

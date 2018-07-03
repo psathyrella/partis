@@ -1898,7 +1898,7 @@ def merge_yamls(outfname, yaml_list, cleanup=True):
     for infname in yaml_list:
         glfo, annotation_list, cpath = read_yaml_output(infname, dont_add_implicit_info=True)
         n_event_list.append(len(annotation_list))
-        if len(cpath.partitions) > 0:
+        if len(cpath.partitions) > 0:  # only used for simulation file merging a.t.m. (which obviously only have one partition [the right one], so they don't need to write the partitions)
             raise Exception('can\'t yet handle partition merging (use glomerator.py)')
         if ref_glfo is None:
             ref_glfo = glfo
@@ -3693,9 +3693,9 @@ def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_
         annotation_list = parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info)
 
     partition_lines = yamlfo['partitions']
-    if cpath is None:
+    if cpath is None:   # allowing the caller to pass in <cpath> is kind of awkward, but it's used for backward compatibility in clusterpath.readfile()
         cpath = ClusterPath(seed_unique_id=seed_unique_id)
-    if len(partition_lines) > 0:
+    if len(partition_lines) > 0:  # _don't_ combine this with the cluster path constructor, since then we won't modify the path passed in the arguments
         cpath.readlines(partition_lines)
 
     return glfo, annotation_list, cpath
