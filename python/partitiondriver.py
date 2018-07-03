@@ -245,7 +245,6 @@ class PartitionDriver(object):
             if self.args.plotdir is not None:
                 alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
             if len(new_allele_info) > 0:
-                self.clean_sw_cache()  # it has outdated germline info
                 glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
                 glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
 
