@@ -32,12 +32,11 @@ class Tester(object):
         self.dirs = {'ref' : 'test/reference-results', 'new' : 'test/new-results'}
         if not os.path.exists(self.dirs['new']):
             os.makedirs(self.dirs['new'])
-        self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.csv' for dt in self.dtypes} for st in self.stypes}
+        self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.yaml' for dt in self.dtypes} for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
         self.common_extras = ['--seed', '1', '--n-procs', '10', '--simulation-germline-dir', 'data/germlines/human']
         self.parameter_caching_extras = []
 
-        # check against reference csv file
         self.tiny_eps = 1e-4
         self.run_times = {}
         self.eps_vals = {}  # fractional difference which we allow for each test type (these were generated with the code in get_typical_variances() above)
@@ -140,7 +139,7 @@ class Tester(object):
         else:
             if input_dtype == 'simu':
                 argfo['extras'] += ['--is-simu', ]
-            argfo['extras'] += ['--sw-cachefname', self.sw_cache_paths[input_stype][input_dtype] + '.yaml']  # '.csv'
+            argfo['extras'] += ['--sw-cachefname', self.sw_cache_paths[input_stype][input_dtype] + '.yaml']
             argfo['extras'] += ['--infname', self.infnames[input_stype][input_dtype]]
             argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype][input_dtype]]
 
@@ -167,22 +166,6 @@ class Tester(object):
                 else:
                     check_call(['rm', '-v', this_cachefname])
 
-        # ref_globfnames = [fn for dtype in self.dtypes for fn in glob.glob(self.param_dirs['ref'][dtype] + '/sw-cache-*')]
-        # if len(ref_globfnames) > 0:
-        #     raise Exception('found reference sw cache files %s -- but you really want ref sw to run from scratch' % ' '.join(ref_globfnames))
-
-        # # delete any old sw cache files
-        # xxx needs updating for yaml cache files
-        # for dtype in self.dtypes:
-        #     globfnames = glob.glob(self.param_dirs['new'][dtype] + '/sw-cache-*.csv')
-        #     if len(globfnames) == 0:  # not there
-        #         continue
-        #     elif len(globfnames) != 1:
-        #         raise Exception('unexpected sw cache files: %s' % ' '.join(globfnames))
-        #     check_call(['rm', '-v', globfnames[0]])
-        #     sw_cache_gldir = globfnames[0].replace('.csv', '-glfo')
-        #     glutils.remove_glfo_files(sw_cache_gldir, args.locus)
-
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
             seed_uid, _ = utils.choose_seed_unique_id(args.locus, self.infnames[info['input_stype']]['simu'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
@@ -206,7 +189,7 @@ class Tester(object):
                 cmd_str += ' --outfname ' + self.infnames['new']['simu']
                 cmd_str += ' --indel-frequency 0.01 --indel-location v'
             elif 'cache-parameters-' not in name:
-                cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.csv'  # '.yaml'
+                cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.yaml'  # '.csv'
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
             print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
@@ -246,9 +229,8 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def bust_cache(self):
-        test_outputs = [k + '.csv' for k in self.tests.keys() if k not in self.production_tests]
-        cluster_annotations = [fn.replace('.csv', '-cluster-annotations.csv') for fn in test_outputs if 'partition' in fn]
-        expected_content = set(test_outputs + cluster_annotations + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
+        test_outputs = [k + '.yaml' for k in self.tests.keys() if k not in self.production_tests]
+        expected_content = set(test_outputs + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
         expected_content.add('run-times.csv')
 
         # remove (very, very gingerly) whole reference dir
@@ -354,10 +336,10 @@ class Tester(object):
         for ptest in ptest_list:
             if ptest not in self.perf_info[version_stype][input_stype]:
                 self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
-            cp = ClusterPath(fname=self.dirs[version_stype] + '/' + ptest + '.csv')
+            _, _, cp = utils.read_yaml_output(fname=self.dirs[version_stype] + '/' + ptest + '.yaml', skip_annotations=True)
             ccfs = cp.ccfs[cp.i_best]
             if None in ccfs:
-                raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.csv')
+                raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.yaml')
             self.perf_info[version_stype][input_stype][ptest]['purity'], self.perf_info[version_stype][input_stype][ptest]['completeness'] = ccfs
             if debug:
                 print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][input_stype][ptest]['purity'], self.perf_info[version_stype][input_stype][ptest]['completeness'], ptest)
@@ -373,7 +355,8 @@ class Tester(object):
         if args.quick and ptest not in self.quick_tests:
             return
         print '  %s data annotation' % input_stype
-        infnames = [self.dirs[version_stype] + '/' + ptest + '.csv' for version_stype in self.stypes]
+        infnames = [self.dirs[version_stype] + '/' + ptest + '.yaml' for version_stype in self.stypes]
+        raise Exception('doesn\'t make any sense for new yaml files')
         cmd = 'diff -u ' + ' '.join(infnames) + ' | grep "^+[^+]" | wc -l'
         n_diff_lines = int(check_output(cmd, shell=True))
         if n_diff_lines == 0:
@@ -465,7 +448,7 @@ class Tester(object):
         if args.quick:
             return
         print 'diffing production results'
-        for fname in ['test/parameters/data', 'test/simu.csv', 'test/parameters/simu']:
+        for fname in ['test/parameters/data', 'test/simu.yaml', 'test/parameters/simu']:
             print '    %-30s' % fname,
             cmd = 'diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
