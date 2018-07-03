@@ -16,14 +16,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--fname', default=partis_dir + '/test/reference-results/partition-ref-simu.yaml')
 args = parser.parse_args()
 
-glfo, annotation_list, partition_lines = utils.read_yaml_output(args.fname)
+glfo, annotation_list, cpath = utils.read_yaml_output(args.fname)
 annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
 
-if len(partition_lines) == 0:
+if len(cpath.partitions) == 0:
     print 'no partitions read from %s' % args.fname
 else:
     print utils.color('green', 'list of partitions:')
-    cpath = ClusterPath(partition_lines=partition_lines)
     cpath.print_partitions(abbreviate=True)  # 'abbreviate' print little 'o's instead of the full sequence ids
 
 # print annotations for the biggest cluster in the most likely partition

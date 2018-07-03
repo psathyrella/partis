@@ -1896,9 +1896,9 @@ def merge_yamls(outfname, yaml_list, cleanup=True):
     ref_glfo = None
     n_event_list = []
     for infname in yaml_list:
-        glfo, annotation_list, partition_lines = read_yaml_output(infname, dont_add_implicit_info=True)
+        glfo, annotation_list, cpath = read_yaml_output(infname, dont_add_implicit_info=True)
         n_event_list.append(len(annotation_list))
-        if len(partition_lines) > 0:
+        if len(cpath.partitions) > 0:
             raise Exception('can\'t yet handle partition merging (use glomerator.py)')
         if ref_glfo is None:
             ref_glfo = glfo
@@ -3678,16 +3678,24 @@ def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_
     return annotation_list
 
 # ----------------------------------------------------------------------------------------
-def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, debug=False):  # corresponds to process_input_line()
+def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
     with open(fname) as yamlfile:
-        if debug:
-            print '  reading yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
         # import yaml
         # yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)
         yamlfo = json.load(yamlfile)  # way tf faster than full yaml
+        if debug:
+            print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
 
-        glfo = yamlfo['germline-info']  # it would probably be good to run the glfo through the checks that glutils.read_glfo() does, but on the other hand since we're reading from our own yaml file, those have almost certainly already been done
+    glfo = yamlfo['germline-info']  # it would probably be good to run the glfo through the checks that glutils.read_glfo() does, but on the other hand since we're reading from our own yaml file, those have almost certainly already been done
+
+    annotation_list = None
+    if not skip_annotations:  # may not really be worthwhile, but oh well
         annotation_list = parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info)
-        partition_lines = yamlfo['partitions']
 
-    return glfo, annotation_list, partition_lines
+    partition_lines = yamlfo['partitions']
+    if cpath is None:
+        cpath = ClusterPath(seed_unique_id=seed_unique_id)
+    if len(partition_lines) > 0:
+        cpath.readlines(partition_lines)
+
+    return glfo, annotation_list, cpath

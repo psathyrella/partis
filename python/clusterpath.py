@@ -91,20 +91,18 @@ class ClusterPath(object):
             raise Exception('can\'t read NoneType partition file')
         if os.stat(fname).st_size == 0:
             raise Exception('partition file %s has size zero' % fname)
+
         if utils.getsuffix(fname) == '.csv':
             with open(fname, 'r') as infile:
                 reader = csv.DictReader(infile)
                 if 'partition' not in reader.fieldnames:
                     raise Exception('\'partition\' not among headers in %s, maybe this isn\'t a partition file?' % fname)
                 lines = [line for line in reader]  # not sure that I really need this step
-            process_csv = True
+            self.readlines(lines, process_csv=True)
         elif utils.getsuffix(fname) == '.yaml':
-            _, _, lines = utils.read_yaml_output(fname)
-            process_csv = False
+            utils.read_yaml_output(fname, cpath=self)
         else:
             raise Exception('unhandled annotation file suffix %s' % outfname)
-
-        self.readlines(lines, process_csv=process_csv)
 
     # ----------------------------------------------------------------------------------------
     def readlines(self, lines, process_csv=False):
