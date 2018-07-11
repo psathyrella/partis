@@ -74,7 +74,7 @@ class Waterer(object):
         self.info['removed-queries'] = set()  # ...and this
 
         self.remaining_queries = set(self.input_info) - self.info['failed-queries']  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
-        self.new_indels = 0  # number of new indels that were kicked up this time through
+        self.new_indels = set()  # new indels that were kicked up this time through
         self.vs_indels = set()
         self.indel_fails = set()
 
@@ -107,7 +107,7 @@ class Waterer(object):
             processing_start = time.time()
             self.read_output(base_outfname, len(mismatches))
 
-            if self.new_indels == 0 or itry > 1:
+            if itry > 1 or len(self.new_indels) + len(self.indel_fails) == 0:
                 break
             itry += 1
 
@@ -460,10 +460,10 @@ class Waterer(object):
             print '%s' % utils.color('green', 'reading output')
         queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
                                           # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
-        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'indel-fails', 'super-high-mutation']:
+        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'overlap-indel-fails', 'indel-fails', 'super-high-mutation']:  # I'm not really using these any more (i.e. I'm not printing them in any debug info), but I'm loathe to get rid of them since they provide a really nice accounting trail
             queries_to_rerun[reason] = set()
 
-        self.new_indels = 0
+        self.new_indels.clear()
         queries_read_from_file = set()  # should be able to remove this, eventually
         for iproc in range(n_procs):
             outfname = self.subworkdir(iproc, n_procs) + '/' + base_outfname
@@ -487,10 +487,10 @@ class Waterer(object):
             n_to_rerun = 0
             for reason in queries_to_rerun:
                 n_to_rerun += len(queries_to_rerun[reason])
-            if n_to_rerun + self.new_indels + len(not_read) != len(self.remaining_queries):
+            if n_to_rerun + len(self.new_indels) + len(not_read) != len(self.remaining_queries):
                 raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels + (n missing from sam file) != remaining_queries): %d + %d + %d = %d != %d   (look in %s)'
-                                % (n_to_rerun, self.new_indels, len(not_read),
-                                   n_to_rerun + self.new_indels + len(not_read),
+                                % (n_to_rerun, len(self.new_indels), len(not_read),
+                                   n_to_rerun + len(self.new_indels) + len(not_read),
                                    len(self.remaining_queries), self.args.workdir))
 
         for iproc in range(n_procs):
@@ -654,6 +654,27 @@ class Waterer(object):
         l_gene = best[l_reg]
         r_gene = best[r_reg]
 
+        # ----------------------------------------------------------------------------------------
+        def dbg_print(l_length, r_length, l_portion, r_portion):
+            print '  %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion)
+            l_gene_seq = qinfo['seq'][qinfo['qrbounds'][l_gene][0] : qinfo['qrbounds'][l_gene][1] - l_portion]
+            r_gene_seq = qinfo['seq'][qinfo['qrbounds'][r_gene][0] + r_portion : qinfo['qrbounds'][r_gene][1]]
+            l_offset = min(qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][l_gene][0])
+            print '                                %s%s' % ((qinfo['qrbounds'][l_gene][0] - l_offset) * ' ', l_gene_seq)
+            print '                                %s%s' % ((qinfo['qrbounds'][r_gene][0] + r_portion - l_offset) * ' ', r_gene_seq)
+
+        # ----------------------------------------------------------------------------------------
+        def check_indel_interference(l_length, r_length, l_portion, r_portion):
+            if l_reg in qinfo['new_indels'] and l_portion > 0:
+                ifo = qinfo['new_indels'][l_reg]
+                if utils.gap_len(ifo['qr_gap_seq'][-l_portion : ]) > 0 or utils.gap_len(ifo['gl_gap_seq'][-l_portion : ]) > 0:  # this should really check that l_portion is shorter than the qr gap seq... but it _should_ be impossible
+                    return True
+            if r_reg in qinfo['new_indels'] and r_portion > 0:
+                ifo = qinfo['new_indels'][r_reg]
+                if utils.gap_len(ifo['qr_gap_seq'][ : r_portion]) > 0 or utils.gap_len(ifo['gl_gap_seq'][ : r_portion]) > 0:
+                    return True
+            return False
+
         overlap, available_space = self.get_overlap_and_available_space(rpair, best, qinfo['qrbounds'])
 
         if overlap <= 0:  # nothing to do, they're already consistent
@@ -671,9 +692,8 @@ class Waterer(object):
         l_portion, r_portion = 0, 0  # portion of the initial overlap that we give to each side
         if debug:
             print '    lengths        portions     '
+            dbg_print(l_length, r_length, l_portion, r_portion)
         while l_portion + r_portion < overlap:
-            if debug:
-                print '  %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion)
             if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
                 raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (qinfo['name'], qinfo['qrbounds'][l_gene], qinfo['qrbounds'][r_gene]))
             elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
@@ -689,29 +709,34 @@ class Waterer(object):
             elif r_length > 1:
                 r_portion += 1
                 r_length -= 1
+            if check_indel_interference(l_length, r_length, l_portion, r_portion):
+                if debug:
+                    print '  failed: apportionment encountered an indel'
+                return True
+            if debug:
+                dbg_print(l_length, r_length, l_portion, r_portion)
 
         if debug:
-            print '  %4d %4d      %4d %4d      %s %s' % (l_length, r_length, l_portion, r_portion, '', '')
-            print '      %s apportioning %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion)
+            print '      %s apportioned %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion)
         assert l_portion + r_portion == overlap
         qinfo['qrbounds'][l_gene] = (qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][l_gene][1] - l_portion)
         qinfo['glbounds'][l_gene] = (qinfo['glbounds'][l_gene][0], qinfo['glbounds'][l_gene][1] - l_portion)
         qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][r_gene][1])
         qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
-# ----------------------------------------------------------------------------------------
-        if l_reg in qinfo['new_indels'] and l_portion > 0:
-            indelfo = qinfo['new_indels'][l_reg]
-            indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][ : -l_portion]
-            indelfo['gl_gap_seq'] = indelfo['gl_gap_seq'][ : -l_portion]
+        if l_reg in qinfo['new_indels'] and l_portion > 0:  # it would be nice to check indel consistency after doing this, but my indel consistency checkers seem to only operate on <line>s, and I don't have one of those yet
+            ifo = qinfo['new_indels'][l_reg]
+            ifo['qr_gap_seq'] = ifo['qr_gap_seq'][ : -l_portion]  # this should really check that l_portion is shorter than the qr gap seq... but it _should_ be impossible
+            ifo['gl_gap_seq'] = ifo['gl_gap_seq'][ : -l_portion]
             if debug:
                 print '    removed %d base%s from right side of %s indel gap seqs' % (l_portion, utils.plural(l_portion), l_reg)
         if r_reg in qinfo['new_indels'] and r_portion > 0:
-            indelfo = qinfo['new_indels'][r_reg]
-            indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][r_portion : ]
-            indelfo['gl_gap_seq'] = indelfo['gl_gap_seq'][r_portion : ]
+            ifo = qinfo['new_indels'][r_reg]
+            ifo['qr_gap_seq'] = ifo['qr_gap_seq'][r_portion : ]
+            ifo['gl_gap_seq'] = ifo['gl_gap_seq'][r_portion : ]
             if debug:
                 print '    removed %d base%s from left side of %s indel gap seqs' % (r_portion, utils.plural(r_portion), r_reg)
-# ----------------------------------------------------------------------------------------
+
+        return False
 
     # ----------------------------------------------------------------------------------------
     def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
@@ -866,7 +891,13 @@ class Waterer(object):
         for rpair in utils.region_pairs():
             overlap_status = self.check_boundaries(rpair, qinfo, best)
             if overlap_status == 'overlap':
-                self.shift_overlapping_boundaries(rpair, qinfo, best)
+                overlap_indel_fail = self.shift_overlapping_boundaries(rpair, qinfo, best)  # this is kind of a crappy way to return the information, but I can't think of anything better a.t.m.
+                if overlap_indel_fail:
+                    queries_to_rerun['overlap-indel-fails'].add(qname)
+                    self.indel_fails.add(qname)
+                    if self.debug:
+                        print '      rerun: overlap/indel fails'
+                    return
             elif overlap_status == 'nonsense':
                 queries_to_rerun['nonsense-bounds'].add(qname)
                 return
@@ -882,7 +913,7 @@ class Waterer(object):
                     print '      rerun: indel fails'
             else:
                 self.info['indels'][qinfo['name']] = indelfo
-                self.new_indels += 1  # tells self.run() that we need to do another iteration
+                self.new_indels.add(qname)  # tells self.run() that we need to do another iteration
                 if self.debug:
                     print '      rerun: new indels in %s' % ' '.join(qinfo['new_indels'].keys())  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
             return
