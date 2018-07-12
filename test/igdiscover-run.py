@@ -71,34 +71,45 @@ def getpathcmd():
 def update_igdiscover():
     cmds = getpathcmd()
 
-    # # install/update non-dev version:
+    # # ----------------------------------------------------------------------------------------
+    # # non-dev version:
+
     # args.env_label = 'igdiscover'
+
     # # install:
     # cmds += ['conda config --add channels defaults']
     # cmds += ['conda config --add channels conda-forge']
     # cmds += ['conda config --add channels bioconda']
     # cmds += ['conda create -n %s igdiscover' % args.env_label]
     # cmds += ['conda activate %s' % args.env_label]
+
     # # update:
     # cmds += ['conda activate %s' % args.env_label]
     # cmds += ['igdiscover --version']
     # cmds += ['conda update igdiscover']
     # cmds += ['igdiscover --version']
 
-    # install dev version:
+    # ----------------------------------------------------------------------------------------
+    # dev version:
     args.env_label = 'igdiscover-dev'
     install_dir = partis_dir + '/packages'
     if not os.path.exists(install_dir):
         os.makedirs(install_dir)
     cmds += ['cd %s' % install_dir]
-    cmds += ['git clone https://github.com/NBISweden/IgDiscover.git']
-    cmds += ['cd IgDiscover']
-    cmds += ['conda env create -n %s -f environment.yml' % args.env_label]
-    cmds += ['source activate %s' % args.env_label]
-    cmds += ['python3 -m pip install -e .']
-    # # update dev version:
+
+    # # install:
+    # cmds += ['git clone https://github.com/NBISweden/IgDiscover.git']
     # cmds += ['cd IgDiscover']
-    # cmds += ['git pull']
+    # cmds += ['conda env create -n %s -f environment.yml' % args.env_label]
+    # cmds += ['source activate %s' % args.env_label]
+    # cmds += ['python3 -m pip install -e .']
+    # cmds += ['igdiscover --version']
+
+    # update dev version:
+    cmds += ['cd IgDiscover']
+    cmds += ['git pull']
+    cmds += ['source activate %s' % args.env_label]
+    cmds += ['igdiscover --version']
 
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
