@@ -1098,19 +1098,6 @@ def process_per_gene_support(line, debug=False):
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
-def add_linearham_info(swfo, line):
-    """ add flexbounds/relpos values to <line> """
-    # flexbounds
-    boundfcns = {'l' : min, 'r' : max}
-    line['flexbounds'] = {region + "_" + side : swfo['flexbounds'][region][side]
-                          for region in regions for side in ['l', 'r']}
-
-    # relpos
-    line['relpos'] = {}
-    for gene in set(swfo['relpos']):
-        line['relpos'][gene] = swfo['relpos'][gene]
-
-# ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
     """ Add to <line> a bunch of things that are initially only implicit. """
     if line['v_gene'] == '':
