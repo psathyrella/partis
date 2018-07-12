@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import numpy
+import random
 import glob
 import time
 import colored_traceback.always
@@ -141,6 +142,7 @@ def run_tigger(infname, outfname, outdir):
     cmdstr = 'R --slave -f ' + cmdfname
 
     cmdfo = {'cmd_str' : cmdstr, 'logdir' : args.workdir, 'env' : os.environ}
+    # TODO maybe switch to utils.run_r()?
     proc = utils.run_cmd(cmdfo)
     while proc.poll() is None:
         time.sleep(0.01)
@@ -184,6 +186,17 @@ def run_alignment(args, outdir):
         return outfname
     else:
         assert False
+
+# ----------------------------------------------------------------------------------------
+def install():
+    rcmds = ['install.packages("tigger", repos="http://cran.rstudio.com/")']
+    workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0,999999))
+    os.makedirs(workdir)
+    utils.run_r(rcmds, workdir)
+    os.rmdir(workdir)
+
+# install()
+# sys.exit()
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
