@@ -1302,8 +1302,6 @@ class PartitionDriver(object):
         combo['k_v'] = {'min' : 99999, 'max' : -1}
         combo['k_d'] = {'min' : 99999, 'max' : -1}
         combo['only_genes'] = []
-        if self.args.linearham:
-            combo['relpos'] = {}
         for name in query_names:
             swfo = self.sw_info[name]
             k_v = swfo['k_v']
@@ -1313,9 +1311,6 @@ class PartitionDriver(object):
             combo['k_v']['max'] = max(k_v['max'], combo['k_v']['max'])
             combo['k_d']['min'] = min(k_d['min'], combo['k_d']['min'])
             combo['k_d']['max'] = max(k_d['max'], combo['k_d']['max'])
-            if self.args.linearham:
-                for gene in set(swfo['relpos']) - set(combo['relpos']):  # loop over genes that haven't come up yet in previous queries (note that this takes <pos> from the first <name> that happens to have a match to <gene>)
-                    combo['relpos'][gene] = swfo['relpos'][gene]
 
             genes_to_use = set()  # genes from this query that'll get ORd into the ones from the previous queries
             for region in utils.regions:
@@ -1325,12 +1320,6 @@ class PartitionDriver(object):
 
             # OR this query's genes into the ones from previous queries
             combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
-
-        if self.args.linearham:
-            boundfcns = {'l' : min, 'r' : max}  # take the widest set of flexbounds over all the queries
-            combo['flexbounds'] = {region : {side : boundfcns[side]([self.sw_info[q]['flexbounds'][region][side] for q in query_names])
-                                             for side in ['l', 'r']}
-                                   for region in utils.regions}
 
         if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
             return {}
@@ -1366,8 +1355,6 @@ class PartitionDriver(object):
     def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
         csvfile = open(fname, 'w')
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs']
-        if self.args.linearham:
-            header += ['flexbounds', 'relpos']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()
 
@@ -1389,19 +1376,17 @@ class PartitionDriver(object):
             combined_query = self.combine_queries(query_name_list, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
-            row = {'names' : ':'.join([qn for qn in query_name_list]),
-                   'k_v_min' : combined_query['k_v']['min'],
-                   'k_v_max' : combined_query['k_v']['max'],
-                   'k_d_min' : combined_query['k_d']['min'],
-                   'k_d_max' : combined_query['k_d']['max'],
-                   'mut_freq' : combined_query['mut_freq'],
-                   'cdr3_length' : combined_query['cdr3_length'],
-                   'only_genes' : ':'.join(combined_query['only_genes']),
-                   'seqs' : ':'.join(combined_query['seqs'])}
-            if self.args.linearham:
-                row['flexbounds'] = json.dumps(combined_query['flexbounds'], separators=(',', ':'))
-                row['relpos'] = json.dumps(combined_query['relpos'], separators=(',', ':'))
-            writer.writerow(row)
+            writer.writerow({
+                'names' : ':'.join([qn for qn in query_name_list]),
+                'k_v_min' : combined_query['k_v']['min'],
+                'k_v_max' : combined_query['k_v']['max'],
+                'k_d_min' : combined_query['k_d']['min'],
+                'k_d_max' : combined_query['k_d']['max'],
+                'mut_freq' : combined_query['mut_freq'],
+                'cdr3_length' : combined_query['cdr3_length'],
+                'only_genes' : ':'.join(combined_query['only_genes']),
+                'seqs' : ':'.join(combined_query['seqs'])
+            })
 
         csvfile.close()
 
@@ -1611,6 +1596,12 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
+                # adding flexbounds/relpos output for linearham
+                if self.args.linearham:
+                    assert self.args.n_simultaneous_seqs is None
+                    assert len(uids) == 1
+                    utils.add_linearham_info(self.sw_info[uids[0]], padded_line)
+
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
@@ -1762,6 +1753,8 @@ class PartitionDriver(object):
         headers = utils.annotation_headers
         if self.args.extra_annotation_columns is not None:
             headers += self.args.extra_annotation_columns
+        if self.args.linearham:
+            headers += ['flexbounds', 'relpos']
 
         if utils.getsuffix(self.args.outfname) == '.csv':
             if cpath is not None:

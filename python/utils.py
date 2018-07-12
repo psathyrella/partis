@@ -263,7 +263,7 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors']
-linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates', 'flexbounds', 'relpos']  # TODO move 'duplicates' to 'per_seq' (see note in synthesize_multi_seq_line())
+linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']  # TODO move 'duplicates' to 'per_seq' (see note in synthesize_multi_seq_line())
 linekeys['extra'] = []
 linekeys['simu'] = ['reco_id', ]
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
@@ -1096,6 +1096,19 @@ def process_per_gene_support(line, debug=False):
             print '   %s best-supported gene %s not same as viterbi gene %s' % (color('yellow', 'warning'), color_gene(support.keys()[0]), color_gene(line[region + '_gene']))
 
         line[region + '_per_gene_support'] = support
+
+# ----------------------------------------------------------------------------------------
+def add_linearham_info(swfo, line):
+    """ add flexbounds/relpos values to <line> """
+    # flexbounds
+    boundfcns = {'l' : min, 'r' : max}
+    line['flexbounds'] = {region + "_" + side : swfo['flexbounds'][region][side]
+                          for region in regions for side in ['l', 'r']}
+
+    # relpos
+    line['relpos'] = {}
+    for gene in set(swfo['relpos']):
+        line['relpos'][gene] = swfo['relpos'][gene]
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
