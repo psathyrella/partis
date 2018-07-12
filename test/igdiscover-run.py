@@ -60,7 +60,7 @@ def prepare_igdiscover_outdir(outdir):
         subprocess.check_call(['rm', '-r', outdir + '/work'])
 
 # ----------------------------------------------------------------------------------------
-def getpathcmd(env=None):
+def getpathcmd():
     cmds = ['#!/bin/bash']
     cmds += ['. %s/etc/profile.d/conda.sh' % args.condapath]  # NOTE have to update conda (using the old version in the next two lines) in order to get this to work
     cmds += ['export PATH=%s/bin:$PATH' % args.condapath]
@@ -69,8 +69,9 @@ def getpathcmd(env=None):
 
 # ----------------------------------------------------------------------------------------
 def update_igdiscover():
-    cmds = getpathcmd('test')
+    cmds = getpathcmd()
 
+    # # install/update non-dev version:
     # args.env_label = 'igdiscover'
     # # install:
     # cmds += ['conda config --add channels defaults']
@@ -84,17 +85,17 @@ def update_igdiscover():
     # cmds += ['conda update igdiscover']
     # cmds += ['igdiscover --version']
 
-    # args.env_label = 'igdiscover-dev'
-    # install_dir = partis_dir + '/packages'
-    # # install dev version:
-    # if not os.path.exists(install_dir):
-    #     os.makedirs(install_dir)
-    # cmds += ['cd %s' % install_dir]
-    # cmds += ['git clone https://github.com/NBISweden/IgDiscover.git']
-    # cmds += ['cd IgDiscover']
-    # cmds += ['conda env create -n %s -f environment.yml' % args.env_label]
-    # cmds += ['source activate %s' % args.env_label]
-    # cmds += ['python3 -m pip install -e .']
+    # install dev version:
+    args.env_label = 'igdiscover-dev'
+    install_dir = partis_dir + '/packages'
+    if not os.path.exists(install_dir):
+        os.makedirs(install_dir)
+    cmds += ['cd %s' % install_dir]
+    cmds += ['git clone https://github.com/NBISweden/IgDiscover.git']
+    cmds += ['cd IgDiscover']
+    cmds += ['conda env create -n %s -f environment.yml' % args.env_label]
+    cmds += ['source activate %s' % args.env_label]
+    cmds += ['python3 -m pip install -e .']
     # # update dev version:
     # cmds += ['cd IgDiscover']
     # cmds += ['git pull']
