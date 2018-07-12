@@ -97,7 +97,7 @@ def update_igdiscover():
         os.makedirs(install_dir)
     cmds += ['cd %s' % install_dir]
 
-    # # install:
+    # install:
     # cmds += ['git clone https://github.com/NBISweden/IgDiscover.git']
     # cmds += ['cd IgDiscover']
     # cmds += ['conda env create -n %s -f environment.yml' % args.env_label]
