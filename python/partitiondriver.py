@@ -1750,7 +1750,7 @@ class PartitionDriver(object):
             true_partition = utils.get_true_partition(self.reco_info) if not self.args.is_data else None
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(self.input_info) < 500) else 'best'))
 
-        headers = utils.annotation_headers
+        headers = copy.deepcopy(utils.annotation_headers)
         if self.args.extra_annotation_columns is not None:
             headers += self.args.extra_annotation_columns
         if self.args.linearham:
