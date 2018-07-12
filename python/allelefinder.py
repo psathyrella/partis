@@ -923,6 +923,7 @@ class AlleleFinder(object):
             'template-gene' : template_gene,  # the "immediate" template, not the ancestral one
             'gene' : final_name,  # reminder: <final_name> doesn't necessarily correspond to 'snp-positions'
             'seq' : new_seq,
+            'cpos' : utils.cdn_pos(self.glfo, self.region, template_gene),
             'snp-positions' : mutfo.keys(),  # reminder: *not* necessarily the same as <final_mutfo>
             'aligned-seq' : None,
             'plot-paths' : []  # not filled until we plot, since there may not be a plotdir defined
@@ -930,6 +931,7 @@ class AlleleFinder(object):
         self.new_allele_info.append({
             'gene' : final_name,
             'seq' : new_seq,
+            'cpos' : utils.cdn_pos(self.glfo, self.region, template_gene),
             'template-gene' : template_gene,  # the "immediate" template, not the ancestral one
             'remove-template-gene' : remove_template,
         })

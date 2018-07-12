@@ -246,7 +246,7 @@ class PartitionDriver(object):
                 alfinder.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
             if len(new_allele_info) > 0:
                 glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
-                glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo)  # <remove_template_genes> stuff is handled in <new_allele_info>
+                glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo, use_template_for_codon_info=False)  # <remove_template_genes> stuff is handled in <new_allele_info> (also note, can't use template for codon info since we may have already removed it)
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True, dbg_str='writing parameters')
