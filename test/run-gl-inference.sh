@@ -9,18 +9,17 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 #     $cmd $tname --n-tests $ntests --label $label --plot &
 # done
 
-# # gls-gen
-# label=test-macaque  # gls-gen-paper-v10
-# glscmd="$cmd gls-gen --label $label"
-# for diff in easy; do  # easy hard; do
-#     for meth in simu; do #simu partis full tigger-default igdiscover; do  # NOTE can add all methods to --methods arg now, i just keep 'em separate here so the log files are separate
-# 	# for itest in 0; do #{0..3}; do
-# 	#     # $glscmd --methods $meth --n-tests $((itest + 1)) --iteststart $itest --n-procs-per-test 10 --gls-gen-difficulty $diff
-# 	#     $glscmd --methods $meth --n-tests $((itest + 1)) --iteststart $itest --n-procs-per-test 10 --gls-gen-difficulty $diff --species macaque
-# 	# done
-# 	$glscmd --methods $meth --n-tests 1 --gls-gen-difficulty $diff --plot # --plotcache
-#     done
-# done
+# gls-gen
+label=gls-gen-paper-v11  # test-macaque
+glscmd="$cmd gls-gen --label $label"
+for diff in easy; do  # easy hard; do
+    for meth in tigger-default; do #simu partis full tigger-default igdiscover; do  # NOTE can add all methods to --methods arg now, i just keep 'em separate here so the log files are separate
+	for itest in 0; do #{0..3}; do
+	    echo $glscmd --methods $meth --n-tests $((itest + 1)) --iteststart $itest --n-procs-per-test 10 --gls-gen-difficulty $diff  #  --species macaque
+	done
+	# $glscmd --methods $meth --n-tests 1 --gls-gen-difficulty $diff --plot # --plotcache
+    done
+done
 
 # # data
 # label=gls-gen-paper-v10
