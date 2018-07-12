@@ -171,7 +171,10 @@ class Waterer(object):
             cachebase = utils.getprefix(cachefname)
             glutils.write_glfo(cachebase + '-glfo', self.glfo)
 
-        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers=utils.sw_cache_headers)  # NOTE does *not* write failed queries NOTE I'm not adding self.args.extra_annotation_columns here, since if they're in the sw cache file I'd have to deal with removing them when I read it
+        headers = copy.deepcopy(utils.sw_cache_headers)
+        if self.args.linearham:
+            headers += ['flexbounds', 'relpos']
+        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers=headers)  # NOTE does *not* write failed queries NOTE I'm not adding self.args.extra_annotation_columns here, since if they're in the sw cache file I'd have to deal with removing them when I read it
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
@@ -813,7 +816,7 @@ class Waterer(object):
                 return (max(0, min(boundlist) - 2), max(boundlist) + 2)
             for region in utils.regions:
                 bounds_l, bounds_r = zip(*[qinfo['qrbounds'][g] for g in sortmatches[region]])  # left- (and right-) bounds for each gene
-                infoline['flexbounds'][region] = {'l' : span(bounds_l), 'r' : span(bounds_r)}
+                infoline['flexbounds'].update({region + '_l': span(bounds_l), region + '_r': span(bounds_r)})
             infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].items()}  # position in the query sequence of the start of each uneroded germline match
 
         infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3

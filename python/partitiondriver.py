@@ -1596,12 +1596,6 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
-                # adding flexbounds/relpos output for linearham
-                if self.args.linearham:
-                    assert self.args.n_simultaneous_seqs is None
-                    assert len(uids) == 1
-                    utils.add_linearham_info(self.sw_info[uids[0]], padded_line)
-
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
@@ -1753,8 +1747,6 @@ class PartitionDriver(object):
         headers = utils.annotation_headers
         if self.args.extra_annotation_columns is not None:
             headers += self.args.extra_annotation_columns
-        if self.args.linearham:
-            headers += ['flexbounds', 'relpos']
 
         if utils.getsuffix(self.args.outfname) == '.csv':
             if cpath is not None:
