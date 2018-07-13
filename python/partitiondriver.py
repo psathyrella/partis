@@ -198,7 +198,7 @@ class PartitionDriver(object):
         # d j allele removal (just printing for now)
         if count_parameters:  # I'm not sure this is precisely the criterion I want, but it does the job of not running dj removal printing when we're just annotating with existing parameters (which was causing a crash [key error] with inconsistent glfo)
             alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
-            alremover.finalize(gene_counts=None, sw_info=self.sw_info, regions=['d', 'j'], debug=self.args.debug_allele_finding)
+            alremover.finalize(gene_counts=None, annotations=self.sw_info, regions=['d', 'j'], debug=self.args.debug_allele_finding)
             print '  (not actually removing d and j alleleremover genes)'
             # glutils.remove_genes(self.glfo, alremover.genes_to_remove, debug=True)
             # glutils.write_glfo('_output/glfo-test', self.glfo)
@@ -222,9 +222,9 @@ class PartitionDriver(object):
 
         # remove unlikely alleles (can only remove v alleles here, since we're using vsearch annotations, but that's ok since it's mostly a speed optimization)
         if not self.args.dont_remove_unlikely_alleles:
-            self.set_vsearch_info()
+            self.set_vsearch_info(get_annotations=(self.args.debug_allele_finding and self.args.is_simu))  # we only use the annotations to print some debug info in alleleremover
             alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
-            alremover.finalize({'v' : self.vs_info['gene-counts']}, debug=self.args.debug_allele_finding)
+            alremover.finalize({'v' : self.vs_info['gene-counts']}, annotations=(None if len(self.vs_info['annotations']) == 0 else self.vs_info['annotations']), debug=self.args.debug_allele_finding)
             glutils.remove_genes(self.glfo, alremover.genes_to_remove)
             self.vs_info = None  # don't want to keep this around, since it has alignments against all the genes we removed (also maybe memory control)
             alremover = None  # memory control (not tested)

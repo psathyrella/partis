@@ -17,7 +17,7 @@ class AlleleRemover(object):
         self.args = args
         self.simglfo = simglfo
         if reco_info is not None:
-            # glutils.print_glfo(simglfo)
+            self.reco_info = reco_info
             self.simcounts = {r : {g : 0 for g in self.simglfo['seqs'][r]} for r in utils.regions}
             for uid in reco_info:
                 for tmpreg in utils.regions:
@@ -36,7 +36,7 @@ class AlleleRemover(object):
         }
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, gene_counts, sw_info=None, regions=None, debug=False):
+    def finalize(self, gene_counts, annotations=None, regions=None, debug=False):
         # NOTE a.t.m. this is frequently using vsearch V alignments only, so we can't collapse clones beforehand. It would be more accurate, though, if we could collapse clones first (if using vsearch alignments, it also includes a lot of crap sequences that later get removed)
         # NOTE <gene_counts> is in general floats, not integers
         assert not self.finalized
@@ -44,13 +44,13 @@ class AlleleRemover(object):
         if regions is None:
             regions = utils.regions if gene_counts is None else [r for r in utils.regions if r in gene_counts]
 
-        # if we pass in <sw_info> instead of <gene_counts> we have to transfer the info
+        # if we pass in <annotations> instead of <gene_counts> we have to transfer the info (if we pass in both, we assume gene counts was already done correctly, and just use the annotations for simulation debug printing)
         if gene_counts is None:
-            assert sw_info is not None
+            assert annotations is not None
             gene_counts = {r : {} for r in regions}
-            for query in sw_info['queries']:
+            for query in annotations['queries']:
                 for tmpreg in gene_counts:
-                    gene = sw_info[query][tmpreg + '_gene']
+                    gene = annotations[query][tmpreg + '_gene']
                     if gene not in gene_counts[tmpreg]:
                         gene_counts[tmpreg][gene] = 0.
                     gene_counts[tmpreg][gene] += 1.  # vs info counts partial matches based of score, but I don't feel like dealing with that here at the moment
@@ -60,7 +60,7 @@ class AlleleRemover(object):
             print '  removing least likely genes with total counts %.1f%s' % (total_counts, '' if self.simglfo is None else (' (%d in simulation)' % sum(self.simcounts[regions[0]].values())))  # should really take the average for the sim one as well
 
         for region in regions:
-            self.finalize_region(region, sorted(gene_counts[region].items(), key=operator.itemgetter(1), reverse=True), debug=debug)
+            self.finalize_region(region, sorted(gene_counts[region].items(), key=operator.itemgetter(1), reverse=True), annotations=annotations, debug=debug)
 
     # ----------------------------------------------------------------------------------------
     def separate_into_classes(self, region, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps>
@@ -71,7 +71,7 @@ class AlleleRemover(object):
         return class_counts
 
     # ----------------------------------------------------------------------------------------
-    def finalize_region(self, region, sorted_gene_counts, debug=False):
+    def finalize_region(self, region, sorted_gene_counts, annotations=None, debug=False):
         easycounts = {gene : counts for gene, counts in sorted_gene_counts}
         total_counts = sum([counts for counts in easycounts.values()])
         class_counts = self.separate_into_classes(region, sorted_gene_counts, easycounts)
@@ -79,14 +79,19 @@ class AlleleRemover(object):
         genes_to_keep = set()
 
         if debug:
-            print '   %s groups separated by %d snps' % (utils.color('blue', region), self.n_max_snps[region])
-            print '     %-20s     %5s %s  removed genes (snps counts%s)%s' % ('genes to keep', 'counts', '' if self.simglfo is None else utils.color('blue', '[simu]'), '' if self.simglfo is None else utils.color('blue', ' [simu counts]'), '' if self.simglfo is None else ('  ' + utils.color('red', 'x:') + ' not in simulation')),
+            print '   %s groups separated by %d snps  (-: same group as previous kept gene)' % (utils.color('blue', region), self.n_max_snps[region])
+            print '     %-20s       %5s %s        removed genes (snps counts%s)%s%s' % ('genes to keep', 'counts',
+                                                                                        '' if self.simglfo is None else utils.color('blue', 'sim'),
+                                                                                        '' if self.simglfo is None else utils.color('blue', ' sim counts'),
+                                                                                        '' if self.simglfo is None else ('  ' + utils.color('red', 'x:') + ' not in simulation'),
+                                                                                        '' if annotations is None else ('               %s sim counts/genes for the queries assigned to this kept gene %s' % (utils.color('blue', '['), utils.color('blue', ']'))),
+            ),
             def count_str(cnt):
                 if cnt < 10.:
                     return '%.1f' % cnt
                 else:
                     return '%.0f' % cnt
-            def simcountstr(gene, ws):
+            def simcountstr(gene, ws):  # counts in simulation for <gene> (note that this is _not_ the same as sim_gene_count_str(), since this takes no account of _which_ queries these counts occur in [plus it's coming from the opposite point of view])
                 if self.simglfo is None:
                     rstr = ''
                 elif gene in self.simglfo['seqs'][utils.get_region(gene)]:
@@ -94,10 +99,24 @@ class AlleleRemover(object):
                 else:
                     rstr = utils.color('red', (' %' + ws + 's') % 'x')
                 return rstr
+            def sim_gene_count_str(kgene):  # figure out simulation genes and counts for the uids assigned to <kgene>
+                if annotations is None:
+                    return ''
+                uids_this_gene = [uid for uid, line in annotations.items() if line[region + '_gene'] == kgene]
+                sim_genes = {}  # simulation genes for the uids that we assigned to <kgene> (note that self.simcounts doesn't have this per-uid information)
+                for uid in uids_this_gene:
+                    sgene = self.reco_info[uid][region + '_gene']
+                    if sgene not in sim_genes:
+                        sim_genes[sgene] = 0
+                    sim_genes[sgene] += 1
+                sorted_sim_gene_counts = sorted(sim_genes.items(), key=operator.itemgetter(1), reverse=True)
+                count_str = ' '.join([utils.color('blue' if sg == kgene else 'red', str(c)) for sg, c in sorted_sim_gene_counts])
+                sgene_str = ' '.join([utils.color_gene(sg) for sg, _ in sorted_sim_gene_counts])
+                return '%s   %s' % (count_str, sgene_str)
 
         for iclass in range(len(class_counts)):
             gclass = class_counts[iclass]
-            n_from_this_class = 0
+            kept_this_class = []
             for ig in range(len(gclass)):
                 gfo = gclass[ig]
 
@@ -105,26 +124,31 @@ class AlleleRemover(object):
                     pass  # don't keep it
                 elif ig == 0:  # keep the first one from this class
                     genes_to_keep.add(gfo['gene'])
-                    n_from_this_class += 1
+                    kept_this_class.append(gfo['gene'])
                 elif utils.hamming_distance(gclass[0]['seq'], gclass[ig]['seq']) == 0:  # don't keep it if it's indistinguishable from the most common one (the matches are probably mostly really the best one)
                     pass  # don't keep it
-                elif n_from_this_class < self.args.n_alleles_per_gene:  # always keep the most common <self.args.n_alleles_per_gene> in each class [note: defaults to 1 if looking for new alleles, otherwise 2]
+                elif len(kept_this_class) < self.args.n_alleles_per_gene:  # always keep the most common <self.args.n_alleles_per_gene> in each class [note: defaults to 1 if looking for new alleles, otherwise 2]
                     genes_to_keep.add(gfo['gene'])
-                    n_from_this_class += 1
+                    kept_this_class.append(gfo['gene'])
                 else:
                     pass  # don't keep it
 
                 if debug and gfo['gene'] in genes_to_keep:
-                    snpstr = ' ' if ig == 0 else '(%d)' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])  # at the moment this doesn't really ever happen
-                    print '\n       %-s  %7s%s  %-3s' % (utils.color_gene(gfo['gene'], width=20), count_str(gfo['counts']), simcountstr(gfo['gene'], '4'), snpstr),
+                    snpstr = ' ' if ig == 0 else '(%d)' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])  # only happens if we keep more than one from this class
+                    print '\n      %s%-s  %7s%s  %-3s' % ('- ' if ig > 0 else '  ', utils.color_gene(gfo['gene'], width=20), count_str(gfo['counts']), simcountstr(gfo['gene'], '4'), snpstr),
             if debug:
-                if n_from_this_class == 0:
-                    print '\n       %-s  %7s  %-3s' % (utils.color('blue', 'none', width=20, padside='right'), '-', ''),
+                if len(kept_this_class) == 0:
+                    print '\n      %s%-s  %7s%4s  %-3s' % ('  ', utils.color('blue', 'none', width=20, padside='right'), '-', '', ''),
                 removedfo = [gfo for gfo in gclass if gfo['gene'] not in genes_to_keep]
+                removed_str = ''
                 if len(removedfo) > 0:
                     number_strs = ['(%d %3s%s)' % (gfo['hdist'], count_str(gfo['counts']), simcountstr(gfo['gene'], '1')) for gfo in removedfo]
                     name_strs = ['%s' % (utils.color_gene(gfo['gene'])) for gfo in removedfo]
-                    print '        %s  %s' % (' '.join(number_strs), ' '.join(name_strs)),
+                    removed_str = '%s  %s' % (' '.join(number_strs), ' '.join(name_strs))
+                annotation_str = ''
+                if annotations is not None and len(kept_this_class) > 0:
+                    annotation_str = '%s %s %s' % (utils.color('blue', '['), sim_gene_count_str(kept_this_class[-1]), utils.color('blue', ']'))
+                print '     %s  %s  %s' % (removed_str, (70 - utils.len_excluding_colors(removed_str)) * ' ', annotation_str),
         if debug:
             print ''
 
@@ -144,7 +168,7 @@ class AlleleRemover(object):
             if len(completely_absent_genes) > 0:
                 print '%s %d simulation genes completely absent: %s' % (utils.color('red', 'warning'), len(completely_absent_genes),  '  '.join([('%s %d' % (utils.color_gene(g), self.simcounts[region][g])) for g in sorted(completely_absent_genes)]))
 
-        self.genes_to_keep |= genes_to_keep
+        self.genes_to_keep |= genes_to_keep  # add the ones from _this_ region (rhs) to the ones from all regions (lhs)
         self.genes_to_remove |= genes_to_remove
 
         self.finalized = True
