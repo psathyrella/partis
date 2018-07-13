@@ -198,7 +198,7 @@ class PartitionDriver(object):
         # d j allele removal (just printing for now)
         if count_parameters:  # I'm not sure this is precisely the criterion I want, but it does the job of not running dj removal printing when we're just annotating with existing parameters (which was causing a crash [key error] with inconsistent glfo)
             alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
-            alremover.finalize(gene_counts=None, annotations=self.sw_info, regions=['d', 'j'], debug=self.args.debug_allele_finding)
+            alremover.finalize(gene_counts=None, annotations={q : self.sw_info[q] for q in self.sw_info['queries']}, regions=['d', 'j'], debug=self.args.debug_allele_finding)
             print '  (not actually removing d and j alleleremover genes)'
             # glutils.remove_genes(self.glfo, alremover.genes_to_remove, debug=True)
             # glutils.write_glfo('_output/glfo-test', self.glfo)

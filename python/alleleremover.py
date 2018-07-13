@@ -48,9 +48,9 @@ class AlleleRemover(object):
         if gene_counts is None:
             assert annotations is not None
             gene_counts = {r : {} for r in regions}
-            for query in annotations['queries']:
+            for query, line in annotations.items():
                 for tmpreg in gene_counts:
-                    gene = annotations[query][tmpreg + '_gene']
+                    gene = line[tmpreg + '_gene']
                     if gene not in gene_counts[tmpreg]:
                         gene_counts[tmpreg][gene] = 0.
                     gene_counts[tmpreg][gene] += 1.  # vs info counts partial matches based of score, but I don't feel like dealing with that here at the moment
