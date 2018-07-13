@@ -208,7 +208,7 @@ class PartitionDriver(object):
             check_call(['cp', cachefname, self.args.outfname])
             if self.args.presto_output:
                 annotations = {q : self.sw_info[q] for q in self.sw_info['queries']}
-                failed_queries = {fid : self.input_info[fid]['seqs'][0] for fid in self.sw_info['failed-queries']}
+                failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries']]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
                 utils.write_presto_annotations(self.args.outfname, self.glfo, annotations, failed_queries=failed_queries)
 
     # ----------------------------------------------------------------------------------------
