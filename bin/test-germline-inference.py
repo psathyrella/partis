@@ -153,6 +153,7 @@ def run_partis_parameter_cache(args, method):
 
     # generate germline set and cache parameters
     cmd_str = args.partis_path + ' cache-parameters --infname ' + args.simfname + ' --only-smith-waterman'
+    cmd_str += ' --initial-germline-dir %s' % './old-glfo'
     if method == 'partis':
         cmd_str += ' --debug-allele-finding' # --always-find-new-alleles'
         cmd_str += ' --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
