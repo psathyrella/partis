@@ -513,12 +513,12 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
     return presto_line
 
 # ----------------------------------------------------------------------------------------
-def write_presto_annotations(outfname, glfo, annotations, failed_queries):
+def write_presto_annotations(outfname, glfo, annotation_list, failed_queries):
     with open(outfname, 'w') as outfile:
         writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
         writer.writeheader()
 
-        for full_line in annotations.values():
+        for full_line in annotation_list:
             writer.writerow(get_line_with_presto_headers(full_line))
 
         # and write empty lines for seqs that failed either in sw or the hmm

@@ -253,7 +253,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
         if self.args.outfname is not None:
-            self.write_output(annotations, hmm_failures)
+            self.write_output(annotations.values(), hmm_failures)
         self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
@@ -268,7 +268,7 @@ class PartitionDriver(object):
         print 'hmm'
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters)
         if self.args.outfname is not None:
-            self.write_output(annotations, hmm_failures)
+            self.write_output(annotations.values(), hmm_failures)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_lines, ignore_args_dot_queries=False, process_csv=False):
@@ -657,7 +657,7 @@ class PartitionDriver(object):
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
-            self.write_output(best_annotations, hmm_failures, cpath=cpath, dont_write_failed_queries=True)
+            self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
 
         if self.args.write_additional_cluster_annotations is not None:  # remove the clusters that aren't actually in the best partition (we need them for partition plotting)
             keys_to_remove = [uidstr for uidstr in best_annotations if uidstr.split(':') not in cpath.partitions[cpath.i_best]]
@@ -1723,10 +1723,10 @@ class PartitionDriver(object):
         utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
-    def write_output(self, annotations, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False):
+    def write_output(self, annotation_list, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False):
         if write_sw:
-            assert annotations is None
-            annotations = {q : self.sw_info[q] for q in self.sw_info['queries']}
+            assert annotation_list is None
+            annotation_list = [self.sw_info[q] for q in self.input_info if q in self.sw_info['queries']]
 
         failed_queries = None
         if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
@@ -1734,7 +1734,7 @@ class PartitionDriver(object):
 
         if self.args.presto_output:
             if cpath is None:  # can't write presto annotations for multi-sequence annotations, so can't write cluster annotations
-                utils.write_presto_annotations(self.args.outfname, self.glfo, annotations, failed_queries=failed_queries)
+                utils.write_presto_annotations(self.args.outfname, self.glfo, annotation_list, failed_queries=failed_queries)
             else:
                 cpath.write_presto_partitions(self.args.outfname, self.input_info)
             return
@@ -1749,8 +1749,8 @@ class PartitionDriver(object):
             if cpath is not None:
                 cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)
             annotation_fname = self.args.outfname if cpath is None else self.args.cluster_annotation_fname
-            utils.write_annotations(annotation_fname, self.glfo, annotations.values(), headers, failed_queries=failed_queries)
+            utils.write_annotations(annotation_fname, self.glfo, annotation_list, headers, failed_queries=failed_queries)
         elif utils.getsuffix(self.args.outfname) == '.yaml':
-            utils.write_annotations(self.args.outfname, self.glfo, annotations.values(), headers, failed_queries=failed_queries, partition_lines=partition_lines)
+            utils.write_annotations(self.args.outfname, self.glfo, annotation_list, headers, failed_queries=failed_queries, partition_lines=partition_lines)
         else:
             raise Exception('unhandled annotation file suffix %s' % self.args.outfname)
