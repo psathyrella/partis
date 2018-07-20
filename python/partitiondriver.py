@@ -1725,7 +1725,6 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_output(self, annotations, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False):
         if write_sw:
-            print 'yep!'
             assert annotations is None
             annotations = {q : self.sw_info[q] for q in self.sw_info['queries']}
 
