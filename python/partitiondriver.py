@@ -203,14 +203,6 @@ class PartitionDriver(object):
             # glutils.remove_genes(self.glfo, alremover.genes_to_remove, debug=True)
             # glutils.write_glfo('_output/glfo-test', self.glfo)
 
-        if self.args.only_smith_waterman and self.args.outfname is not None and write_cachefile:
-            print '  copying sw cache file %s to --outfname %s' % (cachefname, self.args.outfname)
-            check_call(['cp', cachefname, self.args.outfname])
-            if self.args.presto_output:
-                annotations = {q : self.sw_info[q] for q in self.sw_info['queries']}
-                failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries']]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
-                utils.write_presto_annotations(self.args.outfname, self.glfo, annotations, failed_queries=failed_queries)
-
     # ----------------------------------------------------------------------------------------
     def set_vsearch_info(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
@@ -252,6 +244,8 @@ class PartitionDriver(object):
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True, dbg_str='writing parameters')
         self.write_hmms(self.sw_param_dir)  # note that this modifies <self.glfo>
         if self.args.only_smith_waterman:
+            if self.args.outfname is not None:  # NOTE this is _not_ identical to the sw cache file (e.g. padding, failed query writing, plus probably other stuff)
+                self.write_output(None, set(), write_sw=True)
             return
 
         # get and write hmm parameters
@@ -268,6 +262,8 @@ class PartitionDriver(object):
         if self.sw_info is None:
             self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)
         if self.args.only_smith_waterman:
+            if self.args.outfname is not None:  # NOTE this is _not_ identical to the sw cache file (e.g. padding, failed query writing, plus probably other stuff)
+                self.write_output(None, set(), write_sw=True)  # note that if you're auto-parameter caching, this will just be rewriting an sw output file that's already there from parameter caching, but oh, well. If you're setting --only-smith-waterman and not using cache-parameters, you have only yourself to blame
             return
         print 'hmm'
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters)
@@ -1727,7 +1723,12 @@ class PartitionDriver(object):
         utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
-    def write_output(self, annotations, hmm_failures, cpath=None, dont_write_failed_queries=False):
+    def write_output(self, annotations, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False):
+        if write_sw:
+            print 'yep!'
+            assert annotations is None
+            annotations = {q : self.sw_info[q] for q in self.sw_info['queries']}
+
         failed_queries = None
         if not dont_write_failed_queries:  # write empty lines for seqs that failed either in sw or the hmm
             failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
@@ -1744,16 +1745,13 @@ class PartitionDriver(object):
             true_partition = utils.get_true_partition(self.reco_info) if not self.args.is_data else None
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(self.input_info) < 500) else 'best'))
 
-        headers = copy.deepcopy(utils.annotation_headers)
-        if self.args.extra_annotation_columns is not None:
-            headers += self.args.extra_annotation_columns
-
+        headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
         if utils.getsuffix(self.args.outfname) == '.csv':
             if cpath is not None:
                 cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)
             annotation_fname = self.args.outfname if cpath is None else self.args.cluster_annotation_fname
-            utils.write_annotations(annotation_fname, self.glfo, annotations.values(), headers=headers, failed_queries=failed_queries)
+            utils.write_annotations(annotation_fname, self.glfo, annotations.values(), headers, failed_queries=failed_queries)
         elif utils.getsuffix(self.args.outfname) == '.yaml':
-            utils.write_annotations(self.args.outfname, self.glfo, annotations.values(), headers=headers, failed_queries=failed_queries, partition_lines=partition_lines)
+            utils.write_annotations(self.args.outfname, self.glfo, annotations.values(), headers, failed_queries=failed_queries, partition_lines=partition_lines)
         else:
             raise Exception('unhandled annotation file suffix %s' % self.args.outfname)

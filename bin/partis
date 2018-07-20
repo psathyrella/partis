@@ -76,7 +76,7 @@ def run_simulation(args):
         for ievt in range(n_events):
             event = reco.combine(random_ints[ievt])
             events.append(event)
-        utils.write_annotations(outfname, glfo, events, headers=utils.simulation_headers, synth_single_seqs=utils.getsuffix(outfname) == '.csv')  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading)
+        utils.write_annotations(outfname, glfo, events, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), synth_single_seqs=utils.getsuffix(outfname) == '.csv')  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading) NOTE list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
 
     def get_workdir(iproc):
         return args.workdir + '/sub-' + str(iproc)
@@ -111,7 +111,8 @@ def run_simulation(args):
                 sys.stdout.flush()
                 time.sleep(1)
 
-        utils.merge_simulation_files(args.outfname, [cmdfos[i]['outfname'] for i in range(args.n_procs)], n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc)
+        file_list = [cmdfos[i]['outfname'] for i in range(args.n_procs)]
+        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc)  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
 
     if not args.im_a_subproc and args.allele_prevalence_fname is not None:  # check final prevalence freqs
         glutils.check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname, only_region='v', debug=args.debug)

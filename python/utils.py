@@ -105,6 +105,15 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
     return arglist
 
 # ----------------------------------------------------------------------------------------
+def add_lists(list_a, list_b):  # add two lists together, except if one is None treat it as if it was zero length (allows to maintain the convention that command line arg variables are None if unset, while still keeping things succinct)
+    if list_b is None:
+        return copy.deepcopy(list_a)
+    elif list_a is None:
+        return copy.deepcopy(list_b)
+    else:
+        return list_a + list_b
+
+# ----------------------------------------------------------------------------------------
 # values used when simulating from scratch
 # scratch_mean_mute_freqs = {'v' : 0.03, 'd' : 0.8, 'j' : 0.06}
 # scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
@@ -1839,11 +1848,11 @@ def get_line_for_output(headers, info, glfo=None):
     return outfo
 
 # ----------------------------------------------------------------------------------------
-def merge_simulation_files(outfname, file_list, cleanup=True, n_total_expected=None, n_per_proc_expected=None):
+def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_expected=None, n_per_proc_expected=None):
     if getsuffix(outfname) == '.csv':  # old way
         n_event_list = merge_csvs(outfname, file_list)
     elif getsuffix(outfname) == '.yaml':  # new way
-        n_event_list = merge_yamls(outfname, file_list)
+        n_event_list = merge_yamls(outfname, file_list, headers)
     else:
         raise Exception('unhandled annotation file suffix %s' % args.outfname)
 
@@ -1889,7 +1898,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
     return n_event_list
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, cleanup=True):
+def merge_yamls(outfname, yaml_list, headers, cleanup=True):
     """ NOTE copy of merge_csvs(), which is (apparently) a copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
     merged_annotation_list = []
     ref_glfo = None
@@ -1913,7 +1922,8 @@ def merge_yamls(outfname, yaml_list, cleanup=True):
     outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    write_annotations(outfname, ref_glfo, merged_annotation_list, headers=simulation_headers)
+
+    write_annotations(outfname, ref_glfo, merged_annotation_list, headers)
 
     return n_event_list
 
@@ -3592,7 +3602,7 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
     return imax, max_abs_diff
 
 # ----------------------------------------------------------------------------------------
-def write_annotations(fname, glfo, annotation_list, headers=annotation_headers, synth_single_seqs=False, failed_queries=None, partition_lines=None):
+def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None):
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):

@@ -36,6 +36,8 @@ def process(args):
     if args.write_additional_cluster_annotations is not None and len(args.write_additional_cluster_annotations) != 2:
         raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
     args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
+    if args.linearham:
+       args.extra_annotation_columns = utils.add_lists(args.extra_annotation_columns, ['flexbounds', 'relpos'])
 
     args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify=True)
 

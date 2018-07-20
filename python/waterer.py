@@ -171,10 +171,9 @@ class Waterer(object):
             cachebase = utils.getprefix(cachefname)
             glutils.write_glfo(cachebase + '-glfo', self.glfo)
 
-        headers = copy.deepcopy(utils.sw_cache_headers)
-        if self.args.linearham:
-            headers += ['flexbounds', 'relpos']
-        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers=headers)  # NOTE does *not* write failed queries NOTE I'm not adding self.args.extra_annotation_columns here, since if they're in the sw cache file I'd have to deal with removing them when I read it
+        # NOTE do _not_ add extra headers here since if they're in the sw cache file I'd have to deal with removing them when I read it
+        # NOTE does *not* write failed queries also
+        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], utils.sw_cache_headers)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
