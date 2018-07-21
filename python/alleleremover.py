@@ -84,7 +84,7 @@ class AlleleRemover(object):
                                                                                         '' if self.simglfo is None else utils.color('blue', 'sim'),
                                                                                         '' if self.simglfo is None else utils.color('blue', ' sim counts'),
                                                                                         '' if self.simglfo is None else ('  ' + utils.color('red', 'x:') + ' not in simulation'),
-                                                                                        '' if annotations is None else ('               %s sim counts/genes for the queries assigned to this kept gene %s' % (utils.color('blue', '['), utils.color('blue', ']'))),
+                                                                                        '' if (annotations is None or self.reco_info is None) else ('               %s sim counts/genes for the queries assigned to this kept gene %s' % (utils.color('blue', '['), utils.color('blue', ']'))),
             ),
             def count_str(cnt):
                 if cnt < 10.:
@@ -146,7 +146,7 @@ class AlleleRemover(object):
                     name_strs = ['%s' % (utils.color_gene(gfo['gene'])) for gfo in removedfo]
                     removed_str = '%s  %s' % (' '.join(number_strs), ' '.join(name_strs))
                 annotation_str = ''
-                if annotations is not None and len(kept_this_class) > 0:
+                if (annotations is not None and self.reco_info is not None) and len(kept_this_class) > 0:
                     annotation_str = '%s %s %s' % (utils.color('blue', '['), sim_gene_count_str(kept_this_class[-1]), utils.color('blue', ']'))
                 print '     %s  %s  %s' % (removed_str, (70 - utils.len_excluding_colors(removed_str)) * ' ', annotation_str),
         if debug:
