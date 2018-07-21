@@ -153,7 +153,7 @@ def run_partis_parameter_cache(args, method):
 
     # generate germline set and cache parameters
     cmd_str = args.partis_path + ' cache-parameters --infname ' + args.simfname + ' --only-smith-waterman'
-    cmd_str += ' --initial-germline-dir %s' % './old-glfo'
+    cmd_str += ' --initial-germline-dir %s' % args.default_germline_dir
     if method == 'partis':
         cmd_str += ' --debug-allele-finding' # --always-find-new-alleles'
         cmd_str += ' --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
@@ -381,7 +381,7 @@ available_methods = set(['simu', 'partis', 'full', 'tigger-default', 'tigger-tun
 if len(set(args.methods) - available_methods) > 0:
     raise Exception('unexpected --methods: %s' % ' '.join(set(args.methods) - available_methods))
 
-args.default_germline_dir = 'data/germlines/%s' % args.species
+args.default_germline_dir = 'old-glfo/%s' % args.species  # 'data/germlines/%s' % args.species
 
 positions = {
     'snp' : utils.get_arg_list(args.snp_positions),
