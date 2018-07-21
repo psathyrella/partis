@@ -16,12 +16,12 @@ class AlleleRemover(object):
         self.glfo = glfo
         self.args = args
         self.simglfo = simglfo
-        if reco_info is not None:
-            self.reco_info = reco_info
+        self.reco_info = reco_info
+        if self.reco_info is not None:
             self.simcounts = {r : {g : 0 for g in self.simglfo['seqs'][r]} for r in utils.regions}
-            for uid in reco_info:
+            for uid in self.reco_info:
                 for tmpreg in utils.regions:
-                    self.simcounts[tmpreg][reco_info[uid][tmpreg + '_gene']] += 1
+                    self.simcounts[tmpreg][self.reco_info[uid][tmpreg + '_gene']] += 1
 
         self.genes_to_keep = set()  # NOTE if we're doing several regions, these include genes from all of 'em
         self.genes_to_remove = set()
@@ -100,7 +100,7 @@ class AlleleRemover(object):
                     rstr = utils.color('red', (' %' + ws + 's') % 'x')
                 return rstr
             def sim_gene_count_str(kgene):  # figure out simulation genes and counts for the uids assigned to <kgene>
-                if annotations is None:
+                if annotations is None or self.reco_info is None:
                     return ''
                 uids_this_gene = [uid for uid, line in annotations.items() if line[region + '_gene'] == kgene]
                 sim_genes = {}  # simulation genes for the uids that we assigned to <kgene> (note that self.simcounts doesn't have this per-uid information)
