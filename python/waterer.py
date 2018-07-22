@@ -890,7 +890,8 @@ class Waterer(object):
                 assert overlap_status == 'ok'
 
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through
-            # note that it will already be in self.info['indels'] if it had vsearch indels
+            if qname in self.info['indels']:  # no really necessary, but I'm nervous about it because I screwed it up once before
+                assert qname in self.vs_indels
             indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the indel-reversed sequence, rather than the <input_info> sequence
             if indelfo is None:
                 self.indel_reruns.add(qname)
