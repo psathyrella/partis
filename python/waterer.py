@@ -460,10 +460,6 @@ class Waterer(object):
     def read_output(self, base_outfname, n_procs=1):
         if self.debug:
             print '%s' % utils.color('green', 'reading output')
-        queries_to_rerun = OrderedDict()  # This is to keep track of every query that we don't add to self.info (i.e. it does *not* include unproductive queries that we ignore/skip entirely because we were told to by a command line argument)
-                                          # ...whereas <self.skipped_unproductive_queries> is to keep track of the queries that were definitively unproductive (i.e. we removed them from self.remaining_queries) when we were told to skip unproductives by a command line argument
-        for reason in ['unproductive', 'no-match', 'weird-annot.', 'nonsense-bounds', 'invalid-codon', 'overlap-indel-fails', 'indel-fails', 'super-high-mutation']:  # I'm not really using these any more (i.e. I'm not printing them in any debug info), but I'm loathe to get rid of them since they provide a really nice accounting trail
-            queries_to_rerun[reason] = set()
 
         self.new_indels.clear()
         queries_read_from_file = set()  # should be able to remove this, eventually
@@ -478,22 +474,12 @@ class Waterer(object):
                     except:  # should no longer happen (was a result of pysam barfing when ig-sw gave it cigar and query sequences that were different lengths, but now ig-sw should skip matches for which that's true) it would be better if ig-sw didn't make those matches to start with, but that would require understanding a lot more about ig-sw
                         raise Exception('failed to convert sam reads')
                     qinfo = self.read_query(sam.references, readlist)
-                    self.summarize_query(qinfo, queries_to_rerun)  # returns before adding to <self.info> if it thinks we should rerun the query
+                    self.summarize_query(qinfo)  # returns before adding to <self.info> if it thinks we should rerun the query
                     queries_read_from_file.add(qinfo['name'])
 
         not_read = self.remaining_queries - queries_read_from_file
         if len(not_read) > 0:  # ig-sw (now) doesn't write matches for cases in which cigar and read length differ, which means there are now queries for which it finds zero matches (well, it didn't seem to happen before... but not sure that it couldn't have)
             print '\n%s didn\'t read %s from %s' % (utils.color('red', 'warning'), ' '.join(not_read), self.args.workdir)
-
-        if len(self.remaining_queries) > 0:
-            n_to_rerun = 0
-            for reason in queries_to_rerun:
-                n_to_rerun += len(queries_to_rerun[reason])
-            if n_to_rerun + len(self.new_indels) + len(not_read) != len(self.remaining_queries):
-                raise Exception('numbers don\'t add up in sw output reader (n_to_rerun + new_indels + (n missing from sam file) != remaining_queries): %d + %d + %d = %d != %d   (look in %s)'
-                                % (n_to_rerun, len(self.new_indels), len(not_read),
-                                   n_to_rerun + len(self.new_indels) + len(not_read),
-                                   len(self.remaining_queries), self.args.workdir))
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
@@ -868,11 +854,15 @@ class Waterer(object):
         self.remaining_queries.remove(qname)
 
     # ----------------------------------------------------------------------------------------
-    def summarize_query(self, qinfo, queries_to_rerun):
+    def summarize_query(self, qinfo):
         """
         Fiddle with a few things, but mostly decide whether we're satisfied with the current matches.
         If not, return without calling add_to_info().
         """
+        def dbgfcn(dbgstr):
+            if debug:
+                print '      rerun: %s' % dbgstr
+
         qname = qinfo['name']
         qseq = qinfo['seq']
         assert qname not in self.info
@@ -882,10 +872,7 @@ class Waterer(object):
         # do we have a match for each region?
         for region in utils.getregions(self.args.locus):
             if len(qinfo['matches'][region]) == 0:
-                if self.debug:
-                    print '      rerun: no %s match' % region  # if no d match found, maybe we should just assume entire d was eroded?
-                queries_to_rerun['no-match'].add(qname)
-                return
+                return dbgfcn('no %s match' % region)  # if no d match found, maybe we should just assume entire d was eroded?
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
@@ -895,30 +882,22 @@ class Waterer(object):
             if overlap_status == 'overlap':
                 overlap_indel_fail = self.shift_overlapping_boundaries(rpair, qinfo, best)  # this is kind of a crappy way to return the information, but I can't think of anything better a.t.m.
                 if overlap_indel_fail:
-                    queries_to_rerun['overlap-indel-fails'].add(qname)
                     self.indel_fails.add(qname)
-                    if self.debug:
-                        print '      rerun: overlap/indel fails'
-                    return
+                    return dbgfcn('overlap/indel fails')
             elif overlap_status == 'nonsense':
-                queries_to_rerun['nonsense-bounds'].add(qname)
-                return
+                return dbgfcn('nonsense overlap bounds')
             else:
                 assert overlap_status == 'ok'
 
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through
             indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the indel-reversed sequence, rather than the <input_info> sequence
             if indelfo is None:
-                queries_to_rerun['indel-fails'].add(qname)
                 self.indel_fails.add(qname)
-                if self.debug:
-                    print '      rerun: indel fails'
+                return dbgfcn('indel fails')
             else:
                 self.info['indels'][qinfo['name']] = indelfo
                 self.new_indels.add(qname)  # tells self.run() that we need to do another iteration
-                if self.debug:
-                    print '      rerun: new indels in %s' % ' '.join(qinfo['new_indels'].keys())  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
-            return
+                return dbgfcn(' new indels in %s' % ' '.join(qinfo['new_indels'].keys()))  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
 
         if self.debug >= 2:
             for region in utils.regions:
@@ -926,8 +905,7 @@ class Waterer(object):
                     self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
 
         if self.super_high_mutation(qinfo, best):
-            queries_to_rerun['super-high-mutation'].add(qname)
-            return
+            return dbgfcn('super high mutation')
 
         # force v 5p and j 3p matches to (in most cases) go to the end of the sequence
         self.remove_probably_spurious_deletions(qinfo, best)
@@ -936,10 +914,7 @@ class Waterer(object):
         for rp in utils.region_pairs():
             insertion_length = qinfo['qrbounds'][best[rp['right']]][0] - qinfo['qrbounds'][best[rp['left']]][1]  # start of right match minus end of left one
             if insertion_length > self.absolute_max_insertion_length:
-                if self.debug:
-                    print '      suspiciously long insertion in %s, rerunning' % qname
-                queries_to_rerun['weird-annot.'].add(qname)
-                return
+                return dbgfcn('suspiciously long insertion')
 
         # set conserved codon positions
         codon_positions = {}
@@ -947,19 +922,13 @@ class Waterer(object):
             # position within original germline gene, minus the position in that germline gene at which the match starts, plus the position in the query sequence at which the match starts
             pos = self.glfo[codon + '-positions'][best[region]] - qinfo['glbounds'][best[region]][0] + qinfo['qrbounds'][best[region]][0]
             if pos < 0 or pos >= len(qseq):
-                if self.debug:
-                    print '      invalid %s codon position (%d in seq of length %d), rerunning' % (codon, pos, len(qseq))
-                queries_to_rerun['invalid-codon'].add(qname)
-                return
+                return dbgfcn('invalid %s codon position (%d in seq of length %d), rerunning' % (codon, pos, len(qseq)))
             codon_positions[region] = pos
 
         # check cdr3 length
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils
-            if self.debug:
-                print '      rerun: negative cdr3 length %d' % (cdr3_length)
-            queries_to_rerun['invalid-codon'].add(qname)
-            return
+            return dbgfcn('negative cdr3 length %d' % cdr3_length)
 
         # convert to regular format used elsewhere, and add implicit info
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
@@ -969,10 +938,8 @@ class Waterer(object):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
             print utils.pad_lines(''.join(lines))
-            # if self.debug:
-            print '      rerun: implicit info adding failed for %s (see above), rerunning' % qname
-            queries_to_rerun['weird-annot.'].add(qname)
-            return
+            print '      rerun: implicit info adding failed for %s (see above), rerunning' % qname  # shouldn't be able to happen, so print even if debug isn't set
+            return dbgfcn('see above')
 
         # deal with unproductive rearrangements
         if not utils.is_functional(infoline):
@@ -987,10 +954,7 @@ class Waterer(object):
 
         kbounds = self.get_kbounds(infoline, qinfo, best)  # gets the boundaries of the non-best matches from <qinfo>
         if kbounds is None:
-            if self.debug:
-                print '      rerun: nonsense kbounds for %s, rerunning' % qname
-            queries_to_rerun['weird-annot.'].add(qname)
-            return
+            return dbgfcn('nonsense kbounds')
         infoline['k_v'] = kbounds['v']
         infoline['k_d'] = kbounds['d']
 
