@@ -858,7 +858,7 @@ class Waterer(object):
         If not, return without calling add_to_info().
         """
         def dbgfcn(dbgstr):  # doesn't return anything, but it makes things more concise
-            if debug:
+            if self.debug:
                 print '      rerun: %s' % dbgstr
 
         qname = qinfo['name']
@@ -888,7 +888,6 @@ class Waterer(object):
                 assert overlap_status == 'ok'
 
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through
-            assert qname not in self.info['indels']
             indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the indel-reversed sequence, rather than the <input_info> sequence
             if indelfo is None:
                 self.indel_reruns.add(qname)
