@@ -237,7 +237,9 @@ class Waterer(object):
         if cachefname is not None:
             self.write_cachefile(cachefname)
 
-        self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
+        # linearham requires unpadded sequences in the output file!
+        if not self.args.linearham:
+            self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
         if self.plot_annotation_performance:
             perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
