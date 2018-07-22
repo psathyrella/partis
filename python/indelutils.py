@@ -384,7 +384,7 @@ def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this f
                 del line[key]
 
     if reset_indel_genes:  # for when we get a new annotation (after reversing the indel), and it's got different genes
-        reset_indelfos_for_new_genes(line)
+        reset_indelfos_for_new_genes(line, debug=debug)
 
     check_indelfo_consistency(line, debug=debug)
 

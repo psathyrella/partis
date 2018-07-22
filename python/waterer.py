@@ -74,9 +74,8 @@ class Waterer(object):
         self.info['removed-queries'] = set()  # ...and this
 
         self.remaining_queries = set(self.input_info) - self.info['failed-queries']  # we remove queries from this set when we're satisfied with the current output (in general we may have to rerun some queries with different match/mismatch scores)
-        self.new_indels = set()  # new indels that were kicked up this time through
         self.vs_indels = set()
-        self.indel_fails = set()
+        self.indel_reruns = set()  # queries that either failed during indel handling, or had successful indel handling: in both cases we rerun them, with a super large gap open to prevent further indels
 
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
@@ -107,7 +106,7 @@ class Waterer(object):
             processing_start = time.time()
             self.read_output(base_outfname, len(mismatches))
 
-            if itry > 1 or len(self.new_indels) + len(self.indel_fails) == 0:
+            if itry > 1 or len(self.indel_reruns) == 0:
                 break
             itry += 1
 
@@ -338,14 +337,14 @@ class Waterer(object):
     def get_gap_opens(self, mismatches, queries_for_each_proc):
         failed_mismatches = {}
         for mismatch, queries in zip(mismatches, queries_for_each_proc):
-            fqueries_in_this_mismatch = set(queries) & self.indel_fails
+            fqueries_in_this_mismatch = set(queries) & self.indel_reruns
             for fquery in fqueries_in_this_mismatch:  # if it's destined for this proc, keep track of the match/mismatch info, and remove it from this proc's list
                 if mismatch not in failed_mismatches:  # reminder: more than one proc can have the same mismatch
                     failed_mismatches[mismatch] = []
                 failed_mismatches[mismatch].append(fquery)
                 queries.remove(fquery)
-        assert set([q for qlist in failed_mismatches.values() for q in qlist]) == self.indel_fails
-        self.indel_fails.clear()
+        assert set([q for qlist in failed_mismatches.values() for q in qlist]) == self.indel_reruns
+        self.indel_reruns.clear()
 
         gap_opens = [self.gap_open_penalty for _ in mismatches]
         for fmismatch, fqueries in failed_mismatches.items():
@@ -461,7 +460,6 @@ class Waterer(object):
         if self.debug:
             print '%s' % utils.color('green', 'reading output')
 
-        self.new_indels.clear()
         queries_read_from_file = set()  # should be able to remove this, eventually
         for iproc in range(n_procs):
             outfname = self.subworkdir(iproc, n_procs) + '/' + base_outfname
@@ -859,7 +857,7 @@ class Waterer(object):
         Fiddle with a few things, but mostly decide whether we're satisfied with the current matches.
         If not, return without calling add_to_info().
         """
-        def dbgfcn(dbgstr):
+        def dbgfcn(dbgstr):  # doesn't return anything, but it makes things more concise
             if debug:
                 print '      rerun: %s' % dbgstr
 
@@ -882,7 +880,7 @@ class Waterer(object):
             if overlap_status == 'overlap':
                 overlap_indel_fail = self.shift_overlapping_boundaries(rpair, qinfo, best)  # this is kind of a crappy way to return the information, but I can't think of anything better a.t.m.
                 if overlap_indel_fail:
-                    self.indel_fails.add(qname)
+                    self.indel_reruns.add(qname)
                     return dbgfcn('overlap/indel fails')
             elif overlap_status == 'nonsense':
                 return dbgfcn('nonsense overlap bounds')
@@ -890,13 +888,14 @@ class Waterer(object):
                 assert overlap_status == 'ok'
 
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through
+            assert qname not in self.info['indels']
             indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the indel-reversed sequence, rather than the <input_info> sequence
             if indelfo is None:
-                self.indel_fails.add(qname)
+                self.indel_reruns.add(qname)
                 return dbgfcn('indel fails')
             else:
                 self.info['indels'][qinfo['name']] = indelfo
-                self.new_indels.add(qname)  # tells self.run() that we need to do another iteration
+                self.indel_reruns.add(qname)
                 return dbgfcn(' new indels in %s' % ' '.join(qinfo['new_indels'].keys()))  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
 
         if self.debug >= 2:
