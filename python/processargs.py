@@ -66,6 +66,8 @@ def process(args):
             args.queries_to_include = [args.seed_unique_id]
         elif args.seed_unique_id not in args.queries_to_include:
             args.queries_to_include = [args.seed_unique_id] + args.queries_to_include  # may as well put it first, I guess (?)
+    elif args.seed_seq is not None:
+        args.seed_unique_id = 'seed-seq'
 
     if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
         args.sw_debug = args.debug
