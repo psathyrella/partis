@@ -57,9 +57,27 @@ class PerformancePlotter(object):
             else:  # otherwise add 'em to the true line
                 true_naive_seq += (-extra_true_bases) * 'N'
         if len(true_naive_seq) != len(inferred_naive_seq):
+            # all this stuff gets printed four times, since we're calling this fcn for each region. sigh.
             utils.print_reco_event(true_line, label='true')
             utils.print_reco_event(line, label='inf')
-            raise Exception('different length true and inferred naive seqs for %s\n  %s\n  %s (see above)' % (' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq))
+            print '%s different length true and inferred naive seqs for %s (see above)\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
+
+            # I'd rather just give up and skip it at this point, but that involves passing knowledge of the failure through too many functions so it's hard, so... align 'em, which isn't right, but oh well
+            aligned_true, aligned_inferred = utils.align_seqs(true_naive_seq, inferred_naive_seq)
+            true_list, inf_list = [], []
+            for ctrue, cinf in zip(aligned_true, aligned_inferred):  # remove bases corresponding to gaps in true, and replace gaps in inf with Ns (the goal is to end up with aligned seqs that are the same length as the true inferred sequence, so the restrict_to_region stuff still works)
+                if ctrue in utils.gap_chars:
+                    continue
+                elif cinf in utils.gap_chars:
+                    true_list += [ctrue]
+                    inf_list += [utils.ambiguous_bases[0]]
+                else:
+                    true_list += [ctrue]
+                    inf_list += [cinf]
+            assert len(true_list) == len(true_naive_seq)
+            true_naive_seq = ''.join(true_list)
+            inferred_naive_seq = ''.join(inf_list)
+            # utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True)
 
         return true_naive_seq, inferred_naive_seq
 
