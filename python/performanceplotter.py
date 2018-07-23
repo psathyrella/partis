@@ -115,11 +115,12 @@ class PerformancePlotter(object):
     def set_per_gene_support(self, true_line, inf_line, region):
         # if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
         #     print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
-        support = inf_line[region + '_per_gene_support'].values()[0]  # sorted, ordered dict with gene : logprob key-val pairs
+        support_list = sorted(inf_line[region + '_per_gene_support'].values(), reverse=True)  # sorted, ordered dict with gene : logprob key-val pairs (well, it _should_ always be sorted, but the ordering gets lost when writing with json.dump() [but then it's resorted when adding implicit info], so I'm resorting in case something gets screwed up somewhere) EDIT which isn't actually possible, since we can't do performance plotting a.t.m. if we're reading from an existing file, but oh, well
+        best_support = support_list[0]  # this doesn't necessarily correspond to inf_line[region + '_gene'] (see old warning above), but it _almost_ always does
         if true_line[region + '_gene'] == inf_line[region + '_gene']:  # NOTE this requires allele to be correct, but set_bool_column() does not
-            self.hists[region + '_allele_right_vs_per_gene_support'].fill(support)
+            self.hists[region + '_allele_right_vs_per_gene_support'].fill(best_support)
         else:
-            self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(support)
+            self.hists[region + '_allele_wrong_vs_per_gene_support'].fill(best_support)
 
     # ----------------------------------------------------------------------------------------
     def evaluate(self, true_line, inf_line, simglfo=None):

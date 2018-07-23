@@ -19,6 +19,9 @@ import multiprocessing
 import copy
 import traceback
 import json
+import types
+import collections
+import operator
 
 import indelutils
 from clusterpath import ClusterPath
@@ -1106,6 +1109,14 @@ def process_per_gene_support(line, debug=False):
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
+def re_sort_per_gene_support(line):
+    for region in [r for r in regions if r + '_per_gene_support' in line]:
+        if type(line[region + '_per_gene_support']) == type(collections.OrderedDict()):  # already ordered, don't need to do anything
+            continue
+        elif type(line[region + '_per_gene_support']) == types.DictType:  # plain dict, i.e. we just read it from a json.dump()'d file
+            line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
+
+# ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
     """ Add to <line> a bunch of things that are initially only implicit. """
     if line['v_gene'] == '':
@@ -1195,6 +1206,8 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
             line['aligned_' + region + '_seqs'] = ['' for _ in range(len(line['seqs']))]
     else:
         add_alignments(glfo, aligned_gl_seqs, line)
+
+    re_sort_per_gene_support(line)  # in case it was read from json.dump()'d file
 
     if check_line_keys:
         new_keys = set(line) - initial_keys
@@ -3663,7 +3676,7 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
     with open(fname, 'w') as yamlfile:
         # import yaml
         # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)  # slower, but easier to read by hand for debugging
-        json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml
+        json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
 
 # ----------------------------------------------------------------------------------------
 def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info):
@@ -3691,7 +3704,7 @@ def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_
     with open(fname) as yamlfile:
         # import yaml
         # yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)
-        yamlfo = json.load(yamlfile)  # way tf faster than full yaml
+        yamlfo = json.load(yamlfile)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
         if debug:
             print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
 
