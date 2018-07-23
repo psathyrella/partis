@@ -198,7 +198,7 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
         if os.path.basename(os.path.dirname(fname)) != args.locus:
             raise Exception('unexpected germline directory structure (should have locus \'%s\' at end): %s' % (args.locus, fname))
         gldir = os.path.dirname(fname).replace('/' + args.locus, '')
-        glfos[label] = glutils.read_glfo(gldir, args.locus, remove_orfs=('partis' in label))  # this is gonna fail for tigger since you only have the .fa
+        glfos[label] = glutils.read_glfo(gldir, args.locus)
 
     if args.region != 'v':
         print '  not synchronizing gl sets for %s' % args.region
