@@ -70,7 +70,6 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
                 raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
             add_seed_seq(args, input_info, reco_info, is_data)
     elif args.seed_seq is not None:
-        args.seed_unique_id = 'seed-seq'
         add_seed_seq(args, input_info, reco_info, is_data)
     elif args.random_seed_seq:  # already checked (in bin/partis) that other seed args aren't set
         args.seed_unique_id = random.choice(input_info.keys())

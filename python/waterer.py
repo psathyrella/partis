@@ -621,6 +621,8 @@ class Waterer(object):
             leftmost_position = min(qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][r_gene][0])
             qinfo['qrbounds'][l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
             qinfo['glbounds'][l_gene] = (0, 1)
+            if l_reg in qinfo['new_indels']:
+                del qinfo['new_indels'][l_reg]
             status = self.check_boundaries(rpair, qinfo, best, recursed=True, debug=debug)
             if status == 'overlap':
                 if debug:
@@ -878,7 +880,7 @@ class Waterer(object):
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
         for rpair in utils.region_pairs():
-            overlap_status = self.check_boundaries(rpair, qinfo, best)
+            overlap_status = self.check_boundaries(rpair, qinfo, best)  # I think all this overlap fixing only adjusts the bounds for the best match, but I guess that's ok? It's certainly been like that for ages
             if overlap_status == 'overlap':
                 overlap_indel_fail = self.shift_overlapping_boundaries(rpair, qinfo, best)  # this is kind of a crappy way to return the information, but I can't think of anything better a.t.m.
                 if overlap_indel_fail:
@@ -890,7 +892,8 @@ class Waterer(object):
                 assert overlap_status == 'ok'
 
         if len(qinfo['new_indels']) > 0:  # if any of the best matches had new indels this time through
-            # note that it will already be in self.info['indels'] if it had vsearch indels
+            if qname in self.info['indels']:  # no really necessary, but I'm nervous about it because I screwed it up once before
+                assert qname in self.vs_indels
             indelfo = self.combine_indels(qinfo, best)  # the next time through, when we're writing ig-sw input, we look to see if each query is in <self.info['indels']>, and if it is we pass ig-sw the indel-reversed sequence, rather than the <input_info> sequence
             if indelfo is None:
                 self.indel_reruns.add(qname)
@@ -1355,13 +1358,25 @@ class Waterer(object):
                 print '    %3d   %20s    %s' % (self.info[query]['cdr3_length'], query, self.info[query]['seqs'][0])
 
     # ----------------------------------------------------------------------------------------
-    def combine_indels(self, qinfo, best):
+    def combine_indels(self, qinfo, best, debug=False):
+        # debug = 2
+        if debug:
+            print '  %s: combine with %d sw indels: %s' % (qinfo['name'], len(qinfo['new_indels']), ' '.join(qinfo['new_indels'].keys()))
+            for ifo in qinfo['new_indels'].values():
+                print indelutils.get_dbg_str(ifo)
+
         regional_indelfos = {}
         qrbounds = {r : qinfo['qrbounds'][best[r]] for r in utils.regions}
         full_qrseq = qinfo['seq']
         if self.vs_info is not None and qinfo['name'] in self.vs_indels:
+            if debug:
+                print '    has a vsearch v indel'
+
             if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, we rerun sw with <self.args.no_indel_gap_open_penalty>
+                if debug:
+                    print '      sw called a v indel, but there\'s already a vsearch v indel, sogive up (rerun sw forbidding indels)'
                 return None
+
             vs_indelfo = self.info['indels'][qinfo['name']]
             assert 'v' in vs_indelfo['genes']  # a.t.m. vsearch is only looking for v genes, and if that changes in the future we'd need to rewrite this
             non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
@@ -1389,4 +1404,4 @@ class Waterer(object):
 
         # NOTE qinfo won't be consistent with the indel reversed seq after this, but that's kind of the point, since we're just rerunning anyway
 
-        return indelutils.combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=qinfo['name'])
+        return indelutils.combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=qinfo['name'], debug=debug)

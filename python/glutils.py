@@ -524,7 +524,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
     if debug:
         print '  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions])
 
-    if remove_orfs:
+    if remove_orfs:  # shouldn't need this any more (ended up removing 'em from the default glfos), but I don't feel like removing it at the moment
         orfs_removed = {r : [] for r in utils.regions}
         assert len(glfo['functionalities']) == 0
         func_info = {}  # keep them in a spaerate dict so it's easier to loop over the genes in the glfo (to ensure they're all in the functionality file)
