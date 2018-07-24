@@ -1106,6 +1106,31 @@ def process_per_gene_support(line, debug=False):
         line[region + '_per_gene_support'] = support
 
 # ----------------------------------------------------------------------------------------
+def add_linearham_info(sw_info, query_names, line):
+    """ add flexbounds/relpos values to <line> """
+    # flexbounds
+    boundfcns = {'l' : min, 'r' : max}  # take the widest set of flexbounds over all the queries
+    line['flexbounds'] = {}
+    for region in regions:
+        for side in ['l', 'r']:
+            min_bounds, max_bounds = [list(t) for t in zip(*[sw_info[query]['flexbounds'][region][side] for query in query_names])]
+            for i in range(len(query_names)):
+                min_bounds[i] += sw_info[query_names[i]]['padlefts'][0]  # the min-bounds need to be adjusted for V 5' padding
+                max_bounds[i] += sw_info[query_names[i]]['padlefts'][0]  # the max-bounds need to be adjusted for V 5' padding
+            line['flexbounds'][region + "_" + side] = list(boundfcns[side](zip(min_bounds, max_bounds)))
+
+    # flexbounds should not go beyond the possible sequence positions
+    seq_start, seq_end = [0, len(sw_info[query_names[0]]['seqs'][0])]  # remember 'seqs' refers to indel-reversed sequences so they're all the same length
+    line['flexbounds']['v_l'] = [seq_start, seq_start]
+    line['flexbounds']['j_r'] = [seq_end, seq_end]
+
+    # relpos
+    line['relpos'] = {}
+    for query in query_names:
+        for gene in set(sw_info[query]['relpos']) - set(line['relpos']):  # loop over genes that haven't come up yet in previous queries (note that this takes <pos> from the first <name> that happens to have a match to <gene>)
+            line['relpos'][gene] = sw_info[query]['padlefts'][0] + sw_info[query]['relpos'][gene]  # the relpos needs to be adjusted for V 5' padding
+
+# ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
     """ Add to <line> a bunch of things that are initially only implicit. """
     if line['v_gene'] == '':

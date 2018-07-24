@@ -237,9 +237,7 @@ class Waterer(object):
         if cachefname is not None:
             self.write_cachefile(cachefname)
 
-        # linearham requires unpadded sequences in the output file!
-        if not self.args.linearham:
-            self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
+        self.pad_seqs_to_same_length()  # NOTE this uses all the gene matches (not just the best ones), so it has to come before we call pcounter.write(), since that fcn rewrites the germlines removing genes that weren't best matches. But NOTE also that I'm not sure what but that the padding actually *needs* all matches (rather than just all *best* matches)
 
         if self.plot_annotation_performance:
             perfplotter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots)
@@ -798,11 +796,13 @@ class Waterer(object):
             sortmatches = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}
             infoline['flexbounds'] = {}
             def span(boundlist):
-                return (max(0, min(boundlist) - 2), max(boundlist) + 2)
+                return (min(boundlist) - 2, max(boundlist) + 2)
             for region in utils.regions:
                 bounds_l, bounds_r = zip(*[qinfo['qrbounds'][g] for g in sortmatches[region]])  # left- (and right-) bounds for each gene
-                infoline['flexbounds'].update({region + '_l': span(bounds_l), region + '_r': span(bounds_r)})
-            infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].items()}  # position in the query sequence of the start of each uneroded germline match
+                bounds_l = [bound - len(infoline['fv_insertion']) for bound in bounds_l]  # the left-bounds need to be adjusted for V 5' framework insertions
+                bounds_r = [bound - len(infoline['fv_insertion']) for bound in bounds_r]  # the right-bounds need to be adjusted for V 5' framework insertions
+                infoline['flexbounds'][region] = {'l' : span(bounds_l), 'r' : span(bounds_r)}
+            infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] - len(infoline['fv_insertion']) for gene, glbound in qinfo['glbounds'].items()}  # position in the query sequence of the start of each uneroded germline match (the relpos needs to be adjusted for V 5' framework insertions)
 
         infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
         infoline['codon_positions'] = codon_positions

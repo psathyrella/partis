@@ -38,9 +38,6 @@ def process(args):
     args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
     if args.linearham:
        args.extra_annotation_columns = utils.add_lists(args.extra_annotation_columns, ['flexbounds', 'relpos'])
-       args.only_smith_waterman = True
-       args.dont_write_parameters = True
-       args.dont_remove_framework_insertions = True
 
     args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify=True)
 
