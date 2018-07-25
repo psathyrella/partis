@@ -129,8 +129,6 @@ def process(args):
             print '  %s --outfname uses deprecated file format %s. This will still work fine, but the new default .yaml format is much cleaner, and includes annotations, partitions, and germline info in the same file.' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
         if args.action in ['view-annotations', 'view-partitions'] and utils.getsuffix(args.outfname) == '.yaml':
             raise Exception('have to use \'view-output\' action to view .yaml output files')
-        if args.action in ['view-output'] and utils.getsuffix(args.outfname) == '.csv':
-            raise Exception('have to use \'view-annotations\' or \'view-partitions\' to view .csv output files')
 
     if args.presto_output:
         if args.action == 'annotate' and utils.getsuffix(args.outfname) != '.tsv':
