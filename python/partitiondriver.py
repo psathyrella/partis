@@ -1592,6 +1592,10 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
+                if self.args.linearham:
+                    # add flexbounds/relpos to padded line
+                    utils.add_linearham_info(self.sw_info, uids, padded_line)
+
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
@@ -1605,7 +1609,7 @@ class PartitionDriver(object):
                     print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
-                if len(uids) > 1:  # if there's more than one sequence, we need to use the padded line
+                if len(uids) > 1 or self.args.linearham:  # if there's more than one sequence (or we're in linearham mode), we need to use the padded line
                     at_least_one_mult_hmm_line = True
                     line_to_use = padded_line
                 else:  # otherwise, the eroded line is kind of simpler to look at
