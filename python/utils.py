@@ -1047,23 +1047,23 @@ def add_qr_seqs(line):
         line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
-def is_functional_dbg_str(line):  # NOTE code duplication with is_functional(
+def is_functional_dbg_str(line, iseq):  # NOTE code duplication with is_functional(
     dbg_str_list = []
-    if True in line['mutated_invariants']:
+    if line['mutated_invariants'][iseq]:
         dbg_str_list.append('mutated invariant codon')
-    if False in line['in_frames']:
+    if not line['in_frames'][iseq]:
         dbg_str_list.append('out of frame cdr3')
-    if True in line['stops']:
+    if line['stops'][iseq]:
         dbg_str_list.append('stop codon')
     return ', '.join(dbg_str_list)
 
 # ----------------------------------------------------------------------------------------
-def is_functional(line):  # NOTE code duplication with is_functional_dbg_str(
-    if True in line['mutated_invariants']:
+def is_functional(line, iseq):  # NOTE code duplication with is_functional_dbg_str(
+    if line['mutated_invariants'][iseq]:
         return False
-    if False in line['in_frames']:
+    if not line['in_frames'][iseq]:
         return False
-    if True in line['stops']:
+    if line['stops'][iseq]:
         return False
     return True
 
