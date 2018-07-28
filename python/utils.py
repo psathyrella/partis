@@ -24,7 +24,7 @@ import collections
 import operator
 
 import indelutils
-from clusterpath import ClusterPath
+import clusterpath
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -3544,7 +3544,7 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
     os.remove(outfname)
     os.rmdir(workdir)
 
-    cp = ClusterPath()
+    cp = clusterpath.ClusterPath()
     cp.add_partition(partition, logprob=0., n_procs=1)
     cp.print_partitions(abbreviate=True)
 
@@ -3741,7 +3741,7 @@ def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_
 
     partition_lines = yamlfo['partitions']
     if cpath is None:   # allowing the caller to pass in <cpath> is kind of awkward, but it's used for backward compatibility in clusterpath.readfile()
-        cpath = ClusterPath(seed_unique_id=seed_unique_id)
+        cpath = clusterpath.ClusterPath(seed_unique_id=seed_unique_id)
     if len(partition_lines) > 0:  # _don't_ combine this with the cluster path constructor, since then we won't modify the path passed in the arguments
         cpath.readlines(partition_lines)
 
