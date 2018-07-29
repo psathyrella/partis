@@ -151,7 +151,7 @@ parser.add_argument('--names', required=True)
 parser.add_argument('--performance-plots', action='store_true')
 parser.add_argument('--colors', default=':'.join(plotting.default_colors))
 parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths))
-parser.add_argument('--gldir', default='data/germlines/human')
+parser.add_argument('--gldirs', default=['data/germlines/human'])
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--extra-stats')
@@ -163,6 +163,7 @@ args.plotdirs = utils.get_arg_list(args.plotdirs)
 args.names = utils.get_arg_list(args.names)
 args.colors = utils.get_arg_list(args.colors)
 args.linewidths = utils.get_arg_list(args.linewidths)
+args.gldirs = utils.get_arg_list(args.gldirs)
 args.translegend = utils.get_arg_list(args.translegend, floatify=True)
 for iname in range(len(args.names)):
     args.names[iname] = args.names[iname].replace('@', ' ')
@@ -175,10 +176,13 @@ if len(args.plotdirs) == 1:
 if len(args.plotdirs) != len(args.names):
     raise Exception('poorly formatted args:\n  %s\n  %s' % (' '.join(args.plotdirs), ' '.join(args.names)))
 
-# if args.gldir is not 'none':
 args.glfo = None
-if os.path.exists(args.gldir):
-    args.glfo = glutils.read_glfo(args.gldir, args.locus)
+for gldir in [gd for gd in args.gldirs if os.path.exists(gd)]:
+    tmpglfo = glutils.read_glfo(gldir, args.locus)
+    if args.glfo is None:
+        args.glfo = tmpglfo
+    else:
+        args.glfo = glutils.get_merged_glfo(args.glfo, tmpglfo)
 
 # figure out if there's subdirs we need to deal with
 listof_plotdirlists, listof_outdirs = [], []

@@ -310,26 +310,47 @@ class PartitionDriver(object):
         self.print_subcluster_naive_seqs(self.args.queries)
 
     # ----------------------------------------------------------------------------------------
-    def read_existing_output(self, outfname=None, print_results=False, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):
-        tmpact = self.current_action
-        if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
-            print_results = True
+    def print_results(self, cpath, annotations):  # NOTE this duplicates code that already prints annotations (in self.read_annotation_output()) and partitions (in self.partition())
+        if cpath is not None:
+            print utils.color('green', 'partitions:')
+            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
 
+        if len(annotations) > 0:
+            print utils.color('green', 'annotations:')
+            sorted_annotations = sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True)
+            if self.args.cluster_indices is not None:
+                sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
+            for line in sorted_annotations:
+                label = ''
+                if self.args.infname is not None and self.reco_info is not None:
+                    utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
+                    label = 'inferred:'
+                utils.print_reco_event(line, extra_str='  ', label=label)
+
+        # best_partition = cpath.partitions[cpath.i_best]
+        # seed_clusters = [cluster for cluster in best_partition if cpath.seed_unique_id in cluster]
+        # assert len(seed_clusters) == 1
+        # seed_annotation = annotations[':'.join(seed_clusters[0])]
+        # print 'best naive for %s: %s ' % (cpath.seed_unique_id, seed_annotation['naive_seq'])
+
+    # ----------------------------------------------------------------------------------------
+    def read_existing_output(self, outfname=None, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):
         if outfname is None:
             outfname = self.args.outfname
 
         annotation_lines = []
         cpath = None
+        tmpact = self.current_action
         if utils.getsuffix(outfname) == '.csv':  # old way
-            if tmpact == 'view-partitions' or tmpact == 'plot-partitions' or read_partitions:
+            if tmpact == 'view-partitions' or tmpact == 'plot-partitions' or tmpact == 'view-output' or read_partitions:
                 cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, fname=outfname)
-            if tmpact == 'view-annotations' or tmpact == 'plot-partitions' or read_annotations:
-                csvfile = open(outfname if cpath is None else self.args.cluster_annotation_fname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop over <reader>)
+            if tmpact == 'view-annotations' or tmpact == 'plot-partitions' or tmpact == 'view-output' or read_annotations:
+                csvfile = open(outfname if cpath is None else self.args.cluster_annotation_fname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop)
                 annotation_lines = csv.DictReader(csvfile)
                 if 'unique_ids' not in annotation_lines.fieldnames:
                     raise Exception('not an annotation file: %s' % outfname)
         elif utils.getsuffix(outfname) == '.yaml':  # new way
-            # NOTE replaces <self.glfo>, which is definitely what we want (it's the point of putting glfo in the yaml file), but it's still different behavior than if reading a csv
+            # NOTE replaces <self.glfo>, which is definitely what we want (that's the point of putting glfo in the yaml file), but it's still different behavior than if reading a csv
             assert self.glfo is None  # make sure bin/partis successfully figured out that we would be reading the glfo from the yaml output file
             self.glfo, annotation_lines, cpath = utils.read_yaml_output(outfname, n_max_queries=self.args.n_max_queries, dont_add_implicit_info=True, seed_unique_id=self.args.seed_unique_id)  # add implicit info below, so we can skip some of 'em
         else:
@@ -341,22 +362,8 @@ class PartitionDriver(object):
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
 
-        if print_results:
-            if cpath is not None:
-                print utils.color('green', 'partitions:')
-                cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
-
-            if len(annotations) > 0:
-                print utils.color('green', 'annotations:')
-                sorted_annotations = sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True)
-                if self.args.cluster_indices is not None:
-                    sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
-                for line in sorted_annotations:
-                    label = ''
-                    if self.args.infname is not None and self.reco_info is not None:
-                        utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
-                        label = 'inferred:'
-                    utils.print_reco_event(line, extra_str='  ', label=label)
+        if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
+            self.print_results(cpath, annotations)
 
         return annotations, cpath
 

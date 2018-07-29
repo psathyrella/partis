@@ -14,11 +14,18 @@ from clusterpath import ClusterPath
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--fname', default=partis_dir + '/test/reference-results/partition-ref-simu.yaml')
+parser.add_argument('--glfo-dir', default=partis_dir + '/data/germlines/human')
+parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 
-glfo, annotation_list, cpath = utils.read_yaml_output(args.fname)
+glfo = None
+if utils.getsuffix(args.fname) == '.csv':
+    print '  reading deprecated csv format, so need to read germline info from somewhere else, using --glfo-dir %s, hopefully it works' % args.glfo_dir
+    glfo = glutils.read_glfo(args.glfo_dir, locus=args.locus)
 
-if len(cpath.partitions) == 0:
+glfo, annotation_list, cpath = utils.read_output(args.fname, glfo=glfo)
+
+if cpath is None or len(cpath.partitions) == 0:
     print 'no partitions read from %s, so just printing first annotation:' % args.fname
     utils.print_reco_event(annotation_list[0])
     sys.exit(0)

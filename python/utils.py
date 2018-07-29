@@ -24,7 +24,7 @@ import collections
 import operator
 
 import indelutils
-from clusterpath import ClusterPath
+import clusterpath
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -1047,23 +1047,23 @@ def add_qr_seqs(line):
         line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
-def is_functional_dbg_str(line):  # NOTE code duplication with is_functional(
+def is_functional_dbg_str(line, iseq):  # NOTE code duplication with is_functional(
     dbg_str_list = []
-    if True in line['mutated_invariants']:
+    if line['mutated_invariants'][iseq]:
         dbg_str_list.append('mutated invariant codon')
-    if False in line['in_frames']:
+    if not line['in_frames'][iseq]:
         dbg_str_list.append('out of frame cdr3')
-    if True in line['stops']:
+    if line['stops'][iseq]:
         dbg_str_list.append('stop codon')
     return ', '.join(dbg_str_list)
 
 # ----------------------------------------------------------------------------------------
-def is_functional(line):  # NOTE code duplication with is_functional_dbg_str(
-    if True in line['mutated_invariants']:
+def is_functional(line, iseq):  # NOTE code duplication with is_functional_dbg_str(
+    if line['mutated_invariants'][iseq]:
         return False
-    if False in line['in_frames']:
+    if not line['in_frames'][iseq]:
         return False
-    if True in line['stops']:
+    if line['stops'][iseq]:
         return False
     return True
 
@@ -3544,7 +3544,7 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
     os.remove(outfname)
     os.rmdir(workdir)
 
-    cp = ClusterPath()
+    cp = clusterpath.ClusterPath()
     cp.add_partition(partition, logprob=0., n_procs=1)
     cp.print_partitions(abbreviate=True)
 
@@ -3736,6 +3736,39 @@ def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_
     return annotation_list
 
 # ----------------------------------------------------------------------------------------
+def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, debug=False):
+    annotation_list = []
+
+    if getsuffix(fname) == '.csv':
+        if not dont_add_implicit_info and glfo is None:
+            raise Exception('glfo is None, but we were asked to add implicit info')
+
+        cluster_annotation_fname = fname.replace('.csv', '-cluster-annotations.csv')
+        if os.path.exists(cluster_annotation_fname):  # i.e. if <fname> is a partition file
+            assert cpath is None   # see note in read_yaml_output()
+            cpath = clusterpath.ClusterPath(fname=fname, seed_unique_id=seed_unique_id)  # NOTE I'm not sure if I really want to pass in the seed here -- it should be stored in the file -- but if it's in both places it should be the same. um, should.
+            fname = cluster_annotation_fname  # kind of hackey, but oh well
+
+        n_queries_read = 0
+        with open(fname) as csvfile:
+            for line in csv.DictReader(csvfile):
+                process_input_line(line)
+                if not dont_add_implicit_info:
+                    add_implicit_info(glfo, line)
+                annotation_list.append(line)
+                n_queries_read += 1
+                if n_max_queries > 0 and n_queries_read >= n_max_queries:
+                    break
+
+    elif getsuffix(fname) == '.yaml':  # NOTE this replaces any <glfo> that was passed (well, only within the local name table of this fcn)
+        glfo, annotation_list, cpath = read_yaml_output(fname, n_max_queries=n_max_queries, synth_single_seqs=synth_single_seqs,
+                                                        dont_add_implicit_info=dont_add_implicit_info, seed_unique_id=seed_unique_id, cpath=cpath, skip_annotations=skip_annotations, debug=debug)
+    else:
+        raise Exception('unhandled file extension %s' % getsuffix(fname))
+
+    return glfo, annotation_list, cpath
+
+# ----------------------------------------------------------------------------------------
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
     with open(fname) as yamlfile:
         # import yaml
@@ -3752,7 +3785,7 @@ def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_
 
     partition_lines = yamlfo['partitions']
     if cpath is None:   # allowing the caller to pass in <cpath> is kind of awkward, but it's used for backward compatibility in clusterpath.readfile()
-        cpath = ClusterPath(seed_unique_id=seed_unique_id)
+        cpath = clusterpath.ClusterPath(seed_unique_id=seed_unique_id)  # NOTE I'm not sure if I really want to pass in the seed here -- it should be stored in the file -- but if it's in both places it should be the same. um, should.
     if len(partition_lines) > 0:  # _don't_ combine this with the cluster path constructor, since then we won't modify the path passed in the arguments
         cpath.readlines(partition_lines)
 

@@ -851,7 +851,7 @@ class Waterer(object):
                 utils.print_reco_event(self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
             utils.print_reco_event(self.info[qname], extra_str='    ', label=inf_label)
 
-        if not utils.is_functional(self.info[qname]):
+        if not utils.is_functional(self.info[qname], iseq=0):
             self.kept_unproductive_queries.add(qname)
         self.remaining_queries.remove(qname)
 
@@ -946,10 +946,10 @@ class Waterer(object):
             return dbgfcn('see above')
 
         # deal with unproductive rearrangements
-        if not utils.is_functional(infoline):
+        if not utils.is_functional(infoline, iseq=0):
             if self.args.skip_unproductive:
                 if self.debug:
-                    print '      skipping unproductive (%s)' % utils.is_functional_dbg_str(infoline)
+                    print '      skipping unproductive (%s)' % utils.is_functional_dbg_str(infoline, iseq=0)
                 self.skipped_unproductive_queries.add(qname)
                 self.remaining_queries.remove(qname)
                 return
