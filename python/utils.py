@@ -3640,6 +3640,17 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
     return imax, max_abs_diff
 
 # ----------------------------------------------------------------------------------------
+def write_linearham_seqs(outfname, annotation_list):
+    """ write the indel-reversed partition sequences to fasta files """
+    outdir = os.path.dirname(os.path.abspath(outfname))
+    for i, annotation in enumerate(annotation_list):
+        seqs_outfname = outdir + '/partition' + str(i) + '_seqs.fasta'
+        with open(seqs_outfname, 'w') as fastafile:
+            fastafile.write('>naive' + '\n' + annotation['naive_seq'] + '\n')
+            for j in range(len(annotation['unique_ids'])):
+                fastafile.write('>' + annotation['unique_ids'][j] + '\n' + annotation['indel_reversed_seqs'][j] + '\n')
+
+# ----------------------------------------------------------------------------------------
 def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None):
     if os.path.exists(fname):
         os.remove(fname)

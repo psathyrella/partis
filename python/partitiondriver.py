@@ -658,6 +658,9 @@ class PartitionDriver(object):
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
+            # If we're in linearham mode, write the indel-reversed partition sequences to fasta files
+            if self.args.linearham and action_cache == 'partition':
+                utils.write_linearham_seqs(self.args.outfname, best_annotations.values())
 
         if self.args.write_additional_cluster_annotations is not None:  # remove the clusters that aren't actually in the best partition (we need them for partition plotting)
             keys_to_remove = [uidstr for uidstr in best_annotations if uidstr.split(':') not in cpath.partitions[cpath.i_best]]
