@@ -172,7 +172,10 @@ class Waterer(object):
 
         # NOTE do _not_ add extra headers here since if they're in the sw cache file I'd have to deal with removing them when I read it
         # NOTE does *not* write failed queries also
-        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], utils.sw_cache_headers)
+        headers = utils.sw_cache_headers
+        if self.args.linearham:
+            headers = utils.add_lists(headers, ['flexbounds', 'relpos'])
+        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
@@ -798,13 +801,11 @@ class Waterer(object):
             sortmatches = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}
             infoline['flexbounds'] = {}
             def span(boundlist):
-                return (min(boundlist) - 2, max(boundlist) + 2)
+                return [min(boundlist) - 2, max(boundlist) + 2]
             for region in utils.regions:
                 bounds_l, bounds_r = zip(*[qinfo['qrbounds'][g] for g in sortmatches[region]])  # left- (and right-) bounds for each gene
-                bounds_l = [bound - len(infoline['fv_insertion']) for bound in bounds_l]  # the left-bounds need to be adjusted for V 5' framework insertions
-                bounds_r = [bound - len(infoline['fv_insertion']) for bound in bounds_r]  # the right-bounds need to be adjusted for V 5' framework insertions
                 infoline['flexbounds'][region] = {'l' : span(bounds_l), 'r' : span(bounds_r)}
-            infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] - len(infoline['fv_insertion']) for gene, glbound in qinfo['glbounds'].items()}  # position in the query sequence of the start of each uneroded germline match (the relpos needs to be adjusted for V 5' framework insertions)
+            infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].items()}  # position in the query sequence of the start of each uneroded germline match
 
         infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
         infoline['codon_positions'] = codon_positions
@@ -1158,6 +1159,14 @@ class Waterer(object):
             for region in utils.regions:
                 swfo['regional_bounds'][region] = tuple([rb - fv_len for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
 
+            if self.args.linearham:
+                for region in utils.regions:
+                    for side in ['l', 'r']:
+                        swfo['flexbounds'][region][side][0] -= fv_len  # the left-bounds need to be adjusted for V 5' framework insertions
+                        swfo['flexbounds'][region][side][1] -= fv_len  # the right-bounds need to be adjusted for V 5' framework insertions
+                for k in swfo['relpos'].keys():
+                    swfo['relpos'][k] -= fv_len  # the relpos needs to be adjusted for V 5' framework insertions
+
             if debug:
                 print '    after %s' % swfo['seqs'][0]
 
@@ -1347,6 +1356,15 @@ class Waterer(object):
             swfo['codon_positions']['j'] += padleft
             for region in utils.regions:
                 swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
+
+            if self.args.linearham:
+                for region in utils.regions:
+                    for side in ['l', 'r']:
+                        swfo['flexbounds'][region][side][0] += padleft  # the left-bounds need to be adjusted for V 5' padding
+                        swfo['flexbounds'][region][side][1] += padleft  # the right-bounds need to be adjusted for V 5' padding
+                for k in swfo['relpos'].keys():
+                    swfo['relpos'][k] += padleft  # the relpos needs to be adjusted for V 5' padding
+
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
             if debug:
