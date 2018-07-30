@@ -184,11 +184,9 @@ def run_partitiondriver(args):
         args.parameter_dir = '_output/' + args.infname[ : args.infname.rfind('.')].replace('/', '_') if args.infname is not None else 'xxx-dummy-xxx'  # the latter is a shitty convention, but I code further on crashes if I let the parameter dir be None
 
     actions = [args.action]  # do *not* use <args.action> after this (well, for anything other than checking what was actually set on the command line)
-    if (args.action in ['annotate', 'partition'] and not os.path.exists(args.parameter_dir)) or args.linearham:
+    if args.action in ['annotate', 'partition'] and not os.path.exists(args.parameter_dir):
         actions = ['cache-parameters'] + actions
-        print_str = '  --linearham mode' if args.linearham else '  parameter dir \'%s\' does not exist'
-        print_vals = (actions[1],) if args.linearham else (args.parameter_dir, actions[1])
-        print (print_str + ', so caching a new set of parameters before running action \'%s\'') % print_vals
+        print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, actions[1])
 
     input_info, reco_info, glfo, simglfo = read_inputs(args, actions)
     parter = PartitionDriver(args, glfo, input_info, simglfo, reco_info)
