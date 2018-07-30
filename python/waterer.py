@@ -1360,8 +1360,8 @@ class Waterer(object):
             if self.args.linearham:
                 for region in utils.regions:
                     for side in ['l', 'r']:
-                        swfo['flexbounds'][region][side][0] += padleft  # the min-bounds need to be adjusted for V 5' padding
-                        swfo['flexbounds'][region][side][1] += padleft  # the max-bounds need to be adjusted for V 5' padding
+                        swfo['flexbounds'][region][side][0] += padleft  # the left-bounds need to be adjusted for V 5' padding
+                        swfo['flexbounds'][region][side][1] += padleft  # the right-bounds need to be adjusted for V 5' padding
                 for k in swfo['relpos'].keys():
                     swfo['relpos'][k] += padleft  # the relpos needs to be adjusted for V 5' padding
 
