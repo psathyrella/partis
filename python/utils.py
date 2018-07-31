@@ -3732,28 +3732,29 @@ def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_
 
 # ----------------------------------------------------------------------------------------
 def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, debug=False):
-    annotation_list = []
+    annotation_list = None
 
     if getsuffix(fname) == '.csv':
-        if not dont_add_implicit_info and glfo is None:
-            raise Exception('glfo is None, but we were asked to add implicit info')
-
         cluster_annotation_fname = fname.replace('.csv', '-cluster-annotations.csv')
         if os.path.exists(cluster_annotation_fname):  # i.e. if <fname> is a partition file
             assert cpath is None   # see note in read_yaml_output()
             cpath = clusterpath.ClusterPath(fname=fname, seed_unique_id=seed_unique_id)  # NOTE I'm not sure if I really want to pass in the seed here -- it should be stored in the file -- but if it's in both places it should be the same. um, should.
             fname = cluster_annotation_fname  # kind of hackey, but oh well
 
-        n_queries_read = 0
-        with open(fname) as csvfile:
-            for line in csv.DictReader(csvfile):
-                process_input_line(line)
-                if not dont_add_implicit_info:
-                    add_implicit_info(glfo, line)
-                annotation_list.append(line)
-                n_queries_read += 1
-                if n_max_queries > 0 and n_queries_read >= n_max_queries:
-                    break
+        if not skip_annotations:
+            if not dont_add_implicit_info and glfo is None:
+                raise Exception('glfo is None, but we were asked to add implicit info')
+            n_queries_read = 0
+            annotation_list = []
+            with open(fname) as csvfile:
+                for line in csv.DictReader(csvfile):
+                    process_input_line(line)
+                    if not dont_add_implicit_info:
+                        add_implicit_info(glfo, line)
+                    annotation_list.append(line)
+                    n_queries_read += 1
+                    if n_max_queries > 0 and n_queries_read >= n_max_queries:
+                        break
 
     elif getsuffix(fname) == '.yaml':  # NOTE this replaces any <glfo> that was passed (well, only within the local name table of this fcn)
         glfo, annotation_list, cpath = read_yaml_output(fname, n_max_queries=n_max_queries, synth_single_seqs=synth_single_seqs,
