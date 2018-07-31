@@ -3734,9 +3734,6 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
     annotation_list = None
 
     if getsuffix(fname) == '.csv':
-        if not dont_add_implicit_info and glfo is None:
-            raise Exception('glfo is None, but we were asked to add implicit info')
-
         cluster_annotation_fname = fname.replace('.csv', '-cluster-annotations.csv')
         if os.path.exists(cluster_annotation_fname):  # i.e. if <fname> is a partition file
             assert cpath is None   # see note in read_yaml_output()
@@ -3744,6 +3741,8 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
             fname = cluster_annotation_fname  # kind of hackey, but oh well
 
         if not skip_annotations:
+            if not dont_add_implicit_info and glfo is None:
+                raise Exception('glfo is None, but we were asked to add implicit info')
             n_queries_read = 0
             annotation_list = []
             with open(fname) as csvfile:
