@@ -12,6 +12,7 @@ import itertools
 import ast
 import math
 import glob
+from collections import Counter
 from collections import OrderedDict
 import csv
 import subprocess
@@ -1118,22 +1119,20 @@ def re_sort_per_gene_support(line):
 
 # ----------------------------------------------------------------------------------------
 def add_linearham_info(sw_info, query_names, line):
-    """ aggregate per-seq flexbounds/relpos values and add to <line> """
-    # flexbounds
-    boundfcns = {'l' : min, 'r' : max}  # take the widest set of flexbounds over all the queries
-    line['flexbounds'] = {region + "_" + side : boundfcns[side]([sw_info[query]['flexbounds'][region][side] for query in query_names])
-                          for region in regions for side in ['l', 'r']}
+    """ find representative query-specific flexbounds/relpos values and add to <line> """
+    # find the "representative" query sequence
+    consensus_seq = ''.join([Counter(site_bases).most_common()[0][0] for site_bases in zip(*line['indel_reversed_seqs'])])
+    dists_to_consensus = [hamming_distance(consensus_seq, seq) for seq in line['indel_reversed_seqs']]
+    query_ind = dists_to_consensus.index(min(dists_to_consensus))
+
+    # flexbounds/relpos
+    line['flexbounds'] = sw_info[query_names[query_ind]]['flexbounds']
+    line['relpos'] = sw_info[query_names[query_ind]]['relpos']
 
     # flexbounds should not go beyond the possible sequence positions
-    seq_start, seq_end = [0, len(sw_info[query_names[0]]['seqs'][0])]  # remember 'seqs' refers to indel-reversed sequences so they're all the same length
+    seq_start, seq_end = 0, len(line['indel_reversed_seqs'][0])  # remember 'indel_reversed_seqs' are all the same length
     line['flexbounds']['v_l'] = [seq_start, seq_start]
     line['flexbounds']['j_r'] = [seq_end, seq_end]
-
-    # relpos
-    line['relpos'] = {}
-    for query in query_names:
-        for gene in set(sw_info[query]['relpos']) - set(line['relpos']):  # loop over genes that haven't come up yet in previous queries (note that this takes <pos> from the first <name> that happens to have a match to <gene>)
-            line['relpos'][gene] = sw_info[query]['relpos'][gene]
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
@@ -3636,10 +3635,12 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 # ----------------------------------------------------------------------------------------
 def write_linearham_seqs(outfname, annotation_list):
     """ write the indel-reversed partition sequences to fasta files """
-    outdir = os.path.dirname(os.path.abspath(outfname))
+    outdir_prefix = os.path.dirname(os.path.abspath(outfname))
     for i, annotation in enumerate(annotation_list):
-        seqs_outfname = outdir + '/partition' + str(i) + '_seqs.fasta'
-        with open(seqs_outfname, 'w') as fastafile:
+        outdir = outdir_prefix + '/partition' + str(i)
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+        with open(outdir + '/input_seqs.fasta', 'w') as fastafile:
             fastafile.write('>naive' + '\n' + annotation['naive_seq'] + '\n')
             for j in range(len(annotation['unique_ids'])):
                 fastafile.write('>' + annotation['unique_ids'][j] + '\n' + annotation['indel_reversed_seqs'][j] + '\n')
