@@ -1118,21 +1118,26 @@ def re_sort_per_gene_support(line):
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
-def add_linearham_info(sw_info, query_names, line):
-    """ find representative query-specific flexbounds/relpos values and add to <line> """
+def add_linearham_info(glfo, sw_info, query_names, line):
+    """ find the representative query sequence, restrict to non-zero probability flexbounds/relpos values, and add to <line> """
     # find the "representative" query sequence
     consensus_seq = ''.join([Counter(site_bases).most_common()[0][0] for site_bases in zip(*line['indel_reversed_seqs'])])
     dists_to_consensus = [hamming_distance(consensus_seq, seq) for seq in line['indel_reversed_seqs']]
     query_ind = dists_to_consensus.index(min(dists_to_consensus))
 
-    # flexbounds/relpos
-    line['flexbounds'] = sw_info[query_names[query_ind]]['flexbounds']
+    # restrict flexbounds/relpos to gene matches with non-zero probability
+    line['flexbounds'] = {}
+    def span(bound_list):
+        return (min(bound_list), max(bound_list))
+    for region in regions:
+        for k in sw_info[query_names[query_ind]]['flexbounds'][region + '_l'].keys():
+            if k not in glfo['seqs'][region]:
+                del sw_info[query_names[query_ind]]['flexbounds'][region + '_l'][k]
+                del sw_info[query_names[query_ind]]['flexbounds'][region + '_r'][k]
+                del sw_info[query_names[query_ind]]['relpos'][k]
+        line['flexbounds'][region + '_l'] = span(sw_info[query_names[query_ind]]['flexbounds'][region + '_l'].values())
+        line['flexbounds'][region + '_r'] = span(sw_info[query_names[query_ind]]['flexbounds'][region + '_r'].values())
     line['relpos'] = sw_info[query_names[query_ind]]['relpos']
-
-    # flexbounds should not go beyond the possible sequence positions
-    seq_start, seq_end = 0, len(line['indel_reversed_seqs'][0])  # remember 'indel_reversed_seqs' are all the same length
-    line['flexbounds']['v_l'] = [seq_start, seq_start]
-    line['flexbounds']['j_r'] = [seq_end, seq_end]
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything

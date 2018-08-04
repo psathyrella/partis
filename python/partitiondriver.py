@@ -1604,7 +1604,7 @@ class PartitionDriver(object):
 
                 if self.args.linearham:
                     # add representative flexbounds/relpos to padded line
-                    utils.add_linearham_info(self.sw_info, uids, padded_line)
+                    utils.add_linearham_info(self.glfo, self.sw_info, uids, padded_line)
 
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
