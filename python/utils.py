@@ -3499,7 +3499,7 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
     return {'gene-counts' : gene_counts, 'annotations' : annotations, 'failures' : failed_queries}
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False):  # '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
+def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False):  # '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -3588,7 +3588,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_inde
     elif action == 'search':
         returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, get_annotations=get_annotations)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
-        if sum(returnfo['gene-counts'].values()) == 0:
+        if sum(returnfo['gene-counts'].values()) == 0 and not expect_failure:
             print '%s vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (color('yellow', 'warning'), cmd)
     else:
         assert False
