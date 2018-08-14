@@ -38,7 +38,6 @@ def process(args):
     args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
     if args.linearham:
        assert args.action == 'partition', '--linearham mode must be run with \'partis partition\''
-       args.extra_annotation_columns = utils.add_lists(args.extra_annotation_columns, ['flexbounds', 'relpos'])
 
     args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify=True)
 

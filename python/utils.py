@@ -1118,26 +1118,120 @@ def re_sort_per_gene_support(line):
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
-def add_linearham_info(glfo, sw_info, query_names, line):
-    """ find the representative query sequence, restrict to non-zero probability flexbounds/relpos values, and add to <line> """
-    # find the "representative" query sequence
-    consensus_seq = ''.join([Counter(site_bases).most_common()[0][0] for site_bases in zip(*line['indel_reversed_seqs'])])
-    dists_to_consensus = [hamming_distance(consensus_seq, seq) for seq in line['indel_reversed_seqs']]
-    query_ind = dists_to_consensus.index(min(dists_to_consensus))
-
-    # restrict flexbounds/relpos to gene matches with non-zero probability
-    line['flexbounds'] = {}
+def add_linearham_info(sw_info, gene_probs, line):
+    """ compute the flexbounds/relpos values and add to <line> """
+    # rank the possible "representative" query sequences
+    cons_seq = ''.join([Counter(site_bases).most_common()[0][0] for site_bases in zip(*line['indel_reversed_seqs'])])
+    dists_to_cons = {line['unique_ids'][i] : hamming_distance(cons_seq, line['indel_reversed_seqs'][i]) for i in range(len(line['unique_ids']))}
     def span(bound_list):
-        return (min(bound_list), max(bound_list))
-    for region in regions:
-        for k in sw_info[query_names[query_ind]]['flexbounds'][region + '_l'].keys():
-            if k not in glfo['seqs'][region]:
-                del sw_info[query_names[query_ind]]['flexbounds'][region + '_l'][k]
-                del sw_info[query_names[query_ind]]['flexbounds'][region + '_r'][k]
-                del sw_info[query_names[query_ind]]['relpos'][k]
-        line['flexbounds'][region + '_l'] = span(sw_info[query_names[query_ind]]['flexbounds'][region + '_l'].values())
-        line['flexbounds'][region + '_r'] = span(sw_info[query_names[query_ind]]['flexbounds'][region + '_r'].values())
-    line['relpos'] = sw_info[query_names[query_ind]]['relpos']
+        return [min(bound_list), max(bound_list)]
+
+    while len(dists_to_cons) > 0:
+        status = 'ok'
+
+        # extract the Smith-Waterman information associated with the current "representative" query sequence
+        query_name = min(dists_to_cons, key=dists_to_cons.get)
+        swfo = sw_info[query_name]
+
+        # 1) restrict flexbounds/relpos to gene matches with non-zero probability
+        # 2) if the left/right flexbounds overlap in a particular region, remove the worst gene matches until the overlap disappears
+        # 3) if neighboring flexbounds overlap across different regions, apportion the flexbounds until the overlap disappears
+        # 4) align the V-entry/J-exit flexbounds to the sequence bounds
+        line['flexbounds'] = {}
+        for region in regions:
+            left_region, right_region = region + '_l', region + '_r'
+
+            # remove the zero-probability gene matches
+            for k in swfo['flexbounds'][left_region].keys():
+                if k not in gene_probs[region].keys():
+                    del swfo['flexbounds'][left_region][k]
+                    del swfo['flexbounds'][right_region][k]
+                    del swfo['relpos'][k]
+                    del swfo['match_scores'][region][k]
+
+            # have all the gene matches been assigned zero probability?
+            if len(swfo['flexbounds'][left_region]) == 0:
+                status = 'nonsense'
+                break
+
+            # calculate the composite gene scores
+            region_gene_probs = {k : gene_probs[region][k] for k in swfo['flexbounds'][left_region].keys()}
+            region_comp_scores = {k : float(region_gene_probs[k]) / max(region_gene_probs.values()) +
+                                      float(swfo['match_scores'][region][k]) / max(swfo['match_scores'][region].values())
+                                  for k in swfo['flexbounds'][left_region].keys()}
+
+            # compute the initial left/right flexbounds
+            line['flexbounds'][left_region] = span(swfo['flexbounds'][left_region].values())
+            line['flexbounds'][right_region] = span(swfo['flexbounds'][right_region].values())
+
+            # make sure there is no overlap between the left/right flexbounds
+            while line['flexbounds'][left_region][1] >= line['flexbounds'][right_region][0]:
+                k = min(region_comp_scores, key=region_comp_scores.get)
+                del swfo['flexbounds'][left_region][k]
+                del swfo['flexbounds'][right_region][k]
+                del swfo['relpos'][k]
+                del region_comp_scores[k]
+                line['flexbounds'][left_region] = span(swfo['flexbounds'][left_region].values())
+                line['flexbounds'][right_region] = span(swfo['flexbounds'][right_region].values())
+
+        if status == 'nonsense':
+            del dists_to_cons[query_name]
+            continue
+
+        line['relpos'] = swfo['relpos']
+
+        # make sure there is no overlap between neighboring flexbounds
+        for rpair in region_pairs():
+            left_region, right_region = rpair['left'] + '_r', rpair['right'] + '_l'
+            leftleft_region, rightright_region = rpair['left'] + '_l', rpair['right'] + '_r'
+
+            left_germ_len = line['flexbounds'][left_region][0] - line['flexbounds'][leftleft_region][1]
+            junction_len = line['flexbounds'][right_region][1] - line['flexbounds'][left_region][0]
+            right_germ_len = line['flexbounds'][rightright_region][0] - line['flexbounds'][right_region][1]
+
+            if junction_len <= 0:
+                line['flexbounds'][left_region][0] = line['flexbounds'][right_region][0]
+                line['flexbounds'][right_region][1] = line['flexbounds'][left_region][1]
+
+                left_germ_len = line['flexbounds'][left_region][0] - line['flexbounds'][leftleft_region][1]
+                junction_len = line['flexbounds'][right_region][1] - line['flexbounds'][left_region][0]
+                right_germ_len = line['flexbounds'][rightright_region][0] - line['flexbounds'][right_region][1]
+
+                # are the neighboring flexbounds even fixable?
+                if left_germ_len <= 0 or right_germ_len <= 0:
+                    status = 'nonsense'
+                    break
+
+            # are the neighboring flexbounds both 0-length?
+            if junction_len == 0:
+                if rpair['left'] == 'v':
+                    if right_germ_len > 1:
+                        line['flexbounds'][right_region][0] += 1
+                        line['flexbounds'][right_region][1] += 1
+                    else:
+                        line['flexbounds'][left_region][0] -= 1
+                        line['flexbounds'][left_region][1] -= 1
+                else:
+                    assert rpair['right'] == 'j'
+                    if left_germ_len > 1:
+                        line['flexbounds'][left_region][0] -= 1
+                        line['flexbounds'][left_region][1] -= 1
+                    else:
+                        line['flexbounds'][right_region][0] += 1
+                        line['flexbounds'][right_region][1] += 1
+
+        if status == 'nonsense':
+            del dists_to_cons[query_name]
+            continue
+
+        # align the V-entry/J-exit flexbounds to the possible sequence positions
+        line['flexbounds']['v_l'][0] = 0
+        line['flexbounds']['j_r'][1] = len(swfo['seqs'][0])  # remember 'seqs' refers to indel-reversed sequences so they're all the same length
+
+        assert status == 'ok'
+        break
+
+    return status
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
