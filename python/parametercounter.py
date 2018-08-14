@@ -151,7 +151,8 @@ class ParameterCounter(object):
         start = time.time()
 
         if os.path.exists(base_outdir + '/' + glutils.glfo_dir):
-            glutils.remove_glfo_files(base_outdir + '/' + glutils.glfo_dir, self.glfo['locus'])  # NOTE I think this will fail if I ever start having multiple loci in one dir
+            for tmploc in [l for l in utils.loci if os.path.exists(base_outdir + '/' + glutils.glfo_dir + '/' + l)]:
+                glutils.remove_glfo_files(base_outdir + '/' + glutils.glfo_dir, tmploc, print_warning=False)
         utils.prep_dir(base_outdir, subdirs=('hmms', 'mute-freqs', glutils.glfo_dir), wildlings=('*.csv', '*.yaml', '*.fasta'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
 
         self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files)
