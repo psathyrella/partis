@@ -665,7 +665,7 @@ class PartitionDriver(object):
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
-            # If we're in linearham mode, write the indel-reversed partition sequences to fasta files
+            # if we're in linearham mode, write the indel-reversed partition sequences to fasta files
             if self.args.linearham and action_cache == 'partition':
                 utils.write_linearham_seqs(self.args.outfname, best_annotations.values())
 
@@ -1562,6 +1562,10 @@ class PartitionDriver(object):
         true_pcounter = ParameterCounter(self.simglfo, self.args) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter('hmm') if self.args.plot_annotation_performance else None
 
+        if self.args.linearham and self.current_action != 'cache-parameters':
+            # extract the HMM gene probabilities
+            gene_probs = utils.read_overall_gene_probs(self.hmm_param_dir)
+
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
         at_least_one_mult_hmm_line = False
         eroded_annotations, padded_annotations = OrderedDict(), OrderedDict()
@@ -1602,9 +1606,12 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
-                if self.args.linearham:
-                    # add representative flexbounds/relpos to padded line
-                    utils.add_linearham_info(self.glfo, self.sw_info, uids, padded_line)
+                if self.args.linearham and self.current_action != 'cache-parameters':
+                    # add flexbounds/relpos to padded line
+                    status = utils.add_linearham_info(self.sw_info, gene_probs, padded_line)
+                    if status == 'nonsense':
+                        hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
+                        continue
 
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
@@ -1619,7 +1626,7 @@ class PartitionDriver(object):
                     print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
-                if len(uids) > 1 or self.args.linearham:  # if there's more than one sequence (or we're in linearham mode), we need to use the padded line
+                if len(uids) > 1 or (self.args.linearham and self.current_action != 'cache-parameters'):  # if there's more than one sequence (or we're in linearham mode), we need to use the padded line
                     at_least_one_mult_hmm_line = True
                     line_to_use = padded_line
                 else:  # otherwise, the eroded line is kind of simpler to look at
@@ -1759,6 +1766,8 @@ class PartitionDriver(object):
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(self.input_info) < 500) else 'best'))
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
+        if self.args.linearham and self.current_action != 'cache-parameters':
+            headers = utils.add_lists(headers, ['flexbounds', 'relpos'])
         if utils.getsuffix(self.args.outfname) == '.csv':
             if cpath is not None:
                 cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)
