@@ -1228,6 +1228,7 @@ def add_linearham_info(sw_info, gene_probs, line):
         line['flexbounds']['v_l'][0] = 0
         line['flexbounds']['j_r'][1] = len(swfo['seqs'][0])  # remember 'seqs' refers to indel-reversed sequences so they're all the same length
 
+        assert status == 'ok'
         break
 
     return status
