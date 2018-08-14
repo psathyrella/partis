@@ -299,6 +299,8 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'full_coding_input_seqs',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 sw_cache_headers = [h for h in annotation_headers if h not in [r + '_per_gene_support' for r in regions]] + ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
+linearham_headers = ['flexbounds', 'relpos']
+sw_linearham_headers = [h for h in linearham_headers] + ['match_scores']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
 bcrham_dbgstrs = {
     'partition' : {  # corresponds to stdout from glomerator.cc

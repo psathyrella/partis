@@ -174,7 +174,7 @@ class Waterer(object):
         # NOTE does *not* write failed queries also
         headers = utils.sw_cache_headers
         if self.args.linearham:
-            headers = utils.add_lists(headers, ['flexbounds', 'relpos', 'match_scores'])
+            headers = utils.add_lists(headers, utils.sw_linearham_headers)
         utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers)
 
     # ----------------------------------------------------------------------------------------

@@ -1767,7 +1767,7 @@ class PartitionDriver(object):
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
         if self.args.linearham and self.current_action != 'cache-parameters':
-            headers = utils.add_lists(headers, ['flexbounds', 'relpos'])
+            headers = utils.add_lists(headers, utils.linearham_headers)
         if utils.getsuffix(self.args.outfname) == '.csv':
             if cpath is not None:
                 cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)
