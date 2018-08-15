@@ -43,6 +43,14 @@ def simulate(stype):
 
   utils.simplerun(cmd, shell=True, debug=True) #, dryrun=True)
 
+  # for now, just rename the naive sequence, since calling it 'naive' causes cft to crash
+  seqfos = utils.read_fastx(simfname(stype))
+  with open(simfname(stype), 'w') as simfile:
+    for sfo in seqfos:
+      if sfo['name'] == 'naive':
+        sfo['name'] = 'bcr-phylo-naive'
+      simfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
+
   if stype == 'selection':  # extract kd values from pickle file (since it requires ete/anaconda to read)
     cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/view-trees.py %s/%s_lineage_tree.p %s/kd-vals.csv' % (ete_path, simdir(stype), extrastr, simdir(stype))
     utils.simplerun(cmd, shell=True)
@@ -56,6 +64,6 @@ def partition(stype):
     utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 for stype in ['selection', 'neutral']:
-    # simulate(stype)
-    partition(stype)
+    simulate(stype)
+    # partition(stype)
     break
