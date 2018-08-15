@@ -13,9 +13,9 @@ bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
 
 # ----------------------------------------------------------------------------------------
 def simdir(stype):
-  return '%s/%s' % (base_outdir, stype)
+  return '%s/bcr-phylo-%s' % (base_outdir, stype)
 def plotdir(stype):
-  return '%s/partis/tmp/%s' % (os.getenv('fs'), stype)
+  return '%s/partis/bcr-phylo-%s' % (os.getenv('fs'), stype)
 def simfname(stype):
   return '%s/%s.fasta' % (simdir(stype), extrastr)
 
@@ -49,13 +49,13 @@ def simulate(stype):
 
 # ----------------------------------------------------------------------------------------
 def partition(stype):
-    # cmd = './bin/partis cache-parameters --infname %s --n-procs 8' % simfname(stype)
-    # cmd = './bin/partis partition --infname %s --plotdir %s --n-procs 8 --outfname %s/partition.csv' % (simfname(stype), plotdir(stype), simdir(stype))
-    # cmd = './bin/partis plot-partitions --plotdir %s --outfname %s/partition.csv' % (plotdir(stype), simdir(stype))
-    cmd = './bin/partis view-output --outfname %s/partition.csv --abb --parameter-dir _output/%s' % (simdir(stype), simfname(stype)[ : simfname(stype).rfind('.')].replace('/', '_'))
+    # cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs 8' % (simfname(stype), simdir(stype))
+    # cmd = './bin/partis partition --infname %s --parameter-dir %s/params --plotdir %s --n-procs 8 --outfname %s/partition.yaml' % (simfname(stype), simdir(stype), plotdir(stype), simdir(stype))
+    # cmd = './bin/partis plot-partitions --plotdir %s --outfname %s/partition.yaml' % (plotdir(stype), simdir(stype))
+    cmd = './bin/partis view-output --outfname %s/partition.yaml --abb' % simdir(stype)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 for stype in ['selection', 'neutral']:
-    simulate(stype)
-    # partition(stype)
+    # simulate(stype)
+    partition(stype)
     break
