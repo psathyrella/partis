@@ -968,7 +968,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
         raise Exception('unexpected file(s) while writing germline set: %s' % (' '.join(unexpected_files)))
 
 # ----------------------------------------------------------------------------------------
-def remove_glfo_files(gldir, locus):
+def remove_glfo_files(gldir, locus, print_warning=True):
     locusdir = gldir + '/' + locus
     if not os.path.exists(locusdir):
         # print '    %s tried to remove nonexistent glfo dir %s' % (utils.color('yellow', 'warning'), locusdir)  # this seems to only happen when something crashed in the middle, i.e. this code is old/mature enough I'm commenting the check
@@ -983,7 +983,8 @@ def remove_glfo_files(gldir, locus):
         if os.path.exists(fname):
             os.remove(fname)
         else:
-            print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), fname)
+            if print_warning:
+                print '    %s tried to remove non-existent glfo file %s' % (utils.color('yellow', 'warning'), fname)
     os.rmdir(locusdir)
     if len(os.listdir(gldir)) == 0:  # if there aren't any other locus dirs in here, remove the parent dir as well
         os.rmdir(gldir)
