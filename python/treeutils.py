@@ -1,4 +1,7 @@
 from cStringIO import StringIO
+import subprocess
+import tempfile
+import os
 import numpy
 import sys
 
@@ -89,7 +92,7 @@ def rescale_tree(treestr, new_height, debug=False):
     return treestr
 
 # ----------------------------------------------------------------------------------------
-def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name='X-naive-X', debug=False):
+def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name='XnaiveX', debug=False):  # baltic barfs on (some) dashes
     if 'dendropy' not in sys.modules:
         import dendropy
     dendropy = sys.modules['dendropy']
