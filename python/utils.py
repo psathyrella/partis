@@ -1125,6 +1125,7 @@ def add_linearham_info(sw_info, gene_probs, line):
     # rank the possible "representative" query sequences
     cons_seq = ''.join([Counter(site_bases).most_common()[0][0] for site_bases in zip(*line['indel_reversed_seqs'])])
     dists_to_cons = {line['unique_ids'][i] : hamming_distance(cons_seq, line['indel_reversed_seqs'][i]) for i in range(len(line['unique_ids']))}
+
     def span(bound_list):
         return [min(bound_list), max(bound_list)]
 
@@ -1229,6 +1230,16 @@ def add_linearham_info(sw_info, gene_probs, line):
         # align the V-entry/J-exit flexbounds to the possible sequence positions
         line['flexbounds']['v_l'][0] = 0
         line['flexbounds']['j_r'][1] = len(swfo['seqs'][0])  # remember 'seqs' refers to indel-reversed sequences so they're all the same length
+
+        # are the V-entry/J-exit flexbounds valid?
+        for region in ['v_l', 'j_r']:
+            if line['flexbounds'][region][1] - line['flexbounds'][region][0] < 0:
+                status = 'nonsense'
+                break
+
+        if status == 'nonsense':
+            del dists_to_cons[query_name]
+            continue
 
         assert status == 'ok'
         break
