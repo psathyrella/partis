@@ -1,89 +1,16 @@
 #!/usr/bin/env python
-""" Read the inferred tree parameters from Connor's json files, and generate a bunch of trees to later sample from. """
-
 import sys
 import os
 import re
 import random
-import json
 import numpy
 import math
-from cStringIO import StringIO
 import tempfile
 from subprocess import check_call
-import baltic
 
 from hist import Hist
 import utils
-
-# ----------------------------------------------------------------------------------------
-# two classes to work around the fact baltic doesn't yet support one-leaf trees
-class TinyLeaf(object):
-    def __init__(self, name, length, height):
-        self.name = name
-        self.numName = self.name
-        self.length = length
-        self.height = height
-        self.branchType = 'leaf'
-
-class OneLeafTree(object):
-    def __init__(self, name, height):
-        self.leaves = [TinyLeaf(name, height, height)]
-        self.Objects = self.leaves
-    def traverse_tree(self):
-        self.leaves[0].height = self.leaves[0].length
-    def toString(self, numName=None):
-        return '%s:%.15f;' % (self.leaves[0].name, self.leaves[0].length)
-
-# ----------------------------------------------------------------------------------------
-def get_ascii_tree(treestr, extra_str='', width=100):
-    if get_mean_height(treestr) == 0.:  # we really want the max height, but since we only care whether it's zero or not this is the same
-        return '%szero height' % extra_str
-    elif get_n_leaves(treestr) > 1:  # if more than one leaf
-        if 'Bio.Phylo' not in sys.modules:  # NOTE dendropy seems a lot nicer... use that for new stuff
-            from Bio import Phylo
-        tmpf = StringIO()
-        sys.modules['Bio.Phylo'].draw_ascii(sys.modules['Bio.Phylo'].read(StringIO(treestr), 'newick'), file=tmpf, column_width=width)
-        return '\n'.join(['%s%s' % (extra_str, line) for line in tmpf.getvalue().split('\n')])
-    else:
-        return '%sone leaf' % extra_str
-
-# ----------------------------------------------------------------------------------------
-def get_btree(treestr):
-    if treestr.count(':') == 1:  # one-leaf tree
-        name, lengthstr = treestr.strip().rstrip(';').split(':')
-        tree = OneLeafTree(name, float(lengthstr))
-    else:
-        tree = baltic.tree()
-        baltic.make_tree(treestr, tree, verbose=False)
-    tree.traverse_tree()
-    return tree
-# ----------------------------------------------------------------------------------------
-def get_n_leaves(treestr):
-    return len(get_btree(treestr).leaves)
-
-# ----------------------------------------------------------------------------------------
-def get_mean_height(treestr):
-    tree = get_btree(treestr)
-    heights = [l.height for l in tree.leaves]
-    return sum(heights) / len(heights)
-
-# ----------------------------------------------------------------------------------------
-def rescale_tree(treestr, new_height, debug=False):
-    """ rescale the branch lengths in <treestr> (newick-formatted) by <factor> """
-    tree = get_btree(treestr)
-    mean_height = get_mean_height(treestr)
-    for ln in tree.Objects:
-        old_length = ln.length
-        ln.length *= new_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
-        if debug:
-            print '  %5s  %7e  -->  %7e' % (ln.numName if ln.branchType == 'leaf' else ln.branchType, old_length, ln.length)
-    tree.traverse_tree()
-    treestr = tree.toString(numName=True)
-    for leaf in get_btree(treestr).leaves:  # make sure string conversion (and rescaling) went ok
-        if not utils.is_normed(leaf.height / new_height, this_eps=1e-8):
-            raise Exception('tree not rescaled properly:   %.10f   %.10f    %e' % (leaf.height, new_height, (leaf.height - new_height) / new_height))
-    return treestr
+import treeutils
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):
@@ -170,7 +97,7 @@ class TreeGenerator(object):
 
         # then rescale branch lengths (TreeSim lets you specify the number of leaves and the height at the same time, but TreeSimGM doesn't, and TreeSim's numbers are usually a little off anyway... so we rescale everybody)
         for itree in range(len(ages)):
-            treestrs[itree] = rescale_tree(treestrs[itree], ages[itree])
+            treestrs[itree] = treeutils.rescale_tree(treestrs[itree], ages[itree])
 
         # print some summary information
         if self.args.debug:
@@ -178,7 +105,7 @@ class TreeGenerator(object):
                 print '        n-leaves       height'
             heights, n_leaves = [], []  # just for debug printing
             for itree in range(len(ages)):
-                tree = get_btree(treestrs[itree])
+                tree = treeutils.get_baltic_tree(treestrs[itree])
                 heights.append(sum([l.height for l in tree.leaves]) / len(tree.leaves))  # mean height -- should be the same for all of them though
                 n_leaves.append(len(tree.leaves))
                 if self.args.debug > 1:
