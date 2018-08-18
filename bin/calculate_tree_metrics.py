@@ -21,12 +21,12 @@ args = parser.parse_args()
 
 tree = treeutils.get_bio_tree(treefname=args.treefile)
 
-# treeutils.calculate_LBI(tree)
-# sys.exit()
+treeutils.calculate_LBI(tree, debug=True)
+sys.exit()
 
-print treeutils.get_ascii_tree(treeutils.get_treestr(args.treefile))
-dendro_tree = treeutils.get_dendro_tree(treefname=args.treefile)
-dendro_tree.reroot_at_node(dendro_tree.find_node_with_taxon_label(args.naive_seq_name), update_bipartitions=True)
-# print dendro_tree.as_ascii_plot(width=100)  # why tf does this show them as all the same depth?
-treestr = dendro_tree.as_string(schema='newick')  #, suppress_rooting=True)
-print treeutils.get_ascii_tree(treestr)
+# print treeutils.get_ascii_tree(treeutils.get_treestr(args.treefile))
+# dendro_tree = treeutils.get_dendro_tree(treefname=args.treefile)
+# dendro_tree.reroot_at_node(dendro_tree.find_node_with_taxon_label(args.naive_seq_name), update_bipartitions=True)
+# # print dendro_tree.as_ascii_plot(width=100)  # why tf does this show them as all the same depth?
+# treestr = dendro_tree.as_string(schema='newick')  #, suppress_rooting=True)
+# print treeutils.get_ascii_tree(treestr)

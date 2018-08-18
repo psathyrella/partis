@@ -153,15 +153,34 @@ def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name=
         print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
 # ----------------------------------------------------------------------------------------
+# copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
+# NOTE changing this so it justs sets everybody to alive for now
+def select_nodes_in_season(tree):  # , timepoint, time_window=0.6, **kwargs):
+    """Annotate a boolean to each node in the tree if it is alive at the given
+    timepoint or prior to the timepoint by the given time window preceding.
+
+    This annotation is used by the LBI and epitope cross-immunity predictors.
+    """
+    for node in tree.find_clades(order="postorder"):
+        node.alive = True
+        # if node.is_terminal():
+        #     if node.attr['num_date'] <= timepoint and node.attr['num_date'] > timepoint - time_window:
+        #         node.alive=True
+        #     else:
+        #         node.alive=False
+        # else:
+        #     node.alive = any(ch.alive for ch in node.clades)
+
+# ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py 
-def calculate_LBI(tree, attr="lbi", tau=0.4, transform=lambda x:x, **kwargs):
+def calculate_LBI(tree, tau=0.4, transform=lambda x:x, debug=False):
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted 
     by distance, then adds them as LBI.
     tree     -- biopython tree for whose node the LBI is being computed
-    attr     -- the attribute name used to store the result
     """
 
+    select_nodes_in_season(tree)  # just sets them all to alive a.t.m., since we don't really have an analogue to seasons
     depths = tree.depths()
 
     # Calculate clock length.
@@ -169,7 +188,6 @@ def calculate_LBI(tree, attr="lbi", tau=0.4, transform=lambda x:x, **kwargs):
     for node in tree.find_clades():
         for child in node.clades:
             child.clock_length = depths[child] - depths[node]
-    assert False
 
     # traverse the tree in postorder (children first) to calculate msg to parents
     for node in tree.find_clades(order="postorder"):
@@ -200,11 +218,14 @@ def calculate_LBI(tree, attr="lbi", tau=0.4, transform=lambda x:x, **kwargs):
         for child in node.clades:
             tmp_LBI += child.up_polarizer
 
-        node.attr[attr] = transform(tmp_LBI)
-        if node.attr[attr] > max_LBI:
-            max_LBI = node.attr[attr]
+        node.lbi = transform(tmp_LBI)
+        if node.lbi > max_LBI:
+            max_LBI = node.lbi
 
     # Normalize LBI to range [0, 1].
     for node in tree.find_clades():
-        node.attr[attr] /= max_LBI
-        setattr(node, attr, node.attr[attr])
+        node.lbi /= max_LBI
+
+    if debug:
+        for node in tree.find_clades():
+            print '  %20s  %8.3f' % (node.name, node.lbi)
