@@ -33,7 +33,10 @@ def glfo_fasta_fnames(gldir, locus):
     return [get_fname(gldir, locus, r) for r in utils.getregions(locus)]
 def glfo_fnames(gldir, locus):
     return [get_extra_fname(gldir, locus), ] + glfo_fasta_fnames(gldir, locus)
-def functionality_fname(species, gldir=None):  # _not_ generally present (but needs to be present at the moment)
+def functionality_fname(species=None, gldir=None):  # _not_ generally present (but needs to be present at the moment)
+    if species is None:
+        species = 'human'
+        print '  %s using default species %s for functionality file' % (utils.color('yellow', 'warning'), species)
     if gldir is None:
         gldir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
     return '%s/data/germlines/%s/functionalities.csv' % (gldir, species)
@@ -528,7 +531,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
         orfs_removed = {r : [] for r in utils.regions}
         assert len(glfo['functionalities']) == 0
         func_info = {}  # keep them in a spaerate dict so it's easier to loop over the genes in the glfo (to ensure they're all in the functionality file)
-        with open(functionality_fname(os.path.basename(gldir))) as ffile:  # using basename() to get the species is hackey... but it'll typically work in the (rare) situations where this code'll get called
+        with open(functionality_fname(species=None, gldir=None)) as ffile:  # using basename() to get the species is hackey... but it'll typically work in the (rare) situations where this code'll get called
             reader = csv.DictReader(ffile)
             for line in reader:
                 func_info[line['gene']] = line['functionality']
