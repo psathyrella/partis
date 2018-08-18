@@ -25,5 +25,6 @@ testopts="--n-tests 1 --n-procs-per-test 2 --no-slurm"
 label=gls-gen-paper-v11
 # label=v+1  # just for running on davide-gl-valid
 # $cmd data --label $label $testopts --n-random-queries 5000  # laptop
-echo $cmd data --label $label --n-procs-per-test 15 --dry
+# $cmd data --label $label --n-procs-per-test 15 --dry
 # $cmd data --label $label --methods partis:tigger-default:igdiscover --plot --method-vs-method #--plotcache
+# $cmd data --label $label --write-zenodo-files --methods igdiscover:tigger-default:partis
