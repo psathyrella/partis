@@ -4,6 +4,7 @@ import tempfile
 import os
 import numpy
 import sys
+import dendropy
 
 import baltic
 import utils
@@ -40,7 +41,7 @@ def get_bio_tree(treestr=None, treefname=None):
         assert False
 
 # ----------------------------------------------------------------------------------------
-def get_baltic_tree(treestr):
+def get_baltic_tree(treestr):  # NOTE trying to use dendropy in future, it seems the nicest tree handler
     if treestr.count(':') == 1:  # one-leaf tree
         name, lengthstr = treestr.strip().rstrip(';').split(':')
         tree = OneLeafTree(name, float(lengthstr))
@@ -49,6 +50,25 @@ def get_baltic_tree(treestr):
         baltic.make_tree(treestr, tree, verbose=False)
     tree.traverse_tree()
     return tree
+
+# ----------------------------------------------------------------------------------------
+# this is mostly just a placeholder to remind you how to get the depths for each kind of tree
+def get_depths(treestr, treetype):  # NOTE structure of dictionary may depend on <treetype>, e.g. whether non-named nodes are included (maybe it doesn't any more? unless you return <clade_keyed_depths> at least)
+    if treetype == 'dendropy':
+        tree = dendropy.Tree.get_from_string(treestr, 'newick')
+        depths = {str(n.taxon).strip('\'') : n.distance_from_root() for n in tree if n.taxon is not None}
+    elif treetype == 'baltic':
+        tree = get_baltic_tree(treestr)
+        assert False  # l.label doesn't seem to be set. Not sure why tf not
+        depths = {l.label : l.height for l in tree.leaves}
+    elif treetype == 'Bio':
+        tree = get_bio_tree(treestr=treestr)
+        clade_keyed_depths = tree.depths()  # keyed by clade, not clade name (so unlabelled nodes are accessible)
+        depths = {n.name : clade_keyed_depths[n] for n in tree.find_clades()}
+    else:
+        assert False
+
+    return depths
 
 # ----------------------------------------------------------------------------------------
 def get_n_leaves(treestr):
@@ -97,7 +117,7 @@ def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name=
         import dendropy
     dendropy = sys.modules['dendropy']
 
-    taxon_namespace = dendropy.TaxonNamespace()
+    taxon_namespace = dendropy.TaxonNamespace()  # in order to compare two trees with the metrics below, the trees have to have the same taxon namespace
     with tempfile.NamedTemporaryFile() as tmpfile:
         tmpfile.write('>%s\n%s\n' % (naive_seq_name, naive_seq))
         for iseq in range(len(leafseqs)):
@@ -105,7 +125,7 @@ def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name=
         tmpfile.flush()  # BEWARE if you forget this you are fucked
         with open(os.devnull, 'w') as fnull:
             out_tree = subprocess.check_output('./bin/FastTree -gtr -nt ' + tmpfile.name, shell=True, stderr=fnull)
-        out_dtree = dendropy.Tree.get_from_string(out_tree, 'newick', taxon_namespace=taxon_namespace)
+        out_dtree = dendropy.Tree.get_from_string(out_tree, 'newick', taxon_namespace=taxon_namespace)  # see note above
         out_dtree.reroot_at_node(out_dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
         out_tree = out_dtree.as_string(schema='newick', suppress_rooting=True)
 
@@ -118,7 +138,7 @@ def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name=
     print '    %s' % utils.color('blue', 'output:')
     print get_ascii_tree(out_tree, extra_str='        ', width=int(base_width*out_height/in_height))
 
-    in_dtree = dendropy.Tree.get_from_string(in_tree, 'newick', taxon_namespace=taxon_namespace)
+    in_dtree = dendropy.Tree.get_from_string(in_tree, 'newick', taxon_namespace=taxon_namespace)  # see note above
 
     if debug:
         print '                   heights: %.3f   %.3f' % (in_height, out_height)
@@ -130,17 +150,20 @@ def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name=
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py 
 def calculate_LBI(tree, attr="lbi", tau=0.4, transform=lambda x:x, **kwargs):
     """
-    traverses the tree in postorder and preorder to calculate the
-    up and downstream tree length exponentially weighted by distance.
-    then adds them as LBI
+    traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted 
+    by distance, then adds them as LBI.
     tree     -- biopython tree for whose node the LBI is being computed
     attr     -- the attribute name used to store the result
     """
+
+    depths = tree.depths()
+
     # Calculate clock length.
     tree.root.clock_length = 0.0
     for node in tree.find_clades():
         for child in node.clades:
-            child.clock_length = child.attr['num_date'] - node.attr['num_date']
+            child.clock_length = depths[child] - depths[node]
+    assert False
 
     # traverse the tree in postorder (children first) to calculate msg to parents
     for node in tree.find_clades(order="postorder"):
