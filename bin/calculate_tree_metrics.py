@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 import sys
 import time
-from cStringIO import StringIO
-import Bio.Phylo
 import argparse
+import dendropy
 import os
 
 # start = time.time()
@@ -17,28 +16,17 @@ import treeutils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('treefile')
+parser.add_argument('--naive-seq-name', required=True)
 args = parser.parse_args()
 
 tree = treeutils.get_bio_tree(treefname=args.treefile)
 
-treeutils.calculate_LBI(tree)
-sys.exit()
-# ----------------------------------------------------------------------------------------
+# treeutils.calculate_LBI(tree)
+# sys.exit()
 
-import dendropy
-with open(args.treefile) as treefile:
-    treestr = '\n'.join(treefile.readlines())
-# dendro_tree = dendropy.Tree.get_from_string(treestr, 'newick')
-# dendro_depths = {str(n.taxon).strip('\'') : n.distance_from_root() for n in dendro_tree if n.taxon is not None}
-# dendro_depths = treeutils.get_depths(treestr, 'dendropy')
-
-# out_dtree.reroot_at_node(out_dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
-# out_tree = out_dtree.as_string(schema='newick', suppress_rooting=True)
-
-dendro_depths = treeutils.get_depths(treestr, 'Bio')
-depths = tree.depths()  # keyed by clade, not clade name
-for node in tree.find_clades():
-    node.num_date = depths[node]
-    if node.name is not None:
-        print '%20s  %16.18f   %16.18f %s' % (node.name, depths[node], dendro_depths[node.name], utils.color('red', 'x',) if depths[node] != dendro_depths[node.name] else '')
-sys.exit()
+print treeutils.get_ascii_tree(treeutils.get_treestr(args.treefile))
+dendro_tree = treeutils.get_dendro_tree(treefname=args.treefile)
+dendro_tree.reroot_at_node(dendro_tree.find_node_with_taxon_label(args.naive_seq_name), update_bipartitions=True)
+# print dendro_tree.as_ascii_plot(width=100)  # why tf does this show them as all the same depth?
+treestr = dendro_tree.as_string(schema='newick')  #, suppress_rooting=True)
+print treeutils.get_ascii_tree(treestr)

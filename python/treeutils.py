@@ -28,8 +28,19 @@ class OneLeafTree(object):
         return '%s:%.15f;' % (self.leaves[0].name, self.leaves[0].length)
 
 # ----------------------------------------------------------------------------------------
-def get_bio_tree(treestr=None, treefname=None):
-    if 'Bio.Phylo' not in sys.modules:  # NOTE dendropy seems a lot nicer... use that for new stuff
+def get_treestr(treefname):
+    with open(treefname) as treefile:
+        return '\n'.join(treefile.readlines())
+
+# ----------------------------------------------------------------------------------------
+def get_dendro_tree(treestr=None, treefname=None):  # specify one or the other
+    if treestr is None:
+        treestr = get_treestr(treefname)
+    return dendropy.Tree.get_from_string(treestr, 'newick')
+
+# ----------------------------------------------------------------------------------------
+def get_bio_tree(treestr=None, treefname=None):  # NOTE dendropy seems a lot nicer... use that for new stuff
+    if 'Bio.Phylo' not in sys.modules:
         from Bio import Phylo
     Phylo = sys.modules['Bio.Phylo']
     if treestr is not None:
@@ -72,12 +83,11 @@ def get_depths(treestr, treetype):  # NOTE structure of dictionary may depend on
 
 # ----------------------------------------------------------------------------------------
 def get_n_leaves(treestr):
-    return len(get_baltic_tree(treestr).leaves)
+    return len(get_dendro_tree(treestr).leaf_nodes())
 
 # ----------------------------------------------------------------------------------------
 def get_mean_height(treestr):
-    tree = get_baltic_tree(treestr)
-    heights = [l.height for l in tree.leaves]
+    heights = get_depths(treestr, 'dendropy').values()
     return sum(heights) / len(heights)
 
 # ----------------------------------------------------------------------------------------
@@ -113,10 +123,6 @@ def rescale_tree(treestr, new_height, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name='XnaiveX', debug=False):  # baltic barfs on (some) dashes
-    if 'dendropy' not in sys.modules:
-        import dendropy
-    dendropy = sys.modules['dendropy']
-
     taxon_namespace = dendropy.TaxonNamespace()  # in order to compare two trees with the metrics below, the trees have to have the same taxon namespace
     with tempfile.NamedTemporaryFile() as tmpfile:
         tmpfile.write('>%s\n%s\n' % (naive_seq_name, naive_seq))
