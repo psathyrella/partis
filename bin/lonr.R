@@ -1,9 +1,9 @@
 
 # imports
-require(seqinr)
-require(Biostrings)
+suppressPackageStartupMessages(require(seqinr, quietly=TRUE, warn.conflicts=FALSE))
+suppressPackageStartupMessages(require(Biostrings, quietly=TRUE, warn.conflicts=FALSE))
 
-PHYLIP.PATH <- '/Phylip/phylip-3.695/exe/'
+PHYLIP.PATH <- ''  # empty string works fine if it's in your path '/Phylip/phylip-3.695/exe/'
 
 MIN.SEQ <- 3
 MID.SEQ <- 100
@@ -82,7 +82,7 @@ run.dnapars <- function( file.name, in.dir, phylip.path, outgroup.ind ){
     pars.options <- c(paste0(file.name, '.phy'), 'V', '1', '5', '.', '2', 'Y')
   
   # run dnapars
-  system2('dnapars', input=pars.options, stdout=NULL)
+  system2('phylip', args='dnapars', input=pars.options, stdout=NULL)  # not sure why this was just calling 'dnapars'? my phylip install doesn't seem to have put dnapars in my path
   
   # move .phy file and output tree files
   file.rename(from=paste0(phylip.path, file.name, '.phy'), to=paste0(in.dir, file.name, '.phy'))

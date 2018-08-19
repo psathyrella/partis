@@ -43,9 +43,6 @@ def run_lonr(args):
     # ]
     # utils.run_r(rcmds, workdir)
 
-    # cmdstr = 'R --slave -f %s/lonr.R' % args.lonr_dir
-    # utils.simplerun(cmdstr, debug=True)
-
     r_in_dir = workdir + '/in'
     r_out_dir = workdir + '/out'
     os.makedirs(r_in_dir)
@@ -56,7 +53,6 @@ def run_lonr(args):
         'compute.LONR("%s/", "%s/", "%s")' % (r_in_dir, r_out_dir, os.path.basename(args.seqfile)),
     ]
     utils.run_r(rcmds, workdir, debug=True)
-
 
     os.rmdir(workdir)
 
