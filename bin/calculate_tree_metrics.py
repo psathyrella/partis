@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import random
 import sys
 import time
 import argparse
@@ -14,23 +15,59 @@ sys.path.insert(1, partis_dir + '/packages/baltic')
 import utils
 import treeutils
 
+# ----------------------------------------------------------------------------------------
+def run_lbi(args):
+    if args.reroot_at_naive:
+        assert args.naive_seq_name is not None
+        print treeutils.get_ascii_tree(treeutils.get_treestr(args.treefile))
+        dendro_tree = treeutils.get_dendro_tree(treefname=args.treefile)
+        dendro_tree.reroot_at_node(dendro_tree.find_node_with_taxon_label(args.naive_seq_name), update_bipartitions=True)
+        # print dendro_tree.as_ascii_plot(width=100)  # why tf does this show them as all the same depth?
+        treestr = dendro_tree.as_string(schema='newick')  #, suppress_rooting=True)
+        print treeutils.get_ascii_tree(treestr)
+        bio_tree = treeutils.get_bio_tree(treestr=treestr)
+    else:
+        bio_tree = treeutils.get_bio_tree(treefname=args.treefile)
+
+    treeutils.calculate_LBI(bio_tree, debug=True)
+
+# ----------------------------------------------------------------------------------------
+def run_lonr(args):
+    workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0,999999))
+    os.makedirs(workdir)
+
+    # rcmds = [
+    #     'source("https://bioconductor.org/biocLite.R")',
+    #     'biocLite("Biostrings")',
+    #     'install.packages("seqinr", repos="http://cran.rstudio.com/")',
+    # ]
+    # utils.run_r(rcmds, workdir)
+
+    # cmdstr = 'R --slave -f %s/lonr.R' % args.lonr_dir
+    # utils.simplerun(cmdstr, debug=True)
+
+    r_in_dir = workdir + '/in'
+    r_out_dir = workdir + '/out'
+    os.makedirs(r_in_dir)
+    os.makedirs(r_out_dir)
+    utils.simplerun('cp %s %s/' % (args.seqfile, r_in_dir))
+    rcmds = [
+        'source("%s/lonr.R")' % args.lonr_dir,
+        'compute.LONR("%s/", "%s/", "%s")' % (r_in_dir, r_out_dir, os.path.basename(args.seqfile)),
+    ]
+    utils.run_r(rcmds, workdir, debug=True)
+
+
+    os.rmdir(workdir)
+
 parser = argparse.ArgumentParser()
-parser.add_argument('infile', help='input tree file name in newick format')
-parser.add_argument('outfile', help='output file name in yaml format')
+parser.add_argument('--treefile', help='input tree file name in newick format')
+parser.add_argument('--seqfile', help='input fasta file with aligned sequences corresponding to <treefile>')
+parser.add_argument('--outfile', help='output file name in yaml format')
 parser.add_argument('--naive-seq-name')
 parser.add_argument('--reroot-at-naive', action='store_true')
+parser.add_argument('--lonr-dir', default=partis_dir + '/bin')
 args = parser.parse_args()
 
-if args.reroot_at_naive:
-    assert args.naive_seq_name is not None
-    print treeutils.get_ascii_tree(treeutils.get_treestr(args.infile))
-    dendro_tree = treeutils.get_dendro_tree(treefname=args.infile)
-    dendro_tree.reroot_at_node(dendro_tree.find_node_with_taxon_label(args.naive_seq_name), update_bipartitions=True)
-    # print dendro_tree.as_ascii_plot(width=100)  # why tf does this show them as all the same depth?
-    treestr = dendro_tree.as_string(schema='newick')  #, suppress_rooting=True)
-    print treeutils.get_ascii_tree(treestr)
-    bio_tree = treeutils.get_bio_tree(treestr=treestr)
-else:
-    bio_tree = treeutils.get_bio_tree(treefname=args.infile)
-
-treeutils.calculate_LBI(bio_tree, debug=True)
+# run_lbi(args)
+run_lonr(args)

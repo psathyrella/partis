@@ -1,0 +1,954 @@
+
+# imports
+require(seqinr)
+require(Biostrings)
+
+PHYLIP.PATH <- '/Phylip/phylip-3.695/exe/'
+
+MIN.SEQ <- 3
+MID.SEQ <- 100
+MAX.SEQ <- 7000
+
+# Create fasta file from a data.frame of sequences and headers
+#
+# Arguments:  file.name  - outup file name
+#          out.dir - output directory
+#          nameSeq.df  - data.frame of headers and sequences
+#
+# Returns: -
+write.FASTA <- function(file.name, out.dir, nameSeq.df) {
+  sequences <- nameSeq.df$seq
+  names(sequences) <- nameSeq.df$head
+  writeXStringSet(DNAStringSet(sequences), file=paste0(out.dir, file.name, '.fasta'), width=1000)
+}
+
+# Change sequence names
+#
+# Arguments:   fasta.df - data frame of sequences and headers
+#           outgroup - outgroup sequence name
+#
+# Returns:  data frame of sequences and headers with extra column of new headers
+change.names <- function(fasta.df, outgroup = NULL){
+  
+  if (!is.null(outgroup)){
+    outgroup.ind <- which(fasta.df$head == outgroup)
+    n.seq <- nrow(fasta.df)
+    # change sequence names to 'L_#'
+    ind <- 1:n.seq
+    ind <- ind[-outgroup.ind]
+    fasta.df$head2[ind] <- sapply(1:(n.seq-1), function(x) { paste0('L', x)})
+    fasta.df$head2[outgroup.ind] <- fasta.df$head[outgroup.ind] 
+  }else{
+    n.seq <- nrow(fasta.df)
+    # change sequence names to 'L_#'
+    ind <- 1:n.seq
+    fasta.df$head2[ind] <- sapply(1:n.seq, function(x) { paste0('L', x)})
+  }
+  return(fasta.df)
+}
+
+# Create phylip input alignment file
+#
+# Arguments:   fasta.df - data frame of sequences and headers
+#           out.file/ out.dir - output file name directory
+#
+# Returns:  - 
+fasta2phylip <- function(fasta.df, out.file, out.dir){
+  
+  phy.df <- rbind(data.frame(head=sprintf('%-9s', nrow(fasta.df)), seq=nchar(fasta.df$seq[1]), stringsAsFactors=F), 
+                  data.frame(head=sprintf('%-9s', fasta.df$head2), seq=fasta.df$seq, stringsAsFactors=F))
+ 
+  write.table(phy.df, file=paste0(out.dir, out.file, '.phy'), 
+              quote=F, sep=' ', col.names=F, row.names=F)    
+}
+
+# Run dnapars (maximum parsimony)
+#
+# Arguments:   file.name/ in.dir - input file in phylip format and directory
+#           phylip.path - phylip program path
+#           outgroup.ind - outgroup index in file (optional)
+#
+# Returns:  - 
+run.dnapars <- function( file.name, in.dir, phylip.path, outgroup.ind ){
+  
+  curr.dir <- getwd()
+  setwd(phylip.path) 
+  
+  # options from dnapars program
+  # index of outgroup - last in data frame
+  if (length(outgroup.ind) != 0)
+    pars.options <- c(paste0(file.name, '.phy'), 'O', outgroup.ind, 'V', '1', '5', '.', '2', 'Y')
+  else
+    pars.options <- c(paste0(file.name, '.phy'), 'V', '1', '5', '.', '2', 'Y')
+  
+  # run dnapars
+  system2('dnapars', input=pars.options, stdout=NULL)
+  
+  # move .phy file and output tree files
+  file.rename(from=paste0(phylip.path, file.name, '.phy'), to=paste0(in.dir, file.name, '.phy'))
+  file.rename(from=paste0(phylip.path, 'outfile'), to=paste0(in.dir, file.name, '_out.txt'))
+  file.rename(from=paste0(phylip.path, 'outtree'), to=paste0(in.dir, file.name, '_tree.txt'))
+  
+  setwd(curr.dir)
+}
+
+# Order sequence from root to leaves
+#
+# Arguments:   root - root sequence name
+#           nameSeq.df - data frame with headers and sequences
+#           edge.df - data frame with columns - parent(from), child(to), distance(weight)
+#           outgroup  - outgroup sequence name (optional)
+#
+# Returns:  nameSeq.df - data frame with headers and sequences, ordered by distance from root
+order.nameSeq <- function(root, nameSeq.df, edge.df, outgroup){
+
+  n.seq <- nrow(nameSeq.df)
+  nameSeq.df2 <- nameSeq.df[which(nameSeq.df[,'head']==root),] # root
+  for(i in 1:n.seq){ #1 - root
+    sons <- edge.df[which(edge.df[,'from']==nameSeq.df2[i,'head']),2]
+    if(length(sons)>0){
+      outgroup.ind <- which(sons==outgroup)
+      if(length(outgroup.ind)!=0) { sons <- sons[-outgroup.ind] }
+      for(j in 1:length(sons))
+        nameSeq.df2 <- rbind(nameSeq.df2, nameSeq.df[which(nameSeq.df[,'head']==sons[j]),])
+    }
+  }
+  if (!is.null(outgroup)) # last - outgroup
+    nameSeq.df2 <- rbind(nameSeq.df[which(nameSeq.df[,'head']==outgroup),], nameSeq.df2) # add outgroup first
+  row.names(nameSeq.df2)<-NULL
+  
+  return(nameSeq.df2)
+}
+
+
+# Parse dnapars output tree file, get internal sequences and tree structure
+#
+# Arguments:   file.name/ in.dir - input file in phylip format and directory
+#           outgroup outgroup name (optional)
+#
+# Returns:  list of:
+#           nameSeq.df - data frame with headers and sequences, ordered by distance from root
+#           edge.df - data frame with columns - parent(from), child(to), distance(weight)
+parse.dnapars <- function(file.name, in.dir, outgroup = NULL){
+  
+  # read output tree file
+  out.tree <- scan(paste0(in.dir, file.name, '_out.txt'), what='character',sep='\n',
+                   blank.lines.skip=F, strip.white=F)
+  # check if tree was build
+  if (any(grepl('-1 trees in all found', out.tree))) { return(NULL) }
+  
+  # get internal sequences
+  seq.start <- min(grep('From\\s+To\\s+Any Steps\\?\\s+State at upper node', out.tree, perl=T, fixed=F))
+  seq.empty <- grep('^\\s*$', out.tree[seq.start:length(out.tree)], perl=T, fixed=F)
+  seq.len <- seq.empty[min(which(seq.empty[-1] == (seq.empty[-length(seq.empty)] + 1)))]
+  seq.block <- paste(out.tree[(seq.start + 2):(seq.start + seq.len - 2)], collapse='\n')
+  seq.df <- read.table(textConnection(seq.block), as.is=T, fill=T, blank.lines.skip=T,  row.names = NULL, header=F, stringsAsFactors=F)
+  
+  # fix root lines and remove empty rows
+  fix.row <- which(seq.df[,3]!="yes" & seq.df[,3]!="no" & seq.df[,3]!="maybe")
+  if (!is.null(outgroup))
+    seq.df[fix.row, ] <- cbind(seq.df[fix.row, 1], seq.df[fix.row, 2],'no', seq.df[fix.row, 3:6], stringsAsFactors=F)
+  else
+    seq.df[fix.row, ] <- cbind(seq.df[fix.row, 1], seq.df[fix.row, 1],'no', seq.df[fix.row, 2:5], stringsAsFactors=F)
+  
+  # save full sequences as a data frame
+  names <- unique(seq.df[, 2])
+  seq <- sapply(names, function(x) { paste(t(as.matrix(seq.df[seq.df[, 2] == x, -c(1:3)])), collapse='') })
+  nameSeq.df <- data.frame(head=names, seq=seq, stringsAsFactors=F, row.names=NULL)
+  
+  # get tree structure
+  edge.start <- min(grep('between\\s+and\\s+length', out.tree, perl=T, fixed=F))
+  edge.len <- min(grep('^\\s*$', out.tree[edge.start:length(out.tree)], perl=T, fixed=F))
+  edge.block <- paste(out.tree[(edge.start + 2):(edge.start + edge.len - 2)], collapse='\n')
+  edge.df <- read.table(textConnection(edge.block), col.names=c('from', 'to', 'weight'), as.is=T, stringsAsFactors=F)
+  
+  # order sequences by distance from root
+  root <- unique(edge.df$from)[!(unique(edge.df$from) %in% edge.df$to)]
+  
+  #root <- seq.df[which(seq.df[,1]=='root')[1],2]
+  nameSeq.df <- order.nameSeq(root, nameSeq.df, edge.df, outgroup)
+  
+  return(list(nameSeq.df, edge.df))
+}
+
+# Fix ambiguous nucleotides in internal sequences, according to IUPAC code
+#
+# Arguments:   nameSeq.df - data frame with headers and sequences, order by distance from root
+#           edge.df - data frame with columns - parent(from), child(to), distance(weight)
+#           outgroup - outgroup sequence name (optional)
+#
+# Returns:  - nameSeq.df - data frame with fixed sequences
+fix.internal <- function(nameSeq.df, edge.df, outgroup = NULL){
+  
+  nucleotides <- c('A', 'C','G','T','-')
+  
+  # from leaves to root (except outgroup)
+  # fix only internal nodes!
+  if (!is.null(outgroup))
+    intern.seq <- rev(setdiff(2:nrow(nameSeq.df),grep('^L', nameSeq.df[,'head'], perl=T, fixed=F)))
+  else
+    intern.seq <- rev(setdiff(1:nrow(nameSeq.df),grep('^L', nameSeq.df[,'head'], perl=T, fixed=F)))
+  
+  for(i in intern.seq){
+    # get ambiguous nucleotides
+    curr.seq <- nameSeq.df[i,'seq']
+    amb.pos <- setdiff(1:nchar(curr.seq),unlist(lapply(nucleotides, function(x) {gregexpr(pattern =x,curr.seq)})))
+    if(length(amb.pos) > 0){
+      # get son sequences
+      sons.seq <- sapply(edge.df[which(edge.df[,'from']==nameSeq.df[i,'head']),'to'], function(x) {nameSeq.df[which(nameSeq.df[,'head']==x),'seq']})
+      # do not fix outgroup sequence
+      if (!is.null(outgroup)){
+        outgroup.ind <- which(names(sons.seq)==outgroup)
+        if(length(outgroup.ind)!=0) 
+          sons.seq <- sons.seq[-outgroup.ind] 
+      }
+      
+      for(j in amb.pos){
+        amb.nuc <- substr(curr.seq,j,j)
+        sons.nuc <- substr(sons.seq,j,j)
+        # if deletion
+        if(amb.nuc == 'O')
+          curr.seq <- paste0(substr(curr.seq,1, j-1), '-', substr(curr.seq,j+1, nchar(curr.seq)))
+        else{
+          # check if at least one of the sons has one match for ambiguous letter
+          if(is.element(amb.nuc, c('?', 'X')))
+            matches <- which(is.element(sons.nuc, nucleotides))
+          else
+            matches <- which(is.element(sons.nuc, toupper(amb(amb.nuc, forceToLower = TRUE))))
+          if(length(matches)==1) # if only one son had a match
+            curr.seq <- paste0(substr(curr.seq,1, j-1), sons.nuc[matches], substr(curr.seq,j+1, nchar(curr.seq)))
+          else if(length(matches)==0){ # choose randomly from son nucleotides
+            rand <- sample(1:length(sons.nuc), 1, replace=T)
+            curr.seq <- paste0(substr(curr.seq,1, j-1), sons.nuc[rand], substr(curr.seq,j+1, nchar(curr.seq)))
+          }else{ # choose randomly from son nucleotides that matched
+            rand <- sample(1:length(matches), 1, replace=T)
+            curr.seq <- paste0(substr(curr.seq,1, j-1), sons.nuc[matches[rand]], substr(curr.seq,j+1, nchar(curr.seq)))
+          }
+        }
+      }
+      nameSeq.df[i,'seq'] <- curr.seq 
+    }
+  }
+  
+  return(nameSeq.df)
+}
+
+# Compute distance matrix (Kimura model) for neighbor joining using dnadist (Phylip package)
+#
+# Arguments:  file.name - input file name
+#          phylip.path - phylip directory
+#
+# Returns: -
+run.dnadist <- function(file.name,  phylip.path){
+  
+  # options from dnadist program
+  dnadist.options <- c(paste0(file.name, '.phy'), 'D', '2', 'Y')
+  
+  # run dnadist
+  system2('dnadist', input=dnadist.options,, stdout=NULL)
+  
+  # move .phy file and output tree files
+  file.rename(from=paste0(phylip.path, 'outfile'), to=paste0(phylip.path, file.name, '.dis'))
+}
+
+
+# Run neighbor (Neighbor joining)
+#
+# Arguments:  file.name/ in.dir - input file name and directory
+#          phylip.path - phylip directory
+#          outgroup.ind - outgroup index  in file (optional)
+#
+# Returns: -
+run.neighbor <- function(file.name, in.dir, phylip.path, outgroup.ind){
+  
+  curr.dir <- getwd()
+  setwd(phylip.path) 
+  
+  # run dnadist to create distance matrix
+  run.dnadist(file.name,  phylip.path )
+  
+  # options for neighbor program
+  # index of outgroup - last data frame
+  if (length(outgroup.ind) != 0 )
+    neigh.options <- c(paste0(file.name, '.dis'), 'O', outgroup.ind, '2', 'Y')
+  else
+    neigh.options <- c(paste0(file.name, '.dis'), '2', 'Y')
+  
+  # run neighbor
+  system2('neighbor', input=neigh.options, stdout=NULL)
+  
+  # move .phy, .dis and output tree files
+  file.rename(from=paste0(phylip.path, file.name, '.dis'), to=paste0(in.dir, file.name, '.dis'))
+  file.rename(from=paste0(phylip.path, file.name, '.phy'), to=paste0(in.dir, file.name, '.phy'))
+  file.rename(from=paste0(phylip.path, 'outfile'), to=paste0(in.dir, file.name, '_out.txt'))
+  file.rename(from=paste0(phylip.path, 'outtree'), to=paste0(in.dir, file.name, '_tree.txt'))
+  
+  setwd(curr.dir) 
+}
+
+# Parse neighbor output tree file, get internal sequences and tree structure
+#
+# Arguments:   file.name/ in.dir - input file in phylip format and directory
+#           fasta.df - data frame of input sequences and headers
+#           outgroup - outgroup sequence name (optional)
+#
+# Returns:  - list of:
+#           nameSeq.df - data frame with headers and sequences
+#           edge.df - data frame with columns - parent(from), child(to), distance(weight)
+parse.neighbor <- function(file.name, in.dir, fasta.df, outgroup = NULL){
+  
+  # read output tree file
+  out.tree <- scan(paste0(in.dir, file.name, '_out.txt'), what='character',sep='\n',
+                   blank.lines.skip=F, strip.white=F)
+  
+  # check if tree was build
+  if (any(grepl('-1 trees in all found', out.tree))) { return(NULL) }
+  
+  # get tree structure
+  edge.start <- min(grep('Between\\s+And\\s+Length', out.tree, perl=T, fixed=F))
+  edge.len <- min(grep('^\\s*$', out.tree[edge.start:length(out.tree)], perl=T, fixed=F))
+  edge.block <- paste(out.tree[(edge.start + 2):(edge.start + edge.len - 2)], collapse='\n')
+  edge.df <- read.table(textConnection(edge.block), col.names=c('from', 'to', 'weight'), as.is=T)
+  
+  # create nameSeq.df from input sequence only (for now)
+  nameSeq.df <- data.frame(head = fasta.df[,'head2'], seq = fasta.df[,'seq'], stringsAsFactors=F) 
+  
+  return(list(nameSeq.df, edge.df))
+}
+
+# Traverse tree in postorder (step 2 in Fitch's algorithm)
+#
+# Arguments:  father/ sons - father and its 2 son names
+#          edge.df - data frame with columns - parent(from), child(to), distance(weight)
+#          nameSeq.list - list of sequences with headers
+#
+# Returns: modified nameSeq.list - list of sequences with headers
+traverse.up <- function(father, sons, edge.df, nameSeq.list){
+  
+  sons.seq <- sapply(sons,function(x) NULL)
+  
+  # check if each son sequence a leaf or is already reconstructed
+  for(i in sons){
+    if(!is.element(i, names(nameSeq.list)))
+      nameSeq.list <-  traverse.up(i, edge.df[edge.df[,'from']==i,'to'], edge.df, nameSeq.list)
+    sons.seq[i] <- nameSeq.list[i]
+  }  
+  seq.len <- length(sons.seq[[1]])
+
+  father.seq <- character(seq.len)
+  for(i in 1:seq.len){ # for each position in sequence
+    curr.nuc <- sapply(sons.seq, function(x)  x[[i]])
+    nuc <- Reduce(intersect, strsplit(curr.nuc,""))
+    if(length(nuc)>0) # save intersection
+      father.seq[i] <- paste(nuc, collapse='')
+    else # save union
+      father.seq[i] <- paste( Reduce(union, strsplit(curr.nuc,'')),collapse="")
+  }
+  nameSeq.list[[father]]<-father.seq # save modified sequence
+  
+  return(nameSeq.list)
+}
+
+# Recursively traverse tree in preorder (step 1 in Fitch's algorithm)
+#
+# Arguments:  father/ son - father and son name
+#          edge.df - data frame with columns - parent(from), child(to), distance(weight)
+#          nameSeq.list - list of sequences with headers
+#          outgroup - outgroup sequence name (optional)
+#
+# Returns: modified nameSeq.list - list of sequences with headers
+traverse.down <- function(father, son, edge.df, nameSeq.list, outgroup = NULL){
+  
+  son.seq <- nameSeq.list[[son]]
+  seq.len <- length(son.seq)
+  
+  if(is.null(father)){ # root
+    for(i in 1:seq.len){
+      if(nchar(son.seq[i])>1){ # more than 1 option in intersection - choose randomly
+        #rand <- floor(runif(1, min=1, max=nchar(son.seq[i])+1))
+        rand <- sample(1:nchar(son.seq[i]), 1, replace=T)
+        son.seq[i] <- substr(son.seq[i],rand, rand)
+      }
+    }
+  }else{
+    father.seq <- nameSeq.list[[father]]
+    for(i in 1:seq.len){
+      if(nchar(son.seq[i])>1){
+        nuc <- Reduce(intersect, strsplit(c(father.seq[i],son.seq[i]),''))
+        # if only one nucleotide in intersection - keep it
+        if(length(nuc)==0){  # no intersection - choose randomly from son's options
+          rand <- sample(1:nchar(son.seq[i]), 1, replace=T)
+          son.seq[i] <- substr(son.seq[i],rand, rand)
+        }else # if intersection is not empty, but son has more than 1 option
+          son.seq[i] <- nuc   
+      }
+    }
+  }
+  nameSeq.list[[son]] <- son.seq # save modified sequence
+  
+  # recursive call for each son's sons 
+  sons <- edge.df[edge.df[,'from']==son,'to']
+  if(length(sons) > 0){
+    # remove outgroup from root's children
+    if (!is.null(outgroup)){
+      outgroup.ind <- which(sons == outgroup)
+      if(length(outgroup.ind)!=0) { sons <- sons[-outgroup.ind] }
+    }
+    nameSeq.list <- traverse.down(son, sons[1], edge.df, nameSeq.list, outgroup)
+    nameSeq.list <- traverse.down(son, sons[2], edge.df, nameSeq.list, outgroup)
+  }
+  return(nameSeq.list)
+}
+
+# Reconstruct internal sequences with Fitch algorithm (for neighbor trees)
+#
+# Arguments:  nameSeq.df - data frame with headers and input sequences only
+#          edge.df - data frame with columns - parent(from), child(to), distance(weight)
+#          outgroup - outgroup sequence name (optional)
+#
+# Returns: nameSeq.df - data frame with headers and all sequences, ordered by distance from root
+get.internal <- function(nameSeq.df, edge.df, outgroup = NULL){
+  
+  # find root
+  root <- as.character(unique(edge.df[!(edge.df[, 1] %in% edge.df[, 'to']), 1]))
+  root.sons <- edge.df[edge.df[,'from']==root,'to']
+  
+  # remove outgroup from root's children
+  if (!is.null(outgroup)){
+    outgroup.ind <- which(root.sons == outgroup)
+    if(length(outgroup.ind)!=0) { root.sons <- root.sons[-outgroup.ind] }
+  }
+  
+  # convert sequences to lists 
+  nameSeq.list <- sapply(nameSeq.df[,'seq'], function(x) {strsplit(x, "", fixed=FALSE)})
+  names(nameSeq.list) <-  nameSeq.df[,'head']
+  
+  # Step 1 - preorder on tree - get intersection, otherwise - get union
+  nameSeq.list <- traverse.up(root, root.sons, edge.df, nameSeq.list)
+  
+  # Step 2 - postorder on tree - get intersection, otherwise choose randomly
+  nameSeq.list <- traverse.down(NULL, root, edge.df, nameSeq.list, outgroup)
+  
+  # convert sequence list to dataframe
+  nameSeq.list2 <-lapply(nameSeq.list,function(x) {paste(x, collapse="")})
+  nameSeq.df <-data.frame(head = names(nameSeq.list2), stringsAsFactors=F)
+  nameSeq.df$seq <- unlist(nameSeq.list2)
+  
+  # order sequences in nameSeq.df by distance from root
+  nameSeq.df <- order.nameSeq(root, nameSeq.df, edge.df, outgroup)
+  
+  return(nameSeq.df) 
+}
+
+# Match old input sequence names with new in final output sequence data frame
+#
+# Arguments:  nameSeq.df - data frame with headers and all sequences
+#          fasta.df - data frame with new and old headers and input sequences only
+#
+# Returns: nameSeq.df - data frame with headers and sequences, with old and new names
+match.names <- function(fasta.df, nameSeq.df){
+  
+  nameSeq.df$head2 <- rep("-", nrow(nameSeq.df))
+  for(i in 1:nrow(fasta.df))
+    nameSeq.df[which(fasta.df[i,'head2']==nameSeq.df[,'head']),'head2'] <- fasta.df[i,'head']
+  
+  return(nameSeq.df)
+}
+
+# Compute edge lengths (distance in nucleotides)
+#
+# Arguments:  nameSeq.df - data frame with headers and sequences
+#          edge.df - data frame with columns - parent(from), child(to), edge weight (weight) 
+#
+# Returns: edge.df - data frame with columns - parent(from), child(to), edge weight (weight) , edge length (distance in nt)
+compute.edge <- function(nameSeq.df, edge.df){
+  
+  n.edge <- nrow(edge.df)
+  edge.df$distance <- rep(0, n.edge)
+  for(i in 1:n.edge){
+    from.seq <- unlist(strsplit(nameSeq.df[nameSeq.df[,'head']==as.character(edge.df[i,'from']),'seq'],''))
+    to.seq <- unlist(strsplit(nameSeq.df[nameSeq.df[,'head']==as.character(edge.df[i,'to']),'seq'],''))
+    edge.df[i,'distance'] <- length(which(from.seq!=to.seq))
+  }
+  
+  return(edge.df)
+}
+
+# Convert parsimony tree into binary tree
+#
+# Arguments:  nameSeq.df - data frame with headers and sequences
+#          edge.df - data frame with columns - parent(from), child(to), edge weight (weight) 
+#          outgroup name (default - NULL) 
+#
+# Returns: modified edge.df and nameSeq.df
+convert.to.binary <- function(nameSeq.df, edge.df, outgroup = NULL){
+  
+  # find nodes with more than 2 sons
+  son.count <- table(edge.df$from)
+  nodes <- names(son.count)[son.count == 3]
+  
+  # get name of last internal node created by program
+  ind <- max(unique(edge.df$from)) + 1
+  
+  for (i in nodes){
+    sons <- edge.df[edge.df$from==i, 'to']
+    if (!is.null(outgroup)){
+      if (outgroup %in% sons) # if outgroup is one of the root's sons - ok
+        next
+    }
+    
+    # create new node named with current ind and attach 2 sons
+    edge.df[edge.df$to==sons[1], 'from'] <- ind
+    edge.df[edge.df$to==sons[2], 'from'] <- ind
+    # add new node has son of current node
+    edge.df <- rbind(edge.df, data.frame(from = i, to = ind, weight=0))
+    # add new node sequence - same as current node
+    nameSeq.df <- rbind(nameSeq.df, data.frame(head=ind, seq=nameSeq.df[nameSeq.df$head==i, 'seq']))
+    ind <- ind + 1
+  }
+  
+  return(list(nameSeq.df, edge.df))
+  
+}
+
+# Build phylogenetic tree with maximum parsimony or neighbor joining 
+#
+# Arguments:  file.name - original FASTA file name
+#          fasta.df - data frame with input sequences and headers
+#          out.dir - output directory for tree files
+#          phylip.path - path to phlylip executables
+#          outgroup - outgroup sequence name (optional)
+#
+# Returns: nameSeq.list - list of sequences with headers
+#          edge.df - data frame with columns - parent(from), child(to), weight, distance(nt)
+build.trees <- function( file.name, fasta.df, out.dir, phylip.path, outgroup = NULL ){
+  
+  # skip small or huge files
+  n.seq <- nrow(fasta.df)
+  if( n.seq > MAX.SEQ){
+    print(paste0(file.name, ' - Too many sequences to make tree with Phylip'))
+    return(F)
+  }
+  
+  # create output directory
+  file.dir <- paste0(out.dir, file.name, '/')
+  dir.create(file.dir, recursive = T, showWarnings = FALSE)
+  
+  if( n.seq < MIN.SEQ) { 
+    print(paste0(file.name,' - Not enough sequences to make tree with Phylip'))
+    return(F) 
+  }
+  
+  # change input sequence name to shorter ones
+  fasta.df <- change.names(fasta.df, outgroup) # CHECK CP NUM!!!!!!!
+  
+  # convert sequences to alignment format for phylip programs
+  fasta2phylip(fasta.df, file.name, phylip.path)
+  
+  # find outgroup index in file
+  outgroup.ind <- which(fasta.df$head == outgroup)
+  
+  # if number of sequence is between MIN.SEQ and MID.SEQ - build tree with Maximum Parsimony
+  if( n.seq >= MIN.SEQ & n.seq < MID.SEQ ){
+    print(paste0(file.name, ' - maximum parsimony'))
+    
+    # run dnapars
+    run.dnapars(file.name, file.dir, phylip.path, outgroup.ind)
+    
+    # parse dnapars output 
+    tmp <- parse.dnapars(file.name, file.dir, outgroup)
+    if(is.null(tmp)) { return(F) } # if tree building failed
+    nameSeq.df <- tmp[[1]]
+    edge.df <- tmp[[2]]
+    nameSeq.df <- fix.internal(nameSeq.df, edge.df, outgroup)
+    
+    # if number of sequence is between MID.SEQ and MAX.SEQ - build tree with Neigbor joining
+  }else if( n.seq >= MID.SEQ & n.seq < MAX.SEQ ){
+    print(paste0(file.name, ' - neighbor joining'))
+    
+    # run neighbor
+    run.neighbor(file.name, file.dir, phylip.path, outgroup.ind)
+    
+    # parse neighbor output
+    tmp <- parse.neighbor(file.name, file.dir, fasta.df,outgroup)
+    if(is.null(tmp)) { return(F) } # if tree building failed
+    nameSeq.df <- tmp[[1]]
+    edge.df <- tmp[[2]]
+    nameSeq.df <- get.internal(nameSeq.df, edge.df, outgroup)
+  }
+  
+  # convert tree to binary
+  tmp <- convert.to.binary(nameSeq.df, edge.df, outgroup)
+  nameSeq.df <- tmp[[1]]
+  edge.df <- tmp[[2]]
+  
+  # compute edge lengths
+  edge.df <- compute.edge(nameSeq.df, edge.df)
+  
+  # retrieve old names for input sequences
+  nameSeq.df <- match.names(fasta.df, nameSeq.df)
+  
+  # save output files 
+  # save sequence as FASTA file
+  write.FASTA(file.name, file.dir, nameSeq.df)
+  # save Fome/To/distances table (edges)
+  write.table(edge.df, file=paste0(file.dir, file.name, '_edges.tab'), quote=F, sep='\t', col.names=T, row.names=F)
+  # save old and new sequence names
+  write.table(nameSeq.df[,c('head','head2')], file=paste0(file.dir, file.name, '_names.tab'), quote=F, sep='\t', col.names=T, row.names=F)
+  
+  return(list(nameSeq.df, edge.df))
+}
+
+# Calculate subtree sizes for each internal node (recursive function)
+#
+# Arguments:  node - current node for which the number of offsprings
+#          n.offspring - data frame with size of keft and right subtrees for each sequence
+#          edge.df - data frame with columns - parent(from), child(to), weight, distance(nt)
+#
+# Returns: updated n.offspring
+get.number.offsprings <- function(node, n.offspring, edge.df){
+  
+  # post order on tree
+  sons <- edge.df[edge.df[, 'from'] == node, 2]
+  
+  # if node is a leaf - set number of offsprings to zero
+  if (length(sons) == 0)
+    return (n.offspring)
+  
+  # sort sons alphabetically - so that the first is always the left son
+  sons <- sort(sons)
+  
+  node.ind <- which(n.offspring$node == node)
+  
+  # left subtree
+  n.offspring <- get.number.offsprings(sons[1], n.offspring, edge.df)
+  n.offspring[node.ind, 'left'] <- n.offspring[n.offspring$node == sons[1], 'left'] + 
+    n.offspring[n.offspring$node == sons[1], 'right'] + 1
+  
+  if (length(sons) == 1 ) # the other son was cut
+    n.offspring[node.ind, 'right'] <- 0
+  else{
+    # right subtree
+    n.offspring <- get.number.offsprings(sons[2], n.offspring, edge.df)
+    n.offspring[node.ind, 'right'] <- n.offspring[n.offspring$node == sons[2], 'left'] + 
+      n.offspring[n.offspring$node == sons[2], 'right'] + 1
+  }
+  
+  return (n.offspring)
+}
+
+# Analyze mutations between a pair of father-son and compute LONR scores for each mutation
+#
+# Arguments:  n.offspring - data frame with size of left and right subtrees for each sequence
+#          father - father name
+#          father.char - father nucleotide sequence split into characters
+#          father.aa.char - father amino acid sequence split into characters
+#          son - son name
+#          son.side - left or right son of father (alphabetically)
+#          son.char - son nucleotide sequence split into characters
+#          son.aa.char - son amino acid sequence split into characters
+#          mut.pos - mutation positions (nucleotides)
+#          mutations - mutation table
+#          mutations.ind - index of last mutation inserted in mutations table
+#
+# Returns: list of
+#           - updated mutations and mutations.ind
+analyze.mutations <- function(n.offspring, father, father.char, father.aa.char, son, son.side, son.char, son.aa.char, mut.pos, mutations, mutations.ind){
+  
+  flag <- F
+  father.ind <- which(n.offspring$node==father)
+  
+  # if at least one son was trimmed - do not analyze mutations
+  if (n.offspring[father.ind,'left']==0 | n.offspring[father.ind,'right']==0)
+    return(list(mutations, mutations.ind))
+ 
+  # compute LONR score
+  # log of subtree size where mutation occurred divided by subtree size where no mutation occurred
+  if (son.side == 'left')
+    lonr <- log(n.offspring[father.ind,'left']/n.offspring[father.ind,'right'])
+  else
+    lonr <- log(n.offspring[father.ind,'right']/n.offspring[father.ind,'left'])
+  
+  # get son's subtree sizes
+  son.left <- n.offspring[n.offspring$node==son, 'left']
+  son.right <- n.offspring[n.offspring$node==son, 'right']
+  if (son.left != 0 & son.right != 0){
+    if (son.left > 2*son.right | 2*son.left < son.right){
+      if (son.side == 'left')
+        new.lonr <- log((2*min(son.left, son.right))/n.offspring[father.ind,'right'])
+      else
+        new.lonr <- log((2*min(son.left, son.right))/n.offspring[father.ind,'left'])
+      if (lonr/new.lonr < 0) # sign changed - add flag
+        flag = T
+    }
+  }
+  
+  for (j in mut.pos){
+    # mutation (nt)
+    mutations[mutations.ind,'mutation'] <- paste0(father.char[j],son.char[j])
+    # LONR
+    mutations[mutations.ind,'LONR'] <- lonr 
+    # mutation type 
+    # if mutation occurred in last nucleotides which are not a full codon - do not analyse
+    if( length(father.aa.char) >= ceiling(j/3) ){
+      if (father.aa.char[ceiling(j/3)] != son.aa.char[ceiling(j/3)])
+        mutations[mutations.ind,'mutation.type'] <- 'R'
+      else
+        mutations[mutations.ind,'mutation.type'] <- 'S'
+    }else
+      next
+    # position (nt)
+    mutations[mutations.ind,'position'] <- j
+    
+    # save father and son names
+    mutations[mutations.ind,'father'] <- father
+    mutations[mutations.ind,'son'] <- son
+    mutations[mutations.ind,'flag'] <- flag
+    
+    mutations.ind <- mutations.ind + 1  
+    
+    # increase table size if needed
+    if (mutations.ind > nrow(mutations))
+      mutations <- rbind(mutations, data.frame(mutation = rep('', 1000), LONR = 0, mutation.type = '', position=0, father='', son='', flag=F, stringsAsFactors=F))  
+  }
+  
+  return(list(mutations, mutations.ind))
+}
+
+
+# Get mutations between each father-son pair (recursively)
+#
+# Arguments:  node - current node for which the number of offsprings
+#          edge.df - data frame with columns - parent(from), child(to), weight, distance(nt)
+#          n.offspring - data frame with size of left and right subtrees for each sequence
+#          mutations - mutation table
+#          mutations.ind - index of last muation inserted in mutations table
+#
+# Returns: updated n.offspring
+get.mutations <- function(node, edge.df, nameSeq.df, n.offspring, mutations, mutations.ind){
+  
+  sons <- edge.df[edge.df[, 1] == node, 2]
+  
+  # if node is a leaf - 
+  if (length(sons) == 0)
+    return (list(mutations, mutations.ind))
+  
+  sons <- sort(sons)
+  
+  # get father sequence, translate and split into characters
+  father.seq <- nameSeq.df[nameSeq.df$head==node, 'seq']
+  father.char <- s2c(father.seq)
+  father.aa.char <- seqinr::translate(unlist(strsplit(tolower(substr(father.seq, 1, nchar(father.seq)-(nchar(father.seq)%%3))), "")),
+                                      numcode = 1, NAstring = "X", ambiguous = FALSE)
+  
+  # get son sequences, translate and split into characters
+  son1.seq <- nameSeq.df[nameSeq.df$head==sons[1], 'seq']
+  son1.char <- s2c(son1.seq)  
+  son1.aa.char <- seqinr::translate(unlist(strsplit(tolower(substr(son1.seq, 1, nchar(son1.seq)-(nchar(son1.seq)%%3))), "")),
+                                    numcode = 1, NAstring = "X", ambiguous = FALSE)
+  # get mutation positions
+  mut.pos.son1 <- which(father.char!=son1.char)
+  
+  if (length(sons) > 1){
+    # get son sequences, translate and split into characters
+    son2.seq <- nameSeq.df[nameSeq.df$head==sons[2], 'seq']
+    son2.char <- s2c(son2.seq)  
+    son2.aa.char <- seqinr::translate(unlist(strsplit(tolower(substr(son2.seq, 1, nchar(son2.seq)-(nchar(son2.seq)%%3))), "")),
+                                      numcode = 1, NAstring = "X", ambiguous = FALSE)
+    # get mutation positions
+    mut.pos.son2 <- which(father.char!=son2.char)
+    # do not analyze mutation in both sons
+    mut.pos.son1 <- setdiff(mut.pos.son1,intersect(mut.pos.son1, mut.pos.son2))
+    mut.pos.son2 <- setdiff(mut.pos.son2,intersect(mut.pos.son1, mut.pos.son2))
+  }
+  # analyze mutation in first son
+  res<- analyze.mutations(n.offspring, node, father.char, father.aa.char, sons[1], 'left', son1.char, son1.aa.char, mut.pos.son1, mutations, mutations.ind)
+  mutations <- res[[1]]
+  mutations.ind <- res[[2]]  
+  # recursive call with sons
+  res <- get.mutations(sons[1], edge.df, nameSeq.df, n.offspring, mutations, mutations.ind)
+  mutations <- res[[1]]
+  mutations.ind <- res[[2]]
+  
+  if (length(sons) > 1){
+    # analyze mutation in second son
+    res<- analyze.mutations(n.offspring, node, father.char, father.aa.char, sons[2], 'right', son2.char, son2.aa.char, mut.pos.son2, mutations, mutations.ind)
+    mutations <- res[[1]]
+    mutations.ind <- res[[2]] 
+    res <- get.mutations(sons[2], edge.df, nameSeq.df, n.offspring, mutations, mutations.ind)
+    mutations <- res[[1]]
+    mutations.ind <- res[[2]]
+  }
+  return (list(mutations, mutations.ind))
+  
+}
+
+# Calculate subtree sizes for each internal node, find mutations and compute LONR scores
+#
+# Arguments:  file.name - input file name
+#          nameSeq.df - data frame of sequences and headers
+#          edge.df - data frame with columns - parent(from), child(to), weight, distance(nt)
+#          outgroup - outgroup sequence name (optional)
+#
+# Returns: mutations - mutation table
+compute.sub.trees <- function(file.name, nameSeq.df, edge.df, outgroup = NULL){
+  
+  # remove outgroup if exists
+  if (!is.null(outgroup)) {
+    nameSeq.df <- nameSeq.df[-which(nameSeq.df$head == outgroup), ] # remove from sequence list
+    edge.df <- edge.df[-which(edge.df[, 'to'] == outgroup), ] # remove from edge table
+  }  
+  n.seq <- length(nameSeq.df)
+
+  # find all subbtree roots
+  roots <- as.character(unique(edge.df[!(edge.df[, 1] %in% edge.df[, 'to']), 1]))
+  treesIDs <- unique(nameSeq.df$treeID)
+  all.mutations <-  data.frame()
+  for (i in treesIDs){
+    sub.tree <- nameSeq.df[nameSeq.df$treeID==i,]
+    curr.root <- as.character(roots[roots%in%sub.tree$head])
+    
+    # calculate the size of left and right subtrees for each node
+    n.offspring <- data.frame(node = sub.tree$head, left = 0, right = 0, stringsAsFactors=F)
+    n.offspring <- get.number.offsprings(curr.root, n.offspring, edge.df)
+    
+    # get mutations between each father-son pair 
+    mutations <- data.frame(mutation = rep('', 1000), LONR = 0, mutation.type = '', position=0, father='', son='', flag=F, stringsAsFactors=F)
+    res <- get.mutations(curr.root, edge.df, sub.tree, n.offspring, mutations, 1)
+    
+    # remove end of table if not used
+    mutations <- res[[1]]
+    ind <- res[[2]]
+    if (nrow(mutations) > ind )
+      mutations <- mutations[-(ind:nrow(mutations)), ]
+    
+    all.mutations <- rbind(all.mutations, mutations)
+  }
+  return(all.mutations)
+  
+}
+
+# Compute consensus sequence and remove positions with gaps
+#
+# Arguments:  in.dir - input directory
+#          file.name  - input file name
+#
+# Returns: -
+remove.gaps <- function(in.dir, file.name){
+  
+  # read FASTA file in alignment object
+  aligned.seq <-read.alignment(paste0(in.dir, file.name), format='fasta', forceToLower = F)
+  
+  # comnpute consensus sequence
+  consensus.seq <- consensus(aligned.seq, method = "majority")
+  
+  # remove columns containing gaps in consensus
+  gapped.pos <- rev(which(consensus.seq == '-'))
+  for (pos in gapped.pos)
+    aligned.seq[['seq']] <- paste0(substr(aligned.seq[['seq']], 1, pos-1), substr(aligned.seq[['seq']], pos+1, nchar(aligned.seq[['seq']])[1]))
+  
+  # convert sequences and headers into list
+  fasta.df <- data.frame(head=aligned.seq[['nam']], seq = aligned.seq[['seq']], stringsAsFactors = F)
+  
+  return (fasta.df)
+}
+
+# Dived trees into subtrees by cutting branches with more mutations than specified by cutoff
+#
+# Arguments:  nameSeq.df - data frame with headers and sequences
+#          edge.df - data frame with columns - parent(from), child(to), edge weight (weight), edge length (distance in nt)
+#          cutoff - number of mutation (default - 10) 
+#
+# Returns: modified nameSeq.df - new column treeID, specifying sub tree
+#          modified edge.df - without long branches
+cut.trees <- function(nameSeq.df,edge.df,cutoff){
+  
+  # add column for tree ID
+  nameSeq.df$treeID <- -1
+  
+  # Cut edges longer than threshold
+  trim.edge.df <- edge.df[edge.df$distance<=cutoff,]
+  
+  # Get roots of all subtrees
+  sub.roots <- setdiff(trim.edge.df$from, trim.edge.df$to)
+  tree.id = 1
+  # For each root, get subtree edges and nodes
+  trees <- list()
+  for(root in sub.roots) {
+    at.bottom <- F
+    nodes <- nameSeq.df[nameSeq.df$head==root,]
+    # Trace down tree until at all leaves
+    while(at.bottom != T) {
+      # Add children of all nodes in tree thus far
+      new.nodes <- unique(rbind(nodes, nameSeq.df[nameSeq.df$head %in% trim.edge.df$to[trim.edge.df$from %in% nodes$head],]))
+      
+      # If no children are to be added (tree is complete)
+      if(nrow(nodes) == nrow(new.nodes)) {
+        nodes <- new.nodes
+        # delete internal sequences
+        #nodes <- nodes[nodes$head  %in%  nodes$head[grep('^L', nodes$head, perl=T, fixed=F)],] 
+        if(nrow(nodes)!=0){
+          nameSeq.df[nameSeq.df$head %in% nodes$head,'treeID'] <- tree.id
+          tree.id <- tree.id + 1
+        }
+        at.bottom <- T
+      }else{
+        nodes <- new.nodes
+      }
+    }
+  }
+  sing <- which(nameSeq.df$treeID==-1)
+  if (length(sing) > 0 )
+    nameSeq.df <- nameSeq.df[-sing,]
+  
+  return(list(nameSeq.df, trim.edge.df))
+}
+
+# MAIN function - Builds lineage tree, find mutations within the tree and compute LONR scores
+#
+# Arguments:  in.dir - input FASTA file directory
+#          out.dir - output directory
+#          file - input file name
+#          outgroup - outgroup sequence name (optional)
+#
+# Returns: -
+compute.LONR <- function(in.dir, out.dir, file, outgroup = NULL, cutoff=10){
+  
+  # remove gaps in consensus 
+  fasta.df <- remove.gaps(in.dir, file)
+  
+  w.dir <- getwd()
+  
+  file.name <- substr(file, 1, nchar(file)-6)
+  
+  #------------------------------------
+  # PART I - Build lineage tree
+  #------------------------------------
+  phylip.path <- paste0(w.dir, '/', PHYLIP.PATH)
+  tree.out <- paste0(out.dir, 'Trees/')
+  dir.create(tree.out, recursive=T, showWarnings = FALSE)
+  
+  res <- build.trees( file.name, fasta.df, tree.out, phylip.path, outgroup )
+  if (is.null(res))
+    return(F)
+  nameSeq.df <- res[[1]]
+  edge.df <- res[[2]]
+  
+  #------------------------------------
+  # PART II - Compute LONR scores
+  #------------------------------------
+  
+  res <- cut.trees(nameSeq.df,edge.df,cutoff)
+  nameSeq.df <- res[[1]]
+  edge.df <- res[[2]]
+  
+  
+  LONR.table <- compute.sub.trees(file.name, nameSeq.df, edge.df, outgroup)
+
+  lonr.out <- paste0(out.dir, 'LONR/')
+  dir.create(lonr.out, recursive=T, showWarnings = FALSE)
+  
+  # write mutation table in CSV format
+  write.table(LONR.table, file=paste0(lonr.out, file.name, '_lonr.csv'), quote=F, sep=',', col.names=T, row.names=F)
+  
+}
