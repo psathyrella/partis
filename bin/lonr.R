@@ -9,15 +9,14 @@ MID.SEQ <- 100
 MAX.SEQ <- 7000
 
 ## ----------------------------------------------------------------------------------------
-phy.infname = '.phy'  # 'inseqs.phy'
-phy.outfname = '_out.txt'  # 'phy_out.txt'
-phy.treefname = '_tree.txt'  # 'phy_tree.txt'
-dnadist.fname = '.dis'  # 'dnadist.dis'
-outseqs.fname = '.fasta'  # 'outseqs.fasta'
-edgefname = '_edges.tab'  #
-namefname = '_names.tab'  #
-lonrfname = '_lonr.csv' # 'lonr.csv'
-## ----------------------------------------------------------------------------------------
+phy.infname = 'inseqs.phy'
+phy.outfname = 'phy_out.txt'
+phy.treefname = 'phy_tree.txt'
+dnadist.fname = 'dnadist.dis'
+outseqs.fname = 'outseqs.fasta'
+edgefname = 'edges.tab'
+names.fname = 'names.tab'
+lonrfname = 'lonr.csv'
 
 # Create fasta file from a data.frame of sequences and headers
 #          out.dir - output directory
@@ -570,7 +569,7 @@ build.trees <- function(fasta.df, workdir, baseoutdir, outgroup=NULL ){
   # save Fome/To/distances table (edges)
   write.table(edge.df, file=paste0(outdir, edgefname), quote=F, sep='\t', col.names=T, row.names=F)
   # save old and new sequence names
-  write.table(nameSeq.df[,c('head','head2')], file=paste0(outdir, namefname), quote=F, sep='\t', col.names=T, row.names=F)
+  write.table(nameSeq.df[,c('head','head2')], file=paste0(outdir, names.fname), quote=F, sep='\t', col.names=T, row.names=F)
 
   return(list(nameSeq.df, edge.df))
 }
