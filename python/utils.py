@@ -2293,7 +2293,7 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=False):
         print pad_lines('\n'.join(cmdlines))
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
-    simplerun('R --slave -f %s' % cmdfname, shell=True, print_time=print_time, swallow_stdout=True, debug=debug,  dryrun=dryrun)
+    simplerun('R --slave -f %s' % cmdfname, shell=True, print_time=print_time, swallow_stdout=True, debug=debug, dryrun=dryrun)
     os.remove(cmdfname)
 
 # ----------------------------------------------------------------------------------------
