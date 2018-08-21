@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import glob
 import random
 import sys
 import time
@@ -35,11 +36,12 @@ def run_lbi(args):
 
 # ----------------------------------------------------------------------------------------
 def run_lonr(args):
+    glob_strs = ['*.txt', '*.fasta', '*.tab', '*.phy', '*.csv', '*.dis']
     if args.lonr_outdir is None:
         raise Exception('have to specify --lonr-outdir')
     if os.path.exists(args.lonr_outdir):
         if args.overwrite:
-            utils.prep_dir(args.lonr_outdir, wildlings=['.txt', '.fasta', '.tab', '.phy', '.csv'])
+            utils.prep_dir(args.lonr_outdir, wildlings=glob_strs)
         else:
             print 'output dir exists, not doing anything (override this with --overwrite)'
             return
@@ -66,6 +68,8 @@ def run_lonr(args):
         ),
     ]
     utils.run_r(rcmds, workdir, debug=True)
+    utils.simplerun('cp %s %s/' % (' '.join(glob.glob(r_work_dir + '/*')), args.lonr_outdir))  # TODO
+    utils.prep_dir(r_work_dir, wildlings=glob_strs)  # TODO
     os.rmdir(r_work_dir)
     os.rmdir(workdir)
 
