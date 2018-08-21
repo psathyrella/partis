@@ -43,14 +43,14 @@ def run_lonr(args):
     # ]
     # utils.run_r(rcmds, workdir)
 
-    r_in_dir = workdir + '/in'
+    r_work_dir = workdir + '/work'
     r_out_dir = workdir + '/out'
-    os.makedirs(r_in_dir)
+    os.makedirs(r_work_dir)
     os.makedirs(r_out_dir)
-    utils.simplerun('cp %s %s/' % (args.seqfile, r_in_dir))
     rcmds = [
         'source("%s/lonr.R")' % args.lonr_dir,
-        'compute.LONR("%s/", "%s/", "%s")' % (r_in_dir, r_out_dir, os.path.basename(args.seqfile)),
+        # 'set.seed(1)',  # have only used this for testing a.t.m., but maybe should set the seed to something generally?
+        'compute.LONR(infile="%s", baseoutdir="%s/", workdir="%s/", outgroup=%s)' % (args.seqfile, r_out_dir, r_work_dir, ('"%s"' % args.naive_seq_name) if args.reroot_at_naive else 'NULL'),
     ]
     utils.run_r(rcmds, workdir, debug=True)
 
