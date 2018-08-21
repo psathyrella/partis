@@ -5,7 +5,6 @@ suppressPackageStartupMessages(require(seqinr, quietly=TRUE, warn.conflicts=FALS
 suppressPackageStartupMessages(require(Biostrings, quietly=TRUE, warn.conflicts=FALSE))
 
 MIN.SEQ <- 3
-MID.SEQ <- 100
 MAX.SEQ <- 7000
 
 ## ----------------------------------------------------------------------------------------
@@ -63,6 +62,7 @@ fasta2phylip <- function(fasta.df, workdir){
 # Run dnapars (maximum parsimony)
 #           outgroup.ind - outgroup index in file (optional)
 run.dnapars <- function(workdir, outdir, outgroup.ind ){
+  print('  building trees with maximum parsimony')
 
   curr.dir <- getwd()
   setwd(workdir)
@@ -243,6 +243,7 @@ run.dnadist <- function(workdir){
 # Run neighbor (Neighbor joining)
 #          outgroup.ind - outgroup index  in file (optional)
 run.neighbor <- function(outdir, workdir, outgroup.ind){
+  print('  building trees with neighbor joining')
   curr.dir <- getwd()
   setwd(workdir)
 
@@ -496,23 +497,11 @@ convert.to.binary <- function(nameSeq.df, edge.df, outgroup = NULL){
 #          outgroup - outgroup sequence name (optional)
 # Returns: nameSeq.list - list of sequences with headers
 #          edge.df - data frame with columns - parent(from), child(to), weight, distance(nt)
-build.trees <- function(fasta.df, workdir, baseoutdir, outgroup=NULL ){
-
-  # skip small or huge files
-  n.seq <- nrow(fasta.df)
-  if( n.seq > MAX.SEQ){
-    print(paste0(' - Too many sequences to make tree with Phylip'))
-    return(F)
-  }
+build.trees <- function(method, fasta.df, workdir, baseoutdir, outgroup=NULL ){
 
   # create output directory
   outdir <- paste0(baseoutdir, 'Trees/')
   dir.create(outdir, recursive = T, showWarnings = FALSE)
-
-  if( n.seq < MIN.SEQ) {
-    print(paste0(' - Not enough sequences to make tree with Phylip'))
-    return(F)
-  }
 
   # change input sequence name to shorter ones
   fasta.df <- change.names(fasta.df, outgroup) # CHECK CP NUM!!!!!!!
@@ -523,11 +512,7 @@ build.trees <- function(fasta.df, workdir, baseoutdir, outgroup=NULL ){
   # find outgroup index in file
   outgroup.ind <- which(fasta.df$head == outgroup)
 
-  # if number of sequence is between MIN.SEQ and MID.SEQ - build tree with Maximum Parsimony
-  if( n.seq >= MIN.SEQ & n.seq < MID.SEQ ){
-    print(paste0(' - maximum parsimony'))
-
-    # run dnapars
+  if(method == 'dnapars') {  # maximum parsimony
     run.dnapars(workdir, outdir, outgroup.ind)
 
     # parse dnapars output
@@ -536,12 +521,7 @@ build.trees <- function(fasta.df, workdir, baseoutdir, outgroup=NULL ){
     nameSeq.df <- tmp[[1]]
     edge.df <- tmp[[2]]
     nameSeq.df <- fix.internal(nameSeq.df, edge.df, outgroup)
-
-    # if number of sequence is between MID.SEQ and MAX.SEQ - build tree with Neigbor joining
-  }else if( n.seq >= MID.SEQ & n.seq < MAX.SEQ ){
-    print(paste0(' - neighbor joining'))
-
-    # run neighbor
+  } else if(method == 'neighbor') {  # neighbor joining
     run.neighbor(outdir, workdir, outgroup.ind)
 
     # parse neighbor output
@@ -550,6 +530,8 @@ build.trees <- function(fasta.df, workdir, baseoutdir, outgroup=NULL ){
     nameSeq.df <- tmp[[1]]
     edge.df <- tmp[[2]]
     nameSeq.df <- get.internal(nameSeq.df, edge.df, outgroup)
+  } else {
+    stop(paste0('unhandled method: ', method))
   }
 
   # convert tree to binary
@@ -891,21 +873,29 @@ check.dirs <- function(dirname) {
 # MAIN function - Builds lineage tree, find mutations within the tree and compute LONR scores
 #
 # Arguments:
+#          method - dnapars or neighbor
 #          infile - input fasta file
 #          baseoutdir - output directory
 #          workdir - temporary working directory
 #          outgroup - outgroup sequence name (optional)
-compute.LONR <- function(infile, baseoutdir, workdir, outgroup=NULL, cutoff=10){
+compute.LONR <- function(method, infile, baseoutdir, workdir, outgroup=NULL, cutoff=10){
   baseoutdir = check.dirs(baseoutdir)
   workdir = check.dirs(workdir)
 
   # remove gaps in consensus
   fasta.df <- remove.gaps(infile)
 
+  # fail on small or huge files
+  n.seq <- nrow(fasta.df)
+  if(n.seq < MIN.SEQ)
+    stop('Not enough sequences to make tree with Phylip')
+  if(n.seq > MAX.SEQ)
+    stop('Too many sequences to make tree with Phylip')
+
   #------------------------------------
   # PART I - Build lineage tree
   #------------------------------------
-  res <- build.trees(fasta.df, workdir, baseoutdir, outgroup)
+  res <- build.trees(method, fasta.df, workdir, baseoutdir, outgroup)
 
   if (is.null(res))
     return(F)
