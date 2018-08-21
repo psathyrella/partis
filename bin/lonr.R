@@ -8,17 +8,28 @@ MIN.SEQ <- 3
 MID.SEQ <- 100
 MAX.SEQ <- 7000
 
+## ----------------------------------------------------------------------------------------
+phy.infname = '.phy'  # 'inseqs.phy'
+phy.outfname = '_out.txt'  # 'phy_out.txt'
+phy.treefname = '_tree.txt'  # 'phy_tree.txt'
+dnadist.fname = '.dis'  # 'dnadist.dis'
+outseqs.fname = '.fasta'  # 'outseqs.fasta'
+edgefname = '_edges.tab'  #
+namefname = '_names.tab'  #
+lonrfname = '_lonr.csv' # 'lonr.csv'
+## ----------------------------------------------------------------------------------------
+
 # Create fasta file from a data.frame of sequences and headers
 #
-# Arguments:  file.name  - outup file name
+# Arguments:
 #          out.dir - output directory
 #          nameSeq.df  - data.frame of headers and sequences
 #
 # Returns: -
-write.FASTA <- function(file.name, out.dir, nameSeq.df) {
+write.FASTA <- function(out.dir, nameSeq.df) {
   sequences <- nameSeq.df$seq
   names(sequences) <- nameSeq.df$head
-  writeXStringSet(DNAStringSet(sequences), file=paste0(out.dir, file.name, '.fasta'), width=1000)
+  writeXStringSet(DNAStringSet(sequences), file=paste0(out.dir, outseqs.fname), width=1000)
 }
 
 # Change sequence names
@@ -49,26 +60,23 @@ change.names <- function(fasta.df, outgroup = NULL){
 # Create phylip input alignment file
 #
 # Arguments:   fasta.df - data frame of sequences and headers
-#           out.file/ out.dir - output file name directory
 #
 # Returns:  -
-fasta2phylip <- function(fasta.df, workdir, out.file){
+fasta2phylip <- function(fasta.df, workdir){
 
   phy.df <- rbind(data.frame(head=sprintf('%-9s', nrow(fasta.df)), seq=nchar(fasta.df$seq[1]), stringsAsFactors=F),
                   data.frame(head=sprintf('%-9s', fasta.df$head2), seq=fasta.df$seq, stringsAsFactors=F))
 
-  write.table(phy.df, file=paste0(workdir, out.file, '.phy'),
-              quote=F, sep=' ', col.names=F, row.names=F)
+  write.table(phy.df, file=paste0(workdir, phy.infname), quote=F, sep=' ', col.names=F, row.names=F)
 }
 
 # Run dnapars (maximum parsimony)
 #
-# Arguments:   file.name/ outdir - input file in phylip format and directory
-#           phylip.path - phylip program path
+# Arguments:
 #           outgroup.ind - outgroup index in file (optional)
 #
 # Returns:  -
-run.dnapars <- function(file.name, outdir, workdir, outgroup.ind ){
+run.dnapars <- function(workdir, outdir, outgroup.ind ){
 
   curr.dir <- getwd()
   setwd(workdir)
@@ -76,17 +84,17 @@ run.dnapars <- function(file.name, outdir, workdir, outgroup.ind ){
   # options from dnapars program
   # index of outgroup - last in data frame
   if (length(outgroup.ind) != 0)
-    pars.options <- c(paste0(file.name, '.phy'), 'O', outgroup.ind, 'V', '1', '5', '.', '2', 'Y')
+    pars.options <- c(phy.infname, 'O', outgroup.ind, 'V', '1', '5', '.', '2', 'Y')
   else
-    pars.options <- c(paste0(file.name, '.phy'), 'V', '1', '5', '.', '2', 'Y')
+    pars.options <- c(phy.infname, 'V', '1', '5', '.', '2', 'Y')
 
   # run dnapars
   system2('phylip', args='dnapars', input=pars.options, stdout=NULL)  # not sure why this was just calling 'dnapars'? my phylip install doesn't seem to have put dnapars in my path, but 'phylip dnapars' seems to work ok
 
   # move .phy file and output tree files
-  file.rename(from=paste0(workdir, file.name, '.phy'), to=paste0(outdir, file.name, '.phy'))
-  file.rename(from=paste0(workdir, 'outfile'), to=paste0(outdir, file.name, '_out.txt'))
-  file.rename(from=paste0(workdir, 'outtree'), to=paste0(outdir, file.name, '_tree.txt'))
+  file.rename(from=paste0(workdir, phy.infname), to=paste0(outdir, phy.infname))
+  file.rename(from=paste0(workdir, 'outfile'), to=paste0(outdir, phy.outfname))
+  file.rename(from=paste0(workdir, 'outtree'), to=paste0(outdir, phy.treefname))
 
   setwd(curr.dir)
 }
@@ -122,16 +130,13 @@ order.nameSeq <- function(root, nameSeq.df, edge.df, outgroup){
 
 # Parse dnapars output tree file, get internal sequences and tree structure
 #
-# Arguments:   file.name/ outdir - input file in phylip format and directory
-#           outgroup outgroup name (optional)
-#
 # Returns:  list of:
 #           nameSeq.df - data frame with headers and sequences, ordered by distance from root
 #           edge.df - data frame with columns - parent(from), child(to), distance(weight)
-parse.dnapars <- function(file.name, outdir, outgroup = NULL){
+parse.dnapars <- function(outdir, outgroup = NULL){
 
   # read output tree file
-  out.tree <- scan(paste0(outdir, file.name, '_out.txt'), what='character',sep='\n',
+  out.tree <- scan(paste0(outdir, phy.outfname), what='character',sep='\n',
                    blank.lines.skip=F, strip.white=F)
   # check if tree was build
   if (any(grepl('-1 trees in all found', out.tree))) { return(NULL) }
@@ -234,70 +239,70 @@ fix.internal <- function(nameSeq.df, edge.df, outgroup = NULL){
 
 # Compute distance matrix (Kimura model) for neighbor joining using dnadist (Phylip package)
 #
-# Arguments:  file.name - input file name
+# Arguments:
 #          workdir - phylip directory
 #
 # Returns: -
-run.dnadist <- function(file.name,  workdir){
+run.dnadist <- function(workdir){
 
   # options from dnadist program
-  dnadist.options <- c(paste0(file.name, '.phy'), 'D', '2', 'Y')
+  dnadist.options <- c(phy.infname, 'D', '2', 'Y')
 
   # run dnadist
   system2('dnadist', input=dnadist.options,, stdout=NULL)
 
   # move .phy file and output tree files
-  file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, file.name, '.dis'))
+  file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, dnadist.fname))
 }
 
 
 # Run neighbor (Neighbor joining)
 #
-# Arguments:  file.name/ outdir - input file name and directory
+# Arguments:  / outdir - input file name and directory
 #          workdir - phylip directory
 #          outgroup.ind - outgroup index  in file (optional)
 #
 # Returns: -
-run.neighbor <- function(file.name, outdir, workdir, outgroup.ind){
+run.neighbor <- function(outdir, workdir, outgroup.ind){
 
   curr.dir <- getwd()
   setwd(workdir)
 
   # run dnadist to create distance matrix
-  run.dnadist(file.name,  workdir )
+  run.dnadist(workdir)
 
   # options for neighbor program
   # index of outgroup - last data frame
   if (length(outgroup.ind) != 0 )
-    neigh.options <- c(paste0(file.name, '.dis'), 'O', outgroup.ind, '2', 'Y')
+    neigh.options <- c(dnadist.fname, 'O', outgroup.ind, '2', 'Y')
   else
-    neigh.options <- c(paste0(file.name, '.dis'), '2', 'Y')
+    neigh.options <- c(dnadist.fname, '2', 'Y')
 
   # run neighbor
   system2('neighbor', input=neigh.options, stdout=NULL)
 
   # move .phy, .dis and output tree files
-  file.rename(from=paste0(workdir, file.name, '.dis'), to=paste0(outdir, file.name, '.dis'))
-  file.rename(from=paste0(workdir, file.name, '.phy'), to=paste0(outdir, file.name, '.phy'))
-  file.rename(from=paste0(workdir, 'outfile'), to=paste0(outdir, file.name, '_out.txt'))
-  file.rename(from=paste0(workdir, 'outtree'), to=paste0(outdir, file.name, '_tree.txt'))
+  file.rename(from=paste0(workdir, dnadist.fname), to=paste0(outdir, dnadist.fname))
+  file.rename(from=paste0(workdir, phy.infname), to=paste0(outdir, phy.infname))
+  file.rename(from=paste0(workdir, 'outfile'), to=paste0(outdir, phy.outfname))
+  file.rename(from=paste0(workdir, 'outtree'), to=paste0(outdir, phy.treefname))
 
   setwd(curr.dir)
 }
 
 # Parse neighbor output tree file, get internal sequences and tree structure
 #
-# Arguments:   file.name/ outdir - input file in phylip format and directory
+# Arguments:
 #           fasta.df - data frame of input sequences and headers
 #           outgroup - outgroup sequence name (optional)
 #
 # Returns:  - list of:
 #           nameSeq.df - data frame with headers and sequences
 #           edge.df - data frame with columns - parent(from), child(to), distance(weight)
-parse.neighbor <- function(file.name, outdir, fasta.df, outgroup = NULL){
+parse.neighbor <- function(outdir, fasta.df, outgroup = NULL){
 
   # read output tree file
-  out.tree <- scan(paste0(outdir, file.name, '_out.txt'), what='character',sep='\n',
+  out.tree <- scan(paste0(outdir, phy.outfname), what='character',sep='\n',
                    blank.lines.skip=F, strip.white=F)
 
   # check if tree was build
@@ -512,7 +517,7 @@ convert.to.binary <- function(nameSeq.df, edge.df, outgroup = NULL){
 
 # Build phylogenetic tree with maximum parsimony or neighbor joining
 #
-# Arguments:  file.name - original FASTA file name
+# Arguments:
 #          fasta.df - data frame with input sequences and headers
 #          out.dir - output directory for tree files
 #          phylip.path - path to phlylip executables
@@ -520,21 +525,21 @@ convert.to.binary <- function(nameSeq.df, edge.df, outgroup = NULL){
 #
 # Returns: nameSeq.list - list of sequences with headers
 #          edge.df - data frame with columns - parent(from), child(to), weight, distance(nt)
-build.trees <- function(fasta.df, file.name, workdir, baseoutdir, outgroup=NULL ){
+build.trees <- function(fasta.df, workdir, baseoutdir, outgroup=NULL ){
 
   # skip small or huge files
   n.seq <- nrow(fasta.df)
   if( n.seq > MAX.SEQ){
-    print(paste0(file.name, ' - Too many sequences to make tree with Phylip'))
+    print(paste0(' - Too many sequences to make tree with Phylip'))
     return(F)
   }
 
   # create output directory
-  outdir <- paste0(baseoutdir, 'Trees/', file.name, '/')  # TODO remove this file.name bullshit
+  outdir <- paste0(baseoutdir, 'Trees/')
   dir.create(outdir, recursive = T, showWarnings = FALSE)
 
   if( n.seq < MIN.SEQ) {
-    print(paste0(file.name,' - Not enough sequences to make tree with Phylip'))
+    print(paste0(' - Not enough sequences to make tree with Phylip'))
     return(F)
   }
 
@@ -542,20 +547,20 @@ build.trees <- function(fasta.df, file.name, workdir, baseoutdir, outgroup=NULL 
   fasta.df <- change.names(fasta.df, outgroup) # CHECK CP NUM!!!!!!!
 
   # convert sequences to alignment format for phylip programs
-  fasta2phylip(fasta.df, workdir, file.name)
+  fasta2phylip(fasta.df, workdir)
 
   # find outgroup index in file
   outgroup.ind <- which(fasta.df$head == outgroup)
 
   # if number of sequence is between MIN.SEQ and MID.SEQ - build tree with Maximum Parsimony
   if( n.seq >= MIN.SEQ & n.seq < MID.SEQ ){
-    print(paste0(file.name, ' - maximum parsimony'))
+    print(paste0(' - maximum parsimony'))
 
     # run dnapars
-    run.dnapars(file.name, outdir, workdir, outgroup.ind)
+    run.dnapars(workdir, outdir, outgroup.ind)
 
     # parse dnapars output
-    tmp <- parse.dnapars(file.name, outdir, outgroup)
+    tmp <- parse.dnapars(outdir, outgroup)
     if(is.null(tmp)) { return(F) } # if tree building failed
     nameSeq.df <- tmp[[1]]
     edge.df <- tmp[[2]]
@@ -563,13 +568,13 @@ build.trees <- function(fasta.df, file.name, workdir, baseoutdir, outgroup=NULL 
 
     # if number of sequence is between MID.SEQ and MAX.SEQ - build tree with Neigbor joining
   }else if( n.seq >= MID.SEQ & n.seq < MAX.SEQ ){
-    print(paste0(file.name, ' - neighbor joining'))
+    print(paste0(' - neighbor joining'))
 
     # run neighbor
-    run.neighbor(file.name, outdir, phylip.path, outgroup.ind)
+    run.neighbor(outdir, workdir, outgroup.ind)
 
     # parse neighbor output
-    tmp <- parse.neighbor(file.name, outdir, fasta.df,outgroup)
+    tmp <- parse.neighbor(outdir, fasta.df, outgroup)
     if(is.null(tmp)) { return(F) } # if tree building failed
     nameSeq.df <- tmp[[1]]
     edge.df <- tmp[[2]]
@@ -589,11 +594,11 @@ build.trees <- function(fasta.df, file.name, workdir, baseoutdir, outgroup=NULL 
 
   # save output files
   # save sequence as FASTA file
-  write.FASTA(file.name, outdir, nameSeq.df)
+  write.FASTA(outdir, nameSeq.df)
   # save Fome/To/distances table (edges)
-  write.table(edge.df, file=paste0(outdir, file.name, '_edges.tab'), quote=F, sep='\t', col.names=T, row.names=F)
+  write.table(edge.df, file=paste0(outdir, edgefname), quote=F, sep='\t', col.names=T, row.names=F)
   # save old and new sequence names
-  write.table(nameSeq.df[,c('head','head2')], file=paste0(outdir, file.name, '_names.tab'), quote=F, sep='\t', col.names=T, row.names=F)
+  write.table(nameSeq.df[,c('head','head2')], file=paste0(outdir, namefname), quote=F, sep='\t', col.names=T, row.names=F)
 
   return(list(nameSeq.df, edge.df))
 }
@@ -830,7 +835,6 @@ compute.sub.trees <- function(nameSeq.df, edge.df, outgroup = NULL){
 # Compute consensus sequence and remove positions with gaps
 #
 # Arguments:  in.dir - input directory
-#          file.name  - input file name
 #
 # Returns: -
 remove.gaps <- function(infile){
@@ -917,12 +921,10 @@ compute.LONR <- function(infile, baseoutdir, workdir, outgroup=NULL, cutoff=10){
   # remove gaps in consensus
   fasta.df <- remove.gaps(infile)
 
-  file.name = ''  # TODO remove this
-
   #------------------------------------
   # PART I - Build lineage tree
   #------------------------------------
-  res <- build.trees(fasta.df, file.name, workdir, baseoutdir, outgroup)
+  res <- build.trees(fasta.df, workdir, baseoutdir, outgroup)
 
   if (is.null(res))
     return(F)
@@ -942,5 +944,5 @@ compute.LONR <- function(infile, baseoutdir, workdir, outgroup=NULL, cutoff=10){
   # write lonr output to csv
   lonr.out <- paste0(baseoutdir, 'LONR/')  # TODO don't see any point in the LONR/ subdir
   dir.create(lonr.out, recursive=T, showWarnings = FALSE)
-  write.table(LONR.table, file=paste0(lonr.out, file.name, '_lonr.csv'), quote=F, sep=',', col.names=T, row.names=F)
+  write.table(LONR.table, file=paste0(lonr.out, lonrfname), quote=F, sep=',', col.names=T, row.names=F)
 }

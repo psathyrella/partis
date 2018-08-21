@@ -49,7 +49,7 @@ def run_lonr(args):
     os.makedirs(r_out_dir)
     rcmds = [
         'source("%s/lonr.R")' % args.lonr_dir,
-        # 'set.seed(1)',  # have only used this for testing a.t.m., but maybe should set the seed to something generally?
+        'set.seed(1)',  # have only used this for testing a.t.m., but maybe should set the seed to something generally?
         'compute.LONR(infile="%s", baseoutdir="%s/", workdir="%s/", outgroup=%s)' % (args.seqfile, r_out_dir, r_work_dir, ('"%s"' % args.naive_seq_name) if args.reroot_at_naive else 'NULL'),
     ]
     utils.run_r(rcmds, workdir, debug=True)
