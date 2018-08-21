@@ -874,6 +874,20 @@ cut.trees <- function(nameSeq.df,edge.df,cutoff){
   return(list(nameSeq.df, trim.edge.df))
 }
 
+# make sure the dirs have trailing slashes (all the path manipulation assumes they do)
+check.dirs <- function(dirname) {
+  if(nchar(dirname) == 0)
+    stop('unexpected zero length dir name')
+
+  last.char = substr(dirname, nchar(dirname), nchar(dirname) + 1)
+  if(last.char != '/') {
+      print(paste0('note: directory names must have trailing slashes, adding to ', dirname))
+      dirname = paste0(dirname, '/')
+  }
+
+  return(dirname)
+}
+
 # MAIN function - Builds lineage tree, find mutations within the tree and compute LONR scores
 #
 # Arguments:
@@ -882,6 +896,8 @@ cut.trees <- function(nameSeq.df,edge.df,cutoff){
 #          workdir - temporary working directory
 #          outgroup - outgroup sequence name (optional)
 compute.LONR <- function(infile, baseoutdir, workdir, outgroup=NULL, cutoff=10){
+  baseoutdir = check.dirs(baseoutdir)
+  workdir = check.dirs(workdir)
 
   # remove gaps in consensus
   fasta.df <- remove.gaps(infile)
