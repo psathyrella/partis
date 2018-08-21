@@ -249,7 +249,7 @@ run.dnadist <- function(workdir){
   dnadist.options <- c(phy.infname, 'D', '2', 'Y')
 
   # run dnadist
-  system2('dnadist', input=dnadist.options,, stdout=NULL)
+  system2('phylip', args='dnadist', input=dnadist.options,, stdout=NULL)
 
   # move .phy file and output tree files
   file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, dnadist.fname))
@@ -279,7 +279,7 @@ run.neighbor <- function(outdir, workdir, outgroup.ind){
     neigh.options <- c(dnadist.fname, '2', 'Y')
 
   # run neighbor
-  system2('neighbor', input=neigh.options, stdout=NULL)
+  system2('phylip', args='neighbor', input=neigh.options, stdout=NULL)
 
   # move .phy, .dis and output tree files
   file.rename(from=paste0(workdir, dnadist.fname), to=paste0(outdir, dnadist.fname))
