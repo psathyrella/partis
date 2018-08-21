@@ -2287,7 +2287,7 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
 def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=False):
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
-    cmdfname = workdir + '/mds.r'
+    cmdfname = workdir + '/run.r'
     if debug:
         print '  r cmd lines:'
         print pad_lines('\n'.join(cmdlines))
