@@ -20,12 +20,8 @@ lonrfname = '_lonr.csv' # 'lonr.csv'
 ## ----------------------------------------------------------------------------------------
 
 # Create fasta file from a data.frame of sequences and headers
-#
-# Arguments:
 #          out.dir - output directory
 #          nameSeq.df  - data.frame of headers and sequences
-#
-# Returns: -
 write.FASTA <- function(out.dir, nameSeq.df) {
   sequences <- nameSeq.df$seq
   names(sequences) <- nameSeq.df$head
@@ -33,10 +29,8 @@ write.FASTA <- function(out.dir, nameSeq.df) {
 }
 
 # Change sequence names
-#
-# Arguments:   fasta.df - data frame of sequences and headers
-#           outgroup - outgroup sequence name
-#
+#          fasta.df - data frame of sequences and headers
+#          outgroup - outgroup sequence name
 # Returns:  data frame of sequences and headers with extra column of new headers
 change.names <- function(fasta.df, outgroup = NULL){
 
@@ -58,10 +52,7 @@ change.names <- function(fasta.df, outgroup = NULL){
 }
 
 # Create phylip input alignment file
-#
 # Arguments:   fasta.df - data frame of sequences and headers
-#
-# Returns:  -
 fasta2phylip <- function(fasta.df, workdir){
 
   phy.df <- rbind(data.frame(head=sprintf('%-9s', nrow(fasta.df)), seq=nchar(fasta.df$seq[1]), stringsAsFactors=F),
@@ -71,11 +62,7 @@ fasta2phylip <- function(fasta.df, workdir){
 }
 
 # Run dnapars (maximum parsimony)
-#
-# Arguments:
 #           outgroup.ind - outgroup index in file (optional)
-#
-# Returns:  -
 run.dnapars <- function(workdir, outdir, outgroup.ind ){
 
   curr.dir <- getwd()
@@ -241,8 +228,6 @@ fix.internal <- function(nameSeq.df, edge.df, outgroup = NULL){
 #
 # Arguments:
 #          workdir - phylip directory
-#
-# Returns: -
 run.dnadist <- function(workdir){
 
   # options from dnadist program
@@ -257,14 +242,8 @@ run.dnadist <- function(workdir){
 
 
 # Run neighbor (Neighbor joining)
-#
-# Arguments:  / outdir - input file name and directory
-#          workdir - phylip directory
 #          outgroup.ind - outgroup index  in file (optional)
-#
-# Returns: -
 run.neighbor <- function(outdir, workdir, outgroup.ind){
-
   curr.dir <- getwd()
   setwd(workdir)
 
@@ -291,11 +270,8 @@ run.neighbor <- function(outdir, workdir, outgroup.ind){
 }
 
 # Parse neighbor output tree file, get internal sequences and tree structure
-#
-# Arguments:
 #           fasta.df - data frame of input sequences and headers
 #           outgroup - outgroup sequence name (optional)
-#
 # Returns:  - list of:
 #           nameSeq.df - data frame with headers and sequences
 #           edge.df - data frame with columns - parent(from), child(to), distance(weight)
@@ -516,13 +492,9 @@ convert.to.binary <- function(nameSeq.df, edge.df, outgroup = NULL){
 }
 
 # Build phylogenetic tree with maximum parsimony or neighbor joining
-#
 # Arguments:
 #          fasta.df - data frame with input sequences and headers
-#          out.dir - output directory for tree files
-#          phylip.path - path to phlylip executables
 #          outgroup - outgroup sequence name (optional)
-#
 # Returns: nameSeq.list - list of sequences with headers
 #          edge.df - data frame with columns - parent(from), child(to), weight, distance(nt)
 build.trees <- function(fasta.df, workdir, baseoutdir, outgroup=NULL ){
@@ -833,10 +805,6 @@ compute.sub.trees <- function(nameSeq.df, edge.df, outgroup = NULL){
 }
 
 # Compute consensus sequence and remove positions with gaps
-#
-# Arguments:  in.dir - input directory
-#
-# Returns: -
 remove.gaps <- function(infile){
 
   # read FASTA file in alignment object
@@ -914,8 +882,6 @@ cut.trees <- function(nameSeq.df,edge.df,cutoff){
 #          baseoutdir - output directory
 #          workdir - temporary working directory
 #          outgroup - outgroup sequence name (optional)
-#
-# Returns: -
 compute.LONR <- function(infile, baseoutdir, workdir, outgroup=NULL, cutoff=10){
 
   # remove gaps in consensus
