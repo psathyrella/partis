@@ -7,15 +7,16 @@ suppressPackageStartupMessages(require(Biostrings, quietly=TRUE, warn.conflicts=
 MIN.SEQ <- 3
 MAX.SEQ <- 7000
 
-## ----------------------------------------------------------------------------------------
-phy.infname = 'inseqs.phy'
-phy.outfname = 'phy_out.txt'
-phy.treefname = 'phy_tree.txt'
-dnadist.fname = 'dnadist.dis'
-outseqs.fname = 'outseqs.fasta'
-edgefname = 'edges.tab'
-names.fname = 'names.tab'
-lonrfname = 'lonr.csv'
+# ----------------------------------------------------------------------------------------
+# empty ones are all set by the calling python script after importing this code
+G.phy.infname = 'inseqs.phy'
+G.phy.outfname = ''
+G.phy.treefname = ''
+G.dnadist.fname = ''
+G.outseqs.fname = ''
+G.edgefname = ''
+G.names.fname = ''
+G.lonrfname = ''
 
 # Create fasta file from a data.frame of sequences and headers
 #          out.dir - output directory
@@ -23,7 +24,7 @@ lonrfname = 'lonr.csv'
 write.FASTA <- function(out.dir, nameSeq.df) {
   sequences <- nameSeq.df$seq
   names(sequences) <- nameSeq.df$head
-  writeXStringSet(DNAStringSet(sequences), file=paste0(out.dir, outseqs.fname), width=1000)
+  writeXStringSet(DNAStringSet(sequences), file=paste0(out.dir, G.outseqs.fname), width=1000)
 }
 
 # Change sequence names
@@ -56,7 +57,7 @@ fasta2phylip <- function(fasta.df, workdir){
   phy.df <- rbind(data.frame(head=sprintf('%-9s', nrow(fasta.df)), seq=nchar(fasta.df$seq[1]), stringsAsFactors=F),
                   data.frame(head=sprintf('%-9s', fasta.df$head2), seq=fasta.df$seq, stringsAsFactors=F))
 
-  write.table(phy.df, file=paste0(workdir, phy.infname), quote=F, sep=' ', col.names=F, row.names=F)
+  write.table(phy.df, file=paste0(workdir, G.phy.infname), quote=F, sep=' ', col.names=F, row.names=F)
 }
 
 # Run dnapars (maximum parsimony)
@@ -70,16 +71,16 @@ run.dnapars <- function(workdir, outgroup.ind ){
   # options from dnapars program
   # index of outgroup - last in data frame
   if (length(outgroup.ind) != 0)
-    pars.options <- c(phy.infname, 'O', outgroup.ind, 'V', '1', '5', '.', '2', 'Y')
+    pars.options <- c(G.phy.infname, 'O', outgroup.ind, 'V', '1', '5', '.', '2', 'Y')
   else
-    pars.options <- c(phy.infname, 'V', '1', '5', '.', '2', 'Y')
+    pars.options <- c(G.phy.infname, 'V', '1', '5', '.', '2', 'Y')
 
   # run dnapars
   system2('phylip', args='dnapars', input=pars.options, stdout=NULL)  # not sure why this was just calling 'dnapars'? my phylip install doesn't seem to have put dnapars in my path, but 'phylip dnapars' seems to work ok
 
   # move .phy file and output tree files
-  file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, phy.outfname))
-  file.rename(from=paste0(workdir, 'outtree'), to=paste0(workdir, phy.treefname))
+  file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, G.phy.outfname))
+  file.rename(from=paste0(workdir, 'outtree'), to=paste0(workdir, G.phy.treefname))
 
   setwd(curr.dir)
 }
@@ -121,7 +122,7 @@ order.nameSeq <- function(root, nameSeq.df, edge.df, outgroup){
 parse.dnapars <- function(workdir, outgroup = NULL){
 
   # read output tree file
-  out.tree <- scan(paste0(workdir, phy.outfname), what='character',sep='\n',
+  out.tree <- scan(paste0(workdir, G.phy.outfname), what='character',sep='\n',
                    blank.lines.skip=F, strip.white=F)
   # check if tree was build
   if (any(grepl('-1 trees in all found', out.tree))) { return(NULL) }
@@ -229,13 +230,13 @@ fix.internal <- function(nameSeq.df, edge.df, outgroup = NULL){
 run.dnadist <- function(workdir){
 
   # options from dnadist program
-  dnadist.options <- c(phy.infname, 'D', '2', 'Y')
+  dnadist.options <- c(G.phy.infname, 'D', '2', 'Y')
 
   # run dnadist
   system2('phylip', args='dnadist', input=dnadist.options,, stdout=NULL)
 
   # move .phy file and output tree files
-  file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, dnadist.fname))
+  file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, G.dnadist.fname))
 }
 
 
@@ -252,16 +253,16 @@ run.neighbor <- function(workdir, outgroup.ind){
   # options for neighbor program
   # index of outgroup - last data frame
   if (length(outgroup.ind) != 0 )
-    neigh.options <- c(dnadist.fname, 'O', outgroup.ind, '2', 'Y')
+    neigh.options <- c(G.dnadist.fname, 'O', outgroup.ind, '2', 'Y')
   else
-    neigh.options <- c(dnadist.fname, '2', 'Y')
+    neigh.options <- c(G.dnadist.fname, '2', 'Y')
 
   # run neighbor
   system2('phylip', args='neighbor', input=neigh.options, stdout=NULL)
 
   # move .phy, .dis and output tree files
-  file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, phy.outfname))
-  file.rename(from=paste0(workdir, 'outtree'), to=paste0(workdir, phy.treefname))
+  file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, G.phy.outfname))
+  file.rename(from=paste0(workdir, 'outtree'), to=paste0(workdir, G.phy.treefname))
 
   setwd(curr.dir)
 }
@@ -275,7 +276,7 @@ run.neighbor <- function(workdir, outgroup.ind){
 parse.neighbor <- function(workdir, fasta.df, outgroup = NULL){
 
   # read output tree file
-  out.tree <- scan(paste0(workdir, phy.outfname), what='character',sep='\n',
+  out.tree <- scan(paste0(workdir, G.phy.outfname), what='character',sep='\n',
                    blank.lines.skip=F, strip.white=F)
 
   # check if tree was build
@@ -544,9 +545,9 @@ build.trees <- function(method, fasta.df, workdir, outgroup=NULL ){
   # save sequence as FASTA file
   write.FASTA(workdir, nameSeq.df)
   # save Fome/To/distances table (edges)
-  write.table(edge.df, file=paste0(workdir, edgefname), quote=F, sep='\t', col.names=T, row.names=F)
+  write.table(edge.df, file=paste0(workdir, G.edgefname), quote=F, sep='\t', col.names=T, row.names=F)
   # save old and new sequence names
-  write.table(nameSeq.df[,c('head','head2')], file=paste0(workdir, names.fname), quote=F, sep='\t', col.names=T, row.names=F)
+  write.table(nameSeq.df[,c('head','head2')], file=paste0(workdir, G.names.fname), quote=F, sep='\t', col.names=T, row.names=F)
 
   return(list(nameSeq.df, edge.df))
 }
@@ -908,5 +909,7 @@ compute.LONR <- function(method, infile, baseoutdir, workdir, outgroup=NULL, cut
   LONR.table <- compute.sub.trees(nameSeq.df, edge.df, outgroup)
 
   # write lonr output to csv
-  write.table(LONR.table, file=paste0(baseoutdir, lonrfname), quote=F, sep=',', col.names=T, row.names=F)
+  write.table(LONR.table, file=paste0(baseoutdir, G.lonrfname), quote=F, sep=',', col.names=T, row.names=F)
+
+  if (file.exists(G.phy.infname)) file.remove(G.phy.infname)
 }
