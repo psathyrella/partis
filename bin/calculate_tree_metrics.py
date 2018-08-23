@@ -68,7 +68,7 @@ def run_lonr(args):
     r_work_dir = workdir + '/work'
     os.makedirs(r_work_dir)
     rcmds = [
-        'source("%s/lonr.R")' % args.lonr_path,
+        'source("%s")' % args.lonr_code_file,
         'set.seed(1)',  # have only used this for testing a.t.m., but maybe should set the seed to something generally?
         'compute.LONR(method="%s", infile="%s", baseoutdir="%s/", workdir="%s/", outgroup=%s)' % (args.lonr_tree_method, args.seqfile, args.lonr_outdir, r_work_dir, ('"%s"' % args.naive_seq_name) if args.reroot_at_naive else 'NULL')
     ]
@@ -84,7 +84,7 @@ available_metrics = ['lbi', 'lonr']
 parser.add_argument('--metrics', default=':'.join(available_metrics), help='colon-separated list of tree metrics to calculate (choose from: %s)' % ' '.join(available_metrics))
 parser.add_argument('--reroot-at-naive', action='store_true')
 parser.add_argument('--lonr-tree-method', default='dnapars', choices=['dnapars', 'neighbor'], help='which phylip method should lonr use to infer the tree (maximum parsimony or neighbor-joining)? (their original defaults were dnapars for less than 100 sequences, neighbor for more)')
-parser.add_argument('--lonr-path', default=partis_dir + '/bin')
+parser.add_argument('--lonr-code-file', default=partis_dir + '/bin/lonr.r')
 
 # input
 parser.add_argument('--treefile', help='input tree file name in newick format')
