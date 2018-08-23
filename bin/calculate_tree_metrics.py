@@ -21,8 +21,10 @@ import treeutils
 def run_lbi(args):
     if args.overwrite:
         print '%s --overwrite not implemented for lbi' % utils.color('red', 'warning')
+    if args.treefile is None:
+        raise Exception('need to set --treefile to run lbi (could instead use tree from lonr, maybe I should implement that?)')
+
     if args.reroot_at_naive:
-        assert args.naive_seq_name is not None
         print treeutils.get_ascii_tree(treeutils.get_treestr(args.treefile))
         dendro_tree = treeutils.get_dendro_tree(treefname=args.treefile)
         dendro_tree.reroot_at_node(dendro_tree.find_node_with_taxon_label(args.naive_seq_name), update_bipartitions=True)
@@ -37,7 +39,7 @@ def run_lbi(args):
 
 # ----------------------------------------------------------------------------------------
 def run_lonr(args):
-    if args.treefile is not None:
+    if args.treefile is not None:  # TODO
         print 'note: lonr is at the moment still calculating its own trees'
 
     glob_strs = ['*.txt', '*.fasta', '*.tab', '*.phy', '*.csv', '*.dis']
@@ -52,7 +54,7 @@ def run_lonr(args):
     else:
         os.makedirs(args.lonr_outdir)
 
-    workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0,999999))
+    workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0, 999999))
     os.makedirs(workdir)
 
     # # installation stuff
@@ -98,6 +100,8 @@ args = parser.parse_args()
 args.metrics = utils.get_arg_list(args.metrics)
 if len(set(args.metrics) - set(available_metrics)) > 0:
     raise Exception('unhandled metric(s): %s (choose from: %s)' % (' '.join(set(args.metrics) - set(available_metrics)), ' '.join(available_metrics)))
+if args.reroot_at_naive and args.naive_seq_name is None:
+    raise Exception('have to specify --naive-seq-name if --reroot-at-naive is set')
 
 # ----------------------------------------------------------------------------------------
 if 'lbi' in args.metrics:
