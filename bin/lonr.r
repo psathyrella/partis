@@ -10,9 +10,9 @@ MAX.SEQ <- 7000
 # ----------------------------------------------------------------------------------------
 # empty ones are all set by the calling python script after importing this code
 G.phy.infname = 'inseqs.phy'
+G.dnadist.fname = 'dnadist.dis'
 G.phy.outfname = ''
 G.phy.treefname = ''
-G.dnadist.fname = ''
 G.outseqs.fname = ''
 G.edgefname = ''
 G.names.fname = ''
@@ -263,6 +263,7 @@ run.neighbor <- function(workdir, outgroup.ind){
   # move .phy, .dis and output tree files
   file.rename(from=paste0(workdir, 'outfile'), to=paste0(workdir, G.phy.outfname))
   file.rename(from=paste0(workdir, 'outtree'), to=paste0(workdir, G.phy.treefname))
+  file.remove(paste0(workdir, G.dnadist.fname))
 
   setwd(curr.dir)
 }
@@ -911,5 +912,5 @@ compute.LONR <- function(method, infile, baseoutdir, workdir, outgroup=NULL, cut
   # write lonr output to csv
   write.table(LONR.table, file=paste0(baseoutdir, G.lonrfname), quote=F, sep=',', col.names=T, row.names=F)
 
-  if (file.exists(G.phy.infname)) file.remove(G.phy.infname)
+  file.remove(paste0(workdir, G.phy.infname))
 }

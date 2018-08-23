@@ -72,7 +72,6 @@ def run_lonr(args):
         'set.seed(1)',  # have only used this for testing a.t.m., but maybe should set the seed to something generally?
         'G.phy.outfname = "%s"'  % args.lonr_files['phy.outfname'],  # this is a pretty shitty way to do this, but the underlying problem is that there's too many files, but I don't want to parse them all into one or two files in R, so I need to pass all of 'em to the calling python script
         'G.phy.treefname = "%s"' % args.lonr_files['phy.treefname'],
-        'G.dnadist.fname = "%s"' % args.lonr_files['dnadist.fname'],
         'G.outseqs.fname = "%s"' % args.lonr_files['outseqs.fname'],
         'G.edgefname = "%s"'     % args.lonr_files['edgefname'],
         'G.names.fname = "%s"'   % args.lonr_files['names.fname'],
@@ -112,7 +111,6 @@ if args.reroot_at_naive and args.naive_seq_name is None:
 args.lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called
     'phy.outfname' : 'phy_out.txt',
     'phy.treefname' : 'phy_tree.nwk',
-    'dnadist.fname' : 'dnadist.dis',
     'outseqs.fname' : 'outseqs.fasta',
     'edgefname' : 'edges.tab',
     'names.fname' : 'names.tab',
