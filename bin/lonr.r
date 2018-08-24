@@ -872,11 +872,9 @@ check.dirs <- function(dirname) {
 # Arguments:
 #          method - dnapars or neighbor
 #          infile - input fasta file
-#          baseoutdir - output directory
 #          workdir - temporary working directory
 #          outgroup - outgroup sequence name (optional)
-compute.LONR <- function(method, infile, baseoutdir, workdir, outgroup=NULL, cutoff=10){
-  baseoutdir = check.dirs(baseoutdir)
+compute.LONR <- function(method, infile, workdir, outgroup=NULL, cutoff=10){
   workdir = check.dirs(workdir)
 
   # remove gaps in consensus
@@ -910,7 +908,7 @@ compute.LONR <- function(method, infile, baseoutdir, workdir, outgroup=NULL, cut
   LONR.table <- compute.sub.trees(nameSeq.df, edge.df, outgroup)
 
   # write lonr output to csv
-  write.table(LONR.table, file=paste0(baseoutdir, G.lonrfname), quote=F, sep=',', col.names=T, row.names=F)
+  write.table(LONR.table, file=paste0(workdir, G.lonrfname), quote=F, sep=',', col.names=T, row.names=F)
 
   file.remove(paste0(workdir, G.phy.infname))
 }

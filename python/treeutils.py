@@ -67,7 +67,7 @@ def get_baltic_tree(treestr):  # NOTE trying to use dendropy in future, it seems
 def get_depths(treestr, treetype):  # NOTE structure of dictionary may depend on <treetype>, e.g. whether non-named nodes are included (maybe it doesn't any more? unless you return <clade_keyed_depths> at least)
     if treetype == 'dendropy':
         tree = dendropy.Tree.get_from_string(treestr, 'newick')
-        depths = {str(n.taxon).strip('\'') : n.distance_from_root() for n in tree if n.taxon is not None}
+        depths = {n.taxon.label : n.distance_from_root() for n in tree if n.taxon is not None}
     elif treetype == 'baltic':
         tree = get_baltic_tree(treestr)
         assert False  # l.label doesn't seem to be set. Not sure why tf not
