@@ -41,6 +41,9 @@ def run_lbi(args):
 
 # ----------------------------------------------------------------------------------------
 def parse_lonr(args, debug=False):
+    debug = True
+
+    # read edge info (i.e., implicitly, the tree that lonr.r used)
     edgefos = []  # headers: "from    to      weight  distance"
     with open(args.lonr_outdir + '/' + args.lonr_files['edgefname']) as edgefile:
         reader = csv.DictReader(edgefile, delimiter='\t')
@@ -48,13 +51,14 @@ def parse_lonr(args, debug=False):
             edgefos.append(line)
 
     # NOTE have to build the tree from the edge file, since the lonr code seems to add nodes that aren't in the newick file (which is just from phylip).
+    root_label = '1'
     all_nodes = set([e['from'] for e in edgefos] + [e['to'] for e in edgefos])
-    all_nodes.remove('1')  # remove root node
     tns = dendropy.TaxonNamespace(all_nodes)
-    dtree = dendropy.Tree(taxon_namespace=tns)
-    remaining_nodes = copy.deepcopy(all_nodes)  # a.t.m. I'm not actually using <all_nodes> after this, but I still want to keep them separate in case I start using it
+    root_node = dendropy.Node(label=root_label, taxon=tns.get_taxon(root_label))
+    dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
+    remaining_nodes = copy.deepcopy(all_nodes) - set([root_label])  # a.t.m. I'm not actually using <all_nodes> after this, but I still want to keep them separate in case I start using it
 
-    root_edgefos = [efo for efo in edgefos if efo['from'] == '1']
+    root_edgefos = [efo for efo in edgefos if efo['from'] == root_label]
     for efo in root_edgefos:
         dtree.seed_node.new_child(label=efo['to'], taxon=tns.get_taxon(efo['to']), edge_length=efo['distance'])
         remaining_nodes.remove(efo['to'])
@@ -77,6 +81,27 @@ def parse_lonr(args, debug=False):
             if debug:
                 print '  didn\'t remove any, so breaking: %s' % remaining_nodes
             break
+
+    if debug:
+        print treeutils.get_ascii_tree(dtree.as_string(schema='newick'))
+
+    # switch back to our names (lonr replaces them with shorter versions, I think because of phylip)
+    namefos = {}  # headers: "head	head2"
+    with open(args.lonr_outdir + '/' + args.lonr_files['names.fname']) as namefile:
+        reader = csv.DictReader(namefile, delimiter='\t')
+        for line in reader:
+            namefos[line['head']] = line['head2']  # head2 is our names
+
+    for node in dtree.postorder_node_iter():
+        if node.taxon is None:
+            raise Exception('node has none type taxon (should\'ve all been set above)')
+        if node.taxon.label not in namefos:
+            raise Exception('node label \'%s\' not in name info file' % node.taxon.label)
+        if node.is_leaf():
+            node.taxon.label = namefos[node.taxon.label]
+        else:
+            if namefos[node.taxon.label] != '-':
+                print '%s internal node transaltion doesn\'t equal \'-\'' % utils.color('yellow', 'warning')
 
     if debug:
         print treeutils.get_ascii_tree(dtree.as_string(schema='newick'))
