@@ -40,8 +40,8 @@ def run_lbi(args):
     treeutils.calculate_LBI(bio_tree)
 
 # ----------------------------------------------------------------------------------------
-def parse_lonr(args):
-    edgefos = []  # from    to      weight  distance
+def parse_lonr(args, debug=False):
+    edgefos = []  # headers: "from    to      weight  distance"
     with open(args.lonr_outdir + '/' + args.lonr_files['edgefname']) as edgefile:
         reader = csv.DictReader(edgefile, delimiter='\t')
         for line in reader:
@@ -49,10 +49,10 @@ def parse_lonr(args):
 
     # NOTE have to build the tree from the edge file, since the lonr code seems to add nodes that aren't in the newick file (which is just from phylip).
     all_nodes = set([e['from'] for e in edgefos] + [e['to'] for e in edgefos])
-    all_nodes.remove('1')
+    all_nodes.remove('1')  # remove root node
     tns = dendropy.TaxonNamespace(all_nodes)
     dtree = dendropy.Tree(taxon_namespace=tns)
-    remaining_nodes = copy.deepcopy(all_nodes)
+    remaining_nodes = copy.deepcopy(all_nodes)  # a.t.m. I'm not actually using <all_nodes> after this, but I still want to keep them separate in case I start using it
 
     root_edgefos = [efo for efo in edgefos if efo['from'] == '1']
     for efo in root_edgefos:
@@ -63,20 +63,23 @@ def parse_lonr(args):
         n_removed = 0  # I think I don't need this any more (it only happened before I remembered to remove the root node), but it doesn't seem like it'll hurt)
         for lnode in dtree.leaf_node_iter():
             children = [efo for efo in edgefos if efo['from'] == lnode.taxon.label]
-            if len(children) > 0:
+            if debug and len(children) > 0:
                 print '    adding children to %s:' % lnode.taxon.label
             for chfo in children:
                 lnode.new_child(label=chfo['to'], taxon=tns.get_taxon(chfo['to']), edge_length=chfo['distance'])
                 remaining_nodes.remove(chfo['to'])
                 n_removed += 1
-                print '              %s' % chfo['to']
-        print '  remaining: %d' % len(remaining_nodes)
+                if debug:
+                    print '              %s' % chfo['to']
+        if debug:
+            print '  remaining: %d' % len(remaining_nodes)
         if len(remaining_nodes) > 0 and n_removed == 0:  # if there's zero remaining, we're just about to break anyway
-            print '  didn\'t remove any, so breaking: %s' % remaining_nodes
+            if debug:
+                print '  didn\'t remove any, so breaking: %s' % remaining_nodes
             break
 
-    print dtree.as_ascii_plot(width=100)
-    sys.exit()
+    if debug:
+        print treeutils.get_ascii_tree(dtree.as_string(schema='newick'))
 
     # lonrfos = []  # mutation,LONR,mutation.type,position,father,son,flag
     # with open(args.lonr_outdir + '/' + args.lonr_files['lonrfname']) as lonrfile:
