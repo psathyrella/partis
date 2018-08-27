@@ -163,7 +163,7 @@ def parse_lonr(args, debug=False):
     return {'lonr' : {'tree' : dtree.as_string(schema='newick'), 'node-info' : nodefos, 'lonr-values' : lonrfos}}
 
 # ----------------------------------------------------------------------------------------
-def run_lonr(args):
+def run_lonr(args, debug=False):
     if args.treefile is not None:  # TODO
         print 'note: lonr is at the moment still calculating its own trees'
 
@@ -203,7 +203,7 @@ def run_lonr(args):
         'G.lonrfname = "%s"'     % args.lonr_files['lonrfname'],
         'compute.LONR(method="%s", infile="%s", workdir="%s/", outgroup=%s)' % (args.lonr_tree_method, args.seqfile, r_work_dir, ('"%s"' % args.naive_seq_name) if args.reroot_at_naive else 'NULL')
     ]
-    utils.run_r(rcmds, workdir, debug=True)
+    utils.run_r(rcmds, workdir, debug=debug)
     for fn in args.lonr_files.values():
         os.rename(r_work_dir + '/' + fn, args.lonr_outdir + '/' + fn)
     os.rmdir(r_work_dir)
@@ -216,6 +216,7 @@ parser.add_argument('--metrics', default=':'.join(available_metrics), help='colo
 parser.add_argument('--reroot-at-naive', action='store_true')
 parser.add_argument('--lonr-tree-method', default='dnapars', choices=['dnapars', 'neighbor'], help='which phylip method should lonr use to infer the tree (maximum parsimony or neighbor-joining)? (their original defaults were dnapars for less than 100 sequences, neighbor for more)')
 parser.add_argument('--lonr-code-file', default=partis_dir + '/bin/lonr.r')
+parser.add_argument('--debug', action='store_true')
 
 # input
 parser.add_argument('--treefile', help='input tree file name in newick format')
@@ -245,10 +246,10 @@ args.lonr_files = {  # this is kind of ugly, but it's the cleanest way I can thi
 
 # ----------------------------------------------------------------------------------------
 if 'lbi' in args.metrics:
-    run_lbi(args)
+    run_lbi(args, debug=args.debug)
 if 'lonr' in args.metrics:
-    run_lonr(args)
-    output_info = parse_lonr(args)
+    run_lonr(args, debug=args.debug)
+    output_info = parse_lonr(args, debug=args.debug)
 
 if not os.path.exists(os.path.dirname(args.outfile)):
     os.makedirs(os.path.dirname(args.outfile))
