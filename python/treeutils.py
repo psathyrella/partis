@@ -417,7 +417,7 @@ def run_lonr(seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwr
     os.rmdir(workdir)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwrite=False, lonr_code_file=None, reroot_at_naive=False, run=True, debug=False):
+def calculate_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwrite=False, lonr_code_file=None, reroot_at_naive=False, run=True, seed=1, debug=False):
     if run:
-        run_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=treefile, overwrite=overwrite, lonr_code_file=lonr_code_file, reroot_at_naive=reroot_at_naive, debug=debug)
+        run_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=treefile, overwrite=overwrite, lonr_code_file=lonr_code_file, reroot_at_naive=reroot_at_naive, seed=seed, debug=debug)
     return parse_lonr(outdir, input_seqfile, debug=debug)
