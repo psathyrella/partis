@@ -41,6 +41,7 @@ available_metrics = ['lbi', 'lonr']
 parser.add_argument('--metrics', default=':'.join(available_metrics), help='colon-separated list of tree metrics to calculate (choose from: %s)' % ' '.join(available_metrics))
 parser.add_argument('--reroot-at-naive', action='store_true')
 parser.add_argument('--lonr-tree-method', default='dnapars', choices=['dnapars', 'neighbor'], help='which phylip method should lonr use to infer the tree (maximum parsimony or neighbor-joining)? (their original defaults were dnapars for less than 100 sequences, neighbor for more)')
+parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--debug', action='store_true')
 
 # input
@@ -66,7 +67,7 @@ output_info = {}
 if 'lbi' in args.metrics:
     run_lbi(args, debug=args.debug)
 if 'lonr' in args.metrics:
-    output_info['lonr'] = treeutils.calculate_lonr(args.seqfile, args.naive_seq_name, args.lonr_outdir, args.lonr_tree_method, treefile=args.treefile, overwrite=args.overwrite, reroot_at_naive=args.reroot_at_naive, debug=args.debug)
+    output_info['lonr'] = treeutils.calculate_lonr(args.seqfile, args.naive_seq_name, args.lonr_outdir, args.lonr_tree_method, treefile=args.treefile, overwrite=args.overwrite, reroot_at_naive=args.reroot_at_naive, seed=args.seed, debug=args.debug)
 
 if not os.path.exists(os.path.dirname(args.outfile)):
     os.makedirs(os.path.dirname(args.outfile))

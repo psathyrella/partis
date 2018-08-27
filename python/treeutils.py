@@ -366,7 +366,7 @@ def parse_lonr(outdir, input_seqfile, debug=False):
     return {'tree' : dtree.as_string(schema='newick'), 'node-info' : nodefos, 'lonr-values' : lonrfos}
 
 # ----------------------------------------------------------------------------------------
-def run_lonr(seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwrite=False, lonr_code_file=None, reroot_at_naive=False, debug=False):
+def run_lonr(seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwrite=False, lonr_code_file=None, reroot_at_naive=False, seed=1, debug=False):
     if lonr_code_file is None:
         lonr_code_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/bin/lonr.r')
     if not os.path.exists(lonr_code_file):
@@ -401,7 +401,7 @@ def run_lonr(seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwr
     os.makedirs(r_work_dir)
     rcmds = [
         'source("%s")' % lonr_code_file,
-        'set.seed(1)',  # have only used this for testing a.t.m., but maybe should set the seed to something generally?
+        'set.seed(%d)' % seed,
         'G.phy.outfname = "%s"'  % lonr_files['phy.outfname'],  # this is a pretty shitty way to do this, but the underlying problem is that there's too many files, but I don't want to parse them all into one or two files in R, so I need to pass all of 'em to the calling python script
         'G.phy.treefname = "%s"' % lonr_files['phy.treefname'],
         'G.outseqs.fname = "%s"' % lonr_files['outseqs.fname'],
