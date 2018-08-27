@@ -1,4 +1,62 @@
-# from: http://dx.doi.org/10.1093/nar/gkv1198
+# paper: http://dx.doi.org/10.1093/nar/gkv1198
+# docs from supplementary info:
+
+## Computing LONR scores in lineage trees
+
+## General
+##   The program is written in R.
+##   This analysis is divided into two parts:
+##     First, a lineage tree is built with sequences provided in and aligned FASTA format.
+##       There is an option to provide an outgroup sequence in order to detect more accurately the root sequence.
+##       For less than 100 sequences, the Maximum parsimony method is used (dnapars Phylip program).
+##       Otherwise, the Neighbor-joining method is used (neighbor  Phylip program).
+##       The Neighbor-joining method uses a distance matrix as input, which is computed using the dnadist Phylip program.
+##       The internal sequences are reconstructed using the Fitch algorithm.
+##       The tree is then divided into subtrees in order to ignore mutations occurring in very distant sequences.
+##       Thus the user can specify the cut-off (in nucleotides) to cut long branches.
+##       The default is 10 mutations.
+##       The following LONR analysis is then performed for each subtree separately.
+##     Second, mutations are detected between each pair of father and son sequences (at the nucleotide level).
+##       The LONR score is calculated, for each mutation, as the log of the ratio between the sub-tree size of the son in which the mutation occurred and the sub-tree size of the son in which no mutation occurred at this position.
+
+## How to run
+##   This program uses the Phylip-3.695 package. It is expecting it to be in the same folder as this script. The path to the program can be modified in the beginning of the script.
+##   The package Biostrings and seqinr need to be installed.
+
+## Main function  - compute.LONR()
+
+## Input
+##   1) in.dir – aligned FASTA file input directory
+##   2) out.dir – output directory for tree files and LONR results
+##   3) file – FASTA file name
+##   4) outgroup (optional) – outgroup sequence name. If
+##   5) cutoff  - branches with more mutations than specified nu this cutoff will be trimmed, resulting in several subtrees (default  - 10 )
+
+## Output
+##  The following directories are created in out.dir:
+##   Tree directory –
+##     1) filename.fasta -modified FASTA file if gaps were removed.
+##     2) filename.dis – (only for neighbor joining trees) contains distance matrix created by the dnadist program in the Phylip package.
+##     3) filename.phy – original sequences in alignment format.
+##     4) filename_edges.tab – tab-delimited file containing the tree edges, their weights and the distance in nucleotides between each two nodes.
+##     5) filename_names.tab – tab-delimited file matching between original sequence names and temporary names.
+##     6) filename_out.txt – Phylip output tree file
+##     7) filename_tree.txt – Phylip output tree file in Newick format
+
+## LONR directory –
+##  1) filename_lonr.csv – comma-separated file containing lonr results as followed:
+##    i.   mutation – mutated nucleotides (e.g. AC means A C)
+##    ii.  LONR – log(size of mutated sub-tree/size of un-mutated sub-tree)
+##    iii. mutation.type – (S) Silent or (Replacement)
+##    iv.  position – in nucleotides, according to output FASTA file (see above)
+##    v.   father – sequence name from which occurred mutation
+##    vi.  son – sequence name to which occurred mutation
+##    vii. flag – True if LONR score an internal node is affected by mutations occurring in its descendants
+## Clarifications
+##  1) The input sequences must already be aligned. If there are gaps, the consensus sequence of all the sequences is computed, and positions containing gaps are removed from all the sequences. The output FASTA file is created after this step.
+##  2) The dnapars program may create trees which are not completely binary. Thus, internal nodes which have more than two children are fixed by created an identical new child, which will receive the extra children.
+##     This also happens is case no outgroup is provided and the root has three children (both in dnapars and neighbor programs).
+##  3) If the nucleotide sequence lengths are not a multiple of three and mutations occurred in the last nucleotides, these mutations are ignored since they cannot be typed (not a full codon).
 
 # imports
 suppressPackageStartupMessages(require(seqinr, quietly=TRUE, warn.conflicts=FALSE))

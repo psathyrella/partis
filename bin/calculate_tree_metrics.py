@@ -43,6 +43,21 @@ def run_lbi(args):
 def parse_lonr(args, debug=False):
     debug = True
 
+    # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
+    lonr_names, input_names = {}, {}
+    with open(args.lonr_outdir + '/' + args.lonr_files['names.fname']) as namefile:  # headers: "head	head2"
+        reader = csv.DictReader(namefile, delimiter='\t')
+        for line in reader:
+            if line['head'][0] != 'L':  # internal node
+                dummy_int = int(line['head'])  # check that it's just a (string of a) number
+                assert line['head2'] == '-'
+                continue
+            input_names[line['head']] = line['head2']  # head2 is our names
+            lonr_names[line['head2']] = line['head']
+
+    def final_name(lonr_name):
+        return input_names.get(lonr_name, lonr_name)
+
     # read edge info (i.e., implicitly, the tree that lonr.r used)
     edgefos = []  # headers: "from    to      weight  distance"
     with open(args.lonr_outdir + '/' + args.lonr_files['edgefname']) as edgefile:
@@ -60,7 +75,7 @@ def parse_lonr(args, debug=False):
 
     root_edgefos = [efo for efo in edgefos if efo['from'] == root_label]
     for efo in root_edgefos:
-        dtree.seed_node.new_child(label=efo['to'], taxon=tns.get_taxon(efo['to']), edge_length=efo['distance'])
+        dtree.seed_node.new_child(label=efo['to'], taxon=tns.get_taxon(efo['to']), edge_length=efo['distance'])  # TODO or should I be using the 'weight' column? I think they're just proportional?
         remaining_nodes.remove(efo['to'])
 
     while len(remaining_nodes) > 0:
@@ -82,51 +97,72 @@ def parse_lonr(args, debug=False):
                 print '  didn\'t remove any, so breaking: %s' % remaining_nodes
             break
 
+    # switch leaves to input names
+    for node in dtree.leaf_node_iter():
+        node.taxon.label = input_names[node.taxon.label]
+
     if debug:
-        print treeutils.get_ascii_tree(dtree.as_string(schema='newick'))
+        print dtree.as_string(schema='newick')
+        print treeutils.get_ascii_tree(dtree.as_string(schema='newick'), width=250)
 
-    # switch back to our names (lonr replaces them with shorter versions, I think because of phylip)
-    namefos = {}  # headers: "head	head2"
-    with open(args.lonr_outdir + '/' + args.lonr_files['names.fname']) as namefile:
-        reader = csv.DictReader(namefile, delimiter='\t')
-        for line in reader:
-            namefos[line['head']] = line['head2']  # head2 is our names
+    nodefos = {node.taxon.label : {} for node in dtree.postorder_node_iter()}  # info for each node (internal and leaf), destined for output
 
+    # read the sequences for both leaves and inferred (internal) ancestors
+    seqfos = {final_name(sfo['name']) : sfo['seq'] for sfo in utils.read_fastx(args.lonr_outdir + '/' + args.lonr_files['outseqs.fname'])}
+    input_seqfos = {sfo['name'] : sfo['seq'] for sfo in utils.read_fastx(args.seqfile)}  # just to make sure lonr didn't modify the input sequences
     for node in dtree.postorder_node_iter():
-        if node.taxon is None:
-            raise Exception('node has none type taxon (should\'ve all been set above)')
-        if node.taxon.label not in namefos:
-            raise Exception('node label \'%s\' not in name info file' % node.taxon.label)
+        label = node.taxon.label
+        if label not in seqfos:
+            raise Exception('unexpected sequence name %s' % label)
         if node.is_leaf():
-            node.taxon.label = namefos[node.taxon.label]
-        else:
-            if namefos[node.taxon.label] != '-':
-                print '%s internal node transaltion doesn\'t equal \'-\'' % utils.color('yellow', 'warning')
+            if label not in input_seqfos:
+                raise Exception('leaf node \'%s\' not found in input seqs' % label)
+            if seqfos[label] != input_seqfos[label]:
+                print 'input: %s' % input_seqfos[label]
+                print ' lonr: %s' % utils.color_mutants(input_seqfos[label], seqfos[label], align=True)
+                raise Exception('lonr leaf sequence doesn\'t match input sequence (see above)')
+        nodefos[label]['seq'] = seqfos[label]
 
+    # read actual lonr info
+    lonrfos = []
     if debug:
-        print treeutils.get_ascii_tree(dtree.as_string(schema='newick'))
+        print '   pos  mutation   lonr   syn./a.b.d.    parent   child'
+    with open(args.lonr_outdir + '/' + args.lonr_files['lonrfname']) as lonrfile:  # heads: "mutation,LONR,mutation.type,position,father,son,flag"
+        reader = csv.DictReader(lonrfile)
+        for line in reader:
+            assert len(line['mutation']) == 2
+            assert line['mutation.type'] in ('S', 'R')
+            assert line['flag'] in ('TRUE', 'FALSE')
+            parent_name = final_name(line['father'])
+            child_name = final_name(line['son'])
+            parent_seq = nodefos[parent_name]['seq']
+            pos = int(line['position']) - 1  # switch from one- to zero-indexing
+            child_seq = nodefos[child_name]['seq']
+            if parent_seq[pos] != line['mutation'][0] or child_seq[pos] != line['mutation'][1]:
+                print 'parent: %s' % parent_seq
+                print ' child: %s' % utils.color_mutants(parent_seq, child_seq, align=True)
+                raise Exception('mutation info (%s at %d) doesn\'t match sequences (see above)' % (line['mutation'], pos))
 
-    # lonrfos = []  # mutation,LONR,mutation.type,position,father,son,flag
-    # with open(args.lonr_outdir + '/' + args.lonr_files['lonrfname']) as lonrfile:
-    #     reader = csv.DictReader(lonrfile)
-    #     for line in reader:
-    #         lonrfos.append(line)
+            lonrfos.append({
+                'mutation' : line['mutation'],
+                'lonr' : float(line['LONR']),
+                'synonymous' : line['mutation.type'] == 'S',
+                'position' : pos,
+                'parent' : parent_name,
+                'child' : child_name,
+                'affected_by_descendents' : line['flag'] == 'TRUE',
+            })
+            if debug:
+                lfo = lonrfos[-1]
+                print '   %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
 
-    # newick_tree = treeutils.get_dendro_tree(treefname=args.lonr_outdir + '/' + args.lonr_files['phy.treefname'])
-    # # print newick_tree.as_python_source()
-    # for node in newick_tree.postorder_node_iter():
-    #     if node.taxon is None:  # internal node, so we have to figure out what phylip called it
-    #         continue
-    #     print '  %s' % node.taxon.label
-    #     parents = [efo['from'] for efo in edgefos if efo['to'] == node.taxon.label]
-    #     if len(set(parents)) != 1:
-    #         raise Exception('number of parents not equal to 1: %s' % set(parents))
-    #     parent_label = parents[0]
-    #     if node.parent_node.taxon is None:
-    #         node.parent_node.taxon = dendropy.datamodel.taxonmodel.Taxon(label=parent_label)
-    #         print '    set parent to %s' % parent_label
-    #     elif node.parent_node.taxon.label != parent_label:
-    #         raise Exception('inconsistent names for parent node: %s %s' % (node.parent_node.taxon.label, parent_label))
+    # write output
+
+
+    # TODO not sure if I want to remoe the actual lonr files
+    # for fn in args.lonr_files:
+    #     os.remove(args.lonr_outdir + '/' + fn)
+    # os.rmdir(args.lonr_outdir))
 
 # ----------------------------------------------------------------------------------------
 def run_lonr(args):
@@ -212,5 +248,5 @@ args.lonr_files = {  # this is kind of ugly, but it's the cleanest way I can thi
 if 'lbi' in args.metrics:
     run_lbi(args)
 if 'lonr' in args.metrics:
-    run_lonr(args)
+    # run_lonr(args)
     parse_lonr(args)
