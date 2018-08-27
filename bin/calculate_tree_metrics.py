@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import yaml
 import copy
 import csv
 import glob
@@ -41,8 +42,6 @@ def run_lbi(args):
 
 # ----------------------------------------------------------------------------------------
 def parse_lonr(args, debug=False):
-    debug = True
-
     # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
     lonr_names, input_names = {}, {}
     with open(args.lonr_outdir + '/' + args.lonr_files['names.fname']) as namefile:  # headers: "head	head2"
@@ -156,13 +155,12 @@ def parse_lonr(args, debug=False):
                 lfo = lonrfos[-1]
                 print '   %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
 
-    # write output
-
-
     # TODO not sure if I want to remoe the actual lonr files
     # for fn in args.lonr_files:
     #     os.remove(args.lonr_outdir + '/' + fn)
     # os.rmdir(args.lonr_outdir))
+
+    return {'lonr' : {'tree' : dtree.as_string(schema='newick'), 'node-info' : nodefos, 'lonr-values' : lonrfos}}
 
 # ----------------------------------------------------------------------------------------
 def run_lonr(args):
@@ -230,6 +228,7 @@ parser.add_argument('--lonr-outdir', help='directory for the various lonr output
 parser.add_argument('--overwrite', action='store_true')
 
 args = parser.parse_args()
+args.outfile = os.path.abspath(args.outfile)
 args.metrics = utils.get_arg_list(args.metrics)
 if len(set(args.metrics) - set(available_metrics)) > 0:
     raise Exception('unhandled metric(s): %s (choose from: %s)' % (' '.join(set(args.metrics) - set(available_metrics)), ' '.join(available_metrics)))
@@ -248,5 +247,10 @@ args.lonr_files = {  # this is kind of ugly, but it's the cleanest way I can thi
 if 'lbi' in args.metrics:
     run_lbi(args)
 if 'lonr' in args.metrics:
-    # run_lonr(args)
-    parse_lonr(args)
+    run_lonr(args)
+    output_info = parse_lonr(args)
+
+if not os.path.exists(os.path.dirname(args.outfile)):
+    os.makedirs(os.path.dirname(args.outfile))
+with open(args.outfile, 'w') as outfile:
+    yaml.dump(output_info, outfile, width=400)
