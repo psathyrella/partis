@@ -1,3 +1,6 @@
+import copy
+import random
+import csv
 from cStringIO import StringIO
 import subprocess
 import tempfile
@@ -229,3 +232,192 @@ def calculate_LBI(tree, tau=0.4, transform=lambda x:x, debug=False):
     if debug:
         for node in tree.find_clades():
             print '  %20s  %8.3f' % (node.name, node.lbi)
+
+# ----------------------------------------------------------------------------------------
+lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called
+    'phy.outfname' : 'phy_out.txt',
+    'phy.treefname' : 'phy_tree.nwk',
+    'outseqs.fname' : 'outseqs.fasta',
+    'edgefname' : 'edges.tab',
+    'names.fname' : 'names.tab',
+    'lonrfname' : 'lonr.csv',
+}
+
+# ----------------------------------------------------------------------------------------
+def parse_lonr(outdir, input_seqfile, debug=False):
+    # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
+    lonr_names, input_names = {}, {}
+    with open(outdir + '/' + lonr_files['names.fname']) as namefile:  # headers: "head	head2"
+        reader = csv.DictReader(namefile, delimiter='\t')
+        for line in reader:
+            if line['head'][0] != 'L':  # internal node
+                dummy_int = int(line['head'])  # check that it's just a (string of a) number
+                assert line['head2'] == '-'
+                continue
+            input_names[line['head']] = line['head2']  # head2 is our names
+            lonr_names[line['head2']] = line['head']
+
+    def final_name(lonr_name):
+        return input_names.get(lonr_name, lonr_name)
+
+    # read edge info (i.e., implicitly, the tree that lonr.r used)
+    edgefos = []  # headers: "from    to      weight  distance"
+    with open(outdir + '/' + lonr_files['edgefname']) as edgefile:
+        reader = csv.DictReader(edgefile, delimiter='\t')
+        for line in reader:
+            edgefos.append(line)
+
+    # NOTE have to build the tree from the edge file, since the lonr code seems to add nodes that aren't in the newick file (which is just from phylip).
+    root_label = '1'
+    all_nodes = set([e['from'] for e in edgefos] + [e['to'] for e in edgefos])
+    tns = dendropy.TaxonNamespace(all_nodes)
+    root_node = dendropy.Node(label=root_label, taxon=tns.get_taxon(root_label))
+    dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
+    remaining_nodes = copy.deepcopy(all_nodes) - set([root_label])  # a.t.m. I'm not actually using <all_nodes> after this, but I still want to keep them separate in case I start using it
+
+    root_edgefos = [efo for efo in edgefos if efo['from'] == root_label]
+    for efo in root_edgefos:
+        dtree.seed_node.new_child(label=efo['to'], taxon=tns.get_taxon(efo['to']), edge_length=efo['distance'])  # TODO or should I be using the 'weight' column? I think they're just proportional?
+        remaining_nodes.remove(efo['to'])
+
+    while len(remaining_nodes) > 0:
+        n_removed = 0  # I think I don't need this any more (it only happened before I remembered to remove the root node), but it doesn't seem like it'll hurt)
+        for lnode in dtree.leaf_node_iter():
+            children = [efo for efo in edgefos if efo['from'] == lnode.taxon.label]
+            if debug and len(children) > 0:
+                print '    adding children to %s:' % lnode.taxon.label
+            for chfo in children:
+                lnode.new_child(label=chfo['to'], taxon=tns.get_taxon(chfo['to']), edge_length=chfo['distance'])
+                remaining_nodes.remove(chfo['to'])
+                n_removed += 1
+                if debug:
+                    print '              %s' % chfo['to']
+        if debug:
+            print '  remaining: %d' % len(remaining_nodes)
+        if len(remaining_nodes) > 0 and n_removed == 0:  # if there's zero remaining, we're just about to break anyway
+            if debug:
+                print '  didn\'t remove any, so breaking: %s' % remaining_nodes
+            break
+
+    # switch leaves to input names
+    for node in dtree.leaf_node_iter():
+        node.taxon.label = input_names[node.taxon.label]
+
+    if debug:
+        print dtree.as_string(schema='newick')
+        print get_ascii_tree(dtree.as_string(schema='newick'), width=250)
+
+    nodefos = {node.taxon.label : {} for node in dtree.postorder_node_iter()}  # info for each node (internal and leaf), destined for output
+
+    # read the sequences for both leaves and inferred (internal) ancestors
+    seqfos = {final_name(sfo['name']) : sfo['seq'] for sfo in utils.read_fastx(outdir + '/' + lonr_files['outseqs.fname'])}
+    input_seqfos = {sfo['name'] : sfo['seq'] for sfo in utils.read_fastx(input_seqfile)}  # just to make sure lonr didn't modify the input sequences
+    for node in dtree.postorder_node_iter():
+        label = node.taxon.label
+        if label not in seqfos:
+            raise Exception('unexpected sequence name %s' % label)
+        if node.is_leaf():
+            if label not in input_seqfos:
+                raise Exception('leaf node \'%s\' not found in input seqs' % label)
+            if seqfos[label] != input_seqfos[label]:
+                print 'input: %s' % input_seqfos[label]
+                print ' lonr: %s' % utils.color_mutants(input_seqfos[label], seqfos[label], align=True)
+                raise Exception('lonr leaf sequence doesn\'t match input sequence (see above)')
+        nodefos[label]['seq'] = seqfos[label]
+
+    # read actual lonr info
+    lonrfos = []
+    if debug:
+        print '   pos  mutation   lonr   syn./a.b.d.    parent   child'
+    with open(outdir + '/' + lonr_files['lonrfname']) as lonrfile:  # heads: "mutation,LONR,mutation.type,position,father,son,flag"
+        reader = csv.DictReader(lonrfile)
+        for line in reader:
+            assert len(line['mutation']) == 2
+            assert line['mutation.type'] in ('S', 'R')
+            assert line['flag'] in ('TRUE', 'FALSE')
+            parent_name = final_name(line['father'])
+            child_name = final_name(line['son'])
+            parent_seq = nodefos[parent_name]['seq']
+            pos = int(line['position']) - 1  # switch from one- to zero-indexing
+            child_seq = nodefos[child_name]['seq']
+            if parent_seq[pos] != line['mutation'][0] or child_seq[pos] != line['mutation'][1]:
+                print 'parent: %s' % parent_seq
+                print ' child: %s' % utils.color_mutants(parent_seq, child_seq, align=True)
+                raise Exception('mutation info (%s at %d) doesn\'t match sequences (see above)' % (line['mutation'], pos))
+
+            lonrfos.append({
+                'mutation' : line['mutation'],
+                'lonr' : float(line['LONR']),
+                'synonymous' : line['mutation.type'] == 'S',
+                'position' : pos,
+                'parent' : parent_name,
+                'child' : child_name,
+                'affected_by_descendents' : line['flag'] == 'TRUE',
+            })
+            if debug:
+                lfo = lonrfos[-1]
+                print '   %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
+
+    # # TODO not sure if I want to remove the actual lonr files
+    # for fn in lonr_files.values():
+    #     os.remove(outdir + '/' + fn)
+    # os.rmdir(outdir)
+
+    return {'tree' : dtree.as_string(schema='newick'), 'node-info' : nodefos, 'lonr-values' : lonrfos}
+
+# ----------------------------------------------------------------------------------------
+def run_lonr(seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwrite=False, lonr_code_file=None, reroot_at_naive=False, debug=False):
+    if lonr_code_file is None:
+        lonr_code_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/bin/lonr.r')
+    if not os.path.exists(lonr_code_file):
+        raise Exception('lonr code file %s d.n.e.' % lonr_code_file)
+    if tree_method not in ('dnapars', 'neighbor'):
+        raise Exception('unexpected lonr tree method %s' % tree_method)
+    if treefile is not None:  # TODO
+        print 'note: lonr is at the moment still calculating its own trees'
+
+    glob_strs = ['*.txt', '*.fasta', '*.tab', '*.phy', '*.csv', '*.dis', '*.nwk']
+    if os.path.exists(outdir):
+        if overwrite:
+            utils.prep_dir(outdir, wildlings=glob_strs)
+        else:
+            print 'output dir exists, not doing anything (override this with --overwrite)'
+            return
+    else:
+        os.makedirs(outdir)
+
+    workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0, 999999))
+    os.makedirs(workdir)
+
+    # # installation stuff
+    # rcmds = [
+    #     'source("https://bioconductor.org/biocLite.R")',
+    #     'biocLite("Biostrings")',
+    #     'install.packages("seqinr", repos="http://cran.rstudio.com/")',
+    # ]
+    # utils.run_r(rcmds, workdir)
+
+    r_work_dir = workdir + '/work'
+    os.makedirs(r_work_dir)
+    rcmds = [
+        'source("%s")' % lonr_code_file,
+        'set.seed(1)',  # have only used this for testing a.t.m., but maybe should set the seed to something generally?
+        'G.phy.outfname = "%s"'  % lonr_files['phy.outfname'],  # this is a pretty shitty way to do this, but the underlying problem is that there's too many files, but I don't want to parse them all into one or two files in R, so I need to pass all of 'em to the calling python script
+        'G.phy.treefname = "%s"' % lonr_files['phy.treefname'],
+        'G.outseqs.fname = "%s"' % lonr_files['outseqs.fname'],
+        'G.edgefname = "%s"'     % lonr_files['edgefname'],
+        'G.names.fname = "%s"'   % lonr_files['names.fname'],
+        'G.lonrfname = "%s"'     % lonr_files['lonrfname'],
+        'compute.LONR(method="%s", infile="%s", workdir="%s/", outgroup=%s)' % (tree_method, seqfile, r_work_dir, ('"%s"' % naive_seq_name) if reroot_at_naive else 'NULL')
+    ]
+    utils.run_r(rcmds, workdir, debug=debug)
+    for fn in lonr_files.values():
+        os.rename(r_work_dir + '/' + fn, outdir + '/' + fn)
+    os.rmdir(r_work_dir)
+    os.rmdir(workdir)
+
+# ----------------------------------------------------------------------------------------
+def calculate_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwrite=False, lonr_code_file=None, reroot_at_naive=False, run=True, debug=False):
+    if run:
+        run_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=treefile, overwrite=overwrite, lonr_code_file=lonr_code_file, reroot_at_naive=reroot_at_naive, debug=debug)
+    return parse_lonr(outdir, input_seqfile, debug=debug)
