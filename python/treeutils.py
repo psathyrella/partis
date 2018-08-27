@@ -244,32 +244,13 @@ lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of
 }
 
 # ----------------------------------------------------------------------------------------
-def parse_lonr(outdir, input_seqfile, debug=False):
-    # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
-    lonr_names, input_names = {}, {}
-    with open(outdir + '/' + lonr_files['names.fname']) as namefile:  # headers: "head	head2"
-        reader = csv.DictReader(namefile, delimiter='\t')
-        for line in reader:
-            if line['head'][0] != 'L':  # internal node
-                dummy_int = int(line['head'])  # check that it's just a (string of a) number
-                assert line['head2'] == '-'
-                continue
-            input_names[line['head']] = line['head2']  # head2 is our names
-            lonr_names[line['head2']] = line['head']
-
-    def final_name(lonr_name):
-        return input_names.get(lonr_name, lonr_name)
-
-    # read edge info (i.e., implicitly, the tree that lonr.r used)
-    edgefos = []  # headers: "from    to      weight  distance"
-    with open(outdir + '/' + lonr_files['edgefname']) as edgefile:
-        reader = csv.DictReader(edgefile, delimiter='\t')
-        for line in reader:
-            edgefos.append(line)
-
+def build_lonr_tree(edgefos, debug=False):
     # NOTE have to build the tree from the edge file, since the lonr code seems to add nodes that aren't in the newick file (which is just from phylip).
-    root_label = '1'
     all_nodes = set([e['from'] for e in edgefos] + [e['to'] for e in edgefos])
+    effective_root_nodes = set([e['from'] for e in edgefos]) - set([e['to'] for e in edgefos])  # "effective" because it can be in an unrooted tree. Not sure if there's always exactly one node that has no inbound edges though
+    if len(effective_root_nodes) != 1:
+        raise Exception('too many effective root nodes: %s' % effective_root_nodes)
+    root_label = list(effective_root_nodes)[0]  # should be '1' for dnapars
     tns = dendropy.TaxonNamespace(all_nodes)
     root_node = dendropy.Node(label=root_label, taxon=tns.get_taxon(root_label))
     dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
@@ -298,6 +279,38 @@ def parse_lonr(outdir, input_seqfile, debug=False):
             if debug:
                 print '  didn\'t remove any, so breaking: %s' % remaining_nodes
             break
+
+    return dtree
+
+# ----------------------------------------------------------------------------------------
+    # out_dtree.reroot_at_node(out_dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+def parse_lonr(outdir, input_seqfile, debug=False):
+    # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
+    lonr_names, input_names = {}, {}
+    with open(outdir + '/' + lonr_files['names.fname']) as namefile:  # headers: "head	head2"
+        reader = csv.DictReader(namefile, delimiter='\t')
+        for line in reader:
+            if line['head'][0] != 'L':  # internal node
+                dummy_int = int(line['head'])  # check that it's just a (string of a) number
+                assert line['head2'] == '-'
+                continue
+            input_names[line['head']] = line['head2']  # head2 is our names
+            lonr_names[line['head2']] = line['head']
+
+    def final_name(lonr_name):
+        return input_names.get(lonr_name, lonr_name)
+
+    # read edge info (i.e., implicitly, the tree that lonr.r used)
+    edgefos = []  # headers: "from    to      weight  distance"
+    with open(outdir + '/' + lonr_files['edgefname']) as edgefile:
+        reader = csv.DictReader(edgefile, delimiter='\t')
+        for line in reader:
+            edgefos.append(line)
+
+    dtree = build_lonr_tree(edgefos, debug=debug)
 
     # switch leaves to input names
     for node in dtree.leaf_node_iter():
