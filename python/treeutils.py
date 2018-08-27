@@ -251,6 +251,8 @@ def build_lonr_tree(edgefos, debug=False):
     if len(effective_root_nodes) != 1:
         raise Exception('too many effective root nodes: %s' % effective_root_nodes)
     root_label = list(effective_root_nodes)[0]  # should be '1' for dnapars
+    if debug:
+        print ' chose \'%s\' as root node' % root_label
     tns = dendropy.TaxonNamespace(all_nodes)
     root_node = dendropy.Node(label=root_label, taxon=tns.get_taxon(root_label))
     dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
@@ -348,18 +350,19 @@ def parse_lonr(outdir, input_seqfile, debug=False):
             assert len(line['mutation']) == 2
             assert line['mutation.type'] in ('S', 'R')
             assert line['flag'] in ('TRUE', 'FALSE')
+            mutation = line['mutation'].upper()  # dnapars has it upper case already, but neighbor has it lower case
             parent_name = final_name(line['father'])
             child_name = final_name(line['son'])
             parent_seq = nodefos[parent_name]['seq']
             pos = int(line['position']) - 1  # switch from one- to zero-indexing
             child_seq = nodefos[child_name]['seq']
-            if parent_seq[pos] != line['mutation'][0] or child_seq[pos] != line['mutation'][1]:
+            if parent_seq[pos] != mutation[0] or child_seq[pos] != mutation[1]:
                 print 'parent: %s' % parent_seq
                 print ' child: %s' % utils.color_mutants(parent_seq, child_seq, align=True)
-                raise Exception('mutation info (%s at %d) doesn\'t match sequences (see above)' % (line['mutation'], pos))
+                raise Exception('mutation info (%s at %d) doesn\'t match sequences (see above)' % (mutation, pos))
 
             lonrfos.append({
-                'mutation' : line['mutation'],
+                'mutation' : mutation,
                 'lonr' : float(line['LONR']),
                 'synonymous' : line['mutation.type'] == 'S',
                 'position' : pos,
@@ -431,6 +434,7 @@ def run_lonr(seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwr
 
 # ----------------------------------------------------------------------------------------
 def calculate_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=None, overwrite=False, lonr_code_file=None, reroot_at_naive=False, run=True, seed=1, debug=False):
+    # run = False
     if run:
         run_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=treefile, overwrite=overwrite, lonr_code_file=lonr_code_file, reroot_at_naive=reroot_at_naive, seed=seed, debug=debug)
     return parse_lonr(outdir, input_seqfile, debug=debug)
