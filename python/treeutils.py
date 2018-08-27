@@ -267,18 +267,18 @@ def build_lonr_tree(edgefos, debug=False):
         n_removed = 0  # I think I don't need this any more (it only happened before I remembered to remove the root node), but it doesn't seem like it'll hurt)
         for lnode in dtree.leaf_node_iter():
             children = [efo for efo in edgefos if efo['from'] == lnode.taxon.label]
-            if debug and len(children) > 0:
+            if debug > 1 and len(children) > 0:
                 print '    adding children to %s:' % lnode.taxon.label
             for chfo in children:
                 lnode.new_child(label=chfo['to'], taxon=tns.get_taxon(chfo['to']), edge_length=chfo['distance'])
                 remaining_nodes.remove(chfo['to'])
                 n_removed += 1
-                if debug:
+                if debug > 1:
                     print '              %s' % chfo['to']
-        if debug:
+        if debug > 1:
             print '  remaining: %d' % len(remaining_nodes)
         if len(remaining_nodes) > 0 and n_removed == 0:  # if there's zero remaining, we're just about to break anyway
-            if debug:
+            if debug > 1:
                 print '  didn\'t remove any, so breaking: %s' % remaining_nodes
             break
 
@@ -289,16 +289,17 @@ def build_lonr_tree(edgefos, debug=False):
 # ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
-def parse_lonr(outdir, input_seqfile, debug=False):
+def parse_lonr(outdir, input_seqfile, naive_seq_name=None, debug=False):
     # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
     lonr_names, input_names = {}, {}
     with open(outdir + '/' + lonr_files['names.fname']) as namefile:  # headers: "head	head2"
         reader = csv.DictReader(namefile, delimiter='\t')
         for line in reader:
             if line['head'][0] != 'L':  # internal node
-                dummy_int = int(line['head'])  # check that it's just a (string of a) number
-                assert line['head2'] == '-'
-                continue
+                if naive_seq_name is None or line['head'] != naive_seq_name:
+                    dummy_int = int(line['head'])  # check that it's just a (string of a) number
+                    assert line['head2'] == '-'
+                    continue
             input_names[line['head']] = line['head2']  # head2 is our names
             lonr_names[line['head2']] = line['head']
 
@@ -437,4 +438,4 @@ def calculate_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=
     # run = False
     if run:
         run_lonr(input_seqfile, naive_seq_name, outdir, tree_method, treefile=treefile, overwrite=overwrite, lonr_code_file=lonr_code_file, reroot_at_naive=reroot_at_naive, seed=seed, debug=debug)
-    return parse_lonr(outdir, input_seqfile, debug=debug)
+    return parse_lonr(outdir, input_seqfile, naive_seq_name=naive_seq_name, debug=debug)
