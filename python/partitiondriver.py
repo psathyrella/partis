@@ -19,6 +19,7 @@ import traceback
 import utils
 import glutils
 import indelutils
+import treeutils
 from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
@@ -362,6 +363,9 @@ class PartitionDriver(object):
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
 
+        if cpath is not None and self.args.calculate_tree_metrics:
+            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size)  # NOTE modifies <annotations> (but these modifications don't get written to the existing file, i.e. this is really just for debugging)
+
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotations)
 
@@ -663,6 +667,8 @@ class PartitionDriver(object):
         if n_procs > 1:
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
+        if self.args.calculate_tree_metrics:
+            treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size)  # NOTE modifies <best_annotations>
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
             # if we're in linearham mode, write the indel-reversed partition sequences to fasta files
