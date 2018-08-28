@@ -37,6 +37,7 @@ def get_treestr(treefname):
 
 # ----------------------------------------------------------------------------------------
 def get_dendro_tree(treestr=None, treefname=None):  # specify one or the other
+    assert treestr is None or treefname is None
     if treestr is None:
         treestr = get_treestr(treefname)
     return dendropy.Tree.get_from_string(treestr, 'newick')
@@ -176,12 +177,17 @@ def select_nodes_in_season(tree):  # , timepoint, time_window=0.6, **kwargs):
 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py 
-def calculate_LBI(tree, tau=0.4, transform=lambda x:x, debug=False):
+def calculate_lbi(naive_seq_name, treestr=None, treefname=None, tau=0.4, transform=lambda x:x, debug=False):  # exactly one of <treestr> or <treefname> should be None
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted 
     by distance, then adds them as LBI.
     tree     -- biopython tree for whose node the LBI is being computed
     """
+
+    # reroot at naive sequence, and convert to bio tree
+    dtree = get_dendro_tree(treestr=treestr, treefname=treefname)
+    dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
+    tree = get_bio_tree(treestr=dtree.as_string(schema='newick'))
 
     select_nodes_in_season(tree)  # just sets them all to alive a.t.m., since we don't really have an analogue to seasons
     depths = tree.depths()
@@ -327,7 +333,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
         label = node.taxon.label
         if label not in seqfos:
             raise Exception('unexpected sequence name %s' % label)
-        if node.is_leaf():
+        if node.is_leaf() or label == naive_seq_name:
             if label not in input_seqfo_dict:
                 raise Exception('leaf node \'%s\' not found in input seqs' % label)
             if seqfos[label] != input_seqfo_dict[label]:
@@ -370,7 +376,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
                 lfo = lonrfos[-1]
                 print '   %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
 
-    return {'tree' : dtree.as_string(schema='newick'), 'node-info' : nodefos, 'lonr-values' : lonrfos}
+    return {'tree' : dtree.as_string(schema='newick'), 'nodes' : nodefos, 'values' : lonrfos}
 
 # ----------------------------------------------------------------------------------------
 def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=None, seed=1, debug=False):
@@ -424,9 +430,9 @@ def calculate_lonr(input_seqfos, naive_seq_name, tree_method, seed=1, debug=Fals
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotation_list, min_tree_metric_cluster_size, tree_method=None, naive_seq_name='X-naive-X'):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, tree_method=None, naive_seq_name='X-naive-X'):
     n_clusters_calculated, n_skipped = 0, 0
-    for line in annotation_list:
+    for line in annotations.values():
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
             continue
@@ -434,6 +440,10 @@ def calculate_tree_metrics(annotation_list, min_tree_metric_cluster_size, tree_m
         seqfos.insert(0, {'name' : naive_seq_name, 'seq' : line['naive_seq']})
         if tree_method is None:
             tree_method = 'dnapars' if len(line['unique_ids']) < 1000 else 'neighbor'
-        calculate_lonr(seqfos, naive_seq_name, tree_method, debug=True)
+# ----------------------------------------------------------------------------------------
+        assert 'tree-info' not in line  # TODO
+        line['tree-info'] = {'lonr' : calculate_lonr(seqfos, naive_seq_name, tree_method, debug=True)}  # TODO decide how you really want to do this
+# ----------------------------------------------------------------------------------------
         n_clusters_calculated += 1
-    print '  calculated tree metrics for %d clusters (skipped %d smaller than %d)' % (n_clusters_calculated, n_skipped, min_tree_metric_cluster_size)
+
+    print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)

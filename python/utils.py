@@ -291,7 +291,7 @@ special_indel_columns_for_output = ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seq
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
-                     + functional_columns + ['codon_positions']
+                     + functional_columns + ['codon_positions'] + ['tree-info']
 simulation_headers = ('unique_ids', 'reco_id', 'invalid') + index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs') + tuple(functional_columns)
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',

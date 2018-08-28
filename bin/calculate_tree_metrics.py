@@ -16,25 +16,6 @@ import utils
 import treeutils
 
 # ----------------------------------------------------------------------------------------
-def run_lbi(args):
-    if args.treefile is None:
-        raise Exception('need to set --treefile to run lbi (could instead use tree from lonr, maybe I should implement that?)')
-
-    if args.reroot_at_naive:  # TODO probably just always do this?
-        assert False  # update for always rerooting at naive
-        print treeutils.get_ascii_tree(treeutils.get_treestr(args.treefile))
-        dendro_tree = treeutils.get_dendro_tree(treefname=args.treefile)
-        dendro_tree.reroot_at_node(dendro_tree.find_node_with_taxon_label(args.naive_seq_name), update_bipartitions=True)
-        # print dendro_tree.as_ascii_plot(width=100)  # why tf does this show them as all the same depth?
-        treestr = dendro_tree.as_string(schema='newick')  #, suppress_rooting=True)
-        print treeutils.get_ascii_tree(treestr)
-        bio_tree = treeutils.get_bio_tree(treestr=treestr)
-    else:
-        bio_tree = treeutils.get_bio_tree(treefname=args.treefile)
-
-    treeutils.calculate_LBI(bio_tree)
-
-# ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 available_metrics = ['lbi', 'lonr']
 parser.add_argument('--metrics', default=':'.join(available_metrics), help='colon-separated list of tree metrics to calculate (choose from: %s)' % ' '.join(available_metrics))
@@ -59,9 +40,11 @@ if len(set(args.metrics) - set(available_metrics)) > 0:
 # ----------------------------------------------------------------------------------------
 output_info = {}
 if 'lbi' in args.metrics:
-    run_lbi(args, debug=args.debug)
+    if args.treefile is None:
+        raise Exception('need to set --treefile to run lbi (could instead use tree from lonr, maybe I should implement that?)')
+    output_info['lbi'] = treeutils.calculate_lbi(args.naive_seq_name, treefname=args.treefile, debug=args.debug)
 if 'lonr' in args.metrics:
-    output_info['lonr'] = treeutils.calculate_lonr(utils.read_fastx(args.seqfile), args.naive_seq_name, args.lonr_tree_method, treefile=args.treefile, seed=args.seed, debug=args.debug)
+    output_info['lonr'] = treeutils.calculate_lonr(utils.read_fastx(args.seqfile), args.naive_seq_name, args.lonr_tree_method, seed=args.seed, debug=args.debug)
 
 if not os.path.exists(os.path.dirname(args.outfile)):
     os.makedirs(os.path.dirname(args.outfile))
