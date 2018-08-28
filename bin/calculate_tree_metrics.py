@@ -40,7 +40,7 @@ if len(set(args.metrics) - set(available_metrics)) > 0:
 # ----------------------------------------------------------------------------------------
 output_info = {}
 if 'lbi' in args.metrics:
-    if args.treefile is None:
+    if args.treefile is None:  # TODO
         raise Exception('need to set --treefile to run lbi (could instead use tree from lonr, maybe I should implement that?)')
     output_info['lbi'] = treeutils.calculate_lbi(args.naive_seq_name, treefname=args.treefile, debug=args.debug)
 if 'lonr' in args.metrics:

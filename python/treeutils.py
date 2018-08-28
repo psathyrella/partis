@@ -236,8 +236,9 @@ def calculate_lbi(naive_seq_name, treestr=None, treefname=None, tau=0.4, transfo
         node.lbi /= max_LBI
 
     if debug:
+        print '  lbi values:'
         for node in tree.find_clades():
-            print '  %20s  %8.3f' % (node.name, node.lbi)
+            print '    %20s  %8.3f' % (node.name, node.lbi)
 
 # ----------------------------------------------------------------------------------------
 lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called
@@ -440,10 +441,9 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, tree_metho
         seqfos.insert(0, {'name' : naive_seq_name, 'seq' : line['naive_seq']})
         if tree_method is None:
             tree_method = 'dnapars' if len(line['unique_ids']) < 1000 else 'neighbor'
-# ----------------------------------------------------------------------------------------
-        assert 'tree-info' not in line  # TODO
-        line['tree-info'] = {'lonr' : calculate_lonr(seqfos, naive_seq_name, tree_method, debug=True)}  # TODO decide how you really want to do this
-# ----------------------------------------------------------------------------------------
+        lonr_info = calculate_lonr(seqfos, naive_seq_name, tree_method, debug=True)
+        lbi_info = calculate_lbi(naive_seq_name, treestr=lonr_info['tree'], debug=True)
+        line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}  # TODO decide how you really want to do this
         n_clusters_calculated += 1
 
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
