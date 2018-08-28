@@ -39,12 +39,19 @@ if len(set(args.metrics) - set(available_metrics)) > 0:
 
 # ----------------------------------------------------------------------------------------
 output_info = {}
-if 'lbi' in args.metrics:
-    if args.treefile is None:  # TODO
-        raise Exception('need to set --treefile to run lbi (could instead use tree from lonr, maybe I should implement that?)')
-    output_info['lbi'] = treeutils.calculate_lbi(args.naive_seq_name, treefname=args.treefile, debug=args.debug)
 if 'lonr' in args.metrics:
     output_info['lonr'] = treeutils.calculate_lonr(utils.read_fastx(args.seqfile), args.naive_seq_name, args.lonr_tree_method, seed=args.seed, debug=args.debug)
+if 'lbi' in args.metrics:
+    treefname, treestr = None, None
+    if args.treefile is not None:
+        treefname = args.treefile
+        print '  using --treefile for lbi tree'
+    elif 'lonr' in output_info:
+        treestr = output_info['lonr']['tree']
+        print '  using lonr tree also for lbi'
+    else:
+        raise Exception('have to either set --treefile, or run lonr so we can get the tree from the lonr output')
+    output_info['lbi'] = treeutils.calculate_lbi(args.naive_seq_name, treefname=treefname, treestr=treestr, debug=args.debug)
 
 if not os.path.exists(os.path.dirname(args.outfile)):
     os.makedirs(os.path.dirname(args.outfile))
