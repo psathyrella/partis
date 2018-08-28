@@ -8,6 +8,7 @@ from hist import Hist
 import utils
 from clusterpath import ClusterPath
 import mds
+import treeutils
 
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):

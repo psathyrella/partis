@@ -19,6 +19,7 @@ import traceback
 import utils
 import glutils
 import indelutils
+import treeutils
 from glomerator import Glomerator
 from clusterpath import ClusterPath
 from waterer import Waterer
@@ -362,6 +363,9 @@ class PartitionDriver(object):
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
 
+        if cpath is not None and self.args.calculate_tree_metrics:
+            treeutils.calculate_tree_metrics(annotations.values(), self.args.min_tree_metric_cluster_size)
+
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotations)
 
@@ -397,6 +401,9 @@ class PartitionDriver(object):
         if self.args.plotdir is not None:
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=best_cluster_annotations)
+
+        if cpath is not None and self.args.calculate_tree_metrics:
+            treeutils.calculate_tree_metrics(best_cluster_annotations.values(), self.args.min_tree_metric_cluster_size)
 
         if self.args.debug:
             print 'final'
