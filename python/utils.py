@@ -1139,7 +1139,8 @@ def add_linearham_info(sw_info, gene_probs, line):
         # 1) restrict flexbounds/relpos to gene matches with non-zero probability
         # 2) if the left/right flexbounds overlap in a particular region, remove the worst gene matches until the overlap disappears
         # 3) if neighboring flexbounds overlap across different regions, apportion the flexbounds until the overlap disappears
-        # 4) align the V-entry/J-exit flexbounds to the sequence bounds
+        # 4) if possible, widen the gap between neighboring flexbounds
+        # 5) align the V-entry/J-exit flexbounds to the sequence bounds
         line['flexbounds'] = {}
         for region in regions:
             left_region, right_region = region + '_l', region + '_r'
@@ -1184,6 +1185,7 @@ def add_linearham_info(sw_info, gene_probs, line):
         line['relpos'] = swfo['relpos']
 
         # make sure there is no overlap between neighboring flexbounds
+        # maybe widen the gap between neighboring flexbounds
         for rpair in region_pairs():
             left_region, right_region = rpair['left'] + '_r', rpair['right'] + '_l'
             leftleft_region, rightright_region = rpair['left'] + '_l', rpair['right'] + '_r'
@@ -1205,23 +1207,22 @@ def add_linearham_info(sw_info, gene_probs, line):
                     status = 'nonsense'
                     break
 
-            # are the neighboring flexbounds both 0-length?
-            if junction_len == 0:
-                if rpair['left'] == 'v':
-                    if right_germ_len > 1:
-                        line['flexbounds'][right_region][0] += 1
-                        line['flexbounds'][right_region][1] += 1
-                    else:
-                        line['flexbounds'][left_region][0] -= 1
-                        line['flexbounds'][left_region][1] -= 1
-                else:
-                    assert rpair['right'] == 'j'
-                    if left_germ_len > 1:
-                        line['flexbounds'][left_region][0] -= 1
-                        line['flexbounds'][left_region][1] -= 1
-                    else:
-                        line['flexbounds'][right_region][0] += 1
-                        line['flexbounds'][right_region][1] += 1
+            if rpair['left'] == 'v' and left_germ_len > 2:
+                line['flexbounds'][left_region][0] -= 2
+                line['flexbounds'][left_region][1] -= 2
+
+            # the D gene match region is constrained to have a length of 1
+            if rpair['left'] == 'd':
+                line['flexbounds'][left_region][0] -= (left_germ_len / 2)
+                line['flexbounds'][left_region][1] -= (left_germ_len / 2)
+            else:
+                assert rpair['right'] == 'd'
+                line['flexbounds'][right_region][0] += (right_germ_len / 2)
+                line['flexbounds'][right_region][1] += (right_germ_len / 2)
+
+            if rpair['right'] == 'j' and right_germ_len > 2:
+                line['flexbounds'][right_region][0] += 2
+                line['flexbounds'][right_region][1] += 2
 
         if status == 'nonsense':
             del dists_to_cons[query_name]
