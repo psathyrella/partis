@@ -97,8 +97,13 @@ change.names <- function(fasta.df, outgroup = NULL){
     # change sequence names to 'L_#'
     ind <- 1:n.seq
     ind <- ind[-outgroup.ind]
-    fasta.df$head2[ind] <- sapply(1:(n.seq-1), function(x) { paste0('L', x)})
-    fasta.df$head2[outgroup.ind] <- fasta.df$head[outgroup.ind]
+
+    # original method, fails if outgroup is the last sequence in the file (it complains that the first line only adds n.seq-1 entries, whereas the rest of the data frame has n.seq entries [or something like that]):
+    ## fasta.df$head2[ind] <- sapply(1:(n.seq-1), function(x) { paste0('L', x)})
+    ## fasta.df$head2[outgroup.ind] <- fasta.df$head[outgroup.ind]
+
+    # this is weird and complicated so that it duplicates the original method ^
+    fasta.df$head2[1:n.seq] <- sapply(1:n.seq, function(x) { if(x == outgroup.ind) return(fasta.df$head[outgroup.ind]); if(x > outgroup.ind) x = x-1; return(paste0('L', x))})
   }else{
     n.seq <- nrow(fasta.df)
     # change sequence names to 'L_#'
