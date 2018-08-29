@@ -543,7 +543,7 @@ class Recombinator(object):
             print '  chose tree with total height %f' % treeutils.get_mean_height(chosen_tree)
             print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treeutils.get_mean_height(scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
             print '    tree passed to bppseqgen:'
-            print treeutils.get_ascii_tree(chosen_tree, extra_str='      ')
+            print treeutils.get_ascii_tree(treestr=chosen_tree, extra_str='      ')
 
         n_leaves = treeutils.get_n_leaves(chosen_tree)
         cmdfos = []

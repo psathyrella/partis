@@ -95,7 +95,10 @@ def get_mean_height(treestr):
     return sum(heights) / len(heights)
 
 # ----------------------------------------------------------------------------------------
-def get_ascii_tree(treestr, extra_str='', width=100):
+def get_ascii_tree(treestr=None, treefname=None, extra_str='', width=100):
+    assert treestr is None or treefname is None
+    if treestr is None:
+        treestr = get_treestr(treefname)
     if get_mean_height(treestr) == 0.:  # we really want the max height, but since we only care whether it's zero or not this is the same
         return '%szero height' % extra_str
     elif get_n_leaves(treestr) > 1:  # if more than one leaf
@@ -144,9 +147,9 @@ def infer_tree_from_leaves(region, in_tree, leafseqs, naive_seq, naive_seq_name=
     base_width = 100
     print '  %s trees:' % ('full sequence' if region == 'all' else region)
     print '    %s' % utils.color('blue', 'input:')
-    print get_ascii_tree(in_tree, extra_str='      ', width=base_width)
+    print get_ascii_tree(treestr=in_tree, extra_str='      ', width=base_width)
     print '    %s' % utils.color('blue', 'output:')
-    print get_ascii_tree(out_tree, extra_str='        ', width=int(base_width*out_height/in_height))
+    print get_ascii_tree(treestr=out_tree, extra_str='        ', width=int(base_width*out_height/in_height))
 
     in_dtree = dendropy.Tree.get_from_string(in_tree, 'newick', taxon_namespace=taxon_namespace)  # see note above
 
@@ -323,7 +326,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
 
     if debug:
         print '    reconstructed newick tree: %s' % dtree.as_string(schema='newick')
-        print utils.pad_lines(get_ascii_tree(dtree.as_string(schema='newick'), width=250))
+        print utils.pad_lines(get_ascii_tree(treestr=dtree.as_string(schema='newick'), width=250))
 
     nodefos = {node.taxon.label : {} for node in dtree.postorder_node_iter()}  # info for each node (internal and leaf), destined for output
 
