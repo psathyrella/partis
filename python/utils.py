@@ -381,6 +381,17 @@ def generate_dummy_v(d_gene):
     return get_locus(d_gene).upper() + 'VxDx' + pv + '-' + sv + '*' + al
 
 # ----------------------------------------------------------------------------------------
+def choose_new_uid(potential_names, used_names):  # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
+    if potential_names is None:  # first time through
+        potential_names = [l for l in string.ascii_lowercase]
+        used_names = []
+    if len(potential_names) == 0:  # ran out of names
+        potential_names += [''.join(ab) for ab in itertools.combinations(used_names, 2) if ''.join(ab) not in used_names]
+    new_id = potential_names.pop(0)
+    used_names.append(new_id)
+    return new_id, potential_names, used_names
+
+# ----------------------------------------------------------------------------------------
 def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=False):
     newline = {}
     print_it = False
