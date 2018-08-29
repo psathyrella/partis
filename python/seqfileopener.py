@@ -16,26 +16,21 @@ import utils
 delimit_info = {'.csv' : ',', '.tsv' : '\t'}
 
 # ----------------------------------------------------------------------------------------
-def get_more_names(potential_names):
-    potential_names += [''.join(ab) for ab in itertools.combinations(potential_names, 2)]
-
-# ----------------------------------------------------------------------------------------
-def add_seed_seq(args, input_info, reco_info, is_data):
+def add_seed_seq(args, input_info, reco_info, is_data):  # NOTE duplicates code in treeutils.py
     input_info[args.seed_unique_id] = {'unique_ids' : [args.seed_unique_id, ], 'seqs' : [args.seed_seq, ]}
     if not is_data:
         reco_info[args.seed_unique_id] = 'unknown!'  # hopefully more obvious than a key error
 
 # ----------------------------------------------------------------------------------------
-def abbreviate(used_names, potential_names, unique_id):
-    if len(used_names) >= len(potential_names):
-        get_more_names(potential_names)
-    ilet = 0
-    new_id = potential_names[ilet]
-    while new_id in used_names:  # NOTE this is kind of wasteful, since they're both ordered I could just keep track of which one to use next
-        new_id = potential_names[ilet]
-        ilet += 1
-    used_names.add(new_id)
-    return new_id
+def abbreviate(potential_names, used_names):
+    if potential_names is None:  # first time through
+        potential_names = [l for l in string.ascii_lowercase]
+        used_names = []
+    if len(potential_names) == 0:  # ran out of names
+        potential_names += [''.join(ab) for ab in itertools.combinations(used_names, 2) if ''.join(ab) not in used_names]
+    new_id = potential_names.pop(0)
+    used_names.append(new_id)
+    return new_id, potential_names, used_names
 
 # ----------------------------------------------------------------------------------------
 def post_process(input_info, reco_info, args, infname, found_seed, is_data, iline):
@@ -125,9 +120,8 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     # already_printed_forbidden_character_warning = False
     n_queries_added = 0
     found_seed = False
-    used_names = set()  # for abbreviating
-    if args is not None and args.abbreviate:
-        potential_names = list(string.ascii_lowercase)
+    potential_names = None  # for abbreviating
+    used_names = None  # for abbreviating
     iname = None  # line number -- used as sequence id if there isn't a name column in the file
     iline = -1
     for line in reader:
@@ -173,7 +167,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         #     raise Exception('found a forbidden character (one of %s) in sequence id \'%s\'' % (' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid))
         if args is not None:
             if args.abbreviate:  # note that this changes <uid>, but doesn't modify <line>
-                uid = abbreviate(used_names, potential_names, uid)
+                uid, potential_names, used_names = abbreviate(potential_names, used_names)
             if args.queries is not None and uid not in args.queries:
                 continue
             if args.reco_ids is not None and line['reco_id'] not in args.reco_ids:
