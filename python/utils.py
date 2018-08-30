@@ -1218,22 +1218,18 @@ def add_linearham_info(sw_info, gene_probs, line):
                     status = 'nonsense'
                     break
 
-            if rpair['left'] == 'v' and left_germ_len > 2:
-                line['flexbounds'][left_region][0] -= 2
-                line['flexbounds'][left_region][1] -= 2
+            if rpair['left'] == 'v' and left_germ_len > 5:
+                line['flexbounds'][left_region][0] -= 5
+                line['flexbounds'][left_region][1] -= 5
 
             # the D gene match region is constrained to have a length of 1
-            if rpair['left'] == 'd':
-                line['flexbounds'][left_region][0] -= (left_germ_len / 2)
-                line['flexbounds'][left_region][1] -= (left_germ_len / 2)
-            else:
-                assert rpair['right'] == 'd'
-                line['flexbounds'][right_region][0] += (right_germ_len / 2)
-                line['flexbounds'][right_region][1] += (right_germ_len / 2)
+            if rpair['right'] == 'd':
+                line['flexbounds'][right_region][0] += (right_germ_len - 1)
+                line['flexbounds'][right_region][1] += (right_germ_len - 1)
 
-            if rpair['right'] == 'j' and right_germ_len > 2:
-                line['flexbounds'][right_region][0] += 2
-                line['flexbounds'][right_region][1] += 2
+            if rpair['right'] == 'j' and right_germ_len > 5:
+                line['flexbounds'][right_region][0] += 5
+                line['flexbounds'][right_region][1] += 5
 
         if status == 'nonsense':
             del dists_to_cons[query_name]
