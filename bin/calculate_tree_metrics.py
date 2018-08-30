@@ -43,7 +43,7 @@ if 'lonr' in args.metrics:
     output_info['lonr'] = treeutils.calculate_lonr(utils.read_fastx(args.seqfile), args.naive_seq_name, args.lonr_tree_method, seed=args.seed, debug=args.debug)
 if 'lbi' in args.metrics:
     if args.treefile is not None:  # convert to nexml
-        treestr = treeutils.get_dendro_tree(treefname=args.treefile, schema='newick', ignore_internal_node_labels=('asttree' in args.treefile)).as_string('nexml')
+        treestr = treeutils.get_dendro_tree(treefname=args.treefile, schema='newick', ignore_internal_node_labels=('asttree' in args.treefile)).as_string('nexml')  # fasttree output is the only one so far that has shitty node labels
         print '  using --treefile for lbi tree'
     elif 'lonr' in output_info:
         treestr = output_info['lonr']['tree']
