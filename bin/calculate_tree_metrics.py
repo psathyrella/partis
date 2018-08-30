@@ -42,16 +42,15 @@ output_info = {}
 if 'lonr' in args.metrics:
     output_info['lonr'] = treeutils.calculate_lonr(utils.read_fastx(args.seqfile), args.naive_seq_name, args.lonr_tree_method, seed=args.seed, debug=args.debug)
 if 'lbi' in args.metrics:
-    treefname, treestr = None, None
-    if args.treefile is not None:
-        treefname = args.treefile
+    if args.treefile is not None:  # convert to nexml
+        treestr = treeutils.get_dendro_tree(treefname=args.treefile, schema='newick', ignore_internal_node_labels=('asttree' in args.treefile)).as_string('nexml')
         print '  using --treefile for lbi tree'
     elif 'lonr' in output_info:
         treestr = output_info['lonr']['tree']
         print '  using lonr tree also for lbi'
     else:
         raise Exception('have to either set --treefile, or run lonr so we can get the tree from the lonr output')
-    output_info['lbi'] = treeutils.calculate_lbi(args.naive_seq_name, treefname=treefname, treestr=treestr, debug=args.debug)
+    output_info['lbi'] = treeutils.calculate_lbi(args.naive_seq_name, treestr=treestr, debug=args.debug)
 
 if not os.path.exists(os.path.dirname(args.outfile)):
     os.makedirs(os.path.dirname(args.outfile))

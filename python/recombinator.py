@@ -434,7 +434,7 @@ class Recombinator(object):
         reco_seq_fname = workdir + '/start-seq.txt'
         leaf_seq_fname = workdir + '/leaf-seqs.fa'
         # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen)
-        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_height(chosen_tree))
+        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
         self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
@@ -527,7 +527,7 @@ class Recombinator(object):
         isplit = treefostr.find(';') + 1
         chosen_tree = treefostr[:isplit]  # includes semi-colon
         mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
-        mean_total_height = treeutils.get_mean_height(chosen_tree)
+        mean_total_height = treeutils.get_mean_leaf_height(treestr=chosen_tree)
         regional_heights = {}  # per-region height, including <self.args.mutation_multiplier>
         for tmpstr in mutefo:
             region, ratio = tmpstr.split(':')
@@ -540,12 +540,12 @@ class Recombinator(object):
         scaled_trees = {r : treeutils.rescale_tree(chosen_tree, regional_heights[r]) for r in utils.regions}
 
         if self.args.debug:
-            print '  chose tree with total height %f' % treeutils.get_mean_height(chosen_tree)
-            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treeutils.get_mean_height(scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
+            print '  chose tree with total height %f' % treeutils.get_mean_leaf_height(treestr=chosen_tree)
+            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treeutils.get_mean_leaf_height(treestr=scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
             print '    tree passed to bppseqgen:'
-            print treeutils.get_ascii_tree(treestr=chosen_tree, extra_str='      ')
+            print treeutils.get_ascii_tree(treestr=chosen_tree, extra_str='      ', schema='newick')
 
-        n_leaves = treeutils.get_n_leaves(chosen_tree)
+        n_leaves = treeutils.get_n_leaves(treeutils.get_dendro_tree(treestr=chosen_tree, schema='newick'))
         cmdfos = []
         regional_naive_seqs = {}  # only used for tree checking
         for region in utils.regions:
