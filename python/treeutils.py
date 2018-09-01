@@ -130,8 +130,6 @@ def label_internal_nodes(dendro_tree, ignore_internal_node_labels=False, debug=F
         print '   after:'
         print '      %20s' % dendro_tree.as_string(schema='nexml')
 
-    print tns
-
 # ----------------------------------------------------------------------------------------
 def get_mean_leaf_height(tree=None, treestr=None):
     assert tree is None or treestr is None
@@ -485,7 +483,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
     return {'tree' : dtree.as_string(schema='nexml'), 'nodes' : nodefos, 'values' : lonrfos}
 
 # ----------------------------------------------------------------------------------------
-def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=None, seed=1, debug=False):
+def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=None, phylip_treefile=None, phylip_seqfile=None, seed=1, debug=False):
     if lonr_code_file is None:
         lonr_code_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/bin/lonr.r')
     if not os.path.exists(lonr_code_file):
@@ -506,6 +504,27 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         for sfo in input_seqfos:
             iseqfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
 
+    existing_phylip_output_str = ''
+    if phylip_treefile is not None:  # using existing phylip output, e.g. from cft
+        tree = get_dendro_tree(treefname=phylip_treefile, schema='newick')
+        edgefos = []
+        for node in tree.preorder_node_iter():
+            for edge in node.child_edge_iter():
+                edgefos.append({'from' : node.taxon.label, 'to' : edge.head_node.taxon.label, 'weight' : edge.length})
+        existing_edgefname = workdir + '/edges.csv'
+        existing_node_seqfname = workdir + '/infered-node-seqs.fa'
+        with open(existing_edgefname, 'w') as edgefile:
+            writer = csv.DictWriter(edgefile, ('from', 'to', 'weight'))
+            writer.writeheader()
+            for line in edgefos:
+                writer.writerow(line)
+        with open(existing_node_seqfname, 'w') as node_seqfile:
+            writer = csv.DictWriter(node_seqfile, ('head', 'seq'))
+            writer.writeheader()
+            for sfo in utils.read_fastx(phylip_seqfile):
+                writer.writerow({'head' : sfo['name'], 'seq' : sfo['seq']})
+        existing_phylip_output_str = ', existing.edgefile="%s", existing.node.seqfile="%s"' % (existing_edgefname, existing_node_seqfname)
+
     rcmds = [
         'source("%s")' % lonr_code_file,
         'set.seed(%d)' % seed,
@@ -515,18 +534,22 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         'G.edgefname = "%s"'     % lonr_files['edgefname'],
         'G.names.fname = "%s"'   % lonr_files['names.fname'],
         'G.lonrfname = "%s"'     % lonr_files['lonrfname'],
-        'compute.LONR(method="%s", infile="%s", workdir="%s/", outgroup="%s")' % (tree_method, input_seqfile, workdir, naive_seq_name),  # TODO maybe fiddle with cutoff as well?
+        'compute.LONR(method="%s", infile="%s", workdir="%s/", outgroup="%s"%s)' % (tree_method, input_seqfile, workdir, naive_seq_name, existing_phylip_output_str),
+        # TODO maybe fiddle with cutoff as well?
     ]
     utils.run_r(rcmds, workdir, debug=debug)
 
     os.remove(input_seqfile)
+    if phylip_treefile is not None:
+        os.remove(existing_edgefname)
+        os.remove(existing_node_seqfname)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lonr(input_seqfos, naive_seq_name, tree_method, seed=1, debug=False):
+def calculate_lonr(input_seqfos, naive_seq_name, tree_method, phylip_treefile=None, phylip_seqfile=None, seed=1, debug=False):
     workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0, 999999))
     os.makedirs(workdir)
 
-    run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, seed=seed, debug=debug)
+    run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, phylip_treefile=phylip_treefile, phylip_seqfile=phylip_seqfile, seed=seed, debug=debug)
     lonr_info = parse_lonr(workdir, input_seqfos, naive_seq_name, debug=debug)
 
     for fn in lonr_files.values():

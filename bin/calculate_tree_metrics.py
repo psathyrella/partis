@@ -25,14 +25,23 @@ parser.add_argument('--debug', action='store_true')
 
 # input
 parser.add_argument('--naive-seq-name', required=True, help='uid of inferred naive sequence')
-parser.add_argument('--treefile', help='input tree file name in newick format')
+parser.add_argument('--treefile', help='input newick tree file, for lbi calculation. If not set, lonr has to be in --metrics so we can get the tree from there to use for lbi. If both --treefile is set and lonr is in --metrics, --treefile takes precedence')
 parser.add_argument('--seqfile', help='input fasta file with aligned sequences corresponding to <treefile>')
+parser.add_argument('--phylip-treefile', help='newick file with inferred tree from a previous phylip run (i.e. from cft)')
+parser.add_argument('--phylip-seqfile', help='fasta file with node sequences (including internal nodes) from a previous phylip run (i.e. from cft)')
 
 # output
 parser.add_argument('--outfile', help='output file name in yaml format')
 
 args = parser.parse_args()
 args.outfile = os.path.abspath(args.outfile)
+
+if args.phylip_treefile is not None:
+    raise Exception('doesn\'t work (and lonr.r is probably poor enough quality code that it isn\'t worthwhile)')
+    args.phylip_treefile = os.path.abspath(args.phylip_treefile)
+if args.phylip_seqfile is not None:
+    args.phylip_seqfile = os.path.abspath(args.phylip_seqfile)
+
 args.metrics = utils.get_arg_list(args.metrics)
 if len(set(args.metrics) - set(available_metrics)) > 0:
     raise Exception('unhandled metric(s): %s (choose from: %s)' % (' '.join(set(args.metrics) - set(available_metrics)), ' '.join(available_metrics)))
@@ -40,7 +49,7 @@ if len(set(args.metrics) - set(available_metrics)) > 0:
 # ----------------------------------------------------------------------------------------
 output_info = {}
 if 'lonr' in args.metrics:
-    output_info['lonr'] = treeutils.calculate_lonr(utils.read_fastx(args.seqfile), args.naive_seq_name, args.lonr_tree_method, seed=args.seed, debug=args.debug)
+    output_info['lonr'] = treeutils.calculate_lonr(utils.read_fastx(args.seqfile), args.naive_seq_name, args.lonr_tree_method, phylip_treefile=args.phylip_treefile, phylip_seqfile=args.phylip_seqfile, seed=args.seed, debug=args.debug)
 if 'lbi' in args.metrics:
     if args.treefile is not None:  # convert to nexml
         treestr = treeutils.get_dendro_tree(treefname=args.treefile, schema='newick', ignore_internal_node_labels=('asttree' in args.treefile)).as_string('nexml')  # fasttree output is the only one so far that has shitty node labels

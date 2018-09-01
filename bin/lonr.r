@@ -125,7 +125,7 @@ fasta2phylip <- function(fasta.df, workdir){
 
 # Run dnapars (maximum parsimony)
 #           outgroup.ind - outgroup index in file (optional)
-run.dnapars <- function(workdir, outgroup.ind ){
+run.dnapars <- function(workdir, outgroup.ind){
   print('  building trees with maximum parsimony')
 
   curr.dir <- getwd()
@@ -559,7 +559,7 @@ convert.to.binary <- function(nameSeq.df, edge.df, outgroup = NULL){
 #          outgroup - outgroup sequence name (optional)
 # Returns: nameSeq.list - list of sequences with headers
 #          edge.df - data frame with columns - parent(from), child(to), weight, distance(nt)
-build.trees <- function(method, fasta.df, workdir, outgroup=NULL ){
+build.trees <- function(method, fasta.df, workdir, outgroup=NULL, existing.edgefile=NULL, existing.node.seqfile=NULL){
 
   dir.create(workdir, recursive = T, showWarnings = FALSE)
 
@@ -572,7 +572,37 @@ build.trees <- function(method, fasta.df, workdir, outgroup=NULL ){
   # find outgroup index in file
   outgroup.ind <- which(fasta.df$head == outgroup)
 
-  if(method == 'dnapars') {  # maximum parsimony
+  if(!is.null(existing.edgefile)) {
+    stop('doesn\'t work yet (and probably a waste of time to fix it -- reimplement this stupid shit in python)')
+    edge.df <- read.csv(file=existing.edgefile, header=TRUE, sep=',', colClasses=c('character', 'character', 'numeric'))
+    nameSeq.df <- read.csv(file=existing.node.seqfile, header=TRUE, sep=',', colClasses=c('character', 'character'))
+    for(irow in 1:length(nameSeq.df$head)) {
+        input.name <- nameSeq.df$head[[irow]]
+        for(jrow in 1:length(fasta.df$head)) {
+            if(fasta.df$head[[jrow]] == input.name) {  # see if this sequence is in the df with name translations (i.e. it's an input/leaf sequence)
+                new.name <- fasta.df$head2[[jrow]]
+                nameSeq.df$head[[irow]] <- new.name  # and if it is, replace the input  name with the new name
+                if(toString(nameSeq.df$seq[[irow]]) != toupper(toString(fasta.df$seq[[jrow]])))  # make sure the sequences are the same (I don't really understand the need for toString(), but it prints some extra "Level" stuff if I don't have it, so...)
+                    stop(paste0('sequences don\'t match for ', input.name, ':\n', toString(nameSeq.df$seq[[irow]]), '\n', toupper(toString(fasta.df$seq[[jrow]]))))
+                for(krow in 1:length(edge.df$from)) {  # also have to change the names in the edge df
+                    if(edge.df$from[[krow]] == input.name)  # this doesn't actually happen, since they only rename the leaves
+                        edge.df$from[[krow]] <- new.name
+                    if(edge.df$to[[krow]] == input.name)
+                        edge.df$to[[krow]] <- new.name
+                }
+                break
+            }
+        }
+    }
+    ## # we need to convert the internal node names to integers here, since convert.to.binary() tries sorts them, which fails if they're strings. But this doesn't freaking work, because the class of the column is set the 'character' (above). fuck you, R
+    ## print(nameSeq.df$head)
+    ## ftmp <- function(x) { if(substr(x, 1, 1) == 'L') return(x); if(x == outgroup) return(x); return(strtoi(x)); }
+    ## edge.df$from <- sapply(edge.df$from, ftmp)
+    ## edge.df$to <- sapply(edge.df$to, ftmp)
+    ## nameSeq.df$head <- sapply(nameSeq.df$head, ftmp)
+    ## print(nameSeq.df$head)
+    ## stop('x')
+  } else if(method == 'dnapars') {  # maximum parsimony
     run.dnapars(workdir, outgroup.ind)
 
     # parse dnapars output
@@ -937,7 +967,7 @@ check.dirs <- function(dirname) {
 #          infile - input fasta file
 #          workdir - temporary working directory
 #          outgroup - outgroup sequence name (optional)
-compute.LONR <- function(method, infile, workdir, outgroup=NULL, cutoff=10){
+compute.LONR <- function(method, infile, workdir, outgroup=NULL, existing.edgefile=NULL, existing.node.seqfile=NULL, cutoff=10){
   workdir = check.dirs(workdir)
 
   # remove gaps in consensus
@@ -953,7 +983,7 @@ compute.LONR <- function(method, infile, workdir, outgroup=NULL, cutoff=10){
   #------------------------------------
   # PART I - Build lineage tree
   #------------------------------------
-  res <- build.trees(method, fasta.df, workdir, outgroup)
+  res <- build.trees(method, fasta.df, workdir, outgroup, existing.edgefile, existing.node.seqfile)
 
   if (is.null(res))
     return(F)
