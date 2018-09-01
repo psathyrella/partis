@@ -365,9 +365,10 @@ def build_lonr_tree(edgefos, debug=False):
     dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
     remaining_nodes = copy.deepcopy(all_nodes) - set([root_label])  # a.t.m. I'm not actually using <all_nodes> after this, but I still want to keep them separate in case I start using it
 
+    weight_or_distance_key = 'distance'  # maybe should I be using the 'weight' column? I think they're just proportional though so I guess it shouldn't matter (same thing in the line below) # 
     root_edgefos = [efo for efo in edgefos if efo['from'] == root_label]
     for efo in root_edgefos:
-        dtree.seed_node.new_child(taxon=tns.get_taxon(efo['to']), edge_length=efo['distance'])  # TODO or should I be using the 'weight' column? I think they're just proportional?  # label=efo['to'],    (if you start setting the node labels again, you also have to translate them below)
+        dtree.seed_node.new_child(taxon=tns.get_taxon(efo['to']), edge_length=efo[weight_or_distance_key])  # label=efo['to'],    (if you start setting the node labels again, you also have to translate them below)
         remaining_nodes.remove(efo['to'])
 
     while len(remaining_nodes) > 0:
@@ -377,7 +378,7 @@ def build_lonr_tree(edgefos, debug=False):
             if debug > 1 and len(children) > 0:
                 print '    adding children to %s:' % lnode.taxon.label
             for chfo in children:
-                lnode.new_child(taxon=tns.get_taxon(chfo['to']), edge_length=chfo['distance'])  # TODO or should I be using the 'weight' column? I think they're just proportional?  # label=chfo['to'],   (if you start setting the node labels again, you also have to translate them below)
+                lnode.new_child(taxon=tns.get_taxon(chfo['to']), edge_length=chfo[weight_or_distance_key])  # label=chfo['to'],   (if you start setting the node labels again, you also have to translate them below)
                 remaining_nodes.remove(chfo['to'])
                 n_removed += 1
                 if debug > 1:
@@ -535,7 +536,6 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         'G.names.fname = "%s"'   % lonr_files['names.fname'],
         'G.lonrfname = "%s"'     % lonr_files['lonrfname'],
         'compute.LONR(method="%s", infile="%s", workdir="%s/", outgroup="%s"%s)' % (tree_method, input_seqfile, workdir, naive_seq_name, existing_phylip_output_str),
-        # TODO maybe fiddle with cutoff as well?
     ]
     utils.run_r(rcmds, workdir, debug=debug)
 
@@ -571,7 +571,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, tree_metho
             tree_method = 'dnapars' if len(line['unique_ids']) < 1000 else 'neighbor'
         lonr_info = calculate_lonr(seqfos, naive_seq_name, tree_method, debug=True)
         lbi_info = calculate_lbi(naive_seq_name, treestr=lonr_info['tree'], debug=True)
-        line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}  # TODO decide how you really want to do this
+        line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
         n_clusters_calculated += 1
 
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
