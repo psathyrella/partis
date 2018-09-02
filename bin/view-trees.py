@@ -11,10 +11,12 @@ args = parser.parse_args()
 
 with open(args.treefname, 'rb') as lfile:
     tree = pickle.load(lfile)
-  
+
 # print tree
 # print tree.name
 # print tree.sequence
+
+# print tree.write()
 
 with open(args.kdfname, 'w') as kdfile:
     writer = csv.DictWriter(kdfile, ('uid', 'kd'))
