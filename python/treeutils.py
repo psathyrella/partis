@@ -328,7 +328,7 @@ def calculate_lbi(naive_seq_name, treestr=None, treefname=None, tau=0.4, transfo
     # label_internal_nodes(dtree)
 
     if debug:
-        print '  %s' % utils.color('blue', 'lbi:')
+        print '  %s' % utils.color('green', 'lbi:')
         print '      starting with rerooted tree:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
@@ -551,7 +551,7 @@ def calculate_lonr(input_seqfos, naive_seq_name, tree_method, phylip_treefile=No
     os.makedirs(workdir)
 
     if debug:
-        print '  %s' % utils.color('blue', 'lonr:')
+        print '  %s' % utils.color('green', 'lonr:')
     run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, phylip_treefile=phylip_treefile, phylip_seqfile=phylip_seqfile, seed=seed, debug=debug)
     lonr_info = parse_lonr(workdir, input_seqfos, naive_seq_name, debug=debug)
 
