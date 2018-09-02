@@ -59,8 +59,8 @@ def simulate(stype):
 
 # ----------------------------------------------------------------------------------------
 def partition(stype):
-    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs 8' % (simfname(stype), infdir(stype))
-    # cmd = './bin/partis partition --infname %s --parameter-dir %s/params --plotdir %s/plots --n-procs 8 --outfname %s/partition.yaml' % (simfname(stype), infdir(stype), infdir(stype), infdir(stype))
+    # cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs 8' % (simfname(stype), infdir(stype))
+    cmd = './bin/partis partition --calculate-tree-metrics --infname %s --parameter-dir %s/params --n-procs 1 --outfname %s/partition.yaml' % (simfname(stype), infdir(stype), infdir(stype))
     # cmd = './bin/partis plot-partitions --plotdir %s/plots --outfname %s/partition.yaml' % (infdir(stype), infdir(stype))
     # cmd = './bin/partis view-output --outfname %s/partition.yaml --abb' % infdir(stype)
     utils.simplerun(cmd, debug=True) #, dryrun=True)

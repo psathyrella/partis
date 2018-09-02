@@ -2294,20 +2294,29 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
             cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
 
 # ----------------------------------------------------------------------------------------
-def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=False):
+def run_r(cmdlines, workdir, dryrun=False, print_time=None, swallow_stdout=False, use_file_handles=False, extra_str='', debug=False):  # NOTE now that I"ve added the file handle option, I <swallow_stdout> is probably not needed (or at least they should be combined)
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
     cmdfname = workdir + '/run.r'
     if debug:
-        print '  r cmd lines:'
+        print '      r cmd lines:'
         print pad_lines('\n'.join(cmdlines))
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
-    simplerun('R --slave -f %s' % cmdfname, shell=True, print_time=print_time, swallow_stdout=True, debug=debug, dryrun=dryrun)
+    fout, ferr = None, None
+    if use_file_handles:
+        fout, ferr = [open(workdir + '/' + s, 'w') for s in ('out', 'err')]
+    simplerun('R --slave -f %s' % cmdfname, print_time=print_time, swallow_stdout=swallow_stdout, fout=fout, ferr=ferr, debug=debug, extra_str=extra_str, dryrun=dryrun)
     os.remove(cmdfname)
+    if use_file_handles:
+        for fh in (fout, ferr):
+            fh.close()  # probably doesn't matter
+            with open(fh.name) as lfile:
+                print pad_lines(''.join(lfile.readlines()))
+            os.remove(fh.name)
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdout=False, cmdfname=None, debug=True):
+def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdout=False, cmdfname=None, fout=None, ferr=None, extra_str='', debug=True):
     if cmdfname is not None:
         with open(cmdfname, 'w') as cmdfile:
             cmdfile.write(cmd_str)
@@ -2315,14 +2324,14 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdou
         cmd_str = cmdfname
 
     if debug:
-        print '%s %s' % (color('red', 'run'), cmd_str)
+        print '%s%s %s' % (extra_str, color('red', 'run'), cmd_str)
     sys.stdout.flush()
     if dryrun:
         return
     if print_time is not None:
         start = time.time()
     runfcn = subprocess.check_output if swallow_stdout else subprocess.check_call
-    runfcn(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+    runfcn(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)
     if cmdfname is not None:
         os.remove(cmdfname)
     if print_time is not None:

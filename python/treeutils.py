@@ -309,7 +309,7 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
         node.lbi /= max_LBI
 
     if debug:
-        print '  dendro lbi values:'
+        print '       dendro lbi values:'
         for node in dtree.postorder_node_iter():  # postorder shouldn't matter, but I have to choose one or the other when I'm copying from the bio version
             print '    %20s  %8.3f' % (node.taxon.label, node.lbi)
 
@@ -328,7 +328,8 @@ def calculate_lbi(naive_seq_name, treestr=None, treefname=None, tau=0.4, transfo
     # label_internal_nodes(dtree)
 
     if debug:
-        print '    starting lbi with rerooted tree:'
+        print '  %s' % utils.color('blue', 'lbi:')
+        print '      starting with rerooted tree:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
     # # dendropy makes up new 'id's for each otu when it makes nexml, and puts the existing node/taxon labels as 'label's in the <otu> in the nexml file. And the Bio ignores everything but the 'id', so in order to figure out which stupid node each number corresponds to I'd have to parse the nexml myself to get the translation
@@ -359,7 +360,7 @@ def build_lonr_tree(edgefos, debug=False):
         raise Exception('too many effective root nodes: %s' % effective_root_nodes)
     root_label = list(effective_root_nodes)[0]  # should be '1' for dnapars
     if debug:
-        print ' chose \'%s\' as root node' % root_label
+        print '      chose \'%s\' as root node' % root_label
     tns = dendropy.TaxonNamespace(all_nodes)
     root_node = dendropy.Node(taxon=tns.get_taxon(root_label))  # NOTE this sets node.label and node.taxon.label to the same thing, which may or may not be what we want  # label=root_label,    (if you start setting the node labels again, you also have to translate them below)
     dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
@@ -450,7 +451,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
     # read actual lonr info
     lonrfos = []
     if debug:
-        print '   pos  mutation   lonr   syn./a.b.d.    parent   child'
+        print '     pos  mutation   lonr   syn./a.b.d.    parent   child'
     with open(outdir + '/' + lonr_files['lonrfname']) as lonrfile:  # heads: "mutation,LONR,mutation.type,position,father,son,flag"
         reader = csv.DictReader(lonrfile)
         for line in reader:
@@ -479,7 +480,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
             })
             if debug:
                 lfo = lonrfos[-1]
-                print '   %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
+                print '     %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
 
     return {'tree' : dtree.as_string(schema='nexml'), 'nodes' : nodefos, 'values' : lonrfos}
 
@@ -537,7 +538,7 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         'G.lonrfname = "%s"'     % lonr_files['lonrfname'],
         'compute.LONR(method="%s", infile="%s", workdir="%s/", outgroup="%s"%s)' % (tree_method, input_seqfile, workdir, naive_seq_name, existing_phylip_output_str),
     ]
-    utils.run_r(rcmds, workdir, debug=debug)
+    utils.run_r(rcmds, workdir, use_file_handles=True, extra_str='      ', debug=debug)
 
     os.remove(input_seqfile)
     if phylip_treefile is not None:
@@ -549,6 +550,8 @@ def calculate_lonr(input_seqfos, naive_seq_name, tree_method, phylip_treefile=No
     workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0, 999999))
     os.makedirs(workdir)
 
+    if debug:
+        print '  %s' % utils.color('blue', 'lonr:')
     run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, phylip_treefile=phylip_treefile, phylip_seqfile=phylip_seqfile, seed=seed, debug=debug)
     lonr_info = parse_lonr(workdir, input_seqfos, naive_seq_name, debug=debug)
 
