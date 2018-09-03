@@ -12,7 +12,7 @@ import utils
 import indelutils
 
 base_outdir = '%s/partis/bcr-phylo' % os.getenv('fs')
-extrastr = 'simu'
+extrastr = 'simu'  # just required by bcr-phylo
 label = 'test'
 n_sim_seqs = 10
 selection_time = 5  # 35
@@ -36,14 +36,8 @@ def simulate(stype):
   cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --debug 1 --n-leaves 1 --constant-number-of-leaves --outfname %s/naive-simu.yaml' % simdir(stype)
   utils.simplerun(cmd, debug=True)
   glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(stype))
-  assert len(annotation_list) == 1  # see below
+  assert len(annotation_list) == 1  # would need to change some things
   naive_line = annotation_list[0]
-  # # don't need to write them a.t.m., since we're only running bcr-phylo one family at a time
-  # with open('%s/naive-simu.fa' % simdir(stype), 'w') as nfile:
-  #   for line in annotation_list:
-  #     if len(line['unique_ids']) > 1:
-  #       raise Exception('should just be simulating naive sequences with partis above')
-  #     nfile.write('>%s\n%s\n' % (line['unique_ids'][0], line['naive_seq']))  # kind of weird to write the naive seq instead of the input seqs, but it's what we want, just don't forget that this is how you're arranging things
 
   os.environ['TMPDIR'] = '/tmp'
   prof_cmds = '' #'-m cProfile -s tottime -o prof.out'
@@ -66,7 +60,6 @@ def simulate(stype):
   cmd += ' --verbose'
   cmd += ' --outbase %s/%s' % (simdir(stype), extrastr)
   # cmd += ' --random_seq %s/sequence_data/AbPair_naive_seqs.fa' % bcr_phylo_path
-  # cmd += ' --random_seq %s/naive-simu.fa' % simdir(stype)  # see note above
   cmd += ' --sequence %s' % naive_line['naive_seq']
   if not os.path.exists(simdir(stype)):
     os.makedirs(simdir(stype))
@@ -74,12 +67,12 @@ def simulate(stype):
   utils.simplerun(cmd, shell=True, debug=True) #, dryrun=True)
 
   seqfos = utils.read_fastx('%s/%s.fasta' % (simdir(stype), extrastr))  # output mutated sequences from bcr-phylo
-  seqfos = [sfo for sfo in seqfos if sfo['name'] != 'naive']  # don't have a kd value for it, anyway
+  seqfos = [sfo for sfo in seqfos if sfo['name'] != 'naive']  # don't have a kd value for the naive sequence, so may as well throw it out
 
-  assert len(annotation_list) == 1  # see notes above
-  assert len(naive_line['unique_ids']) == 1
+  assert len(naive_line['unique_ids']) == 1  # enforces that we ran naive-only, 1-leaf partis simulation above
   assert not indelutils.has_indels(naive_line['indelfos'][0])  # would have to handle this below
-  utils.print_reco_event(naive_line)
+  if args.debug:
+    utils.print_reco_event(naive_line)
   reco_info = collections.OrderedDict()
   for sfo in seqfos:
     mline = copy.deepcopy(naive_line)
@@ -90,9 +83,11 @@ def simulate(stype):
     reco_info[sfo['name']] = mline
     utils.add_implicit_info(glfo, mline)
   final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in seqfos], reco_info)
-  utils.print_reco_event(final_line)
+  if args.debug:
+    utils.print_reco_event(final_line)
 
-  if stype == 'selection':  # extract kd values from pickle file (since it requires ete/anaconda to read)
+  # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
+  if stype == 'selection':
     cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/view-trees.py %s/%s_lineage_tree.p %s/kd-vals.csv' % (ete_path, simdir(stype), extrastr, simdir(stype))
     utils.simplerun(cmd, shell=True)
     kdvals = {}
@@ -100,7 +95,7 @@ def simulate(stype):
       reader = csv.DictReader(kdfile)
       for line in reader:
         kdvals[line['uid']] = float(line['kd'])
-    if set(kdvals) != set(final_line['unique_ids']):
+    if set(kdvals) != set(final_line['unique_ids']):  # TODO make sure it's sensible that I'm missing some here
       print '        missing from final_line: %s' % ' '.join(set(kdvals) - set(final_line['unique_ids']))
       print '        missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(kdvals))
       print '      %s kd file uids don\'t match final line (see above, it\'s maybe just internal nodes?)' % utils.color('red', 'note:')
