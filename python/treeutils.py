@@ -9,7 +9,10 @@ import tempfile
 import os
 import numpy
 import sys
+from distutils.version import StrictVersion
 import dendropy
+if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
+    raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
 import baltic
 import utils
@@ -38,13 +41,13 @@ def get_treestr(treefname):
         return '\n'.join(treefile.readlines())
 
 # ----------------------------------------------------------------------------------------
-def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='nexml', ignore_internal_node_labels=False):  # specify either <treestr> or <treefname>
+def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='nexml', set_internal_node_labels=False, ignore_existing_internal_node_labels=False):  # specify either <treestr> or <treefname>
     assert treestr is None or treefname is None
     if treestr is None:
         treestr = get_treestr(treefname)
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace)
-    if schema == 'newick':  # dendropy doesn't make taxons for internal nodes by default, so it puts the label in node.label instead of node.taxon.label (but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression, since e.g. stupid fasttree output labels them with stupid floats)
-        label_internal_nodes(dtree, ignore_internal_node_labels=ignore_internal_node_labels)
+    if set_internal_node_labels:  # schema == 'newick':  # dendropy doesn't make taxons for internal nodes by default, so it puts the label in node.label instead of node.taxon.label (but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression, since e.g. stupid fasttree output labels them with stupid floats)
+        label_internal_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels)
     return dtree
 
 # ----------------------------------------------------------------------------------------
