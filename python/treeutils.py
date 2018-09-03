@@ -548,7 +548,7 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         'G.lonrfname = "%s"'     % lonr_files['lonrfname'],
         'compute.LONR(method="%s", infile="%s", workdir="%s/", outgroup="%s"%s)' % (tree_method, input_seqfile, workdir, naive_seq_name, existing_phylip_output_str),
     ]
-    utils.run_r(rcmds, workdir, use_file_handles=True, extra_str='      ', debug=debug)
+    utils.run_r(rcmds, workdir, extra_str='      ', debug=debug)
 
     os.remove(input_seqfile)
     if phylip_treefile is not None:

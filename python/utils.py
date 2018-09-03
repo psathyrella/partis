@@ -2295,7 +2295,7 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
             cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
 
 # ----------------------------------------------------------------------------------------
-def run_r(cmdlines, workdir, dryrun=False, print_time=None, swallow_stdout=False, use_file_handles=False, extra_str='', debug=False):  # NOTE now that I"ve added the file handle option, I <swallow_stdout> is probably not needed (or at least they should be combined)
+def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', debug=False):
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
     cmdfname = workdir + '/run.r'
@@ -2304,20 +2304,13 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, swallow_stdout=False
         print pad_lines('\n'.join(cmdlines))
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
-    fout, ferr = None, None
-    if use_file_handles:
-        fout, ferr = [open(workdir + '/' + s, 'w') for s in ('out', 'err')]
-    simplerun('R --slave -f %s' % cmdfname, print_time=print_time, swallow_stdout=swallow_stdout, fout=fout, ferr=ferr, debug=debug, extra_str=extra_str, dryrun=dryrun)
-    os.remove(cmdfname)
-    if use_file_handles:
-        for fh in (fout, ferr):
-            fh.close()  # probably doesn't matter
-            with open(fh.name) as lfile:
-                print pad_lines(''.join(lfile.readlines()))
-            os.remove(fh.name)
+    outstr, errstr = simplerun('R --slave -f %s' % cmdfname, return_out_err=True, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
+    os.remove(cmdfname)  # different sort of <cmdfname> to that in simplerun()
+    for oestr in (outstr, errstr):
+        print pad_lines(oestr)
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdout=False, cmdfname=None, fout=None, ferr=None, extra_str='', debug=True):
+def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):
     if cmdfname is not None:
         with open(cmdfname, 'w') as cmdfile:
             cmdfile.write(cmd_str)
@@ -2331,12 +2324,22 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdou
         return
     if print_time is not None:
         start = time.time()
-    runfcn = subprocess.check_output if swallow_stdout else subprocess.check_call
-    runfcn(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)
+    if return_out_err:
+        with tempfile.TemporaryFile() as fout, tempfile.TemporaryFile() as ferr:
+            subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)
+            fout.seek(0)
+            ferr.seek(0)
+            outstr = ''.join(fout.readlines())
+            errstr = ''.join(ferr.readlines())
+    else:
+        subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
     if cmdfname is not None:
         os.remove(cmdfname)
     if print_time is not None:
         print '      %s time: %.1f' % (print_time, time.time() - start)
+
+    if return_out_err:
+        return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
 def memory_usage_fraction(debug=False):  # return fraction of total system memory that this process is using (as always with memory things, this is an approximation)
