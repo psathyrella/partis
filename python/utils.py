@@ -263,8 +263,9 @@ def get_list_of_str_list(strlist):
 
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 linekeys = {}
+# I think 'per_family' is pretty incomplete at this point, but I also think it isn't being used
 linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
-                         ['invalid'] + \
+                         ['invalid', 'tree'] + \
                          [r + '_gene' for r in regions] + \
                          [e + '_del' for e in all_erosions] + \
                          [b + '_insertion' for b in all_boundaries] + \
@@ -278,7 +279,7 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors', 'tree-info'] + [r + '_per_gene_support' for r in regions]
 linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']  # TODO move 'duplicates' to 'per_seq' (see note in synthesize_multi_seq_line())
-linekeys['simu'] = ['reco_id', 'affinities']
+linekeys['simu'] = ['reco_id', 'affinities', 'tree']
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()

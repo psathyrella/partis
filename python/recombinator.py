@@ -526,6 +526,7 @@ class Recombinator(object):
         assert treefostr.count(';') == 1
         isplit = treefostr.find(';') + 1
         chosen_tree = treefostr[:isplit]  # includes semi-colon
+        reco_event.tree = chosen_tree
         mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
         mean_total_height = treeutils.get_mean_leaf_height(treestr=chosen_tree)
         regional_heights = {}  # per-region height, including <self.args.mutation_multiplier>

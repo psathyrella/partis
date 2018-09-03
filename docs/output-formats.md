@@ -67,6 +67,8 @@ The following keys are written to output by default:
 | gl_gap_seqs        |  list of germline sequences with gaps at shm indel positions (alignment matches qr_gap_seqs) `[per-seq]`
 | qr_gap_seqs        |  list of query sequences with gaps at shm indel positions (alignment matches gl_gap_seqs) `[per-seq]`
 | duplicates     |  list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed. `[per-seq]`
+| tree           |  simulation only: newick-formatted string of the true phylogenetic tree
+| tree-info      |  inferred tree-related information from various methods (e.g. LONR and local branching index), including associated inferred trees
 
 The following keys are available in the dictionary in memory, but not written to disk by default (can be written by setting `--extra-annotation-columns key_a:key_b`):
 

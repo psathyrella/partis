@@ -32,6 +32,7 @@ class RecombinationEvent(object):
         self.recombined_seq = ''  # combined sequence *before* mutations
         self.final_seqs, self.indelfos, self.final_codon_positions = [], [], []
         self.unmutated_codons = None
+        self.tree = None
 
         self.line = None  # dict with info in format of utils.py/output files
 
@@ -109,6 +110,7 @@ class RecombinationEvent(object):
         line['input_seqs'] = self.final_seqs
         line['indelfos'] = self.indelfos
         line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
+        line['tree'] = self.tree
         self.set_ids(line, irandom)
 
         utils.add_implicit_info(self.glfo, line)
