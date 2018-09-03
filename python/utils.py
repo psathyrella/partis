@@ -1941,7 +1941,7 @@ def add_extra_column(key, info, outfo, glfo=None):
         # for iseq in range(len(info['unique_ids'])):
         #     print info['unique_ids'][iseq]
         #     color_mutants(info['input_seqs'][iseq], full_coding_input_seqs[iseq], print_result=True, align=True, extra_str='  ')
-    elif key == 'tree-info' or key == 'affinity':  # TODO haven't decided what to do with these keys that are added elsewhere
+    elif key in linekeys['hmm'] + linekeys['sw'] + linekeys['simu']:  # these are added elsewhere
         return  # TODO
     else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
         raise Exception('unsupported extra annotation column \'%s\'' % key)
