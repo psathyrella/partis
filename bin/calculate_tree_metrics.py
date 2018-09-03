@@ -19,7 +19,6 @@ import treeutils
 parser = argparse.ArgumentParser()
 available_metrics = ['lbi', 'lonr']
 parser.add_argument('--metrics', default=':'.join(available_metrics), help='colon-separated list of tree metrics to calculate (choose from: %s)' % ' '.join(available_metrics))
-parser.add_argument('--lonr-tree-method', default='dnapars', choices=['dnapars', 'neighbor'], help='which phylip method should lonr use to infer the tree (maximum parsimony or neighbor-joining)? (their original defaults were dnapars for less than 100 sequences, neighbor for more)')
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--debug', action='store_true')
 
@@ -49,7 +48,7 @@ if len(set(args.metrics) - set(available_metrics)) > 0:
 # ----------------------------------------------------------------------------------------
 output_info = {}
 if 'lonr' in args.metrics:
-    output_info['lonr'] = treeutils.calculate_lonr(utils.read_fastx(args.seqfile), args.naive_seq_name, args.lonr_tree_method, phylip_treefile=args.phylip_treefile, phylip_seqfile=args.phylip_seqfile, seed=args.seed, debug=args.debug)
+    output_info['lonr'] = treeutils.calculate_lonr(input_seqfos=utils.read_fastx(args.seqfile), naive_seq_name=args.naive_seq_name, phylip_treefile=args.phylip_treefile, phylip_seqfile=args.phylip_seqfile, seed=args.seed, debug=args.debug)
 if 'lbi' in args.metrics:
     if args.treefile is not None:  # convert to nexml
         treestr = treeutils.get_dendro_tree(treefname=args.treefile, schema='newick', set_internal_node_labels=True, ignore_existing_internal_node_labels=('asttree' in args.treefile)).as_string('nexml')  # fasttree output is the only one so far that has shitty node labels
@@ -59,7 +58,7 @@ if 'lbi' in args.metrics:
         print '  using lonr tree also for lbi'
     else:
         raise Exception('have to either set --treefile, or run lonr so we can get the tree from the lonr output')
-    output_info['lbi'] = treeutils.calculate_lbi(args.naive_seq_name, treestr=treestr, debug=args.debug)
+    output_info['lbi'] = treeutils.calculate_lbi(treestr=treestr, naive_seq_name=args.naive_seq_name, debug=args.debug)
 
 if not os.path.exists(os.path.dirname(args.outfile)):
     os.makedirs(os.path.dirname(args.outfile))

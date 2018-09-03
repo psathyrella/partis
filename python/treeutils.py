@@ -325,7 +325,7 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
-def calculate_lbi(naive_seq_name, treestr=None, treefname=None, tau=0.4, transform=lambda x:x, debug=False):  # exactly one of <treestr> or <treefname> should be None
+def calculate_lbi(treestr=None, treefname=None, naive_seq_name='X-naive-X', tau=0.4, transform=lambda x:x, debug=False):  # exactly one of <treestr> or <treefname> should be None
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted
     by distance, then adds them as LBI.
@@ -556,7 +556,14 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         os.remove(existing_node_seqfname)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lonr(input_seqfos, naive_seq_name, tree_method, phylip_treefile=None, phylip_seqfile=None, seed=1, debug=False):
+def calculate_lonr(input_seqfos=None, line=None, phylip_treefile=None, phylip_seqfile=None, tree_method=None, naive_seq_name='X-naive-X', seed=1, debug=False):
+    assert input_seqfos is None or line is None
+    if input_seqfos is None:
+        input_seqfos = [{'name' : line['unique_ids'][iseq], 'seq' : line['seqs'][iseq]} for iseq in range(len(line['unique_ids']))]
+        input_seqfos.insert(0, {'name' : naive_seq_name, 'seq' : line['naive_seq']})
+    if tree_method is None:
+        tree_method = 'dnapars' if len(input_seqfos) < 1000 else 'neighbor'
+
     workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0, 999999))
     os.makedirs(workdir)
 
@@ -572,18 +579,14 @@ def calculate_lonr(input_seqfos, naive_seq_name, tree_method, phylip_treefile=No
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, tree_method=None, naive_seq_name='X-naive-X'):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, debug=True):
     n_clusters_calculated, n_skipped = 0, 0
     for line in annotations.values():
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
             continue
-        seqfos = [{'name' : line['unique_ids'][iseq], 'seq' : line['seqs'][iseq]} for iseq in range(len(line['unique_ids']))]
-        seqfos.insert(0, {'name' : naive_seq_name, 'seq' : line['naive_seq']})
-        if tree_method is None:
-            tree_method = 'dnapars' if len(line['unique_ids']) < 1000 else 'neighbor'
-        lonr_info = calculate_lonr(seqfos, naive_seq_name, tree_method, debug=True)
-        lbi_info = calculate_lbi(naive_seq_name, treestr=lonr_info['tree'], debug=True)
+        lonr_info = calculate_lonr(line=line, debug=True)
+        lbi_info = calculate_lbi(treestr=lonr_info['tree'], debug=True)
         line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
         n_clusters_calculated += 1
 
