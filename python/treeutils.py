@@ -163,16 +163,23 @@ def rescale_tree(treestr, new_height, debug=False):  # NOTE assumes newick for n
     """ rescale the branch lengths in <treestr> (newick-formatted) by <factor> """
     baltic_tree = get_baltic_tree(treestr)
     mean_height = get_mean_leaf_height(treestr=treestr)
+    if debug:
+        print '  current mean: %.4f   target height: %.4f' % (mean_height, new_height)
     for ln in baltic_tree.Objects:
         old_length = ln.length
         ln.length *= new_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
         if debug:
-            print '  %5s  %7e  -->  %7e' % (ln.numName if ln.branchType == 'leaf' else ln.branchType, old_length, ln.length)
+            print '     %5s  %7e  -->  %7e' % (ln.numName if ln.branchType == 'leaf' else ln.branchType, old_length, ln.length)
     baltic_tree.traverse_tree()
     treestr = baltic_tree.toString(numName=True)
+    if debug:
+        print '    final mean: %.4f' % get_mean_leaf_height(treestr=treestr)
+    this_eps = 1e-8
     for leaf in get_baltic_tree(treestr).leaves:  # make sure string conversion (and rescaling) went ok
-        if not utils.is_normed(leaf.height / new_height, this_eps=1e-8):
-            raise Exception('tree not rescaled properly:   %.10f   %.10f    %e' % (leaf.height, new_height, (leaf.height - new_height) / new_height))
+        if leaf.height < 2 * this_eps or new_height < 2 * this_eps:
+            continue
+        if not utils.is_normed(leaf.height / new_height, this_eps=this_eps):
+            raise Exception('tree not rescaled properly for leaf \'%s\':   %.10f   %.10f    %e' % (leaf.numName, leaf.height, new_height, (leaf.height - new_height) / new_height))
     return treestr
 
 # ----------------------------------------------------------------------------------------
