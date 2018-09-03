@@ -272,13 +272,13 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'affinity'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'affinities'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors', 'tree-info'] + [r + '_per_gene_support' for r in regions]
 linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']  # TODO move 'duplicates' to 'per_seq' (see note in synthesize_multi_seq_line())
-linekeys['simu'] = ['reco_id', 'affinity']
+linekeys['simu'] = ['reco_id', 'affinities']
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
@@ -362,6 +362,7 @@ def synthesize_single_seq_line(line, iseq):
     return singlefo
 
 # ----------------------------------------------------------------------------------------
+# what the fuck was the point of this function? Isn't <multifo> just what you'd get out of it?
 def synthesize_multi_seq_line(uids, multifo):  # assumes you already added all the implicit info
     reco_info = {multifo['unique_ids'][iseq] : synthesize_single_seq_line(multifo, iseq) for iseq in range(len(multifo['unique_ids']))}
     return synthesize_multi_seq_line_from_reco_info(uids, reco_info)

@@ -20,6 +20,8 @@ def get_empty_indel():
 
 # ----------------------------------------------------------------------------------------
 def has_indels(indelfo):
+    if 'unique_ids' in indelfo:
+        raise Exception('call this on line[\'indelfos\'][iseq], not on the whole line')
     return len(indelfo['indels']) > 0
 
 # ----------------------------------------------------------------------------------------
