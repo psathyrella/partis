@@ -49,7 +49,7 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label
     # ...but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression, since e.g. stupid fasttree output labels them with stupid floats
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
-    check_node_labels(dtree)
+    # check_node_labels(dtree)
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -100,9 +100,10 @@ def get_n_leaves(tree):
     return len(tree.leaf_nodes())
 
 # ----------------------------------------------------------------------------------------
-def check_node_labels(dtree, debug=True):
-    print 'checking node labels for:'
-    print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
+def check_node_labels(dtree, debug=False):
+    if debug:
+        print 'checking node labels for:'
+        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
     for node in dtree.preorder_node_iter():
         if node.taxon is None:
             raise Exception('taxon is None')
@@ -165,19 +166,22 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
     if get_mean_leaf_height(dendro_tree) == 0.:  # we really want the max height, but since we only care whether it's zero or not this is the same
         return '%szero height' % extra_str
     elif get_n_leaves(dendro_tree) > 1:  # if more than one leaf
-        internal_nodes = sorted([n for n in dendro_tree.preorder_internal_node_iter()], key=lambda x: x.distance_from_root())  # I guess the preorder probably/maybe is the same as sorting by distance from root?
-        max_depth = max(get_leaf_depths(dendro_tree).values())
-        internal_node_positions = [width * float(n.distance_from_root()) / max_depth for n in internal_nodes]
-        internal_node_str = []
-        for node, pos in zip(internal_nodes, internal_node_positions):
-            while len(internal_node_str) < pos:  # keep adding single spaces until we've gotten to as far right as this node is supposed to be (this is accuracte to the extent that the internal node labels are short, and there aren't too many internal nodes with the same height)
-                internal_node_str += [' ']
-            if len(internal_node_str) > 0 and internal_node_str[-1] != ' ':
-                internal_node_str += [' ']
-            internal_node_str += [node.taxon.label]
-
-        return_lines = ['%s%s' % (extra_str, ''.join(internal_node_str))]
-        return_lines += ['%s%s' % (extra_str, line) for line in dendro_tree.as_ascii_plot(width=width, plot_metric='length').split('\n')]
+        # AsciiTreePlot docs (don't show up in as_ascii_plot()):
+        #     plot_metric : str
+        #         A string which specifies how branches should be scaled, one of:
+        #         'age' (distance from tips), 'depth' (distance from root),
+        #         'level' (number of branches from root) or 'length' (edge
+        #         length/weights).
+        #     show_internal_node_labels : bool
+        #         Whether or not to write out internal node labels.
+        #     leaf_spacing_factor : int
+        #         Positive integer: number of rows between each leaf.
+        #     width : int
+        #         Force a particular display width, in terms of number of columns.
+        #     node_label_compose_fn : function object
+        #         A function that takes a Node object as an argument and returns
+        #         the string to be used to display it.
+        return_lines = ['%s%s' % (extra_str, line) for line in dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=lambda x: utils.color('blue', x.taxon.label)).split('\n')]
         return '\n'.join(return_lines)
 
         # Phylo = import_bio_phylo()
