@@ -51,14 +51,15 @@ if 'lonr' in args.metrics:
     output_info['lonr'] = treeutils.calculate_lonr(input_seqfos=utils.read_fastx(args.seqfile), naive_seq_name=args.naive_seq_name, phylip_treefile=args.phylip_treefile, phylip_seqfile=args.phylip_seqfile, seed=args.seed, debug=args.debug)
 if 'lbi' in args.metrics:
     if args.treefile is not None:  # convert to nexml
-        treestr = treeutils.get_dendro_tree(treefname=args.treefile, schema='newick', set_internal_node_labels=True, ignore_existing_internal_node_labels=('asttree' in args.treefile)).as_string('nexml')  # fasttree output is the only one so far that has shitty node labels
+        # this step is really just to sanitize FastTree's output a.t.m.
+        treestr = treeutils.get_dendro_tree(treefname=args.treefile, schema='newick', ignore_existing_internal_node_labels=('asttree' in args.treefile)).as_string('newick')
         print '  using --treefile for lbi tree'
     elif 'lonr' in output_info:
         treestr = output_info['lonr']['tree']
         print '  using lonr tree also for lbi'
     else:
         raise Exception('have to either set --treefile, or run lonr so we can get the tree from the lonr output')
-    output_info['lbi'] = treeutils.calculate_lbi(treestr=treestr, naive_seq_name=args.naive_seq_name, debug=args.debug)
+    output_info['lbi'] = treeutils.calculate_lbi(treestr=treestr, debug=args.debug)  # TODO hmmm naive_seq_name=args.naive_seq_name
 
 if not os.path.exists(os.path.dirname(args.outfile)):
     os.makedirs(os.path.dirname(args.outfile))

@@ -41,13 +41,15 @@ def get_treestr(treefname):
         return '\n'.join(treefile.readlines())
 
 # ----------------------------------------------------------------------------------------
-def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='nexml', set_internal_node_labels=False, ignore_existing_internal_node_labels=False):  # specify either <treestr> or <treefname>
+def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False):  # specify either <treestr> or <treefname>
     assert treestr is None or treefname is None
     if treestr is None:
         treestr = get_treestr(treefname)
-    dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace)
-    if set_internal_node_labels:  # schema == 'newick':  # dendropy doesn't make taxons for internal nodes by default, so it puts the label in node.label instead of node.taxon.label (but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression, since e.g. stupid fasttree output labels them with stupid floats)
-        label_internal_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels)
+    dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=ignore_existing_internal_node_labels)
+    # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label
+    # ...but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression, since e.g. stupid fasttree output labels them with stupid floats
+    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
+    check_node_labels(dtree)
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -57,7 +59,7 @@ def import_bio_phylo():
     return sys.modules['Bio.Phylo']
 
 # ----------------------------------------------------------------------------------------
-def get_bio_tree(treestr=None, treefname=None, schema='nexml'):  # NOTE dendropy seems a lot nicer... use that for new stuff
+def get_bio_tree(treestr=None, treefname=None, schema='newick'):  # NOTE don't use this in future (all current uses are commented)
     Phylo = import_bio_phylo()
     if treestr is not None:
         return Phylo.read(StringIO(treestr), schema)
@@ -98,21 +100,33 @@ def get_n_leaves(tree):
     return len(tree.leaf_nodes())
 
 # ----------------------------------------------------------------------------------------
-def label_internal_nodes(dendro_tree, ignore_internal_node_labels=False, debug=False):
+def check_node_labels(dtree, debug=True):
+    print 'checking node labels for:'
+    print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
+    for node in dtree.preorder_node_iter():
+        if node.taxon is None:
+            raise Exception('taxon is None')
+        if debug:
+            print '    ok: %s' % node.taxon.label
+        if node.label is not None:
+            raise Exception('node.label not set to None')
+
+# ----------------------------------------------------------------------------------------
+def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, debug=False):
     if debug:
         print ' relabeling tree, before:'
-        print '      %s' % dendro_tree.as_string(schema='nexml')
+        print '      %s' % dendro_tree.as_string(schema='nexml')  # doesn't print internal node labels if we use newick (or ascii)
     tns = dendro_tree.taxon_namespace
     initial_names = set([t.label for t in tns])  # should all be leaf nodes, except the naive sequence (at least for now)
     potential_names, used_names = None, None
-    for node in dendro_tree.preorder_internal_node_iter():
-        if node.taxon is not None:  # only happens for the naive sequence a.t.m., since we're only iterating over internal nodes, but I guess there's nothing wrong with having some internal nodes already labeled (although a.t.m. there shouldn't be)
+    for node in dendro_tree.preorder_node_iter():
+        if node.taxon is not None:
             if debug:
                 print '      %s  (skip)' % node.taxon.label
             assert node.label is None  # if you want to change this, you have to start setting the node labels in build_lonr_tree(). For now, I like having the label in _one_ freaking place
             continue
 
-        if node.label is not None and not ignore_internal_node_labels:  # NOTE results in duplicate labels, if that's what the fasta has
+        if node.label is not None and not ignore_existing_internal_node_labels:  # NOTE results in duplicate labels, if that's what the fasta has
             if tns.has_taxon_label(node.label):
                 raise Exception('duplicate node label \'%s\'' % node.label)
             label = node.label
@@ -131,7 +145,7 @@ def label_internal_nodes(dendro_tree, ignore_internal_node_labels=False, debug=F
 
     if debug:
         print '   after:'
-        print '      %20s' % dendro_tree.as_string(schema='nexml')
+        print '      %20s' % dendro_tree.as_string(schema='nexml')  # doesn't print internal node labels if we use newick (or ascii)
 
 # ----------------------------------------------------------------------------------------
 def get_mean_leaf_height(tree=None, treestr=None):
@@ -142,7 +156,7 @@ def get_mean_leaf_height(tree=None, treestr=None):
     return sum(heights) / len(heights)
 
 # ----------------------------------------------------------------------------------------
-def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=100, schema='nexml'):
+def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=100, schema='newick'):
     if dendro_tree is None:
         assert treestr is None or treefname is None
         if treestr is None:
@@ -151,7 +165,21 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
     if get_mean_leaf_height(dendro_tree) == 0.:  # we really want the max height, but since we only care whether it's zero or not this is the same
         return '%szero height' % extra_str
     elif get_n_leaves(dendro_tree) > 1:  # if more than one leaf
-        return '\n'.join(['%s%s' % (extra_str, line) for line in dendro_tree.as_ascii_plot(width=width, plot_metric='length').split('\n')])
+        internal_nodes = sorted([n for n in dendro_tree.preorder_internal_node_iter()], key=lambda x: x.distance_from_root())  # I guess the preorder probably/maybe is the same as sorting by distance from root?
+        max_depth = max(get_leaf_depths(dendro_tree).values())
+        internal_node_positions = [width * float(n.distance_from_root()) / max_depth for n in internal_nodes]
+        internal_node_str = []
+        for node, pos in zip(internal_nodes, internal_node_positions):
+            while len(internal_node_str) < pos:  # keep adding single spaces until we've gotten to as far right as this node is supposed to be (this is accuracte to the extent that the internal node labels are short, and there aren't too many internal nodes with the same height)
+                internal_node_str += [' ']
+            if len(internal_node_str) > 0 and internal_node_str[-1] != ' ':
+                internal_node_str += [' ']
+            internal_node_str += [node.taxon.label]
+
+        return_lines = ['%s%s' % (extra_str, ''.join(internal_node_str))]
+        return_lines += ['%s%s' % (extra_str, line) for line in dendro_tree.as_ascii_plot(width=width, plot_metric='length').split('\n')]
+        return '\n'.join(return_lines)
+
         # Phylo = import_bio_phylo()
         # tmpf = StringIO()
         # if treestr is None:
@@ -325,7 +353,7 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
-def calculate_lbi(treestr=None, treefname=None, naive_seq_name='X-naive-X', tau=0.4, transform=lambda x:x, debug=False):  # exactly one of <treestr> or <treefname> should be None
+def calculate_lbi(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, transform=lambda x:x, debug=False):  # exactly one of <treestr> or <treefname> should be None
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted
     by distance, then adds them as LBI.
@@ -334,8 +362,8 @@ def calculate_lbi(treestr=None, treefname=None, naive_seq_name='X-naive-X', tau=
 
     # reroot at naive sequence, and convert to bio tree
     dtree = get_dendro_tree(treestr=treestr, treefname=treefname)
-    dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
-    # label_internal_nodes(dtree)
+    if naive_seq_name is not None:  # TODO not sure if I should do this or not
+        dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
 
     if debug:
         print '  %s' % utils.color('green', 'lbi:')
@@ -349,7 +377,7 @@ def calculate_lbi(treestr=None, treefname=None, naive_seq_name='X-naive-X', tau=
     # modify_bio_tree_for_lbi(btree, tau, transform, debug=debug)
     modify_dendro_tree_for_lbi(dtree, tau, transform, debug=debug)
 
-    return {'tree' : dtree.as_string(schema='nexml'), 'values' : {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()}}
+    return {'tree' : dtree.as_string(schema='newick'), 'values' : {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()}}
 
 # ----------------------------------------------------------------------------------------
 lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called
@@ -492,7 +520,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
                 lfo = lonrfos[-1]
                 print '     %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
 
-    return {'tree' : dtree.as_string(schema='nexml'), 'nodes' : nodefos, 'values' : lonrfos}
+    return {'tree' : dtree.as_string(schema='newick'), 'nodes' : nodefos, 'values' : lonrfos}
 
 # ----------------------------------------------------------------------------------------
 def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=None, phylip_treefile=None, phylip_seqfile=None, seed=1, debug=False):
@@ -579,6 +607,7 @@ def calculate_lonr(input_seqfos=None, line=None, phylip_treefile=None, phylip_se
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
+# interface for calculating tree metrics starting from standard <line> annotations (as opposed to bin/calculate_tree_metrics.py, which is more standalone, e.g. from cft)
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, debug=True):
     n_clusters_calculated, n_skipped = 0, 0
     for line in annotations.values():
@@ -587,7 +616,13 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
             continue
         lonr_info = calculate_lonr(line=line, debug=True)
         lbi_info = calculate_lbi(treestr=lonr_info['tree'], debug=True)
+# ----------------------------------------------------------------------------------------
+        if reco_info is not None:
+            true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
+            _ = calculate_lbi(treestr=true_line['tree'], debug=True)
+# ----------------------------------------------------------------------------------------
         line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
         n_clusters_calculated += 1
+        assert False
 
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
