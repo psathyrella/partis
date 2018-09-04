@@ -478,16 +478,16 @@ class Recombinator(object):
             if seqfo['name'] == dummy_name_so_bppseqgen_doesnt_break:  # in the unlikely (impossible unless we change tree generators and don't tell them to use the same leaf names) event that we get a non-dummy leaf with this name, it'll fail at the assertion just below
                 continue
             mutated_seqs[seqfo['name'].strip('\'')] = seqfo['seq']
-        try:
-            mutated_seqs = [mutated_seqs['t' + str(iseq + 1)] for iseq in range(len(mutated_seqs))]
+        try:  # make sure names are all of form t<n>, and keep track of which sequences goes with which name (have to keep around the t<n> labels so we can translate the tree labels, in event.py)
+            names_seqs = [('t' + str(iseq + 1), mutated_seqs['t' + str(iseq + 1)]) for iseq in range(len(mutated_seqs))]
         except KeyError as ke:
             raise Exception('leaf name %s not as expected in bppseqgen output %s' % (ke, cmdfo['outfname']))
-        assert n_leaf_nodes == len(mutated_seqs)
+        assert n_leaf_nodes == len(names_seqs)
         os.remove(cmdfo['outfname'])
         for otherfname in cmdfo['other-files']:
             os.remove(otherfname)
         os.rmdir(cmdfo['workdir'])
-        return mutated_seqs
+        return zip(*names_seqs)
 
     # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
@@ -563,7 +563,11 @@ class Recombinator(object):
             if cmdfos[ireg] is None:
                 mseqs[utils.regions[ireg]] = ['' for _ in range(n_leaves)]  # return an empty string for each leaf node
             else:
-                mseqs[utils.regions[ireg]] = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
+                tmp_names, tmp_seqs = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
+                if reco_event.leaf_names is None:
+                    reco_event.leaf_names = tmp_names
+                assert reco_event.leaf_names == tmp_names  # enforce different regions having same name + ordering (although this is already enforced when reading bppseqgen output)
+                mseqs[utils.regions[ireg]] = tmp_seqs
 
         assert len(reco_event.final_seqs) == 0
 
