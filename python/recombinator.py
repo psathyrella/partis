@@ -526,7 +526,7 @@ class Recombinator(object):
         assert treefostr.count(';') == 1
         isplit = treefostr.find(';') + 1
         chosen_tree = treefostr[:isplit]  # includes semi-colon
-        reco_event.tree = chosen_tree
+        reco_event.set_tree(chosen_tree)  # leaf names are still just like t<n>
         mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
         mean_total_height = treeutils.get_mean_leaf_height(treestr=chosen_tree)
         regional_heights = {}  # per-region height, including <self.args.mutation_multiplier>
@@ -543,8 +543,6 @@ class Recombinator(object):
         if self.args.debug:
             print '  chose tree with total height %f' % treeutils.get_mean_leaf_height(treestr=chosen_tree)
             print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treeutils.get_mean_leaf_height(treestr=scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
-            print '    tree passed to bppseqgen:'
-            print treeutils.get_ascii_tree(treestr=chosen_tree, extra_str='      ', schema='newick')
 
         n_leaves = treeutils.get_n_leaves(treeutils.get_dendro_tree(treestr=chosen_tree, schema='newick'))
         cmdfos = []
@@ -583,6 +581,8 @@ class Recombinator(object):
         # self.print_validation_values()
 
         if self.args.debug:
+            print '    tree passed to bppseqgen:'
+            print treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      ')
             utils.print_reco_event(reco_event.line, extra_str='    ')
 
     # ----------------------------------------------------------------------------------------

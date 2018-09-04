@@ -94,6 +94,10 @@ class RecombinationEvent(object):
         line['unique_ids'] = [str(hash(ustr)) for ustr in uidstrs]
 
     # ----------------------------------------------------------------------------------------
+    def set_tree(self, treestr):
+        self.tree = treeutils.get_dendro_tree(treestr=treestr)
+
+    # ----------------------------------------------------------------------------------------
     def setline(self, irandom=None):  # don't access <self.line> directly
         if self.line is not None:
             return self.line
@@ -113,9 +117,8 @@ class RecombinationEvent(object):
         line['indelfos'] = self.indelfos
         line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
         self.set_ids(line, irandom)
-        dtree = treeutils.get_dendro_tree(treestr=self.tree)  # maybe should change <self.tree>? but I don't think I really use it after this, so maybe no point
-        treeutils.translate_labels(dtree, zip(self.leaf_names, line['unique_ids']))  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
-        line['tree'] = dtree.as_string(schema='newick')
+        treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']))  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
+        line['tree'] = self.tree.as_string(schema='newick')
 
         utils.add_implicit_info(self.glfo, line)
 
