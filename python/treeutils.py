@@ -154,7 +154,10 @@ def translate_labels(dendro_tree, translation_pairs, debug=False):
     if debug:
         print get_ascii_tree(dendro_tree=dendro_tree)
     for old_label, new_label in translation_pairs:
-        dendro_tree.taxon_namespace.get_taxon(old_label).label = new_label
+        taxon = dendro_tree.taxon_namespace.get_taxon(old_label)
+        if taxon is None:
+            raise Exception('requested taxon with old name \'%s\' not present in tree' % old_label)
+        taxon.label = new_label
         if debug:
             print '%20s --> %s' % (old_label, new_label)
     if debug:
