@@ -8,6 +8,7 @@ import copy
 
 import utils
 import indelutils
+import treeutils
 
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):
@@ -110,8 +111,10 @@ class RecombinationEvent(object):
         line['input_seqs'] = self.final_seqs
         line['indelfos'] = self.indelfos
         line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
-        line['tree'] = self.tree
         self.set_ids(line, irandom)
+        dtree = treeutils.get_dendro_tree(treestr=self.tree)  # maybe should change <self.tree>? but I don't think I really use it after this, so maybe no point
+        treeutils.translate_labels(dtree, zip([l.taxon.label for l in dtree.leaf_node_iter()], line['unique_ids']))
+        line['tree'] = dtree.as_string(schema='newick')
 
         utils.add_implicit_info(self.glfo, line)
 

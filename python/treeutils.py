@@ -113,10 +113,11 @@ def check_node_labels(dtree, debug=False):
             raise Exception('node.label not set to None')
 
 # ----------------------------------------------------------------------------------------
+# mostly adds labels to internal nodes, but also sometimes the root node
 def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, debug=False):
     if debug:
-        print ' relabeling tree, before:'
-        print '      %s' % dendro_tree.as_string(schema='nexml')  # doesn't print internal node labels if we use newick (or ascii)
+        print ' labeling nodes, before:'
+        print utils.pad_lines(get_ascii_tree(dendro_tree))
     tns = dendro_tree.taxon_namespace
     initial_names = set([t.label for t in tns])  # should all be leaf nodes, except the naive sequence (at least for now)
     potential_names, used_names = None, None
@@ -146,7 +147,18 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, debug=F
 
     if debug:
         print '   after:'
-        print '      %20s' % dendro_tree.as_string(schema='nexml')  # doesn't print internal node labels if we use newick (or ascii)
+        print utils.pad_lines(get_ascii_tree(dendro_tree))
+
+# ----------------------------------------------------------------------------------------
+def translate_labels(dendro_tree, translation_pairs, debug=False):
+    if debug:
+        print get_ascii_tree(dendro_tree=dendro_tree)
+    for old_label, new_label in translation_pairs:
+        dendro_tree.taxon_namespace.get_taxon(old_label).label = new_label
+        if debug:
+            print '%20s --> %s' % (old_label, new_label)
+    if debug:
+        print get_ascii_tree(dendro_tree=dendro_tree)
 
 # ----------------------------------------------------------------------------------------
 def get_mean_leaf_height(tree=None, treestr=None):
@@ -181,7 +193,9 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
         #     node_label_compose_fn : function object
         #         A function that takes a Node object as an argument and returns
         #         the string to be used to display it.
-        return_lines = ['%s%s' % (extra_str, line) for line in dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=lambda x: utils.color('blue', x.taxon.label)).split('\n')]
+        dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=lambda x: 'x@%s@x' % ('None' if x.taxon is None else x.taxon.label))
+        return_lines = [('%s%s' % (extra_str, line)) for line in dendro_str.split('\n')]
+        return_lines = [l.replace('x@', utils.Colors['blue']).replace('@x', utils.Colors['end'] + '    ') for l in return_lines]  # can't color them directly, since dendropy counts the color characters as printable
         return '\n'.join(return_lines)
 
         # Phylo = import_bio_phylo()
@@ -619,14 +633,12 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
             n_skipped += 1
             continue
         lonr_info = calculate_lonr(line=line, debug=True)
-        lbi_info = calculate_lbi(treestr=lonr_info['tree'], debug=True)
-# ----------------------------------------------------------------------------------------
         if reco_info is not None:
             true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
             _ = calculate_lbi(treestr=true_line['tree'], debug=True)
-# ----------------------------------------------------------------------------------------
+            assert False
+        lbi_info = calculate_lbi(treestr=lonr_info['tree'], debug=True)
         line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
         n_clusters_calculated += 1
-        assert False
 
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
