@@ -385,7 +385,7 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
-def calculate_lbi(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, transform=lambda x:x, debug=False):  # exactly one of <treestr> or <treefname> should be None
+def calculate_lbi(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, transform=lambda x:x, extra_str=None, debug=False):  # exactly one of <treestr> or <treefname> should be None
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted
     by distance, then adds them as LBI.
@@ -398,7 +398,7 @@ def calculate_lbi(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, tr
         dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
 
     if debug:
-        print '  %s' % utils.color('green', 'lbi:')
+        print '  %s%s' % (utils.color('green', 'lbi'), '' if extra_str is None else ' for %s' % extra_str)
         print '      starting with rerooted tree:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
@@ -647,11 +647,10 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
             n_skipped += 1
             continue
         lonr_info = calculate_lonr(line=line, debug=True)
-        if reco_info is not None:
+        if reco_info is not None:  # NOTE not actually doing anything with the true lbi info yet (I think I don't want to add it to the line, I just want to make plots with it)
             true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
-            _ = calculate_lbi(treestr=true_line['tree'], debug=True)
-            assert False
-        lbi_info = calculate_lbi(treestr=lonr_info['tree'], debug=True)
+            true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=True)  # NOTE this is the tree we _give_ to bppseqgen, not necessarily the exact one implied by the true mutations (er, ok, I'm not sure if that distinction makes sense)
+        lbi_info = calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=True)
         line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
         n_clusters_calculated += 1
 
