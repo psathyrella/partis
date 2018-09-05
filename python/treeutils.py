@@ -173,6 +173,23 @@ def get_mean_leaf_height(tree=None, treestr=None):
 
 # ----------------------------------------------------------------------------------------
 def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=100, schema='newick'):
+    """
+        AsciiTreePlot docs (don't show up in as_ascii_plot()):
+            plot_metric : str
+                A string which specifies how branches should be scaled, one of:
+                'age' (distance from tips), 'depth' (distance from root),
+                'level' (number of branches from root) or 'length' (edge
+                length/weights).
+            show_internal_node_labels : bool
+                Whether or not to write out internal node labels.
+            leaf_spacing_factor : int
+                Positive integer: number of rows between each leaf.
+            width : int
+                Force a particular display width, in terms of number of columns.
+            node_label_compose_fn : function object
+                A function that takes a Node object as an argument and returns
+                the string to be used to display it.
+    """
     if dendro_tree is None:
         assert treestr is None or treefname is None
         if treestr is None:
@@ -181,24 +198,18 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
     if get_mean_leaf_height(dendro_tree) == 0.:  # we really want the max height, but since we only care whether it's zero or not this is the same
         return '%szero height' % extra_str
     elif get_n_leaves(dendro_tree) > 1:  # if more than one leaf
-        # AsciiTreePlot docs (don't show up in as_ascii_plot()):
-        #     plot_metric : str
-        #         A string which specifies how branches should be scaled, one of:
-        #         'age' (distance from tips), 'depth' (distance from root),
-        #         'level' (number of branches from root) or 'length' (edge
-        #         length/weights).
-        #     show_internal_node_labels : bool
-        #         Whether or not to write out internal node labels.
-        #     leaf_spacing_factor : int
-        #         Positive integer: number of rows between each leaf.
-        #     width : int
-        #         Force a particular display width, in terms of number of columns.
-        #     node_label_compose_fn : function object
-        #         A function that takes a Node object as an argument and returns
-        #         the string to be used to display it.
-        dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=lambda x: 'x@%s@x' % ('None' if x.taxon is None else x.taxon.label))
+        start_char, end_char = '', ''
+        def compose_fcn(x):
+            return '%s%s%s' % (start_char, 'None' if x.taxon is None else x.taxon.label, end_char)
+        dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)
+        special_chars = [c for c in string.printable if c not in set(dendro_str)]  # find some special characters that we can use to identify the start and end of each label (could also use non-printable special characters, but it shouldn't be necessary)
+        if len(special_chars) >= 2:  # can't color them directly, since dendropy counts the color characters as printable
+            start_char, end_char = special_chars[:2]
+            dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)  # call again after modiying compose fcn (kind of wasteful to call it twice, but it shouldn't make a difference)
+            dendro_str = dendro_str.replace(start_char, utils.Colors['blue']).replace(end_char, utils.Colors['end'] + '  ')
+        else:
+            print '  %s can\'t color tree, no available special characters in get_ascii_tree()' % utils.color('red', 'note:')
         return_lines = [('%s%s' % (extra_str, line)) for line in dendro_str.split('\n')]
-        return_lines = [l.replace('x@', utils.Colors['blue']).replace('@x', utils.Colors['end'] + '    ') for l in return_lines]  # can't color them directly, since dendropy counts the color characters as printable
         return '\n'.join(return_lines)
 
         # Phylo = import_bio_phylo()
