@@ -45,11 +45,10 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     assert treestr is None or treefname is None
     if treestr is None:
         treestr = get_treestr(treefname)
+    # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=ignore_existing_internal_node_labels)
-    # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label
-    # ...but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression, since e.g. stupid fasttree output labels them with stupid floats
-    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
     # check_node_labels(dtree)
+    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -100,7 +99,7 @@ def get_n_leaves(tree):
     return len(tree.leaf_nodes())
 
 # ----------------------------------------------------------------------------------------
-def check_node_labels(dtree, debug=False):
+def check_node_labels(dtree, debug=True):
     if debug:
         print 'checking node labels for:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
@@ -116,15 +115,16 @@ def check_node_labels(dtree, debug=False):
 # mostly adds labels to internal nodes, but also sometimes the root node
 def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, debug=False):
     if debug:
-        print ' labeling nodes, before:'
-        print utils.pad_lines(get_ascii_tree(dendro_tree))
+        print ' labeling nodes:'
+        # print '    before:'
+        # print utils.pad_lines(get_ascii_tree(dendro_tree))
     tns = dendro_tree.taxon_namespace
     initial_names = set([t.label for t in tns])  # should all be leaf nodes, except the naive sequence (at least for now)
     potential_names, used_names = None, None
+    skipped_dbg, relabeled_dbg = [], []
     for node in dendro_tree.preorder_node_iter():
         if node.taxon is not None:
-            if debug:
-                print '      %s  (skip)' % node.taxon.label
+            skipped_dbg += ['%s' % node.taxon.label]
             assert node.label is None  # if you want to change this, you have to start setting the node labels in build_lonr_tree(). For now, I like having the label in _one_ freaking place
             continue
 
@@ -141,13 +141,13 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, debug=F
 
         tns.add_taxon(dendropy.Taxon(label))
         node.taxon = tns.get_taxon(label)
-
-        if debug:
-            print '    %5s' % label
+        relabeled_dbg += ['%s' % label]
 
     if debug:
-        print '   after:'
-        print utils.pad_lines(get_ascii_tree(dendro_tree))
+        print '    skipped (already labeled): %s' % '  '.join(skipped_dbg)
+        print '                (re-)labeled: %s' % '  '.join(relabeled_dbg)
+        # print '   after:'
+        # print utils.pad_lines(get_ascii_tree(dendro_tree))
 
 # ----------------------------------------------------------------------------------------
 def translate_labels(dendro_tree, translation_pairs, debug=False):
@@ -172,7 +172,7 @@ def get_mean_leaf_height(tree=None, treestr=None):
     return sum(heights) / len(heights)
 
 # ----------------------------------------------------------------------------------------
-def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=100, schema='newick'):
+def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=200, schema='newick'):
     """
         AsciiTreePlot docs (don't show up in as_ascii_plot()):
             plot_metric : str
@@ -200,11 +200,17 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
     elif get_n_leaves(dendro_tree) > 1:  # if more than one leaf
         start_char, end_char = '', ''
         def compose_fcn(x):
-            return '%s%s%s' % (start_char, 'None' if x.taxon is None else x.taxon.label, end_char)
+            if x.taxon is not None:  # if there's a taxon defined, use its label
+                lb = x.taxon.label
+            elif x.label is not None:  # use node label
+                lb = x.label
+            else:
+                lb = 'o'
+            return '%s%s%s' % (start_char, lb, end_char)
         dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)
-        special_chars = [c for c in string.printable if c not in set(dendro_str)]  # find some special characters that we can use to identify the start and end of each label (could also use non-printable special characters, but it shouldn't be necessary)
+        special_chars = [c for c in reversed(string.printable) if c not in set(dendro_str)]  # find some special characters that we can use to identify the start and end of each label (could also use non-printable special characters, but it shouldn't be necessary)
         if len(special_chars) >= 2:  # can't color them directly, since dendropy counts the color characters as printable
-            start_char, end_char = special_chars[:2]
+            start_char, end_char = special_chars[:2]  # NOTE the colors get screwed up when dendropy overlaps labels, which it does when it runs out of space (this shouldn't really happen much, though)
             dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)  # call again after modiying compose fcn (kind of wasteful to call it twice, but it shouldn't make a difference)
             dendro_str = dendro_str.replace(start_char, utils.Colors['blue']).replace(end_char, utils.Colors['end'] + '  ')
         else:

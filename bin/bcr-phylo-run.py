@@ -8,8 +8,10 @@ import sys
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 sys.path.insert(1, current_script_dir)
+sys.path.insert(1, current_script_dir + '/../packages/baltic')
 import utils
 import indelutils
+import treeutils
 
 base_outdir = '%s/partis/bcr-phylo' % os.getenv('fs')
 label = 'test'
@@ -32,7 +34,9 @@ def simfname(stype):
 # ----------------------------------------------------------------------------------------
 def simulate(stype, debug=False):
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --debug 1 --n-leaves 1 --constant-number-of-leaves --outfname %s/naive-simu.yaml' % simdir(stype)
+
     utils.simplerun(cmd, debug=True)
+
     glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(stype))
     assert len(annotation_list) == 1  # would need to change some things
     naive_line = annotation_list[0]
@@ -76,6 +80,7 @@ def simulate(stype, debug=False):
     for sfo in seqfos:
         mline = copy.deepcopy(naive_line)
         utils.remove_all_implicit_info(mline)
+        del mline['tree']
         mline['unique_ids'] = [sfo['name']]
         mline['seqs'] = [sfo['seq']]  # it's really important to set both the seqs (since they're both already in there from the naive line)
         mline['input_seqs'] = [sfo['seq']]  # it's really important to set both the seqs (since they're both already in there from the naive line)
@@ -87,7 +92,7 @@ def simulate(stype, debug=False):
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if stype == 'selection':
-        cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/view-trees.py %s/%s_lineage_tree.p %s/kd-vals.csv' % (ete_path, simdir(stype), extrastr, simdir(stype))
+        cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/view-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, simdir(stype), extrastr, simdir(stype), simdir(stype))
         utils.simplerun(cmd, shell=True)
         kdvals = {}
         with open('%s/kd-vals.csv' % simdir(stype)) as kdfile:
@@ -99,6 +104,10 @@ def simulate(stype, debug=False):
             print '        missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(kdvals))
             print '      %s kd file uids don\'t match final line (see above, it\'s maybe just internal nodes?)' % utils.color('red', 'note:')
         final_line['affinities'] = [kdvals[u] for u in final_line['unique_ids']]
+        tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % simdir(stype) , ignore_existing_internal_node_labels=True)  # bcr-phylo sets all the internal node labels to '1', so we have to relabel them so dendropy doesn't later barf
+        if debug:
+            print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
+        final_line['tree'] = tree.as_string(schema='newick')
 
     assert len(cpath.partitions) == 0
     utils.write_annotations(simfname(stype), glfo, [final_line], utils.simulation_headers)
@@ -115,6 +124,6 @@ def partition(stype):
 debug = True
 # ----------------------------------------------------------------------------------------
 for stype in ['selection', 'neutral']:
-    # simulate(stype, debug=debug)
-    partition(stype)
+    simulate(stype, debug=debug)
+    # partition(stype)
     break
