@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import csv
 import colored_traceback.always
 import collections
@@ -32,25 +33,21 @@ def simfname(stype):
     return '%s/mutated-simu.yaml' % simdir(stype)
 
 # ----------------------------------------------------------------------------------------
-def simulate(stype, debug=False):
-    cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --debug 1 --n-leaves 1 --constant-number-of-leaves --outfname %s/naive-simu.yaml' % simdir(stype)
-
+def rearrange():
+    cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --seed %d --debug 1 --n-leaves 1 --constant-number-of-leaves --outfname %s/naive-simu.yaml' % (args.seed, simdir(args.stype))
     utils.simplerun(cmd, debug=True)
 
-    glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(stype))
-    assert len(annotation_list) == 1  # would need to change some things
-    naive_line = annotation_list[0]
-
+# ----------------------------------------------------------------------------------------
+def run_bcr_phylo(naive_line):
     os.environ['TMPDIR'] = '/tmp'
-    extrastr = 'simu'  # just required by bcr-phylo
     prof_cmds = '' #'-m cProfile -s tottime -o prof.out'
     cmd = 'export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (ete_path, prof_cmds, bcr_phylo_path)
     cmd += ' --mutability %s/S5F/Mutability.csv --substitution %s/S5F/Substitution.csv' % (bcr_phylo_path, bcr_phylo_path)
     # from maual: --T 35 --n 60 --selection --target_dist 5 --target_count 100 --carry_cap 1000 --skip_update 100
 
-    if stype == 'neutral':
+    if args.stype == 'neutral':
         cmd += ' --lambda %f --lambda0 %f --N %d' % (1.5, 0.365, n_sim_seqs)
-    elif stype == 'selection':
+    elif args.stype == 'selection':
         cmd += ' --selection'
         cmd += ' --lambda %f --lambda0 %f' % (2., 0.365)
         # cmd += ' --n %d' % 60  # cells downsampled (default None)
@@ -61,20 +58,23 @@ def simulate(stype, debug=False):
         assert False
 
     cmd += ' --verbose'
-    cmd += ' --outbase %s/%s' % (simdir(stype), extrastr)
+    cmd += ' --outbase %s/%s' % (simdir(args.stype), args.extrastr)
     # cmd += ' --random_seq %s/sequence_data/AbPair_naive_seqs.fa' % bcr_phylo_path
     cmd += ' --sequence %s' % naive_line['naive_seq']
-    if not os.path.exists(simdir(stype)):
-        os.makedirs(simdir(stype))
+    if not os.path.exists(simdir(args.stype)):
+        os.makedirs(simdir(args.stype))
 
     utils.simplerun(cmd, shell=True, debug=True) #, dryrun=True)
 
-    seqfos = utils.read_fastx('%s/%s.fasta' % (simdir(stype), extrastr))  # output mutated sequences from bcr-phylo
+# ----------------------------------------------------------------------------------------
+def parse_bcr_phylo_output(naive_line):
+    outdir = simdir(args.stype)
+    seqfos = utils.read_fastx('%s/%s.fasta' % (outdir, args.extrastr))  # output mutated sequences from bcr-phylo
     seqfos = [sfo for sfo in seqfos if sfo['name'] != 'naive']  # don't have a kd value for the naive sequence, so may as well throw it out
 
     assert len(naive_line['unique_ids']) == 1  # enforces that we ran naive-only, 1-leaf partis simulation above
     assert not indelutils.has_indels(naive_line['indelfos'][0])  # would have to handle this below
-    if debug:
+    if args.debug:
         utils.print_reco_event(naive_line)
     reco_info = collections.OrderedDict()
     for sfo in seqfos:
@@ -87,15 +87,15 @@ def simulate(stype, debug=False):
         reco_info[sfo['name']] = mline
         utils.add_implicit_info(glfo, mline)
     final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in seqfos], reco_info)
-    if debug:
+    if args.debug:
         utils.print_reco_event(final_line)
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
-    if stype == 'selection':
-        cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/view-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, simdir(stype), extrastr, simdir(stype), simdir(stype))
+    if args.stype == 'selection':
+        cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/view-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, outdir, args.extrastr, outdir, outdir)
         utils.simplerun(cmd, shell=True)
         kdvals = {}
-        with open('%s/kd-vals.csv' % simdir(stype)) as kdfile:
+        with open('%s/kd-vals.csv' % outdir) as kdfile:
             reader = csv.DictReader(kdfile)
             for line in reader:
                 kdvals[line['uid']] = float(line['kd'])
@@ -104,26 +104,39 @@ def simulate(stype, debug=False):
             print '        missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(kdvals))
             print '      %s kd file uids don\'t match final line (see above, it\'s maybe just internal nodes?)' % utils.color('red', 'note:')
         final_line['affinities'] = [kdvals[u] for u in final_line['unique_ids']]
-        tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % simdir(stype) , ignore_existing_internal_node_labels=True)  # bcr-phylo sets all the internal node labels to '1', so we have to relabel them so dendropy doesn't later barf
-        if debug:
+        tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % outdir , ignore_existing_internal_node_labels=True)  # bcr-phylo sets all the internal node labels to '1', so we have to relabel them so dendropy doesn't later barf
+        if args.debug:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
         final_line['tree'] = tree.as_string(schema='newick')
 
     assert len(cpath.partitions) == 0
-    utils.write_annotations(simfname(stype), glfo, [final_line], utils.simulation_headers)
+    utils.write_annotations(simfname(args.stype), glfo, [final_line], utils.simulation_headers)
 
 # ----------------------------------------------------------------------------------------
-def partition(stype):
+def partition():
+    assert False  # need to add args.seed
     n_procs = 1
-    # cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d' % (simfname(stype), infdir(stype), n_procs)
-    cmd = './bin/partis partition --calculate-tree-metrics --infname %s --parameter-dir %s/params --n-procs %d --outfname %s/partition.yaml' % (simfname(stype), infdir(stype), n_procs, infdir(stype))
-    # cmd = './bin/partis plot-partitions --plotdir %s/plots --outfname %s/partition.yaml' % (infdir(stype), infdir(stype))
-    # cmd = './bin/partis view-output --outfname %s/partition.yaml --abb' % infdir(stype)
+    # cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d' % (simfname(args.stype), infdir(args.stype), n_procs)
+    cmd = './bin/partis partition --calculate-tree-metrics --infname %s --parameter-dir %s/params --n-procs %d --outfname %s/partition.yaml' % (simfname(args.stype), infdir(args.stype), n_procs, infdir(args.stype))
+    # cmd = './bin/partis plot-partitions --plotdir %s/plots --outfname %s/partition.yaml' % (infdir(args.stype), infdir(args.stype))
+    # cmd = './bin/partis view-output --outfname %s/partition.yaml --abb' % infdir(args.stype)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
 
-debug = True
 # ----------------------------------------------------------------------------------------
-for stype in ['selection', 'neutral']:
-    simulate(stype, debug=debug)
-    # partition(stype)
-    break
+parser = argparse.ArgumentParser()
+parser.add_argument('--stype', default='selection', choices=('selection', 'neutral'))
+parser.add_argument('--debug', action='store_true')
+parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
+parser.add_argument('--extrastr', default='simu', help='just required by bcr-phylo')
+args = parser.parse_args()
+
+# ----------------------------------------------------------------------------------------
+# rearrange()
+
+glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(args.stype))
+assert len(annotation_list) == 1  # would need to change some things
+naive_line = annotation_list[0]
+
+# run_bcr_phylo(naive_line)
+parse_bcr_phylo_output(naive_line)
+# partition(stype)
