@@ -16,10 +16,6 @@ import treeutils
 
 base_outdir = '%s/partis/bcr-phylo' % os.getenv('fs')
 label = 'test'
-n_sim_seqs = 10
-selection_time = 5  # 35
-carry_cap = 1000  # 1000
-n_mutations = 5
 
 ete_path = '/home/' + os.getenv('USER') + '/anaconda_ete/bin'
 bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
@@ -39,21 +35,28 @@ def rearrange():
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(naive_line):
+    n_sim_seqs = 10
+    obs_time = 5  # 35  # number of rounds of reproduction
+    carry_cap = 1000  # 1000
+    target_distance = 5
+
     os.environ['TMPDIR'] = '/tmp'
     prof_cmds = '' #'-m cProfile -s tottime -o prof.out'
     cmd = 'export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (ete_path, prof_cmds, bcr_phylo_path)
-    cmd += ' --mutability %s/S5F/Mutability.csv --substitution %s/S5F/Substitution.csv' % (bcr_phylo_path, bcr_phylo_path)
-    # from maual: --T 35 --n 60 --selection --target_dist 5 --target_count 100 --carry_cap 1000 --skip_update 100
 
-    if args.stype == 'neutral':
+    if args.run_help:
+        cmd += ' --help'
+    elif args.stype == 'neutral':
         cmd += ' --lambda %f --lambda0 %f --N %d' % (1.5, 0.365, n_sim_seqs)
     elif args.stype == 'selection':
         cmd += ' --selection'
         cmd += ' --lambda %f --lambda0 %f' % (2., 0.365)
+        cmd += ' --T %d' % obs_time
+        cmd += ' --target_dist %d' % target_distance  # Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. (default: 10)
+        cmd += ' --target_count %d' % n_sim_seqs  # desired number of final sequences (you (can) get less than this since nonsense sequences are thrown out)
+        cmd += ' --carry_cap %d' % carry_cap
         # cmd += ' --n %d' % 60  # cells downsampled (default None)
-        cmd += ' --T %d' % selection_time
-        cmd += ' --target_dist %d --target_count %d' % (n_mutations, n_sim_seqs)  # um, I think target count is maybe the number of sequences?
-        cmd += ' --carry_cap %d --skip_update 100' % (carry_cap)
+        # cmd += ' --stop_dist %d'  %  # Stop when any simulated sequence is closer than this (hamming distance) to any of the target sequences.
     else:
         assert False
 
@@ -126,6 +129,7 @@ def partition():
 parser = argparse.ArgumentParser()
 parser.add_argument('--stype', default='selection', choices=('selection', 'neutral'))
 parser.add_argument('--debug', action='store_true')
+parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--extrastr', default='simu', help='just required by bcr-phylo')
 args = parser.parse_args()
