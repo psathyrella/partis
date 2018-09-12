@@ -177,7 +177,7 @@ class Waterer(object):
         # NOTE does *not* write failed queries also
         headers = utils.sw_cache_headers
         if self.args.linearham:
-            headers = utils.add_lists(headers, utils.sw_linearham_headers)
+            headers = utils.add_lists(headers, utils.linearham_headers)
         utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers)
 
     # ----------------------------------------------------------------------------------------
@@ -809,7 +809,6 @@ class Waterer(object):
                 infoline['flexbounds'][region + '_l'] = dict(zip(sortmatches[region], bounds_l))
                 infoline['flexbounds'][region + '_r'] = dict(zip(sortmatches[region], bounds_r))
             infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].items()}  # position in the query sequence of the start of each uneroded germline match
-            infoline['match_scores'] = {r : {gene : score for score, gene in qinfo['matches'][r]} for r in utils.regions}
 
         infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
         infoline['codon_positions'] = codon_positions
