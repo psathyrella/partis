@@ -35,10 +35,10 @@ def rearrange():
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(naive_line):
-    n_sim_seqs = 10
-    obs_time = 5  # 35  # number of rounds of reproduction
+    n_sim_seqs = 30
+    obs_time = 20  # 35
     carry_cap = 1000  # 1000
-    target_distance = 5
+    target_distance = 30
 
     os.environ['TMPDIR'] = '/tmp'
     prof_cmds = '' #'-m cProfile -s tottime -o prof.out'
@@ -47,23 +47,27 @@ def run_bcr_phylo(naive_line):
     if args.run_help:
         cmd += ' --help'
     elif args.stype == 'neutral':
-        cmd += ' --lambda %f --lambda0 %f --N %d' % (1.5, 0.365, n_sim_seqs)
+        cmd += ' --lambda %f --lambda0 %f' % (1.5, 0.365)
+        cmd += ' --n_final_seqs %d' % n_sim_seqs
     elif args.stype == 'selection':
         cmd += ' --selection'
         cmd += ' --lambda %f --lambda0 %f' % (2., 0.365)
-        cmd += ' --T %d' % obs_time
+        cmd += ' --obs_times %d' % obs_time  # number of rounds of reproduction
         cmd += ' --target_dist %d' % target_distance  # Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. (default: 10)
-        cmd += ' --target_count %d' % n_sim_seqs  # desired number of final sequences (you (can) get less than this since nonsense sequences are thrown out)
         cmd += ' --carry_cap %d' % carry_cap
-        # cmd += ' --n %d' % 60  # cells downsampled (default None)
-        # cmd += ' --stop_dist %d'  %  # Stop when any simulated sequence is closer than this (hamming distance) to any of the target sequences.
+        cmd += ' --n_to_downsample %d' % n_sim_seqs  # Number of cells kept (not discarded) during final downsampling step (default: None)
+        # cmd += ' --stop_dist %d'  % xxx  # Stop when any simulated sequence is closer than this (hamming distance) to any of the target sequences.
+        # can't set both N and T, but need to set T for selection:
+        # cmd += ' --n_final_seqs %d' % n_sim_seqs  # Desired number of final sequences (actual number may be less due to removal of nonsense sequences)
     else:
         assert False
 
-    cmd += ' --verbose'
+    cmd += ' --no_context'
+    # cmd += ' --verbose'
     cmd += ' --outbase %s/%s' % (simdir(args.stype), args.extrastr)
     # cmd += ' --random_seq %s/sequence_data/AbPair_naive_seqs.fa' % bcr_phylo_path
     cmd += ' --sequence %s' % naive_line['naive_seq']
+    cmd += ' --random_seed %d' % args.seed
     if not os.path.exists(simdir(args.stype)):
         os.makedirs(simdir(args.stype))
 
@@ -141,6 +145,6 @@ glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(a
 assert len(annotation_list) == 1  # would need to change some things
 naive_line = annotation_list[0]
 
-# run_bcr_phylo(naive_line)
+run_bcr_phylo(naive_line)
 parse_bcr_phylo_output(naive_line)
 # partition(stype)

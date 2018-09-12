@@ -942,7 +942,7 @@ class Waterer(object):
         infoline = self.convert_qinfo(qinfo, best, codon_positions)
         try:
             utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
-        except:  # gah, I don't really like just swallowing everything... but then I *expect* it to fail here, and when I call it elsewhere, where I don't expect it to fail, shit doesn't get swallowed (and I want all the different exceptions, i.e. I kind of do want to just swallow everything here)
+        except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
             print utils.pad_lines(''.join(lines))
