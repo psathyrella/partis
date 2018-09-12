@@ -147,12 +147,15 @@ class Waterer(object):
                 for key in [k for k in [r + '_per_gene_support' for r in utils.regions] if k in line]:  # new files shouldn't have this, but I think I need to leave it for reading older files
                     del line[key]
             assert len(line['unique_ids']) == 1  # would only fail if this was not actually an sw cache file, but it's still nice to check since so many places in waterer assume it's length 1
-            if line['unique_ids'][0] not in self.input_info:
+            uid = line['unique_ids'][0]
+            if uid not in self.input_info:
                 continue
             utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
             if indelutils.has_indels(line['indelfos'][0]):
-                self.info['indels'][line['unique_ids'][0]] = line['indelfos'][0]
+                self.info['indels'][uid] = line['indelfos'][0]
             self.add_to_info(line)
+            self.remaining_queries -= set(line['duplicates'][0])
+            self.duplicates[uid] = line['duplicates'][0]  # Note that <self.duplicates> is really just so partitiondriver can pass in previous duplicates, but then now that we have the information in two places we need to keep it synchronized (see similar code in self.remove_duplicate_sequences())
 
         glutils.write_glfo(self.my_gldir, self.glfo)
 
@@ -189,7 +192,8 @@ class Waterer(object):
             print '%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning')
             sys.exit(1)
 
-        print '      info for %d / %d = %.3f   (%d failed)' % (len(self.info['queries']), len(self.input_info), float(len(self.info['queries'])) / len(self.input_info), len(self.info['failed-queries']))
+        dupl_str = (', %d duplicates' % sum([len(dupes) for dupes in self.duplicates.values()])) if just_read_cachefile else ''  # kind of messy, but if we just read the cache file then we need to print this info, but if we didn't just read the cache file then we haven't yet removed duplicates so we can't
+        print '      info for %d / %d = %.3f   (%d failed%s)' % (len(self.info['queries']), len(self.input_info), float(len(self.info['queries'])) / len(self.input_info), len(self.info['failed-queries']), dupl_str)
         if len(self.kept_unproductive_queries) > 0:
             print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
 

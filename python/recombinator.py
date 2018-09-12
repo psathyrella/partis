@@ -434,7 +434,7 @@ class Recombinator(object):
         reco_seq_fname = workdir + '/start-seq.txt'
         leaf_seq_fname = workdir + '/leaf-seqs.fa'
         # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen)
-        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_height(chosen_tree))
+        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
         self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
@@ -478,16 +478,16 @@ class Recombinator(object):
             if seqfo['name'] == dummy_name_so_bppseqgen_doesnt_break:  # in the unlikely (impossible unless we change tree generators and don't tell them to use the same leaf names) event that we get a non-dummy leaf with this name, it'll fail at the assertion just below
                 continue
             mutated_seqs[seqfo['name'].strip('\'')] = seqfo['seq']
-        try:
-            mutated_seqs = [mutated_seqs['t' + str(iseq + 1)] for iseq in range(len(mutated_seqs))]
+        try:  # make sure names are all of form t<n>, and keep track of which sequences goes with which name (have to keep around the t<n> labels so we can translate the tree labels, in event.py)
+            names_seqs = [('t' + str(iseq + 1), mutated_seqs['t' + str(iseq + 1)]) for iseq in range(len(mutated_seqs))]
         except KeyError as ke:
             raise Exception('leaf name %s not as expected in bppseqgen output %s' % (ke, cmdfo['outfname']))
-        assert n_leaf_nodes == len(mutated_seqs)
+        assert n_leaf_nodes == len(names_seqs)
         os.remove(cmdfo['outfname'])
         for otherfname in cmdfo['other-files']:
             os.remove(otherfname)
         os.rmdir(cmdfo['workdir'])
-        return mutated_seqs
+        return zip(*names_seqs)
 
     # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
@@ -526,8 +526,9 @@ class Recombinator(object):
         assert treefostr.count(';') == 1
         isplit = treefostr.find(';') + 1
         chosen_tree = treefostr[:isplit]  # includes semi-colon
+        reco_event.set_tree(chosen_tree)  # leaf names are still just like t<n>
         mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
-        mean_total_height = treeutils.get_mean_height(chosen_tree)
+        mean_total_height = treeutils.get_mean_leaf_height(treestr=chosen_tree)
         regional_heights = {}  # per-region height, including <self.args.mutation_multiplier>
         for tmpstr in mutefo:
             region, ratio = tmpstr.split(':')
@@ -540,12 +541,10 @@ class Recombinator(object):
         scaled_trees = {r : treeutils.rescale_tree(chosen_tree, regional_heights[r]) for r in utils.regions}
 
         if self.args.debug:
-            print '  chose tree with total height %f' % treeutils.get_mean_height(chosen_tree)
-            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treeutils.get_mean_height(scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
-            print '    tree passed to bppseqgen:'
-            print treeutils.get_ascii_tree(treestr=chosen_tree, extra_str='      ')
+            print '  chose tree with total height %f' % treeutils.get_mean_leaf_height(treestr=chosen_tree)
+            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treeutils.get_mean_leaf_height(treestr=scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
 
-        n_leaves = treeutils.get_n_leaves(chosen_tree)
+        n_leaves = treeutils.get_n_leaves(treeutils.get_dendro_tree(treestr=chosen_tree, schema='newick'))
         cmdfos = []
         regional_naive_seqs = {}  # only used for tree checking
         for region in utils.regions:
@@ -562,7 +561,11 @@ class Recombinator(object):
             if cmdfos[ireg] is None:
                 mseqs[utils.regions[ireg]] = ['' for _ in range(n_leaves)]  # return an empty string for each leaf node
             else:
-                mseqs[utils.regions[ireg]] = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
+                tmp_names, tmp_seqs = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
+                if reco_event.leaf_names is None:
+                    reco_event.leaf_names = tmp_names
+                assert reco_event.leaf_names == tmp_names  # enforce different regions having same name + ordering (although this is already enforced when reading bppseqgen output)
+                mseqs[utils.regions[ireg]] = tmp_seqs
 
         assert len(reco_event.final_seqs) == 0
 
@@ -578,6 +581,8 @@ class Recombinator(object):
         # self.print_validation_values()
 
         if self.args.debug:
+            print '    tree passed to bppseqgen:'
+            print treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      ')
             utils.print_reco_event(reco_event.line, extra_str='    ')
 
     # ----------------------------------------------------------------------------------------

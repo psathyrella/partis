@@ -263,22 +263,23 @@ def get_list_of_str_list(strlist):
 
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 linekeys = {}
+# I think 'per_family' is pretty incomplete at this point, but I also think it isn't being used
 linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
-                         ['invalid'] + \
+                         ['invalid', 'tree'] + \
                          [r + '_gene' for r in regions] + \
                          [e + '_del' for e in all_erosions] + \
                          [b + '_insertion' for b in all_boundaries] + \
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos',
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'affinities'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
-linekeys['hmm'] = ['logprob', 'errors']
-linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']  # TODO move 'duplicates' to 'per_seq' (see note in synthesize_multi_seq_line())
-linekeys['extra'] = ['tree-info']
-linekeys['simu'] = ['reco_id', ]
+linekeys['hmm'] = ['logprob', 'errors', 'tree-info'] + [r + '_per_gene_support' for r in regions]
+linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']  # TODO move 'duplicates' to 'per_seq'
+linekeys['simu'] = ['reco_id', 'affinities', 'tree']
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
@@ -292,7 +293,7 @@ annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cd
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns + ['codon_positions'] + ['tree-info']
-simulation_headers = ('unique_ids', 'reco_id', 'invalid') + index_columns + ('cdr3_length', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs') + tuple(functional_columns)
+simulation_headers = linekeys['simu'] + [h for h in annotation_headers if h not in linekeys['hmm']]
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',
     'full_coding_naive_seq',
@@ -361,6 +362,7 @@ def synthesize_single_seq_line(line, iseq):
     return singlefo
 
 # ----------------------------------------------------------------------------------------
+# what the fuck was the point of this function? Isn't <multifo> just what you'd get out of it?
 def synthesize_multi_seq_line(uids, multifo):  # assumes you already added all the implicit info
     reco_info = {multifo['unique_ids'][iseq] : synthesize_single_seq_line(multifo, iseq) for iseq in range(len(multifo['unique_ids']))}
     return synthesize_multi_seq_line_from_reco_info(uids, reco_info)
@@ -1939,7 +1941,7 @@ def add_extra_column(key, info, outfo, glfo=None):
         # for iseq in range(len(info['unique_ids'])):
         #     print info['unique_ids'][iseq]
         #     color_mutants(info['input_seqs'][iseq], full_coding_input_seqs[iseq], print_result=True, align=True, extra_str='  ')
-    elif key == 'tree-info':
+    elif key in linekeys['hmm'] + linekeys['sw'] + linekeys['simu']:  # these are added elsewhere
         return  # TODO
     else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
         raise Exception('unsupported extra annotation column \'%s\'' % key)
@@ -2292,20 +2294,22 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
             cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
 
 # ----------------------------------------------------------------------------------------
-def run_r(cmdlines, workdir, dryrun=False, print_time=None, debug=False):
+def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', debug=False):
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
     cmdfname = workdir + '/run.r'
     if debug:
-        print '  r cmd lines:'
+        print '      r cmd lines:'
         print pad_lines('\n'.join(cmdlines))
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
-    simplerun('R --slave -f %s' % cmdfname, shell=True, print_time=print_time, swallow_stdout=True, debug=debug, dryrun=dryrun)
-    os.remove(cmdfname)
+    outstr, errstr = simplerun('R --slave -f %s' % cmdfname, return_out_err=True, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
+    os.remove(cmdfname)  # different sort of <cmdfname> to that in simplerun()
+    for oestr in (outstr, errstr):
+        print pad_lines(oestr)
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdout=False, cmdfname=None, debug=True):
+def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):
     if cmdfname is not None:
         with open(cmdfname, 'w') as cmdfile:
             cmdfile.write(cmd_str)
@@ -2313,18 +2317,28 @@ def simplerun(cmd_str, shell=False, dryrun=False, print_time=None, swallow_stdou
         cmd_str = cmdfname
 
     if debug:
-        print '%s %s' % (color('red', 'run'), cmd_str)
+        print '%s%s %s' % (extra_str, color('red', 'run'), cmd_str)
     sys.stdout.flush()
     if dryrun:
         return
     if print_time is not None:
         start = time.time()
-    runfcn = subprocess.check_output if swallow_stdout else subprocess.check_call
-    runfcn(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+    if return_out_err:
+        with tempfile.TemporaryFile() as fout, tempfile.TemporaryFile() as ferr:
+            subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)
+            fout.seek(0)
+            ferr.seek(0)
+            outstr = ''.join(fout.readlines())
+            errstr = ''.join(ferr.readlines())
+    else:
+        subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
     if cmdfname is not None:
         os.remove(cmdfname)
     if print_time is not None:
         print '      %s time: %.1f' % (print_time, time.time() - start)
+
+    if return_out_err:
+        return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
 def memory_usage_fraction(debug=False):  # return fraction of total system memory that this process is using (as always with memory things, this is an approximation)

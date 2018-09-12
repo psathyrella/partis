@@ -5,18 +5,22 @@ import csv
 from ete3 import TreeNode, TreeStyle, NodeStyle, SVG_COLORS
 
 parser = argparse.ArgumentParser()
-parser.add_argument('treefname')
-parser.add_argument('kdfname')
+parser.add_argument('--pickle-tree-file')
+parser.add_argument('--kdfile', required=True)
+parser.add_argument('--newick-tree-file', required=True)
 args = parser.parse_args()
 
-with open(args.treefname, 'rb') as lfile:
+with open(args.pickle_tree_file, 'rb') as lfile:
     tree = pickle.load(lfile)
-  
+
 # print tree
 # print tree.name
 # print tree.sequence
 
-with open(args.kdfname, 'w') as kdfile:
+with open(args.newick_tree_file, 'w') as ntfile:
+    ntfile.write(tree.write())
+
+with open(args.kdfile, 'w') as kdfile:
     writer = csv.DictWriter(kdfile, ('uid', 'kd'))
     writer.writeheader()
     for node in tree.traverse():  # small kd is higher affinity

@@ -8,6 +8,7 @@ import copy
 
 import utils
 import indelutils
+import treeutils
 
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):
@@ -32,6 +33,8 @@ class RecombinationEvent(object):
         self.recombined_seq = ''  # combined sequence *before* mutations
         self.final_seqs, self.indelfos, self.final_codon_positions = [], [], []
         self.unmutated_codons = None
+        self.leaf_names = None  # keeps track of leaf names (of form t<n>) so that when we get to deciding on final uids, we still know which leaf in <self.tree> corresponds to which sequence (order in <self.leaf_names> is same as in <self.final_seqs>)
+        self.tree = None
 
         self.line = None  # dict with info in format of utils.py/output files
 
@@ -91,6 +94,10 @@ class RecombinationEvent(object):
         line['unique_ids'] = [str(hash(ustr)) for ustr in uidstrs]
 
     # ----------------------------------------------------------------------------------------
+    def set_tree(self, treestr):
+        self.tree = treeutils.get_dendro_tree(treestr=treestr)
+
+    # ----------------------------------------------------------------------------------------
     def setline(self, irandom=None):  # don't access <self.line> directly
         if self.line is not None:
             return self.line
@@ -110,6 +117,8 @@ class RecombinationEvent(object):
         line['indelfos'] = self.indelfos
         line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
         self.set_ids(line, irandom)
+        treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']))  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
+        line['tree'] = self.tree.as_string(schema='newick')
 
         utils.add_implicit_info(self.glfo, line)
 
