@@ -1568,10 +1568,6 @@ class PartitionDriver(object):
         true_pcounter = ParameterCounter(self.simglfo, self.args) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter('hmm') if self.args.plot_annotation_performance else None
 
-        if self.args.linearham and self.current_action != 'cache-parameters':
-            # extract the HMM gene probabilities
-            gene_probs = utils.read_overall_gene_probs(self.hmm_param_dir)
-
         n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
         at_least_one_mult_hmm_line = False
         eroded_annotations, padded_annotations = OrderedDict(), OrderedDict()
@@ -1612,14 +1608,15 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
+                utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
+
                 if self.args.linearham and self.current_action != 'cache-parameters':
                     # add flexbounds/relpos to padded line
-                    status = utils.add_linearham_info(self.sw_info, gene_probs, padded_line)
+                    status = utils.add_linearham_info(self.sw_info, padded_line)
                     if status == 'nonsense':
                         hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                         continue
 
-                utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
                 if padded_line['invalid']:
                     n_invalid_events += 1
                     if self.args.debug:
