@@ -1174,8 +1174,8 @@ def add_linearham_info(sw_info, line):
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
 
         # remove the gene matches with zero support
-        for k in copy.deepcopy(line['flexbounds'][left_region].keys()):
-            support_check1 = (k not in per_gene_support.keys())
+        for k in line['flexbounds'][left_region].keys():
+            support_check1 = (k not in per_gene_support)
             support_check2 = (math.fabs(per_gene_support[k] - 0.0) < eps) if not support_check1 else False
             if support_check1 or support_check2:
                 del line['flexbounds'][left_region][k]

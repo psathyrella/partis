@@ -808,7 +808,7 @@ class Waterer(object):
                 bounds_l, bounds_r = zip(*[qinfo['qrbounds'][g] for g in sortmatches[region]])  # left- (and right-) bounds for each gene
                 infoline['flexbounds'][region + '_l'] = dict(zip(sortmatches[region], bounds_l))
                 infoline['flexbounds'][region + '_r'] = dict(zip(sortmatches[region], bounds_r))
-            infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].items()}  # position in the query sequence of the start of each uneroded germline match
+            infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].iteritems()}  # position in the query sequence of the start of each uneroded germline match
 
         infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
         infoline['codon_positions'] = codon_positions
@@ -1163,10 +1163,10 @@ class Waterer(object):
                 swfo['regional_bounds'][region] = tuple([rb - fv_len for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
 
             if self.args.linearham:
-                for k1 in swfo['flexbounds'].keys():
-                    for k2 in swfo['flexbounds'][k1].keys():
+                for k1 in swfo['flexbounds'].iterkeys():
+                    for k2 in swfo['flexbounds'][k1].iterkeys():
                         swfo['flexbounds'][k1][k2] -= fv_len  # the bounds need to be adjusted for V 5' framework insertions
-                for k in swfo['relpos'].keys():
+                for k in swfo['relpos'].iterkeys():
                     swfo['relpos'][k] -= fv_len  # the relpos needs to be adjusted for V 5' framework insertions
 
             if debug:
@@ -1360,10 +1360,10 @@ class Waterer(object):
                 swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
 
             if self.args.linearham:
-                for k1 in swfo['flexbounds'].keys():
-                    for k2 in swfo['flexbounds'][k1].keys():
+                for k1 in swfo['flexbounds'].iterkeys():
+                    for k2 in swfo['flexbounds'][k1].iterkeys():
                         swfo['flexbounds'][k1][k2] += padleft  # the bounds need to be adjusted for V 5' padding
-                for k in swfo['relpos'].keys():
+                for k in swfo['relpos'].iterkeys():
                     swfo['relpos'][k] += padleft  # the relpos needs to be adjusted for V 5' padding
 
             swfo['padlefts'] = [padleft, ]
