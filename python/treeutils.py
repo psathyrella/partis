@@ -208,9 +208,9 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
                 lb = 'o'
             return '%s%s%s' % (start_char, lb, end_char)
         dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)
-        special_chars = [c for c in reversed(string.printable) if c not in set(dendro_str)]  # find some special characters that we can use to identify the start and end of each label (could also use non-printable special characters, but it shouldn't be necessary)
+        special_chars = [c for c in reversed(string.punctuation) if c not in set(dendro_str)]  # find some special characters that we can use to identify the start and end of each label (could also use non-printable special characters, but it shouldn't be necessary)
         if len(special_chars) >= 2:  # can't color them directly, since dendropy counts the color characters as printable
-            start_char, end_char = special_chars[:2]  # NOTE the colors get screwed up when dendropy overlaps labels, which it does when it runs out of space (this shouldn't really happen much, though)
+            start_char, end_char = special_chars[:2]  # NOTE the colors get screwed up when dendropy overlaps labels (or sometimes just straight up strips stuff), which it does when it runs out of space
             dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)  # call again after modiying compose fcn (kind of wasteful to call it twice, but it shouldn't make a difference)
             dendro_str = dendro_str.replace(start_char, utils.Colors['blue']).replace(end_char, utils.Colors['end'] + '  ')
         else:

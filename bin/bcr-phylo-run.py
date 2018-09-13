@@ -106,10 +106,10 @@ def parse_bcr_phylo_output(naive_line):
             reader = csv.DictReader(kdfile)
             for line in reader:
                 kdvals[line['uid']] = float(line['kd'])
-        if set(kdvals) != set(final_line['unique_ids']):  # TODO make sure it's sensible that I'm missing some here
-            print '        missing from final_line: %s' % ' '.join(set(kdvals) - set(final_line['unique_ids']))
+        # if len(set(kdvals) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
+        #     print '        missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % ' '.join(set(kdvals) - set(final_line['unique_ids']))
+        if len(set(final_line['unique_ids']) - set(kdvals)) > 0:
             print '        missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(kdvals))
-            print '      %s kd file uids don\'t match final line (see above, it\'s maybe just internal nodes?)' % utils.color('red', 'note:')
         final_line['affinities'] = [kdvals[u] for u in final_line['unique_ids']]
         tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % outdir , ignore_existing_internal_node_labels=True)  # bcr-phylo sets all the internal node labels to '1', so we have to relabel them so dendropy doesn't later barf
         if args.debug:
@@ -145,6 +145,6 @@ glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(a
 assert len(annotation_list) == 1  # would need to change some things
 naive_line = annotation_list[0]
 
-run_bcr_phylo(naive_line)
+# run_bcr_phylo(naive_line)
 parse_bcr_phylo_output(naive_line)
 # partition(stype)
