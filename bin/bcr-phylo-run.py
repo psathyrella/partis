@@ -35,11 +35,6 @@ def rearrange():
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(naive_line):
-    n_sim_seqs = 30
-    obs_time = 20  # 35
-    carry_cap = 1000  # 1000
-    target_distance = 30
-
     os.environ['TMPDIR'] = '/tmp'
     prof_cmds = '' #'-m cProfile -s tottime -o prof.out'
     cmd = 'export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (ete_path, prof_cmds, bcr_phylo_path)
@@ -47,18 +42,20 @@ def run_bcr_phylo(naive_line):
     if args.run_help:
         cmd += ' --help'
     elif args.stype == 'neutral':
+        assert False  # needs updating (well, maybe not, but I'm not thinking about it when I move the selection parameters to command line args)
         cmd += ' --lambda %f --lambda0 %f' % (1.5, 0.365)
-        cmd += ' --n_final_seqs %d' % n_sim_seqs
+        cmd += ' --n_final_seqs %d' % args.n_sim_seqs
     elif args.stype == 'selection':
         cmd += ' --selection'
-        cmd += ' --lambda %f --lambda0 %f' % (2., 0.365)
-        cmd += ' --obs_times %d' % obs_time  # number of rounds of reproduction
-        cmd += ' --target_dist %d' % target_distance  # Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. (default: 10)
-        cmd += ' --carry_cap %d' % carry_cap
-        cmd += ' --n_to_downsample %d' % n_sim_seqs  # Number of cells kept (not discarded) during final downsampling step (default: None)
+        cmd += ' --lambda %f' % args.branching_parameter
+        cmd += ' --lambda0 %f' % args.base_mutation_rate
+        cmd += ' --obs_times %d' % args.obs_time
+        cmd += ' --target_dist %d' % args.target_distance
+        cmd += ' --carry_cap %d' % args.carry_cap
+        cmd += ' --n_to_downsample %d' % args.n_sim_seqs  # Number of cells kept (not discarded) during final downsampling step (default: None)
         # cmd += ' --stop_dist %d'  % xxx  # Stop when any simulated sequence is closer than this (hamming distance) to any of the target sequences.
         # can't set both N and T, but need to set T for selection:
-        # cmd += ' --n_final_seqs %d' % n_sim_seqs  # Desired number of final sequences (actual number may be less due to removal of nonsense sequences)
+        # cmd += ' --n_final_seqs %d' % args.n_sim_seqs  # Desired number of final sequences (actual number may be less due to removal of nonsense sequences)
     else:
         assert False
 
@@ -136,6 +133,12 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--extrastr', default='simu', help='just required by bcr-phylo')
+parser.add_argument('--n-sim-seqs', type=int, default=30, help='desired number of final sequences (typically, we downsample to get to this number)')
+parser.add_argument('--obs-time', type=int, default=20, help='number of rounds of reproduction')
+parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
+parser.add_argument('--target-distance', type=int, default=30, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences')
+parser.add_argument('--branching-parameter', type=float, default=2., help='')
+parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='')
 args = parser.parse_args()
 
 # ----------------------------------------------------------------------------------------
@@ -145,6 +148,6 @@ glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(a
 assert len(annotation_list) == 1  # would need to change some things
 naive_line = annotation_list[0]
 
-# run_bcr_phylo(naive_line)
+run_bcr_phylo(naive_line)
 parse_bcr_phylo_output(naive_line)
 # partition(stype)
