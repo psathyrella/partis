@@ -614,7 +614,10 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         'G.lonrfname = "%s"'     % lonr_files['lonrfname'],
         'compute.LONR(method="%s", infile="%s", workdir="%s/", outgroup="%s"%s)' % (tree_method, input_seqfile, workdir, naive_seq_name, existing_phylip_output_str),
     ]
-    utils.run_r(rcmds, workdir, extra_str='      ', debug=debug)
+    outstr, errstr = utils.run_r(rcmds, workdir, extra_str='      ', return_out_err=True, debug=debug)
+    if debug:
+        print utils.pad_lines(outstr)
+        print utils.pad_lines(errstr)
 
     os.remove(input_seqfile)
     if phylip_treefile is not None:
@@ -646,18 +649,43 @@ def calculate_lonr(input_seqfos=None, line=None, phylip_treefile=None, phylip_se
 
 # ----------------------------------------------------------------------------------------
 # interface for calculating tree metrics starting from standard <line> annotations (as opposed to bin/calculate_tree_metrics.py, which is more standalone, e.g. from cft)
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, debug=True):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, use_true_clusters=False, debug=False):
+    lines_to_use, true_lines_to_use = None, None
+    if use_true_clusters:
+        assert reco_info is not None
+        true_partition = utils.get_true_partition(reco_info)
+        print '    using %d true clusters to calculate inferred tree metrics (sizes: %s)' % (len(true_partition), ' '.join([str(len(c)) for c in true_partition]))
+        lines_to_use, true_lines_to_use = [], []
+        for cluster in true_partition:
+            true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
+            found = False
+            for ustr in annotations:  # order will be different in reco info and inferred clusters
+                if set(ustr.split(':')) == set(cluster):
+                    lines_to_use.append(annotations[ustr])
+                    found = True
+                    break
+            if not found:
+                raise Exception('cluster \'%s\' not found in inferred annotations (probably because use_true_clusters was set)' % ':'.join(cluster))
+    else:
+        lines_to_use = annotations.values()
+        if reco_info is not None:
+            for line in lines_to_use:
+                true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
+                true_lines_to_use.append(true_line)
+
+
     n_clusters_calculated, n_skipped = 0, 0
-    for line in annotations.values():
+    for line in lines_to_use:
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
             continue
-        lonr_info = calculate_lonr(line=line, debug=True)
-        if reco_info is not None:  # NOTE not actually doing anything with the true lbi info yet (I think I don't want to add it to the line, I just want to make plots with it)
-            true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
-            true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=True)  # NOTE this is the tree we _give_ to bppseqgen, not necessarily the exact one implied by the true mutations (er, ok, I'm not sure if that distinction makes sense)
-        lbi_info = calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=True)
+        lonr_info = calculate_lonr(line=line, debug=debug)
+        lbi_info = calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug)
         line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
         n_clusters_calculated += 1
 
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
+
+    if reco_info is not None:
+        for true_line in true_lines_to_use:  # NOTE not actually doing anything with the true lbi info yet (I think I don't want to mix it in with the inferred info, maybe just make plots with it)
+            true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)  # NOTE this is the tree we _give_ to bppseqgen, not necessarily the exact one implied by the true mutations (er, ok, I'm not sure if that distinction makes sense)

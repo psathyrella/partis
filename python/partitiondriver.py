@@ -364,7 +364,7 @@ class PartitionDriver(object):
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
 
         if cpath is not None and self.args.calculate_tree_metrics:
-            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info)  # NOTE modifies <annotations> (by adding 'tree-info') (but these modifications don't get written to the existing file, i.e. this is really just for debugging)
+            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None)  # NOTE modifies <annotations> (by adding 'tree-info') (but these modifications don't get written to the existing file, i.e. this is really just for debugging)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotations)
@@ -653,7 +653,7 @@ class PartitionDriver(object):
                 old_len = len(cluster_set)
                 cluster_set |= set([tuple(c) for c in cpath.partitions[ip]])
             print '    --write-additional-cluster-annotations: added %d clusters for annotation to best partition of original length %d' % (len(cluster_set) - len(partition_to_annotate), len(partition_to_annotate))
-            print '       note: these additional clusters will also be printed below if --debug is greater than 1'
+            print '       %s these additional clusters will also be printed below if --debug is greater than 0' % utils.color('yellow', 'note:')
             partition_to_annotate = [list(c) for c in cluster_set]
 
         if len(partition_to_annotate) == 0:
@@ -668,7 +668,7 @@ class PartitionDriver(object):
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
         if self.args.calculate_tree_metrics:
-            treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info)  # NOTE modifies <best_annotations> (by adding 'tree-info')
+            treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None)  # NOTE modifies <best_annotations> (by adding 'tree-info')
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
             # if we're in linearham mode, write the indel-reversed partition sequences to fasta files

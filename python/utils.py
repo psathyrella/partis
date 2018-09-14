@@ -2294,7 +2294,7 @@ def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fna
             cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
 
 # ----------------------------------------------------------------------------------------
-def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', debug=False):
+def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return_out_err=False, debug=False):
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
     cmdfname = workdir + '/run.r'
@@ -2305,8 +2305,11 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', debug=
         cmdfile.write('\n'.join(cmdlines) + '\n')
     outstr, errstr = simplerun('R --slave -f %s' % cmdfname, return_out_err=True, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
     os.remove(cmdfname)  # different sort of <cmdfname> to that in simplerun()
-    for oestr in (outstr, errstr):
-        print pad_lines(oestr)
+    if return_out_err:
+        return outstr, errstr
+    else:
+        for oestr in (outstr, errstr):
+            print pad_lines(oestr)
 
 # ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):

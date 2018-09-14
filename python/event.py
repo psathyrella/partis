@@ -70,8 +70,8 @@ class RecombinationEvent(object):
         self.cdr3_length = self.post_erosion_codon_positions['j'] - self.post_erosion_codon_positions['v'] + 3
 
     # ----------------------------------------------------------------------------------------
-    def set_ids(self, line, irandom=None):
-        # NOTE i think this rant is deprecated
+    def set_reco_id(self, line, irandom=None):
+        # NOTE maybe this rant is deprecated?
         """ 
         NOTE/RANT so, in calculating each sequence's unique id, we need to hash more than the information about the rearrangement
             event and mutation, because if we create identical events and sequences in independent recombinator threads, we *need* them
@@ -82,16 +82,25 @@ class RecombinationEvent(object):
             means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
         """
         reco_id_columns = [r + '_gene' for r in utils.regions] + [b + '_insertion' for b in utils.boundaries] + [e + '_del' for e in utils.all_erosions]
-        unique_id_columns = ['seqs', 'input_seqs']
-        def randstr():
+        def randstr():  # gah, duplicated in set_unique_ids()
             return str(numpy.random.uniform() if irandom is None else irandom)
-
         reco_id_str = ''.join([str(line[c]) for c in reco_id_columns])
         line['reco_id'] = hash(reco_id_str)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event
+        return reco_id_str  # this is pretty hackey, but I want to split up the reco and unique id setting so I can call only the former from bin/bcr-phylo-run.py
 
-        uidstrs = [''.join([str(line[c][iseq]) for c in unique_id_columns]) for iseq in range(len(self.final_seqs))]
+    # ----------------------------------------------------------------------------------------
+    def set_unique_ids(self, line, reco_id_str, irandom=None):
+        unique_id_columns = ['seqs', 'input_seqs']
+        def randstr():  # gah, duplicated in set_reco_id()
+            return str(numpy.random.uniform() if irandom is None else irandom)
+        uidstrs = [''.join([str(line[c][iseq]) for c in unique_id_columns]) for iseq in range(len(line['input_seqs']))]
         uidstrs = [reco_id_str + uidstrs[iseq] + randstr() + str(iseq) for iseq in range(len(uidstrs))]  # NOTE i'm not sure I really like having the str(iseq), but it mimics the way things used to be by accident/bug (i.e. identical sequences in the same simulated rearrangement event get different uids), so I'm leaving it in for the moment to ease transition after a rewrite
         line['unique_ids'] = [str(hash(ustr)) for ustr in uidstrs]
+
+    # ----------------------------------------------------------------------------------------
+    def set_ids(self, line, irandom=None):
+        reco_id_str = self.set_reco_id(line, irandom=irandom)
+        self.set_unique_ids(line, reco_id_str, irandom=irandom)
 
     # ----------------------------------------------------------------------------------------
     def set_tree(self, treestr):
@@ -116,7 +125,7 @@ class RecombinationEvent(object):
         line['input_seqs'] = self.final_seqs
         line['indelfos'] = self.indelfos
         line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
-        self.set_ids(line, irandom)
+        self.set_ids(line, irandom=irandom)
         treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']))  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
         line['tree'] = self.tree.as_string(schema='newick')
 
