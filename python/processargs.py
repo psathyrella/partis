@@ -102,15 +102,10 @@ def process(args):
         args.mutation_multiplier = 0.
 
     if args.workdir is None:  # set default here so we know whether it was set by hand or not
-        def choose_random_subdir(dirname):
-            subname = str(random.randint(0, 999999))
-            while os.path.exists(dirname + '/' + subname):
-                subname = str(random.randint(0, 999999))
-            return dirname + '/' + subname
         if args.batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
-            args.workdir = choose_random_subdir('/fh/fast/matsen_e/' + os.path.basename(os.getenv('HOME')) + '/_tmp/hmms')
+            args.workdir = utils.choose_random_subdir('/fh/fast/matsen_e/' + os.path.basename(os.getenv('HOME')) + '/_tmp/hmms')
         else:
-            args.workdir = choose_random_subdir('/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms')
+            args.workdir = utils.choose_random_subdir('/tmp/' + os.path.basename(os.getenv('HOME')) + '/hmms')
             if args.batch_system is not None:
                 print '  %s: using batch system %s with default --workdir (%s) -- if this isn\'t visible to the batch nodes on your system, you\'ll need to change it' % (utils.color('red', 'warning'), args.batch_system, args.workdir)
     else:

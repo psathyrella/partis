@@ -1038,3 +1038,31 @@ def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', 
     ax.plot((minfrac * xmin, maxfrac * xmax), (1, 1), color='black', linestyle='--', linewidth=3)  # line at y=1
     mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
     plt.close()
+
+
+# ----------------------------------------------------------------------------------------
+def compare_tree_metrics(lines_to_use, reco_info):
+
+    fig, ax = mpl_init()
+
+    plotvals = {'lbi' : [], 'affinity' : []}
+    for line in lines_to_use:
+        true_affinities = {uid : reco_info[uid]['affinities'][0] for uid in line['unique_ids']}
+        lbi_info = line['tree-info']['lbi']['values']
+        # maybe use the actual tree here?
+        # not sure what to do with internal nodes
+        print '         lbi      affy     uid'
+        for uid in line['unique_ids']:
+            if uid not in true_affinities:
+                print '%s not in true_affinities' % uid
+                continue
+            if uid not in lbi_info:
+                print '%s not in lbi_info' % uid
+                continue
+            # print '        %5.3f %8.1f      %s' % (lbi_info[uid], true_affinities[uid], uid)
+            plotvals['lbi'].append(lbi_info[uid])
+            plotvals['affinity'].append(true_affinities[uid])
+
+    ax.scatter(plotvals['affinity'], plotvals['lbi']) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    plotname = 'foop'
+    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='kd', ylabel='local branching index') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)

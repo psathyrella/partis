@@ -127,7 +127,7 @@ def partition():
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
     cmd = './bin/partis partition --debug 0 --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --calculate-tree-metrics --infname %s --parameter-dir %s/params --n-procs %d --outfname %s/partition.yaml --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, infdir(args.stype), args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
-    # cmd = './bin/partis view-output --outfname %s/partition.yaml --abb' % infdir(args.stype)
+    # cmd = './bin/partis view-output --outfname %s/partition.yaml --calculate-tree-metrics' % infdir(args.stype)  # TODO not sure this works
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
@@ -136,9 +136,9 @@ parser.add_argument('--stype', default='selection', choices=('selection', 'neutr
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
-parser.add_argument('--extrastr', default='simu', help='just required by bcr-phylo')
-parser.add_argument('--n-sim-seqs', type=int, default=50, help='desired number of final sequences (typically, we downsample to get to this number)')
-parser.add_argument('--obs-time', type=int, default=35, help='number of rounds of reproduction')
+parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
+parser.add_argument('--n-sim-seqs', type=int, default=100, help='desired number of final sequences (typically, we downsample to get to this number)')
+parser.add_argument('--obs-time', type=int, default=100, help='number of rounds of reproduction')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=35, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. If larger than 50 (ish) it seems to have trouble finding target sequencess.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='')

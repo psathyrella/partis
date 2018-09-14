@@ -633,7 +633,7 @@ def calculate_lonr(input_seqfos=None, line=None, phylip_treefile=None, phylip_se
     if tree_method is None:
         tree_method = 'dnapars' if len(input_seqfos) < 1000 else 'neighbor'
 
-    workdir = '/tmp/%s/%d' % (os.getenv('USER'), random.randint(0, 999999))
+    workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
     os.makedirs(workdir)
 
     if debug:
@@ -650,6 +650,10 @@ def calculate_lonr(input_seqfos=None, line=None, phylip_treefile=None, phylip_se
 # ----------------------------------------------------------------------------------------
 # interface for calculating tree metrics starting from standard <line> annotations (as opposed to bin/calculate_tree_metrics.py, which is more standalone, e.g. from cft)
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, use_true_clusters=False, debug=False):
+    if reco_info is not None:
+        for tmpline in reco_info.values():
+            assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
+
     lines_to_use, true_lines_to_use = None, None
     if use_true_clusters:
         assert reco_info is not None
@@ -658,14 +662,17 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         lines_to_use, true_lines_to_use = [], []
         for cluster in true_partition:
             true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
-            found = False
+            max_in_common, ustr_to_use = None, None
             for ustr in annotations:  # order will be different in reco info and inferred clusters
-                if set(ustr.split(':')) == set(cluster):
-                    lines_to_use.append(annotations[ustr])
-                    found = True
-                    break
-            if not found:
+                n_in_common = len(set(ustr.split(':')) & set(cluster))  # can't just look for the actual cluster since we collapse duplicates, but bcr-phylo doesn't (but maybe I should throw them out when parsing bcr-phylo output)
+                if max_in_common is None or n_in_common > max_in_common:
+                    ustr_to_use = ustr
+                    max_in_common = n_in_common
+            if max_in_common is None:
                 raise Exception('cluster \'%s\' not found in inferred annotations (probably because use_true_clusters was set)' % ':'.join(cluster))
+            if max_in_common < len(cluster):
+                print '    %s couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d)' % (utils.color('red', 'note:'), max_in_common, len(cluster))
+            lines_to_use.append(annotations[ustr_to_use])
     else:
         lines_to_use = annotations.values()
         if reco_info is not None:
@@ -687,5 +694,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
 
     if reco_info is not None:
-        for true_line in true_lines_to_use:  # NOTE not actually doing anything with the true lbi info yet (I think I don't want to mix it in with the inferred info, maybe just make plots with it)
-            true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)  # NOTE this is the tree we _give_ to bppseqgen, not necessarily the exact one implied by the true mutations (er, ok, I'm not sure if that distinction makes sense)
+        import plotting
+        plotting.compare_tree_metrics(lines_to_use, reco_info)
+        # NOTE not actually doing anything with the true lbi info yet (I think I don't want to mix it in with the inferred info, maybe just make plots with it)
+        # for true_line in true_lines_to_use:
+        #     true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)  # NOTE this is the tree we _give_ to bppseqgen, not necessarily the exact one implied by the true mutations (er, ok, I'm not sure if that distinction makes sense)

@@ -37,6 +37,13 @@ def fsdir():
     return fsdir
 
 # ----------------------------------------------------------------------------------------
+def choose_random_subdir(dirname):
+    subname = str(random.randint(0, 999999))
+    while os.path.exists(dirname + '/' + subname):
+        subname = str(random.randint(0, 999999))
+    return dirname + '/' + subname
+
+# ----------------------------------------------------------------------------------------
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
 regions = ['v', 'd', 'j']
 constant_regions = ['c', 'm', 'g', 'a', 'd', 'e']  # NOTE d is in here, which is stupid but necessary, so use is_constant_gene()
