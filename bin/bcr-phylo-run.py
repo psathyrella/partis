@@ -35,9 +35,18 @@ def rearrange():
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
-def run_bcr_phylo(naive_line):
+def read_naive_simulation():
+    glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(args.stype))
+    assert len(annotation_list) == 1  # would need to change some things
+    assert len(cpath.partitions) == 0
+    naive_line = annotation_list[0]
+    return glfo, naive_line
+
+# ----------------------------------------------------------------------------------------
+def run_bcr_phylo():
+    _, naive_line = read_naive_simulation()
     os.environ['TMPDIR'] = '/tmp'
-    prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
+    prof_cmds = ''  # '-m cProfile -s tottime -o prof.out'
     cmd = 'export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (ete_path, prof_cmds, bcr_phylo_path)
 
     if args.run_help:
@@ -61,7 +70,7 @@ def run_bcr_phylo(naive_line):
         assert False
 
     cmd += ' --no_context'
-    # cmd += ' --verbose'
+    cmd += ' --verbose'
     cmd += ' --outbase %s/%s' % (simdir(args.stype), args.extrastr)
     # cmd += ' --random_seq %s/sequence_data/AbPair_naive_seqs.fa' % bcr_phylo_path
     cmd += ' --sequence %s' % naive_line['naive_seq']
@@ -72,7 +81,9 @@ def run_bcr_phylo(naive_line):
     utils.simplerun(cmd, shell=True, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
-def parse_bcr_phylo_output(naive_line):
+def parse_bcr_phylo_output():
+    glfo, naive_line = read_naive_simulation()
+
     outdir = simdir(args.stype)
     seqfos = utils.read_fastx('%s/%s.fasta' % (outdir, args.extrastr))  # output mutated sequences from bcr-phylo
     seqfos = [sfo for sfo in seqfos if sfo['name'] != 'naive']  # don't have a kd value for the naive sequence, so may as well throw it out
@@ -116,17 +127,23 @@ def parse_bcr_phylo_output(naive_line):
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
         final_line['tree'] = tree.as_string(schema='newick')
 
-    assert len(cpath.partitions) == 0
     print '  writing annotations to %s' % simfname(args.stype)
     utils.write_annotations(simfname(args.stype), glfo, [final_line], utils.simulation_headers)
 
 # ----------------------------------------------------------------------------------------
+def simulate():
+    # rearrange()
+    # run_bcr_phylo()
+    parse_bcr_phylo_output()
+
+# ----------------------------------------------------------------------------------------
 def partition():
     n_procs = 1
-    # cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, args.seed)
-    # utils.simplerun(cmd, debug=True) #, dryrun=True)
+    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, args.seed)
+    utils.simplerun(cmd, debug=True) #, dryrun=True)
     cmd = './bin/partis partition --debug 0 --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --calculate-tree-metrics --infname %s --parameter-dir %s/params --n-procs %d --outfname %s/partition.yaml --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, infdir(args.stype), args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
+
     # cmd = './bin/partis view-output --outfname %s/partition.yaml --calculate-tree-metrics' % infdir(args.stype)  # TODO not sure this works
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
 
@@ -137,21 +154,14 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
-parser.add_argument('--n-sim-seqs', type=int, default=100, help='desired number of final sequences (typically, we downsample to get to this number)')
-parser.add_argument('--obs-time', type=int, default=100, help='number of rounds of reproduction')
+parser.add_argument('--n-sim-seqs', type=int, default=35, help='desired number of final sequences (typically, we downsample to get to this number)')
+parser.add_argument('--obs-time', type=int, default=35, help='number of rounds of reproduction')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
-parser.add_argument('--target-distance', type=int, default=35, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. If larger than 50 (ish) it seems to have trouble finding target sequencess.')
+parser.add_argument('--target-distance', type=int, default=25, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. If larger than 50 (ish) it seems to have trouble finding target sequencess.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='')
 args = parser.parse_args()
 
 # ----------------------------------------------------------------------------------------
-# rearrange()
-
-glfo, annotation_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(args.stype))
-assert len(annotation_list) == 1  # would need to change some things
-naive_line = annotation_list[0]
-
-# run_bcr_phylo(naive_line)
-# parse_bcr_phylo_output(naive_line)
+simulate()
 partition()
