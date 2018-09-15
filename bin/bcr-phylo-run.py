@@ -31,15 +31,15 @@ def simfname(stype):
 
 # ----------------------------------------------------------------------------------------
 def rearrange():
-    cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
+    cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves --force-functional-naive'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
     cmd += ' --debug %d --seed %d --outfname %s/naive-simu.yaml --n-sim-events %d' % (int(args.debug), args.seed, simdir(args.stype), args.n_sim_events)
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
-def run_bcr_phylo(naive_line):
-    tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
+def run_bcr_phylo(naive_line, outdir):
+    tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
     os.makedirs(tmpdir)
-    prof_cmds = ''  # '-m cProfile -s tottime -o prof.out'
+    prof_cmds = ''  # -m cProfile -s tottime -o prof.out'
     cmd = 'export TMPDIR=%s && export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (tmpdir, ete_path, prof_cmds, bcr_phylo_path)
 
     if args.run_help:
@@ -54,6 +54,7 @@ def run_bcr_phylo(naive_line):
         cmd += ' --lambda0 %f' % args.base_mutation_rate
         cmd += ' --obs_times %d' % args.obs_time
         cmd += ' --target_dist %d' % args.target_distance
+        cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % args.carry_cap
         cmd += ' --n_to_downsample %d' % args.n_sim_seqs_per_event  # Number of cells kept (not discarded) during final downsampling step (default: None)
         # cmd += ' --stop_dist %d'  % xxx  # Stop when any simulated sequence is closer than this (hamming distance) to any of the target sequences.
@@ -64,19 +65,18 @@ def run_bcr_phylo(naive_line):
 
     cmd += ' --no_context'
     cmd += ' --verbose'
-    cmd += ' --outbase %s/%s' % (simdir(args.stype), args.extrastr)
+    cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     # cmd += ' --random_seq %s/sequence_data/AbPair_naive_seqs.fa' % bcr_phylo_path
     cmd += ' --sequence %s' % naive_line['naive_seq']
     cmd += ' --random_seed %d' % args.seed
-    if not os.path.exists(simdir(args.stype)):
-        os.makedirs(simdir(args.stype))
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
 
     utils.simplerun(cmd, shell=True, extra_str='        ', debug=True) #, dryrun=True)
     os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
-def parse_bcr_phylo_output(glfo, naive_line):
-    outdir = simdir(args.stype)
+def parse_bcr_phylo_output(glfo, naive_line, outdir):
     seqfos = utils.read_fastx('%s/%s.fasta' % (outdir, args.extrastr))  # output mutated sequences from bcr-phylo
     seqfos = [sfo for sfo in seqfos if sfo['name'] != 'naive']  # don't have a kd value for the naive sequence, so may as well throw it out
 
@@ -119,6 +119,8 @@ def parse_bcr_phylo_output(glfo, naive_line):
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
         final_line['tree'] = tree.as_string(schema='newick')
 
+    return final_line
+
 # ----------------------------------------------------------------------------------------
 def simulate():
 
@@ -128,12 +130,13 @@ def simulate():
     assert len(cpath.partitions) == 0
 
     print '    running bcr-phylo for %d naive rearrangements' % len(naive_event_list)
-    for naive_line in naive_event_list:
-        run_bcr_phylo(naive_line)
+    outdirs = ['%s/event-%d' % (simdir(args.stype), i) for i in range(len(naive_event_list))]
+    for naive_line, outdir in zip(naive_event_list, outdirs):
+        run_bcr_phylo(naive_line, outdir)
 
     mutated_events = []
-    for naive_line in naive_event_list:
-        mutated_events.append(parse_bcr_phylo_output(glfo, naive_line))
+    for naive_line, outdir in zip(naive_event_list, outdirs):
+        mutated_events.append(parse_bcr_phylo_output(glfo, naive_line, outdir))
 
     print '  writing annotations to %s' % simfname(args.stype)
     utils.write_annotations(simfname(args.stype), glfo, mutated_events, utils.simulation_headers)
@@ -143,7 +146,7 @@ def partition():
     n_procs = 1
     cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
-    cmd = './bin/partis partition --debug 0 --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --calculate-tree-metrics --infname %s --parameter-dir %s/params --n-procs %d --outfname %s/partition.yaml --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, infdir(args.stype), args.seed)
+    cmd = './bin/partis partition --debug 1 --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --calculate-tree-metrics --infname %s --parameter-dir %s/params --n-procs %d --outfname %s/partition.yaml --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, infdir(args.stype), args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
 
     # cmd = './bin/partis view-output --outfname %s/partition.yaml --calculate-tree-metrics' % infdir(args.stype)  # TODO not sure this works
@@ -160,11 +163,12 @@ parser.add_argument('--n-sim-seqs-per-event', type=int, default=10, help='desire
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
 parser.add_argument('--obs-time', type=int, default=15, help='number of rounds of reproduction')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
-parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. If larger than 50 (ish) it seems to have trouble finding target sequencess.')
+parser.add_argument('--target-distance', type=int, default=5, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. If larger than 50 (ish) it seems to have trouble finding target sequencess.')
+parser.add_argument('--target-count', type=int, default=5, help='The number of target sequences to generate.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='')
 args = parser.parse_args()
 
 # ----------------------------------------------------------------------------------------
 simulate()
-# partition()
+partition()
