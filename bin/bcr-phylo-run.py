@@ -64,7 +64,7 @@ def run_bcr_phylo(naive_line, outdir):
         assert False
 
     cmd += ' --no_context'
-    cmd += ' --verbose'
+    # cmd += ' --verbose'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     # cmd += ' --random_seq %s/sequence_data/AbPair_naive_seqs.fa' % bcr_phylo_path
     cmd += ' --sequence %s' % naive_line['naive_seq']
@@ -95,8 +95,6 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir):
         reco_info[sfo['name']] = mline
         utils.add_implicit_info(glfo, mline)
     final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in seqfos], reco_info)
-    tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
-    tmp_event.set_reco_id(final_line)  # I _think_ I don't need to set <irandom>
     if args.debug:
         utils.print_reco_event(final_line)
 
@@ -118,6 +116,8 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir):
         if args.debug:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
         final_line['tree'] = tree.as_string(schema='newick')
+    tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
+    tmp_event.set_ids(final_line)  # I _think_ I don't need to set <irandom>
 
     return final_line
 
@@ -127,7 +127,7 @@ def simulate():
     rearrange()
 
     glfo, naive_event_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(args.stype))
-    assert len(cpath.partitions) == 0
+    assert len(naive_event_list) == args.n_sim_events
 
     print '    running bcr-phylo for %d naive rearrangements' % len(naive_event_list)
     outdirs = ['%s/event-%d' % (simdir(args.stype), i) for i in range(len(naive_event_list))]
@@ -163,7 +163,7 @@ parser.add_argument('--n-sim-seqs-per-event', type=int, default=10, help='desire
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
 parser.add_argument('--obs-time', type=int, default=15, help='number of rounds of reproduction')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
-parser.add_argument('--target-distance', type=int, default=5, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. If larger than 50 (ish) it seems to have trouble finding target sequencess.')
+parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. If larger than 50 (ish) it seems to have trouble finding target sequencess.')
 parser.add_argument('--target-count', type=int, default=5, help='The number of target sequences to generate.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='')
