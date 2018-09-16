@@ -1932,7 +1932,7 @@ def process_input_line(info, hmm_cachefile=False):
             raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
 
 # ----------------------------------------------------------------------------------------
-def add_extra_column(key, info, outfo, glfo=None):
+def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for_csv=False):
     if key == 'cdr3_seqs':
         cdr3_seqs = [info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3] for iseq in range(len(info['unique_ids']))]
         outfo[key] = cdr3_seqs
@@ -1952,7 +1952,15 @@ def add_extra_column(key, info, outfo, glfo=None):
         #     print info['unique_ids'][iseq]
         #     color_mutants(info['input_seqs'][iseq], full_coding_input_seqs[iseq], print_result=True, align=True, extra_str='  ')
     elif key in linekeys['hmm'] + linekeys['sw'] + linekeys['simu']:  # these are added elsewhere
-        return  # TODO
+        if definitely_add_all_columns_for_csv:
+            if key in io_column_configs['lists']:
+                outfo[key] = [None for _ in info['unique_ids']]
+            elif key in io_column_configs['lists-of-lists']:
+                outfo[key] = [[] for _ in info['unique_ids']]
+            else:
+                outfo[key] = None
+        else:
+            return  # only here to remind you that nothing happens
     else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
         raise Exception('unsupported extra annotation column \'%s\'' % key)
 
@@ -1978,6 +1986,7 @@ def transfer_indel_info(info, outfo):  # NOTE reverse of this happens in indelut
 # ----------------------------------------------------------------------------------------
 def get_line_for_output(headers, info, glfo=None):
     """ Reverse the action of process_input_line() """
+    # NOTE only used by (deprecated) csv writer now
     outfo = {}
     transfer_indel_info(info, outfo)
     for key in headers:
@@ -1991,7 +2000,7 @@ def get_line_for_output(headers, info, glfo=None):
                 else:
                     outfo[key] = info[key]
             else:
-                add_extra_column(key, info, outfo, glfo=glfo)
+                add_extra_column(key, info, outfo, glfo=glfo, definitely_add_all_columns_for_csv=True)
 
         str_fcn = str
         if key in io_column_configs['floats']:
