@@ -62,6 +62,18 @@ class RecombinationEvent(object):
             self.print_gene_choice()
 
     # ----------------------------------------------------------------------------------------
+    def set_naive_seq(self, use_dummy_insertions=False):
+        if use_dummy_insertions:
+            vd_str, dj_str = utils.ambiguous_bases[0] * self.insertion_lengths['vd'], utils.ambiguous_bases[0] * self.insertion_lengths['dj']
+        else:
+            vd_str, dj_str = self.insertions['vd'], self.insertions['dj']
+        self.recombined_seq = self.eroded_seqs['v'] + vd_str + self.eroded_seqs['d'] + dj_str + self.eroded_seqs['j']
+
+    # ----------------------------------------------------------------------------------------
+    def is_there_a_stop_codon(self):
+        return utils.is_there_a_stop_codon(self.recombined_seq, '', '', self.effective_erosions['v_5p'])  # fv and jf insertions are always empty (not even defined in reco_event, at least at this point), I don't remember why, but I think it's on purpose
+
+    # ----------------------------------------------------------------------------------------
     def set_post_erosion_codon_positions(self):
         """ Set tryp position in the final, combined sequence. """
         self.post_erosion_codon_positions['v'] = self.pre_erosion_codon_positions['v'] - self.effective_erosions['v_5p']
@@ -86,7 +98,7 @@ class RecombinationEvent(object):
             return str(numpy.random.uniform() if irandom is None else irandom)
         reco_id_str = ''.join([str(line[c]) for c in reco_id_columns])
         line['reco_id'] = hash(reco_id_str)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event
-        return reco_id_str  # this is pretty hackey, but I want to split up the reco and unique id setting so I can call only the former from bin/bcr-phylo-run.py
+        return reco_id_str  # this is pretty hackey, but I want to split up the reco and unique id setting so I can call only the former from bin/bcr-phylo-run.py (UPDATE: but then I had to start changing the uids as well, so, oh, well)
 
     # ----------------------------------------------------------------------------------------
     def set_unique_ids(self, line, reco_id_str, irandom=None):
@@ -117,7 +129,7 @@ class RecombinationEvent(object):
         for boundary in utils.boundaries:
             line[boundary + '_insertion'] = self.insertions[boundary]
         for boundary in utils.effective_boundaries:
-            line[boundary + '_insertion'] = ''
+            line[boundary + '_insertion'] = ''  # NOTE 'fv' and 'jf' insertions are hereby hardcoded to zero (I'm just writing this here to make it easily searchable -- I don't remember why it's set up that way)
         for erosion in utils.real_erosions:
             line[erosion + '_del'] = self.erosions[erosion]
         for erosion in utils.effective_erosions:

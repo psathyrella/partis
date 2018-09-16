@@ -915,7 +915,10 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     istop = germline_j_end - ((germline_j_end - istart) % 3)
     codons = [seq[i : i + 3] for i in range(istart, istop, 3)]
     if debug:
-        print '%25s  %3d %3d  %6s   %s' % (seq, istart, istop, len(set(codons) & set(codon_table['stop'])) > 0, ' '.join(codons))
+        print '   looking for stop codons: istart %d  istop %d' % (istart, istop)
+        print '     seq: %25s' % seq
+        print '  codons: %s' % ''.join([color('red' if cdn in codon_table['stop'] else None, cdn) for cdn in codons])
+        print '    %d stop codon%s'  % (len(set(codons) & set(codon_table['stop'])), plural(len(set(codons) & set(codon_table['stop']))))
     return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
 
 # ----------------------------------------------------------------------------------------

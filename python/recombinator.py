@@ -150,17 +150,8 @@ class Recombinator(object):
         reco_event = RecombinationEvent(self.glfo)
         self.choose_vdj_combo(reco_event)
         self.erode_and_insert(reco_event)
-        if self.args.debug:
-            print '  joining eroded seqs'
-            print '         v: %s' % reco_event.eroded_seqs['v']
-            print '    insert: %s' % reco_event.insertions['vd']
-            print '         d: %s' % reco_event.eroded_seqs['d']
-            print '    insert: %s' % reco_event.insertions['dj']
-            print '         j: %s' % reco_event.eroded_seqs['j']
-        reco_event.recombined_seq = reco_event.eroded_seqs['v'] + reco_event.insertions['vd'] + reco_event.eroded_seqs['d'] + reco_event.insertions['dj'] + reco_event.eroded_seqs['j']
-        reco_event.set_post_erosion_codon_positions()
 
-        # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over
+        # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over (update: we should no longer ever encounter Vs that're screwed up like this)
         reco_event.unmutated_codons = {}
         for region, codon in utils.conserved_codons[self.args.locus].items():
             fpos = reco_event.post_erosion_codon_positions[region]
@@ -171,7 +162,7 @@ class Recombinator(object):
         codons_ok = utils.both_codons_unmutated(self.glfo['locus'], reco_event.recombined_seq, reco_event.post_erosion_codon_positions, extra_str='      ', debug=self.args.debug)
         if not codons_ok:
             if self.args.rearrange_from_scratch and self.args.generate_germline_set:
-                raise Exception('mutated invariant codons, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
+                raise Exception('mutated invariant codons, but since --rearrange-from-scratch and --generate-germline-set are set, we can\'t retry, since it would screw up the prevalence ratios')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return None
         in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.post_erosion_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
         if self.args.rearrange_from_scratch and not in_frame:
@@ -261,7 +252,7 @@ class Recombinator(object):
                 gl_seqs[region] = gl_seqs[region][:len(gl_seqs[region]) - e_length]
         tmpline['seqs'] = [gl_seqs['v'] + tmpline['vd_insertion'] + gl_seqs['d'] + tmpline['dj_insertion'] + gl_seqs['j'], ]
         tmpline['unique_ids'] = [None]  # this is kind of hackey, but some things in the implicit info adder use it to get the number of sequences
-        tmpline['input_seqs'] = copy.deepcopy(tmpline['seqs'])
+        tmpline['input_seqs'] = copy.deepcopy(tmpline['seqs'])  # NOTE has to be updated _immediately_ so seqs and input_seqs don't get out of sync
         tmpline['indelfos'] = [indelutils.get_empty_indel(), ]
         utils.add_implicit_info(self.glfo, tmpline)
         assert len(tmpline['in_frames']) == 1
@@ -284,13 +275,12 @@ class Recombinator(object):
             tmpline[effbound + '_insertion'] = ''
 
         # then choose the things that we may need to try a few times (physical deletions/insertions)
-        n_tries = 0
-        while 'in_frames' not in tmpline or not tmpline['in_frames'][0]:
-            self.try_scratch_erode_insert(tmpline)
-            n_tries +=1
-            if n_tries > 500:
-                print tmpline['v_gene']
-                print '%s tried to get an in-frame rearrangement %d times already' % (utils.color('yellow', 'warning'), n_tries)
+        itry = 0
+        while itry == 0 or not tmpline['in_frames'][0] or tmpline['stops'][0]:  # keep trying until it's both in frame and has no stop codons
+            self.try_scratch_erode_insert(tmpline)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
+            itry += 1
+            if itry % 50 == 0:
+                print '%s finding an in-frame and stop-less rearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), itry)
 
         # convert insertions back to lengths (hoo boy this shouldn't need to be done)
         for bound in utils.all_boundaries:
@@ -374,8 +364,26 @@ class Recombinator(object):
         if self.args.mimic_data_read_length:
             for erosion in utils.effective_erosions:
                 self.erode(erosion, reco_event)
-        for boundary in utils.boundaries:
-            self.insert(boundary, reco_event)
+
+        itry = 0
+        reco_event.set_naive_seq(use_dummy_insertions=True)  # see if there's a stop due to stuff other than the new insertions, in which case we can't do anything about it here
+        pre_existing_stop = reco_event.is_there_a_stop_codon()
+        while itry == 0 or (not pre_existing_stop and reco_event.is_there_a_stop_codon()):  # note that if there's already a stop codon in the non-insert bits, this lets us add additional stop codons in the insertions (but that makes sense, since we don't have a way to tell where the stop codons are [and we don't care])
+            for boundary in utils.boundaries:
+                self.insert(boundary, reco_event)
+            reco_event.set_naive_seq()
+            itry += 1
+            if itry % 50 == 0:
+                print '%s adding insertions is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), itry)
+
+        if self.args.debug:
+            print '  joining eroded seqs'
+            print '         v: %s' % reco_event.eroded_seqs['v']
+            print '    insert: %s' % reco_event.insertions['vd']
+            print '         d: %s' % reco_event.eroded_seqs['d']
+            print '    insert: %s' % reco_event.insertions['dj']
+            print '         j: %s' % reco_event.eroded_seqs['j']
+        reco_event.set_post_erosion_codon_positions()
 
     # ----------------------------------------------------------------------------------------
     def write_mute_freqs(self, gene, seq, reco_event, reco_seq_fname):  # unsurprisingly, this function profiles out to be kind of a dumb way to do it, in terms of run time
