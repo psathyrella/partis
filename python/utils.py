@@ -389,10 +389,13 @@ def generate_dummy_v(d_gene):
     return get_locus(d_gene).upper() + 'VxDx' + pv + '-' + sv + '*' + al
 
 # ----------------------------------------------------------------------------------------
-def choose_new_uid(potential_names, used_names):  # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
+def choose_new_uid(potential_names, used_names, initial_length=1):  # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
     if potential_names is None:  # first time through
         potential_names = [l for l in string.ascii_lowercase]
         used_names = []
+        if initial_length > 1:  # this is kind of a dumb way to do it, since it adds stuff to <used_names> that we didn't actually use
+            while len(used_names) == 0 or len(used_names[-1]) < initial_length:
+                _, potential_names, used_names = choose_new_uid(potential_names, used_names)
     if len(potential_names) == 0:  # ran out of names
         potential_names += [''.join(ab) for ab in itertools.combinations(used_names, 2) if ''.join(ab) not in used_names]
     new_id = potential_names.pop(0)
