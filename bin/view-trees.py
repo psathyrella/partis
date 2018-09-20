@@ -18,7 +18,7 @@ with open(args.pickle_tree_file, 'rb') as lfile:
 # print tree.sequence
 
 with open(args.newick_tree_file, 'w') as ntfile:
-    ntfile.write(tree.write())
+    ntfile.write(tree.write(format=1))  # default format ignores internal node names (numbers listed here: http://etetoolkit.org/docs/latest/tutorial/tutorial_trees.html#reading-and-writing-newick-trees)
 
 with open(args.kdfile, 'w') as kdfile:
     writer = csv.DictWriter(kdfile, ('uid', 'kd'))
