@@ -41,14 +41,14 @@ def get_treestr(treefname):
         return '\n'.join(treefile.readlines())
 
 # ----------------------------------------------------------------------------------------
-def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False):  # specify either <treestr> or <treefname>
+def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False, debug=False):  # specify either <treestr> or <treefname>
     assert treestr is None or treefname is None
     if treestr is None:
         treestr = get_treestr(treefname)
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=ignore_existing_internal_node_labels)
-    # check_node_labels(dtree)
-    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
+    # check_node_labels(dtree, debug=debug)
+    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ def get_n_leaves(tree):
     return len(tree.leaf_nodes())
 
 # ----------------------------------------------------------------------------------------
-def check_node_labels(dtree, debug=True):
+def check_node_labels(dtree, debug=False):
     if debug:
         print 'checking node labels for:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
