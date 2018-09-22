@@ -117,7 +117,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir):
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
         final_line['tree'] = tree.as_string(schema='newick')
     tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
-    tmp_event.set_ids(final_line)  # I _think_ I don't need to set <irandom>
+    tmp_event.set_reco_id(final_line)  # I _think_ I don't need to set <irandom>
 
     return final_line
 

@@ -1049,8 +1049,6 @@ def compare_tree_metrics(lines_to_use, reco_info):
     for line in lines_to_use:
         true_affinities = {uid : reco_info[uid]['affinities'][0] for uid in line['unique_ids']}
         lbi_info = line['tree-info']['lbi']['values']
-        # maybe use the actual tree here?
-        # not sure what to do with internal nodes
         print '         lbi      affy     uid'
         for uid in line['unique_ids']:
             if uid not in true_affinities:
@@ -1063,6 +1061,35 @@ def compare_tree_metrics(lines_to_use, reco_info):
             plotvals['lbi'].append(lbi_info[uid])
             plotvals['affinity'].append(true_affinities[uid])
 
-    ax.scatter(plotvals['affinity'], plotvals['lbi']) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    ax.scatter(plotvals['affinity'], plotvals['lbi'], alpha=0.7) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
     plotname = 'foop'
     mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='kd', ylabel='local branching index') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+# ----------------------------------------------------------------------------------------
+def plot_true_lbi(true_lines):
+    fig, ax = mpl_init()
+
+    node_types = ['internal', 'leaves']
+    node_type_colors = {'internal' : default_colors[0], 'leaves' : default_colors[1]}
+    node_type_markers = {'internal' : 'o', 'leaves' : '.'}
+    alphas = {'internal' : 0.5, 'leaves' : 0.7}
+    jitter = {'internal' : -0.5, 'leaves' : 0.5}
+
+    plotvals = {node_type : {val_type : [] for val_type in ['lbi', 'affinity']} for node_type in node_types}
+    for line in true_lines:
+        for uid, affinity in zip(line['unique_ids'], line['affinities']):
+            lbi = line['tree-info']['lbi']['values'][uid]
+            if 'mrca' in uid:
+                node_type = 'internal'
+            elif 'leaf' in uid:
+                node_type = 'leaves'
+            else:
+                print '    not sure where to plot %s' % uid
+                continue
+            plotvals[node_type]['affinity'].append(affinity + jitter[node_type])
+            plotvals[node_type]['lbi'].append(lbi)
+    for node_type in node_types:
+        ax.scatter(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], c=node_type_colors[node_type], label=node_type, marker=node_type_markers[node_type], alpha=alphas[node_type]) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+
+    plotname = 'true'
+    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, title='lbi on true tree', xlabel='kd', ylabel='local branching index', leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
