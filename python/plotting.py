@@ -19,6 +19,7 @@ import operator
 import utils
 import plotconfig
 from hist import Hist
+import treeutils
 
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
 default_linewidths = ['5', '3', '2', '2', '2']
@@ -1069,22 +1070,18 @@ def compare_tree_metrics(lines_to_use, reco_info):
 def plot_true_lbi(true_lines):
     fig, ax = mpl_init()
 
-    node_types = ['internal', 'leaves']
-    node_type_colors = {'internal' : default_colors[0], 'leaves' : default_colors[1]}
-    node_type_markers = {'internal' : 'o', 'leaves' : '.'}
-    alphas = {'internal' : 0.5, 'leaves' : 0.7}
-    jitter = {'internal' : -0.5, 'leaves' : 0.5}
+    node_types = ['internal', 'leaf']
+    node_type_colors = {'internal' : default_colors[0], 'leaf' : default_colors[1]}
+    node_type_markers = {'internal' : 'o', 'leaf' : '.'}
+    alphas = {'internal' : 0.5, 'leaf' : 0.7}
+    jitter = {'internal' : -0.5, 'leaf' : 0.5}
 
     plotvals = {node_type : {val_type : [] for val_type in ['lbi', 'affinity']} for node_type in node_types}
     for line in true_lines:
         for uid, affinity in zip(line['unique_ids'], line['affinities']):
             lbi = line['tree-info']['lbi']['values'][uid]
-            if 'mrca' in uid:
-                node_type = 'internal'
-            elif 'leaf' in uid:
-                node_type = 'leaves'
-            else:
-                print '    not sure where to plot %s' % uid
+            node_type = treeutils.get_node_type_from_name(uid)
+            if node_type is None:  # probably just the root
                 continue
             plotvals[node_type]['affinity'].append(affinity + jitter[node_type])
             plotvals[node_type]['lbi'].append(lbi)
@@ -1093,3 +1090,26 @@ def plot_true_lbi(true_lines):
 
     plotname = 'true'
     mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, title='lbi on true tree', xlabel='kd', ylabel='local branching index', leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+# ----------------------------------------------------------------------------------------
+def plot_lonr(lines_to_use, reco_info):
+    fig, ax = mpl_init()
+
+    plotvals = {'lonr' : [], 'affinity_change' : []}
+    for line in lines_to_use:
+        true_affinities = {uid : reco_info[uid]['affinities'][0] for uid in line['unique_ids']}
+        for lfo in line['tree-info']['lonr']['values']:
+            if lfo['synonymous']:
+                continue
+            if lfo['parent'] not in true_affinities:  # TODO fix this
+                print '    %s parent \'%s\' not in true affinities, skipping lonr values' % (utils.color('red', 'warning'), lfo['parent'])
+                continue
+            if lfo['child'] not in true_affinities:  # TODO fix this
+                print '    %s child \'%s\' not in true affinities, skipping lonr values' % (utils.color('red', 'warning'), lfo['child'])
+                continue
+            plotvals['lonr'].append(lfo['lonr'])
+            plotvals['affinity_change'].append(true_affinities[lfo['child']] - true_affinities[lfo['parent']])
+
+    ax.scatter(plotvals['affinity_change'], plotvals['lonr'], alpha=0.7) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    plotname = 'lonr'
+    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='change in kd', ylabel='LONR') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)

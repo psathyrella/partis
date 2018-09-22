@@ -1,3 +1,4 @@
+import operator
 import string
 import itertools
 import copy
@@ -16,6 +17,18 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
 
 import baltic
 import utils
+
+# ----------------------------------------------------------------------------------------
+# TODO this is temprorary
+def get_node_type_from_name(name, debug=False):  # internal nodes in simulated trees should be labeled like 'mrca-<stuff>' (has to correspond to what bcr-phylo-benchmark did) TODO synchronize this better
+    if 'mrca' in name:
+        return 'internal'
+    elif 'leaf' in name:
+        return 'leaf'
+    else:
+        if debug:
+            print '    not sure of node type for \'%s\'' % name
+        return None
 
 # ----------------------------------------------------------------------------------------
 # two classes to work around the fact baltic doesn't yet support one-leaf trees
@@ -470,7 +483,7 @@ def build_lonr_tree(edgefos, debug=False):
     return dtree
 
 # ----------------------------------------------------------------------------------------
-def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
+def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False):
     # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
     lonr_names, input_names = {}, {}
     with open(outdir + '/' + lonr_files['names.fname']) as namefile:  # headers: "head	head2"
@@ -558,6 +571,31 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, debug=False):
                 lfo = lonrfos[-1]
                 print '     %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
 
+    # check for duplicate nodes (not sure why lonr.r kicks these, but I should probably collapse them at some point)
+    # in simulation, we sample internal nodes, but then lonr.r's tree construction forces these to be leaves, but then frequently they're immediately adjacent to internal nodes in lonr.r's tree... so we try to collapse them
+    duplicate_groups = utils.group_seqs_by_value(nodefos.keys(), keyfunc=lambda q: nodefos[q]['seq'])
+    duplicate_groups = [g for g in duplicate_groups if len(g) > 1]
+    if len(duplicate_groups) > 0:
+        print '    collapsing %d groups of nodes with duplicate sequences: %s' % (len(duplicate_groups), ',  '.join([' '.join(g) for g in duplicate_groups]))
+    for dgroup in duplicate_groups:
+        non_phylip_names = [n for n in dgroup if get_node_type_from_name(n) is not None]
+        if len(non_phylip_names) == 0:  # and phylip internal node names are of form str(<integer>), so just choose the first alphabetically, because whatever
+            name_to_use = sorted(dgroup)[0]
+        elif len(non_phylip_names) == 1:
+            name_to_use = non_phylip_names[0]
+        else:
+            raise Exception('wtf %s (should\'ve been either one or zero non-phylip names)' % non_phylip_names)
+        names_to_remove = [n for n in dgroup if n != name_to_use]
+
+        for rname in names_to_remove:  # only info in here a.t.m. is the sequence
+            del nodefos[rname]
+        for lfo in lonrfos:
+            for key in ('parent', 'child'):
+                if lfo[key] in names_to_remove:
+                    lfo[key] = name_to_use
+
+        # TODO also collapse nodes in the tree
+
     return {'tree' : dtree.as_string(schema='newick'), 'nodes' : nodefos, 'values' : lonrfos}
 
 # ----------------------------------------------------------------------------------------
@@ -625,7 +663,7 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         os.remove(existing_node_seqfname)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lonr(input_seqfos=None, line=None, phylip_treefile=None, phylip_seqfile=None, tree_method=None, naive_seq_name='X-naive-X', seed=1, debug=False):
+def calculate_lonr(input_seqfos=None, line=None, reco_info=None, phylip_treefile=None, phylip_seqfile=None, tree_method=None, naive_seq_name='X-naive-X', seed=1, debug=False):
     assert input_seqfos is None or line is None
     if input_seqfos is None:
         input_seqfos = [{'name' : line['unique_ids'][iseq], 'seq' : line['seqs'][iseq]} for iseq in range(len(line['unique_ids']))]
@@ -639,7 +677,7 @@ def calculate_lonr(input_seqfos=None, line=None, phylip_treefile=None, phylip_se
     if debug:
         print '  %s' % utils.color('green', 'lonr:')
     run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, phylip_treefile=phylip_treefile, phylip_seqfile=phylip_seqfile, seed=seed, debug=debug)
-    lonr_info = parse_lonr(workdir, input_seqfos, naive_seq_name, debug=debug)
+    lonr_info = parse_lonr(workdir, input_seqfos, naive_seq_name, reco_info=reco_info, debug=debug)
 
     for fn in lonr_files.values():
         os.remove(workdir + '/' + fn)
@@ -686,7 +724,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
             continue
-        lonr_info = calculate_lonr(line=line, debug=debug)
+        lonr_info = calculate_lonr(line=line, reco_info=reco_info, debug=debug)
         lbi_info = calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug)
         line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
         n_clusters_calculated += 1
@@ -701,3 +739,4 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
             true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lbi' : true_lbi_info}
         plotting.plot_true_lbi(true_lines_to_use)
+        plotting.plot_lonr(lines_to_use, reco_info)
