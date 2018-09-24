@@ -286,7 +286,7 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors', 'tree-info'] + [r + '_per_gene_support' for r in regions]
 linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']  # TODO move 'duplicates' to 'per_seq'
-linekeys['simu'] = ['reco_id', 'affinities', 'tree']
+linekeys['simu'] = ['reco_id', 'affinities', 'tree', 'target_seqs']
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
@@ -1673,7 +1673,9 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
     # return hackey_default_gene_versions[region]
 
 # ----------------------------------------------------------------------------------------
-def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False):
+def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, amino_acid=False):
+    if extra_bases is not None:
+        raise Exception('not sure what this was supposed to do (or did in the past), but it doesn\'t do anything now! (a.t.m. it seems to only be set in bin/plot-germlines.py, which I think doesn\'t do anything useful any more)')
     if align:  # way the hell slower, of course
         seq1, seq2 = align_seqs(seq1, seq2)
     if len(seq1) != len(seq2):
@@ -1684,7 +1686,10 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         else:
             return 0
 
-    skip_chars = set(ambiguous_bases + gap_chars)
+    if amino_acid:
+        skip_chars = set(gap_chars)
+    else:
+        skip_chars = set(ambiguous_bases + gap_chars)
 
     distance, len_excluding_ambig = 0, 0
     mutated_positions = []

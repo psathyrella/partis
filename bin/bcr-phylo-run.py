@@ -111,13 +111,17 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir):
             print '        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(kdvals) - set(final_line['unique_ids']))
         if len(set(final_line['unique_ids']) - set(kdvals)) > 0:
             print '        in final_line, but missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(kdvals))
-        final_line['affinities'] = [kdvals[u] for u in final_line['unique_ids']]
+        final_line['affinities'] = [1. / kdvals[u] for u in final_line['unique_ids']]
         tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % outdir)
         if args.debug:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
         final_line['tree'] = tree.as_string(schema='newick')
     tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
     tmp_event.set_reco_id(final_line)  # I _think_ I don't need to set <irandom>
+
+    # get target sequences
+    target_seqfos = utils.read_fastx('%s/%s_targets.fa' % (outdir, args.extrastr))
+    final_line['target_seqs'] = [tfo['seq'] for tfo in target_seqfos]
 
     return final_line
 
@@ -141,6 +145,9 @@ def simulate():
 
     print '  writing annotations to %s' % simfname(args.stype)
     utils.write_annotations(simfname(args.stype), glfo, mutated_events, utils.simulation_headers)
+
+    import plotting
+    plotting.plot_bcr_phylo_simulation(simdir(args.stype) + '/plots', mutated_events)
 
 # ----------------------------------------------------------------------------------------
 def partition():

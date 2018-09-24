@@ -733,7 +733,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
 
     if reco_info is not None:
         import plotting
-        plotting.compare_tree_metrics(lines_to_use, reco_info)
+
+        # plotting.plot_inferred_lbi(lines_to_use, reco_info)
 
         for true_line in true_lines_to_use:
             true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)

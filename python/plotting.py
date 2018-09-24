@@ -1042,8 +1042,60 @@ def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', 
 
 
 # ----------------------------------------------------------------------------------------
-def compare_tree_metrics(lines_to_use, reco_info):
+def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+    new_cmap = mpl.colors.LinearSegmentedColormap.from_list(
+        'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+        cmap(numpy.linspace(minval, maxval, n)))
+    return new_cmap
 
+# ----------------------------------------------------------------------------------------
+def plot_bcr_phylo_simulation(plotdir, mutated_events):
+    def get_min_target_hdists(mature_seqs, target_seqs):
+        from Bio.Seq import Seq
+        aa_targets = [Seq(seq).translate() for seq in target_seqs]
+        aa_mature_seqs = [Seq(mseq).translate() for mseq in mature_seqs]
+        return [min([utils.hamming_distance(at, amseq, amino_acid=True) for at in aa_targets]) for amseq in aa_mature_seqs]
+
+    fig, ax = mpl_init()
+
+    # affinity vs stuff:
+    # xvals = [1. / af for line in mutated_events for af in line['affinities']]
+    # yvals = [nm for line in mutated_events for nm in line['n_mutations']]
+    # min distance to target:
+    # yvals = [hd for line in mutated_events for hd in get_min_target_hdists(line['input_seqs'], line['target_seqs'])]  # TODO way too complicated
+    # ax.scatter(xvals, yvals, alpha=0.65)
+
+    n_muts, kd_changes = [], []
+    for line in mutated_events:
+        dtree = treeutils.get_dendro_tree(treestr=line['tree'])
+        for node in dtree.preorder_internal_node_iter():
+            if node is dtree.seed_node:
+                continue
+            for child in node.child_nodes():
+                inode = line['unique_ids'].index(node.taxon.label)
+                ichild = line['unique_ids'].index(child.taxon.label)
+                node_affinity = line['affinities'][inode]
+                child_affinity = line['affinities'][ichild]
+                n_muts.append(utils.hamming_distance(line['input_seqs'][inode], line['input_seqs'][ichild]))
+                kd_changes.append(1./child_affinity - 1./node_affinity)
+
+    hist = Hist(30, min(kd_changes), max(kd_changes))
+    for val in kd_changes:
+        hist.fill(val)
+    hist.mpl_plot(ax, square_bins=True, errors=False)  #remove_empty_bins=True)
+    plotname = 'kd-changes'
+    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='parent-child kd change', ylabel='branches') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+    # new_cmap = truncate_colormap(plt.cm.Blues, 0, 1)
+    # ax.hexbin(kd_changes, shms, gridsize=25, cmap=plt.cm.Blues) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    fig, ax = mpl_init()
+    ax.scatter(kd_changes, n_muts)
+
+    plotname = 'kd-change-vs-shm'
+    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='parent-child kd change', ylabel='N mutations along branch') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+# ----------------------------------------------------------------------------------------
+def plot_inferred_lbi(lines_to_use, reco_info):
     fig, ax = mpl_init()
 
     plotvals = {'lbi' : [], 'affinity' : []}
@@ -1063,8 +1115,8 @@ def compare_tree_metrics(lines_to_use, reco_info):
             plotvals['affinity'].append(true_affinities[uid])
 
     ax.scatter(plotvals['affinity'], plotvals['lbi'], alpha=0.7) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
-    plotname = 'foop'
-    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='kd', ylabel='local branching index') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    plotname = 'lbi-inferred-tree'
+    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='affinity', ylabel='local branching index') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
 def plot_true_lbi(true_lines):
@@ -1074,7 +1126,7 @@ def plot_true_lbi(true_lines):
     node_type_colors = {'internal' : default_colors[0], 'leaf' : default_colors[1]}
     node_type_markers = {'internal' : 'o', 'leaf' : '.'}
     alphas = {'internal' : 0.5, 'leaf' : 0.7}
-    jitter = {'internal' : -0.5, 'leaf' : 0.5}
+    jitter = {'internal' : -0.0001, 'leaf' : 0.0001}
 
     plotvals = {node_type : {val_type : [] for val_type in ['lbi', 'affinity']} for node_type in node_types}
     for line in true_lines:
@@ -1085,22 +1137,39 @@ def plot_true_lbi(true_lines):
                 continue
             plotvals[node_type]['affinity'].append(affinity + jitter[node_type])
             plotvals[node_type]['lbi'].append(lbi)
-    for node_type in node_types:
-        ax.scatter(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], c=node_type_colors[node_type], label=node_type, marker=node_type_markers[node_type], alpha=alphas[node_type]) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    node_type = 'internal'
+    ax.hexbin(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], gridsize=15, cmap=plt.cm.Blues, label=node_type) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    node_type = 'leaf'
+    ax.scatter(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], c=node_type_colors[node_type], label=node_type, marker=node_type_markers[node_type], alpha=alphas[node_type]) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
 
-    plotname = 'true'
-    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, title='lbi on true tree', xlabel='kd', ylabel='local branching index', leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    plotname = 'lbi-true-tree'
+    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, title='lbi on true tree', xlabel='affinity', ylabel='local branching index', leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_lonr(lines_to_use, reco_info):
+def plot_lonr(lines_to_use, reco_info, debug=False):
     fig, ax = mpl_init()
 
     plotvals = {'lonr' : [], 'affinity_change' : []}
     for line in lines_to_use:
         true_affinities = {uid : reco_info[uid]['affinities'][0] for uid in line['unique_ids']}
+# ----------------------------------------------------------------------------------------
+        nodefos = line['tree-info']['lonr']['nodes']
+        from Bio.Seq import Seq
+# ----------------------------------------------------------------------------------------
         for lfo in line['tree-info']['lonr']['values']:
-            if lfo['synonymous']:
-                continue
+# ----------------------------------------------------------------------------------------
+            parent_seq = nodefos[lfo['parent']]['seq']
+            child_seq = nodefos[lfo['child']]['seq']
+            aa_hdist = sum([c1 != c2 for c1, c2 in zip(Seq(parent_seq).translate(), Seq(child_seq).translate())])
+            is_ok = lfo['synonymous'] and aa_hdist == 0 or (not lfo['synonymous'] and aa_hdist > 0)
+            if debug:
+                print '      %6s  %3d%3d   %s' % (utils.color(None if is_ok else 'red', str(lfo['synonymous']), width=6), utils.hamming_distance(parent_seq, child_seq), aa_hdist, Seq(parent_seq).translate())
+                # print '    %s' % utils.color_mutants(parent_seq, child_seq)
+                print '                       %s' % utils.color_mutants(Seq(parent_seq).translate(), Seq(child_seq).translate(), amino_acid=True)
+                print ''
+# ----------------------------------------------------------------------------------------
+            # if not lfo['synonymous']:
+            #     continue
             if lfo['parent'] not in true_affinities:  # TODO fix this
                 print '    %s parent \'%s\' not in true affinities, skipping lonr values' % (utils.color('red', 'warning'), lfo['parent'])
                 continue
@@ -1112,4 +1181,4 @@ def plot_lonr(lines_to_use, reco_info):
 
     ax.scatter(plotvals['affinity_change'], plotvals['lonr'], alpha=0.7) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
     plotname = 'lonr'
-    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='change in kd', ylabel='LONR') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='change in affinity', ylabel='LONR') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
