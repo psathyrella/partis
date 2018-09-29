@@ -47,13 +47,13 @@ def run_bcr_phylo(naive_line, outdir):
     elif args.stype == 'neutral':
         assert False  # needs updating (well, maybe not, but I'm not thinking about it when I move the selection parameters to command line args)
         cmd += ' --lambda %f --lambda0 %f' % (1.5, 0.365)
-        cmd += ' --n_final_seqs %d' % args.n_sim_seqs_per_event
+        cmd += ' --n_final_seqs %d' % args.n_sim_seqs_per_generation
     elif args.stype == 'selection':
         cmd += ' --selection'
         cmd += ' --lambda %f' % args.branching_parameter
         cmd += ' --lambda0 %f' % args.base_mutation_rate
         cmd += ' --obs_times %s' % ' '.join(['%d' % t for t in args.obs_times])
-        cmd += ' --n_to_downsample %d' % args.n_sim_seqs_per_event  # Number of cells kept (not discarded) during final downsampling step (default: None)
+        cmd += ' --n_to_downsample %d' % args.n_sim_seqs_per_generation
         cmd += ' --target_dist %d' % args.target_distance
         cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % args.carry_cap
@@ -63,6 +63,7 @@ def run_bcr_phylo(naive_line, outdir):
 
 
     # cmd += ' --verbose'
+    # cmd += ' --observe_based_on_affinity'
     cmd += ' --no_context'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     cmd += ' --naive_seq %s' % naive_line['naive_seq']
@@ -147,7 +148,12 @@ def simulate():
     utils.write_annotations(simfname(args.stype), glfo, mutated_events, utils.simulation_headers)
 
     import plotting
-    plotting.plot_bcr_phylo_simulation(simdir(args.stype) + '/plots', mutated_events)
+    plotting.plot_bcr_phylo_simulation(outdir + '/plots', mutated_events)
+    for outdir in outdirs:
+        plotting.plot_bcr_phylo_selection_hists(outdir + '/simu_selection_runstats.p', outdir + '/plots', 'all-cells', title='all cells')
+        plotting.plot_bcr_phylo_selection_hists(outdir + '/simu_sampled_selection_runstats.p', outdir + '/plots', 'sampled-cells', plot_all=True, title='sampled cells')
+    # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
+    plotting.make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
 def partition():
@@ -167,12 +173,12 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
-parser.add_argument('--n-sim-seqs-per-event', type=int, default=25, help='desired number of final sequences for each naive rearrangement (typically, bcr-phylo downsamples to get to this number)')
-parser.add_argument('--n-sim-events', type=int, default=5, help='number of simulated rearrangement events')
-parser.add_argument('--obs-times', default='50', help='number of rounds of reproduction')
+parser.add_argument('--n-sim-seqs-per-generation', type=int, default=100, help='Number of sequences to sample at each time in --obs-times.')
+parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
+parser.add_argument('--obs-times', default='80:100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
-parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences. If larger than 50 (ish) it seems to have trouble finding target sequencess.')
-parser.add_argument('--target-count', type=int, default=5, help='The number of target sequences to generate.')
+parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
+parser.add_argument('--target-count', type=int, default=10, help='Number of target sequences to generate.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='')
 args = parser.parse_args()

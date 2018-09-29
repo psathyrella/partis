@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import copy
+import pickle
 import matplotlib as mpl
 mpl.use('Agg')
 mpl.rcParams['svg.fonttype'] = 'none'
@@ -1049,6 +1050,91 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
     return new_cmap
 
 # ----------------------------------------------------------------------------------------
+def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=5, title=''):
+    import joypy
+    # ----------------------------------------------------------------------------------------
+    def plot_this_time(otime, numpyhists):
+        if plot_all:
+            return True
+        if otime == 0:
+            return False
+        if otime in (len(numpyhists),):
+            return True
+        if otime % int(len(numpyhists) / float(n_plots)) == 0:
+            return True
+        return False
+    # ----------------------------------------------------------------------------------------
+    def get_hists(hfname):
+        with open(hfname) as runstatfile:
+            numpyhists = pickle.load(runstatfile)
+        xmin, xmax = None, None
+        hists, labels = [], []
+        for ihist in range(len(numpyhists)):
+            nphist = numpyhists[ihist]  # numpy.hist is two arrays: [0] is bin counts, [1] is bin x values (not sure if low, high, or centers)
+            obs_time = ihist  #  + 1  # I *think* it's right without the 1 (although I guess it's really a little arbitrary)
+            if not plot_this_time(obs_time, numpyhists):
+                continue
+            if nphist is None:  # time points at which we didn't sample
+                hists.append(None)
+                labels.append(None)
+                continue
+            bin_contents, bin_edges = nphist
+            assert len(bin_contents) == len(bin_edges) - 1
+            # print ' '.join('%3d' % c for c in bin_contents)
+            # print ' '.join('%3d' % c for c in bin_edges)
+            hist = Hist(len(bin_edges) - 1, bin_edges[0], bin_edges[-1])
+            for ibin in range(len(bin_edges) - 1):  # nphist indexing, not Hist indexing
+                lo_edge = bin_edges[ibin]
+                hi_edge = bin_edges[ibin + 1]
+                bin_center = (hi_edge + lo_edge) / 2.
+                for _ in range(bin_contents[ibin]):
+                    hist.fill(bin_center)
+                    xmin = lo_edge if xmin is None else min(xmin, lo_edge)
+                    xmax = hi_edge if xmax is None else max(xmax, hi_edge)
+            # alpha = alpha_min + (alpha_max - alpha_min) * obs_time / float(len(nphists))
+            hists.append(hist)
+            labels.append('%s %d' % ('generation' if obs_time == 0 else '', obs_time))
+            # hist.mpl_plot(ax, square_bins=False, errors=False, alpha=alpha, label='%s %d' % ('generation' if obs_time == 0 else '', obs_time))
+
+        # hists = [Hist(1, xmin, xmax) if h is None else h for h in hists]  # replace the None values with empty hists
+        hists, labels = zip(*[(h, l) for h, l in zip(hists, labels) if h is not None])
+        return hists, labels, xmin, xmax
+
+    # ----------------------------------------------------------------------------------------
+    # alpha_min, alpha_max = 0.4, 1.
+
+    all_hists, all_labels, xmin, xmax = get_hists(histfname)
+    # for ih in range(len(all_hists)):
+    #     print '  %s  %s  %.1f' % (all_labels[ih], 'None' if all_hists[ih] is None else '', all_hists[ih].integral(True))
+    #     # print all_hists[ih]
+    fig, ax = mpl_init()
+
+    import pandas as pd
+    # dframe = pd.DataFrame(numpy.random.randn(10, 4), index=tsd.index, columns=['A', 'B', 'C', 'D'])
+    # print dframe
+    # vals = pd.read_csv("tmp.csv")
+    # print vals
+    # sys.exit()
+
+    # 'generation' : all_labels,
+    # jpdata = pd.DataFrame({label : [x for x, y in zip(h.get_bin_centers(), h.bin_contents) for _ in range(int(y)) if x > xmin and x < xmax] for label, h in zip(all_labels, all_hists)})
+    # jpdata = {label : [x for x, y in zip(h.get_bin_centers(), h.bin_contents) for _ in range(int(y)) if x > xmin and x < xmax] for label, h in zip(all_labels, all_hists)}
+    # jpdata = pd.DataFrame(tmpdict)
+    # jpdata = pd.read_csv('tmp.csv')
+    # print jpdata.to_string(line_width=200)
+    jpdata = []
+    for hist in all_hists:
+        jpdata.append([x for x, y in zip(hist.get_bin_centers(), hist.bin_contents) for _ in range(int(y)) if x > xmin and x < xmax])
+
+    n_ticks = 5
+    xvals = [x for x in all_hists[0].low_edges if x > xmin and x < xmax]
+    xvals = [xvals[i] for i in range(len(xvals)) if i % int(len(xvals) / float(n_ticks)) == 0]
+    xticklabels = ['%d' % x for x in xvals]
+    fig, axes = joypy.joyplot(jpdata, labels=all_labels, fade=True, hist=True, overlap=1, ax=ax, bins=int(xmax - xmin))
+
+    mpl_finish(ax, plotdir, plotname, title=title, xticks=xvals, xticklabels=xticklabels, xlabel='min distance to target', ylabel='generation', leg_loc=(0.7, 0.45), xbounds=(xmin, xmax)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+# ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_simulation(plotdir, mutated_events):
     def get_min_target_hdists(mature_seqs, target_seqs):
         from Bio.Seq import Seq
@@ -1084,7 +1170,7 @@ def plot_bcr_phylo_simulation(plotdir, mutated_events):
         hist.fill(val)
     hist.mpl_plot(ax, square_bins=True, errors=False)  #remove_empty_bins=True)
     plotname = 'kd-changes'
-    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='parent-child kd change', ylabel='branches') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
     # new_cmap = truncate_colormap(plt.cm.Blues, 0, 1)
     # ax.hexbin(kd_changes, shms, gridsize=25, cmap=plt.cm.Blues) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
@@ -1092,7 +1178,7 @@ def plot_bcr_phylo_simulation(plotdir, mutated_events):
     ax.scatter(kd_changes, n_muts)
 
     plotname = 'kd-change-vs-shm'
-    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='parent-child kd change', ylabel='N mutations along branch') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, plotdir, plotname, xlabel='parent-child kd change', ylabel='N mutations along branch') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
 def plot_inferred_lbi(lines_to_use, reco_info):
