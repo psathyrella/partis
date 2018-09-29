@@ -148,8 +148,8 @@ def simulate():
     utils.write_annotations(simfname(args.stype), glfo, mutated_events, utils.simulation_headers)
 
     import plotting
-    plotting.plot_bcr_phylo_simulation(outdir + '/plots', mutated_events)
-    for outdir in outdirs:
+    for outdir, event in zip(outdirs, mutated_events):
+        plotting.plot_bcr_phylo_simulation(outdir + '/plots', event)
         plotting.plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='AA distance to nearest target sequence')
         plotting.plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells', xlabel='AA distance to nearest target sequence')
         plotting.plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
@@ -161,7 +161,7 @@ def partition():
     n_procs = 1
     cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
-    cmd = './bin/partis partition --debug 0 --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --calculate-tree-metrics --infname %s --parameter-dir %s/params --n-procs %d --outfname %s/partition.yaml --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, infdir(args.stype), args.seed)
+    cmd = './bin/partis partition --debug 0 --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --calculate-tree-metrics --infname %s --parameter-dir %s/params --plotdir %s --n-procs %d --outfname %s/partition.yaml --seed %d' % (simfname(args.stype), infdir(args.stype), infdir(args.stype) + '/plots', n_procs, infdir(args.stype), args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
 
     # cmd = './bin/partis view-output --outfname %s/partition.yaml --calculate-tree-metrics' % infdir(args.stype)  # TODO not sure this works
@@ -176,7 +176,7 @@ parser.add_argument('--seed', type=int, default=1, help='random seed (note that 
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
 parser.add_argument('--n-sim-seqs-per-generation', type=int, default=100, help='Number of sequences to sample at each time in --obs-times.')
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
-parser.add_argument('--obs-times', default='80:90:100:110:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
+parser.add_argument('--obs-times', default='100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
 parser.add_argument('--target-count', type=int, default=10, help='Number of target sequences to generate.')

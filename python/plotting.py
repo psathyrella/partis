@@ -1109,7 +1109,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     #     # print all_hists[ih]
     fig, ax = mpl_init()
 
-    import pandas as pd
+    # import pandas as pd
     # dframe = pd.DataFrame(numpy.random.randn(10, 4), index=tsd.index, columns=['A', 'B', 'C', 'D'])
     # print dframe
     # vals = pd.read_csv("tmp.csv")
@@ -1135,7 +1135,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     mpl_finish(ax, plotdir, plotname, title=title, xticks=xvals, xticklabels=xticklabels, xlabel=xlabel, ylabel='generation', leg_loc=(0.7, 0.45), xbounds=(xmin, xmax)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_simulation(plotdir, mutated_events):
+def plot_bcr_phylo_simulation(plotdir, event):
     def get_min_target_hdists(mature_seqs, target_seqs):
         from Bio.Seq import Seq
         aa_targets = [Seq(seq).translate() for seq in target_seqs]
@@ -1152,18 +1152,17 @@ def plot_bcr_phylo_simulation(plotdir, mutated_events):
     # ax.scatter(xvals, yvals, alpha=0.65)
 
     n_muts, kd_changes = [], []
-    for line in mutated_events:
-        dtree = treeutils.get_dendro_tree(treestr=line['tree'])
-        for node in dtree.preorder_internal_node_iter():
-            if node is dtree.seed_node:
-                continue
-            for child in node.child_nodes():
-                inode = line['unique_ids'].index(node.taxon.label)
-                ichild = line['unique_ids'].index(child.taxon.label)
-                node_affinity = line['affinities'][inode]
-                child_affinity = line['affinities'][ichild]
-                n_muts.append(utils.hamming_distance(line['input_seqs'][inode], line['input_seqs'][ichild]))
-                kd_changes.append(1./child_affinity - 1./node_affinity)
+    dtree = treeutils.get_dendro_tree(treestr=event['tree'])
+    for node in dtree.preorder_internal_node_iter():
+        if node is dtree.seed_node:
+            continue
+        for child in node.child_nodes():
+            inode = event['unique_ids'].index(node.taxon.label)
+            ichild = event['unique_ids'].index(child.taxon.label)
+            node_affinity = event['affinities'][inode]
+            child_affinity = event['affinities'][ichild]
+            n_muts.append(utils.hamming_distance(event['input_seqs'][inode], event['input_seqs'][ichild]))
+            kd_changes.append(1./child_affinity - 1./node_affinity)
 
     hist = Hist(30, min(kd_changes), max(kd_changes))
     for val in kd_changes:
@@ -1181,7 +1180,7 @@ def plot_bcr_phylo_simulation(plotdir, mutated_events):
     mpl_finish(ax, plotdir, plotname, xlabel='parent-child kd change', ylabel='N mutations along branch') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_inferred_lbi(lines_to_use, reco_info):
+def plot_inferred_lbi(plotdir, lines_to_use, reco_info):
     fig, ax = mpl_init()
 
     plotvals = {'lbi' : [], 'affinity' : []}
@@ -1202,10 +1201,10 @@ def plot_inferred_lbi(lines_to_use, reco_info):
 
     ax.scatter(plotvals['affinity'], plotvals['lbi'], alpha=0.7) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
     plotname = 'lbi-inferred-tree'
-    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='affinity', ylabel='local branching index') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, plotdir, plotname, xlabel='affinity', ylabel='local branching index') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_true_lbi(true_lines):
+def plot_true_lbi(plotdir, true_lines):
     fig, ax = mpl_init()
 
     node_types = ['internal', 'leaf']
@@ -1229,10 +1228,10 @@ def plot_true_lbi(true_lines):
     ax.scatter(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], c=node_type_colors[node_type], label=node_type, marker=node_type_markers[node_type], alpha=alphas[node_type]) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
 
     plotname = 'lbi-true-tree'
-    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, title='lbi on true tree', xlabel='affinity', ylabel='local branching index', leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, plotdir, plotname, title='lbi on true tree', xlabel='affinity', ylabel='local branching index', leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_lonr(lines_to_use, reco_info, debug=False):
+def plot_lonr(plotdir, lines_to_use, reco_info, debug=False):
     fig, ax = mpl_init()
 
     plotvals = {'lonr' : [], 'affinity_change' : []}
@@ -1267,4 +1266,4 @@ def plot_lonr(lines_to_use, reco_info, debug=False):
 
     ax.scatter(plotvals['affinity_change'], plotvals['lonr'], alpha=0.7) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
     plotname = 'lonr'
-    mpl_finish(ax, os.getenv('fs') + '/partis/tmp/cf-tree-metrics-test', plotname, xlabel='change in affinity', ylabel='LONR') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, plotdir, plotname, xlabel='change in affinity', ylabel='LONR') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)

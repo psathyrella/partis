@@ -156,7 +156,7 @@ def process(args):
         if not args.is_simu:
             raise Exception('can\'t plot performance unless --is-simu is set')
     if args.action == 'plot-partitions' and args.plotdir is None:
-        raise Exception('--plotdir must be specified ')
+        raise Exception('--plotdir must be specified for plot-partitions')
 
     if args.parameter_type != 'hmm':
         print '  using non-default parameter type \'%s\'' % args.parameter_type

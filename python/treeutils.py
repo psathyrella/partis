@@ -687,7 +687,7 @@ def calculate_lonr(input_seqfos=None, line=None, reco_info=None, phylip_treefile
 
 # ----------------------------------------------------------------------------------------
 # interface for calculating tree metrics starting from standard <line> annotations (as opposed to bin/calculate_tree_metrics.py, which is more standalone, e.g. from cft)
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, use_true_clusters=False, debug=False):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, use_true_clusters=False, base_plotdir=None, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -732,12 +732,15 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
 
     if reco_info is not None:
+        assert base_plotdir is not None
+        plotdir = base_plotdir + '/tree-metrics'
         import plotting
 
-        # plotting.plot_inferred_lbi(lines_to_use, reco_info)
+        # plotting.plot_inferred_lbi(plotdir, lines_to_use, reco_info)
 
         for true_line in true_lines_to_use:
             true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lbi' : true_lbi_info}
-        plotting.plot_true_lbi(true_lines_to_use)
-        plotting.plot_lonr(lines_to_use, reco_info)
+        plotting.plot_true_lbi(plotdir, true_lines_to_use)
+        plotting.plot_lonr(plotdir, lines_to_use, reco_info)
+        plotting.make_html(plotdir)
