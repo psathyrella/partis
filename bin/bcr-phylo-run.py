@@ -150,8 +150,9 @@ def simulate():
     import plotting
     plotting.plot_bcr_phylo_simulation(outdir + '/plots', mutated_events)
     for outdir in outdirs:
-        plotting.plot_bcr_phylo_selection_hists(outdir + '/simu_selection_runstats.p', outdir + '/plots', 'all-cells', title='all cells')
-        plotting.plot_bcr_phylo_selection_hists(outdir + '/simu_sampled_selection_runstats.p', outdir + '/plots', 'sampled-cells', plot_all=True, title='sampled cells')
+        plotting.plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='AA distance to nearest target sequence')
+        plotting.plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells', xlabel='AA distance to nearest target sequence')
+        plotting.plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
     # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
     plotting.make_html(outdir + '/plots')
 
@@ -175,7 +176,7 @@ parser.add_argument('--seed', type=int, default=1, help='random seed (note that 
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
 parser.add_argument('--n-sim-seqs-per-generation', type=int, default=100, help='Number of sequences to sample at each time in --obs-times.')
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
-parser.add_argument('--obs-times', default='80:100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
+parser.add_argument('--obs-times', default='80:90:100:110:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
 parser.add_argument('--target-count', type=int, default=10, help='Number of target sequences to generate.')

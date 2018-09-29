@@ -1050,7 +1050,7 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
     return new_cmap
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=5, title=''):
+def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=5, title='', xlabel=''):
     import joypy
     # ----------------------------------------------------------------------------------------
     def plot_this_time(otime, numpyhists):
@@ -1132,7 +1132,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     xticklabels = ['%d' % x for x in xvals]
     fig, axes = joypy.joyplot(jpdata, labels=all_labels, fade=True, hist=True, overlap=1, ax=ax, bins=int(xmax - xmin))
 
-    mpl_finish(ax, plotdir, plotname, title=title, xticks=xvals, xticklabels=xticklabels, xlabel='min distance to target', ylabel='generation', leg_loc=(0.7, 0.45), xbounds=(xmin, xmax)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, plotdir, plotname, title=title, xticks=xvals, xticklabels=xticklabels, xlabel=xlabel, ylabel='generation', leg_loc=(0.7, 0.45), xbounds=(xmin, xmax)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_simulation(plotdir, mutated_events):
