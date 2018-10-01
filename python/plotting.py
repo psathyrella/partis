@@ -1231,30 +1231,27 @@ def plot_true_lbi(plotdir, true_lines):
     mpl_finish(ax, plotdir, plotname, title='lbi on true tree', xlabel='affinity', ylabel='local branching index', leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_lonr(plotdir, lines_to_use, reco_info, debug=False):
+def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info, debug=False):
+    def check_synonimity(nodefos, lfo):  # TODO remove this
+        from Bio.Seq import Seq
+        parent_aa_seq = Seq(nodefos[lfo['parent']]['seq']).translate()
+        child_aa_seq = Seq(nodefos[lfo['child']]['seq']).translate()
+        aa_pos = int(math.floor(lfo['position'] / 3.))
+        synonymous = parent_aa_seq[aa_pos] == child_aa_seq[aa_pos]
+        is_ok = lfo['synonymous'] == synonymous
+        if debug:
+            print '      %6s  %3d%3d   %s' % (utils.color(None if is_ok else 'red', str(lfo['synonymous']), width=6), utils.hamming_distance(nodefos[lfo['parent']]['seq'], nodefos[lfo['child']]['seq']), utils.hamming_distance(parent_aa_seq, child_aa_seq, amino_acid=True), parent_aa_seq)
+            # print '    %s' % utils.color_mutants(parent_seq, child_seq)
+            print '                       %s' % utils.color_mutants(parent_aa_seq, child_aa_seq, amino_acid=True)
+
     fig, ax = mpl_init()
 
     plotvals = {'lonr' : [], 'affinity_change' : []}
     for line in lines_to_use:
         true_affinities = {uid : reco_info[uid]['affinities'][0] for uid in line['unique_ids']}
-# ----------------------------------------------------------------------------------------
         nodefos = line['tree-info']['lonr']['nodes']
-        from Bio.Seq import Seq
-# ----------------------------------------------------------------------------------------
         for lfo in line['tree-info']['lonr']['values']:
-# ----------------------------------------------------------------------------------------
-            parent_seq = nodefos[lfo['parent']]['seq']
-            child_seq = nodefos[lfo['child']]['seq']
-            aa_hdist = sum([c1 != c2 for c1, c2 in zip(Seq(parent_seq).translate(), Seq(child_seq).translate())])
-            is_ok = lfo['synonymous'] and aa_hdist == 0 or (not lfo['synonymous'] and aa_hdist > 0)
-            if debug:
-                print '      %6s  %3d%3d   %s' % (utils.color(None if is_ok else 'red', str(lfo['synonymous']), width=6), utils.hamming_distance(parent_seq, child_seq), aa_hdist, Seq(parent_seq).translate())
-                # print '    %s' % utils.color_mutants(parent_seq, child_seq)
-                print '                       %s' % utils.color_mutants(Seq(parent_seq).translate(), Seq(child_seq).translate(), amino_acid=True)
-                print ''
-# ----------------------------------------------------------------------------------------
-            # if not lfo['synonymous']:
-            #     continue
+            # check_synonimity(nodefos, lfo)
             if lfo['parent'] not in true_affinities:  # TODO fix this
                 print '    %s parent \'%s\' not in true affinities, skipping lonr values' % (utils.color('red', 'warning'), lfo['parent'])
                 continue
