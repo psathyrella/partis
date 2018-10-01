@@ -36,7 +36,7 @@ def rearrange():
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
-def run_bcr_phylo(naive_line, outdir):
+def run_bcr_phylo(naive_line, outdir, ievent):
     tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
     os.makedirs(tmpdir)
     prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
@@ -67,7 +67,7 @@ def run_bcr_phylo(naive_line, outdir):
     cmd += ' --no_context'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     cmd += ' --naive_seq %s' % naive_line['naive_seq']
-    cmd += ' --random_seed %d' % args.seed
+    cmd += ' --random_seed %d' % (args.seed + ievent)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -75,7 +75,7 @@ def run_bcr_phylo(naive_line, outdir):
     os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
-def parse_bcr_phylo_output(glfo, naive_line, outdir):
+def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
     seqfos = utils.read_fastx('%s/%s.fasta' % (outdir, args.extrastr))  # output mutated sequences from bcr-phylo
     seqfos = [sfo for sfo in seqfos if sfo['name'] != 'naive']  # don't have a kd value for the naive sequence, so may as well throw it out
 
@@ -118,7 +118,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir):
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
         final_line['tree'] = tree.as_string(schema='newick')
     tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
-    tmp_event.set_reco_id(final_line)  # I _think_ I don't need to set <irandom>
+    tmp_event.set_reco_id(final_line, irandom=ievent)  # not sure that setting <irandom> here actually does anything
 
     # get target sequences
     target_seqfos = utils.read_fastx('%s/%s_targets.fa' % (outdir, args.extrastr))
@@ -137,12 +137,12 @@ def simulate():
     outdirs = ['%s/event-%d' % (simdir(args.stype), i) for i in range(len(naive_event_list))]
 
     print '    running bcr-phylo for %d naive rearrangements' % len(naive_event_list)
-    for naive_line, outdir in zip(naive_event_list, outdirs):
-        run_bcr_phylo(naive_line, outdir)
+    for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
+        run_bcr_phylo(naive_line, outdir, ievent)
 
     mutated_events = []
-    for naive_line, outdir in zip(naive_event_list, outdirs):
-        mutated_events.append(parse_bcr_phylo_output(glfo, naive_line, outdir))
+    for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
+        mutated_events.append(parse_bcr_phylo_output(glfo, naive_line, outdir, ievent))
 
     print '  writing annotations to %s' % simfname(args.stype)
     utils.write_annotations(simfname(args.stype), glfo, mutated_events, utils.simulation_headers)
