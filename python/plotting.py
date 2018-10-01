@@ -1248,18 +1248,6 @@ def plot_true_lbi(plotdir, true_lines):
 
 # ----------------------------------------------------------------------------------------
 def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info, debug=False):
-    def check_synonimity(nodefos, lfo):  # TODO remove this
-        from Bio.Seq import Seq
-        parent_aa_seq = Seq(nodefos[lfo['parent']]['seq']).translate()
-        child_aa_seq = Seq(nodefos[lfo['child']]['seq']).translate()
-        aa_pos = int(math.floor(lfo['position'] / 3.))
-        synonymous = parent_aa_seq[aa_pos] == child_aa_seq[aa_pos]
-        is_ok = lfo['synonymous'] == synonymous
-        if debug:
-            print '      %6s  %3d%3d   %s' % (utils.color(None if is_ok else 'red', str(lfo['synonymous']), width=6), utils.hamming_distance(nodefos[lfo['parent']]['seq'], nodefos[lfo['child']]['seq']), utils.hamming_distance(parent_aa_seq, child_aa_seq, amino_acid=True), parent_aa_seq)
-            # print '    %s' % utils.color_mutants(parent_seq, child_seq)
-            print '                       %s' % utils.color_mutants(parent_aa_seq, child_aa_seq, amino_acid=True)
-
     fig, ax = mpl_init()
 
     plotvals = {'lonr' : [], 'affinity_change' : []}
@@ -1267,7 +1255,6 @@ def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info, debug=False):
         true_affinities = {uid : reco_info[uid]['affinities'][0] for uid in line['unique_ids']}
         nodefos = line['tree-info']['lonr']['nodes']
         for lfo in line['tree-info']['lonr']['values']:
-            # check_synonimity(nodefos, lfo)
             if lfo['parent'] not in true_affinities:  # TODO fix this
                 print '    %s parent \'%s\' not in true affinities, skipping lonr values' % (utils.color('red', 'warning'), lfo['parent'])
                 continue
