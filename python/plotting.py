@@ -1262,5 +1262,20 @@ def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info, debug=False):
             plotvals['affinity_change'].append(true_affinities[lfo['child']] - true_affinities[lfo['parent']])
 
     ax.scatter(plotvals['affinity_change'], plotvals['lonr'], alpha=0.7) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
-    plotname = 'lonr'
+    plotname = 'lonr-per-mut-vs-affinity'
     mpl_finish(ax, plotdir, plotname, xlabel='change in affinity', ylabel='LONR') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+# ----------------------------------------------------------------------------------------
+def plot_aggregate_lonr(plotdir, lines_to_use, reco_info, debug=False):
+    fig, ax = mpl_init()
+    plotvals = {'S' : [], 'NS' : []}
+    for line in lines_to_use:
+        for lfo in line['tree-info']['lonr']['values']:
+            if lfo['synonymous']:
+                plotvals['S'].append(lfo['lonr'])
+            else:
+                plotvals['NS'].append(lfo['lonr'])
+    ax.plot(plotvals['S'], label='S', linewidth=3, alpha=0.7)
+    ax.plot(plotvals['NS'], label='NS', linewidth=3, alpha=0.7)
+    plotname = 'lonr-ns-vs-s'
+    mpl_finish(ax, plotdir, plotname, xlabel='LONR', ylabel='mutations') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
