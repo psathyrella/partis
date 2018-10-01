@@ -692,6 +692,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
 
+    # collect inferred and true events
     lines_to_use, true_lines_to_use = None, None
     if use_true_clusters:
         assert reco_info is not None
@@ -718,7 +719,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
                 true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
                 true_lines_to_use.append(true_line)
 
-
+    # then calculate the metrics
     n_clusters_calculated, n_skipped = 0, 0
     for line in lines_to_use:
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
@@ -728,9 +729,9 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         lbi_info = calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug)
         line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
         n_clusters_calculated += 1
-
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
 
+    # and finally plot the metrics
     if reco_info is not None:
         assert base_plotdir is not None
         plotdir = base_plotdir + '/tree-metrics'
@@ -742,5 +743,6 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
             true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lbi' : true_lbi_info}
         plotting.plot_true_lbi(plotdir, true_lines_to_use)
-        plotting.plot_lonr(plotdir, lines_to_use, reco_info)
+        plotting.plot_per_mutation_lonr(plotdir, lines_to_use, reco_info)
+        plotting.plot_aggregate_lonr(plotdir, lines_to_use, reco_info)
         plotting.make_html(plotdir)

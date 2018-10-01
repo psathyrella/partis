@@ -1275,7 +1275,13 @@ def plot_aggregate_lonr(plotdir, lines_to_use, reco_info, debug=False):
                 plotvals['S'].append(lfo['lonr'])
             else:
                 plotvals['NS'].append(lfo['lonr'])
-    ax.plot(plotvals['S'], label='S', linewidth=3, alpha=0.7)
-    ax.plot(plotvals['NS'], label='NS', linewidth=3, alpha=0.7)
+    # ax.plot(plotvals['S'], label='S', linewidth=3, alpha=0.7)
+    # ax.plot(plotvals['NS'], label='NS', linewidth=3, alpha=0.7)
+    xmin, xmax = [mfcn([x for mtlist in plotvals.values() for x in mtlist]) for mfcn in (min, max)]
+    hists = {mt : Hist(30, xmin, xmax, value_list=plotvals[mt], title=mt, xtitle='LONR', ytitle='mutations') for mt in plotvals}
     plotname = 'lonr-ns-vs-s'
-    mpl_finish(ax, plotdir, plotname, xlabel='LONR', ylabel='mutations') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+    draw_no_root(hists['S'], more_hists=[hists['NS']], plotname=plotname, plotdir=plotdir, alphas=[0.7, 0.7], plottitle='-', errors=True, remove_empty_bins=True)
+    # for mt, hist in hists.items():
+    #     hist.mpl_plot(ax, label=mt, remove_empty_bins=True)
+    # mpl_finish(ax, plotdir, plotname, xlabel='LONR', ylabel='mutations') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
