@@ -6,7 +6,7 @@ from utils import is_normed
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, xtitle='', ytitle='', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, value_list=None, weight_list=None, xtitle='', ytitle='', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
         self.low_edges, self.bin_contents, self.bin_labels = [], [], []
         self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
@@ -14,6 +14,9 @@ class Hist(object):
             self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
         else:
             self.file_init(fname)
+
+        if value_list is not None:
+            self.list_fill(value_list, weight_list=weight_list)
 
     # ----------------------------------------------------------------------------------------
     def scratch_init(self, n_bins, xmin, xmax, sumw2=False, xbins=None):
@@ -120,6 +123,15 @@ class Hist(object):
     def fill(self, value, weight=1.0):
         """ fill bin corresponding to <value> with <weight> """
         self.fill_ibin(self.find_bin(value), weight)
+
+    # ----------------------------------------------------------------------------------------
+    def list_fill(self, value_list, weight_list=None):
+        if weight_list is None:
+            for value in value_list:
+                self.fill(value)
+        else:
+            for value, weight in zip(value_list, weight_list):
+                self.fill(value, weight=weight)
 
     # ----------------------------------------------------------------------------------------
     def get_maximum(self, xbounds=None):
