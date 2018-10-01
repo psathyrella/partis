@@ -1135,7 +1135,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     mpl_finish(ax, plotdir, plotname, title=title, xticks=xvals, xticklabels=xticklabels, xlabel=xlabel, ylabel='generation', leg_loc=(0.7, 0.45), xbounds=(xmin, xmax)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_simulation(plotdir, event):
+def plot_bcr_phylo_kd_vals(plotdir, event):
     def get_min_target_hdists(mature_seqs, target_seqs):
         from Bio.Seq import Seq
         aa_targets = [Seq(seq).translate() for seq in target_seqs]
@@ -1178,6 +1178,14 @@ def plot_bcr_phylo_simulation(plotdir, event):
 
     plotname = 'kd-change-vs-shm'
     mpl_finish(ax, plotdir, plotname, xlabel='parent-child kd change', ylabel='N mutations along branch') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+# ----------------------------------------------------------------------------------------
+def plot_bcr_phylo_simulation(outdir, event, extrastr):
+    plot_bcr_phylo_kd_vals(outdir + '/plots', event)
+    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='AA distance to nearest target sequence')
+    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells', xlabel='AA distance to nearest target sequence')
+    plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
+    make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
 def plot_inferred_lbi(plotdir, lines_to_use, reco_info):

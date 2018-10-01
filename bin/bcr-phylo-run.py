@@ -149,12 +149,8 @@ def simulate():
 
     import plotting
     for outdir, event in zip(outdirs, mutated_events):
-        plotting.plot_bcr_phylo_simulation(outdir + '/plots', event)
-        plotting.plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='AA distance to nearest target sequence')
-        plotting.plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells', xlabel='AA distance to nearest target sequence')
-        plotting.plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, args.extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
+        plotting.plot_bcr_phylo_simulation(outdir, event, args.extrastr)
     # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
-    plotting.make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
 def partition():
