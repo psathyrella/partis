@@ -2341,6 +2341,8 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return
         return outstr, errstr
     else:
         for oestr in (outstr, errstr):
+            if oestr.strip() == '':
+                continue
             print pad_lines(oestr)
 
 # ----------------------------------------------------------------------------------------
