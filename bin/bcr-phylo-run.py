@@ -123,6 +123,14 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
     # get target sequences
     target_seqfos = utils.read_fastx('%s/%s_targets.fa' % (outdir, args.extrastr))
     final_line['target_seqs'] = [tfo['seq'] for tfo in target_seqfos]
+    from Bio.Seq import Seq
+    final_line['nearest_target_indices'] = []
+    aa_targets = [Seq(seq).translate() for seq in final_line['target_seqs']]
+    for mseq in final_line['input_seqs']:
+        aa_mseq = Seq(mseq).translate()
+        aa_hdists = [utils.hamming_distance(aa_t, aa_mseq, amino_acid=True) for aa_t in aa_targets]
+        imin = aa_hdists.index(min(aa_hdists))  # NOTE doesn't do anything differently if there's more than one min
+        final_line['nearest_target_indices'].append(imin)
 
     return final_line
 

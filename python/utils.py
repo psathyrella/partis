@@ -280,13 +280,13 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'affinities'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'affinities', 'nearest_target_indices'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors', 'tree-info'] + [r + '_per_gene_support' for r in regions]
 linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']  # TODO move 'duplicates' to 'per_seq'
-linekeys['simu'] = ['reco_id', 'affinities', 'tree', 'target_seqs']
+linekeys['simu'] = ['reco_id', 'affinities', 'tree', 'target_seqs', 'nearest_target_indices']
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()

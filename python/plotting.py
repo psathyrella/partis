@@ -1136,20 +1136,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_kd_vals(plotdir, event):
-    def get_min_target_hdists(mature_seqs, target_seqs):
-        from Bio.Seq import Seq
-        aa_targets = [Seq(seq).translate() for seq in target_seqs]
-        aa_mature_seqs = [Seq(mseq).translate() for mseq in mature_seqs]
-        return [min([utils.hamming_distance(at, amseq, amino_acid=True) for at in aa_targets]) for amseq in aa_mature_seqs]
-
     fig, ax = mpl_init()
-
-    # affinity vs stuff:
-    # xvals = [1. / af for line in mutated_events for af in line['affinities']]
-    # yvals = [nm for line in mutated_events for nm in line['n_mutations']]
-    # min distance to target:
-    # yvals = [hd for line in mutated_events for hd in get_min_target_hdists(line['input_seqs'], line['target_seqs'])]  # TODO way too complicated
-    # ax.scatter(xvals, yvals, alpha=0.65)
 
     n_muts, kd_changes = [], []
     dtree = treeutils.get_dendro_tree(treestr=event['tree'])
@@ -1180,8 +1167,29 @@ def plot_bcr_phylo_kd_vals(plotdir, event):
     mpl_finish(ax, plotdir, plotname, xlabel='parent-child kd change', ylabel='N mutations along branch') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
+def plot_bcr_phylo_target_attraction(plotdir, event):  # plots of which sequences are going toward which targets
+    from Bio.Seq import Seq
+
+    fig, ax = mpl_init()
+
+    # affinity vs stuff:
+    # xvals = [1. / af for line in mutated_events for af in line['affinities']]
+    # yvals = [nm for line in mutated_events for nm in line['n_mutations']]
+
+    # # min distance to target:
+    # yvals = [hd for line in mutated_events for hd in get_min_target_hdists(line['input_seqs'], line['target_seqs'])]
+    # ax.scatter(xvals, yvals, alpha=0.65)
+
+    hist = Hist(len(event['target_seqs']), -0.5, len(event['target_seqs']) - 0.5, value_list=event['nearest_target_indices'])
+    hist.mpl_plot(ax, alpha=0.7, ignore_overflows=True)
+
+    plotname = 'nearest-target-identities'
+    mpl_finish(ax, plotdir, plotname, xlabel='index (identity) of nearest target sequence', ylabel='counts') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+# ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_simulation(outdir, event, extrastr):
     plot_bcr_phylo_kd_vals(outdir + '/plots', event)
+    plot_bcr_phylo_target_attraction(outdir + '/plots', event)
     plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='AA distance to nearest target sequence')
     plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells', xlabel='AA distance to nearest target sequence')
     plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')

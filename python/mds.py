@@ -107,7 +107,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
     import matplotlib
     from matplotlib import pyplot as plt
     # plt.rcParams['axes.facecolor'] = '#f1efef'
-    colors = ['blue', 'forestgreen', 'red', 'grey', 'orange', 'green', 'skyblue4', 'maroon', 'salmon', 'chocolate4', 'magenta']
+    colors = ['blue', 'forestgreen', 'red', 'grey', 'orange', 'green', 'skyblue', 'maroon', 'salmon', 'chocolate', 'magenta']
     single_color = '#4b92e7'
     def plot_component_pair(ipair, svgfname, color_map):
         fig = plt.figure(1)
@@ -166,7 +166,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
 # ----------------------------------------------------------------------------------------
 def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, aligned=False, reco_info=None, region=None,
                             max_runs=100, max_iterations=1000, method='euclidean',
-                            plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, title=None, debug=False):
+                            plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, labels=None, title=None, debug=False):
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
     mdsfname = workdir + '/components.txt'
@@ -228,7 +228,7 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
     plotstart = time.time()
     if plotdir is not None:
         # utils.prep_dir(plotdir, wildlings=['*.svg'])
-        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)
+        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
         if reco_info is not None:
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
             plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)

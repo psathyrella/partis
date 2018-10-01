@@ -361,7 +361,7 @@ class PartitionDriver(object):
 
         if self.current_action == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info)
 
         if cpath is not None and self.args.calculate_tree_metrics:
             treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # NOTE modifies <annotations> (by adding 'tree-info') (but these modifications don't get written to the existing file, i.e. this is really just for debugging)
@@ -400,7 +400,7 @@ class PartitionDriver(object):
 
         if self.args.plotdir is not None:
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=best_cluster_annotations)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=best_cluster_annotations, reco_info=self.reco_info)
 
         if self.args.debug:
             print 'final'
