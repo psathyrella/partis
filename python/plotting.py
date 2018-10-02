@@ -1284,7 +1284,9 @@ def plot_aggregate_lonr(plotdir, lines_to_use, reco_info, debug=False):
     hists = {mt : Hist(30, xmin, xmax, value_list=plotvals[mt], title=mt, xtitle='LONR', ytitle='mutations') for mt in plotvals}
     plotname = 'lonr-ns-vs-s'
 
-    draw_no_root(hists['S'], more_hists=[hists['NS']], plotname=plotname, plotdir=plotdir, alphas=[0.7, 0.7], plottitle='-', errors=True, remove_empty_bins=True)
+    lonr_score = hists['NS'].get_mean() - hists['S'].get_mean()
+    draw_no_root(hists['NS'], more_hists=[hists['S']], plotname=plotname, plotdir=plotdir, alphas=[0.7, 0.7], plottitle='NS - S: %.2f' % lonr_score, errors=True, remove_empty_bins=True)
+
     # for mt, hist in hists.items():
     #     hist.mpl_plot(ax, label=mt, remove_empty_bins=True)
     # mpl_finish(ax, plotdir, plotname, xlabel='LONR', ylabel='mutations') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
