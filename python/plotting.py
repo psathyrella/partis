@@ -32,6 +32,15 @@ plot_ratios = {
 }
 
 # ----------------------------------------------------------------------------------------
+def get_normalized_cmap_and_norm(vals, cmap=None):
+    if cmap is None:
+        cmap = plt.cm.Blues
+    sorted_vals = sorted(vals)
+    vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=sorted_vals[-1])
+    return cmap, norm
+
+# ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
     """ NOTE <values> should be sorted """
     assert len(values) > 0
@@ -1239,12 +1248,13 @@ def plot_true_lbi(plotdir, true_lines):
             plotvals[node_type]['affinity'].append(affinity + jitter[node_type])
             plotvals[node_type]['lbi'].append(lbi)
     node_type = 'internal'
-    ax.hexbin(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], gridsize=15, cmap=plt.cm.Blues, label=node_type) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    # cmap, norm = get_normalized_cmap_and_norm()
+    ax.hexbin(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], gridsize=30, cmap=plt.cm.Blues, label=node_type) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
     node_type = 'leaf'
     ax.scatter(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], c=node_type_colors[node_type], label=node_type, marker=node_type_markers[node_type], alpha=alphas[node_type]) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
 
     plotname = 'lbi-true-tree'
-    mpl_finish(ax, plotdir, plotname, title='lbi on true tree', xlabel='affinity', ylabel='local branching index', leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, plotdir, plotname, title='lbi on true tree', xlabel='affinity', ylabel='local branching index') #, leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
 def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info, debug=False):

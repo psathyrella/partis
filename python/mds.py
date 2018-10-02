@@ -12,6 +12,7 @@ import itertools
 import subprocess
 
 import utils
+import plotting
 
 # ----------------------------------------------------------------------------------------
 def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
@@ -153,10 +154,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
             raise Exception('more clusters/labels %d than colors %d' % (len(partition), len(colors)))
         color_map = {uid : colors[iclust] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
     elif color_scale_vals is not None:  # map with a number for each sequence (e.g. number of mutations) that we use to make a new color scale
-        cmap = plt.cm.Blues
-        sorted_vals = sorted([v for k, v in color_scale_vals.items() if k != '_naive'])
-        vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white
-        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=sorted_vals[-1])
+        cmap, norm = plotting.get_normalized_cmap_and_norm([v for k, v in color_scale_vals.items() if k != '_naive'])
         color_map = {uid : cmap(norm(color_scale_vals[uid])) for uid in pcvals}
 
     for ipair in range(0, n_components - 1, 2):
