@@ -8,7 +8,9 @@ mpl.rcParams['svg.fonttype'] = 'none'
 import matplotlib.pyplot as plt
 
 import math
+import random
 from scipy.interpolate import interp1d
+from scipy import stats
 import os
 import glob
 import sys
@@ -1232,29 +1234,41 @@ def plot_inferred_lbi(plotdir, lines_to_use, reco_info):
 def plot_true_lbi(plotdir, true_lines):
     fig, ax = mpl_init()
 
-    node_types = ['internal', 'leaf']
-    node_type_colors = {'internal' : default_colors[0], 'leaf' : default_colors[1]}
-    node_type_markers = {'internal' : 'o', 'leaf' : '.'}
-    alphas = {'internal' : 0.5, 'leaf' : 0.7}
-    jitter = {'internal' : -0.0001, 'leaf' : 0.0001}
-
-    plotvals = {node_type : {val_type : [] for val_type in ['lbi', 'affinity']} for node_type in node_types}
+    plotvals = {val_type : [] for val_type in ['lbi', 'affinity']}
     for line in true_lines:
         for uid, affinity in zip(line['unique_ids'], line['affinities']):
             lbi = line['tree-info']['lbi']['values'][uid]
-            node_type = treeutils.get_node_type_from_name(uid)
-            if node_type is None:  # probably just the root
-                continue
-            plotvals[node_type]['affinity'].append(affinity + jitter[node_type])
-            plotvals[node_type]['lbi'].append(lbi)
-    node_type = 'internal'
+            plotvals['affinity'].append(affinity)
+            plotvals['lbi'].append(lbi)
     # cmap, norm = get_normalized_cmap_and_norm()
-    ax.hexbin(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], gridsize=30, cmap=plt.cm.Blues, label=node_type) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
-    node_type = 'leaf'
-    ax.scatter(plotvals[node_type]['affinity'], plotvals[node_type]['lbi'], c=node_type_colors[node_type], label=node_type, marker=node_type_markers[node_type], alpha=alphas[node_type]) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+    ax.hexbin(plotvals['affinity'], plotvals['lbi'], gridsize=15, cmap=plt.cm.Blues)
 
-    plotname = 'lbi-true-tree'
-    mpl_finish(ax, plotdir, plotname, title='lbi on true tree', xlabel='affinity', ylabel='local branching index') #, leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    plotname = 'lbi-true-tree-hexbin'
+    mpl_finish(ax, plotdir, plotname, title='LBI (true tree)', xlabel='affinity', ylabel='local branching index') #, leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+    print '    ptile   lbi     mean affy    mean affy ptile'
+    ptile_vals = {'lbi_ptiles' : [], 'mean_affy_ptiles' : [], 'reshuffled_vals' : []}
+    for percentile in numpy.arange(5, 100, 5):
+        lbi_ptile_val = numpy.percentile(plotvals['lbi'], percentile)  # lbi value corresponding to <percentile>
+        corresponding_affinities = [affy for lbi, affy in zip(plotvals['lbi'], plotvals['affinity']) if lbi > lbi_ptile_val]  # affinities corresponding to lbi greater than <lbi_ptile_val> (i.e. the affinities that you'd get if you took all the lbi values greater than that)
+        corr_affy_ptiles = [stats.percentileofscore(plotvals['affinity'], caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # TODO this is probably really slow
+        print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lbi_ptile_val, numpy.mean(corresponding_affinities), numpy.mean(corr_affy_ptiles))
+        ptile_vals['lbi_ptiles'].append(percentile)
+        ptile_vals['mean_affy_ptiles'].append(numpy.mean(corr_affy_ptiles))
+
+        # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... but it wiggles around satisfyingly. Maybe switch to an actual horizontal line -- implemented but commented below)
+        shuffled_lbi_vals = copy.deepcopy(plotvals['lbi'])
+        random.shuffle(shuffled_lbi_vals)
+        NON_corresponding_affinities = [affy for lbi, affy in zip(shuffled_lbi_vals, plotvals['affinity']) if lbi > lbi_ptile_val]
+        NON_corr_affy_ptiles = [stats.percentileofscore(plotvals['affinity'], caffy) for caffy in NON_corresponding_affinities]
+        ptile_vals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
+
+    fig, ax = mpl_init()
+    ax.plot(ptile_vals['lbi_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
+    ax.plot(ptile_vals['lbi_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
+    # ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
+    plotname = 'lbi-true-tree-ptiles'
+    mpl_finish(ax, plotdir, plotname, title='potential LBI thresholds (true tree)', xlabel='LBI threshold (percentile)', ylabel='mean percentile of resulting affinities') #, leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
 def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info, debug=False):
