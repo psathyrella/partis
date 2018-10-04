@@ -112,6 +112,49 @@ def get_n_leaves(tree):
     return len(tree.leaf_nodes())
 
 # ----------------------------------------------------------------------------------------
+def collapse_nodes(dtree, keep_name, remove_name, debug=False):  # collapse edge between <keep_name> and <remove_name>, leaving remaining node with name <keep_name>
+    # NOTE I wrote this to try to fix the phylip trees from lonr.r, but it ends up they're kind of unfixable... but this fcn may be useful in the future, I guess, and it works
+    if debug:
+        print '    collapsing %s and %s (the former will be the label for the surviving node)' % (keep_name, remove_name)
+        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+    keep_name_node, remove_name_node = [dtree.find_node_with_taxon_label(n) for n in (keep_name, remove_name)]  # nodes corresponding to {keep,remove}_name, not necessarily respectively the nodes we keep/remove
+    swapped = False
+    if keep_name_node in remove_name_node.child_nodes():
+        assert remove_name_node not in keep_name_node.child_nodes()
+        parent_node = remove_name_node
+        parent_node.taxon.label = keep_name  # have to rename it, since we always actually keep the parent
+        swapped = True
+        child_node = keep_name_node
+    elif remove_name_node in keep_name_node.child_nodes():
+        assert keep_name_node not in remove_name_node.child_nodes()
+        parent_node = keep_name_node
+        child_node = remove_name_node
+    else:
+        print '    node names %s and %s don\'t share an edge:' % (keep_name, remove_name)
+        print '        keep node children: %s' % ' '.join([n.taxon.label for n in keep_name_node.child_nodes()])
+        print '      remove node children: %s' % ' '.join([n.taxon.label for n in remove_name_node.child_nodes()])
+        raise Exception('see above')
+
+    if child_node.is_leaf():
+        dtree.prune_taxa([child_node.taxon])
+        if debug:
+            print '       pruned leaf node %s' % (('%s (renamed parent to %s)' % (remove_name, keep_name)) if swapped else remove_name)
+    else:
+        found = False
+        for edge in parent_node.child_edge_iter():
+            if edge.head_node is child_node:
+                edge.collapse()  # removes child node (in dendropy language: inserts all children of the head_node (child) of this edge as children of the edge's tail_node (parent)) Doesn't modify edge lengths by default (i.e. collapsed edge should have zero length).
+                found = True
+                break
+        assert found
+        if debug:
+            print '     collapsed edge between %s and %s' % (keep_name, remove_name)
+
+    if debug:
+        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+    assert dtree.find_node_with_taxon_label(remove_name) is None
+
+# ----------------------------------------------------------------------------------------
 def check_node_labels(dtree, debug=False):
     if debug:
         print 'checking node labels for:'
@@ -576,7 +619,11 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
     duplicate_groups = utils.group_seqs_by_value(nodefos.keys(), keyfunc=lambda q: nodefos[q]['seq'])
     duplicate_groups = [g for g in duplicate_groups if len(g) > 1]
     if len(duplicate_groups) > 0:
-        print '    collapsing %d groups of nodes with duplicate sequences: %s' % (len(duplicate_groups), ',  '.join([' '.join(g) for g in duplicate_groups]))
+        n_max = 15
+        dbg_str = ',  '.join([' '.join(g) for g in duplicate_groups[:n_max]])  # only print the first 15 of 'em, if there's more
+        if len(duplicate_groups) > n_max:
+            dbg_str += utils.color('blue', ' [...]')
+        print '    collapsing %d groups of nodes with duplicate sequences (probably just internal nodes that were renamed by lonr.r): %s' % (len(duplicate_groups), dbg_str)
     for dgroup in duplicate_groups:
         non_phylip_names = [n for n in dgroup if get_node_type_from_name(n) is not None]
         if len(non_phylip_names) == 0:  # and phylip internal node names are of form str(<integer>), so just choose the first alphabetically, because whatever
@@ -589,12 +636,13 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
 
         for rname in names_to_remove:  # only info in here a.t.m. is the sequence
             del nodefos[rname]
+            # NOTE not collapsing nodes in tree to match <nodefos> (see comment on next line)
+            # collapse_nodes(dtree, name_to_use, rname, allow_failure=True, debug=True)  # holy fuckballs this is not worth the effort (it doesn't really work because the tree is too screwed up) [just gave up and added the duplicate info to the return dict]
+
         for lfo in lonrfos:
             for key in ('parent', 'child'):
                 if lfo[key] in names_to_remove:
                     lfo[key] = name_to_use
-
-        # TODO also collapse nodes in the tree
 
     return {'tree' : dtree.as_string(schema='newick'), 'nodes' : nodefos, 'values' : lonrfos}
 
@@ -669,7 +717,7 @@ def calculate_lonr(input_seqfos=None, line=None, reco_info=None, phylip_treefile
         input_seqfos = [{'name' : line['unique_ids'][iseq], 'seq' : line['seqs'][iseq]} for iseq in range(len(line['unique_ids']))]
         input_seqfos.insert(0, {'name' : naive_seq_name, 'seq' : line['naive_seq']})
     if tree_method is None:
-        tree_method = 'dnapars' if len(input_seqfos) < 1000 else 'neighbor'
+        tree_method = 'dnapars' if len(input_seqfos) < 500 else 'neighbor'
 
     workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
     os.makedirs(workdir)
