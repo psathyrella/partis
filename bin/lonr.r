@@ -1,6 +1,13 @@
 # paper: http://dx.doi.org/10.1093/nar/gkv1198
 # docs from supplementary info:
 
+# issues
+#  - can't pass in your own tree -- have to let it run either phylip dnapars or phylip neighbor. Related things:
+#    - it assumes the internal nodes (that phylip adds) have phylip-convention names, i.e. str(some_integer), and if they're not, it breaks
+#    - if you pass it (i.e. if you observe) internal nodes, phylip shunts them to zero-lengh branches hanging off of newly-inferred internal nodes. So you then have to try to figure out which nodes/leaves you can collapse
+# notes
+#  - number of offspring for a node is set as the number of edges in the entire subtree below that node
+
 ## Computing LONR scores in lineage trees
 
 ## General
