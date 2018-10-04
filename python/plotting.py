@@ -1231,7 +1231,7 @@ def plot_inferred_lbi(plotdir, lines_to_use, reco_info):
     mpl_finish(ax, plotdir, plotname, xlabel='affinity', ylabel='local branching index') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_true_lbi(plotdir, true_lines):
+def plot_true_lbi(plotdir, true_lines, debug=False):
     fig, ax = mpl_init()
 
     plotvals = {val_type : [] for val_type in ['lbi', 'affinity']}
@@ -1246,15 +1246,17 @@ def plot_true_lbi(plotdir, true_lines):
     plotname = 'lbi-true-tree-hexbin'
     mpl_finish(ax, plotdir, plotname, title='LBI (true tree)', xlabel='affinity', ylabel='local branching index') #, leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
-    print '    ptile   lbi     mean affy    mean affy ptile'
+    if debug:
+        print '    ptile   lbi     mean affy    mean affy ptile'
     ptile_vals = {'lbi_ptiles' : [], 'mean_affy_ptiles' : [], 'reshuffled_vals' : []}
     for percentile in numpy.arange(5, 100, 5):
         lbi_ptile_val = numpy.percentile(plotvals['lbi'], percentile)  # lbi value corresponding to <percentile>
         corresponding_affinities = [affy for lbi, affy in zip(plotvals['lbi'], plotvals['affinity']) if lbi > lbi_ptile_val]  # affinities corresponding to lbi greater than <lbi_ptile_val> (i.e. the affinities that you'd get if you took all the lbi values greater than that)
         corr_affy_ptiles = [stats.percentileofscore(plotvals['affinity'], caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # TODO this is probably really slow
-        print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lbi_ptile_val, numpy.mean(corresponding_affinities), numpy.mean(corr_affy_ptiles))
         ptile_vals['lbi_ptiles'].append(percentile)
         ptile_vals['mean_affy_ptiles'].append(numpy.mean(corr_affy_ptiles))
+        if debug:
+            print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lbi_ptile_val, numpy.mean(corresponding_affinities), numpy.mean(corr_affy_ptiles))
 
         # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... but it wiggles around satisfyingly. Maybe switch to an actual horizontal line -- implemented but commented below)
         shuffled_lbi_vals = copy.deepcopy(plotvals['lbi'])
@@ -1266,12 +1268,13 @@ def plot_true_lbi(plotdir, true_lines):
     fig, ax = mpl_init()
     ax.plot(ptile_vals['lbi_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
     ax.plot(ptile_vals['lbi_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
-    # ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
+    # ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')  # or maybe just a straight line?
+    # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
     plotname = 'lbi-true-tree-ptiles'
     mpl_finish(ax, plotdir, plotname, title='potential LBI thresholds (true tree)', xlabel='LBI threshold (percentile)', ylabel='mean percentile of resulting affinities') #, leg_loc=(0.7, 0.6)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info, debug=False):
+def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info):
     fig, ax = mpl_init()
 
     plotvals = {'lonr' : [], 'affinity_change' : []}
@@ -1279,12 +1282,13 @@ def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info, debug=False):
         true_affinities = {uid : reco_info[uid]['affinities'][0] for uid in line['unique_ids']}
         nodefos = line['tree-info']['lonr']['nodes']
         for lfo in line['tree-info']['lonr']['values']:
-            if lfo['parent'] not in true_affinities:  # TODO fix this
+            if lfo['parent'] not in true_affinities:
                 print '    %s parent \'%s\' not in true affinities, skipping lonr values' % (utils.color('red', 'warning'), lfo['parent'])
                 continue
-            if lfo['child'] not in true_affinities:  # TODO fix this
+            if lfo['child'] not in true_affinities:
                 print '    %s child \'%s\' not in true affinities, skipping lonr values' % (utils.color('red', 'warning'), lfo['child'])
                 continue
+
             plotvals['lonr'].append(lfo['lonr'])
             plotvals['affinity_change'].append(true_affinities[lfo['child']] - true_affinities[lfo['parent']])
 
