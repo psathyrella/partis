@@ -418,7 +418,7 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):  # NOTE old 
             node.up_polarizer += child.up_polarizer
         bl = node.clock_length / tau
         node.up_polarizer *= numpy.exp(-bl)  # sum of child <up_polarizer>s weighted by an exponential decayed by the distance to <node>'s parent
-        if node.alive: node.up_polarizer += tau * (1 - numpy.exp(-bl))  # add the actual contribution (to <node>'s parent's lbi) of <node>: zero if the two are very close, increasing toward asymptote of <tau> for distances near 1/tau (i.e. <node>'s contribution depends on how long it was alive (?))
+        if node.alive: node.up_polarizer += tau * (1 - numpy.exp(-bl))  # add the actual contribution (to <node>'s parent's lbi) of <node>: zero if the two are very close, increasing toward asymptote of <tau> for distances near 1/tau (integral from 0 to l of decaying exponential)
 
     # traverse the tree in preorder (parents first) to calculate msg to children
     for node in dtree.preorder_internal_node_iter():
@@ -430,7 +430,7 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):  # NOTE old 
 
             bl =  child1.clock_length / tau
             child1.down_polarizer *= numpy.exp(-bl)  # and decay the previous sum by distance between <child1> and its parent (<node>)
-            if child1.alive: child1.down_polarizer += tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau>
+            if child1.alive: child1.down_polarizer += tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
 
     # go over all nodes and calculate the LBI (can be done in any order)
     max_LBI = 0.0
