@@ -392,38 +392,45 @@ def modify_bio_tree_for_lbi(btree, tau, transform, debug=False):
             print '    %20s  %8.3f' % (node.name, node.lbi)
 
 # ----------------------------------------------------------------------------------------
-def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
+def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):  # NOTE old biopython version is right up there ^
+    """
+    traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI.
+    tree     -- tree for whose nodes the LBI is being computed (was biopython, now dendropy)
+    """
+
     for node in dtree.postorder_node_iter():  # the flu is worrying about which nodes are alive when but a.t.m. we're not
         node.alive = True
 
-    # Calculate clock length.
-    for node in dtree.postorder_node_iter():  # postorder shouldn't matter, but I have to choose one or the other when I'm copying from the bio version
+    # calculate clock length (i.e. for each node, the distance to that node's parent)
+    for node in dtree.postorder_node_iter():  # postorder vs preorder shouldn't matter, but I have to choose one or the other when I'm copying from the biopython version
         if node.parent_node is None:  # root node
             node.clock_length = 0.
         for child in node.child_node_iter():
             child.clock_length = child.distance_from_root() - node.distance_from_root()
 
+    # node.lbi is the sum of <node>'s down_polarizer and its children's up_polarizers
+
     # traverse the tree in postorder (children first) to calculate msg to parents
     for node in dtree.postorder_node_iter():
-        node.down_polarizer = 0
-        node.up_polarizer = 0
+        node.down_polarizer = 0  # used for <node>'s lbi (this probabably shouldn't be initialized here, since it gets reset in the next loop [at least I think they all do])
+        node.up_polarizer = 0  # used for <node>'s parent's lbi (but not <node>'s lbi)
         for child in node.child_node_iter():
             node.up_polarizer += child.up_polarizer
-        bl =  node.clock_length / tau
-        node.up_polarizer *= numpy.exp(-bl)
-        if node.alive: node.up_polarizer += tau*(1-numpy.exp(-bl))
+        bl = node.clock_length / tau
+        node.up_polarizer *= numpy.exp(-bl)  # sum of child <up_polarizer>s weighted by an exponential decayed by the distance to <node>'s parent
+        if node.alive: node.up_polarizer += tau * (1 - numpy.exp(-bl))  # add the actual contribution (to <node>'s parent's lbi) of <node>: zero if the two are very close, increasing toward asymptote of <tau> for distances near 1/tau (i.e. <node>'s contribution depends on how long it was alive (?))
 
     # traverse the tree in preorder (parents first) to calculate msg to children
     for node in dtree.preorder_internal_node_iter():
-        for child1 in node.child_node_iter():
-            child1.down_polarizer = node.down_polarizer
-            for child2 in node.child_node_iter():
-                if child1!=child2:
-                    child1.down_polarizer += child2.up_polarizer
+        for child1 in node.child_node_iter():  # calculate down_polarizer for each of <node>'s children
+            child1.down_polarizer = node.down_polarizer  # first sum <node>'s down_polarizer...
+            for child2 in node.child_node_iter():  # and the *up* polarizers of any other children of <node>
+                if child1 != child2:
+                    child1.down_polarizer += child2.up_polarizer  # add the contribution of <child2> to its parent's (<node>'s) lbi (i.e. <child2>'s contribution to the lbi of its *siblings*)
 
             bl =  child1.clock_length / tau
-            child1.down_polarizer *= numpy.exp(-bl)
-            if child1.alive: child1.down_polarizer += tau*(1-numpy.exp(-bl))
+            child1.down_polarizer *= numpy.exp(-bl)  # and decay the previous sum by distance between <child1> and its parent (<node>)
+            if child1.alive: child1.down_polarizer += tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau>
 
     # go over all nodes and calculate the LBI (can be done in any order)
     max_LBI = 0.0
@@ -448,12 +455,6 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 def calculate_lbi(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, transform=lambda x:x, extra_str=None, debug=False):  # exactly one of <treestr> or <treefname> should be None
-    """
-    traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted
-    by distance, then adds them as LBI.
-    tree     -- biopython tree for whose node the LBI is being computed
-    """
-
     # reroot at naive sequence, and convert to bio tree
     dtree = get_dendro_tree(treestr=treestr, treefname=treefname)
     if naive_seq_name is not None:  # TODO not sure if I should do this or not
