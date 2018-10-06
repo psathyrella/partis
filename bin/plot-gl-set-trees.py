@@ -495,7 +495,7 @@ parser.add_argument('--title-color')
 parser.add_argument('--region', default='v')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--muscle-path', default='./packages/muscle/muscle3.8.31_i86linux64')
-parser.add_argument('--raxml-path', default='./packages/standard-RAxML/raxmlHPC-SSE3')
+parser.add_argument('--raxml-path', default='./packages/standard-RAxML/raxmlHPC-SSE3')  # laptop: '-AVX'
 parser.add_argument('--ref-label', help='label (in --glslabels) corresponding to simulation/truth')
 
 args = parser.parse_args()
