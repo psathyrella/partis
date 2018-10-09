@@ -337,62 +337,7 @@ def infer_tree_from_leaves(region, in_treestr, leafseqs, naive_seq, naive_seq_na
         print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
 # ----------------------------------------------------------------------------------------
-def modify_bio_tree_for_lbi(btree, tau, transform, debug=False):
-    for node in btree.find_clades(order="postorder"):  # the flu is worrying about which nodes are alive when but a.t.m. we're not
-        node.alive = True
-
-    depths = btree.depths()
-
-    # Calculate clock length.
-    btree.root.clock_length = 0.0
-    for node in btree.find_clades():
-        for child in node.clades:
-            child.clock_length = depths[child] - depths[node]
-
-    # traverse the tree in postorder (children first) to calculate msg to parents
-    for node in btree.find_clades(order="postorder"):
-        node.down_polarizer = 0
-        node.up_polarizer = 0
-        for child in node.clades:
-            node.up_polarizer += child.up_polarizer
-        bl =  node.clock_length / tau
-        node.up_polarizer *= numpy.exp(-bl)
-        if node.alive: node.up_polarizer += tau*(1-numpy.exp(-bl))
-
-    # traverse the tree in preorder (parents first) to calculate msg to children
-    for node in btree.get_nonterminals():
-        for child1 in node.clades:
-            child1.down_polarizer = node.down_polarizer
-            for child2 in node.clades:
-                if child1!=child2:
-                    child1.down_polarizer += child2.up_polarizer
-
-            bl =  child1.clock_length / tau
-            child1.down_polarizer *= numpy.exp(-bl)
-            if child1.alive: child1.down_polarizer += tau*(1-numpy.exp(-bl))
-
-    # go over all nodes and calculate the LBI (can be done in any order)
-    max_LBI = 0.0
-    for node in btree.find_clades(order="postorder"):
-        tmp_LBI = node.down_polarizer
-        for child in node.clades:
-            tmp_LBI += child.up_polarizer
-
-        node.lbi = transform(tmp_LBI)
-        if node.lbi > max_LBI:
-            max_LBI = node.lbi
-
-    # Normalize LBI to range [0, 1].
-    for node in btree.find_clades():
-        node.lbi /= max_LBI
-
-    if debug:
-        print '  bio lbi values:'
-        for node in btree.find_clades():
-            print '    %20s  %8.3f' % (node.name, node.lbi)
-
-# ----------------------------------------------------------------------------------------
-def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):  # NOTE old biopython version is right up there ^
+def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI.
     tree     -- tree for whose nodes the LBI is being computed (was biopython, now dendropy)
@@ -775,8 +720,9 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
             continue
+        lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)  # NOTE see issues/notes in bin/lonr.r
         line['tree-info'] = {
-            # 'lonr' : calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug),  # NOTE see issues/notes in bin/lonr.r
+            'lonr' : lonr_info,
             'lbi' : calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug),
         }
         n_clusters_calculated += 1
@@ -788,7 +734,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         plotdir = base_plotdir + '/tree-metrics'
         import plotting
 
-        # plotting.plot_inferred_lbi(plotdir, lines_to_use, reco_info)
+        plotting.plot_inferred_lbi(plotdir, lines_to_use)
 
         for true_line in true_lines_to_use:
             true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)
