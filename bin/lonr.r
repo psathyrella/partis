@@ -5,6 +5,10 @@
 #  - can't pass in your own tree -- have to let it run either phylip dnapars or phylip neighbor. Related things:
 #    - it assumes the internal nodes (that phylip adds) have phylip-convention names, i.e. str(some_integer), and if they're not, it breaks
 #    - if you pass it (i.e. if you observe) internal nodes, phylip shunts them to zero-lengh branches hanging off of newly-inferred internal nodes. So you then have to try to figure out which nodes/leaves you can collapse
+#  - it counts offspring all the way down the tree, i.e. ancestors get credit for fitness improvements in their offspring
+#    - this is "handled" by the "affected by descendents" flag, but that doesn't solve the problem, it just alerts you to lineages where there's more likely to be a problem
+#    - it would be much better to use an lbi-style weighting that decreases contributions as they get further away
+#  - ignores pairs of sibling edges in which both edges have mutations, i.e. it can throw out a large fraction of mutations in cases where most branches have mutations
 # notes
 #  - number of offspring for a node is set as the number of edges in the entire subtree below that node
 

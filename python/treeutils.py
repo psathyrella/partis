@@ -712,7 +712,8 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
         os.remove(existing_node_seqfname)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lonr(input_seqfos=None, line=None, reco_info=None, phylip_treefile=None, phylip_seqfile=None, tree_method=None, naive_seq_name='X-naive-X', seed=1, debug=False):
+def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip_treefile=None, phylip_seqfile=None, tree_method=None, naive_seq_name='X-naive-X', seed=1, debug=False):
+    # NOTE see issues/notes in bin/lonr.r
     assert input_seqfos is None or line is None
     if input_seqfos is None:
         input_seqfos = [{'name' : line['unique_ids'][iseq], 'seq' : line['seqs'][iseq]} for iseq in range(len(line['unique_ids']))]
@@ -774,9 +775,10 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
             continue
-        lonr_info = calculate_lonr(line=line, reco_info=reco_info, debug=debug)
-        lbi_info = calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug)
-        line['tree-info'] = {'lonr' : lonr_info, 'lbi' : lbi_info}
+        line['tree-info'] = {
+            # 'lonr' : calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug),  # NOTE see issues/notes in bin/lonr.r
+            'lbi' : calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug),
+        }
         n_clusters_calculated += 1
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
 
@@ -792,6 +794,6 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
             true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lbi' : true_lbi_info}
         plotting.plot_true_lbi(plotdir, true_lines_to_use)
-        plotting.plot_per_mutation_lonr(plotdir, lines_to_use, reco_info)
-        plotting.plot_aggregate_lonr(plotdir, lines_to_use, reco_info)
+        # plotting.plot_per_mutation_lonr(plotdir, lines_to_use, reco_info)
+        # plotting.plot_aggregate_lonr(plotdir, lines_to_use, reco_info)
         plotting.make_html(plotdir)
