@@ -347,13 +347,13 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
         node.alive = True
 
     # calculate clock length (i.e. for each node, the distance to that node's parent)
-    for node in dtree.postorder_node_iter():  # postorder vs preorder shouldn't matter, but I have to choose one or the other when I'm copying from the biopython version
+    for node in dtree.postorder_node_iter():  # postorder vs preorder doesn't matter, but I have to choose one
         if node.parent_node is None:  # root node
             node.clock_length = 0.
         for child in node.child_node_iter():
             child.clock_length = child.distance_from_root() - node.distance_from_root()
 
-    # node.lbi is the sum of <node>'s down_polarizer and its children's up_polarizers
+    # node.lbi is the sum of <node.down_polarizer> (downward message from <node>'s parent) and its children's up_polarizers (upward messages)
 
     # traverse the tree in postorder (children first) to calculate msg to parents
     for node in dtree.postorder_node_iter():
@@ -378,35 +378,40 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
             if child1.alive: child1.down_polarizer += tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
 
     # go over all nodes and calculate the LBI (can be done in any order)
-    max_LBI = 0.0
+    max_LBI = 0.
     for node in dtree.postorder_node_iter():
         tmp_LBI = node.down_polarizer
+        tmp_LBR = 0.
         for child in node.child_node_iter():
             tmp_LBI += child.up_polarizer
+            tmp_LBR += child.up_polarizer
+        if node.down_polarizer > 0.:
+            tmp_LBR /= node.down_polarizer  # it might make more sense to not include the branch between <node> and its parent in in either the numerator or denominator (here it's included in the denominator), but this way I don't have to change any of the calculations above
 
         node.lbi = transform(tmp_LBI)
+        node.lbr = transform(tmp_LBR)
         if node.lbi > max_LBI:
             max_LBI = node.lbi
 
-    # Normalize LBI to range [0, 1].
-    for node in dtree.postorder_node_iter():  # postorder shouldn't matter, but I have to choose one or the other when I'm copying from the bio version
+    # normalize to range [0, 1]
+    for node in dtree.postorder_node_iter():
         node.lbi /= max_LBI
 
     if debug:
-        print '       dendro lbi values:'
+        print '       node      lbi      lbr'
         for node in dtree.postorder_node_iter():  # postorder shouldn't matter, but I have to choose one or the other when I'm copying from the bio version
-            print '    %20s  %8.3f' % (node.taxon.label, node.lbi)
+            print '    %20s  %8.3f  %8.3f' % (node.taxon.label, node.lbi, node.lbr)
 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
-def calculate_lbi(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, transform=lambda x:x, extra_str=None, debug=False):  # exactly one of <treestr> or <treefname> should be None
+def calculate_lb_values(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, transform=lambda x:x, extra_str=None, debug=False):  # exactly one of <treestr> or <treefname> should be None
     # reroot at naive sequence, and convert to bio tree
     dtree = get_dendro_tree(treestr=treestr, treefname=treefname)
     if naive_seq_name is not None:  # TODO not sure if I should do this or not
         dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
 
     if debug:
-        print '  %s%s' % (utils.color('green', 'lbi'), '' if extra_str is None else ' for %s' % extra_str)
+        print '  %s%s' % (utils.color('green', 'lbi/lbr'), '' if extra_str is None else ' for %s' % extra_str)
         print '      starting with rerooted tree:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
@@ -417,7 +422,10 @@ def calculate_lbi(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, tr
     # modify_bio_tree_for_lbi(btree, tau, transform, debug=debug)
     modify_dendro_tree_for_lbi(dtree, tau, transform, debug=debug)
 
-    return {'tree' : dtree.as_string(schema='newick'), 'values' : {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()}}
+    return {'tree' : dtree.as_string(schema='newick'),
+            'lbi' : {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()},
+            'lbr' : {n.taxon.label : float(n.lbr) for n in dtree.postorder_node_iter()},
+    }
 
 # ----------------------------------------------------------------------------------------
 lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called
@@ -723,12 +731,12 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)  # NOTE see issues/notes in bin/lonr.r
         line['tree-info'] = {
             'lonr' : lonr_info,
-            'lbi' : calculate_lbi(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug),
+            'lb' : calculate_lb_values(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug),
         }
         n_clusters_calculated += 1
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
 
-    # and finally plot the metrics
+    # and finally plot the metrics (including calculating [some] true values)
     if reco_info is not None:
         assert base_plotdir is not None
         plotdir = base_plotdir + '/tree-metrics'
@@ -737,8 +745,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         plotting.plot_inferred_lbi(plotdir, lines_to_use)
 
         for true_line in true_lines_to_use:
-            true_lbi_info = calculate_lbi(treestr=true_line['tree'], extra_str='true tree', debug=debug)
-            true_line['tree-info'] = {'lbi' : true_lbi_info}
+            true_lb_info = calculate_lb_values(treestr=true_line['tree'], extra_str='true tree', debug=debug)
+            true_line['tree-info'] = {'lb' : true_lb_info}
         plotting.plot_true_lbi(plotdir, true_lines_to_use)
         # plotting.plot_per_mutation_lonr(plotdir, lines_to_use, reco_info)
         # plotting.plot_aggregate_lonr(plotdir, lines_to_use, reco_info)

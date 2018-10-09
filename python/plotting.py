@@ -1212,7 +1212,7 @@ def plot_inferred_lbi(plotdir, lines_to_use):
 
     plotvals = {'lbi' : [], 'shm' : []}
     for line in lines_to_use:
-        lbi_info = line['tree-info']['lbi']['values']
+        lbi_info = line['tree-info']['lb']['lbi']
         for iseq, uid in enumerate(line['unique_ids']):
             plotvals['lbi'].append(lbi_info[uid])
             plotvals['shm'].append(line['n_mutations'][iseq])
@@ -1230,7 +1230,7 @@ def plot_true_lbi(plotdir, true_lines, debug=False):
     for line in true_lines:
         for uid, affinity in zip(line['unique_ids'], line['affinities']):
             lbi_vs_affinity_vals['affinity'].append(affinity)
-            lbi_vs_affinity_vals['lbi'].append(line['tree-info']['lbi']['values'][uid])
+            lbi_vs_affinity_vals['lbi'].append(line['tree-info']['lb']['lbi'][uid])
     # cmap, norm = get_normalized_cmap_and_norm()
     ax.hexbin(lbi_vs_affinity_vals['affinity'], lbi_vs_affinity_vals['lbi'], gridsize=15, cmap=plt.cm.Blues)
     plotname = 'lbi-true-tree-hexbin'
@@ -1252,7 +1252,7 @@ def plot_true_lbi(plotdir, true_lines, debug=False):
             iparent = line['unique_ids'].index(parent_uid)
             parent_affinity = line['affinities'][iparent]
             delta_affinity_vals['delta-affinity'].append(affinity - parent_affinity)
-            delta_affinity_vals['lbi'].append(line['tree-info']['lbi']['values'][uid])
+            delta_affinity_vals['lbi'].append(line['tree-info']['lb']['lbi'][uid])
     ax.scatter(delta_affinity_vals['delta-affinity'], delta_affinity_vals['lbi'], alpha=0.4)
     sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
     xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
