@@ -1236,30 +1236,6 @@ def plot_true_lbi(plotdir, true_lines, debug=False):
     plotname = 'lbi-true-tree-hexbin'
     mpl_finish(ax, plotdir, plotname, title='LBI (true tree)', xlabel='affinity', ylabel='local branching index')
 
-    # then plot lbi vs *change* in affinity
-    fig, ax = mpl_init()
-    delta_affinity_vals = {val_type : [] for val_type in ['lbi', 'delta-affinity']}
-    for line in true_lines:
-        dtree = treeutils.get_dendro_tree(treestr=line['tree'])
-        for uid, affinity in zip(line['unique_ids'], line['affinities']):
-            node = dtree.find_node_with_taxon_label(uid)
-            if node is dtree.seed_node:
-                continue
-            parent_uid = node.parent_node.taxon.label
-            if parent_uid not in line['unique_ids']:
-                print '    %s parent %s of %s not in true line' % (utils.color('yellow', 'warning'), parent_uid, uid)
-                continue
-            iparent = line['unique_ids'].index(parent_uid)
-            parent_affinity = line['affinities'][iparent]
-            delta_affinity_vals['delta-affinity'].append(affinity - parent_affinity)
-            delta_affinity_vals['lbi'].append(line['tree-info']['lb']['lbi'][uid])
-    ax.scatter(delta_affinity_vals['delta-affinity'], delta_affinity_vals['lbi'], alpha=0.4)
-    sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
-    xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
-    # ax.hexbin(delta_affinity_vals['delta-affinity'], delta_affinity_vals['lbi'], gridsize=15, cmap=plt.cm.Blues)
-    plotname = 'lbi-vs-delta-affinity'
-    mpl_finish(ax, plotdir, plotname, title='Change in LBI (true tree)', xlabel='affinity change (from parent)', ylabel='local branching index', xbounds=(1.05 * xmin, 1.05 * xmax))  # factor on <xmin> is only right if xmin is negative, but it should always be
-
     if debug:
         print '    ptile   lbi     mean affy    mean affy ptile'
     ptile_vals = {'lbi_ptiles' : [], 'mean_affy_ptiles' : [], 'reshuffled_vals' : []}
@@ -1287,6 +1263,92 @@ def plot_true_lbi(plotdir, true_lines, debug=False):
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
     plotname = 'lbi-true-tree-ptiles'
     mpl_finish(ax, plotdir, plotname, title='potential LBI thresholds (true tree)', xlabel='LBI threshold (percentile)', ylabel='mean percentile of resulting affinities')
+
+# ----------------------------------------------------------------------------------------
+def plot_true_lb_change_plots(plotdir, true_lines, lb_metric, lb_label, debug=False):
+    # then plot lbi vs *change* in affinity
+    fig, ax = mpl_init()
+    delta_affinity_vals = {val_type : [] for val_type in [lb_metric, 'delta-affinity']}
+    for line in true_lines:
+        dtree = treeutils.get_dendro_tree(treestr=line['tree'])
+        for uid, affinity in zip(line['unique_ids'], line['affinities']):
+            node = dtree.find_node_with_taxon_label(uid)
+            if node is dtree.seed_node:
+                continue
+            parent_uid = node.parent_node.taxon.label
+            if parent_uid not in line['unique_ids']:
+                print '    %s parent %s of %s not in true line' % (utils.color('yellow', 'warning'), parent_uid, uid)
+                continue
+            iparent = line['unique_ids'].index(parent_uid)
+            parent_affinity = line['affinities'][iparent]
+            delta_affinity_vals['delta-affinity'].append(affinity - parent_affinity)
+            delta_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+    ax.scatter(delta_affinity_vals['delta-affinity'], delta_affinity_vals[lb_metric], alpha=0.4)
+    sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
+    xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
+    # ax.hexbin(delta_affinity_vals['delta-affinity'], delta_affinity_vals[lb_metric], gridsize=15, cmap=plt.cm.Blues)
+    plotname = '%s-vs-delta-affinity' % lb_metric
+    mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='affinity change (from parent)', ylabel=lb_label, xbounds=(1.05 * xmin, 1.05 * xmax))  # factor on <xmin> is only right if xmin is negative, but it should always be
+
+    # then plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree)
+    n_ancestor_vals = {val_type : [] for val_type in [lb_metric, 'n-ancestors']}
+    for line in true_lines:
+        dtree = treeutils.get_dendro_tree(treestr=line['tree'])
+        for this_uid, this_affinity in zip(line['unique_ids'], line['affinities']):
+            node = dtree.find_node_with_taxon_label(this_uid)
+            if node is dtree.seed_node:
+                continue
+
+            debug = False
+            if debug:
+                print '  %s with affinity %.5f' % (this_uid, this_affinity)
+            min_affinity_change = 1e-6  # just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd)
+            n_max_steps = 15
+            ancestor_node = node
+            ancestor_affinity = None
+            reached_root = False
+            n_steps = 0
+            while True:
+                ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
+                if ancestor_node is dtree.seed_node:
+                    if debug:
+                        print '      reached root'
+                    reached_root = True
+                    break
+                ancestor_uid = ancestor_node.taxon.label
+                if ancestor_uid not in line['unique_ids']:
+                    print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, this_uid)
+                    break
+                iancestor = line['unique_ids'].index(ancestor_uid)
+                if this_affinity - line['affinities'][iancestor] > min_affinity_change:  # if <this_affinity> is higher than this ancestor's affinity, we're done
+                    ancestor_affinity = line['affinities'][iancestor]
+                    break
+                if debug:
+                    print '     %18s %9.5f' % (ancestor_uid, line['affinities'][iancestor])
+                n_steps += 1
+                if n_steps >= n_max_steps:
+                    break
+            if ancestor_affinity is None:
+                if not reached_root:
+                    print '    couldn\'t find ancestor with lower affinity for %s within %d steps' % (this_uid, n_max_steps)
+                    continue
+                else:
+                    n_steps = n_max_steps
+            else:
+                if debug:
+                    print '     %18s %9.5f  %s%-9.5f' % (ancestor_uid, ancestor_affinity, utils.color('blue', '+'), this_affinity - ancestor_affinity)
+
+            n_ancestor_vals['n-ancestors'].append(n_steps)
+            n_ancestor_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][this_uid])
+
+    print '%s add check that all increases are with like 10 percent of each other' % utils.color('red', 'todo')
+    print '%s add root affinity' % utils.color('red', 'todo')
+    fig, ax = mpl_init()
+    ax.scatter(n_ancestor_vals['n-ancestors'], n_ancestor_vals[lb_metric], alpha=0.4)
+    # sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
+    # xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
+    plotname = '%s-vs-n-ancestors-since-affy-increase' % lb_metric
+    mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label) #, xbounds=(1.05 * xmin, 1.05 * xmax))
 
 # ----------------------------------------------------------------------------------------
 def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info):

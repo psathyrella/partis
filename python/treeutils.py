@@ -748,6 +748,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
             true_lb_info = calculate_lb_values(treestr=true_line['tree'], extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
         plotting.plot_true_lbi(plotdir, true_lines_to_use)
+        plotting.plot_true_lb_change_plots(plotdir, true_lines_to_use, 'lbr', 'local branching index')
         # plotting.plot_per_mutation_lonr(plotdir, lines_to_use, reco_info)
         # plotting.plot_aggregate_lonr(plotdir, lines_to_use, reco_info)
         plotting.make_html(plotdir)
