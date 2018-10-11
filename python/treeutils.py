@@ -739,16 +739,19 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
     # and finally plot the metrics (including calculating [some] true values)
     if reco_info is not None:
         assert base_plotdir is not None
-        plotdir = base_plotdir + '/tree-metrics'
+        plotdir = base_plotdir
         import plotting
 
-        plotting.plot_inferred_lbi(plotdir, lines_to_use)
+        plotting.plot_inferred_lbi(plotdir + '/inferred-tree-metrics', lines_to_use)
+        plotting.make_html(plotdir + '/inferred-tree-metrics')
 
+        true_plotdir = plotdir + '/true-tree-metrics'
         for true_line in true_lines_to_use:
             true_lb_info = calculate_lb_values(treestr=true_line['tree'], extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
-        plotting.plot_true_lbi(plotdir, true_lines_to_use)
-        plotting.plot_true_lb_change_plots(plotdir, true_lines_to_use, 'lbr', 'local branching index')
-        # plotting.plot_per_mutation_lonr(plotdir, lines_to_use, reco_info)
-        # plotting.plot_aggregate_lonr(plotdir, lines_to_use, reco_info)
-        plotting.make_html(plotdir)
+        for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
+            plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
+            plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
+        # plotting.plot_per_mutation_lonr(xxx plotdir + '/lonr', lines_to_use, reco_info)
+        # plotting.plot_aggregate_lonr(xxx plotdir + '/lonr', lines_to_use, reco_info)
+        plotting.make_html(true_plotdir, n_columns=4)

@@ -19,7 +19,9 @@ with open(args.pickle_tree_file, 'rb') as lfile:
 # print tree.sequence
 
 with open(args.newick_tree_file, 'w') as ntfile:
-    ntfile.write(tree.write(format=1))  # default format ignores internal node names (numbers listed here: http://etetoolkit.org/docs/latest/tutorial/tutorial_trees.html#reading-and-writing-newick-trees)
+    treestr = tree.write(format=1)  # default format ignores internal node names (numbers listed here: http://etetoolkit.org/docs/latest/tutorial/tutorial_trees.html#reading-and-writing-newick-trees)
+    treestr = treestr.replace(';', '%s;' % tree.name)  # add root node name by hand (none of the format integers seem to add the root node name)
+    ntfile.write(treestr)
 
 with open(args.kdfile, 'w') as kdfile:
     writer = csv.DictWriter(kdfile, ('uid', 'kd'))

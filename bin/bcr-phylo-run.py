@@ -77,7 +77,6 @@ def run_bcr_phylo(naive_line, outdir, ievent):
 # ----------------------------------------------------------------------------------------
 def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
     seqfos = utils.read_fastx('%s/%s.fasta' % (outdir, args.extrastr))  # output mutated sequences from bcr-phylo
-    seqfos = [sfo for sfo in seqfos if sfo['name'] != 'naive']  # don't have a kd value for the naive sequence, so may as well throw it out
 
     assert len(naive_line['unique_ids']) == 1  # enforces that we ran naive-only, 1-leaf partis simulation above
     assert not indelutils.has_indels(naive_line['indelfos'][0])  # would have to handle this below
@@ -105,8 +104,6 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
         with open('%s/kd-vals.csv' % outdir) as kdfile:
             reader = csv.DictReader(kdfile)
             for line in reader:
-                if line['uid'] == 'naive':
-                    continue
                 kdvals[line['uid']] = float(line['kd'])
         if len(set(kdvals) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
             print '        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(kdvals) - set(final_line['unique_ids']))

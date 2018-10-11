@@ -1167,7 +1167,7 @@ def plot_bcr_phylo_kd_vals(plotdir, event):
         hist.fill(val)
     hist.mpl_plot(ax, square_bins=True, errors=False)  #remove_empty_bins=True)
     plotname = 'kd-changes'
-    mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches', log='y') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
     # new_cmap = truncate_colormap(plt.cm.Blues, 0, 1)
     # ax.hexbin(kd_changes, shms, gridsize=25, cmap=plt.cm.Blues) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
@@ -1222,52 +1222,50 @@ def plot_inferred_lbi(plotdir, lines_to_use):
     mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel='local branching index')
 
 # ----------------------------------------------------------------------------------------
-def plot_true_lbi(plotdir, true_lines, debug=False):
+def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
 
-    # first plot lbi vs affinity hexbin
-    fig, ax = mpl_init()
-    lbi_vs_affinity_vals = {val_type : [] for val_type in ['lbi', 'affinity']}
+    # first plot lb metric vs affinity hexbin
+    lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}
     for line in true_lines:
         for uid, affinity in zip(line['unique_ids'], line['affinities']):
-            lbi_vs_affinity_vals['affinity'].append(affinity)
-            lbi_vs_affinity_vals['lbi'].append(line['tree-info']['lb']['lbi'][uid])
+            lb_vs_affinity_vals['affinity'].append(affinity)
+            lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+    fig, ax = mpl_init()
     # cmap, norm = get_normalized_cmap_and_norm()
-    ax.hexbin(lbi_vs_affinity_vals['affinity'], lbi_vs_affinity_vals['lbi'], gridsize=15, cmap=plt.cm.Blues)
-    plotname = 'lbi-true-tree-hexbin'
-    mpl_finish(ax, plotdir, plotname, title='LBI (true tree)', xlabel='affinity', ylabel='local branching index')
+    ax.hexbin(lb_vs_affinity_vals['affinity'], lb_vs_affinity_vals[lb_metric], gridsize=15, cmap=plt.cm.Blues)
+    plotname = '%s-true-tree-hexbin' % lb_metric
+    mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='affinity', ylabel=lb_label)
 
     if debug:
-        print '    ptile   lbi     mean affy    mean affy ptile'
-    ptile_vals = {'lbi_ptiles' : [], 'mean_affy_ptiles' : [], 'reshuffled_vals' : []}
+        print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
+    ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : [], 'reshuffled_vals' : []}
     for percentile in numpy.arange(5, 100, 5):
-        lbi_ptile_val = numpy.percentile(lbi_vs_affinity_vals['lbi'], percentile)  # lbi value corresponding to <percentile>
-        corresponding_affinities = [affy for lbi, affy in zip(lbi_vs_affinity_vals['lbi'], lbi_vs_affinity_vals['affinity']) if lbi > lbi_ptile_val]  # affinities corresponding to lbi greater than <lbi_ptile_val> (i.e. the affinities that you'd get if you took all the lbi values greater than that)
-        corr_affy_ptiles = [stats.percentileofscore(lbi_vs_affinity_vals['affinity'], caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # TODO this is probably really slow
-        ptile_vals['lbi_ptiles'].append(percentile)
+        lb_ptile_val = numpy.percentile(lb_vs_affinity_vals[lb_metric], percentile)  # lb value corresponding to <percentile>
+        corresponding_affinities = [affy for lb, affy in zip(lb_vs_affinity_vals[lb_metric], lb_vs_affinity_vals['affinity']) if lb > lb_ptile_val]  # affinities corresponding to lb greater than <lb_ptile_val> (i.e. the affinities that you'd get if you took all the lb values greater than that)
+        corr_affy_ptiles = [stats.percentileofscore(lb_vs_affinity_vals['affinity'], caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # TODO this is probably really slow
+        ptile_vals['lb_ptiles'].append(percentile)
         ptile_vals['mean_affy_ptiles'].append(numpy.mean(corr_affy_ptiles))
         if debug:
-            print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lbi_ptile_val, numpy.mean(corresponding_affinities), numpy.mean(corr_affy_ptiles))
+            print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), numpy.mean(corr_affy_ptiles))
 
         # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... but it wiggles around satisfyingly. Maybe switch to an actual horizontal line -- implemented but commented below)
-        shuffled_lbi_vals = copy.deepcopy(lbi_vs_affinity_vals['lbi'])
-        random.shuffle(shuffled_lbi_vals)
-        NON_corresponding_affinities = [affy for lbi, affy in zip(shuffled_lbi_vals, lbi_vs_affinity_vals['affinity']) if lbi > lbi_ptile_val]
-        NON_corr_affy_ptiles = [stats.percentileofscore(lbi_vs_affinity_vals['affinity'], caffy) for caffy in NON_corresponding_affinities]
+        shuffled_lb_vals = copy.deepcopy(lb_vs_affinity_vals[lb_metric])
+        random.shuffle(shuffled_lb_vals)
+        NON_corresponding_affinities = [affy for lb, affy in zip(shuffled_lb_vals, lb_vs_affinity_vals['affinity']) if lb > lb_ptile_val]
+        NON_corr_affy_ptiles = [stats.percentileofscore(lb_vs_affinity_vals['affinity'], caffy) for caffy in NON_corresponding_affinities]
         ptile_vals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
 
-    # then plot potential lbi cut thresholds with percentiles
+    # then plot potential lb cut thresholds with percentiles
     fig, ax = mpl_init()
-    ax.plot(ptile_vals['lbi_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
-    ax.plot(ptile_vals['lbi_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
+    ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
+    ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
     # ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')  # or maybe just a straight line?
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
-    plotname = 'lbi-true-tree-ptiles'
-    mpl_finish(ax, plotdir, plotname, title='potential LBI thresholds (true tree)', xlabel='LBI threshold (percentile)', ylabel='mean percentile of resulting affinities')
+    plotname = '%s-true-tree-ptiles' % lb_metric
+    mpl_finish(ax, plotdir, plotname, title='potential %s thresholds (true tree)' % lb_metric.upper(), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
 
 # ----------------------------------------------------------------------------------------
-def plot_true_lb_change_plots(plotdir, true_lines, lb_metric, lb_label, debug=False):
-    # then plot lbi vs *change* in affinity
-    fig, ax = mpl_init()
+def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
     delta_affinity_vals = {val_type : [] for val_type in [lb_metric, 'delta-affinity']}
     for line in true_lines:
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
@@ -1283,6 +1281,7 @@ def plot_true_lb_change_plots(plotdir, true_lines, lb_metric, lb_label, debug=Fa
             parent_affinity = line['affinities'][iparent]
             delta_affinity_vals['delta-affinity'].append(affinity - parent_affinity)
             delta_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+    fig, ax = mpl_init()
     ax.scatter(delta_affinity_vals['delta-affinity'], delta_affinity_vals[lb_metric], alpha=0.4)
     sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
     xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
@@ -1290,59 +1289,64 @@ def plot_true_lb_change_plots(plotdir, true_lines, lb_metric, lb_label, debug=Fa
     plotname = '%s-vs-delta-affinity' % lb_metric
     mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='affinity change (from parent)', ylabel=lb_label, xbounds=(1.05 * xmin, 1.05 * xmax))  # factor on <xmin> is only right if xmin is negative, but it should always be
 
+
     # then plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree)
+    if debug:
+        print '  finding N ancestors since last affinity increase'
+        print '         node        ancestors   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
     n_ancestor_vals = {val_type : [] for val_type in [lb_metric, 'n-ancestors']}
     for line in true_lines:
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
+        affinity_changes = []
         for this_uid, this_affinity in zip(line['unique_ids'], line['affinities']):
             node = dtree.find_node_with_taxon_label(this_uid)
             if node is dtree.seed_node:
                 continue
 
-            debug = False
             if debug:
-                print '  %s with affinity %.5f' % (this_uid, this_affinity)
-            min_affinity_change = 1e-6  # just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd)
+                print '     %12s %12s %9.4f' % (this_uid, '', this_affinity)
+            min_affinity_change = 1e-6  # just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd) (note that at least for now, the affinity changes should all be pretty similar, and not small)
             n_max_steps = 15
             ancestor_node = node
             ancestor_affinity = None
-            reached_root = False
             n_steps = 0
-            while True:
-                ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
+            while True:  # NOTE if we can't find an ancestor with worse affinity, we don't plot the node
                 if ancestor_node is dtree.seed_node:
-                    if debug:
-                        print '      reached root'
-                    reached_root = True
                     break
+                ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
                 ancestor_uid = ancestor_node.taxon.label
                 if ancestor_uid not in line['unique_ids']:
                     print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, this_uid)
                     break
                 iancestor = line['unique_ids'].index(ancestor_uid)
-                if this_affinity - line['affinities'][iancestor] > min_affinity_change:  # if <this_affinity> is higher than this ancestor's affinity, we're done
+                if this_affinity - line['affinities'][iancestor] > min_affinity_change:  # if we found an ancestor with lower affinity, we're done
                     ancestor_affinity = line['affinities'][iancestor]
+                    affinity_changes.append(this_affinity - line['affinities'][iancestor])
                     break
                 if debug:
-                    print '     %18s %9.5f' % (ancestor_uid, line['affinities'][iancestor])
+                    print '     %12s %12s %9.4f%s' % ('', ancestor_uid, line['affinities'][iancestor], utils.color('green', ' x') if ancestor_node is dtree.seed_node else '')
                 n_steps += 1
                 if n_steps >= n_max_steps:
                     break
             if ancestor_affinity is None:
-                if not reached_root:
-                    print '    couldn\'t find ancestor with lower affinity for %s within %d steps' % (this_uid, n_max_steps)
-                    continue
-                else:
-                    n_steps = n_max_steps
-            else:
-                if debug:
-                    print '     %18s %9.5f  %s%-9.5f' % (ancestor_uid, ancestor_affinity, utils.color('blue', '+'), this_affinity - ancestor_affinity)
+                # print '    couldn\'t find ancestor with lower affinity for %s within %d steps' % (this_uid, n_max_steps)
+                continue
+
+            if debug:
+                print '     %12s %12s %9.4f  %s%-9.4f' % ('', ancestor_uid, ancestor_affinity, utils.color('red', '+'), this_affinity - ancestor_affinity)
 
             n_ancestor_vals['n-ancestors'].append(n_steps)
             n_ancestor_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][this_uid])
+        # make sure affinity changes are all roughly the same size
+        affinity_changes = sorted(affinity_changes)
+        if debug:
+            print '    chosen affinity changes: %s' % ' '.join(['%.4f' % a for a in affinity_changes])
+        if len([a for a in affinity_changes if a < 0.]):
+            print '  %s negative affinity changes in %s' % (utils.color('red', 'error'), ' '.join(['%.4f' % a for a in affinity_changes]))
+        max_diff = affinity_changes[-1] - affinity_changes[0]
+        if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:
+            print'  %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('red', 'error'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
 
-    print '%s add check that all increases are with like 10 percent of each other' % utils.color('red', 'todo')
-    print '%s add root affinity' % utils.color('red', 'todo')
     fig, ax = mpl_init()
     ax.scatter(n_ancestor_vals['n-ancestors'], n_ancestor_vals[lb_metric], alpha=0.4)
     # sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
