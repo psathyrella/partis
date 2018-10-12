@@ -58,6 +58,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
         cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % args.carry_cap
         cmd += ' --observe_common_ancestors'
+        # cmd += ' --kd_fuzz_fraction 0.01'  # this makes the plots nicer, but also (of course, in retrospect) reduces the force of selection
     else:
         assert False
 
