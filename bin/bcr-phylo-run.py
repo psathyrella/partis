@@ -39,7 +39,7 @@ def rearrange():
 def run_bcr_phylo(naive_line, outdir, ievent):
     tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
     os.makedirs(tmpdir)
-    prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
+    prof_cmds = ''  # '-m cProfile -s tottime -o prof.out'
     cmd = 'export TMPDIR=%s && export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (tmpdir, ete_path, prof_cmds, bcr_phylo_path)
 
     if args.run_help:
@@ -58,13 +58,14 @@ def run_bcr_phylo(naive_line, outdir, ievent):
         cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % args.carry_cap
         cmd += ' --observe_common_ancestors'
-        # cmd += ' --kd_fuzz_fraction 0.01'  # this makes the plots nicer, but also (of course, in retrospect) reduces the force of selection
+
+        # cmd += ' --observe_based_on_affinity'  # implementation in bcr-phylo needs some work
+        # cmd += ' --kd_fuzz_fraction 0.03'  # this makes the plots nicer, but also (of course, in retrospect) reduces the force of selection
     else:
         assert False
 
 
     # cmd += ' --verbose'
-    # cmd += ' --observe_based_on_affinity'
     cmd += ' --no_context'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     cmd += ' --naive_seq %s' % naive_line['naive_seq']
