@@ -337,14 +337,14 @@ def infer_tree_from_leaves(region, in_treestr, leafseqs, naive_seq, naive_seq_na
         print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
 # ----------------------------------------------------------------------------------------
-def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
+# copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
+def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, debug=False):
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI.
     tree     -- tree for whose nodes the LBI is being computed (was biopython, now dendropy)
     """
-
-    for node in dtree.postorder_node_iter():  # the flu is worrying about which nodes are alive when but a.t.m. we're not
-        node.alive = True
+    def getmulti(node):  # number of reads with the same sequence
+        return node.multiplicity if use_multiplicities else 1
 
     # calculate clock length (i.e. for each node, the distance to that node's parent)
     for node in dtree.postorder_node_iter():  # postorder vs preorder doesn't matter, but I have to choose one
@@ -363,7 +363,7 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
             node.up_polarizer += child.up_polarizer
         bl = node.clock_length / tau
         node.up_polarizer *= numpy.exp(-bl)  # sum of child <up_polarizer>s weighted by an exponential decayed by the distance to <node>'s parent
-        if node.alive: node.up_polarizer += tau * (1 - numpy.exp(-bl))  # add the actual contribution (to <node>'s parent's lbi) of <node>: zero if the two are very close, increasing toward asymptote of <tau> for distances near 1/tau (integral from 0 to l of decaying exponential)
+        node.up_polarizer += getmulti(node) * tau * (1 - numpy.exp(-bl))  # add the actual contribution (to <node>'s parent's lbi) of <node>: zero if the two are very close, increasing toward asymptote of <tau> for distances near 1/tau (integral from 0 to l of decaying exponential)
 
     # traverse the tree in preorder (parents first) to calculate msg to children
     for node in dtree.preorder_internal_node_iter():
@@ -372,24 +372,20 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
             for child2 in node.child_node_iter():  # and the *up* polarizers of any other children of <node>
                 if child1 != child2:
                     child1.down_polarizer += child2.up_polarizer  # add the contribution of <child2> to its parent's (<node>'s) lbi (i.e. <child2>'s contribution to the lbi of its *siblings*)
-
             bl =  child1.clock_length / tau
             child1.down_polarizer *= numpy.exp(-bl)  # and decay the previous sum by distance between <child1> and its parent (<node>)
-            if child1.alive: child1.down_polarizer += tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
+            child1.down_polarizer += getmulti(node) * tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
 
     # go over all nodes and calculate the LBI (can be done in any order)
     max_LBI = 0.
     for node in dtree.postorder_node_iter():
-        tmp_LBI = node.down_polarizer
-        tmp_LBR = 0.
+        node.lbi = node.down_polarizer
+        node.lbr = 0.
         for child in node.child_node_iter():
-            tmp_LBI += child.up_polarizer
-            tmp_LBR += child.up_polarizer
+            node.lbi += child.up_polarizer
+            node.lbr += child.up_polarizer
         if node.down_polarizer > 0.:
-            tmp_LBR /= node.down_polarizer  # it might make more sense to not include the branch between <node> and its parent in in either the numerator or denominator (here it's included in the denominator), but this way I don't have to change any of the calculations above
-
-        node.lbi = transform(tmp_LBI)
-        node.lbr = transform(tmp_LBR)
+            node.lbr /= node.down_polarizer  # it might make more sense to not include the branch between <node> and its parent in in either the numerator or denominator (here it's included in the denominator), but this way I don't have to change any of the calculations above
         if node.lbi > max_LBI:
             max_LBI = node.lbi
 
@@ -398,29 +394,36 @@ def modify_dendro_tree_for_lbi(dtree, tau, transform, debug=False):
         node.lbi /= max_LBI
 
     if debug:
-        print '       node      lbi      lbr'
+        print '               node      lbi      lbr'
         for node in dtree.postorder_node_iter():  # postorder shouldn't matter, but I have to choose one or the other when I'm copying from the bio version
             print '    %20s  %8.3f  %8.3f' % (node.taxon.label, node.lbi, node.lbr)
 
 # ----------------------------------------------------------------------------------------
-# copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
-def calculate_lb_values(treestr=None, treefname=None, naive_seq_name=None, tau=0.4, transform=lambda x:x, extra_str=None, debug=False):  # exactly one of <treestr> or <treefname> should be None
-    # reroot at naive sequence, and convert to bio tree
+def calculate_lb_values(annotation, treestr=None, treefname=None, naive_seq_name=None, tau=0.4, extra_str=None, debug=False):  # exactly one of <treestr> or <treefname> should be None
     dtree = get_dendro_tree(treestr=treestr, treefname=treefname)
-    if naive_seq_name is not None:  # TODO not sure if I should do this or not
+    if naive_seq_name is not None:  # not really sure if there's a reason to do this
+        raise Exception('think about this before turning it on again')
         dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
+
+    n_missing = 0
+    for node in dtree.postorder_node_iter():
+        node.multiplicity = 1
+        if node.taxon.label not in annotation['unique_ids']:  # should only be happening because I'm still using the stupid lonr.r/dnapars trees with inferred intermediates with wonky names
+            n_missing += 1
+            continue
+        if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but either way if there's no duplicate info then assuming multiplicities of 1 is fine
+            continue
+        iseq = annotation['unique_ids'].index(node.taxon.label)
+        node.multiplicity = len(annotation['duplicates'][iseq]) + 1
+    if n_missing > 0:
+        print '  %s %d nodes in tree missing from annotation' % (utils.color('red', 'error'), n_missing)
 
     if debug:
         print '  %s%s' % (utils.color('green', 'lbi/lbr'), '' if extra_str is None else ' for %s' % extra_str)
         print '      starting with rerooted tree:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
-    # # dendropy makes up new 'id's for each otu when it makes nexml, and puts the existing node/taxon labels as 'label's in the <otu> in the nexml file. And the Bio ignores everything but the 'id', so in order to figure out which stupid node each number corresponds to I'd have to parse the nexml myself to get the translation
-    # # so... rewrote the lbi fcn for the dendro tree. Seems to get the exact same values.
-    # print dtree.as_string(schema='nexml')
-    # btree = get_bio_tree(treestr=dtree.as_string(schema='nexml'))
-    # modify_bio_tree_for_lbi(btree, tau, transform, debug=debug)
-    modify_dendro_tree_for_lbi(dtree, tau, transform, debug=debug)
+    modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=True, debug=debug)
 
     return {'tree' : dtree.as_string(schema='newick'),
             'lbi' : {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()},
@@ -731,7 +734,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)  # NOTE see issues/notes in bin/lonr.r
         line['tree-info'] = {
             'lonr' : lonr_info,
-            'lb' : calculate_lb_values(treestr=lonr_info['tree'], extra_str='inf tree', debug=debug),
+            'lb' : calculate_lb_values(line, treestr=lonr_info['tree'], extra_str='inf tree', debug=debug),
         }
         n_clusters_calculated += 1
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
@@ -747,7 +750,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
 
         true_plotdir = plotdir + '/true-tree-metrics'
         for true_line in true_lines_to_use:
-            true_lb_info = calculate_lb_values(treestr=true_line['tree'], extra_str='true tree', debug=debug)
+            true_lb_info = calculate_lb_values(true_line, treestr=true_line['tree'], extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
         for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
             plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)

@@ -59,7 +59,7 @@ if 'lbi' in args.metrics:
         print '  using lonr tree also for lbi'
     else:
         raise Exception('have to either set --treefile, or run lonr so we can get the tree from the lonr output')
-    output_info['lbi'] = treeutils.calculate_lbi(treestr=treestr, debug=args.debug)  # TODO hmmm naive_seq_name=args.naive_seq_name
+    output_info['lbi'] = treeutils.calculate_lbi(XXX treestr=treestr, debug=args.debug)  # TODO hmmm naive_seq_name=args.naive_seq_name
 
 if not os.path.exists(os.path.dirname(args.outfile)):
     os.makedirs(os.path.dirname(args.outfile))
