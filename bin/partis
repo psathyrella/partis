@@ -304,7 +304,6 @@ subconfig = {
     'annotate'         : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
     'partition'        : {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'},
     'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
-    # NOTE several places depend on 'view-' or 'plot-' being the start of any actions that view existing output (rather than running something new). Some (but not all) of these are handled by runs_on_existing_output()
     'view-output'      : {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'},
     'view-annotations' : {'func' : run_partitiondriver, 'help' : 'Print annotations from an existing annotation output csv.'},
     'view-partitions'  : {'func' : run_partitiondriver, 'help' : 'Print partitions from an existing partition output csv.'},
@@ -315,6 +314,8 @@ subconfig = {
 }
 
 def runs_on_existing_output(actionstr):
+    if actionstr == 'get-tree-metrics':
+        return True
     return actionstr.split('-')[0] in ['view', 'plot']
 
 subargs = {subname : [] for subname in subconfig}

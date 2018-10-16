@@ -166,8 +166,7 @@ def partition():
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
     cmd = './bin/partis partition --debug 0 --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --get-tree-metrics --infname %s --parameter-dir %s/params --plotdir %s --n-procs %d --outfname %s/partition.yaml --seed %d' % (simfname(args.stype), infdir(args.stype), infdir(args.stype) + '/plots', n_procs, infdir(args.stype), args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
-
-    # cmd = './bin/partis view-output --outfname %s/partition.yaml --get-tree-metrics' % infdir(args.stype)  # TODO not sure this works
+    # cmd = './bin/partis get-tree-metrics --outfname %s/partition.yaml' % infdir(args.stype)
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
