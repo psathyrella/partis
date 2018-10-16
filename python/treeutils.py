@@ -54,14 +54,22 @@ def get_treestr(treefname):
         return '\n'.join(treefile.readlines())
 
 # ----------------------------------------------------------------------------------------
-def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False, debug=False):  # specify either <treestr> or <treefname>
+def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False, suppress_internal_node_taxa=False, debug=False):  # specify either <treestr> or <treefname>
+    # <ignore_existing_internal_node_labels> is for when you want the internal nodes labeled (which we usually do, since we want to calculate selection metrics for internal nodes), but you also want to ignore the existing internal node labels (e.g. with FastTree output, where they're floats)
+    # <suppress_internal_node_taxa> on the other hand is for when you don't want to have taxa for any internal nodes (e.g. when calculating the tree difference metrics, the two trees have to have the same taxon namespace, but since they in general have different internal nodes, the internal nodes can't have taxa)
     assert treestr is None or treefname is None
+    if ignore_existing_internal_node_labels and suppress_internal_node_taxa:
+        raise Exception('doesn\'t make sense to specify both')
     if treestr is None:
         treestr = get_treestr(treefname)
-    # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just turn off internal node taxon suppression
-    dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=ignore_existing_internal_node_labels)
-    # check_node_labels(dtree, debug=debug)
-    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
+    if debug:
+        print ' getting dendro tree from string:\n     %s' % treestr
+        if taxon_namespace is not None:
+            print '   and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace])
+    # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
+    dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa))
+    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
+    # check_node_labels(dtree, debug=debug)  # makes sure that for all nodes, node.taxon is not None, and node.label *is* None (i.e. that label_nodes did what it was supposed to, as long as suppress_internal_node_taxa wasn't set)
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -169,39 +177,47 @@ def check_node_labels(dtree, debug=False):
 
 # ----------------------------------------------------------------------------------------
 # mostly adds labels to internal nodes, but also sometimes the root node
-def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, debug=False):
+def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, suppress_internal_node_taxa=False, debug=False):
+    if ignore_existing_internal_node_labels and suppress_internal_node_taxa:
+        raise Exception('doesn\'t make sense to specify both')
     if debug:
-        print ' labeling nodes:'
+        print '   labeling nodes'
         # print '    before:'
         # print utils.pad_lines(get_ascii_tree(dendro_tree))
     tns = dendro_tree.taxon_namespace
     initial_names = set([t.label for t in tns])  # should all be leaf nodes, except the naive sequence (at least for now)
+    if debug:
+        print '           initial taxon labels: %s' % ' '.join(sorted(initial_names))
     potential_names, used_names = None, None
     skipped_dbg, relabeled_dbg = [], []
     for node in dendro_tree.preorder_node_iter():
         if node.taxon is not None:
             skipped_dbg += ['%s' % node.taxon.label]
             assert node.label is None  # if you want to change this, you have to start setting the node labels in build_lonr_tree(). For now, I like having the label in _one_ freaking place
+            continue  # already properly labeled
+
+        current_label = node.label
+        node.label = None
+        if suppress_internal_node_taxa and not node.is_leaf():
             continue
 
-        if node.label is not None and not ignore_existing_internal_node_labels:  # NOTE results in duplicate labels, if that's what the fasta has
-            if tns.has_taxon_label(node.label):
-                raise Exception('duplicate node label \'%s\'' % node.label)
-            label = node.label
+        if current_label is None or ignore_existing_internal_node_labels:
+            new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names)
         else:
-            label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names)
-        node.label = None
+            if tns.has_taxon_label(current_label):
+                raise Exception('duplicate node label \'%s\'' % current_label)
+            new_label = current_label
 
-        if tns.has_taxon_label(label):  # not sure it really makes sense to check this in two places, but it's nice to see which way is failing I guess
-            raise Exception('failed labeling internal nodes (chose a name that was already in the tree)')
+        if tns.has_taxon_label(new_label):
+            raise Exception('failed labeling internal nodes (chose name \'%s\' that was already in the taxon namespace)' % new_label)
 
-        tns.add_taxon(dendropy.Taxon(label))
-        node.taxon = tns.get_taxon(label)
-        relabeled_dbg += ['%s' % label]
+        tns.add_taxon(dendropy.Taxon(new_label))
+        node.taxon = tns.get_taxon(new_label)
+        relabeled_dbg += ['%s' % new_label]
 
     if debug:
-        print '    skipped (already labeled): %s' % '  '.join(skipped_dbg)
-        print '                (re-)labeled: %s' % '  '.join(relabeled_dbg)
+        print '      skipped (already labeled): %s' % ' '.join(sorted(skipped_dbg))
+        print '                   (re-)labeled: %s' % ' '.join(sorted(relabeled_dbg))
         # print '   after:'
         # print utils.pad_lines(get_ascii_tree(dendro_tree))
 
@@ -308,33 +324,35 @@ def rescale_tree(treestr, new_height, debug=False):  # NOTE assumes newick for n
     return treestr
 
 # ----------------------------------------------------------------------------------------
-def infer_tree_from_leaves(region, in_treestr, leafseqs, naive_seq, naive_seq_name='XnaiveX', debug=False):  # baltic barfs on (some) dashes
+def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=False):
     taxon_namespace = dendropy.TaxonNamespace()  # in order to compare two trees with the metrics below, the trees have to have the same taxon namespace
-    with tempfile.NamedTemporaryFile() as tmpfile:
-        tmpfile.write('>%s\n%s\n' % (naive_seq_name, naive_seq))
-        for iseq in range(len(leafseqs)):
-            tmpfile.write('>t%s\n%s\n' % (iseq+1, leafseqs[iseq]))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
-        tmpfile.flush()  # BEWARE if you forget this you are fucked
-        with open(os.devnull, 'w') as fnull:
-            out_treestr = subprocess.check_output('./bin/FastTree -gtr -nt ' + tmpfile.name, shell=True, stderr=fnull)
-        out_dtree = get_dendro_tree(treestr=out_treestr, taxon_namespace=taxon_namespace, schema='newick')  # see note above
-        out_dtree.reroot_at_node(out_dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
-
-    in_dtree = get_dendro_tree(treestr=in_treestr, taxon_namespace=taxon_namespace, schema='newick')  # see note above
-    in_height = get_mean_leaf_height(in_dtree)
-    out_height = get_mean_leaf_height(out_dtree)
+    in_dtree = get_dendro_tree(treestr=in_treestr, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
+    out_dtree = infer_tree_from_leaves(leafseqs, naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
+    in_height = get_mean_leaf_height(tree=in_dtree)
+    out_height = get_mean_leaf_height(tree=out_dtree)
     base_width = 100
-    print '  %s trees:' % ('full sequence' if region == 'all' else region)
+    print '  %s: comparing chosen and bppseqgen output trees for' % (utils.color('green', 'full sequence' if region == 'all' else region))
     print '    %s' % utils.color('blue', 'input:')
     print get_ascii_tree(dendro_tree=in_dtree, extra_str='      ', width=base_width)
     print '    %s' % utils.color('blue', 'output:')
     print get_ascii_tree(dendro_tree=out_dtree, extra_str='        ', width=int(base_width*out_height/in_height))
+    print '                   heights: %.3f   %.3f' % (in_height, out_height)
+    print '      symmetric difference: %d' % dendropy.calculate.treecompare.symmetric_difference(in_dtree, out_dtree)
+    print '        euclidean distance: %f' % dendropy.calculate.treecompare.euclidean_distance(in_dtree, out_dtree)
+    print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
-    if debug:
-        print '                   heights: %.3f   %.3f' % (in_height, out_height)
-        print '      symmetric difference: %d' % dendropy.calculate.treecompare.symmetric_difference(in_dtree, out_dtree)
-        print '        euclidean distance: %f' % dendropy.calculate.treecompare.euclidean_distance(in_dtree, out_dtree)
-        print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
+# ----------------------------------------------------------------------------------------
+def infer_tree_from_leaves(leafseqs, naive_seq, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):  # baltic barfs on (some) dashes
+    with tempfile.NamedTemporaryFile() as tmpfile:
+        tmpfile.write('>%s\n%s\n' % (naive_seq_name, naive_seq))
+        for iseq in range(len(leafseqs)):
+            tmpfile.write('>t%d\n%s\n' % (iseq + 1, leafseqs[iseq]))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
+        tmpfile.flush()  # BEWARE if you forget this you are fucked
+        with open(os.devnull, 'w') as fnull:
+            treestr = subprocess.check_output('./bin/FastTree -gtr -nt ' + tmpfile.name, shell=True, stderr=fnull)
+    dtree = get_dendro_tree(treestr=treestr, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)
+    dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
+    return dtree
 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
@@ -670,6 +688,8 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
 # ----------------------------------------------------------------------------------------
 def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip_treefile=None, phylip_seqfile=None, tree_method=None, naive_seq_name='X-naive-X', seed=1, debug=False):
     # NOTE see issues/notes in bin/lonr.r
+    if phylip_treefile is not None or phylip_seqfile is not None:
+        raise Exception('never got this (passing phylip output files to lonr.r) to work -- lonr.r kept barfing, although if you were running exactly the same phylip commands as lonr.r does, it would probably work.')
     assert input_seqfos is None or line is None
     if input_seqfos is None:
         input_seqfos = [{'name' : line['unique_ids'][iseq], 'seq' : line['seqs'][iseq]} for iseq in range(len(line['unique_ids']))]

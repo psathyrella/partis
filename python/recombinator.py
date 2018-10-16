@@ -619,9 +619,9 @@ class Recombinator(object):
             if debug:
                 print '  %4s    %7.3f     %7.3f' % (rname, input_height, mean_observed[rname])
 
-        treeutils.infer_tree_from_leaves('all', chosen_tree, reco_event.final_seqs, reco_event.line['naive_seq'], debug=self.args.debug)
+        treeutils.get_tree_difference_metrics('all', chosen_tree, reco_event.final_seqs, reco_event.line['naive_seq'])
         # for region in utils.regions:  # sample size starts getting small for each region
-        #     treeutils.infer_tree_from_leaves(region, scaled_trees[region], mseqs[region], regional_naive_seqs[region], debug=self.args.debug)  # NOTE mseqs don't have codon reversion
+        #     treeutils.get_tree_difference_metrics(region, scaled_trees[region], mseqs[region], regional_naive_seqs[region])  # NOTE mseqs don't have codon reversion
 
     # ----------------------------------------------------------------------------------------
     def print_validation_values(self):
