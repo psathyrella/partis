@@ -4,10 +4,6 @@ import os
 import string
 import scipy
 import numpy
-from sklearn import manifold
-from sklearn.metrics import euclidean_distances
-# from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
 import itertools
 import subprocess
 
@@ -236,6 +232,10 @@ def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed
 
 # ----------------------------------------------------------------------------------------
 def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, region=None, aligned=False, n_init=4, max_iter=300, eps=1e-3, n_jobs=-1, plotdir=None):
+    print '%s not testing this after moving these imports down here' % utils.color('red', 'hey')
+    from sklearn import manifold  # these are both slow af to import, even on local ssd
+    from sklearn.cluster import KMeans
+
     if len(set(sfo['name'] for sfo in seqfos)) != len(seqfos):
         raise Exception('duplicate sequence ids in <seqfos>')
 

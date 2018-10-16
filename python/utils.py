@@ -393,14 +393,13 @@ def generate_dummy_v(d_gene):
 def choose_new_uid(potential_names, used_names, initial_length=1, shuffle=False):
     # NOTE only need to set <initial_length> for the first call -- after that if you're reusing the same <potential_names> and <used_names> there's no need (but it's ok to set it every time, as long as it has the same value)
     # NOTE setting <shuffle> will shuffle every time, i.e. it's designed such that you call with shuffle once before starting
+    def get_potential_names(length):
+        return [''.join(ab) for ab in itertools.combinations(string.ascii_lowercase, length)]
     if potential_names is None:  # first time through
-        potential_names = [l for l in string.ascii_lowercase]
+        potential_names = get_potential_names(initial_length)
         used_names = []
-        if initial_length > 1:  # this may be kind of a dumb way to do it, since it adds stuff to <used_names> that we didn't actually use
-            while len(used_names) == 0 or len(used_names[-1]) < initial_length:
-                _, potential_names, used_names = choose_new_uid(potential_names, used_names)
     if len(potential_names) == 0:  # ran out of names
-        potential_names += [''.join(ab) for ab in itertools.combinations(used_names, 2) if ''.join(ab) not in used_names]
+        potential_names = get_potential_names(len(used_names[-1]) + 1)
     if len(potential_names[0]) < initial_length:
         raise Exception('choose_new_uid(): next potential name \'%s\' is shorter than the specified <initial_length> %d (this is probably only possible if you called this several times with different <initial_length> values [which you shouldn\'t do])' % (potential_names[0], initial_length))
     if shuffle:

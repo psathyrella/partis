@@ -63,9 +63,9 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     if treestr is None:
         treestr = get_treestr(treefname)
     if debug:
-        print ' getting dendro tree from string:\n     %s' % treestr
+        print '   getting dendro tree from string:\n     %s' % treestr
         if taxon_namespace is not None:
-            print '   and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace])
+            print '     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace])
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa))
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
@@ -329,7 +329,8 @@ def rescale_tree(treestr, new_height, debug=False):  # NOTE assumes newick for n
 def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=False):
     taxon_namespace = dendropy.TaxonNamespace()  # in order to compare two trees with the metrics below, the trees have to have the same taxon namespace
     in_dtree = get_dendro_tree(treestr=in_treestr, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
-    out_dtree = get_fasttree_tree(leafseqs, naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
+    seqfos = [{'name' : 't%d' % (iseq + 1), 'seq' : seq} for iseq, seq in enumerate(leafseqs)]
+    out_dtree = get_fasttree_tree(seqfos, naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
     in_height = get_mean_leaf_height(tree=in_dtree)
     out_height = get_mean_leaf_height(tree=out_dtree)
     base_width = 100
@@ -344,18 +345,18 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=F
     print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
 # ----------------------------------------------------------------------------------------
-def get_fasttree_tree(leafseqs, naive_seq, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):  # baltic barfs on (some) dashes
+def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):  # baltic barfs on (some) dashes
     if debug:
-        print '  running FastTree on %d leaf sequences plus a naive' % len(leafseqs)
+        print '    running FastTree on %d sequences plus a naive' % len(seqfos)
     with tempfile.NamedTemporaryFile() as tmpfile:
         tmpfile.write('>%s\n%s\n' % (naive_seq_name, naive_seq))
-        for iseq in range(len(leafseqs)):
-            tmpfile.write('>t%d\n%s\n' % (iseq + 1, leafseqs[iseq]))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
+        for sfo in seqfos:
+            tmpfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
         tmpfile.flush()  # BEWARE if you forget this you are fucked
         with open(os.devnull, 'w') as fnull:
             treestr = subprocess.check_output('./bin/FastTree -gtr -nt ' + tmpfile.name, shell=True, stderr=fnull)
     if debug:
-        print '    converting FastTree newick string to dendro tree'
+        print '      converting FastTree newick string to dendro tree'
     dtree = get_dendro_tree(treestr=treestr, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)
     dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
     return dtree
@@ -418,36 +419,36 @@ def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, debug
         node.lbi /= max_LBI
 
     if debug:
-        print '               node      lbi      lbr'
+        print '               node          lbi        lbr'
         for node in dtree.postorder_node_iter():  # postorder shouldn't matter, but I have to choose one or the other when I'm copying from the bio version
             print '    %20s  %8.3f  %8.3f' % (node.taxon.label, node.lbi, node.lbr)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(annotation, dtree=None, treestr=None, naive_seq_name=None, tau=0.4, extra_str=None, debug=False):
-    if dtree is None:
-        dtree = get_dendro_tree(treestr=treestr)
+def calculate_lb_values(annotation, dtree, naive_seq_name=None, tau=0.4, extra_str=None, debug=False):
+    def set_multiplicities():
+        n_missing = 0
+        for node in dtree.postorder_node_iter():
+            node.multiplicity = 1
+            if node.taxon.label not in annotation['unique_ids']:  # could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
+                n_missing += 1
+                continue
+            if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but even if not, if there's no duplicate info then assuming multiplicities of 1 should be fine (maybe should add duplicate info to simulation? it wouldn't really make sense though, since we don't collapse duplicates in simulation info)
+                continue
+            iseq = annotation['unique_ids'].index(node.taxon.label)
+            node.multiplicity = len(annotation['duplicates'][iseq]) + 1
+        if n_missing > 0:
+            print '  %s %d nodes in tree missing from annotation' % (utils.color('yellow', 'note'), n_missing)
+
     if naive_seq_name is not None:  # not really sure if there's a reason to do this
         raise Exception('think about this before turning it on again')
         dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
 
-    n_missing = 0
-    for node in dtree.postorder_node_iter():
-        node.multiplicity = 1
-        if node.taxon.label not in annotation['unique_ids']:  # should only be happening because I'm still using the stupid lonr.r/dnapars trees with inferred intermediates with wonky names
-            n_missing += 1
-            continue
-        if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but either way if there's no duplicate info then assuming multiplicities of 1 is fine
-            continue
-        iseq = annotation['unique_ids'].index(node.taxon.label)
-        node.multiplicity = len(annotation['duplicates'][iseq]) + 1
-    if n_missing > 0:
-        print '  %s %d nodes in tree missing from annotation' % (utils.color('red', 'error'), n_missing)
-
     if debug:
-        print '  %s%s' % (utils.color('green', 'lbi/lbr'), '' if extra_str is None else ' for %s' % extra_str)
-        print '      starting with rerooted tree:'
+        print '   %s%s' % (utils.color('green', 'lbi/lbr'), '' if extra_str is None else ' for %s' % extra_str)
+        print '      calculating lb values with:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
+    set_multiplicities()
     modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=True, debug=debug)
 
     return {'tree' : dtree.as_string(schema='newick'),
@@ -719,7 +720,6 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-# interface for calculating tree metrics starting from standard <line> annotations (as opposed to bin/calculate_tree_metrics.py, which is more standalone, e.g. from cft)
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
@@ -754,18 +754,22 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
 
     # then calculate the metrics
     n_clusters_calculated, n_skipped = 0, 0
+    print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join([str(len(l['unique_ids'])) for l in lines_to_use]))
     for line in lines_to_use:
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
             continue
 
+        if debug:
+            print '  %d sequences' % len(line['unique_ids'])
         line['tree-info'] = {}
         if use_liberman_lonr_tree:
             lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)  # NOTE see issues/notes in bin/lonr.r
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
             line['tree-info']['lonr'] = lonr_info
         else:
-            dtree = get_fasttree_tree(line['seqs'], line['naive_seq'])
+            seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
+            dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
         line['tree-info']['lb'] = calculate_lb_values(line, dtree=dtree, extra_str='inf tree', debug=debug)
         n_clusters_calculated += 1
 
@@ -782,7 +786,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
 
         true_plotdir = plotdir + '/true-tree-metrics'
         for true_line in true_lines_to_use:
-            true_lb_info = calculate_lb_values(true_line, treestr=true_line['tree'], extra_str='true tree', debug=debug)
+            true_dtree = get_dendro_tree(treestr=true_line['tree'])
+            true_lb_info = calculate_lb_values(true_line, true_dtree, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
         for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
             plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
