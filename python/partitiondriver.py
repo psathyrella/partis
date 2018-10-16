@@ -95,13 +95,14 @@ class PartitionDriver(object):
             'view-annotations'            : self.read_existing_output,
             'view-partitions'             : self.read_existing_output,
             'plot-partitions'             : self.read_existing_output,
+            'get-tree-metrics'            : self.read_existing_output,
             'view-alternative-naive-seqs' : self.view_alternative_naive_seqs,
         }
 
     # ----------------------------------------------------------------------------------------
     def run(self, actions):
         for tmpaction in actions:
-            self.current_action = tmpaction  # NOTE gets changed on the fly in one or two places below (which is kind of hackey, but I can't figure out a way to improve on it. Bottom line is that the control flow for different actions is really complicated)
+            self.current_action = tmpaction  # NOTE gets changed on the fly below, I think just in self.get_cluster_annotations() (which is kind of hackey, but I can't figure out a way to improve on it that wouldn't involve wasting a foolish amount of time rewriting things. Bottom line is that the control flow for different actions is really complicated, and that complexity is going to show up somewhere)
             self.action_fcns[tmpaction]()
 
     # ----------------------------------------------------------------------------------------
@@ -341,11 +342,11 @@ class PartitionDriver(object):
 
         annotation_lines = []
         cpath = None
-        tmpact = self.current_action
+        tmpact = self.current_action  # just a shorthand for brevity
         if utils.getsuffix(outfname) == '.csv':  # old way
-            if tmpact == 'view-partitions' or tmpact == 'plot-partitions' or tmpact == 'view-output' or read_partitions:
+            if tmpact == 'view-partitions' or tmpact == 'plot-partitions' or tmpact == 'view-output' or tmpact == 'get-tree-metrics' or read_partitions:
                 cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, fname=outfname)
-            if tmpact == 'view-annotations' or tmpact == 'plot-partitions' or tmpact == 'view-output' or read_annotations:
+            if tmpact == 'view-annotations' or tmpact == 'plot-partitions' or tmpact == 'view-output' or tmpact == 'get-tree-metrics' or read_annotations:
                 csvfile = open(outfname if cpath is None else self.args.cluster_annotation_fname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop)
                 annotation_lines = csv.DictReader(csvfile)
                 if 'unique_ids' not in annotation_lines.fieldnames:
@@ -359,11 +360,13 @@ class PartitionDriver(object):
 
         annotations = self.parse_existing_annotations(annotation_lines, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
 
-        if self.current_action == 'plot-partitions':
+        if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info)
 
-        if cpath is not None and self.args.calculate_tree_metrics:
+        if tmpact == 'get-tree-metrics':
+            if cpath is None:
+                raise Exception('read output from %s with no partitions, but we were asked to calculate tree metrics' % outfname)
             treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # NOTE modifies <annotations> (by adding 'tree-info') (but these modifications don't get written to the existing file, i.e. this is really just for debugging)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
@@ -386,7 +389,7 @@ class PartitionDriver(object):
 
         print 'hmm'
 
-        # pre-cache hmm naive seq for each single query NOTE <self.current_action> is still 'partition' for this
+        # pre-cache hmm naive seq for each single query NOTE <self.current_action> is still 'partition' for this (so that we build the correct bcrham command line)
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
             print 'caching all %d naive sequences' % len(self.sw_info['queries'])  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
@@ -667,7 +670,7 @@ class PartitionDriver(object):
         if n_procs > 1:
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
-        if self.args.calculate_tree_metrics:
+        if self.args.get_tree_metrics:
             treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # NOTE modifies <best_annotations> (by adding 'tree-info')
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)

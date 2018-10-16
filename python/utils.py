@@ -391,7 +391,7 @@ def generate_dummy_v(d_gene):
 # ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
 def choose_new_uid(potential_names, used_names, initial_length=1, shuffle=False):
-    # NOTE only need to set <initial_length> for the first call -- after that if you're reusing the same <potential_names> and <used_names> there's no need
+    # NOTE only need to set <initial_length> for the first call -- after that if you're reusing the same <potential_names> and <used_names> there's no need (but it's ok to set it every time, as long as it has the same value)
     # NOTE setting <shuffle> will shuffle every time, i.e. it's designed such that you call with shuffle once before starting
     if potential_names is None:  # first time through
         potential_names = [l for l in string.ascii_lowercase]
@@ -401,6 +401,8 @@ def choose_new_uid(potential_names, used_names, initial_length=1, shuffle=False)
                 _, potential_names, used_names = choose_new_uid(potential_names, used_names)
     if len(potential_names) == 0:  # ran out of names
         potential_names += [''.join(ab) for ab in itertools.combinations(used_names, 2) if ''.join(ab) not in used_names]
+    if len(potential_names[0]) < initial_length:
+        raise Exception('choose_new_uid(): next potential name \'%s\' is shorter than the specified <initial_length> %d (this is probably only possible if you called this several times with different <initial_length> values [which you shouldn\'t do])' % (potential_names[0], initial_length))
     if shuffle:
         random.shuffle(potential_names)
     new_id = potential_names.pop(0)
