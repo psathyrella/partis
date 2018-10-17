@@ -70,8 +70,8 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa))
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
     # check_node_labels(dtree, debug=debug)  # makes sure that for all nodes, node.taxon is not None, and node.label *is* None (i.e. that label_nodes did what it was supposed to, as long as suppress_internal_node_taxa wasn't set)
-    if debug:
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+    # if debug:
+    #     print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -444,7 +444,7 @@ def calculate_lb_values(annotation, dtree, naive_seq_name=None, tau=0.4, extra_s
         dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
 
     if debug:
-        print '   %s%s' % (utils.color('green', 'lbi/lbr'), '' if extra_str is None else ' for %s' % extra_str)
+        print '   lbi/lbr%s:' % ('' if extra_str is None else ' for %s' % extra_str)
         print '      calculating lb values with:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
@@ -761,7 +761,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
             continue
 
         if debug:
-            print '  %d sequences' % len(line['unique_ids'])
+            print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
         line['tree-info'] = {}
         if use_liberman_lonr_tree:
             lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)  # NOTE see issues/notes in bin/lonr.r
@@ -784,14 +784,20 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         plotting.plot_inferred_lbi(plotdir + '/inferred-tree-metrics', lines_to_use)
         plotting.make_html(plotdir + '/inferred-tree-metrics')
 
-        true_plotdir = plotdir + '/true-tree-metrics'
+        # calculate lb values for true lines
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_line, true_dtree, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
-        for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
-            plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
-            plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
-        # plotting.plot_per_mutation_lonr(xxx plotdir + '/lonr', lines_to_use, reco_info)
-        # plotting.plot_aggregate_lonr(xxx plotdir + '/lonr', lines_to_use, reco_info)
-        plotting.make_html(true_plotdir, n_columns=4)
+
+        # then plot them
+        if any(affy is not None for affy in true_lines_to_use[0]['affinities']):  # if there are any affinities (i.e. it's bcr-phylo simulation) we should have them for every sequence, anyway
+            true_plotdir = plotdir + '/true-tree-metrics'
+            for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
+                plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
+                plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
+            # plotting.plot_per_mutation_lonr(xxx plotdir + '/lonr', lines_to_use, reco_info)
+            # plotting.plot_aggregate_lonr(xxx plotdir + '/lonr', lines_to_use, reco_info)
+            plotting.make_html(true_plotdir, n_columns=4)
+        else:  # can't plot true lb/affinity if this simulation doesn't have affinity values
+            print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
