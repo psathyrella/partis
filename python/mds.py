@@ -8,7 +8,6 @@ import itertools
 import subprocess
 
 import utils
-import plotting
 
 # ----------------------------------------------------------------------------------------
 def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
@@ -100,6 +99,7 @@ def read_component_file(mdsfname, n_components, seqfos):
 
 # ----------------------------------------------------------------------------------------
 def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_scale_vals=None, hexbin=False, title=None):
+    import plotting
     # TODO switch to mpl_init/mpl_finalize
     import matplotlib
     from matplotlib import pyplot as plt
