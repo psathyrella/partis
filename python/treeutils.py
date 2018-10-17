@@ -426,18 +426,18 @@ def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, debug
 # ----------------------------------------------------------------------------------------
 def calculate_lb_values(annotation, dtree, naive_seq_name=None, tau=0.4, extra_str=None, debug=False):
     def set_multiplicities():
-        n_missing = 0
+        missing_from_annotation = []
         for node in dtree.postorder_node_iter():
             node.multiplicity = 1
             if node.taxon.label not in annotation['unique_ids']:  # could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
-                n_missing += 1
+                missing_from_annotation.append(node.taxon.label)
                 continue
             if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but even if not, if there's no duplicate info then assuming multiplicities of 1 should be fine (maybe should add duplicate info to simulation? it wouldn't really make sense though, since we don't collapse duplicates in simulation info)
                 continue
             iseq = annotation['unique_ids'].index(node.taxon.label)
             node.multiplicity = len(annotation['duplicates'][iseq]) + 1
-        if n_missing > 0:
-            print '  %s %d nodes in tree missing from annotation' % (utils.color('yellow', 'note'), n_missing)
+        if len(missing_from_annotation) > 0:
+            print '  %s %d nodes in tree missing from annotation: %s' % (utils.color('yellow', 'note'), len(missing_from_annotation), ' '.join(missing_from_annotation))
 
     if naive_seq_name is not None:  # not really sure if there's a reason to do this
         raise Exception('think about this before turning it on again')
@@ -448,6 +448,9 @@ def calculate_lb_values(annotation, dtree, naive_seq_name=None, tau=0.4, extra_s
         print '      calculating lb values with:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
+    missing_from_tree = [uid for uid in annotation['unique_ids'] if dtree.find_node_with_taxon_label(uid) is None]
+    if len(missing_from_tree) > 0:
+        raise Exception('%d sequences in annotation, but missing from tree: %s' % (len(missing_from_tree), ' '.join(missing_from_tree)))
     set_multiplicities()
     modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=True, debug=debug)
 
@@ -653,7 +656,7 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
 
     existing_phylip_output_str = ''
     if phylip_treefile is not None:  # using existing phylip output, e.g. from cft
-        tree = get_dendro_tree(treefname=phylip_treefile, schema='newick')
+        tree = get_dendro_tree(treefname=phylip_treefile)
         edgefos = []
         for node in tree.preorder_node_iter():
             for edge in node.child_edge_iter():
@@ -720,7 +723,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -763,7 +766,10 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
         if debug:
             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
         line['tree-info'] = {}
-        if use_liberman_lonr_tree:
+        if treefname is not None:
+            print '    reading tree from %s' % treefname
+            dtree = get_dendro_tree(treefname=treefname, debug=debug)
+        elif use_liberman_lonr_tree:
             lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)  # NOTE see issues/notes in bin/lonr.r
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
             line['tree-info']['lonr'] = lonr_info
@@ -775,29 +781,27 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, reco_info=
 
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
 
-    # and finally plot the metrics (including calculating [some] true values)
-    if reco_info is not None:
-        assert base_plotdir is not None
-        plotdir = base_plotdir
+    if base_plotdir is not None:
         import plotting
+        plotting.plot_inferred_lbi(base_plotdir + '/inferred-tree-metrics', lines_to_use)
+        plotting.make_html(base_plotdir + '/inferred-tree-metrics')
 
-        plotting.plot_inferred_lbi(plotdir + '/inferred-tree-metrics', lines_to_use)
-        plotting.make_html(plotdir + '/inferred-tree-metrics')
-
+    if reco_info is not None:
         # calculate lb values for true lines
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_line, true_dtree, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
 
-        # then plot them
-        if any(affy is not None for affy in true_lines_to_use[0]['affinities']):  # if there are any affinities (i.e. it's bcr-phylo simulation) we should have them for every sequence, anyway
-            true_plotdir = plotdir + '/true-tree-metrics'
-            for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
-                plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
-                plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
-            # plotting.plot_per_mutation_lonr(xxx plotdir + '/lonr', lines_to_use, reco_info)
-            # plotting.plot_aggregate_lonr(xxx plotdir + '/lonr', lines_to_use, reco_info)
-            plotting.make_html(true_plotdir, n_columns=4)
-        else:  # can't plot true lb/affinity if this simulation doesn't have affinity values
-            print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
+        if base_plotdir is not None:  # if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
+            import plotting
+            if any(affy is not None for affy in true_lines_to_use[0]['affinities']):  # if there are any affinities (i.e. it's bcr-phylo simulation) we should have them for every sequence, anyway
+                true_plotdir = base_plotdir + '/true-tree-metrics'
+                for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
+                    plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
+                    plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
+                # plotting.plot_per_mutation_lonr(xxx base_plotdir + '/lonr', lines_to_use, reco_info)
+                # plotting.plot_aggregate_lonr(xxx base_plotdir + '/lonr', lines_to_use, reco_info)
+                plotting.make_html(true_plotdir, n_columns=4)
+            else:  # can't plot true lb/affinity if this simulation doesn't have affinity values
+                print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')

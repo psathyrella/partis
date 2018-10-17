@@ -270,7 +270,7 @@ class PartitionDriver(object):
         print 'hmm'
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters)
         if self.args.get_tree_metrics:
-            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # NOTE modifies <annotations> (by adding 'tree-info')
+            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, treefname=self.args.treefname, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
         if self.args.outfname is not None:
             self.write_output(annotations.values(), hmm_failures)
 
@@ -367,9 +367,9 @@ class PartitionDriver(object):
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info)
 
         if tmpact == 'get-tree-metrics':
-            if cpath is None:
-                raise Exception('read output from %s with no partitions, but we were asked to calculate tree metrics' % outfname)
-            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # NOTE modifies <annotations> (by adding 'tree-info') (but these modifications don't get written to the existing file, i.e. this is really just for debugging)
+            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, treefname=self.args.treefname, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
+            print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
+            self.write_output(annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotations)
@@ -673,7 +673,7 @@ class PartitionDriver(object):
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
         if self.args.get_tree_metrics:
-            treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # NOTE modifies <best_annotations> (by adding 'tree-info')
+            treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, treefname=self.args.treefname, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
             # if we're in linearham mode, write the indel-reversed partition sequences to fasta files
@@ -1771,7 +1771,7 @@ class PartitionDriver(object):
         partition_lines = None
         if cpath is not None:
             true_partition = utils.get_true_partition(self.reco_info) if not self.args.is_data else None
-            partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(self.input_info) < 500) else 'best'))
+            partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
         if self.args.linearham and self.current_action != 'cache-parameters':
