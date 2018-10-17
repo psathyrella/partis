@@ -88,7 +88,7 @@ def process(args):
             raise Exception('can only pass true clonal families to multi-hmm together on simulation and with --is-simu set')
         if args.n_simultaneous_seqs is not None:
             raise Exception('can\'t specify both --n-simultaneous-seqs and --simultaneous-true-clonal-seqs')
-        if args.all_seqs_simultaneous is not None:
+        if args.all_seqs_simultaneous:
             raise Exception('can\'t specify both --all-seqs-simultaneous and --simultaneous-true-clonal-seqs')
     if args.n_simultaneous_seqs is not None and args.all_seqs_simultaneous:
         raise Exception('doesn\'t make sense to set both --n-simultaneous-seqs and --all-seqs-simultaneous.')
