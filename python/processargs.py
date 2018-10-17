@@ -88,6 +88,10 @@ def process(args):
             raise Exception('can only pass true clonal families to multi-hmm together on simulation and with --is-simu set')
         if args.n_simultaneous_seqs is not None:
             raise Exception('can\'t specify both --n-simultaneous-seqs and --simultaneous-true-clonal-seqs')
+        if args.all_seqs_simultaneous is not None:
+            raise Exception('can\'t specify both --all-seqs-simultaneous and --simultaneous-true-clonal-seqs')
+    if args.n_simultaneous_seqs is not None and args.all_seqs_simultaneous:
+        raise Exception('doesn\'t make sense to set both --n-simultaneous-seqs and --all-seqs-simultaneous.')
 
     if args.no_indels:
         print 'forcing --gap-open-penalty to %d to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty

@@ -1421,12 +1421,14 @@ class PartitionDriver(object):
                 assert self.args.n_simultaneous_seqs is None and not self.args.is_data  # are both already checked in ./bin/partis
                 nsets = utils.get_true_partition(self.reco_info, ids=qlist)
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)  # arg, have to split some clusters apart by cdr3, for rare cases where we call an shm indel in j within the cdr3
-            elif self.args.n_simultaneous_seqs is None:  # plain ol' singletons
-                nsets = [[q] for q in qlist]
-            else:
+            elif self.args.all_seqs_simultaneous:  # everybody together
+                nsets = [qlist]
+            elif self.args.n_simultaneous_seqs is not None:  # set number of simultaneous seqs
                 nlen = self.args.n_simultaneous_seqs  # shorthand
                 # nsets = [qlist[iq : min(iq + nlen, len(qlist))] for iq in range(0, len(qlist), nlen)]  # this way works fine, but it's hard to get right 'cause it's hard to understand 
                 nsets = [list(group) for _, group in itertools.groupby(qlist, key=lambda q: qlist.index(q) / nlen)]  # integer division
+            else:  # plain ol' singletons
+                nsets = [[q] for q in qlist]
 
         skipped_gene_matches = set()
         self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process

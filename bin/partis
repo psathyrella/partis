@@ -251,6 +251,7 @@ parent_parser.add_argument('--gap-open-penalty', type=int, default=30, help='Pen
 parent_parser.add_argument('--max-vj-mut-freq', type=float, default=0.4, help='skip sequences whose mutation rates in V and J are greater than this (it\'s really not possible to get meaningful smith-waterman matches above this)')
 parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
 parent_parser.add_argument('--n-simultaneous-seqs', type=int, help='Number of simultaneous sequences on which to run the multi-HMM (e.g. 2 for a pair hmm)')
+parent_parser.add_argument('--all-seqs-simultaneous', action='store_true', help='Run all input sequences simultaneously, i.e. equivalent to setting --n-simultaneous-seqs to the number of input sequences.')
 parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true', help='Run true clonal sequences together simultaneously with the multi-HMM.')
 
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
