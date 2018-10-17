@@ -269,6 +269,8 @@ class PartitionDriver(object):
             return
         print 'hmm'
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters)
+        if self.args.get_tree_metrics:
+            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # NOTE modifies <annotations> (by adding 'tree-info')
         if self.args.outfname is not None:
             self.write_output(annotations.values(), hmm_failures)
 

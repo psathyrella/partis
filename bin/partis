@@ -321,6 +321,8 @@ def runs_on_existing_output(actionstr):
 
 subargs = {subname : [] for subname in subconfig}
 
+subargs['annotate'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster.'}})
+
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
 subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Throw out all sequences that are not clonally related to this sequence id. Much much much faster than partitioning the entire sample (well, unless your whole sample is one family).'}})
