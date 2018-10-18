@@ -151,7 +151,7 @@ parser.add_argument('--names', required=True)
 parser.add_argument('--performance-plots', action='store_true')
 parser.add_argument('--colors', default=':'.join(plotting.default_colors))
 parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths))
-parser.add_argument('--gldirs', default=['data/germlines/human'])
+parser.add_argument('--gldirs') #, default=['data/germlines/human'])
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--extra-stats')
@@ -176,13 +176,15 @@ if len(args.plotdirs) == 1:
 if len(args.plotdirs) != len(args.names):
     raise Exception('poorly formatted args:\n  %s\n  %s' % (' '.join(args.plotdirs), ' '.join(args.names)))
 
+# make a merged glfo from all the gldirs
 args.glfo = None
-for gldir in [gd for gd in args.gldirs if os.path.exists(gd)]:
-    tmpglfo = glutils.read_glfo(gldir, args.locus)
-    if args.glfo is None:
-        args.glfo = tmpglfo
-    else:
-        args.glfo = glutils.get_merged_glfo(args.glfo, tmpglfo)
+if args.gldirs is not None:
+    for gldir in [gd for gd in args.gldirs if os.path.exists(gd)]:
+        tmpglfo = glutils.read_glfo(gldir, args.locus)
+        if args.glfo is None:
+            args.glfo = tmpglfo
+        else:
+            args.glfo = glutils.get_merged_glfo(args.glfo, tmpglfo)
 
 # figure out if there's subdirs we need to deal with
 listof_plotdirlists, listof_outdirs = [], []

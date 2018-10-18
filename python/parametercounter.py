@@ -95,7 +95,7 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, only_overall=False):
         import plotting
-        print '  plotting parameters',
+        print '  plotting parameters in %s' % plotdir,
         sys.stdout.flush()
         start = time.time()
 
