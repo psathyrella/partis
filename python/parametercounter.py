@@ -146,7 +146,7 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def write(self, base_outdir):
-        print '    writing parameters',
+        print '    writing parameters to %s' % base_outdir,
         sys.stdout.flush()
         start = time.time()
 

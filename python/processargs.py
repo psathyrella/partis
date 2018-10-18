@@ -208,9 +208,6 @@ def process(args):
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')
 
-    if args.count_parameters and not args.dont_write_parameters:
-        raise Exception('if you set --count-parameters, you should also set --dont-write-parameters to make sure you\'re not accidentally overwriting existing parameters ')
-
     if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
         args.default_initial_germline_dir += '/' + args.species
 

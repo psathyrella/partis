@@ -68,8 +68,7 @@ class PartitionDriver(object):
         self.unseeded_seqs = None  # all the queries that we *didn't* cluster with the seed uid
         self.small_cluster_seqs = None  # all the queries that we removed after a few partition steps 'cause they were in small clusters
 
-        self.sw_param_dir = self.args.parameter_dir + '/sw'
-        self.hmm_param_dir = self.args.parameter_dir + '/hmm'
+        self.sw_param_dir, self.hmm_param_dir, self.multi_hmm_param_dir = ['%s/%s' % (self.args.parameter_dir, s) for s in ['sw', 'hmm', 'multi-hmm']]
         self.sub_param_dir = self.args.parameter_dir + '/' + self.args.parameter_type
 
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
@@ -198,7 +197,7 @@ class PartitionDriver(object):
         # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)  # only compares indels a.t.m.
 
         # d j allele removal (just printing for now)
-        if count_parameters:  # I'm not sure this is precisely the criterion I want, but it does the job of not running dj removal printing when we're just annotating with existing parameters (which was causing a crash [key error] with inconsistent glfo)
+        if count_parameters and self.current_action == 'cache-parameters':  # I'm not sure this is precisely the criterion I want, but it does the job of not running dj removal printing when we're just annotating with existing parameters (which was causing a crash [key error] with inconsistent glfo)
             alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
             alremover.finalize(gene_counts=None, annotations={q : self.sw_info[q] for q in self.sw_info['queries']}, regions=['d', 'j'], debug=self.args.debug_allele_finding)
             print '  (not actually removing d and j alleleremover genes)'
@@ -671,7 +670,7 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition_to_annotate, read_output=False)
         if n_procs > 1:
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
-        best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters)
+        best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir)
         if self.args.get_tree_metrics:
             treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, treefname=self.args.treefname, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
@@ -1678,14 +1677,15 @@ class PartitionDriver(object):
 
         # parameter and performance writing/plotting
         if pcounter is not None:
+            path_str = 'hmm' if parameter_out_dir is None else os.path.basename(parameter_out_dir)  # at the moment, this is just 'hmm' for regular parameter caching, and 'multi-hmm' for parameter caching after partitioning
             if self.args.plotdir is not None:
-                pcounter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+                pcounter.plot('%s/%s' % (self.args.plotdir, path_str), only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
                 if true_pcounter is not None:
-                        true_pcounter.plot(self.args.plotdir + '/true', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+                    true_pcounter.plot('%s/%s' % (self.args.plotdir, path_str.replace('hmm', 'true')), only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
             if not self.args.dont_write_parameters:
                 pcounter.write(parameter_out_dir)
                 if true_pcounter is not None:
-                    true_pcounter.write(os.path.dirname(parameter_out_dir) + '/true')
+                    true_pcounter.write('%s/%s' % (os.path.dirname(parameter_out_dir), path_str.replace('hmm', 'true')))
 
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
