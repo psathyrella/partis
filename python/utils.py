@@ -2358,7 +2358,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
         print '%s%s %s' % (extra_str, color('red', 'run'), cmd_str)
     sys.stdout.flush()
     if dryrun:
-        return
+        return '', '' if return_out_err else None
     if print_time is not None:
         start = time.time()
     if return_out_err:
