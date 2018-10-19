@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import os
+import sys
 import csv
 import argparse
 import operator
@@ -9,17 +11,21 @@ sys.path.insert(1, partis_dir + '/python')
 
 import utils
 
-# infile = '/fh/fast/matsen_e/processed-data/partis/bf520-synth/v17/BF520-g-merged/hmm/all-probs.csv'
-infile = '_output/test_reference-results_test_simu/multi-hmm/all-probs.csv'
+fsd = '/fh/fast/matsen_e/processed-data/partis/bf520-synth/v17/BF520-g-merged'
+
+infile = '%s/hmm/all-probs.csv' % fsd
+infile = '%s/multi-hmm/all-probs.csv' % fsd
+# infile = '_output/test_reference-results_test_simu/multi-hmm/all-probs.csv'
+
 outfile = 'processed-all-probs.csv'
 non_summed_column = 'v_gene'
+
 skip_columns = {  # columns for which we want to specify particular values (and skip others)
-    # 'cdr3_length' : ['39',],  # <value> is list of acceptable values NOTE need to all be strings, otherwise you have to worry about converting the values in the csv file
-    # 'v_gene' : ['IGHV1-2*02',],
+    # 'cdr3_length' : ['33', '36', '39', '42', '45', '48'],  # <value> is list of acceptable values NOTE need to all be strings, otherwise you have to worry about converting the values in the csv file
+
+    # bf520.1:
+    'v_gene' : ['IGHV1-2*02',],
     'v_gene' : ['IGHV1-2*02+G35A', 'IGHV1-2*02+T147C', 'IGHV1-2*02'],
-    # IGHV1-2*02+G35A,2216
-    # IGHV1-2*02+T147C,746
-    # IGHV1-2*02,336
     # 'd_gene' : ['IGHD3-22*01'],
     'j_gene' : ['IGHJ4*02'],
     'cdr3_length' : ['66',],  #  TGTGCGAGAGGGCCATTCCCGAATTACTATGGTCCGGGGAGTTATTGGGGGGGTTTTGACCACTGG
@@ -52,7 +58,9 @@ with open(infile) as csvfile:
 print '  applied restrictions:'
 for scol, acceptable_values in skip_columns.items():
     print '      %15s in %s' % (scol, acceptable_values)
-print '   used:\n     %6d / %-6d  lines\n     %6d / %-6d  counts'  % (lines_used, lines_used + lines_skipped, counts_used, counts_used + counts_skipped)
+print '   used:'
+print '     %6d / %-6d = %.3f  lines'  % (lines_used, lines_used + lines_skipped, lines_used / float(lines_used + lines_skipped))
+print '     %6d / %-6d = %.3f  counts'  % (counts_used, counts_used + counts_skipped, counts_used / float(counts_used + counts_skipped))
 
 print '  writing %d lines to %s' % (len(info), outfile)
 with open(outfile, 'w') as csvfile:
