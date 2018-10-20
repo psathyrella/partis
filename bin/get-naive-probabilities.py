@@ -31,7 +31,8 @@ if args.skip_column_fname is None:
         'cdr3_length' : ['66',],  #  TGTGCGAGAGGGCCATTCCCGAATTACTATGGTCCGGGGAGTTATTGGGGGGGTTTTGACCACTGG
     }
 else:
-    skip_column_vals = yaml.load(args.skip_column_fname)
+    with open(args.skip_column_fname) as yamlfile:
+        skip_column_vals = yaml.load(yamlfile)
 
 info = {}
 lines_skipped, lines_used = 0, 0
