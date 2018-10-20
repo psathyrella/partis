@@ -278,7 +278,7 @@ def get_synthetic_partition_type(stype):
 
 # ----------------------------------------------------------------------------------------
 def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, base_outfname, datafname, procs):
-    if args.dry_run:
+    if args.dryrun:
         print 'implement me!'
         return
 
@@ -865,7 +865,7 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
 
 # ----------------------------------------------------------------------------------------
 def run_changeo(args, label, n_leaves, mut_mult, seqfname):
-    if args.dry_run:
+    if args.dryrun:
         print 'implement me!'
         return
 
@@ -966,7 +966,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
 
 # ----------------------------------------------------------------------------------------
 def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
-    if args.dry_run:
+    if args.dryrun:
         print 'implement me!'
         return
 
@@ -1004,7 +1004,7 @@ def run_mixcr(args, label, n_leaves, mut_mult, seqfname):
 
 # ----------------------------------------------------------------------------------------
 def run_igscueal(args, label, n_leaves, mut_mult, seqfname):
-    if args.dry_run:
+    if args.dryrun:
         print 'implement me!'
         return
 
@@ -1340,7 +1340,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
     # cmd += baseutils.get_extra_str(extras)
     cmd += ' ' + ' '.join([str(e) for e in extras]) + ' --print-git-commit'  # last bit is so it prints the command line
     print '   %s %s' % (utils.color('red', 'run'), cmd)
-    if args.dry_run:
+    if args.dryrun:
         return
 
     logbase = get_outdirname(args, label) + '/logs/' + os.path.basename(outfname).replace('.csv', '')

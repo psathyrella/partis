@@ -186,7 +186,7 @@ def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, lo
         cmdstr += ' --use-cache'
     if args.only_print:
         cmdstr += ' --only-print'
-    utils.simplerun(cmdstr, shell=True, debug=args.dry_run, dryrun=args.dry_run)
+    utils.simplerun(cmdstr, shell=True, debug=args.dryrun, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
 def print_gls_gen_summary_table(args, region, baseoutdir):
@@ -629,7 +629,7 @@ def run_single_test(args, baseoutdir, val, n_events, method):
     if args.plot_annotation_performance:
         cmd += ' --plot-annotation-performance'
     cmd += ' --outdir ' + outdir
-    utils.simplerun(cmd, dryrun=args.dry_run)
+    utils.simplerun(cmd, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
 def run_data(args, baseoutdir, study, dset, method):
@@ -652,7 +652,7 @@ def run_data(args, baseoutdir, study, dset, method):
     if args.n_max_jobs is not None:
         cmd += ' --n-max-jobs ' + str(args.n_max_jobs)
 
-    utils.simplerun(cmd, dryrun=args.dry_run)
+    utils.simplerun(cmd, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
 def run_tests(args, baseoutdir, method):
@@ -803,7 +803,7 @@ parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')
 parser.add_argument('--only-print', action='store_true')
 parser.add_argument('--check', action='store_true')
-parser.add_argument('--dry-run', action='store_true')
+parser.add_argument('--dryrun', action='store_true')
 parser.add_argument('--label', default='xxx')
 parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
 args = parser.parse_args()

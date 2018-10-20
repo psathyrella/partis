@@ -78,7 +78,7 @@ def simulate(args):
     # run simulation
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
-    utils.simplerun(cmd_str, dryrun=args.dry_run)
+    utils.simplerun(cmd_str, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
 def run_other_method(args, method):
@@ -110,7 +110,7 @@ def run_other_method(args, method):
     if args.slurm:
         cmd += ' --slurm'
 
-    utils.simplerun(cmd, dryrun=args.dry_run)
+    utils.simplerun(cmd, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
 def run_performance_plot(args, method):
@@ -131,7 +131,7 @@ def run_performance_plot(args, method):
         cmd_str += ' --batch-system slurm'
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
-    utils.simplerun(cmd_str, dryrun=args.dry_run)
+    utils.simplerun(cmd_str, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
 def run_partis_parameter_cache(args, method):
@@ -184,7 +184,7 @@ def run_partis_parameter_cache(args, method):
         cmd_str += ' --seed ' + str(args.seed)
     if args.plot_and_fit_absolutely_everything is not None:
         cmd_str += ' --plot-and-fit-absolutely-everything ' + str(args.plot_and_fit_absolutely_everything)
-    utils.simplerun(cmd_str, dryrun=args.dry_run)
+    utils.simplerun(cmd_str, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
 def write_inf_glfo(args):  # read default glfo, restrict it to the specified alleles, and write to somewhere where all the methods can read it
@@ -240,7 +240,7 @@ def multiple_tests(args):
                'logdir' : getlogdir(iproc),
                'outfname' : args.outdir + '/' + str(iproc)}
               for iproc in range(args.iteststart, args.n_tests)]
-    if args.dry_run:
+    if args.dryrun:
         for iproc in range(args.iteststart, args.n_tests):
             utils.simplerun(cmdfos[iproc - args.iteststart]['cmd_str'], dryrun=True)
         return
@@ -354,7 +354,7 @@ parser.add_argument('--dont-remove-template-genes', action='store_true', help='w
 parser.add_argument('--mut-mult', type=float, help='see bin/partis --help')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
-parser.add_argument('--dry-run', action='store_true')
+parser.add_argument('--dryrun', action='store_true')
 parser.add_argument('--allele-cluster', action='store_true', help='see bin/partis --help')
 parser.add_argument('--kmeans-allele-cluster', action='store_true', help='see bin/partis --help')
 parser.add_argument('--plot-annotation-performance', action='store_true', help='see bin/partis --help')

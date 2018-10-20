@@ -97,7 +97,7 @@ class Tester(object):
             return
         if not args.dont_run:
             self.run(args)
-        if args.dry_run:
+        if args.dryrun:
             return
         if not args.skip_ref:
             self.compare_stuff(input_stype='ref')
@@ -161,7 +161,7 @@ class Tester(object):
         if name == 'partition-' + info['input_stype'] + '-simu':
             this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
             if os.path.exists(this_cachefname):
-                if args.dry_run:
+                if args.dryrun:
                     print '   would remove %s' % this_cachefname
                 else:
                     check_call(['rm', '-v', this_cachefname])
@@ -173,7 +173,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
-        if not args.dry_run:
+        if not args.dryrun:
             open(self.logfname, 'w').close()
 
         for name, info in self.tests.items():
@@ -193,7 +193,7 @@ class Tester(object):
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
             print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
-            if args.dry_run:
+            if args.dryrun:
                 continue
             logfile = open(self.logfname, 'a')
             logfile.write(logstr + '\n')
@@ -649,7 +649,7 @@ class Tester(object):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--dont-run', action='store_true', help='don\'t actually run anything, just check the results')
-parser.add_argument('--dry-run', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
+parser.add_argument('--dryrun', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
 parser.add_argument('--quick', action='store_true')
 parser.add_argument('--only-ref', action='store_true', help='only run with input_stype of \'ref\'')
 parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s run by --only-ref')
