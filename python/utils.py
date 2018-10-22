@@ -786,6 +786,8 @@ def summarize_gene_name(gene):
 # ----------------------------------------------------------------------------------------
 def color_gene(gene, width=None, leftpad=False):
     """ color gene name (and remove extra characters), eg IGHV3-h*01 --> hv3-h1 """
+    default_widths = {'v' : 15, 'd' : 9, 'j' : 6}  # wide enough for most genes
+
     locus = get_locus(gene)
     locus = locus[2]  # hmm... maybe?
     region = get_region(gene)
@@ -799,6 +801,8 @@ def color_gene(gene, width=None, leftpad=False):
     n_chars += len(allele)
     return_str += color('yellow', allele)
     if width is not None:
+        if width == 'default':
+            width = default_widths[region]
         if leftpad:
             return_str = (width - n_chars) * ' ' + return_str
         else:

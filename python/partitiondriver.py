@@ -1024,7 +1024,7 @@ class PartitionDriver(object):
             # print 'with overlap: %s' % clusters_with_overlap
             # cluster_annotation_line = cluster_annotations[clusters_with_overlap[-1]]
 
-        cluster_annotation_v_gene = cluster_annotation_line['v_gene']
+        cluster_annotation_genes = {r : cluster_annotation_line[r + '_gene'] for r in utils.regions}
         cluster_annotation_naive_seq = cluster_annotation_line['naive_seq']
         if cluster_annotation_naive_seq != cache_file_naive_seq:
             print '%s naive sequences from cluster annotation and cache file aren\'t the same:' % utils.color('yellow', 'warning')
@@ -1042,12 +1042,16 @@ class PartitionDriver(object):
             uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
 
             # print the v gene along side the first naive sequence, as well as for any subsequent ones that have a different v
-            gene_str = ''
+            gene_strs = []
             for uidstr in uid_str_list:
-                if uidstr == uidstr_of_interest:
-                    gene_str += utils.color_gene(cluster_annotation_line['v_gene'], width=15)
-                elif uidstr in cluster_annotations and cluster_annotations[uidstr]['v_gene'] != cluster_annotation_v_gene:
-                    gene_str += utils.color_gene(cluster_annotations[uidstr]['v_gene'], width=15)
+                for region in utils.regions:
+                    if uidstr == uidstr_of_interest:
+                        gene_strs += [utils.color_gene(cluster_annotation_line[region + '_gene'], width='default')]
+                    elif uidstr in cluster_annotations and cluster_annotations[uidstr][region + '_gene'] != cluster_annotation_genes[region]:
+                        gene_strs += [utils.color_gene(cluster_annotations[uidstr][region + '_gene'], width='default')]
+            gene_str = ' '.join(gene_strs)
+            if len(gene_strs) > 0:
+                gswidth = str(utils.len_excluding_colors(gene_str))
 
             cluster_size_strs = []
             for uidstr in uid_str_list:
@@ -1059,7 +1063,7 @@ class PartitionDriver(object):
             pre_str = ''
             if uidstr_of_interest in uid_str_list:
                 pre_str = utils.color('blue', '-->', width=5)
-            print '  %15s  %5s %s  %4d     %s' % (gene_str, pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), len(independent_seq_info[naive_seq]), ' '.join(cluster_size_strs))
+            print ('  %' + gswidth + 's  %5s %s  %4d     %s') % (gene_str, pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), len(independent_seq_info[naive_seq]), ' '.join(cluster_size_strs))
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
