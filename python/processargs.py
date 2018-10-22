@@ -143,7 +143,7 @@ def process(args):
     if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
         if args.outfname is None:
             raise Exception('have to specify --outfname in order to calculate alternative naive sequences')
-        args.persistent_cachefname = utils.insert_before_suffix('-hmm-cache', args.outfname)
+        args.persistent_cachefname = utils.getprefix(args.outfname) + '-hmm-cache.csv'  # written by bcrham, so has to be csv, not yaml
         if args.calculate_alternative_naive_seqs and os.path.exists(args.persistent_cachefname):
             if os.stat(args.persistent_cachefname).st_size == 0:
                 print '  note: removing existing zero-length persistent cache file %s' % args.persistent_cachefname
