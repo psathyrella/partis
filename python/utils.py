@@ -1897,7 +1897,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
         os.makedirs(dirname)
 
 # ----------------------------------------------------------------------------------------
-def process_input_line(info, hmm_cachefile=False):
+def process_input_line(info, hmm_cachefile=False, skip_literal_eval=False):
     """
     Attempt to convert all the keys and values in <info> according to the specifications in <io_column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
@@ -1920,6 +1920,8 @@ def process_input_line(info, hmm_cachefile=False):
         if info[key] == '':  # handle these below, once we know how many seqs in the line
             continue
         convert_fcn = conversion_fcns.get(key, pass_fcn)
+        if skip_literal_eval and convert_fcn is ast.literal_eval:  # it's really slow (compared to the other conversions at least), and it's only for keys that we hardly ever use
+            continue
         if key in io_column_configs['lists']:
             info[key] = [convert_fcn(val) for val in info[key].split(':')]
         elif key in io_column_configs['lists-of-lists']:
@@ -3927,7 +3929,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
             annotation_list = []
             with open(fname) as csvfile:
                 for line in csv.DictReader(csvfile):
-                    process_input_line(line)
+                    process_input_line(line, skip_literal_eval=dont_add_implicit_info)  # NOTE kind of weird to equate implicit info adding and literal eval skipping... but in the end they're both mostly speed optimizations
                     if not dont_add_implicit_info:
                         add_implicit_info(glfo, line)
                     annotation_list.append(line)
