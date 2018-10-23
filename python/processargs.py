@@ -108,9 +108,9 @@ def process(args):
     if args.workdir is None:  # set default here so we know whether it was set by hand or not
         basestr = os.getenv('USER') if os.getenv('USER') is not None else 'partis-work'
         if args.batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
-            args.workdir = utils.choose_random_subdir('/fh/fast/matsen_e/' + basestr) + '/_tmp/hmms')
+            args.workdir = utils.choose_random_subdir('/fh/fast/matsen_e/%s/_tmp/hmms' % basestr)
         else:
-            args.workdir = utils.choose_random_subdir('/tmp/' + basestr) + '/hmms')
+            args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % basestr)
             if args.batch_system is not None:
                 print '  %s: using batch system %s with default --workdir (%s) -- if this isn\'t visible to the batch nodes on your system, you\'ll need to change it' % (utils.color('red', 'warning'), args.batch_system, args.workdir)
     else:
