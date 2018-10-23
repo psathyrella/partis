@@ -308,7 +308,7 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 sw_cache_headers = [h for h in annotation_headers if h not in [r + '_per_gene_support' for r in regions]] + ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
 linearham_headers = ['flexbounds', 'relpos']
-partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting
+partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting (in packages/ham/src/glomerator.cc, ReadCacheFile() and WriteCacheFile())
 bcrham_dbgstrs = {
     'partition' : {  # corresponds to stdout from glomerator.cc
         'read-cache' : ['logprobs', 'naive-seqs'],
@@ -1897,7 +1897,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
         os.makedirs(dirname)
 
 # ----------------------------------------------------------------------------------------
-def process_input_line(info, hmm_cachefile=False, skip_literal_eval=False):
+def process_input_line(info, skip_literal_eval=False):
     """
     Attempt to convert all the keys and values in <info> according to the specifications in <io_column_configs> (e.g. splitting lists, casting to int/float, etc).
     """

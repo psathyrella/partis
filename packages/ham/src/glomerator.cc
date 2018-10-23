@@ -129,7 +129,7 @@ void Glomerator::ReadCacheFile() {
   }
   line.erase(remove(line.begin(), line.end(), '\r'), line.end());
   vector<string> headstrs(SplitString(line, ","));
-  assert(headstrs[0].find("unique_ids") == 0);
+  assert(headstrs[0].find("unique_ids") == 0);  // these have to match the line in WriteCacheFile(), as well as partition_cachefile_headers in utils.py
   assert(headstrs[1].find("logprob") == 0);
   assert(headstrs[2].find("naive_seq") == 0);
   assert(headstrs[3].find("naive_hfrac") == 0);
@@ -195,7 +195,7 @@ void Glomerator::WriteCacheFile() {
   if(!log_prob_ofs.is_open())
     throw runtime_error("couldn't open output cache file " + args_->output_cachefname() + "\n");
 
-  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,errors" << endl;
+  log_prob_ofs << "unique_ids,logprob,naive_seq,naive_hfrac,errors" << endl;  // these have to match the line in ReadCacheFile(), as well as partition_cachefile_headers in utils.py
   log_prob_ofs << setprecision(20);
 
   set<string> keys_to_cache;
@@ -253,7 +253,7 @@ void Glomerator::WritePartitions(ClusterPath &cp) {
 
 // ----------------------------------------------------------------------------------------
 void Glomerator::WriteAnnotations(ClusterPath &cp) {
-  cout << "DEPRECATED" << endl;  // for somewhat technical reasons -- it still basically works (see notes in partitiondriver.py)
+  cout << "DEPRECATED" << endl;  // for somewhat technical reasons -- it still basically works (see notes in partitiondriver.py) UPDATE I can't find any notes about this in partitiondriver.py, but I think the basic deal is I'm running a whole separate bcrham process (after I'm done partitioning) to get the annotations. I think one (perhaps the main?) reason was that translation is really complicated, but for the final annotations we typically want the real full cluster calculation
   clock_t run_start(clock());
   cout << "      calculating and writing annotations" << endl;
   ofstream annotation_ofs;

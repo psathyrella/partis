@@ -907,7 +907,7 @@ class PartitionDriver(object):
         def get_outfname(iproc):
             return self.hmm_outfname.replace(self.args.workdir, self.subworkdir(iproc, n_procs))
         # ----------------------------------------------------------------------------------------
-        def get_cmd_str(iproc):
+        def get_cmd_str(iproc):  # all this does at this point is replace workdir with sub-workdir in hmm input, output, and cache file arguments
             strlist = cmd_str.split()
             for istr in range(len(strlist)):
                 if strlist[istr] == self.hmm_infname or strlist[istr] == self.hmm_cachefname or strlist[istr] == self.hmm_outfname:
@@ -986,7 +986,7 @@ class PartitionDriver(object):
         with open(self.hmm_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
-                utils.process_input_line(line, hmm_cachefile=True)
+                utils.process_input_line(line)
                 cachefo[':'.join(line['unique_ids'])] = line
         return cachefo
 
