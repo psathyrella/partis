@@ -696,9 +696,6 @@ class PartitionDriver(object):
             treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, treefname=self.args.treefname, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
         if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
-            # if we're in linearham mode, write the indel-reversed partition sequences to fasta files
-            if self.args.linearham and action_cache == 'partition':
-                utils.write_linearham_seqs(self.args.outfname, best_annotations.values())
 
         if self.args.write_additional_cluster_annotations is not None:  # remove the clusters that aren't actually in the best partition (we need them for partition plotting)
             remove_additional_clusters(best_annotations)
@@ -1663,7 +1660,7 @@ class PartitionDriver(object):
 
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
 
-                if self.args.linearham and self.current_action != 'cache-parameters':
+                if self.args.linearham and self.current_action == 'annotate':
                     # add flexbounds/relpos to padded line
                     status = utils.add_linearham_info(self.sw_info, padded_line)
                     if status == 'nonsense':
@@ -1682,7 +1679,7 @@ class PartitionDriver(object):
                     print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
-                if len(uids) > 1 or (self.args.linearham and self.current_action != 'cache-parameters'):  # if there's more than one sequence (or we're in linearham mode), we need to use the padded line
+                if len(uids) > 1 or (self.args.linearham and self.current_action == 'annotate'):  # if there's more than one sequence (or we're in linearham mode), we need to use the padded line
                     at_least_one_mult_hmm_line = True
                     line_to_use = padded_line
                 else:  # otherwise, the eroded line is kind of simpler to look at
@@ -1823,8 +1820,9 @@ class PartitionDriver(object):
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
-        if self.args.linearham and self.current_action != 'cache-parameters':
+        if self.args.linearham and self.current_action == 'annotate':
             headers = utils.add_lists(headers, utils.linearham_headers)
+            utils.write_linearham_seqs(self.args.outfname, annotation_list)
         if utils.getsuffix(self.args.outfname) == '.csv':
             if cpath is not None:
                 cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)
