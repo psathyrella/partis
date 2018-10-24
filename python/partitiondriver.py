@@ -407,7 +407,7 @@ class PartitionDriver(object):
         else:
             cpath = self.cluster_with_bcrham()
 
-        best_cluster_annotations = self.get_cluster_annotations(cpath)
+        best_cluster_annotations = self.get_cluster_annotations(cpath.partitions[cpath.i_best], cpath=cpath)
 
         if self.args.plotdir is not None:
             partplotter = PartitionPlotter(self.args)
@@ -652,10 +652,10 @@ class PartitionDriver(object):
         return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
-    def get_cluster_annotations(self, cpath):
-        partition_to_annotate = cpath.partitions[cpath.i_best]
-        if self.args.write_additional_cluster_annotations is not None:
-            cluster_set = set([tuple(c) for c in partition_to_annotate])
+    def get_cluster_annotations(self, clusters_to_annotate, cpath=None):  # we used to try to have glomerator.cc try to guess what annoations to write (using ::WriteAnnotations()), but now we go back and rerun a separate bcrham process just to get the annotations we want, partly for that control, but also partly because we typically want all these annotations calculated without any uid translation.
+        def add_additional_clusters():
+            assert cpath is not None
+            cluster_set = set([tuple(c) for c in clusters_to_annotate])
             istart = max(0, cpath.i_best - self.args.write_additional_cluster_annotations[0])
             istop = min(len(cpath.partitions), cpath.i_best + 1 + self.args.write_additional_cluster_annotations[1])
             for ip in range(istart, istop):
@@ -663,18 +663,32 @@ class PartitionDriver(object):
                     continue
                 old_len = len(cluster_set)
                 cluster_set |= set([tuple(c) for c in cpath.partitions[ip]])
-            print '    --write-additional-cluster-annotations: added %d clusters for annotation to best partition of original length %d' % (len(cluster_set) - len(partition_to_annotate), len(partition_to_annotate))
+            print '    --write-additional-cluster-annotations: added %d clusters for annotation to best partition of original length %d' % (len(cluster_set) - len(clusters_to_annotate), len(clusters_to_annotate))
             print '       %s these additional clusters will also be printed below if --debug is greater than 0' % utils.color('yellow', 'note:')
-            partition_to_annotate = [list(c) for c in cluster_set]
+            return [list(c) for c in cluster_set]
+        def remove_additional_clusters(best_annotations):
+            assert cpath is not None
+            keys_to_remove = [uidstr for uidstr in best_annotations if uidstr.split(':') not in cpath.partitions[cpath.i_best]]
+            for uidstr in keys_to_remove:
+                del best_annotations[uidstr]
+            if len(best_annotations) != len(cpath.partitions[cpath.i_best]):
+                if len(best_annotations) < len(cpath.partitions[cpath.i_best]):  # if <best_annotations> is too short, it should be because there was a failed annotation
+                    print '    %s read fewer cluster annotations than there are clusters in the best partition (should be accounted for above)' % utils.color('yellow', 'warning')
+                else:
+                    raise Exception('something went wrong when removing extra clusters from best_annotations (%d vs %d)' % (len(best_annotations), len(cpath.partitions[cpath.i_best])))
 
-        if len(partition_to_annotate) == 0:
+        # ----------------------------------------------------------------------------------------
+        if self.args.write_additional_cluster_annotations is not None:
+            clusters_to_annotate = add_additional_clusters()
+
+        if len(clusters_to_annotate) == 0:
             return
         action_cache = self.current_action  # hackey, but probably not worth trying (more) to improve
         self.current_action = 'annotate'
-        partition_to_annotate = sorted(partition_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
-        n_procs = min(self.args.n_procs, len(partition_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
+        clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
+        n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print 'getting annotations for final partition%s' % ('s' if self.args.write_additional_cluster_annotations is not None else '')
-        self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=partition_to_annotate, read_output=False)
+        self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, read_output=False)
         if n_procs > 1:
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
@@ -687,14 +701,7 @@ class PartitionDriver(object):
                 utils.write_linearham_seqs(self.args.outfname, best_annotations.values())
 
         if self.args.write_additional_cluster_annotations is not None:  # remove the clusters that aren't actually in the best partition (we need them for partition plotting)
-            keys_to_remove = [uidstr for uidstr in best_annotations if uidstr.split(':') not in cpath.partitions[cpath.i_best]]
-            for uidstr in keys_to_remove:
-                del best_annotations[uidstr]
-            if len(best_annotations) != len(cpath.partitions[cpath.i_best]):
-                if len(best_annotations) < len(cpath.partitions[cpath.i_best]):  # if <best_annotations> is too short, it should be because there was a failed annotation
-                    print '    %s read fewer cluster annotations than there are clusters in the best partition (should be accounted for above)' % utils.color('yellow', 'warning')
-                else:
-                    raise Exception('something went wrong when removing extra clusters from best_annotations (%d vs %d)' % (len(best_annotations), len(cpath.partitions[cpath.i_best])))
+            remove_additional_clusters(best_annotations)
 
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
