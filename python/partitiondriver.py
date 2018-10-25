@@ -144,9 +144,10 @@ class PartitionDriver(object):
             if os.path.exists(subd):  # if there was only one proc for this step, it'll have already been removed
                 os.rmdir(subd)
 
-        for cpfname in self.get_all_cpath_progress_fnames():
-            os.remove(cpfname)
-        os.rmdir(self.cpath_progress_dir)
+        if os.path.exists(self.cpath_progress_dir):  # only exists for partitioning
+            for cpfname in self.get_all_cpath_progress_fnames():
+                os.remove(cpfname)
+            os.rmdir(self.cpath_progress_dir)
 
         try:
             os.rmdir(self.args.workdir)
