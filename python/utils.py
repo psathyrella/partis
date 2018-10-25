@@ -3887,7 +3887,7 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
                 'events' : yaml_annotations}
     with open(fname, 'w') as yamlfile:
         # import yaml
-        # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)  # slower, but easier to read by hand for debugging
+        # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
         json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
 
 # ----------------------------------------------------------------------------------------
@@ -3949,7 +3949,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
     with open(fname) as yamlfile:
         # import yaml
-        # yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)
+        # yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)  # use this instead of the json version to make more human-readable files
         yamlfo = json.load(yamlfile)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
         if debug:
             print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
@@ -3963,7 +3963,7 @@ def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_
     partition_lines = yamlfo['partitions']
     if cpath is None:   # allowing the caller to pass in <cpath> is kind of awkward, but it's used for backward compatibility in clusterpath.readfile()
         cpath = clusterpath.ClusterPath(seed_unique_id=seed_unique_id)  # NOTE I'm not sure if I really want to pass in the seed here -- it should be stored in the file -- but if it's in both places it should be the same. um, should.
-    if len(partition_lines) > 0:  # _don't_ combine this with the cluster path constructor, since then we won't modify the path passed in the arguments
+    if len(partition_lines) > 0:  # *don't* combine this with the cluster path constructor, since then we won't modify the path passed in the arguments
         cpath.readlines(partition_lines)
 
     return glfo, annotation_list, cpath

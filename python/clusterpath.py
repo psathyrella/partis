@@ -135,7 +135,7 @@ class ClusterPath(object):
             if self.ccfs[ip][0] is not None and self.ccfs[ip][1] is not None:  # already have them
                 continue
 
-            true_partition = utils.get_true_partition(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])
+            true_partition = utils.get_true_partition(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])  # can't use the true partition we might already have in the calling function, since we need this to only have uids from this partition (i.e. this isn't really the true partition)
             self.ccfs[ip] = utils.new_ccfs_that_need_better_names(self.partitions[ip], true_partition, reco_info, seed_unique_id=self.seed_unique_id)
             self.we_have_a_ccf = True
 
@@ -282,7 +282,9 @@ class ClusterPath(object):
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def get_partition_lines(self, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None):
+    def get_partition_lines(self, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None):  # we use this (instead of .write()) if we're writing a yaml file
+        if not is_data:
+            assert reco_info is not None and true_partition is not None  # we could get the true_partition if we have reco_info, but easier to just make the caller do it
         assert calc_missing_values in ['none', 'all', 'best']
         if reco_info is not None and calc_missing_values == 'all':
             self.calculate_missing_values(reco_info)

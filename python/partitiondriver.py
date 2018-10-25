@@ -1021,7 +1021,7 @@ class PartitionDriver(object):
             if self.current_action == 'partition' or n_procs > 1:
                 cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
                 if cpath is not None:
-                    cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data)
+                    cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data, reco_info=self.reco_info, true_partition=utils.get_true_partition(self.reco_info) if not self.args.is_data else None)
 
             if algorithm == 'viterbi' and not precache_all_naive_seqs:
                 annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
@@ -1881,7 +1881,7 @@ class PartitionDriver(object):
             headers = utils.add_lists(headers, utils.linearham_headers)
         if utils.getsuffix(self.args.outfname) == '.csv':
             if cpath is not None:
-                cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)
+                cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)  # don't need to pass in reco_info/true_partition since we passed them when we got the partition lines
             annotation_fname = self.args.outfname if cpath is None else self.args.cluster_annotation_fname
             utils.write_annotations(annotation_fname, self.glfo, annotation_list, headers, failed_queries=failed_queries)
         elif utils.getsuffix(self.args.outfname) == '.yaml':
