@@ -74,6 +74,7 @@ class PartitionDriver(object):
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
+        self.cpath_progress_dir = '%s/cluster-path-progress' % self.args.workdir  # write the cluster paths for each clustering step to separate files in this dir
 
         if self.args.outfname is not None:
             utils.prep_dir(dirname=None, fname=self.args.outfname, allow_other_files=True)
@@ -97,6 +98,15 @@ class PartitionDriver(object):
             'get-tree-metrics'            : self.read_existing_output,
             'view-alternative-naive-seqs' : self.view_alternative_naive_seqs,
         }
+
+    # ----------------------------------------------------------------------------------------
+    def get_cpath_progress_fname(self, istep):
+        return '%s/istep-%d.csv' % (self.cpath_progress_dir, istep)
+
+    # ----------------------------------------------------------------------------------------
+    def get_all_cpath_progress_fnames(self):
+        assert len(os.listdir(self.cpath_progress_dir)) == self.istep + 1  # not really checking for anything that has a decent chance of happening, it's more because I get the file names in a slightly different loop in self.clean()
+        return [self.get_cpath_progress_fname(istep) for istep in range(self.istep + 1)]
 
     # ----------------------------------------------------------------------------------------
     def run(self, actions):
@@ -133,6 +143,10 @@ class PartitionDriver(object):
         for subd in self.subworkdirs:
             if os.path.exists(subd):  # if there was only one proc for this step, it'll have already been removed
                 os.rmdir(subd)
+
+        for cpfname in self.get_all_cpath_progress_fnames():
+            os.remove(cpfname)
+        os.rmdir(self.cpath_progress_dir)
 
         try:
             os.rmdir(self.args.workdir)
@@ -311,13 +325,7 @@ class PartitionDriver(object):
                 clusterstrs.append('      %s' % ':'.join(cluster))
             raise Exception('in order to view alternative naive sequences, you have to specify (with --queries) a cluster from the final partition. Choose from the following:\n%s' % '\n'.join(clusterstrs))
 
-        sw_annotations = None
-        if self.args.sw_cachefname is not None and os.path.exists(self.args.sw_cachefname):  # try to get at least the single-sequence annotations from sw
-            print '  %s using cached sw annotations for comparing gene calls in view-alternative-naive-seqs. It\'s much better to use the hmm cache file, since it has more than just single-sequence annotations, so presumably/hopefully you\'ve set this because you don\'t have that' % utils.color('yellow', 'note:')
-            _, sw_annotation_list, _ = utils.read_output(self.args.sw_cachefname, dont_add_implicit_info=True)
-            sw_annotations = {l['unique_ids'][0] : l for l in sw_annotation_list}
-
-        self.print_subcluster_naive_seqs(self.args.queries, sw_annotations=sw_annotations)
+        self.print_subcluster_naive_seqs(self.args.queries)
 
     # ----------------------------------------------------------------------------------------
     def print_results(self, cpath, annotations):  # NOTE this duplicates code that already prints annotations (in self.read_annotation_output()) and partitions (in self.partition())
@@ -407,7 +415,7 @@ class PartitionDriver(object):
         else:
             cpath = self.cluster_with_bcrham()
 
-        best_cluster_annotations = self.get_cluster_annotations(cpath.partitions[cpath.i_best], cpath=cpath)
+        best_cluster_annotations = self.get_cluster_annotations(cpath)
 
         if self.args.plotdir is not None:
             partplotter = PartitionPlotter(self.args)
@@ -581,26 +589,64 @@ class PartitionDriver(object):
         return synth_sw_info
 
     # ----------------------------------------------------------------------------------------
-    def get_initial_cpath(self, n_procs):
+    def init_cpath(self, n_procs):
         initial_nseqs = len(self.sw_info['queries'])  # NOTE um, maybe I should change this to the number of clusters, now that we're doing some preclustering here?
         initial_nsets = utils.collapse_naive_seqs(self.synth_sw_info(self.sw_info['queries']), split_by_cdr3=True, debug=True)
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
+        os.makedirs(self.cpath_progress_dir)
         if self.args.debug:
             cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
         return cpath, initial_nseqs
 
     # ----------------------------------------------------------------------------------------
+    def merge_cpaths_from_previous_steps(self, final_cpath, debug=False):
+        if debug:
+            print 'final (unmerged) cpath:'
+            final_cpath.print_partitions(abbreviate=self.args.abbreviate)
+            print ''
+
+        n_before, n_after = self.args.n_partitions_to_write, self.args.n_partitions_to_write  # this takes more than we need, since --n-partitions-to-write is the *full* width, not half-width, but oh, well
+        if self.args.debug or self.args.calculate_alternative_naive_seqs:  # take all of 'em
+            n_before, n_after = sys.maxint, sys.maxint
+        elif self.args.write_additional_cluster_annotations is not None:
+            n_before, n_after = [max(waca, n_) for waca, n_ in zip(self.args.write_additional_cluster_annotations, (n_before, n_after))]
+        # NOTE we don't actually do anything with <n_after>, since we can't add any extra partitions here (well, we don't want to)
+
+        cpfnames = self.get_all_cpath_progress_fnames()  # last one corresponds to <final_cpath>
+
+        if final_cpath.i_best >= n_before or len(cpfnames) < 2:  # if we already have enough partitions, or if there was only one step, there's nothing to do
+            if debug:
+                print '   nothing to merge'
+            return final_cpath
+
+        icpfn = len(cpfnames) - 1
+        merged_cp = ClusterPath(fname=cpfnames[icpfn], seed_unique_id=self.args.seed_unique_id)
+        assert merged_cp.partitions[merged_cp.i_best] == final_cpath.partitions[final_cpath.i_best]  # shouldn't really be necessary, and is probably kind of slow
+        while merged_cp.i_best < n_before and icpfn > 0:
+            icpfn -= 1
+            previous_cp = ClusterPath(fname=cpfnames[icpfn], seed_unique_id=self.args.seed_unique_id)
+            for ip in range(len(merged_cp.partitions)):
+                previous_cp.add_partition(list(merged_cp.partitions[ip]), merged_cp.logprobs[ip], merged_cp.n_procs[ip])
+            merged_cp = previous_cp
+            assert merged_cp.partitions[merged_cp.i_best] == final_cpath.partitions[final_cpath.i_best]  # shouldn't really be necessary, and is probably kind of slow
+            if debug:
+                print '%s' % utils.color('red', str(icpfn))
+                merged_cp.print_partitions()
+
+        return merged_cp
+
+    # ----------------------------------------------------------------------------------------
     def cluster_with_bcrham(self):
         tmpstart = time.time()
         n_procs = self.args.n_procs
-        cpath, initial_nseqs = self.get_initial_cpath(n_procs)
+        cpath, initial_nseqs = self.init_cpath(n_procs)
         n_proc_list = []
         self.istep = 0
         start = time.time()
         while n_procs > 0:
             print '%d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
-            cpath, _, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # it would be nice to not just annihilate the old <cpath> here, and keep around some number of partitions over multiple n-procs cycles (but I think this would require write some amount of cluster path merging code)
+            cpath, _, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # note that this annihilates the old <cpath>, which is a memory optimization (but we write all of them to the cpath progress dir)
             n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
@@ -610,6 +656,8 @@ class PartitionDriver(object):
         if self.args.max_cluster_size is not None:
             print '   --max-cluster-size (partitiondriver): merging shared clusters'
             self.merge_shared_clusters(cpath)
+
+        cpath = self.merge_cpaths_from_previous_steps(cpath)
 
         print '      loop time: %.1f' % (time.time()-start)
         return cpath
@@ -652,22 +700,22 @@ class PartitionDriver(object):
         return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
-    def get_cluster_annotations(self, clusters_to_annotate, cpath=None):  # we used to try to have glomerator.cc try to guess what annoations to write (using ::WriteAnnotations()), but now we go back and rerun a separate bcrham process just to get the annotations we want, partly for that control, but also partly because we typically want all these annotations calculated without any uid translation.
-        def add_additional_clusters():
-            assert cpath is not None
+    def get_cluster_annotations(self, cpath, extra_dbg_str=''):  # we used to try to have glomerator.cc try to guess what annoations to write (using ::WriteAnnotations()), but now we go back and rerun a separate bcrham process just to get the annotations we want, partly for that control, but also partly because we typically want all these annotations calculated without any uid translation.
+        def add_additional_clusters(clusters_to_annotate):
             cluster_set = set([tuple(c) for c in clusters_to_annotate])
-            istart = max(0, cpath.i_best - self.args.write_additional_cluster_annotations[0])
-            istop = min(len(cpath.partitions), cpath.i_best + 1 + self.args.write_additional_cluster_annotations[1])
-            for ip in range(istart, istop):
-                if ip == cpath.i_best:
-                    continue
-                old_len = len(cluster_set)
-                cluster_set |= set([tuple(c) for c in cpath.partitions[ip]])
-            print '    --write-additional-cluster-annotations: added %d clusters for annotation to best partition of original length %d' % (len(cluster_set) - len(clusters_to_annotate), len(clusters_to_annotate))
-            print '       %s these additional clusters will also be printed below if --debug is greater than 0' % utils.color('yellow', 'note:')
+            if self.args.write_additional_cluster_annotations is not None:
+                istart = max(0, cpath.i_best - self.args.write_additional_cluster_annotations[0])
+                istop = min(len(cpath.partitions), cpath.i_best + 1 + self.args.write_additional_cluster_annotations[1])
+                for ip in range(istart, istop):
+                    cluster_set |= set([tuple(c) for c in cpath.partitions[ip]])
+            if self.args.calculate_alternative_naive_seqs:  # add every cluster from the entire clustering history NOTE stuff that's in self.hmm_cachefname (which we used to use for this), but not in the cpath progress files: translated clusters, clusters that we calculated but didn't merge (maybe? not sure)
+                cluster_set |= set([(uid,) for cluster in cpath.partitions[cpath.i_best] for uid in cluster])  # add the singletons separately, since we don't write a singleton partition before collapsing naive sequences before the first clustering step
+                cluster_set |= set([tuple(cluster) for partition in cpath.partitions for cluster in partition])  # kind of wasteful to re-add clusters from the best partition here, but oh well
+            print '    added %d clusters for annotation to best partition of original length %d' % (len(cluster_set) - len(clusters_to_annotate), len(clusters_to_annotate))
+            if self.args.debug:
+                print '       %s these additional clusters will also be printed below, since --debug is greater than 0' % utils.color('yellow', 'note:')
             return [list(c) for c in cluster_set]
         def remove_additional_clusters(best_annotations):
-            assert cpath is not None
             keys_to_remove = [uidstr for uidstr in best_annotations if uidstr.split(':') not in cpath.partitions[cpath.i_best]]
             for uidstr in keys_to_remove:
                 del best_annotations[uidstr]
@@ -678,8 +726,10 @@ class PartitionDriver(object):
                     raise Exception('something went wrong when removing extra clusters from best_annotations (%d vs %d)' % (len(best_annotations), len(cpath.partitions[cpath.i_best])))
 
         # ----------------------------------------------------------------------------------------
-        if self.args.write_additional_cluster_annotations is not None:
-            clusters_to_annotate = add_additional_clusters()
+        clusters_to_annotate = cpath.partitions[cpath.i_best]
+        if self.args.write_additional_cluster_annotations is not None or self.args.calculate_alternative_naive_seqs:
+            clusters_to_annotate = add_additional_clusters(clusters_to_annotate)
+            extra_dbg_str += ' (including additional clusters)'
 
         if len(clusters_to_annotate) == 0:
             return
@@ -687,14 +737,14 @@ class PartitionDriver(object):
         self.current_action = 'annotate'
         clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
-        print 'getting annotations for final partition%s' % ('s' if self.args.write_additional_cluster_annotations is not None else '')
+        print 'getting annotations for final partition%s' % extra_dbg_str
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, read_output=False)
         if n_procs > 1:
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
         if self.args.get_tree_metrics:
             treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, reco_info=self.reco_info, treefname=self.args.treefname, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
-        if self.args.outfname is not None:  # NOTE need to write _before_ removing any clusters from the non-best partition
+        if self.args.outfname is not None:  # NOTE need to write *before* removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
             # if we're in linearham mode, write the indel-reversed partition sequences to fasta files
             if self.args.linearham and action_cache == 'partition':
@@ -848,7 +898,7 @@ class PartitionDriver(object):
                 cmd_str += ' --logprob-ratio-threshold ' + str(self.args.logprob_ratio_threshold)
                 cmd_str += ' --biggest-naive-seq-cluster-to-calculate ' + str(self.args.biggest_naive_seq_cluster_to_calculate)
                 cmd_str += ' --biggest-logprob-cluster-to-calculate ' + str(self.args.biggest_logprob_cluster_to_calculate)
-                cmd_str += ' --n-partitions-to-write ' + str(self.args.n_partitions_to_write)  # don't write too many, since calculating the extra logprobs is kind of expensive
+                cmd_str += ' --n-partitions-to-write ' + str(self.args.n_partitions_to_write)  # don't write too many, since calculating the extra logprobs is kind of expensive (note that in practice bcrham rarely has the default of 10 to work with any more, mostly because it's only looking at merges from one clustering step. Also note that we typically won't have the logprobs for all of them, for the same reason)
                 if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition NOTE this is quite expensive, since we have to turn off translation entirely
                     cmd_str += '  --write-logprob-for-each-partition'
 
@@ -969,6 +1019,8 @@ class PartitionDriver(object):
         if read_output:
             if self.current_action == 'partition' or n_procs > 1:
                 cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
+                if cpath is not None:
+                    cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data)
 
             if algorithm == 'viterbi' and not precache_all_naive_seqs:
                 annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
@@ -998,52 +1050,59 @@ class PartitionDriver(object):
         return cachefo
 
     # ----------------------------------------------------------------------------------------
-    def print_subcluster_naive_seqs(self, uids_of_interest, sw_annotations=None):
+    def print_subcluster_naive_seqs(self, uids_of_interest):
         uids_of_interest = set(uids_of_interest)
-        uidstr_of_interest, cache_file_naive_seq = None, None  # we don't know what order they're in the cache file yet
+        cluster_annotations, _ = self.read_existing_output(ignore_args_dot_queries=True, read_partitions=True, read_annotations=True)  # we don't really need to read the partitions, but the fcn gets confused otherwise and doesn't read the right cluster annotation file (for deprecated csv files)
 
-        cachefo = self.read_hmm_cachefile()
-        sub_uidstrs = []  # uid strings from the file that have non-zero overlap with <uids_of_interest>
+        uidstr_of_interest = None  # we don't yet know in what order the uids in <uids_of_interest> appear in the file
         sub_info = {}  # map from naive seq : sub uid strs
+
+        if os.path.exists(self.hmm_cachefname):
+            cachefo = self.read_hmm_cachefile()
+            print '  %s persistent hmm cache file %s exists (probably just copied it from %s), so we\'re assuming that all the sub cluster annotations *weren\'t* written to the output file, i.e. this is old-style output. This\'ll still work, it will just be missing a lot of the v/d/j gene info)' % (utils.color('yellow', 'note'), self.hmm_cachefname, self.args.persistent_cachefname)
+            # fuck it, this isn't worth it (but not yet quite willing to delete the effort)
+            # print '  %s persistent hmm cache file %s exists (probably just copied it from %s), so we\'re assuming that the sub cluster annotations *weren\'t* written to the output file, i.e. this is old-style output (if you set --infname (and --parameter-dir is either set or the default corresponds to an existing parameter directory), we\'ll just run the cluster annotations for cache file uidstrs right now. Otherwise this\'ll still work, it just won\'t have the v/d/j gene info)' % (utils.color('yellow', 'note'), self.hmm_cachefname, self.args.persistent_cachefname)
+            # if self.args.parameter_dir is not None and self.args.infname is not None:
+            #     self.run_waterer(look_for_cachefile=True)  # need sw info to run the hmm (this is not really a good idea to be running new stuff during an action that's supposed to be running on existing output, but it's only for backwards compatibility, so oh well)
+            #     cache_clusters = [set(uidstr.split(':')) for uidstr in cachefo]  # all of 'em
+            #     cache_clusters = [sc for sc in cache_clusters if sc <= uids_of_interest]  # just the ones that are composed entire of queries in uids_of_interest
+            #     # DAMMIT neither of these ways of handling missing sw queries work. oh, well
+            #     # cache_clusters = [sc for sc in cache_clusters if len(sc & set(self.sw_info['failed-queries'])) == 0]  # and remove any sw failues (arg, this shouldn't be needed, why are they failing now when they didn't before?)
+            #     # cache_clusters = [sc - set(self.sw_info['failed-queries']) for sc in cache_clusters if len(sc & set(self.sw_info['failed-queries'])) == 0]  # and remove any sw failues (arg, this shouldn't be needed, why are they failing now when they didn't before?)
+            #     cache_clusters = set([tuple(sc) for sc in cache_clusters])
+            #     cluster_annotations = self.get_cluster_annotations(cpath=None, clusters_to_annotate=cache_clusters, dont_write_anything=True, extra_dbg_str=' (using clusters from old hmm cache file, not final partition)')  # replaces <cluster_annotations> that was just read the existing output file:
+            #     cachefo = cluster_annotations  # account for the clusters we removed because they had queries that weren't in uids_of_interest
+        else:
+            cachefo = cluster_annotations  # ok, this is a weird way to write this, but it makes clear that it's this way to handled backwards compatibility with old output (where we have to read the hmm cache file)
         for uidstr, info in cachefo.items():
-            if info['naive_seq'] == '':
+            if info['naive_seq'] == '':  # hmm cache file lines that only have logprobs
                 continue
-            uids = set(info['unique_ids'])
-            if len(uids & uids_of_interest) == 0:  # first see if there's some overlap with what we're interested in
+            uid_set = set(info['unique_ids'])
+            if len(uid_set & uids_of_interest) == 0:
                 continue
-            sub_uidstrs.append(uidstr)
-            if cachefo[uidstr]['naive_seq'] not in sub_info:
-                sub_info[cachefo[uidstr]['naive_seq']] = []
-            sub_info[cachefo[uidstr]['naive_seq']].append(uidstr)
-            if uids == uids_of_interest:
+            naive_seq = cachefo[uidstr]['naive_seq']
+            if naive_seq not in sub_info:
+                sub_info[naive_seq] = []
+            sub_info[naive_seq].append(uidstr)
+            if uid_set == uids_of_interest:
                 uidstr_of_interest = uidstr
-        if len(sub_uidstrs) == 0:
-            print '  couldn\'t find any clusters in %s with uid of interest %s' % (self.hmm_cachefname, uids_of_interest)
-        # sub_uidstrs = sorted(sub_uidstrs, key=lambda x: x.count(':'))  # was using this for something, but then I stopped (I was using it to keep going with a sub/superset if uidstr_of_interest ended up None, but that doesn't work becuase in the loop above we skipped everybody with no overlap, which can include some that overlap with the newly-selected superset)
 
         if uidstr_of_interest is None:
             raise Exception('hmm cache file doesn\'t have a cluster with the exact requested uids (run without setting --queries to get a list of available clusters): %s' % uids_of_interest)
-        cache_file_naive_seq = cachefo[uidstr_of_interest]['naive_seq']
+
+        cache_file_naive_seq = cachefo[uidstr_of_interest]['naive_seq']  # ok not actually from the hmm cache file with new-style output, but I don't feel like renaming it
         print '  subcluster naive sequences for:\n    %s\n   (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
 
-        cluster_annotations, _ = self.read_existing_output(ignore_args_dot_queries=True, read_partitions=True, read_annotations=True)  # we don't really need to read the partitions, but the fcn gets confused otherwise and doesn't read the right cluster annotation file (for deprecated csv files)
-        if uidstr_of_interest in cluster_annotations:
-            line_of_interest = cluster_annotations[uidstr_of_interest]
-        else:
+        if uidstr_of_interest not in cluster_annotations:  # only possible if we're reading the hmm cache file, i.e. old-style output
             raise Exception('annotations don\'t have cluster corresponding to that found in hmm cache file')
-            # I think this might have been broken, but in any case I don't really need it so commenting it out for now (see note above about having already skipped some clusters that we would want if we were going to switch the cluster of interest):
-            # clusters_with_overlap = sorted([c for c in cluster_annotations if len(set(c.split(':')) & uids_of_interest) > 0], key=lambda x: x.count(':'))
-            # if len(clusters_with_overlap) == 0:
-            #     raise Exception('couldn\'t find any clusters with overlap')
-            # print 'with overlap: %s' % clusters_with_overlap
-            # line_of_interest = cluster_annotations[clusters_with_overlap[-1]]
+        line_of_interest = cluster_annotations[uidstr_of_interest]
 
         genes_of_interest = {r : line_of_interest[r + '_gene'] for r in utils.regions}
         gene_strs_of_interest = {r : utils.color_gene(genes_of_interest[r]) for r in utils.regions}  # have to do this up here so we know the width before we start looping
         gswidth = str(utils.len_excluding_colors('  '.join(gene_strs_of_interest.values())))  # out of order, but doesn't matter since we only want the length
 
         naive_seq_of_interest = line_of_interest['naive_seq']
-        if naive_seq_of_interest != cache_file_naive_seq:
+        if naive_seq_of_interest != cache_file_naive_seq:  # not possible with new-style output, since we don't read the hmm cache file
             print '%s naive sequences from cluster annotation and cache file aren\'t the same:' % utils.color('yellow', 'warning')
             utils.color_mutants(naive_seq_of_interest, cache_file_naive_seq, print_result=True, ref_label='cluster annotation  ', seq_label='cache file  ', extra_str='     ')
             print ''
@@ -1064,13 +1123,9 @@ class PartitionDriver(object):
             no_info = False  # gets set to true if *any* of the <uidstr>s are missing info (so <no_info> can be set to true for a line for which we also have inconsistent genes set)
             for uidstr in uid_str_list:
                 for region in utils.regions:
-                    if uidstr in cluster_annotations:  # if it's in the annotations for the best partition
-                        if cluster_annotations[uidstr][region + '_gene'] != genes_of_interest[region]:
-                            assert False  # update this
-                            # gene_strs += [utils.color_gene(cluster_annotations[uidstr][region + '_gene'], width='default')]
-                    elif sw_annotations is not None and ':' not in uidstr and uidstr in sw_annotations:  # if we were passed cached sw annotations, it's in there (this is just a stopgap)x
-                        if sw_annotations[uidstr][region + '_gene'] != genes_of_interest[region]:
-                            other_genes[region].add(sw_annotations[uidstr][region + '_gene'])
+                    if uidstr in cluster_annotations:  # we should have all of 'em now, at least for new-style output
+                        if cluster_annotations[uidstr][region + '_gene'] != genes_of_interest[region]:  # NOTE if they match, we fall through
+                            other_genes[region].add(cluster_annotations[uidstr][region + '_gene'])
                     else:
                         no_info = True
 
@@ -1266,9 +1321,7 @@ class PartitionDriver(object):
                 else:
                     infnames = [self.subworkdir(iproc, n_procs) + '/' + os.path.basename(self.hmm_outfname) for iproc in range(n_procs)]
                 glomerer = Glomerator(self.reco_info, seed_unique_id=self.args.seed_unique_id)
-                glomerer.read_cached_agglomeration(infnames, debug=self.args.debug)  #, outfname=self.hmm_outfname)
-                assert len(glomerer.paths) == 1
-                cpath = glomerer.paths[0]
+                cpath = glomerer.read_cached_agglomeration(infnames, debug=self.args.debug)  #, outfname=self.hmm_outfname)
         else:
             self.merge_subprocess_files(self.hmm_outfname, n_procs)
 

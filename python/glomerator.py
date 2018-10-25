@@ -179,9 +179,9 @@ class Glomerator(object):
                     for ip in range(len(previous_path.partitions)):
                         # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
                         #     continue
-                        extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.n_procs[ip], logweight=previous_path.logweights[ip], adj_mi=previous_path.adj_mis[ip])
+                        extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.n_procs[ip], logweight=previous_path.logweights[ip])
                     for ip in range(len(current_path.partitions)):
-                        extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.n_procs[ip], logweight=current_path.logweights[ip], adj_mi=current_path.adj_mis[ip])
+                        extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.n_procs[ip], logweight=current_path.logweights[ip])
                     fileinfos[ifile][ipath] = extended_path
                     fileinfos[ifile][ipath].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                     if debug:
@@ -257,9 +257,9 @@ class Glomerator(object):
                 for ip in range(len(previous_path.partitions)):
                     # if previous_path.logprobs[ip] >= first_new_logprob:  # skip the merges past which we rewound
                     #     continue
-                    extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.n_procs[ip], logweight=previous_path.logweights[ip], adj_mi=previous_path.adj_mis[ip])
+                    extended_path.add_partition(list(previous_path.partitions[ip]), previous_path.logprobs[ip], previous_path.n_procs[ip], logweight=previous_path.logweights[ip])
                 for ip in range(len(current_path.partitions)):
-                    extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.n_procs[ip], logweight=current_path.logweights[ip], adj_mi=current_path.adj_mis[ip])
+                    extended_path.add_partition(list(current_path.partitions[ip]), current_path.logprobs[ip], current_path.n_procs[ip], logweight=current_path.logweights[ip])
                 self.paths[0] = extended_path
                 # self.paths[0].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                 if debug:
@@ -280,4 +280,5 @@ class Glomerator(object):
         if debug:
             print '        read cached glomeration time: %.3f' % (time.time()-start)
 
-        return self.paths
+        assert len(self.paths) == 1
+        return self.paths[0]

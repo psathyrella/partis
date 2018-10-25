@@ -141,16 +141,12 @@ def process(args):
     if args.cluster_annotation_fname is None and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':  # if it wasn't set on the command line (<outfname> _was_ set), _and_ if we were asked for a csv, then use the old file name format
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
 
-    if args.calculate_alternative_naive_seqs or (args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None):
-        if args.outfname is None:
-            raise Exception('have to specify --outfname in order to calculate alternative naive sequences')
-        args.persistent_cachefname = utils.getprefix(args.outfname) + '-hmm-cache.csv'  # written by bcrham, so has to be csv, not yaml
-        if args.calculate_alternative_naive_seqs and os.path.exists(args.persistent_cachefname):
-            if os.stat(args.persistent_cachefname).st_size == 0:
-                print '  note: removing existing zero-length persistent cache file %s' % args.persistent_cachefname
-                os.remove(args.persistent_cachefname)
-            else:
-                raise Exception('persistent cache file %s already exists, but we were asked to --calculate-alternative-naive-seqs. Either it\'s an old file (in which case you should delete it), or you\'ve already got the alternative annotations (so you can just run view-alternative-naive-seqs)' % args.persistent_cachefname)
+    if args.calculate_alternative_naive_seqs and args.outfname is None:
+        raise Exception('have to specify --outfname in order to calculate alternative naive sequences')
+    if args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None:  # handle existing old-style output
+        assert args.outfname is not None
+        if os.path.exists(utils.getprefix(args.outfname) + '-hmm-cache.csv'):
+            args.persistent_cachefname = utils.getprefix(args.outfname) + '-hmm-cache.csv'  # written by bcrham, so has to be csv, not yaml
 
     if args.plot_performance:
         print '%s encountered deprecated argument --plot-performance, moving value to --plot-annotation-performance' % utils.color('yellow', 'warning')
