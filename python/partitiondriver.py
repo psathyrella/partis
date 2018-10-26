@@ -1120,6 +1120,7 @@ class PartitionDriver(object):
         max_len_other_gene_str = 20
         independent_seq_info = {naive_seq : set([uid for uidstr in uid_str_list for uid in uidstr.split(':')]) for naive_seq, uid_str_list in sub_info.items()}
         unique_seqs_for_each_gene = {r : {} for r in utils.regions}  # for each gene, keeps track of the number of unique sequences that contributed to an annotation that used that gene
+        cluster_sizes_for_each_gene = {r : {} for r in utils.regions}  # same, but number/sizes of different clusters (so we can tell if a gene is only supported by like one really large cluster, but all the smaller clusters point to another gene)
         for naive_seq in sorted(independent_seq_info, key=lambda ns: len(independent_seq_info[ns]), reverse=True):
             uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
 
@@ -1135,6 +1136,9 @@ class PartitionDriver(object):
                         if gene_call not in unique_seqs_for_each_gene[region]:
                             unique_seqs_for_each_gene[region][gene_call] = set()
                         unique_seqs_for_each_gene[region][gene_call] |= set(cluster_annotations[uidstr]['unique_ids'])
+                        if gene_call not in cluster_sizes_for_each_gene[region]:
+                            cluster_sizes_for_each_gene[region][gene_call] = []
+                        cluster_sizes_for_each_gene[region][gene_call].append(len(cluster_annotations[uidstr]['unique_ids']))
                     else:
                         no_info = True
 
@@ -1173,11 +1177,14 @@ class PartitionDriver(object):
                 post_str = utils.color('blue', ' <-- requested uids', width=5)
             print ('%5s %s  %4d        %s     %s    %s%s') % (pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), len(independent_seq_info[naive_seq]), gene_str, other_gene_str, ' '.join(cluster_size_strs), post_str)
 
-        print '  number of unique sequences contributing to annotations for each gene:'
+        print ''
+        print '                     unique seqs        cluster sizes (+singletons)'
         for region in utils.regions:
             print '    %s' % utils.color('green', region)
             for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
-                print '      %s   %d' % (utils.color_gene(gene_call, width=15), len(uids))
+                print '      %s   %4d' % (utils.color_gene(gene_call, width=15), len(uids)),
+                csizes = cluster_sizes_for_each_gene[region][gene_call]
+                print '             %s (+%d)' % (' '.join('%d' % cs for cs in sorted(csizes, reverse=True) if cs > 1), csizes.count(1))
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
