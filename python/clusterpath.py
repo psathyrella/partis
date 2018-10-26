@@ -68,22 +68,25 @@ class ClusterPath(object):
         self.ccfs.append(ccfs)
         if ccfs.count(None) != len(ccfs):
             self.we_have_a_ccf = True
-        # set this as the best partition if 1) we haven't set i_best yet 2) this partition is more likely than i_best 3) i_best is set for a larger number of procs or 4) logprob is infinite (i.e. it's probably point/vsearch partis)
-        # NOTE we always treat the most recent partition with infinite logprob as the best
+        # set this as the best partition if 1) we haven't set i_best yet, 2) this partition is more likely than i_best, or 3) i_best is set for a partition with a larger number of procs or 4) logprob is infinite (i.e. we didn't calculate the full partitions logprob))
         if self.i_best is None or logprob > self.logprobs[self.i_best] or n_procs < self.n_procs[self.i_best] or math.isinf(logprob):
             self.i_best = len(self.partitions) - 1
         self.update_best_minus_x_partition()
 
     # ----------------------------------------------------------------------------------------
-    def remove_first_partition(self):
-        # NOTE after you do this, none of the 'best' shit is any good any more
-        # NOTE this was I think only used for smc
-        self.partitions.pop(0)
-        self.logprobs.pop(0)
-        self.n_procs.pop(0)
-        self.ccfs.pop(0)
-        self.logweights.pop(0)
+    def remove_partition(self, ip_to_remove):  # NOTE doesn't update self.we_have_a_ccf, but it probably won't change, right?
+        self.partitions.pop(ip_to_remove)
+        self.logprobs.pop(ip_to_remove)
+        self.n_procs.pop(ip_to_remove)
+        self.ccfs.pop(ip_to_remove)
+        self.logweights.pop(ip_to_remove)
         assert self.n_lists == 5  # make sure we didn't add another list and forget to put it in here
+
+        self.i_best = None  # indices are all off now, anyway, since we just removed a partition, so may as well start from scratch
+        for ip in range(len(self.partitions)):  # update self.i_best
+            if self.i_best is None or self.logprobs[ip] > self.logprobs[self.i_best] or self.n_procs[ip] < self.n_procs[self.i_best] or math.isinf(self.logprobs[ip]):  # NOTE duplicates code in add_partition()
+                self.i_best = ip
+        self.update_best_minus_x_partition()
 
     # ----------------------------------------------------------------------------------------
     def readfile(self, fname):

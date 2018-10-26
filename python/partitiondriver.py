@@ -629,9 +629,11 @@ class PartitionDriver(object):
             icpfn -= 1
             previous_cp = ClusterPath(fname=cpfnames[icpfn], seed_unique_id=self.args.seed_unique_id)
             for ip in range(len(merged_cp.partitions)):
-                if len(merged_cp.partitions[ip]) == len(previous_cp.partitions[-1]) and merged_cp.partitions[ip] == previous_cp.partitions[-1]:  # first statement is just a speed optimization
-                    print 'yep!'
-                    continue  # same as the last partition (I think this happens at the juncture between two clustering steps)
+                if len(merged_cp.partitions[ip]) == len(previous_cp.partitions[-1]):  # skip identical partitions (don't bother checking unless they're at least the same length
+                    if set([tuple(c) for c in merged_cp.partitions[ip]]) == set([tuple(c) for c in previous_cp.partitions[-1]]):  # no, they're not always in the same order (I think because they get parcelled out to different processes, and then read back in random order)
+                        if math.isinf(merged_cp.logprobs[ip]) and not math.isinf(previous_cp.logprobs[-1]):  # it should only be possible for the *later* partition to have non-infinite logprob, since we usually only calculate full logprobs in the last clustering step (which is why we're taking the later partition, from merged_cp), so print an error if the earlier one, that we're about to throw away, is the one that's non-infinite
+                            print '%s earlier partition (that we\'re discarding) has non-infinite logprob %f, while later partition\'s is infinite %f' % (utils.color('red', 'error'), previous_cp.logprobs[-1], merged_cp.logprobs[ip])
+                        previous_cp.remove_partition(len(previous_cp.partitions) - 1)  # remove it from previous_cp, since we want the one that may have a logprob set (and which has smaller n_procs, although I don't think we care about that)
                 previous_cp.add_partition(list(merged_cp.partitions[ip]), merged_cp.logprobs[ip], merged_cp.n_procs[ip])
             merged_cp = previous_cp
             assert merged_cp.partitions[merged_cp.i_best] == final_cpath.partitions[final_cpath.i_best]  # shouldn't really be necessary, and is probably kind of slow

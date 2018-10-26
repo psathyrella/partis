@@ -214,7 +214,7 @@ class Glomerator(object):
                         maxdelta = thisdelta
                         ibestfile = ifile
                 # print '    ibest %d with %f - %f = %f' % (ibestfile, fileinfos[ibestfile][ipath].logprobs[1], fileinfos[ibestfile][ipath].logprobs[0], fileinfos[ibestfile][ipath].logprobs[1] - fileinfos[ibestfile][ipath].logprobs[0])
-                fileinfos[ibestfile][ipath].remove_first_partition()
+                fileinfos[ibestfile][ipath].remove_partition(0)
 
             def add_next_global_partition():
                 global_partition = []
