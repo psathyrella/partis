@@ -602,6 +602,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_cpaths_from_previous_steps(self, final_cpath, debug=False):
+        debug = True
         if debug:
             print 'final (unmerged) cpath:'
             final_cpath.print_partitions(abbreviate=self.args.abbreviate)
@@ -628,6 +629,9 @@ class PartitionDriver(object):
             icpfn -= 1
             previous_cp = ClusterPath(fname=cpfnames[icpfn], seed_unique_id=self.args.seed_unique_id)
             for ip in range(len(merged_cp.partitions)):
+                if len(merged_cp.partitions[ip]) == len(previous_cp.partitions[-1]) and merged_cp.partitions[ip] == previous_cp.partitions[-1]:  # first statement is just a speed optimization
+                    print 'yep!'
+                    continue  # same as the last partition (I think this happens at the juncture between two clustering steps)
                 previous_cp.add_partition(list(merged_cp.partitions[ip]), merged_cp.logprobs[ip], merged_cp.n_procs[ip])
             merged_cp = previous_cp
             assert merged_cp.partitions[merged_cp.i_best] == final_cpath.partitions[final_cpath.i_best]  # shouldn't really be necessary, and is probably kind of slow
@@ -712,7 +716,7 @@ class PartitionDriver(object):
             if self.args.calculate_alternative_naive_seqs:  # add every cluster from the entire clustering history NOTE stuff that's in self.hmm_cachefname (which we used to use for this), but not in the cpath progress files: translated clusters, clusters that we calculated but didn't merge (maybe? not sure)
                 cluster_set |= set([(uid,) for cluster in cpath.partitions[cpath.i_best] for uid in cluster])  # add the singletons separately, since we don't write a singleton partition before collapsing naive sequences before the first clustering step
                 cluster_set |= set([tuple(cluster) for partition in cpath.partitions for cluster in partition])  # kind of wasteful to re-add clusters from the best partition here, but oh well
-            print '    added %d clusters for annotation to best partition of original length %d' % (len(cluster_set) - len(clusters_to_annotate), len(clusters_to_annotate))
+            print '    added %d clusters (in addition to the %d from the best partition) before running cluster annotations' % (len(cluster_set) - len(clusters_to_annotate), len(clusters_to_annotate))
             if self.args.debug:
                 print '       %s these additional clusters will also be printed below, since --debug is greater than 0' % utils.color('yellow', 'note:')
             return [list(c) for c in cluster_set]
@@ -1112,10 +1116,11 @@ class PartitionDriver(object):
         utils.print_reco_event(utils.synthesize_single_seq_line(line_of_interest, iseq=0), extra_str='      ', label='annotation for a single (arbitrary) sequence:')
         print ''
         print ''
-        print '%s       total      inconsistent (%s: missing info)     cluster' % (' ' * len(cache_file_naive_seq), utils.color('blue', 'x'))  # 'missing info' means that we didn\'t have an annotation for at least one of the clusters in that line. This is probably because we're using an old hmm cache file, and at best passed in the sw cache file annotations, which are only single-sequence.
-        print '%s        seqs    regions           genes               sizes (+singletons)' % (' ' * len(cache_file_naive_seq))
+        print '%s  total unique      inconsistent (%s: missing info)     cluster' % (' ' * len(cache_file_naive_seq), utils.color('blue', 'x'))  # 'missing info' means that we didn\'t have an annotation for at least one of the clusters in that line. This is probably because we're using an old hmm cache file, and at best passed in the sw cache file annotations, which are only single-sequence.
+        print '%s        seqs        regions         genes               sizes (+singletons)' % (' ' * len(cache_file_naive_seq))
         max_len_other_gene_str = 20
         independent_seq_info = {naive_seq : set([uid for uidstr in uid_str_list for uid in uidstr.split(':')]) for naive_seq, uid_str_list in sub_info.items()}
+        unique_seqs_for_each_gene = {r : {} for r in utils.regions}  # for each gene, keeps track of the number of unique sequences that contributed to an annotation that used that gene
         for naive_seq in sorted(independent_seq_info, key=lambda ns: len(independent_seq_info[ns]), reverse=True):
             uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
 
@@ -1125,8 +1130,12 @@ class PartitionDriver(object):
             for uidstr in uid_str_list:
                 for region in utils.regions:
                     if uidstr in cluster_annotations:  # we should have all of 'em now, at least for new-style output
-                        if cluster_annotations[uidstr][region + '_gene'] != genes_of_interest[region]:  # NOTE if they match, we fall through
-                            other_genes[region].add(cluster_annotations[uidstr][region + '_gene'])
+                        gene_call = cluster_annotations[uidstr][region + '_gene']
+                        if gene_call != genes_of_interest[region]:
+                            other_genes[region].add(gene_call)
+                        if gene_call not in unique_seqs_for_each_gene[region]:
+                            unique_seqs_for_each_gene[region][gene_call] = set()
+                        unique_seqs_for_each_gene[region][gene_call] |= set(cluster_annotations[uidstr]['unique_ids'])
                     else:
                         no_info = True
 
@@ -1159,10 +1168,17 @@ class PartitionDriver(object):
             if n_singletons > 0:
                 cluster_size_strs.append('(+%d)' % n_singletons)
 
-            pre_str = ''
+            pre_str, post_str = '', ''
             if uidstr_of_interest in uid_str_list:
                 pre_str = utils.color('blue', '-->', width=5)
-            print ('%5s %s  %4d     %s     %s    %s') % (pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), len(independent_seq_info[naive_seq]), gene_str, other_gene_str, ' '.join(cluster_size_strs))
+                post_str = utils.color('blue', ' <-- requested uids', width=5)
+            print ('%5s %s  %4d        %s     %s    %s%s') % (pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), len(independent_seq_info[naive_seq]), gene_str, other_gene_str, ' '.join(cluster_size_strs), post_str)
+
+        print '  number of unique sequences contributing to annotations for each gene:'
+        for region in utils.regions:
+            print '    %s' % utils.color('green', region)
+            for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
+                print '      %s   %d' % (utils.color_gene(gene_call, width=15), len(uids))
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
