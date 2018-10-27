@@ -32,11 +32,14 @@ if args.config_fname is None:
         'j_gene' : ['IGHJ4*02'],
         'cdr3_length' : ['66',],  #  TGTGCGAGAGGGCCATTCCCGAATTACTATGGTCCGGGGAGTTATTGGGGGGGTTTTGACCACTGG
     }
+    print '%s using default skip column values' % utils.color('yellow', 'note')
 else:
     with open(args.config_fname) as yamlfile:
         yamlfo = yaml.load(yamlfile)
         non_summed_column = yamlfo['non_summed_column']
         skip_column_vals = yamlfo['skip_column_vals']
+        for scol in skip_column_vals:
+            skip_column_vals[scol] = [str(v) for v in skip_column_vals[scol]]  # yaml.load() converts to integers, which is usually nice, but here we don't want it to since we're not converting when reading all-probs.csv (I think there's options to yaml.load to change this, I just don't want to figure it out now)
 
 info = {}
 lines_skipped, lines_used = 0, 0
