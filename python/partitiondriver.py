@@ -602,7 +602,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def merge_cpaths_from_previous_steps(self, final_cpath, debug=False):
-        debug = True
         if debug:
             print 'final (unmerged) cpath:'
             final_cpath.print_partitions(abbreviate=self.args.abbreviate)
