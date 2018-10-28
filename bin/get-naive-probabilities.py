@@ -80,10 +80,10 @@ if args.debug:
     print '     %6d / %-6d = %.3f  lines'  % (lines_used, lines_used + lines_skipped, lines_used / float(lines_used + lines_skipped))
     print '     %6d / %-6d = %.3f +/- %.3f counts'  % (counts_used, counts_used + counts_skipped, counts_used / float(counts_used + counts_skipped), frac_err(counts_used, counts_used + counts_skipped))
 
-    print '     %s    count      / %d = fraction' % (non_summed_column, counts_used)
-    # for val, count in sorted(info.items(), key=operator.itemgetter(1), reverse=True):  # sort by counts
-    for val, count in sorted(info.items()):  # sort by column value (e.g. cdr3 length)
-        print '   %12s   %6d          %.3f +/- %.3f' % (val, count, count / float(counts_used), frac_err(count, counts_used))
+    print '    %18s      count      / %d = fraction' % (non_summed_column, counts_used)
+    for val, count in sorted(info.items(), key=operator.itemgetter(1), reverse=True):  # sort by counts
+    # for val, count in sorted(info.items()):  # sort by column value (e.g. cdr3 length)
+        print '   %18s   %6d          %.3f +/- %.3f' % (val, count, count / float(counts_used), frac_err(count, counts_used))
 
 if args.outfname is not None:
     if args.debug:
