@@ -610,6 +610,11 @@ class Waterer(object):
         overlap, available_space = self.get_overlap_and_available_space(rpair, best, qinfo['qrbounds'])
 
         if debug:
+            lb = qinfo['qrbounds'][l_gene]
+            rb = qinfo['qrbounds'][r_gene]
+            print '    %s %s' % (' ', qinfo['seq'])
+            print '    %s %s%s' % (l_reg, ' ' * lb[0], qinfo['seq'][lb[0] : lb[1]])
+            print '    %s %s%s' % (r_reg, ' ' * rb[0], qinfo['seq'][rb[0] : rb[1]])
             print '  %s %s    overlap %d    available space %d' % (l_reg, r_reg, overlap, available_space)
 
         status = 'ok'
@@ -625,9 +630,15 @@ class Waterer(object):
             assert l_reg == 'd' and r_reg == 'j'
             if debug:
                 print '  %s: synthesizing d match' % qinfo['name']
-            leftmost_position = min(qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][r_gene][0])
-            qinfo['qrbounds'][l_gene] = (leftmost_position, leftmost_position + 1)  # swap whatever crummy nonsense d match we have now for a one-base match at the left end of things (things in practice should be left end of j match)
-            qinfo['glbounds'][l_gene] = (0, 1)
+                if qinfo['qrbounds'][r_gene][0] > qinfo['qrbounds'][l_gene][0]:  # in most (maybe all) cases we get here, it's because the d match is to the right of the j match
+                    print '   huh, i\'m assuming the opposite is usually true. But not really sure it\'s a problem.'
+            v_end = qinfo['qrbounds'][best['v']][1]
+            lpos = v_end + (qinfo['qrbounds'][r_gene][0] - v_end) / 2  # halfway between end of v and start of j
+            qinfo['qrbounds'][l_gene] = (lpos, lpos + 1)  # swap whatever crummy nonsense d match we have now for a one-base match to the left of the j match (since unlike d, the j match is probably decent)
+            d_midpoint = len(self.glfo['seqs'][l_reg][l_gene]) / 2
+            qinfo['glbounds'][l_gene] = (d_midpoint, d_midpoint + 1)
+            qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + 1, qinfo['qrbounds'][r_gene][1])  # this'll give a zero-length match if the match was original length 1, but that should just result in nonsense bounds below I think?
+            qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + 1, qinfo['glbounds'][r_gene][1])
             if l_reg in qinfo['new_indels']:
                 del qinfo['new_indels'][l_reg]
             status = self.check_boundaries(rpair, qinfo, best, recursed=True, debug=debug)
