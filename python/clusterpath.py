@@ -44,6 +44,9 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def update_best_minus_x_partition(self):
+        if self.i_best is None:  # only happens if we just removed the only partition
+            self.i_best_minus_x = None
+            return
         if math.isinf(self.logprobs[self.i_best]):  # if logprob is infinite, set best and best minus x to the latest one
             self.i_best_minus_x = self.i_best
             return
