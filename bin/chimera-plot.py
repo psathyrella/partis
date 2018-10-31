@@ -18,7 +18,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument('infile')
 parser.add_argument('plotdir')
 parser.add_argument('--chunk-len', default=75, type=int)
+parser.add_argument('--title')
 args = parser.parse_args()
+if args.title == 'good':
+    args.title = 'none'
+elif args.title == 'chimeras':
+    args.title = 'all chimeras'
 
 def gk(uids):
     return ':'.join(uids)
@@ -49,7 +54,7 @@ xvals, yvals = zip(*[(v['imax'], v['max_abs_diff']) for v in chfo.values()])
 plt.scatter(xvals, yvals, alpha=0.4)
 
 print 'writing to %s' % args.plotdir
-plotting.mpl_finish(ax, args.plotdir, 'hexbin', title='', xlabel='break point', ylabel='abs mfreq diff')
+plotting.mpl_finish(ax, args.plotdir, 'hexbin', title=args.title, xlabel='break point', ylabel='abs mfreq diff')
 
 plotting.draw_no_root(hmaxval, plotdir=args.plotdir, plotname='mfreq-diff', shift_overflows=True, xtitle='abs mfreq diff', ytitle='seqs')
 hmaxval.write('%s/%s.csv' % (args.plotdir, 'mfreq-diff'))

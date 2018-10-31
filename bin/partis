@@ -303,7 +303,7 @@ parent_parser.add_argument('--no-sw-vsearch', action='store_true', help='By defa
 
 # ----------------------------------------------------------------------------------------
 subconfig = {
-    'version'          : {'func' : int, 'help' : 'print version information and exit'},
+    'version'          : {'func' : int, 'help' : 'print version information and exit'},  # int doesn't do anything, it's just because I have to put something here
     'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
     'annotate'         : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
     'partition'        : {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'},

@@ -7,7 +7,7 @@ outdir=$fs/partis/$label/fixed-d-synthesis
 for fn in good chimeras; do
     mkdir -p $outdir/$fn
     # ./bin/partis cache-parameters --only-sm --infname $datadir/$fn.fa --parameter-dir $outdir/$fn/parameters --plotdir $outdir/$fn/plots --sw-cachefname $outdir/$fn/sw-cache.yaml --n-procs 5 --only-overall-plots --only-csv-plots >$outdir/$fn/log
-    ./bin/chimera-plot.py $outdir/$fn/sw-cache.yaml $outdir/$fn/chimera-plots --chunk-len 75
+    ./bin/chimera-plot.py $outdir/$fn/sw-cache.yaml $outdir/$fn/chimera-plots --title $fn --chunk-len 75
 
     # ./bin/partis simulate --outfname $outdir/$fn/simu.yaml --parameter-dir $outdir/$fn/parameters --parameter-type sw --n-sim-events 1000 --n-leaves 1 --constant-number-of-leaves
     # ./bin/partis cache-parameters --is-simu --only-sm --infname $outdir/$fn/simu.yaml --parameter-dir $outdir/$fn/simu-parameters --plotdir $outdir/$fn/simu-plots --sw-cachefname $outdir/$fn/simu-parameters/sw-cache.yaml --n-procs 5 --only-overall-plots --only-csv-plots >$outdir/$fn/simu-log
@@ -17,7 +17,7 @@ for fn in good chimeras; do
     # ./bin/chimera-plot.py $outdir/$fn/simu-all-chimeras-parameters/sw-cache.yaml $outdir/$fn/chimera-plots-simu-all-chimeras
     # ./bin/compare-plotdirs.py --outdir $outdir/comparison-plots/simu-all-chimeras-vs-none/$fn --log y --translegend 0:-0.2 --names no@chimeras:all@chimeras --plotdirs $outdir/$fn/chimera-plots-simu:$outdir/$fn/chimera-plots-simu-all-chimeras
 done
-./bin/compare-plotdirs.py --outdir $outdir/comparison-plots-good-vs-chimeras --log y --translegend 0:-0.2 --names good:chimeras --plotdirs $outdir/good/chimera-plots:$outdir/chimeras/chimera-plots
+./bin/compare-plotdirs.py --outdir $outdir/comparison-plots-good-vs-chimeras --log y --translegend 0:-0.2 --names none:all@chimeras --plotdirs $outdir/good/chimera-plots:$outdir/chimeras/chimera-plots
 # ./bin/compare-plotdirs.py --outdir $outdir/comparison-plots-no-indels --log y --translegend 0:-0.2 --names good:chimeras --plotdirs $outdir/good/chimera-plots:$outdir/chimeras/chimera-plots
 # ./bin/compare-plotdirs.py --outdir $outdir/comparison-plots XXX --log y --translegend 0:-0.2 --names good:chimeras --plotdirs $outdir/good/chimera-plots:$outdir/chimeras/chimera-plots
 
