@@ -84,6 +84,10 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
                                                                                                       (' and specifically kept %s' % ' '.join(included_queries)) if len(included_queries) > 0 else '')
 
 # ----------------------------------------------------------------------------------------
+def get_seqfile_info(x, is_data=False):
+    raise Exception('renamed and changed returned vals (see below)')
+
+# ----------------------------------------------------------------------------------------
 def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False):
     # NOTE renamed this from get_seqfile_info() since I'm changing the return values, but I don't want to update the calls everywhere (e.g. in compareutils)
     yaml_glfo = None

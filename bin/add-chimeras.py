@@ -22,7 +22,7 @@ parser.add_argument('--chimera-freq', default=1., type=float, help='fraction of 
 parser.add_argument('--min-chunk-len', default=15, type=int, help='require that each bit of the chimera is at least this long')
 args = parser.parse_args()
 
-input_info, _ = seqfileopener.get_seqfile_info(args.infile, is_data=False)
+input_info, _, _ = seqfileopener.read_sequence_file(args.infile, is_data=False)
 if len(input_info) < 50:
     print '%s making chimeras with only %d sequences, and since we choose from among the existing sequence for templates this won\'t be very effective' % (utils.color('yellow', 'warning'), len(input_info))
 

@@ -3811,7 +3811,7 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
             max_abs_diff = abs_diff
             imax = ipos
 
-    return imax, max_abs_diff
+    return imax, max_abs_diff  # <imax> is break point
 
 # ----------------------------------------------------------------------------------------
 def write_linearham_seqs(outfname, annotation_list):

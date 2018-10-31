@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import collections
 import argparse
 import sys
 import os
@@ -16,35 +17,42 @@ import glutils
 parser = argparse.ArgumentParser()
 parser.add_argument('infile')
 parser.add_argument('plotdir')
+parser.add_argument('--chunk-len', default=75, type=int)
 args = parser.parse_args()
 
 def gk(uids):
     return ':'.join(uids)
 
-glfo = glutils.read_glfo(args.infile.replace('.csv', '-glfo'), locus='igh')
 
-annotations = {}
-with open(args.infile) as csvfile:
-    reader = csv.DictReader(csvfile)
-    for line in reader:
-        if line['v_gene'] == '':  # failed (i.e. couldn't find an annotation)
-            continue
-        utils.process_input_line(line)  # converts strings in the csv file to floats/ints/dicts/etc.
-        utils.add_implicit_info(glfo, line)  # add stuff to <line> that's useful, isn't written to the csv since it's redundant
-        annotations[gk(line['unique_ids'])] = line
+glfo, annotation_list, _ = utils.read_output(args.infile)
+annotations = collections.OrderedDict((line['unique_ids'][0], line) for line in annotation_list)
 
-chfo = {uid : utils.get_chimera_max_abs_diff(annotations[uid], iseq=0) for uid in annotations}
-biggest_adiffs = sorted(chfo, key=lambda q: chfo[q][1], reverse=True)
-for uid in biggest_adiffs[:10]:
-    print chfo[uid]
+chfo = {uid : {k : v for k, v in zip(('imax', 'max_abs_diff'), utils.get_chimera_max_abs_diff(annotations[uid], iseq=0, chunk_len=args.chunk_len))} for uid in annotations}
+biggest_adiffs = sorted(chfo, key=lambda q: chfo[q]['max_abs_diff'], reverse=True)
+for uid in biggest_adiffs[:5]:
+    print '%-3d  %6.3f' % (chfo[uid]['imax'], chfo[uid]['max_abs_diff'])
     utils.print_reco_event(annotations[uid])
 
-htmp = Hist(45, 0., 0.65)
+hmaxval = Hist(45, 0., 0.65)
 for uid in annotations:
-    htmp.fill(chfo[uid][1])
+    hmaxval.fill(chfo[uid]['max_abs_diff'])
+himax = Hist(75, 0., 400)
+for uid in annotations:
+    himax.fill(chfo[uid]['imax'])
+
 utils.prep_dir(args.plotdir, wildlings=['*.svg', '*.csv'])
-plotname = 'mfreq-diff'
-plotting.draw_no_root(htmp, plotdir=args.plotdir, plotname=plotname, shift_overflows=True, xtitle='abs mfreq diff', ytitle='seqs')
-plotting.draw_no_root(htmp, plotdir=args.plotdir, plotname=plotname + '-log', shift_overflows=True, log='y', xtitle='abs mfreq diff', ytitle='seqs')
+
+import matplotlib
+from matplotlib import pyplot as plt
+fig, ax = plotting.mpl_init()
+xvals, yvals = zip(*[(v['imax'], v['max_abs_diff']) for v in chfo.values()])
+plt.scatter(xvals, yvals, alpha=0.4)
+
 print 'writing to %s' % args.plotdir
-htmp.write('%s/%s.csv' % (args.plotdir, plotname))
+plotting.mpl_finish(ax, args.plotdir, 'hexbin', title='', xlabel='break point', ylabel='abs mfreq diff')
+
+plotting.draw_no_root(hmaxval, plotdir=args.plotdir, plotname='mfreq-diff', shift_overflows=True, xtitle='abs mfreq diff', ytitle='seqs')
+hmaxval.write('%s/%s.csv' % (args.plotdir, 'mfreq-diff'))
+
+plotting.draw_no_root(himax, plotdir=args.plotdir, plotname='imax', shift_overflows=True, xtitle='break point', ytitle='seqs')
+himax.write('%s/%s.csv' % (args.plotdir, 'imax'))
