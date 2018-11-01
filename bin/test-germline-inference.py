@@ -382,6 +382,8 @@ if len(set(args.methods) - available_methods) > 0:
     raise Exception('unexpected --methods: %s' % ' '.join(set(args.methods) - available_methods))
 
 args.default_germline_dir = 'old-glfo/%s' % args.species  # 'data/germlines/%s' % args.species
+# gad damnit, I just deleted old-glfo, had no idea what it was for
+# args.default_germline_dir = 'data/germlines/%s' % args.species  # 'data/germlines/%s' % args.species
 
 positions = {
     'snp' : utils.get_arg_list(args.snp_positions),

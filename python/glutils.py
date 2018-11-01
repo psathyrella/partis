@@ -1446,3 +1446,24 @@ def create_glfo_from_fasta(fastafname, locus, region, template_germline_dir, sim
 
     return glfo
 
+# ----------------------------------------------------------------------------------------
+# NOTE this is pretty similar to AlleleRemover, but it's different enough that it doesn't make sense to merge them (yes, I tried)
+def remove_extra_alleles_per_gene(glfo, n_max_alleles_per_gene, gene_obs_counts, only_regions=None, debug=False):
+    debug = True
+    if only_regions is None:
+        only_regions = utils.regions
+    allelic_groups = utils.separate_into_allelic_groups(glfo)
+    for region in only_regions:
+        if debug:
+            print '  %s' % utils.color('green', region)
+        for pv in allelic_groups[region]:
+            for sv, allele_list in allelic_groups[region][pv].items():
+                # if len(allele_list) <= n_max_alleles_per_gene:  # nothing to do
+                #     continue
+                sorted_alleles = sorted(allele_list, key=lambda q: gene_obs_counts[region][q], reverse=True)
+                rm_dbg_str = ''
+                if len(allele_list) > n_max_alleles_per_gene:
+                    remove_genes(glfo, sorted_alleles[n_max_alleles_per_gene:])  #, extrastr='      ', debug=debug)
+                    rm_dbg_str = '   removed: %s' % ' '.join([utils.color_gene(g) for g in sorted_alleles[n_max_alleles_per_gene:]])
+                if debug:
+                    print '    %s   %8s     %s%s' % (utils.color('purple', pv + ('-' + sv if sv is not None else ''), width=6), ' '.join([('%.0f' % gene_obs_counts[region][g]) for g in  sorted_alleles]), '   '.join([utils.color_gene(g) for g in sorted_alleles]), rm_dbg_str)

@@ -280,7 +280,7 @@ parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas
 parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (used if --is-simu is set, altough if the default germline info is similar to that used for simulation it may not be necessary)')
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene (if using with --presto-output, must contain an alignment also for all D and J genes). An example is located in data/germlines/imgt-aligned-igh.fa')
 
-parent_parser.add_argument('--n-alleles-per-gene', type=int, default=None, help='number of alleles to assume per gene when removing spurious alleles during parameter caching (default is set in processargs.py -- 1 if looking for new alleles, otherwise 2) NOTE difference to --n-sim-alleles-per-gene')
+parent_parser.add_argument('--n-max-alleles-per-gene', type=int, default=None, help='if set, after allele inference the germline set is reduced such that each imgt-name-defined gene has at most this many alleles, with the alleles assigned to the fewest sequences removed first.')
 parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
 
 parent_parser.add_argument('--leave-default-germline', action='store_true')

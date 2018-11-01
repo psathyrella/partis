@@ -214,12 +214,6 @@ def process(args):
         if args.n_max_snps > args.n_max_mutations_per_segment - 10:
             raise Exception('--n-max-snps should be at least ten less than --n-max-mutations-per-segment, but I got %d and %d' % (args.n_max_snps, args.n_max_mutations_per_segment))
 
-    if args.n_alleles_per_gene is None:
-        if not args.dont_find_new_alleles:
-            args.n_alleles_per_gene = 1
-        else:
-            args.n_alleles_per_gene = 2
-
     if args.leave_default_germline:
         args.dont_remove_unlikely_alleles = True
         args.allele_cluster = False

@@ -1066,13 +1066,16 @@ class AlleleFinder(object):
 
             # first take the biggest one, then if there's any others that have entirely non-overlapping positions, we don't need to re-run
             already_used_positions = set()
-            n_new_alleles_for_this_gene = 0  # kinda messy way to implement this
             for candidfo in reversed(candidates):  # biggest <istart> first
                 these_positions = set(candidfo['positions'])
                 if len(these_positions & already_used_positions) > 0:
                     continue
+                if self.args.n_max_alleles_per_gene is not None:  # NOTE we're not really looping over the most likely new alleles first here (and there isn't really a good way to do that), so it's pretty arbitrary which ones get skipped
+                    alleles_this_gene = [g for g in (self.counts.keys() + [gfo['gene'] for gfo in self.new_allele_info]) if utils.are_alleles(g, gene)]  # <gene> is the template gene
+                    if len(alleles_this_gene) >= self.args.n_max_alleles_per_gene:
+                        print '    --n-max-alleles-per-gene: already have %d allele%s for %s (%s), so skipping new inferred allele' % (len(alleles_this_gene), utils.plural(len(alleles_this_gene)), utils.color_gene(gene), ' '.join(utils.color_gene(g) for g in alleles_this_gene))
+                        continue
                 already_used_positions |= these_positions
-                n_new_alleles_for_this_gene += 1
                 self.add_allele_to_new_allele_info(gene, candidfo, debug=debug)
 
         if debug:

@@ -29,6 +29,7 @@ class AlleleRemover(object):
 
         self.finalized = False
 
+        self.alleles_per_group = 2 if self.args.dont_find_new_alleles else 1
         self.n_max_snps = {
             'v' : self.args.n_max_snps - 2,  # not sure why I originally put the 2 there, maybe just to adjust the space between where allelefinder stops looking and where alleleclusterer starts?
             'd' : 5,  # if you make it simply proportional to the v one, it ends up less than 1 (also, you really want it to depend both on the sequence length and the density of the imgt set for the region [and maybe relative shm rates in the region])
@@ -47,13 +48,7 @@ class AlleleRemover(object):
         # if we pass in <annotations> instead of <gene_counts> we have to transfer the info (if we pass in both, we assume gene counts was already done correctly, and just use the annotations for simulation debug printing)
         if gene_counts is None:
             assert annotations is not None
-            gene_counts = {r : {} for r in regions}
-            for query, line in annotations.items():
-                for tmpreg in gene_counts:
-                    gene = line[tmpreg + '_gene']
-                    if gene not in gene_counts[tmpreg]:
-                        gene_counts[tmpreg][gene] = 0.
-                    gene_counts[tmpreg][gene] += 1.  # vs info counts partial matches based of score, but I don't feel like dealing with that here at the moment
+            gene_counts = utils.get_gene_counts_from_annotations(annotations)
 
         if debug:
             total_counts = sum([sum(gene_counts[r].values()) for r in gene_counts]) / float(len(gene_counts))  # ok it's weird to take the average, but they should all be the same, and it's cleaner than choosing one of 'em
@@ -127,7 +122,7 @@ class AlleleRemover(object):
                     kept_this_class.append(gfo['gene'])
                 elif utils.hamming_distance(gclass[0]['seq'], gclass[ig]['seq']) == 0:  # don't keep it if it's indistinguishable from the most common one (the matches are probably mostly really the best one)
                     pass  # don't keep it
-                elif len(kept_this_class) < self.args.n_alleles_per_gene:  # always keep the most common <self.args.n_alleles_per_gene> in each class [note: defaults to 1 if looking for new alleles, otherwise 2]
+                elif len(kept_this_class) < self.alleles_per_group:  # always keep the most common <self.alleles_per_group> in each class [note: defaults to 1 if looking for new alleles, otherwise 2]
                     genes_to_keep.add(gfo['gene'])
                     kept_this_class.append(gfo['gene'])
                 else:

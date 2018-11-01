@@ -211,13 +211,20 @@ class PartitionDriver(object):
 
         # utils.compare_vsearch_to_sw(self.sw_info, self.vs_info)  # only compares indels a.t.m.
 
-        # d j allele removal (just printing for now)
-        if count_parameters and self.current_action == 'cache-parameters':  # I'm not sure this is precisely the criterion I want, but it does the job of not running dj removal printing when we're just annotating with existing parameters (which was causing a crash [key error] with inconsistent glfo)
-            alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
-            alremover.finalize(gene_counts=None, annotations={q : self.sw_info[q] for q in self.sw_info['queries']}, regions=['d', 'j'], debug=self.args.debug_allele_finding)
-            print '  (not actually removing d and j alleleremover genes)'
-            # glutils.remove_genes(self.glfo, alremover.genes_to_remove, debug=True)
-            # glutils.write_glfo('_output/glfo-test', self.glfo)
+        # NOTE neither of these really works right here, since any time we change the germline set we in really need to go back and rerun sw. But we can't do them betweeen allele finding and running parameter counting sw, since then the counts are wrong
+        # # d j allele removal based on snps/counts (just printing for now)
+        # if count_parameters and self.current_action == 'cache-parameters':  # I'm not sure this is precisely the criterion I want, but it does the job of not running dj removal printing when we're just annotating with existing parameters (which was causing a crash [key error] with inconsistent glfo)
+        #     print ' testing d+j snp-based allele removal'
+        #     alremover = AlleleRemover(self.glfo, self.args, simglfo=self.simglfo, reco_info=self.reco_info)
+        #     alremover.finalize(gene_counts=None, annotations={q : self.sw_info[q] for q in self.sw_info['queries']}, regions=['d', 'j'], debug=self.args.debug_allele_finding)
+        #     print '  (not actually removing d and j alleleremover genes)'
+        #     # glutils.remove_genes(self.glfo, alremover.genes_to_remove, debug=True)
+        #     # glutils.write_glfo('xxx _output/glfo-test', self.glfo)
+        # gene name-based allele removal:
+        # if self.args.n_max_alleles_per_gene is not None:  # it would be nice to use AlleleRemover for this, but that's really set up more as a precursor to allele finding, so it ends up being pretty messy to implement
+        #     gene_counts = utils.get_gene_counts_from_annotations({q : self.sw_info[q] for q in self.sw_info['queries']})
+        #     glutils.remove_extra_alleles_per_gene(self.glfo, self.args.n_max_alleles_per_gene, gene_counts)
+        #     # glutils.write_glfo(self.sw_param_dir + '/' + glutils.glfo_dir, self.glfo)  # don't need to rewrite glfo above, since we haven't yet written parameters, but now we do/have
 
     # ----------------------------------------------------------------------------------------
     def set_vsearch_info(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')

@@ -3967,3 +3967,14 @@ def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_
         cpath.readlines(partition_lines)
 
     return glfo, annotation_list, cpath
+
+# ----------------------------------------------------------------------------------------
+def get_gene_counts_from_annotations(annotations, only_regions=None):
+    gene_counts = {r : {} for r in (only_regions if only_regions is not None else regions)}
+    for query, line in annotations.items():
+        for tmpreg in gene_counts:
+            gene = line[tmpreg + '_gene']
+            if gene not in gene_counts[tmpreg]:
+                gene_counts[tmpreg][gene] = 0.
+            gene_counts[tmpreg][gene] += 1.  # vsearch info counts partial matches based of score, but I don't feel like dealing with that here at the moment
+    return gene_counts
