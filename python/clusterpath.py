@@ -24,6 +24,7 @@ class ClusterPath(object):
         self.best_minus = 30.  # rewind by this many units of log likelihood when merging separate processes (note that this should really depend on the number of sequences)
         self.i_best, self.i_best_minus_x = None, None
         self.we_have_a_ccf = False  # did we read in at least one adj mi value from a file?
+        self.trees = None  # list of trees corresponding to clusters in most likely partition
 
         self.seed_unique_id = seed_unique_id
 
@@ -77,6 +78,7 @@ class ClusterPath(object):
         if self.i_best is None or logprob > self.logprobs[self.i_best] or n_procs < self.n_procs[self.i_best] or math.isinf(logprob):
             self.i_best = len(self.partitions) - 1
         self.update_best_minus_x_partition()
+        self.trees = None  # they'll be out of date if the best partition changed (so I guess in principle we could only do this if self.i_best changes, but this seems tidier)
 
     # ----------------------------------------------------------------------------------------
     def remove_partition(self, ip_to_remove):  # NOTE doesn't update self.we_have_a_ccf, but it probably won't change, right?
@@ -92,6 +94,7 @@ class ClusterPath(object):
             if self.i_best is None or self.logprobs[ip] > self.logprobs[self.i_best] or self.n_procs[ip] < self.n_procs[self.i_best] or math.isinf(self.logprobs[ip]):  # NOTE duplicates code in add_partition()
                 self.i_best = ip
         self.update_best_minus_x_partition()
+        self.trees = None  # they'll be out of date if the best partition changed (so I guess in principle we could only do this if self.i_best changes, but this seems tidier)
 
     # ----------------------------------------------------------------------------------------
     def readfile(self, fname):
@@ -361,8 +364,9 @@ class ClusterPath(object):
                 iclust += 1
 
     # ----------------------------------------------------------------------------------------
-    # make tree for the single cluster in the last partition of <partitions>
+    # make tree for the single cluster in the last partition of <partitions> (which is in general *not* the last partition in self.partitions, since the calling function stops at self.i_best)
     def make_single_tree(self, partitions, annotations, uid_set, get_fasttrees=False, min_edge_length=0, n_max_cons_seqs=10, debug=False):  # <min_edge_length> greater than zero is nice for debug viewing
+        # NOTE don't call this externally -- if you want a single tree, call make_trees() with <i_only_cluster> set
         def getline(uidstr, uid_set=None):
             if uidstr in annotations:  # if we have this exact annotation
                 return annotations[uidstr]
@@ -476,19 +480,29 @@ class ClusterPath(object):
         if debug:
             print treeutils.utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250))
 
+        return dtree
+
     # ----------------------------------------------------------------------------------------
-    def make_trees(self, annotations, get_fasttrees=False, debug=False):  # makes a tree for each cluster in the final (not most likely) partition
+    def make_trees(self, annotations, i_only_cluster=None, get_fasttrees=False, debug=False):  # makes a tree for each cluster in the most likely (not final) partition
+        # i_only_cluster: only make the tree corresponding to the <i_only_cluster>th cluster in the best partition
         if self.i_best is None:
             return
 
         if debug:
-            print '  making %d trees over %d partitions' % (len(self.partitions[-1]), len(self.partitions))
-        for final_cluster in self.partitions[-1]:
+            print '  making %d tree%s over %d partitions' % (len(self.partitions[self.i_best]) if i_only_cluster is None else 1, 's' if i_only_cluster is None else '', self.i_best + 1)
+        if self.trees is None:
+            self.trees = [None for _ in self.partitions[self.i_best]]
+        else:
+            assert len(self.trees) == len(self.partitions[self.i_best])  # presumably because we were already called with <i_only_cluster> set for a different cluster
+        for i_cluster in range(len(self.partitions[self.i_best])):
+            if i_only_cluster is not None and i_cluster != i_only_cluster:
+                continue
+            final_cluster = self.partitions[self.i_best][i_cluster]
             uid_set = set(final_cluster)  # usually the set() isn't doing anything, but sometimes I think we have uids duplicated between clusters, e.g. I think when seed partitioning (or even within a cluster, because order matters within a cluster because of bcrham caching)
-            sub_partitions = [[] for _ in self.partitions]  # new list of partitions, but only including clusters that overlap with <final_cluster>
-            for ipart in range(len(self.partitions)):
+            sub_partitions = [[] for _ in range(self.i_best + 1)]  # new list of partitions, but only including clusters that overlap with <final_cluster>
+            for ipart in range(self.i_best + 1):
                 for tmpclust in self.partitions[ipart]:
                     if len(set(tmpclust) & uid_set) == 0:
                         continue
                     sub_partitions[ipart].append(tmpclust)  # note that many of these adjacent sub-partitions can be identical, if the merges happened between clusters that correspond to a different final cluster
-            self.make_single_tree(sub_partitions, annotations, uid_set, get_fasttrees=get_fasttrees, debug=debug)
+            self.trees[i_cluster] = self.make_single_tree(sub_partitions, annotations, uid_set, get_fasttrees=get_fasttrees, debug=debug)
