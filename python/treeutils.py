@@ -729,7 +729,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -755,7 +755,10 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, treefname=
                 print '    %s couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d)' % (utils.color('red', 'note:'), max_in_common, len(cluster))
             lines_to_use.append(annotations[ustr_to_use])
     else:
-        lines_to_use = annotations.values()
+        if cpath is not None:  # restrict it to clusters in the best partition (at the moment there will only be extra ones if either --calculate-alternative-naive-seqs or --write-additional-cluster-annotations are set, but in the future it could also be the default)
+            lines_to_use = [annotations[':'.join(c)] for c in cpath.partitions[cpath.i_best]]
+        else:
+            lines_to_use = annotations.values()
         if reco_info is not None:
             for line in lines_to_use:
                 true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
@@ -779,7 +782,13 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, treefname=
             lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)  # NOTE see issues/notes in bin/lonr.r
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
             line['tree-info']['lonr'] = lonr_info
+        elif cpath is not None and not use_true_clusters:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work
+            i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])  # if this fails, the cpath and lines_to_use are out of sync (which I think shouldn't happen?)
+            print '    making cpath tree'
+            cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True)
+            dtree = cpath.trees[i_only_cluster]
         else:
+            print '    running fasttree on each cluster'
             seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
             dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
         line['tree-info']['lb'] = calculate_lb_values(line, dtree=dtree, extra_str='inf tree', debug=debug)
