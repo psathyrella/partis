@@ -361,8 +361,8 @@ class ClusterPath(object):
                 iclust += 1
 
     # ----------------------------------------------------------------------------------------
-    def make_single_tree(self, partitions, annotations, uid_set, get_fasttrees=False, min_edge_length=0.2, n_max_cons_seqs=10, debug=False):  # make tree for one of the clusters in the last partition
-        # TODO maybe don't use the min edge length
+    # make tree for the single cluster in the last partition of <partitions>
+    def make_single_tree(self, partitions, annotations, uid_set, get_fasttrees=False, min_edge_length=0, n_max_cons_seqs=10, debug=False):  # <min_edge_length> greater than zero is nice for debug viewing
         def getline(uidstr, uid_set=None):
             if uidstr in annotations:  # if we have this exact annotation
                 return annotations[uidstr]
@@ -478,7 +478,6 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def make_trees(self, annotations, get_fasttrees=False, debug=False):  # makes a tree for each cluster in the final (not most likely) partition
-        debug = True
         if self.i_best is None:
             return
 
