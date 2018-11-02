@@ -22,10 +22,7 @@ import operator
 import utils
 import plotconfig
 from hist import Hist
-try:
-    import treeutils
-except ImportError:
-    print '  couldn\'t import baltic'  # which is probably ok, just means we're running a quick/small script that doesn\'t add the right path
+import treeutils
 
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
 default_linewidths = ['5', '3', '2', '2', '2']

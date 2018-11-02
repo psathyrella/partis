@@ -676,6 +676,7 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 # ----------------------------------------------------------------------------------------
 def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False):
     """ return consensus sequence from either aligned or unaligned seqfos """
+    # <threshold>: If the percentage of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added.
     from cStringIO import StringIO
     from Bio.Align import AlignInfo
     import Bio.AlignIO
@@ -693,12 +694,9 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False)
     alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
     cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous='N'))
 
-    # debug = True
-    # if debug:
-    #     print 'consensus %s' % cons_seq
-    #     for sfo in seqfos:
-    #         print '' % (color_mutants(cons_seq, sfo['seq'], align=True))
-    #     sys.exit()
+    if debug:
+        for iseq in range(len(seqfos)):
+            color_mutants(cons_seq, seqfos[iseq]['seq'], align=aligned_seqfos is None, print_result=True, only_print_seq=iseq>0, ref_label='consensus ', extra_str='      ')
 
     return cons_seq
 

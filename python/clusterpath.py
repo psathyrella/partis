@@ -1,9 +1,11 @@
+import dendropy
 import os
 import sys
 import math
 import csv
 
 import utils
+import treeutils
 
 # ----------------------------------------------------------------------------------------
 class ClusterPath(object):
@@ -357,3 +359,135 @@ class ClusterPath(object):
                     assert len(input_info[uid]['seqs']) == 1
                     outfile.write('>%s|CLONE=%d\n%s\n' % (uid, iclust, input_info[uid]['seqs'][0]))
                 iclust += 1
+
+    # ----------------------------------------------------------------------------------------
+    def make_single_tree(self, partitions, uid_set, get_fasttrees=False, min_edge_length=0.2, annotations=None, debug=False):  # make tree for one of the clusters in the last partition
+        def getline(uidstr, uid_set=None):
+            if uidstr in annotations:  # if we have this exact annotation
+                return annotations[uidstr]
+            else:
+                if uid_set is None:
+                    uid_set = set(uidstr.split(':'))  # should only get called if it's a singleton
+                # note that for internal nodes in a fasttree-derived subtree, the uids will be out of order compared the the annotation keys
+                for line in annotations.values():  # we may actually have the annotation for every subcluster (e.g. if --calculate-alternative-naive-seqs was set), but in case we don't, this is fine
+                    if len(uid_set & set(line['unique_ids'])) > 0:  # just take the first one with any overlap. Yeah, it's not necessarily the best, but its naive sequence probably isn't that different, and for just getting the fasttree it reeeeeeaaaallly doesn't matter
+                        return line
+            raise Exception('couldn\'t find uid %s in annotations' % uid)
+        def getseq(uid):
+            line = getline(uid)
+            return line['seqs'][line['unique_ids'].index(uid)]
+        def lget(uid_list):
+            return ':'.join(uid_list)
+
+        default_edge_length = 999
+        assert len(partitions[-1]) == 1
+        root_label = lget(partitions[-1][0])  # we want the order of the uids in the label to correspond to the order in self.partitions
+        tns = dendropy.TaxonNamespace([root_label])
+        root_node = dendropy.Node(taxon=tns.get_taxon(root_label))
+        root_node.uids = uid_set  # each node keeps track of the uids of its children
+        dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
+        if debug:
+            print '    starting tree with %d leaves' % len(uid_set)
+        for ipart in reversed(range(len(partitions) - 1)):  # dendropy seems to only have fcns to build a tree from the root downward, so we loop starting with the last partition (- 1 is because the last partition is guaranteed to be just one cluster)
+            if debug:
+                print '      ipart %d' % ipart
+            for lnode in dtree.leaf_node_iter():  # look for leaf nodes that contain uids from two clusters in this partition, and add those as children
+                tclusts = [c for c in partitions[ipart] if len(set(c) & lnode.uids) > 0]
+                if len(tclusts) < 2:
+                    continue
+                for tclust in tclusts:
+                    ttaxon = dendropy.Taxon(lget(tclust))
+                    tns.add_taxon(ttaxon)
+                    child = lnode.new_child(taxon=ttaxon, edge_length=default_edge_length)
+                    child.uids = set(tclust)
+                if debug:
+                    print '        split node: %d --> %s      %s --> %s' % (len(lnode.uids), ' '.join([str(len(tc)) for tc in tclusts]), lnode.taxon.label, ' '.join([c.taxon.label for c in lnode.child_node_iter()]))
+
+        # split up everybody into singletons
+        for lnode in dtree.leaf_node_iter():
+            if len(lnode.uids) == 1:
+                continue
+            if get_fasttrees and len(lnode.uids) > 2:  # TODO maybe should be bigger than 2?
+                if annotations is None:
+                    raise Exception('have to pass in annotations to get fasttrees')
+                seqfos = [{'name' : uid, 'seq' : getseq(uid)} for uid in lnode.taxon.label.split(':')]  # may as well add them in the right order, although I don't think it matters
+                subtree = treeutils.get_fasttree_tree(seqfos, getline(lnode.taxon.label, uid_set=lnode.uids)['naive_seq'], suppress_internal_node_taxa=True)  # note that the fasttree distances get ignored below (no idea if they'd be better than what we set down there, but they probably wouldn't be consistent, so I'd rather ignore them)
+                for tmpnode in subtree.postorder_node_iter():
+                    if tmpnode.is_leaf():
+                        tmpnode.uids = set([tmpnode.taxon.label])
+                    else:
+                        tmpnode.uids = set([uid for c in tmpnode.child_node_iter() for uid in c.uids])
+                        ttaxon = dendropy.Taxon(lget(tmpnode.uids))
+                        subtree.taxon_namespace.add_taxon(ttaxon)
+                        tmpnode.taxon = ttaxon  # ...and use the string of leaf nodes, even though they'll be in the wrong order (I think these get ignored when I call label_nodes() below, but it's still tidier to have them right in the meantime, and anyway since I'm suppressing internal taxa I think I need to set them to something)
+
+                if debug:
+                    print '   adding subtree with %d leaves from fastree at leaf node %s' % (len(seqfos), lnode.taxon.label)
+                    print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=subtree))
+                dtree.taxon_namespace.add_taxa(subtree.taxon_namespace)
+                lnode.add_child(subtree.seed_node)
+                assert len(lnode.child_edges()) == 1  # we're iterating over leaves, so this should always be true
+                lnode.child_edges()[0].collapse()
+
+            else:  # just add a star subtree
+                for uid in lnode.taxon.label.split(':'):  # may as well add them in the right order, although I don't think it matters
+                    ttaxon = dendropy.Taxon(uid)
+                    tns.add_taxon(ttaxon)
+                    child = lnode.new_child(taxon=ttaxon, edge_length=default_edge_length)
+                    child.uids = set([uid])
+                if debug:
+                    print '      added %d singleton children for %s' % (len(lnode.uids), lnode.taxon.label)
+
+        # in order to set edge lengths, we need node sequences, so first set leaf node seqs
+        for lnode in dtree.leaf_node_iter():
+            assert len(lnode.uids) == 1
+            lnode.seq = getseq(lnode.taxon.label)
+            lnode.n_descendent_leaves = 1  # keep track of how many leaf nodes contributed to each node's consensus sequence (these are leaves, so it's trivally 1). This is less accurate than keeping track of all the sequences, but also faster
+
+        # then set internal node seqs as the consensus of their children, and set the distance as hamming distance to child seqs
+        for node in dtree.postorder_internal_node_iter():  # includes root node
+            if debug:
+                print '  %s   (desc. leaves per child: %s)' % (utils.color('green', node.taxon.label), ' '.join(str(c.n_descendent_leaves) for c in node.child_node_iter()))
+            child_seqfos = [{'name' : c.taxon.label + '-leaf-' + str(il), 'seq' : c.seq} for c in node.child_node_iter() for il in range(c.n_descendent_leaves)]
+            node.seq = utils.cons_seq(0.01, aligned_seqfos=child_seqfos)
+            node.n_descendent_leaves = len(child_seqfos)
+            if debug:
+                print '    adding edges:'
+            for edge in node.child_edge_iter():
+                edge.length = max(min_edge_length, utils.hamming_distance(edge.head_node.seq, node.seq))  # we seem to usually get to the naive sequence long before we've gotten to the root node, so set all these zero-length edges to something so they're visible TODO this doesn't really make much sense
+                if debug:
+                    print '       %s    %s  %d' % (node.taxon.label, edge.head_node.taxon.label, edge.length)
+
+        if debug:
+            print '        naive seq %s' % getline(root_label)['naive_seq']
+            print '    root cons seq %s' % utils.color_mutants(getline(root_label)['naive_seq'], dtree.seed_node.seq)
+
+        for node in dtree.preorder_node_iter():
+            for edge in node.child_edge_iter():  # make sure we set all of them TODO remove this
+                assert edge.length != default_edge_length
+            del node.uids
+            del node.seq
+            del node.n_descendent_leaves
+
+        treeutils.label_nodes(dtree, ignore_existing_internal_node_labels=True, ignore_existing_internal_taxon_labels=True, initial_length=5, debug=debug)
+        dtree.update_bipartitions()  # probably don't really need this
+        if debug:
+            print treeutils.utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250))
+
+    # ----------------------------------------------------------------------------------------
+    def make_trees(self, annotations, get_fasttrees=False, debug=False):  # makes a tree for each cluster in the final (not most likely) partition
+        debug = True
+        if self.i_best is None:
+            return
+
+        if debug:
+            print '  making %d trees over %d partitions' % (len(self.partitions[-1]), len(self.partitions))
+        for final_cluster in self.partitions[-1]:
+            uid_set = set(final_cluster)  # usually the set() isn't doing anything, but sometimes I think we have uids duplicated between clusters, e.g. I think when seed partitioning (or even within a cluster, because order matters within a cluster because of bcrham caching)
+            sub_partitions = [[] for _ in self.partitions]  # new list of partitions, but only including clusters that overlap with <final_cluster>
+            for ipart in range(len(self.partitions)):
+                for tmpclust in self.partitions[ipart]:
+                    if len(set(tmpclust) & uid_set) == 0:
+                        continue
+                    sub_partitions[ipart].append(tmpclust)  # note that many of these adjacent sub-partitions can be identical, if the merges happened between clusters that correspond to a different final cluster
+            self.make_single_tree(sub_partitions, uid_set, get_fasttrees=get_fasttrees, annotations=annotations, debug=debug)

@@ -15,7 +15,10 @@ import dendropy
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
-import baltic
+try:
+    import baltic
+except ImportError:
+    print '  couldn\'t import baltic, which is probably ok, and just means we\'re running a quick/small script that doesn\'t add the right path'
 import utils
 
 # ----------------------------------------------------------------------------------------
@@ -69,9 +72,12 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa))
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
+
+    # # uncomment for more verbosity:
     # check_node_labels(dtree, debug=debug)  # makes sure that for all nodes, node.taxon is not None, and node.label *is* None (i.e. that label_nodes did what it was supposed to, as long as suppress_internal_node_taxa wasn't set)
     # if debug:
     #     print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -178,8 +184,8 @@ def check_node_labels(dtree, debug=False):
             raise Exception('node.label not set to None')
 
 # ----------------------------------------------------------------------------------------
-# mostly adds labels to internal nodes, but also sometimes the root node
-def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, suppress_internal_node_taxa=False, debug=False):
+# by default, mostly adds labels to internal nodes (also sometimes the root node) that are missing them
+def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_existing_internal_taxon_labels=False, suppress_internal_node_taxa=False, initial_length=3, debug=False):
     if ignore_existing_internal_node_labels and suppress_internal_node_taxa:
         raise Exception('doesn\'t make sense to specify both')
     if debug:
@@ -193,7 +199,7 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, suppres
     potential_names, used_names = None, None
     skipped_dbg, relabeled_dbg = [], []
     for node in dendro_tree.preorder_node_iter():
-        if node.taxon is not None:
+        if node.taxon is not None and not (ignore_existing_internal_taxon_labels and not node.is_leaf()):  # TODO clean this up
             skipped_dbg += ['%s' % node.taxon.label]
             assert node.label is None  # if you want to change this, you have to start setting the node labels in build_lonr_tree(). For now, I like having the label in _one_ freaking place
             continue  # already properly labeled
@@ -204,7 +210,7 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, suppres
             continue
 
         if current_label is None or ignore_existing_internal_node_labels:
-            new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=3)
+            new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=initial_length)
         else:
             if tns.has_taxon_label(current_label):
                 raise Exception('duplicate node label \'%s\'' % current_label)
