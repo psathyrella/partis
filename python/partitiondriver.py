@@ -339,11 +339,9 @@ class PartitionDriver(object):
     def print_results(self, cpath, annotations):  # NOTE this duplicates code that already prints annotations (in self.read_annotation_output()) and partitions (in self.partition())
         if cpath is not None:
             print utils.color('green', 'partitions:')
-            # cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
-            cpath.make_trees(annotations=annotations, get_fasttrees=True)
-            sys.exit()
+            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
 
-        if False: #len(annotations) > 0:
+        if len(annotations) > 0:
             print utils.color('green', 'annotations:')
             sorted_annotations = sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True)
             if self.args.cluster_indices is not None:
