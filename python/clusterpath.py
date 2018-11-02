@@ -447,11 +447,11 @@ class ClusterPath(object):
             total_descendent_leaves = sum(child_cons_seq_counts)
             if total_descendent_leaves > n_max_cons_seqs:  # if there's tons of descendent leaves, we don't want to pass them all to the consensus fcn since it's slow, so we choose them in proportion to their actual proportions, but scaled down to <n_max_cons_seqs>
                 child_cons_seq_counts = [int(n_max_cons_seqs * csc / float(total_descendent_leaves)) for csc in child_cons_seq_counts]
+                child_cons_seq_counts = [max(1, csc) for csc in child_cons_seq_counts]  # don't eliminate any sequences entirely (this makes the proportions less accurate (in some cases), but is the easy way to handle the case where there's a ton of singleton children
             if debug:
                 print '  %s' % utils.color('green', node.taxon.label)
                 csc_str = '  (reduced: %s)' % ' '.join([str(csc) for csc in child_cons_seq_counts]) if total_descendent_leaves > n_max_cons_seqs else ''
                 print '      desc leaves per child: %s%s' % (' '.join(str(c.n_descendent_leaves) for c in node.child_node_iter()), csc_str)
-            child_seqfos = [cn.taxon.label for cn, count in zip(node.child_node_iter(), child_cons_seq_counts) for il in range(count)]
             child_seqfos = [{'name' : cn.taxon.label + '-leaf-' + str(il), 'seq' : cn.seq} for cn, count in zip(node.child_node_iter(), child_cons_seq_counts) for il in range(count)]
             node.seq = utils.cons_seq(0.01, aligned_seqfos=child_seqfos)
             node.n_descendent_leaves = total_descendent_leaves
@@ -478,6 +478,7 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def make_trees(self, annotations, get_fasttrees=False, debug=False):  # makes a tree for each cluster in the final (not most likely) partition
+        debug = True
         if self.i_best is None:
             return
 
