@@ -361,7 +361,8 @@ class ClusterPath(object):
                 iclust += 1
 
     # ----------------------------------------------------------------------------------------
-    def make_single_tree(self, partitions, uid_set, get_fasttrees=False, min_edge_length=0.2, annotations=None, debug=False):  # make tree for one of the clusters in the last partition
+    def make_single_tree(self, partitions, annotations, uid_set, get_fasttrees=False, min_edge_length=0.2, n_max_cons_seqs=10, debug=False):  # make tree for one of the clusters in the last partition
+        # TODO maybe don't use the min edge length
         def getline(uidstr, uid_set=None):
             if uidstr in annotations:  # if we have this exact annotation
                 return annotations[uidstr]
@@ -389,8 +390,6 @@ class ClusterPath(object):
         if debug:
             print '    starting tree with %d leaves' % len(uid_set)
         for ipart in reversed(range(len(partitions) - 1)):  # dendropy seems to only have fcns to build a tree from the root downward, so we loop starting with the last partition (- 1 is because the last partition is guaranteed to be just one cluster)
-            if debug:
-                print '      ipart %d' % ipart
             for lnode in dtree.leaf_node_iter():  # look for leaf nodes that contain uids from two clusters in this partition, and add those as children
                 tclusts = [c for c in partitions[ipart] if len(set(c) & lnode.uids) > 0]
                 if len(tclusts) < 2:
@@ -401,15 +400,14 @@ class ClusterPath(object):
                     child = lnode.new_child(taxon=ttaxon, edge_length=default_edge_length)
                     child.uids = set(tclust)
                 if debug:
+                    print '      ipart %d' % ipart
                     print '        split node: %d --> %s      %s --> %s' % (len(lnode.uids), ' '.join([str(len(tc)) for tc in tclusts]), lnode.taxon.label, ' '.join([c.taxon.label for c in lnode.child_node_iter()]))
 
-        # split up everybody into singletons
+        # split existing leaves, which are probably not singletons (they're probably from the initial naive sequence collapse step) into subtrees such that each leaf is a singleton
         for lnode in dtree.leaf_node_iter():
             if len(lnode.uids) == 1:
                 continue
-            if get_fasttrees and len(lnode.uids) > 2:  # TODO maybe should be bigger than 2?
-                if annotations is None:
-                    raise Exception('have to pass in annotations to get fasttrees')
+            if get_fasttrees and len(lnode.uids) > 2:
                 seqfos = [{'name' : uid, 'seq' : getseq(uid)} for uid in lnode.taxon.label.split(':')]  # may as well add them in the right order, although I don't think it matters
                 subtree = treeutils.get_fasttree_tree(seqfos, getline(lnode.taxon.label, uid_set=lnode.uids)['naive_seq'], suppress_internal_node_taxa=True)  # note that the fasttree distances get ignored below (no idea if they'd be better than what we set down there, but they probably wouldn't be consistent, so I'd rather ignore them)
                 for tmpnode in subtree.postorder_node_iter():
@@ -428,7 +426,6 @@ class ClusterPath(object):
                 lnode.add_child(subtree.seed_node)
                 assert len(lnode.child_edges()) == 1  # we're iterating over leaves, so this should always be true
                 lnode.child_edges()[0].collapse()
-
             else:  # just add a star subtree
                 for uid in lnode.taxon.label.split(':'):  # may as well add them in the right order, although I don't think it matters
                     ttaxon = dendropy.Taxon(uid)
@@ -446,25 +443,30 @@ class ClusterPath(object):
 
         # then set internal node seqs as the consensus of their children, and set the distance as hamming distance to child seqs
         for node in dtree.postorder_internal_node_iter():  # includes root node
+            child_cons_seq_counts = [c.n_descendent_leaves for c in node.child_node_iter()]
+            total_descendent_leaves = sum(child_cons_seq_counts)
+            if total_descendent_leaves > n_max_cons_seqs:  # if there's tons of descendent leaves, we don't want to pass them all to the consensus fcn since it's slow, so we choose them in proportion to their actual proportions, but scaled down to <n_max_cons_seqs>
+                child_cons_seq_counts = [int(n_max_cons_seqs * csc / float(total_descendent_leaves)) for csc in child_cons_seq_counts]
             if debug:
-                print '  %s   (desc. leaves per child: %s)' % (utils.color('green', node.taxon.label), ' '.join(str(c.n_descendent_leaves) for c in node.child_node_iter()))
-            child_seqfos = [{'name' : c.taxon.label + '-leaf-' + str(il), 'seq' : c.seq} for c in node.child_node_iter() for il in range(c.n_descendent_leaves)]
+                print '  %s' % utils.color('green', node.taxon.label)
+                csc_str = '  (reduced: %s)' % ' '.join([str(csc) for csc in child_cons_seq_counts]) if total_descendent_leaves > n_max_cons_seqs else ''
+                print '      desc leaves per child: %s%s' % (' '.join(str(c.n_descendent_leaves) for c in node.child_node_iter()), csc_str)
+            child_seqfos = [cn.taxon.label for cn, count in zip(node.child_node_iter(), child_cons_seq_counts) for il in range(count)]
+            child_seqfos = [{'name' : cn.taxon.label + '-leaf-' + str(il), 'seq' : cn.seq} for cn, count in zip(node.child_node_iter(), child_cons_seq_counts) for il in range(count)]
             node.seq = utils.cons_seq(0.01, aligned_seqfos=child_seqfos)
-            node.n_descendent_leaves = len(child_seqfos)
+            node.n_descendent_leaves = total_descendent_leaves
             if debug:
-                print '    adding edges:'
+                print '    adding edges with lengths:'
             for edge in node.child_edge_iter():
-                edge.length = max(min_edge_length, utils.hamming_distance(edge.head_node.seq, node.seq))  # we seem to usually get to the naive sequence long before we've gotten to the root node, so set all these zero-length edges to something so they're visible TODO this doesn't really make much sense
+                edge.length = max(min_edge_length, utils.hamming_distance(edge.head_node.seq, node.seq))  # we seem to usually get to the naive sequence long before we've gotten to the root node, so set all these zero-length edges to something so they're visible
                 if debug:
-                    print '       %s    %s  %d' % (node.taxon.label, edge.head_node.taxon.label, edge.length)
+                    print '       %3d  %s' % (edge.length, edge.head_node.taxon.label)
 
         if debug:
             print '        naive seq %s' % getline(root_label)['naive_seq']
             print '    root cons seq %s' % utils.color_mutants(getline(root_label)['naive_seq'], dtree.seed_node.seq)
 
         for node in dtree.preorder_node_iter():
-            for edge in node.child_edge_iter():  # make sure we set all of them TODO remove this
-                assert edge.length != default_edge_length
             del node.uids
             del node.seq
             del node.n_descendent_leaves
@@ -476,7 +478,6 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def make_trees(self, annotations, get_fasttrees=False, debug=False):  # makes a tree for each cluster in the final (not most likely) partition
-        debug = True
         if self.i_best is None:
             return
 
@@ -490,4 +491,4 @@ class ClusterPath(object):
                     if len(set(tmpclust) & uid_set) == 0:
                         continue
                     sub_partitions[ipart].append(tmpclust)  # note that many of these adjacent sub-partitions can be identical, if the merges happened between clusters that correspond to a different final cluster
-            self.make_single_tree(sub_partitions, uid_set, get_fasttrees=get_fasttrees, annotations=annotations, debug=debug)
+            self.make_single_tree(sub_partitions, annotations, uid_set, get_fasttrees=get_fasttrees, debug=debug)
