@@ -291,9 +291,14 @@ class PartitionDriver(object):
         print 'hmm'
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
         if self.args.get_tree_metrics:
-            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, cpath=None, reco_info=self.reco_info, treefname=self.args.treefname, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
+            self.calculate_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:
             self.write_output(annotations.values(), hmm_failures)
+
+    # ----------------------------------------------------------------------------------------
+    def calculate_tree_metrics(self, annotations, cpath=None):
+        treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
+                                         use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_lines, ignore_args_dot_queries=False, process_csv=False):
@@ -389,7 +394,7 @@ class PartitionDriver(object):
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info)
 
         if tmpact == 'get-tree-metrics':
-            treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, cpath=cpath, treefname=self.args.treefname, reco_info=self.reco_info, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
+            self.calculate_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
             print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
             self.write_output(annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
@@ -759,7 +764,7 @@ class PartitionDriver(object):
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
         if self.args.get_tree_metrics:
-            treeutils.calculate_tree_metrics(best_annotations, self.args.min_tree_metric_cluster_size, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname, use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)  # modifies annotations
+            self.calculate_tree_metrics(best_annotations, cpath=cpath)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:  # NOTE need to write *before* removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
 
