@@ -736,14 +736,14 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None
 
     # collect inferred and true events
     lines_to_use, true_lines_to_use = None, None
-    if use_true_clusters:
+    if use_true_clusters:  # use clusters from the true partition, rather than inferred one
         assert reco_info is not None
         true_partition = utils.get_true_partition(reco_info)
         print '    using %d true clusters to calculate inferred tree metrics (sizes: %s)' % (len(true_partition), ' '.join([str(len(c)) for c in true_partition]))
         lines_to_use, true_lines_to_use = [], []
         for cluster in true_partition:
             true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
-            max_in_common, ustr_to_use = None, None
+            max_in_common, ustr_to_use = None, None  # look for the inferred cluster that has the most uids in common with this true cluster
             for ustr in annotations:  # order will be different in reco info and inferred clusters
                 n_in_common = len(set(ustr.split(':')) & set(cluster))  # can't just look for the actual cluster since we collapse duplicates, but bcr-phylo doesn't (but maybe I should throw them out when parsing bcr-phylo output)
                 if max_in_common is None or n_in_common > max_in_common:
@@ -752,9 +752,9 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None
             if max_in_common is None:
                 raise Exception('cluster \'%s\' not found in inferred annotations (probably because use_true_clusters was set)' % ':'.join(cluster))
             if max_in_common < len(cluster):
-                print '    %s couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d)' % (utils.color('red', 'note:'), max_in_common, len(cluster))
+                print '    note: couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d)' % (max_in_common, len(cluster))
             lines_to_use.append(annotations[ustr_to_use])
-    else:
+    else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
         if cpath is not None:  # restrict it to clusters in the best partition (at the moment there will only be extra ones if either --calculate-alternative-naive-seqs or --write-additional-cluster-annotations are set, but in the future it could also be the default)
             lines_to_use = [annotations[':'.join(c)] for c in cpath.partitions[cpath.i_best]]
         else:
@@ -764,29 +764,30 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None
                 true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
                 true_lines_to_use.append(true_line)
 
-    # then calculate the metrics
+    # get tree and calculate metrics for inferred lines
     n_clusters_calculated, n_skipped = 0, 0
     print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join([str(len(l['unique_ids'])) for l in lines_to_use]))
     for line in lines_to_use:
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
             continue
-
         if debug:
             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
+
+        # figure out where the tree's supposed to come from
         line['tree-info'] = {}
         if treefname is not None:
             print '    reading tree from %s' % treefname
             dtree = get_dendro_tree(treefname=treefname, debug=debug)
-        elif use_liberman_lonr_tree:
-            lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)  # NOTE see issues/notes in bin/lonr.r
+        elif use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
+            lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
             line['tree-info']['lonr'] = lonr_info
         elif cpath is not None and not use_true_clusters:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work
-            i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])  # if this fails, the cpath and lines_to_use are out of sync (which I think shouldn't happen?)
             print '    making cpath tree'
+            i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])  # if this fails, the cpath and lines_to_use are out of sync (which I think shouldn't happen?)
             cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True)
-            dtree = cpath.trees[i_only_cluster]
+            dtree = cpath.trees[i_only_cluster]  # as we go through the loop, the <cpath> is presumably filling all of these in
         else:
             print '    running fasttree on each cluster'
             seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
@@ -808,9 +809,9 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None
             true_lb_info = calculate_lb_values(true_line, true_dtree, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
 
-        if base_plotdir is not None:  # if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
+        if base_plotdir is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
             import plotting
-            if any(affy is not None for affy in true_lines_to_use[0]['affinities']):  # if there are any affinities (i.e. it's bcr-phylo simulation) we should have them for every sequence, anyway
+            if any(affy is not None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise presumably for nobody
                 true_plotdir = base_plotdir + '/true-tree-metrics'
                 for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
                     plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
