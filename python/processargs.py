@@ -72,10 +72,17 @@ def process(args):
             utils.split_gene(gene)
 
     if args.print_git_commit or args.action == 'version':
-        print 'RUN ' + ' '.join(sys.argv)
-        tag = subprocess.check_output(['git', 'tag']).split()[-1]
-        print '       tag %s' % tag
-        print '    commit %s' % subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
+        print '  commit: %s' % subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
+        cmd = 'git describe --always --tags'
+        out, err = utils.simplerun(cmd, return_out_err=True, debug=False)
+        if out.count('-') == 2:
+            tag, n_ahead, commit_hash_abbrev = out.strip().split('-')
+            ahead_str = ''
+            if int(n_ahead) > 0:
+                ahead_str = '  (well, %d commits ahead of)' % int(n_ahead)
+            print '     tag: %s%s' % (tag, ahead_str)
+        else:
+            print '    couldn\'t parse output from \'%s\': %s' % (cmd, out)
         if args.action == 'version':
             sys.exit(0)
 
