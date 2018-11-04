@@ -15,10 +15,6 @@ import dendropy
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
-try:
-    import baltic
-except ImportError:
-    print '  couldn\'t import baltic, which is probably ok, and just means we\'re running a quick/small script that doesn\'t add the right path'
 import utils
 
 # ----------------------------------------------------------------------------------------
@@ -87,6 +83,12 @@ def import_bio_phylo():
     return sys.modules['Bio.Phylo']
 
 # ----------------------------------------------------------------------------------------
+def import_baltic():
+    if 'baltic' not in sys.modules:
+        import baltic  # non-standard location, and I don't want to bother with always adding it to the path because I don't want to use it any more
+    return sys.modules['baltic']
+
+# ----------------------------------------------------------------------------------------
 def get_bio_tree(treestr=None, treefname=None, schema='newick'):  # NOTE don't use this in future (all current uses are commented)
     Phylo = import_bio_phylo()
     if treestr is not None:
@@ -103,6 +105,7 @@ def get_baltic_tree(treestr):  # NOTE trying to use dendropy in future, it seems
         name, lengthstr = treestr.strip().rstrip(';').split(':')
         tree = OneLeafTree(name, float(lengthstr))
     else:
+        baltic = import_baltic()
         tree = baltic.tree()
         baltic.make_tree(treestr, tree, verbose=False)
     tree.traverse_tree()
