@@ -2512,7 +2512,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
     procs[iproc].communicate()
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
-            print '      proc %d succeded but its output isn\'t there, so sleeping for a bit...' % iproc
+            print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit...' % iproc
             time.sleep(0.5)
         if os.path.exists(cmdfo['outfname']):
             process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug, ignore_stderr=ignore_stderr)
