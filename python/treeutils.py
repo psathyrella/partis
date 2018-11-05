@@ -800,8 +800,10 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None
 
     if base_plotdir is not None:
         import plotting
-        plotting.plot_inferred_lbi(base_plotdir + '/inferred-tree-metrics', lines_to_use)
-        plotting.make_html(base_plotdir + '/inferred-tree-metrics')
+        inf_plotdir = base_plotdir + '/inferred-tree-metrics'
+        utils.prep_dir(inf_plotdir, wildlings=['*.svg'])
+        plotting.plot_inferred_lbi(inf_plotdir, lines_to_use)
+        plotting.make_html(inf_plotdir)
 
     if reco_info is not None:
         # calculate lb values for true lines
@@ -811,14 +813,15 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None
             true_line['tree-info'] = {'lb' : true_lb_info}
 
         if base_plotdir is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
-            import plotting
-            if any(affy is not None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise presumably for nobody
+            if all(affy is None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise presumably for nobody
+                print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
+            else:
+                import plotting
                 true_plotdir = base_plotdir + '/true-tree-metrics'
+                utils.prep_dir(true_plotdir, wildlings=['*.svg'])
                 for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
                     plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
                     plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
                 # plotting.plot_per_mutation_lonr(xxx base_plotdir + '/lonr', lines_to_use, reco_info)
                 # plotting.plot_aggregate_lonr(xxx base_plotdir + '/lonr', lines_to_use, reco_info)
                 plotting.make_html(true_plotdir, n_columns=4)
-            else:  # can't plot true lb/affinity if this simulation doesn't have affinity values
-                print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
