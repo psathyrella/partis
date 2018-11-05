@@ -18,18 +18,6 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
 import utils
 
 # ----------------------------------------------------------------------------------------
-# TODO this is temprorary
-def get_node_type_from_name(name, debug=False):  # internal nodes in simulated trees should be labeled like 'mrca-<stuff>' (has to correspond to what bcr-phylo-benchmark did) TODO synchronize this better
-    if 'mrca' in name:
-        return 'internal'
-    elif 'leaf' in name:
-        return 'leaf'
-    else:
-        if debug:
-            print '    not sure of node type for \'%s\'' % name
-        return None
-
-# ----------------------------------------------------------------------------------------
 # two classes to work around the fact baltic doesn't yet support one-leaf trees
 class TinyLeaf(object):
     def __init__(self, name, length, height):
@@ -202,7 +190,7 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
     potential_names, used_names = None, None
     skipped_dbg, relabeled_dbg = [], []
     for node in dendro_tree.preorder_node_iter():
-        if node.taxon is not None and not (ignore_existing_internal_taxon_labels and not node.is_leaf()):  # TODO clean this up
+        if node.taxon is not None and not (ignore_existing_internal_taxon_labels and not node.is_leaf()):
             skipped_dbg += ['%s' % node.taxon.label]
             assert node.label is None  # if you want to change this, you have to start setting the node labels in build_lonr_tree(). For now, I like having the label in _one_ freaking place
             continue  # already properly labeled
@@ -522,6 +510,16 @@ def build_lonr_tree(edgefos, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False):
+    def get_node_type_from_name(name, debug=False):  # internal nodes in simulated trees should be labeled like 'mrca-<stuff>' (has to correspond to what bcr-phylo-benchmark did)
+        if 'mrca' in name:
+            return 'internal'
+        elif 'leaf' in name:
+            return 'leaf'
+        else:
+            if debug:
+                print '    not sure of node type for \'%s\'' % name
+            return None
+
     # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
     lonr_names, input_names = {}, {}
     with open(outdir + '/' + lonr_files['names.fname']) as namefile:  # headers: "head	head2"

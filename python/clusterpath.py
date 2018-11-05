@@ -474,7 +474,7 @@ class ClusterPath(object):
                     print '       %6.3f   %s  %s' % (edge.length, utils.color('blue' if from_fasttree else 'red', 'x'), edge.head_node.taxon.label)
 
         if debug:
-            print '        naive seq %s' % getline(root_label)['naive_seq'] # TODO maybe add an edge connecting seed node and the actual naive sequence (i.e. for cases where our approximate naive is off)?
+            print '        naive seq %s' % getline(root_label)['naive_seq'] # NOTE might be worthwhile to add an edge connecting seed node and the actual naive sequence (i.e. for cases where our approximate naive is off)
             print '    root cons seq %s' % utils.color_mutants(getline(root_label)['naive_seq'], dtree.seed_node.seq)
 
         for node in dtree.preorder_node_iter():
