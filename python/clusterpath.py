@@ -365,7 +365,7 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     # make tree for the single cluster in the last partition of <partitions> (which is in general *not* the last partition in self.partitions, since the calling function stops at self.i_best)
-    def make_single_tree(self, partitions, annotations, uid_set, get_fasttrees=False, min_edge_length=0, n_max_cons_seqs=10, debug=False):  # <min_edge_length> greater than zero is nice for debug viewing
+    def make_single_tree(self, partitions, annotations, uid_set, get_fasttrees=False, n_max_cons_seqs=10, debug=False):
         # NOTE don't call this externally -- if you want a single tree, call make_trees() with <i_only_cluster> set
         def getline(uidstr, uid_set=None):
             if uidstr in annotations:  # if we have this exact annotation
@@ -384,7 +384,7 @@ class ClusterPath(object):
         def lget(uid_list):
             return ':'.join(uid_list)
 
-        default_edge_length = 999
+        default_edge_length = 999999  # it's nice to have the edges all set to something that's numeric (so the trees print), but also obvious wrong, if we forget to set somebody
         assert len(partitions[-1]) == 1
         root_label = lget(partitions[-1][0])  # we want the order of the uids in the label to correspond to the order in self.partitions
         tns = dendropy.TaxonNamespace([root_label])
@@ -446,6 +446,9 @@ class ClusterPath(object):
             lnode.n_descendent_leaves = 1  # keep track of how many leaf nodes contributed to each node's consensus sequence (these are leaves, so it's trivally 1). This is less accurate than keeping track of all the sequences, but also faster
 
         # then set internal node seqs as the consensus of their children, and set the distance as hamming distance to child seqs
+        if debug:
+            print '    edge lengths either from fasttree %s or cons seq %s' % (utils.color('blue', 'x'), utils.color('red', 'x'))
+        min_edge_length = None  # setting this is nice for better debug viewing
         for node in dtree.postorder_internal_node_iter():  # includes root node
             child_cons_seq_counts = [c.n_descendent_leaves for c in node.child_node_iter()]
             total_descendent_leaves = sum(child_cons_seq_counts)
@@ -457,17 +460,23 @@ class ClusterPath(object):
                 csc_str = '  (reduced: %s)' % ' '.join([str(csc) for csc in child_cons_seq_counts]) if total_descendent_leaves > n_max_cons_seqs else ''
                 print '      desc leaves per child: %s%s' % (' '.join(str(c.n_descendent_leaves) for c in node.child_node_iter()), csc_str)
             child_seqfos = [{'name' : cn.taxon.label + '-leaf-' + str(il), 'seq' : cn.seq} for cn, count in zip(node.child_node_iter(), child_cons_seq_counts) for il in range(count)]
-            node.seq = utils.cons_seq(0.01, aligned_seqfos=child_seqfos)
+            node.seq = utils.cons_seq(0.01, aligned_seqfos=child_seqfos, tie_resolver_seq=getline(root_label)['naive_seq'])  #, debug=debug)  # the consensus has an N at every position where the constituent sequences gave a tie. But Ns screw up the distances (especially because once we *get* an N, we can't get rid of it and it's propagated all the way up the tree), and in almost all cases the correct choice should be the naive base, so we use that
             node.n_descendent_leaves = total_descendent_leaves
             if debug:
-                print '    adding edges with lengths:'
+                print '    adding lengths for edges:'
             for edge in node.child_edge_iter():
-                edge.length = max(min_edge_length, utils.hamming_distance(edge.head_node.seq, node.seq))  # we seem to usually get to the naive sequence long before we've gotten to the root node, so set all these zero-length edges to something so they're visible
+                from_fasttree = False
+                if edge.length == default_edge_length:  # otherwise it was set by fasttree, and it's probably better than what we'd get from this (it'd be nice to skip the cons seq stuff for the whole fasttree subtree, but then we don't have the cons seqs we need for later)
+                    edge.length = utils.hamming_distance(edge.head_node.seq, node.seq) / float(len(node.seq))
+                else:
+                    from_fasttree = True
+                if min_edge_length is not None:
+                    edge.length = max(min_edge_length, edge.length)
                 if debug:
-                    print '       %3d  %s' % (edge.length, edge.head_node.taxon.label)
+                    print '       %6.3f   %s  %s' % (edge.length, utils.color('blue' if from_fasttree else 'red', 'x'), edge.head_node.taxon.label)
 
         if debug:
-            print '        naive seq %s' % getline(root_label)['naive_seq']
+            print '        naive seq %s' % getline(root_label)['naive_seq'] # TODO maybe add an edge connecting seed node and the actual naive sequence (i.e. for cases where our approximate naive is off)?
             print '    root cons seq %s' % utils.color_mutants(getline(root_label)['naive_seq'], dtree.seed_node.seq)
 
         for node in dtree.preorder_node_iter():
