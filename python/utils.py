@@ -674,9 +674,10 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
     return msa_info['ref'], msa_info['new']
 
 # ----------------------------------------------------------------------------------------
-def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False):
+def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver_seq=None, debug=False):
     """ return consensus sequence from either aligned or unaligned seqfos """
     # <threshold>: If the percentage of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added.
+    # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (for us, this is usually the naive sequence)
     from cStringIO import StringIO
     from Bio.Align import AlignInfo
     import Bio.AlignIO
@@ -694,9 +695,19 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, debug=False)
     alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
     cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous='N'))
 
+    if tie_resolver_seq is not None:  # huh, maybe it'd make more sense to just pass in the tie-breaker sequence to the consensus fcn?
+        assert len(tie_resolver_seq) == len(cons_seq)
+        cons_seq = list(cons_seq)
+        for ipos in range(len(cons_seq)):
+            if cons_seq[ipos] in ambiguous_bases:
+                cons_seq[ipos] = tie_resolver_seq[ipos]
+        cons_seq = ''.join(cons_seq)
+
     if debug:
         for iseq in range(len(seqfos)):
-            color_mutants(cons_seq, seqfos[iseq]['seq'], align=aligned_seqfos is None, print_result=True, only_print_seq=iseq>0, ref_label='consensus ', extra_str='      ')
+            color_mutants(cons_seq, seqfos[iseq]['seq'], align=aligned_seqfos is None, print_result=True, only_print_seq=iseq>0, ref_label=' consensus ', extra_str='        ')
+        if tie_resolver_seq is not None:
+            color_mutants(cons_seq, tie_resolver_seq, align=aligned_seqfos is None, print_result=True, only_print_seq=True, seq_label='tie resolv ', extra_str='        ')
 
     return cons_seq
 
