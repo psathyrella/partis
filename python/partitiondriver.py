@@ -297,7 +297,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def calculate_tree_metrics(self, annotations, cpath=None):
-        treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
+        treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, self.args.lb_tau, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)
 
     # ----------------------------------------------------------------------------------------

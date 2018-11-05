@@ -482,7 +482,7 @@ class ClusterPath(object):
             del node.seq
             del node.n_descendent_leaves
 
-        treeutils.label_nodes(dtree, ignore_existing_internal_node_labels=True, ignore_existing_internal_taxon_labels=True, initial_length=5, debug=debug)
+        treeutils.label_nodes(dtree, ignore_existing_internal_node_labels=True, ignore_existing_internal_taxon_labels=True, debug=debug)
         dtree.update_bipartitions()  # probably don't really need this
         if debug:
             print treeutils.utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250))

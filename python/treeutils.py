@@ -188,6 +188,7 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
     if debug:
         print '           initial taxon labels: %s' % ' '.join(sorted(initial_names))
     potential_names, used_names = None, None
+    new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=initial_length, shuffle=True)
     skipped_dbg, relabeled_dbg = [], []
     for node in dendro_tree.preorder_node_iter():
         if node.taxon is not None and not (ignore_existing_internal_taxon_labels and not node.is_leaf()):
@@ -201,7 +202,7 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
             continue
 
         if current_label is None or ignore_existing_internal_node_labels:
-            new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=initial_length)
+            new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names)
         else:
             if tns.has_taxon_label(current_label):
                 raise Exception('duplicate node label \'%s\'' % current_label)
@@ -360,7 +361,8 @@ def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespa
 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
-def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, debug=False):
+# NOTE see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
+def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, normalize=False, debug=False):
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI.
     tree     -- tree for whose nodes the LBI is being computed (was biopython, now dendropy)
@@ -396,7 +398,7 @@ def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, debug
                     child1.down_polarizer += child2.up_polarizer  # add the contribution of <child2> to its parent's (<node>'s) lbi (i.e. <child2>'s contribution to the lbi of its *siblings*)
             bl =  child1.clock_length / tau
             child1.down_polarizer *= numpy.exp(-bl)  # and decay the previous sum by distance between <child1> and its parent (<node>)
-            child1.down_polarizer += getmulti(node) * tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
+            child1.down_polarizer += getmulti(child1) * tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
 
     # go over all nodes and calculate the LBI (can be done in any order)
     max_LBI = 0.
@@ -408,20 +410,22 @@ def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, debug
             node.lbr += child.up_polarizer
         if node.down_polarizer > 0.:
             node.lbr /= node.down_polarizer  # it might make more sense to not include the branch between <node> and its parent in in either the numerator or denominator (here it's included in the denominator), but this way I don't have to change any of the calculations above
-        if node.lbi > max_LBI:
+        if normalize and node.lbi > max_LBI:
             max_LBI = node.lbi
 
-    # normalize to range [0, 1]
-    for node in dtree.postorder_node_iter():
-        node.lbi /= max_LBI
+    if normalize:  # normalize to range [0, 1]
+        for node in dtree.postorder_node_iter():
+            node.lbi /= max_LBI
 
     if debug:
-        print '               node          lbi        lbr'
+        max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
+        print ('   %' + max_width + 's   multi     lbi       lbr      clock length') % 'node'
         for node in dtree.postorder_node_iter():  # postorder shouldn't matter, but I have to choose one or the other when I'm copying from the bio version
-            print '    %20s  %8.3f  %8.3f' % (node.taxon.label, node.lbi, node.lbr)
+            multi_str = str(getmulti(node)) if (use_multiplicities and getmulti(node) > 1) else ''
+            print ('    %' + max_width + 's  %3s   %8.3f  %8.3f    %8.3f') % (node.taxon.label, multi_str, node.lbi, node.lbr, node.clock_length)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(annotation, dtree, naive_seq_name=None, tau=0.4, extra_str=None, debug=False):
+def calculate_lb_values(annotation, dtree, tau, naive_seq_name=None, extra_str=None, debug=False):
     def set_multiplicities():
         missing_from_annotation = []
         for node in dtree.postorder_node_iter():
@@ -442,7 +446,7 @@ def calculate_lb_values(annotation, dtree, naive_seq_name=None, tau=0.4, extra_s
 
     if debug:
         print '   lbi/lbr%s:' % ('' if extra_str is None else ' for %s' % extra_str)
-        print '      calculating lb values with:'
+        print '      calculating lb values with tau %.4f and tree:' % tau
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
 
     missing_from_tree = [uid for uid in annotation['unique_ids'] if dtree.find_node_with_taxon_label(uid) is None]
@@ -730,7 +734,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -793,7 +797,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None
             print '    running fasttree on each cluster'
             seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
             dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
-        line['tree-info']['lb'] = calculate_lb_values(line, dtree=dtree, extra_str='inf tree', debug=debug)
+        line['tree-info']['lb'] = calculate_lb_values(line, dtree, lb_tau, extra_str='inf tree', debug=debug)
         n_clusters_calculated += 1
 
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
@@ -809,7 +813,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, cpath=None
         # calculate lb values for true lines
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_line, true_dtree, extra_str='true tree', debug=debug)
+            true_lb_info = calculate_lb_values(true_line, true_dtree, lb_tau, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
 
         if base_plotdir is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
