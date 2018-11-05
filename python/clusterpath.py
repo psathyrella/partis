@@ -447,7 +447,7 @@ class ClusterPath(object):
 
         # then set internal node seqs as the consensus of their children, and set the distance as hamming distance to child seqs
         if debug:
-            print '    edge lengths either from fasttree %s or cons seq %s' % (utils.color('blue', 'x'), utils.color('red', 'x'))
+            print '    adding edge lengths either from fasttree %s or cons seq %s' % (utils.color('blue', 'x'), utils.color('red', 'x'))
         min_edge_length = None  # setting this is nice for better debug viewing
         for node in dtree.postorder_internal_node_iter():  # includes root node
             child_cons_seq_counts = [c.n_descendent_leaves for c in node.child_node_iter()]
@@ -462,8 +462,6 @@ class ClusterPath(object):
             child_seqfos = [{'name' : cn.taxon.label + '-leaf-' + str(il), 'seq' : cn.seq} for cn, count in zip(node.child_node_iter(), child_cons_seq_counts) for il in range(count)]
             node.seq = utils.cons_seq(0.01, aligned_seqfos=child_seqfos, tie_resolver_seq=getline(root_label)['naive_seq'])  #, debug=debug)  # the consensus has an N at every position where the constituent sequences gave a tie. But Ns screw up the distances (especially because once we *get* an N, we can't get rid of it and it's propagated all the way up the tree), and in almost all cases the correct choice should be the naive base, so we use that
             node.n_descendent_leaves = total_descendent_leaves
-            if debug:
-                print '    adding lengths for edges:'
             for edge in node.child_edge_iter():
                 from_fasttree = False
                 if edge.length == default_edge_length:  # otherwise it was set by fasttree, and it's probably better than what we'd get from this (it'd be nice to skip the cons seq stuff for the whole fasttree subtree, but then we don't have the cons seqs we need for later)

@@ -620,7 +620,7 @@ class PartitionDriver(object):
             print ''
 
         n_before, n_after = self.args.n_partitions_to_write, self.args.n_partitions_to_write  # this takes more than we need, since --n-partitions-to-write is the *full* width, not half-width, but oh, well
-        if self.args.debug or self.args.calculate_alternative_naive_seqs:  # take all of 'em
+        if self.args.debug or self.args.calculate_alternative_naive_seqs or self.args.get_tree_metrics:  # take all of 'em
             n_before, n_after = sys.maxint, sys.maxint
         elif self.args.write_additional_cluster_annotations is not None:
             n_before, n_after = [max(waca, n_) for waca, n_ in zip(self.args.write_additional_cluster_annotations, (n_before, n_after))]
