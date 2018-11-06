@@ -750,6 +750,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
             true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
             max_in_common, ustr_to_use = None, None  # look for the inferred cluster that has the most uids in common with this true cluster
             for ustr in annotations:  # order will be different in reco info and inferred clusters
+                # NOTE if I added in the duplicate uids from the inferred cluster, these would usually/always have perfect overlap
                 n_in_common = len(set(ustr.split(':')) & set(cluster))  # can't just look for the actual cluster since we collapse duplicates, but bcr-phylo doesn't (but maybe I should throw them out when parsing bcr-phylo output)
                 if max_in_common is None or n_in_common > max_in_common:
                     ustr_to_use = ustr
