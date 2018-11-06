@@ -1,3 +1,4 @@
+import yaml
 import platform
 import resource
 import psutil
@@ -2049,11 +2050,11 @@ def get_line_for_output(headers, info, glfo=None):
     return outfo
 
 # ----------------------------------------------------------------------------------------
-def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_expected=None, n_per_proc_expected=None):
+def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_expected=None, n_per_proc_expected=None, use_pyyaml=False):
     if getsuffix(outfname) == '.csv':  # old way
         n_event_list = merge_csvs(outfname, file_list)
     elif getsuffix(outfname) == '.yaml':  # new way
-        n_event_list = merge_yamls(outfname, file_list, headers)
+        n_event_list = merge_yamls(outfname, file_list, headers, use_pyyaml=use_pyyaml)
     else:
         raise Exception('unhandled annotation file suffix %s' % args.outfname)
 
@@ -2099,7 +2100,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
     return n_event_list
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=True):
+def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False):
     """ NOTE copy of merge_csvs(), which is (apparently) a copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
     merged_annotation_list = []
     ref_glfo = None
@@ -2124,7 +2125,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=True):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    write_annotations(outfname, ref_glfo, merged_annotation_list, headers)
+    write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml)
 
     return n_event_list
 
@@ -3836,7 +3837,7 @@ def write_linearham_seqs(outfname, annotation_list):
                 fastafile.write('>' + annotation['unique_ids'][j] + '\n' + annotation['indel_reversed_seqs'][j] + '\n')
 
 # ----------------------------------------------------------------------------------------
-def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None):
+def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False):
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
@@ -3846,7 +3847,7 @@ def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=F
         assert partition_lines is None
         write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs, glfo=glfo, failed_queries=failed_queries)
     elif getsuffix(fname) == '.yaml':
-        write_yaml_output(fname, headers, glfo=glfo, annotation_list=annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries, partition_lines=partition_lines)
+        write_yaml_output(fname, headers, glfo=glfo, annotation_list=annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=use_pyyaml)
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
@@ -3880,7 +3881,7 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_single_seqs=False, failed_queries=None, partition_lines=None):
+def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False):
     if annotation_list is None:
         annotation_list = []
     if partition_lines is None:
@@ -3895,9 +3896,10 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
                 'partitions' : partition_lines,
                 'events' : yaml_annotations}
     with open(fname, 'w') as yamlfile:
-        # import yaml
-        # yaml.dump(yamldata, yamlfile, width=500, Dumper=yaml.CDumper)  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
-        json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
+        if use_pyyaml:  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
+            yaml.dump(yamldata, yamlfile, width=400, Dumper=yaml.CDumper, default_flow_style=False, allow_unicode=False)  # set <allow_unicode> to false so the file isn't cluttered up with !!python.unicode stuff
+        else:  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
+            json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)
 
 # ----------------------------------------------------------------------------------------
 def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info):
@@ -3957,9 +3959,11 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
 # ----------------------------------------------------------------------------------------
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
     with open(fname) as yamlfile:
-        # import yaml
-        # yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)  # use this instead of the json version to make more human-readable files
-        yamlfo = json.load(yamlfile)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
+        try:
+            yamlfo = json.load(yamlfile)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
+        except ValueError:  # I wish i could think of a better way to do this, but I can't
+            yamlfile.seek(0)
+            yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)  # use this instead of the json version to make more human-readable files
         if debug:
             print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
 

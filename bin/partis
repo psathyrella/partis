@@ -76,7 +76,7 @@ def run_simulation(args):
         for ievt in range(n_events):
             event = reco.combine(random_ints[ievt])
             events.append(event)
-        utils.write_annotations(outfname, glfo, events, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), synth_single_seqs=utils.getsuffix(outfname) == '.csv')  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading) NOTE list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
+        utils.write_annotations(outfname, glfo, events, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), synth_single_seqs=utils.getsuffix(outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading) NOTE list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
 
     def get_workdir(iproc):
         return args.workdir + '/sub-' + str(iproc)
@@ -112,7 +112,7 @@ def run_simulation(args):
                 time.sleep(1)
 
         file_list = [cmdfos[i]['outfname'] for i in range(args.n_procs)]
-        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc)  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
+        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc, use_pyyaml=args.write_full_yaml_output)  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
 
     if not args.im_a_subproc and args.allele_prevalence_fname is not None:  # check final prevalence freqs
         glutils.check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname, only_region='v', debug=args.debug)
@@ -258,6 +258,7 @@ parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .
 parent_parser.add_argument('--name-column', help='csv column name for sequence ids')
 parent_parser.add_argument('--seq-column', help='csv column name for nucleotide sequences')
 parent_parser.add_argument('--outfname', help='output file name')
+parent_parser.add_argument('--write-full-yaml-output', action='store_true', help='By default, we write yaml output files using the json subset of yaml, since it\'s much faster. If this is set, we instead write full yaml, which is more human-readable.')
 parent_parser.add_argument('--presto-output', action='store_true', help='Write output file in presto format. Since this format depends on a particular IMGT alignment (and we can\'t include that in this repo), you must also pass a fasta file with alignments for all the V, D, and J germline genes using --aligned-germline-fname.')
 parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the (fairly minimal) set of information written by default to annotation output files (choose from: %s' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
 parent_parser.add_argument('--linearham', action='store_true', help='write Smith-Waterman flexbounds/relpos values in linearham format to output file')

@@ -178,7 +178,7 @@ class Waterer(object):
         headers = utils.sw_cache_headers
         if self.args.linearham:
             headers = utils.add_lists(headers, utils.linearham_headers)
-        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers)
+        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers, use_pyyaml=self.args.write_full_yaml_output)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
