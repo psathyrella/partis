@@ -1220,31 +1220,38 @@ def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
 
     if debug:
         print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
-    ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : [], 'reshuffled_vals' : []}
-    for percentile in numpy.arange(5, 100, 5):
-        lb_ptile_val = numpy.percentile(lb_vs_affinity_vals[lb_metric], percentile)  # lb value corresponding to <percentile>
-        corresponding_affinities = [affy for lb, affy in zip(lb_vs_affinity_vals[lb_metric], lb_vs_affinity_vals['affinity']) if lb > lb_ptile_val]  # affinities corresponding to lb greater than <lb_ptile_val> (i.e. the affinities that you'd get if you took all the lb values greater than that)
-        corr_affy_ptiles = [stats.percentileofscore(lb_vs_affinity_vals['affinity'], caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # TODO this is probably really slow
+    ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : []}  # , 'reshuffled_vals' : []}
+    lbvals = lb_vs_affinity_vals[lb_metric]  # should really use these shorthands for the previous plot as well
+    affyvals = lb_vs_affinity_vals['affinity']
+    for percentile in numpy.arange(4, 100, 3):
+        lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
+        corresponding_affinities = [affy for lb, affy in zip(lbvals, affyvals) if lb > lb_ptile_val]  # affinities corresponding to lb greater than <lb_ptile_val> (i.e. the affinities that you'd get if you took all the lb values greater than that)
+        corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow
+        if len(corr_affy_ptiles) == 0:
+            if debug:
+                print '   %5.0f    no vals' % percentile
+            continue
         ptile_vals['lb_ptiles'].append(percentile)
         ptile_vals['mean_affy_ptiles'].append(numpy.mean(corr_affy_ptiles))
         if debug:
-            print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), numpy.mean(corr_affy_ptiles))
+            print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1])
 
-        # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... but it wiggles around satisfyingly. Maybe switch to an actual horizontal line -- implemented but commented below)
-        shuffled_lb_vals = copy.deepcopy(lb_vs_affinity_vals[lb_metric])
-        random.shuffle(shuffled_lb_vals)
-        NON_corresponding_affinities = [affy for lb, affy in zip(shuffled_lb_vals, lb_vs_affinity_vals['affinity']) if lb > lb_ptile_val]
-        NON_corr_affy_ptiles = [stats.percentileofscore(lb_vs_affinity_vals['affinity'], caffy) for caffy in NON_corresponding_affinities]
-        ptile_vals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
+        # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... but it wiggles around satisfyingly. Maybe switch to an actual horizontal line -- implemented but commented below)
+        # shuffled_lb_vals = copy.deepcopy(lbvals)
+        # random.shuffle(shuffled_lb_vals)
+        # NON_corresponding_affinities = [affy for lb, affy in zip(shuffled_lb_vals, affyvals) if lb > lb_ptile_val]
+        # NON_corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in NON_corresponding_affinities]
+        # ptile_vals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
 
     # then plot potential lb cut thresholds with percentiles
     fig, ax = mpl_init()
     ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
-    ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
-    # ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')  # or maybe just a straight line?
+    # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
+    ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')  # or maybe just a straight line?
+    ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='if perfect correlation')
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
     plotname = '%s-true-tree-ptiles' % lb_metric
-    mpl_finish(ax, plotdir, plotname, title='potential %s thresholds (true tree)' % lb_metric.upper(), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
+    mpl_finish(ax, plotdir, plotname, xbounds=(15, 100), ybounds=(45, 100), leg_loc=(0.04, 0.7), title='potential %s thresholds (true tree)' % lb_metric.upper(), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
 
 # ----------------------------------------------------------------------------------------
 def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
