@@ -1246,9 +1246,9 @@ def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
     # then plot potential lb cut thresholds with percentiles
     fig, ax = mpl_init()
     ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
-    # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')
-    ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='if no correlation')  # or maybe just a straight line?
-    ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='if perfect correlation')
+    # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
+    ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # or maybe just a straight line?
+    ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
     plotname = '%s-true-tree-ptiles' % lb_metric
     mpl_finish(ax, plotdir, plotname, xbounds=(15, 100), ybounds=(45, 100), leg_loc=(0.04, 0.7), title='potential %s thresholds (true tree)' % lb_metric.upper(), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
@@ -1279,7 +1279,8 @@ def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
     mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='affinity change (from parent)', ylabel=lb_label, xbounds=(1.05 * xmin, 1.05 * xmax))  # NOTE factor on <xmin> is only right if xmin is negative, but it should always be
 
 
-    # then plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree)
+    # then plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
+    # NOTE because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
     if debug:
         print '  finding N ancestors since last affinity increase'
         print '         node        ancestors   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
@@ -1340,7 +1341,7 @@ def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
     ax.scatter(n_ancestor_vals['n-ancestors'], n_ancestor_vals[lb_metric], alpha=0.4)
     # sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
     # xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
-    plotname = '%s-vs-n-ancestors-since-affy-increase' % lb_metric
+    plotname = '%s-vs-n-ancestors-since-affy-increase' % lb_metric  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
     mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label) #, xbounds=(1.05 * xmin, 1.05 * xmax))
 
 # ----------------------------------------------------------------------------------------
