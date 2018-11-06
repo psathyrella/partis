@@ -9,7 +9,9 @@
 
 The `partis` command has a number of actions:
 
-```partis annotate | partition | view-output | cache-parameters | simulate```
+```
+partis annotate | partition | view-output | cache-parameters | simulate
+```
 
 For information on options for each subcommand that are not documented in this manual run `partis <subcommand> --help`.
 
@@ -22,7 +24,9 @@ The other option is to specify the full path with each call `/path/to/<partis_di
 
 In order to find the most likely annotation (VDJ assignment, deletion boundaries, etc.) for each sequence, run
 
-```partis annotate --infname test/example.fa --outfname _output/example.yaml```.
+```
+partis annotate --infname test/example.fa --outfname _output/example.yaml
+```
 
 For information on parsing the output file, see [here](#output-formats.md).
 
@@ -30,7 +34,9 @@ For information on parsing the output file, see [here](#output-formats.md).
 
 In order to cluster sequences into clonal families, run
 
-```partis partition --infname test/example.fa --outfname _output/example.yaml```
+```
+partis partition --infname test/example.fa --outfname _output/example.yaml
+```
 
 For information on parsing the output file, see [here](#output-formats.md).
 
@@ -62,16 +68,20 @@ If you're mostly interested in larger clonal families, you can tell it to cluste
 
 Cases where memory is a limiting factor typically stem from a sample with several very large families. Some recent optimizations mean that this doesn't really happen any more, but limiting clonal family size with `--max-cluster-size N` nevertheless can reduce memory usage. Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
 
-##### naive sequence uncertainties
+##### annotation uncertainties
 
-In order to get an idea of the uncertainty on a given cluster's naive sequence, you can specify `--calculate-alternative-naive-seqs` during the partition step. This will save all the naive sequences for intermediate sub-clusters to a cache file so that, afterwards, you can view the naive sequence for each sub-cluster (actually this just moves the cache file that's a normal part of partitioning to a persistent location). For instance:
+In order to get an idea of the uncertainty on a given cluster's naive sequence and gene calls, you can specify `--calculate-alternative-naive-seqs` during the partition step. 
+This will write all the annotations for intermediate sub-clusters to the output file so that, afterwards, you can view the annotations for each sub-cluster.
+Since most annotation uncertainty in large-ish families boils down to two sub-families disagreeing about, say, which D gene is right, this approach typically does a decent job of spanning the real uncertainty (despite being quite heuristic).
+For instance:
 
 ```
 partis partition --infname test/example.fa --outfname _output/example.yaml --calculate-alternative-naive-seqs
-partis view-alternative-naive-seqs --outfname _output/example.yaml --queries <queries of interest>  # try piping this to less by adding "| less -RS"
+partis view-alternative-naive-seqs --outfname _output/example.yaml --queries <queries of interest>  # pipe this to less by adding "| less -RS"
 ```
-
 if you don't know which `--queries` to put in the second step, just run without setting `--queries`, and it will print the partitions in the output file before exiting, so you can copy and paste a cluster into the `--queries` argument.
+
+The second command prints an ascii representation of the various naive sequences and gene calls, as well as summaries of how many unique sequences and clusters of various sizes voted for each naive sequence and gene call.
 
 ### view-output
 
@@ -120,8 +130,8 @@ This is appropriate for humans, since the known germline set is fairly complete.
 For species for which the known germline sets are much less complete (e.g. macaque and mice), it makes more sense to also look for alleles that are separated by indels and/or many SNPs from existing genes.
 This is the default for non-human species, and is equivalent to turning on `--allele-cluster`.
 
-At the moment we only do clever germline inference things for V, and not for D and J.
-This is kind of dumb, and will be fixed soon, but shouldn't have a big effect since there is much less variation in D and J.
+At the moment we only actually infer germline sets for V, and not for D and J (although we plan to fix this).
+This isn't horribly nonsensical, since there is much less variation in D and J, but it does mean that you should treat the D germline set, in particular, with quite a bit of skepticism.
 
 ### simulate
 

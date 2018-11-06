@@ -8,6 +8,7 @@
 All output is written to a unified yaml file (for documentation on the old csv formats, see [here](https://github.com/psathyrella/partis/blob/9d78600ba6b7d511825f27724de1f8e937a5ada3/docs/output-formats.md)).
 The `annotate` action writes annotations for each single sequence in the input.
 The `partition` action writes a list of the most likely partitions and their relative likelihoods, as well as annotations for each cluster in the most likely partition.
+Whether to write additional partitions, or additional annotations for clusters in those partitions, can be set using a variety of options.
 
 If you want to print the results of existing output files to the terminal, use the partis [`view-output`](subcommands.md#view-output) action.
 While by default a fairly minimal set of annotation information is written to file, many more keys are present in the dictionary in memory (see below).
@@ -67,8 +68,8 @@ The following keys are written to output by default:
 | gl_gap_seqs        |  list of germline sequences with gaps at shm indel positions (alignment matches qr_gap_seqs) `[per-seq]`
 | qr_gap_seqs        |  list of query sequences with gaps at shm indel positions (alignment matches gl_gap_seqs) `[per-seq]`
 | duplicates     |  list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed. `[per-seq]`
-| tree           |  simulation only: newick-formatted string of the true phylogenetic tree
-| tree-info      |  inferred tree-related information from various methods (e.g. LONR and local branching index), including associated inferred trees
+| tree           |  simulation only: newick-formatted string of the true phylogenetic tree (inferred trees are included in `tree-info`, in order to accomodate multiple trees inferred by different methods)
+| tree-info      |  inferred tree-related information from various methods (e.g. local branching index/ratio), including associated inferred trees
 
 The following keys are available in the dictionary in memory, but not written to disk by default (can be written by setting `--extra-annotation-columns key_a:key_b`):
 

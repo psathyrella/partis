@@ -93,7 +93,7 @@ class ParameterCounter(object):
                 utils.prep_dir(thisplotdir, wildlings=['*.csv', '*.svg'])
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, only_csv=False, only_overall=False):
+    def plot(self, plotdir, only_csv=False, only_overall=False):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it write() wasn't called first, that is)
         import plotting
         print '  plotting parameters in %s' % plotdir,
         sys.stdout.flush()
@@ -145,7 +145,7 @@ class ParameterCounter(object):
         print '(%.1f sec)' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
-    def write(self, base_outdir):
+    def write(self, base_outdir):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it plot() wasn't called first, that is)
         print '    writing parameters to %s' % base_outdir,
         sys.stdout.flush()
         start = time.time()
