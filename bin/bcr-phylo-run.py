@@ -164,7 +164,7 @@ def partition():
     n_procs = 1
     cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(args.stype), infdir(args.stype), n_procs, args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
-    cmd = './bin/partis partition --debug 0 --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --get-tree-metrics --infname %s --parameter-dir %s/params --plotdir %s --n-procs %d --outfname %s/partition.yaml --seed %d' % (simfname(args.stype), infdir(args.stype), infdir(args.stype) + '/plots', n_procs, infdir(args.stype), args.seed)
+    cmd = './bin/partis partition --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --lb-tau %f --is-simu --get-tree-metrics --infname %s --parameter-dir %s/params --plotdir %s --n-procs %d --outfname %s/partition.yaml --seed %d' % (args.lb_tau, simfname(args.stype), infdir(args.stype), infdir(args.stype) + '/plots', n_procs, infdir(args.stype), args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
     # cmd = './bin/partis get-tree-metrics --outfname %s/partition.yaml' % infdir(args.stype)
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
@@ -184,6 +184,8 @@ parser.add_argument('--target-distance', type=int, default=15, help='Desired dis
 parser.add_argument('--target-count', type=int, default=10, help='Number of target sequences to generate.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='')
+
+parser.add_argument('--lb-tau', type=float, default=0.4, help='')
 args = parser.parse_args()
 
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
