@@ -34,7 +34,7 @@ class Tester(object):
             os.makedirs(self.dirs['new'])
         self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.yaml' for dt in self.dtypes} for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
-        self.common_extras = ['--seed', '1', '--n-procs', '10', '--simulation-germline-dir', 'data/germlines/human']
+        self.common_extras = ['--seed', '1', '--n-procs', '10', '--simulation-germline-dir', 'data/germlines/human', '--write-full-yaml-output']
         self.parameter_caching_extras = []
 
         self.tiny_eps = 1e-4
