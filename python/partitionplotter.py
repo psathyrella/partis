@@ -20,6 +20,7 @@ class PartitionPlotter(object):
         self.Seq = sys.modules['Bio.Seq']
 
         self.n_clusters_per_joy_plot = 50
+        self.n_max_joy_plots = 30
         self.n_max_mutations = 65
         self.n_joyplots_in_html = 4  # the rest of them are still in the dir, they're just not displayed in the html
         self.min_high_mutation_cluster_size = 1
@@ -301,7 +302,9 @@ class PartitionPlotter(object):
         if debug:
             print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
         for subclusters in sorted_cluster_groups:
-            title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))
+            if iclustergroup > self.n_max_joy_plots:  # note that when this is activated, the high mutation plot is no longer guaranteed to have every high mutation cluster (but it should have every high mutation cluster that was bigger than the cluster size when we started skipping here)
+                continue
+            title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
             high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, debug=debug)
             if len(fnames[-1]) < self.n_joyplots_in_html:
                 self.addfname(fnames, get_fname(iclustergroup=iclustergroup))
