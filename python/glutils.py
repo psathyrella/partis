@@ -402,6 +402,7 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
     merged_glfo = copy.deepcopy(glfo_a)
     for region in glfo_b['seqs']:
         duplicate_genes, duplicate_seqs = [], []
+        inconsistent_names = []  # names corresponding to <duplicate_seqs>
         merged_seqs = set(merged_glfo['seqs'][region].values())
         for gene, seq in glfo_b['seqs'][region].items():
             if gene in merged_glfo['seqs'][region]:
@@ -409,6 +410,9 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
                 continue
             if seq in merged_seqs:
                 duplicate_seqs.append(seq)
+                a_names = [g for g, s in glfo_a['seqs'][region].items() if s == seq]
+                assert len(a_names) == 1  # I really don't want to deal with duplicate sequences here. They should've been cleaned up elsewhere
+                inconsistent_names.append((a_names[0], gene))
                 continue
             add_new_allele(merged_glfo, {'gene' : gene, 'seq' : seq, 'cpos' : utils.cdn_pos(glfo_b, region, gene)}, use_template_for_codon_info=False)
             merged_seqs.add(seq)
@@ -421,7 +425,7 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
                 print '      %s different seqs for name %s' % (utils.color('red', 'warning'), utils.color_gene(dgene))
                 utils.color_mutants(glfo_a['seqs'][region][dgene], glfo_b['seqs'][region][dgene], align=True, print_result=True, extra_str='        ')
         if len(duplicate_seqs) > 0:
-            print '     %d seqs in both (but with different names)' % len(duplicate_seqs)
+            print '     %d seqs in both, but with different names (we use the name from glfo_a, the first arg): %s' % (len(duplicate_seqs), '   '.join([('%s %s' % (utils.color_gene(ga), utils.color_gene(gb))) for ga, gb in inconsistent_names]))
 
     return merged_glfo
 
