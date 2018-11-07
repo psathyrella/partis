@@ -27,6 +27,9 @@ class PartitionPlotter(object):
         self.n_biggest_to_plot = 24
         self.n_plots_per_row = 4
 
+        self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
+        self.max_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
+
         self.n_mds_components = 2
 
     # ----------------------------------------------------------------------------------------
@@ -92,16 +95,23 @@ class PartitionPlotter(object):
         fig, ax = self.plotting.mpl_init()
 
         clusters_to_use = [cluster for cluster in sorted_clusters if numpy.mean(getnmutelist(cluster)) < self.n_max_mutations]  # have to do it as a separate line so the zip/* don't crash if no clusters pass the criterion
+        skipped_small_clusters = False
+        if len(clusters_to_use) > self.max_clusters_to_apply_size_vs_shm_min_cluster_size:  # if repertoire is really big, ignore smaller clusters to keep the plots from being huge
+            clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= self.size_vs_shm_min_cluster_size]
+            skipped_small_clusters = True
         if len(clusters_to_use) == 0:
             print '  %s no clusters to plot' % utils.color('yellow', 'warning')
             return
         xvals, yvals = zip(*[[numpy.mean(getnmutelist(cluster)), len(cluster)] for cluster in clusters_to_use])
         if log_cluster_size:
             yvals = [math.log(yv) for yv in yvals]
-        hb = ax.hexbin(xvals, yvals, gridsize=self.n_max_mutations, cmap=plt.cm.Blues, bins='log')
+        # hb = ax.hexbin(xvals, yvals, gridsize=self.n_max_mutations, cmap=plt.cm.Blues, bins='log')
+        hb = ax.scatter(xvals, yvals, alpha=0.4)
 
         nticks = 5
-        yticks = [yvals[0] + itick * (yvals[-1] - yvals[0]) / float(nticks - 1) for itick in range(nticks)]
+        ymin, ymax = yvals[-1], yvals[0]
+        ymin = 1  # make it 1, even if we aren't plotting small clusters, to make it more obvious that we skipped them
+        yticks = [ymax + itick * (ymin - ymax) / float(nticks - 1) for itick in range(nticks)]
         if log_cluster_size:
             yticklabels = [math.exp(yt) for yt in yticks]
             yticklabels = [('%.0f' % yt) if yt > 5 else ('%.1f' % yt) for yt in yticklabels]
@@ -124,7 +134,9 @@ class PartitionPlotter(object):
         if log_cluster_size:
             ylabel += ' (log)'
             plotname += '-log'
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=[0, self.n_max_mutations], yticks=yticks, yticklabels=yticklabels)
+        if skipped_small_clusters:
+            ax.text(0.7 * self.n_max_mutations, math.log(ymin + 5) if log_cluster_size else ymin + 1, 'skipping clusters smaller than %d' % self.size_vs_shm_min_cluster_size, color='green', fontsize=8)
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=(0, self.n_max_mutations), ybounds=(ymin, 1.05 * ymax), yticks=yticks, yticklabels=yticklabels)
 
     # ----------------------------------------------------------------------------------------
     def get_repfracstr(self, csize, repertoire_size):
