@@ -309,12 +309,18 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
             print '      missing %d %s positions' % (len(missing_genes), codon)
 
         if template_glfo is not None:  # add one of the genes from the template glfo
+            renamed_template_gene = None
             template_gene = template_glfo[codon + '-positions'].keys()[0]
-            renamed_template_gene = template_gene + '_TEMPLATE'
-            if renamed_template_gene in glfo['seqs'][region]:  # ok there's not really any way that could happen
-                raise Exception('%s already in glfo' % renamed_template_gene)
-            newfo = {'gene' : renamed_template_gene, 'seq' : template_glfo['seqs'][region][template_gene], 'cpos' : template_glfo[codon + '-positions'][template_gene]}
-            add_new_allele(glfo, newfo, use_template_for_codon_info=False)
+            if template_gene not in glfo['seqs'][region]:  # if there's a gene from the template glfo already in <glfo>, then we don't need to add anything
+                renamed_template_gene = template_gene + '_TEMPLATE'
+                if renamed_template_gene in glfo['seqs'][region]:  # ok there's not really any way that could happen
+                    raise Exception('%s already in glfo' % renamed_template_gene)
+                newfo = {'gene' : renamed_template_gene, 'seq' : template_glfo['seqs'][region][template_gene], 'cpos' : template_glfo[codon + '-positions'][template_gene]}
+                if newfo['seq'] in glfo['seqs'][region].values():  # if it's in there under a different name, just tweak the seq a bit
+                    if debug:
+                        print '    had to add an N to the right side of template glfo\'s gene %s, since it\'s in <glfo> under a different name %s' % (utils.color_gene(template_gene), ' '.join([utils.color_gene(g) for g, s in glfo['seqs'][region].items() if s == newfo['seq']]))
+                    newfo['seq'] += 'N'  # this is kind of hackey, but we don't have Ns in current germline seqs, so it at least shouldn't clash with anybody
+                add_new_allele(glfo, newfo, use_template_for_codon_info=False, debug=debug)
 
         aligned_seqs = get_new_alignments(glfo, region, debug=debug)
 
@@ -385,7 +391,7 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
         if debug:
             print '      added %d %s positions' % (n_added, codon)
 
-        if template_glfo is not None:
+        if template_glfo is not None and renamed_template_gene is not None:
             remove_gene(glfo, renamed_template_gene)
 
 # ----------------------------------------------------------------------------------------
@@ -808,7 +814,7 @@ def remove_gene(glfo, gene, debug=False):
         if region in utils.conserved_codons[glfo['locus']]:
             del glfo[utils.conserved_codons[glfo['locus']][region] + '-positions'][gene]
     else:
-        print '  %s tried remove %s from glfo, but it isn\'t there' % (utils.color('yellow', 'warning'), utils.color_gene(gene))
+        print '  %s tried to remove %s from glfo, but it isn\'t there' % (utils.color('yellow', 'warning'), utils.color_gene(gene))
 
 # ----------------------------------------------------------------------------------------
 def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
