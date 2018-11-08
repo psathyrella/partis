@@ -122,12 +122,12 @@ If however, you're doing less typical things (running on a subset of sequences i
 
 #### germline sets
 
-By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in data/germlines.
+By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in `data/germlines`.
 The resulting per-sample germline sets are written both to the output yaml file (if you've set `--outfname`), and to `<--parameter-dir>/hmm/germline-sets` (as three fasta files and a meta-info csv).
 
 By default, if `--species` is set to human this only looks for alleles that are separated by point mutations from existing genes.
 This is appropriate for humans, since the known germline set is fairly complete.
-For species for which the known germline sets are much less complete (e.g. macaque and mice), it makes more sense to also look for alleles that are separated by indels and/or many SNPs from existing genes.
+For species for which the known germline sets are much less complete (e.g. macaque and mice), it makes sense to also look for alleles that are separated by indels and/or many SNPs from existing genes.
 This is the default for non-human species, and is equivalent to turning on `--allele-cluster`.
 
 At the moment we only actually infer germline sets for V, and not for D and J (although we plan to fix this).

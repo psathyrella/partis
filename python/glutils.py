@@ -400,7 +400,7 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
         print '  merging glfos'
     assert set(glfo_a['seqs']) == set(glfo_b['seqs'])
     merged_glfo = copy.deepcopy(glfo_a)
-    for region in glfo_b['seqs']:
+    for region in utils.regions:
         duplicate_genes, duplicate_seqs = [], []
         inconsistent_names = []  # names corresponding to <duplicate_seqs>
         merged_seqs = set(merged_glfo['seqs'][region].values())
@@ -418,9 +418,14 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
             merged_seqs.add(seq)
         if debug:
             print '   %s: %d + %d --> %d' % (region, len(glfo_a['seqs'][region]), len(glfo_b['seqs'][region]), len(merged_glfo['seqs'][region]))
+            genes_from_a = set(merged_glfo['seqs'][region]) - set(glfo_b['seqs'][region])
+            genes_from_b = set(merged_glfo['seqs'][region]) - set(glfo_a['seqs'][region])
+            print '     %d only from a: %s' % (len(genes_from_a), utils.color_genes(genes_from_a))
+            print '     %d only from b: %s' % (len(genes_from_b), utils.color_genes(genes_from_b))
             if len(duplicate_genes) > 0:
-                print '     %d genes in both: %s' % (len(duplicate_genes), utils.color_genes(duplicate_genes))
-        for dgene in duplicate_genes:
+                print '     %d gene names in both: %s' % (len(duplicate_genes), utils.color_genes(duplicate_genes))
+            # assert set(duplicate_genes) | genes_from_a | genes_from_b == set(merged_glfo['seqs'][region])
+        for dgene in duplicate_genes:  # check for inconsistent sequences for the same name
             if glfo_a['seqs'][region][dgene] != glfo_b['seqs'][region][dgene]:
                 print '      %s different seqs for name %s' % (utils.color('red', 'warning'), utils.color_gene(dgene))
                 utils.color_mutants(glfo_a['seqs'][region][dgene], glfo_b['seqs'][region][dgene], align=True, print_result=True, extra_str='        ')
