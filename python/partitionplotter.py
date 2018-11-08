@@ -361,7 +361,7 @@ class PartitionPlotter(object):
     #     return fnames
 
     # ----------------------------------------------------------------------------------------
-    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, debug=False):
+    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, debug=False):
         debug = True
         # ----------------------------------------------------------------------------------------
         def get_fname(ic):
@@ -405,12 +405,19 @@ class PartitionPlotter(object):
             return seqfos, color_scale_vals, queries_to_include, title
 
         # ----------------------------------------------------------------------------------------
-        def get_reco_stuff(full_cluster):
+        def get_labels_for_coloring(full_cluster, color_rule):
             full_info = annotations[':'.join(full_cluster)]
-            if 'target_seqs' not in reco_info[full_cluster[0]]:
-                return
-            labels = {uid : str(reco_info[uid]['nearest_target_indices'][0]) for uid in full_cluster}
-            labels['_naive'] = 'foop'
+            if color_rule == 'nearest-target':  # color by the index of the nearest cluster index (bcr-phylo simulation only)
+                if 'target_seqs' not in reco_info[full_cluster[0]]:
+                    return
+                labels = {uid : str(reco_info[uid]['nearest_target_indices'][0]) for uid in full_cluster}
+                labels['_naive'] = 'foop'
+            elif color_rule == 'wtf':
+                labels = {uid : uid.split('@')[1] for uid in full_cluster}
+                labels['_naive'] = 'foop'
+            else:
+                assert False
+
             return labels
 
         # ----------------------------------------------------------------------------------------
@@ -429,10 +436,10 @@ class PartitionPlotter(object):
             seqfos, color_scale_vals, queries_to_include, title = get_cluster_info(sorted_clusters[iclust])
 
             labels = None
-            # if reco_info is not None:
-            #     labels = get_reco_stuff(sorted_clusters[iclust])
-            #     print '   %s setting color_scale_vals to None so we can use colors for nearest target seq index' % utils.color('red', 'note')
-            #     color_scale_vals = None
+            if color_rule is not None:
+                labels = get_labels_for_coloring(sorted_clusters[iclust], color_rule)
+                # print '   %s setting color_scale_vals to None so we can use colors for nearest target seq index' % utils.color('red', 'note')
+                color_scale_vals = None  # not sure this is really the best way to do this
 
             if debug:
                 start = time.time()
@@ -450,7 +457,7 @@ class PartitionPlotter(object):
                 print '  %5.1f' % (time.time() - start)
 
         if debug and len(skipped_cluster_lengths) > 0:
-            print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
+            print '    skipped %d clusters with lengths: %s (+%d singletons)' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths if l > 1]), skipped_cluster_lengths.count(1))
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
@@ -538,7 +545,7 @@ class PartitionPlotter(object):
             self.remove_failed_clusters(partition, annotations)
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
-            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info)
+            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info) #, color_rule='wtf')
             fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 

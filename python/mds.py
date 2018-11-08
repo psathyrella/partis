@@ -115,7 +115,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
             hb = ax.hexbin(xvals, yvals, gridsize=gridsize, cmap=plt.cm.Blues, bins='log')
         else:
             for uid, vals in pcvals.items():
-                plt.scatter(vals[ipair], vals[ipair + 1], color=color_map.get(uid, single_color))
+                plt.scatter(vals[ipair], vals[ipair + 1], color=color_map.get(uid, single_color), alpha=0.4 if labels is not None else 1.)
 
         if queries_to_include is not None:
             queries_to_include_in_this_cluster = set(pcvals) & set(queries_to_include)
