@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
+import time
 import yaml
 import itertools
 import glob
@@ -10,6 +11,7 @@ import os
 import tempfile
 import subprocess
 import sys
+import csv
 import colored_traceback.always
 from collections import OrderedDict
 try:
@@ -125,6 +127,7 @@ def make_tree(all_genes, workdir, use_cache=False):
     utils.prep_dir(workdir, wildlings=['*.' + raxml_label, os.path.basename(aligned_fname), 'out', 'err', os.path.basename(aligned_fname) + '.reduced'])
 
     # write and align an .fa with all alleles from any gl set
+    start = time.time()
     with tempfile.NamedTemporaryFile() as tmpfile:
         for name, seq in all_genes.items():
             tmpfile.write('>%s\n%s\n' % (name, seq))
@@ -139,6 +142,7 @@ def make_tree(all_genes, workdir, use_cache=False):
     if args.debug:
         print '    %s %s' % (utils.color('red', 'run'), cmdstr)
     utils.run_cmds(get_cmdfos(cmdstr, workdir, treefname), ignore_stderr=True)
+    print '    raxml time: %.1f' % (time.time() - start)
 
     os.remove(aligned_fname)  # rm muscle output
     for fn in [f for f in raxml_output_fnames if f != treefname]:  # rm all the raxml outputs except what the one file we really want
@@ -191,6 +195,7 @@ def write_results(outdir, gene_categories, gl_sets):
 
 # ----------------------------------------------------------------------------------------
 def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None, debug=False):
+    # debug = True
     glfos = {}
     for label, fname in zip(glslabels, glsfnames):
         if os.path.isdir(fname):
@@ -342,14 +347,14 @@ def write_legend(plotdir):
             elif len(args.glsfnames) == 3:
                 lname = 'two'
             else:
-                raise Exception('wtf %d' % len(args.glsfnames))
+                raise Exception('can\'t make a legend when --glsfnames is length %d' % len(args.glsfnames))
         elif status == 'all':
             if len(args.glsfnames) == 2:
                 lname = 'both'
             elif len(args.glsfnames) == 3:
                 lname = 'all three'
             else:
-                raise Exception('wtf %d' % len(args.glsfnames))
+                raise Exception('can\'t make a legend when --glsfnames is length %d' % len(args.glsfnames))
         else:
             lname = status
         return lname
@@ -437,6 +442,15 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     if len(set(all_genes) - node_names) > 0:
         raise Exception('missing genes from final tree: %s' % ' '.join(node_names))
 
+    if args.param_dirs is not None:
+        countfo = OrderedDict()
+        for label, pdir in zip(args.glslabels, args.param_dirs):  # it would be cleaner to do this somewhere else
+            if pdir == 'None':  # not the best way to do this
+                continue
+            countfo[label] = utils.read_overall_gene_probs(pdir, normalize=True)[args.region]
+        for node in etree.traverse():
+            node.countstr = '%s' % ' '.join([('%.2f' % (100 * cfo[node.name])) if node.name in cfo else '-' for cfo in countfo.values()])
+
     if ref_label is None:  # have to do it in a separate loop so it doesn't screw up the distance setting
         for node in [n for n in etree.traverse() if n.is_leaf()]:  # yeah I'm sure there's a fcn for that
             node.name = shorten_name(node.name)
@@ -444,7 +458,8 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False
 
-    write_legend(plotdir)
+    if len(args.glslabels) > 1:
+        write_legend(plotdir)
     if args.title is not None:
         fsize = 13
         tstyle.title.add_face(ete3.TextFace(args.title, fsize=fsize, bold=True), column=0)
@@ -456,9 +471,16 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
     print '      %s' % imagefname
-    etree.render(imagefname.replace(suffix, '-leaf-names' + suffix), tree_style=tstyle)
+    etree.render(utils.insert_before_suffix('-leaf-names', imagefname), tree_style=tstyle)
     tstyle.show_leaf_name = False
     etree.render(imagefname, tree_style=tstyle)
+
+    # NOTE all the node names are screwed up after this, so you'll have to fix them if you add another step
+    if args.param_dirs is not None:
+        for node in etree.traverse():
+            node.name = node.countstr
+        tstyle.show_leaf_name = True
+        etree.render(utils.insert_before_suffix('-gene-counts', imagefname), tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
 def plot_trees(args, plotdir, plotname, glsfnames, glslabels):
@@ -483,6 +505,7 @@ parser.add_argument('--plotdir', default=os.getcwd() + '/gl-set-tree-plots')
 parser.add_argument('--plotname', default='test')
 parser.add_argument('--glsfnames', required=True, help='colon-separated list of germline ig fasta file names')
 parser.add_argument('--glslabels', required=True, help='colon-separated list of labels corresponding to --glsfnames')
+parser.add_argument('--param-dirs', help='parameter dirs for each gls fname, for getting counts for each gene')
 parser.add_argument('--locus', required=True, choices=['igh', 'igk', 'igl'])
 parser.add_argument('--legends', help='colon-separated list of legend labels')
 parser.add_argument('--legend-title')
@@ -510,6 +533,7 @@ except ImportError as e:
 
 args.glsfnames = utils.get_arg_list(args.glsfnames)
 args.glslabels = utils.get_arg_list(args.glslabels)
+args.param_dirs = utils.get_arg_list(args.param_dirs)
 args.legends = utils.get_arg_list(args.legends)
 if not os.path.exists(args.muscle_path):
     raise Exception('muscle binary %s doesn\'t exist (set with --muscle-path)' % args.muscle_path)

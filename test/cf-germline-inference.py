@@ -137,6 +137,13 @@ def get_single_performance(region, outdir, method, debug=False):
     }
 
 # ----------------------------------------------------------------------------------------
+def get_param_dir(ddir, method):
+    if method == 'partis' or method == 'full':  # would be nice to do this for the others eventually, but I'm not even sure I have this info for all of them (well, I guess I do after running the naive accuracy stuff? I don't really remember how this works)
+        return '%s/hmm' % ddir
+    else:
+        return 'None'  # ok this is kind of hackey
+
+# ----------------------------------------------------------------------------------------
 def get_gls_fname(region, outdir, method, locus, sim_truth=False, data=False, annotation_performance_plots=False):  # NOTE duplicates/depends on code in test-germline-inference.py
     if annotation_performance_plots:
         return outdir + '/' + method + '/annotation-performance-plots/sw/mutation'
@@ -161,7 +168,7 @@ def get_gls_dir(outdir, method, sim_truth=False, data=False, annotation_performa
     return outdir
 
 # ----------------------------------------------------------------------------------------
-def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False):
+def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False, param_dirs=None):
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
     cmdstr += ' --plotdir ' + plotdir
@@ -181,6 +188,8 @@ def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, lo
         cmdstr += ' --legend-title="%s"' % legend_title
     if pie_chart_faces:
         cmdstr += ' --pie-chart-faces'
+    if param_dirs is not None:
+        cmdstr += ' --param-dirs %s' % ':'.join(param_dirs)
     cmdstr += ' --locus ' + locus
     if args.plotcache:
         cmdstr += ' --use-cache'
@@ -381,6 +390,8 @@ def get_data_plots(args, region, baseoutdir, methods, study, dsets):
     mfo = metafos[dsets[0]]
     data_outdirs = [heads.get_datadir(study, 'processed', extra_str=args.label) + '/' + ds for ds in dsets]
     outdir = get_outdir(args, baseoutdir, varname='data', varval=study + '/' + '-vs-'.join(dsets))  # for data, only the plots go here, since datascripts puts its output somewhere else
+    title, title_color, legends, legend_title = None, None, None, None
+    pie_chart_faces = False
     if len(dsets) > 1 and len(methods) == 1:  # sample vs sample
         glslabels = dsets
         title = get_dset_title([metafos[ds] for ds in dsets])
@@ -389,7 +400,6 @@ def get_data_plots(args, region, baseoutdir, methods, study, dsets):
         title_color = methods[0]
         legends = get_dset_legends([metafos[ds] for ds in dsets])
         legend_title = methstr(methods[0]) if study == 'kate-qrs' else None  # for kate-qrs we need to put the subject _and_ the isotype in the title, so there's no room for the method
-        pie_chart_faces = False
         print '%s:' % utils.color('green', methods[0]),
     elif len(methods) > 1 and len(dsets) == 1:  # method vs method
         glslabels = methods
@@ -399,12 +409,15 @@ def get_data_plots(args, region, baseoutdir, methods, study, dsets):
         legend_title = None
         pie_chart_faces = len(methods) > 2  # True
         print '%s:' % utils.color('green', dsets[0]),
-    else:
-        raise Exception('one of \'em has to be length 1: %d %d' % (len(methods), len(dsets)))
+    else:  # single sample plot
+        glslabels = dsets
     print '%s' % (' %s ' % utils.color('light_blue', 'vs')).join(glslabels)
     plotdir = outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots'
     if args.all_regions:  # NOTE not actually checking this by running... but it's the same as the gls-gen one, so it should be ok
         plotdir += '/' + region
+    param_dirs = None
+    if args.add_gene_counts_to_tree_plots:  # this returns 'None' for non-partis methods, which is ok for now, but I think I do usually have the parameter dir somewhere if I've run the annotation performance stuff
+        param_dirs = [get_param_dir(ddir, meth) for ddir in data_outdirs for meth in methods]
     make_gls_tree_plot(args, region, plotdir, study + '-' + '-vs-'.join(dsets),
                        glsfnames=[get_gls_fname(region, ddir, meth, locus=mfo['locus'], data=True) for ddir in data_outdirs for meth in methods],
                        glslabels=glslabels,
@@ -413,7 +426,8 @@ def get_data_plots(args, region, baseoutdir, methods, study, dsets):
                        title_color=title_color,
                        legends=legends,
                        legend_title=legend_title,
-                       pie_chart_faces=pie_chart_faces)
+                       pie_chart_faces=pie_chart_faces,
+                       param_dirs=param_dirs)
 
 # ----------------------------------------------------------------------------------------
 def plot_single_test(args, region, baseoutdir, method):
@@ -528,7 +542,7 @@ def plot_tests(args, region, baseoutdir, method, method_vs_method=False, annotat
             assert method is None
             for study, dset in dsetfos:
                 get_data_plots(args, region, baseoutdir, args.methods, study, [dset])
-        else:
+        elif args.sample_vs_sample:
             sample_groups = []
             for study in all_data_groups:
                 for samples in all_data_groups[study]:
@@ -538,9 +552,11 @@ def plot_tests(args, region, baseoutdir, method, method_vs_method=False, annotat
                 get_data_plots(args, region, baseoutdir, [method], study, samples)
                 for sample in samples:
                     dsetfos.remove([study, sample])
-            for study, dset in dsetfos:
-                print 'hmmmm %s (probably need to set --method-vs-method' % dset  # crashes below since both method and dset lists are of length one
-                # get_data_plots(args, region, baseoutdir, [method], study, [dset])
+            if len(dsetfos) > 0:
+                print '  note: %d leftover dsets (%s)' % (len(dsetfos), ' '.join(d for _, d in dsetfos))
+        else:  # single sample data plots
+            for study, dset in dsetfos:  # duplicates the stuff for method_vs_method above, but I don't want to change that behavior now
+                get_data_plots(args, region, baseoutdir, [method], study, [dset])
     else:
         plot_single_test(args, region, baseoutdir, method)
 
@@ -702,15 +718,15 @@ default_varvals = {
         # ],
         # 'davide-gl-valid' : ['B10', 'B11', 'B12', 'B13', 'B14', 'B16', 'B17', 'B18', 'B19', 'B20', 'B21'],
         # 'crotty-fna' : [
-        #     # 'RUj15_ALN-FNA_week3_groupD', 'RUj15_L-ILN-FNA_week3_groupD', 'RUj15_R-ILN-FNA_week3_groupD', 'RUj15_L-ILN-FNA_week9_groupD', 'RUj15_R-ILN-FNA_week15_groupD', 'RUj15_L-ILN-FNA_week15_groupD', 'RUj15_R-ILN-FNA_week21_groupD',
+        #     'RUj15_ALN-FNA_week3_groupD', 'RUj15_L-ILN-FNA_week3_groupD', 'RUj15_R-ILN-FNA_week3_groupD', 'RUj15_L-ILN-FNA_week9_groupD', 'RUj15_R-ILN-FNA_week15_groupD', 'RUj15_L-ILN-FNA_week15_groupD', 'RUj15_R-ILN-FNA_week21_groupD',
         #     # 'ROp15_R-ILN-FNA_week3_groupC', 'ROp15_L-ILN-FNA_week3_groupC', 'ROp15_ALN-FNA_week3_groupC',
         #     # 'ROp15_R-ILN-FNA_week9_groupC', 'ROp15_L-ILN-FNA_week9_groupC', 'ROp15_ALN-FNA_week9_groupC',
         #     # 'ROp15_R-ILN-FNA_week15_groupC', 'ROp15_L-ILN-FNA_week15_groupC', 'ROp15_ALN-FNA_week15_groupC',
         #     # 'ROp15_R-ILN-FNA_week21_groupC', 'ROp15_L-ILN-FNA_week21_groupC', 'ROp15_ALN-FNA_week21_groupC',
-        #     'RJk15_L-ILN-FNA_week3_groupB', 'RJk15_R-ILN-FNA_week3_groupB', 'RJk15_ALN-FNA_week3_groupB',
-        #     'RJk15_L-ILN-FNA_week9_groupB', 'RJk15_R-ILN-FNA_week9_groupB',
-        #     'RJk15_L-ILN-FNA_week15_groupB', 'RJk15_R-ILN-FNA_week15_groupB', 'RJk15_ALN-FNA_week15_groupB',
-        #     'RJk15_L-ILN-FNA_week21_groupB', 'RJk15_R-ILN-FNA_week21_groupB', 'RJk15_ALN-FNA_week21_groupB',
+        #     # 'RJk15_L-ILN-FNA_week3_groupB', 'RJk15_R-ILN-FNA_week3_groupB', 'RJk15_ALN-FNA_week3_groupB',
+        #     # 'RJk15_L-ILN-FNA_week9_groupB', 'RJk15_R-ILN-FNA_week9_groupB',
+        #     # 'RJk15_L-ILN-FNA_week15_groupB', 'RJk15_R-ILN-FNA_week15_groupB', 'RJk15_ALN-FNA_week15_groupB',
+        #     # 'RJk15_L-ILN-FNA_week21_groupB', 'RJk15_R-ILN-FNA_week21_groupB', 'RJk15_ALN-FNA_week21_groupB',
         # ],
     }
 }
@@ -783,6 +799,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['mfreq', 'nsnp', 'multi-nsnp', 'prevalence', 'n-leaves', 'weibull', 'alcluster', 'gls-gen', 'data'])
 parser.add_argument('--methods', default='partis') # not using <choices> 'cause it's harder since it's a list
 parser.add_argument('--method-vs-method', action='store_true')
+parser.add_argument('--sample-vs-sample', action='store_true')
 parser.add_argument('--v-genes', default='IGHV4-39*01')
 parser.add_argument('--all-regions', action='store_true')  # it'd be nicer to just have an arg for which region we're running on, but i need a way to keep the directory structure for single-region plots the same as before I generalized to d and j
 parser.add_argument('--varvals')
@@ -798,6 +815,7 @@ parser.add_argument('--n-procs-per-test', type=int, default=5)
 parser.add_argument('--plot', action='store_true')
 parser.add_argument('--write-zenodo-files', action='store_true')
 parser.add_argument('--plot-annotation-performance', action='store_true')
+parser.add_argument('--add-gene-counts-to-tree-plots', action='store_true')
 parser.add_argument('--print-table', action='store_true')
 parser.add_argument('--no-slurm', action='store_true')
 parser.add_argument('--plotcache', action='store_true')

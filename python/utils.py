@@ -1629,6 +1629,12 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
         for gene in counts[region]:
             probs[region][gene] = float(counts[region][gene]) / total
 
+    if debug:
+        for region in regions:
+            print '  %s' % color('green', region)
+            for gene in counts[region]:
+                print '    %5d  %5.4f   %s' % (counts[region][gene], probs[region][gene], color_gene(gene, width='default'))
+
     if only_gene is not None and only_gene not in counts[get_region(only_gene)]:
         if not expect_zero_counts:
             print '      WARNING %s not found in overall gene probs, returning zero' % only_gene
