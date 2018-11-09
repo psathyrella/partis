@@ -283,7 +283,8 @@ parent_parser.add_argument('--simulation-germline-dir', help='Germline directory
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene (if using with --presto-output, must contain an alignment also for all D and J genes). An example is located in data/germlines/imgt-aligned-igh.fa')
 
 parent_parser.add_argument('--n-max-alleles-per-gene', type=int, default=None, help='if set, after allele inference the germline set is reduced such that each imgt-name-defined gene has at most this many alleles, with the alleles assigned to the fewest sequences removed first.')
-parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any alleles that represent less than this fraction of the repertoire.')
+parent_parser.add_argument('--typical-genes-per-region-per-subject', default='55:25:6', help='typical number of alleles per subject for the v, d, and j regions (used by --min-allele-prevalence-fraction)')
+parent_parser.add_argument('--min-allele-prevalence-fraction', type=float, default=0.0005, help='Remove any V alleles that represent less than this fraction of the repertoire (rescaled using --typical-genes-per-region-per-subject for D and J). Converted to --min-allele-prevalence-fractions (note plural!) internally.')
 
 parent_parser.add_argument('--leave-default-germline', action='store_true')
 parent_parser.add_argument('--dont-remove-unlikely-alleles', action='store_true')

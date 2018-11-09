@@ -394,7 +394,7 @@ class AlleleClusterer(object):
         self.reassign_template_counts(msa_info, new_alleles, debug=False)
         for new_name, newfo in new_alleles.items():
             # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], self.adjusted_glcounts[newfo['template-gene']], float(sum(self.adjusted_glcounts.values())), self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())))
-            if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fraction:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
+            if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.min_allele_prevalence_fractions[self.region]:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
                 newfo['remove-template-gene'] = True
 
         return new_alleles

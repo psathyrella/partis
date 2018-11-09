@@ -1416,24 +1416,7 @@ class PartitionDriver(object):
         return genes
 
     # ----------------------------------------------------------------------------------------
-    def all_regions_present(self, gene_list, skipped_gene_matches, query_name, second_query_name=None):
-        """ Check that we have at least one gene for each region """
-        for region in utils.regions:
-            found = False
-            for gene in gene_list:
-                if utils.get_region(gene) == region:
-                    found = True
-                    break
-            if not found:
-                print '       no %s genes in %s for %s %s' % (region, ':'.join(gene_list), query_name, '' if (second_query_name == None) else second_query_name)
-                print '          skipped %s' % (':'.join(skipped_gene_matches))
-                print 'giving up on query'
-                return False
-
-        return True
-
-    # ----------------------------------------------------------------------------------------
-    def combine_queries(self, query_names, genes_with_hmm_files, skipped_gene_matches=None, gene_counts=None):
+    def combine_queries(self, query_names, available_genes):
         """ 
         Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
         """
@@ -1454,7 +1437,7 @@ class PartitionDriver(object):
 
         combo['k_v'] = {'min' : 99999, 'max' : -1}
         combo['k_d'] = {'min' : 99999, 'max' : -1}
-        combo['only_genes'] = []
+        combo['only_genes'] = set()
         for name in query_names:
             swfo = self.sw_info[name]
             k_v = swfo['k_v']
@@ -1468,14 +1451,19 @@ class PartitionDriver(object):
             genes_to_use = set()  # genes from this query that'll get ORd into the ones from the previous queries
             for region in utils.regions:
                 regmatches = set(swfo['all_matches'][region])  # the best <n_max_per_region> matches for this query, ordered by sw match quality (well, ordered before we call set())
-                skipped_gene_matches |= regmatches - genes_with_hmm_files
-                genes_to_use |= regmatches & genes_with_hmm_files
+                genes_to_use |= regmatches & available_genes
 
             # OR this query's genes into the ones from previous queries
-            combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
+            combo['only_genes'] |= genes_to_use  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
-        if not self.all_regions_present(combo['only_genes'], skipped_gene_matches, query_names):
-            return {}
+        combo['only_genes'] = list(combo['only_genes'])  # maybe I don't need to convert it to a list, but it used to be a list, and I don't want to make sure there wasn't a reason for that
+
+        # if we don't have at least one gene for each region, add all available genes from that regions
+        if set(utils.regions) > set(utils.get_region(g) for g in combo['only_genes']):  # this is *very* rare
+            missing_regions = set(utils.regions) - set(utils.get_region(g) for g in combo['only_genes'])  # this is wasteful, but it hardly *ever* happens
+            combo['only_genes'] += [g for g in available_genes if utils.get_region(g) in missing_regions]
+            if self.args.debug:
+                print '    %s no %s genes for query %s, so added in all the genes from these regions' % ('note:', ' or '.join(missing_regions), query_names)  # these other genes may not work (the kbounds are probably wrong), but they might work, and it's better than just giving up on the query
 
         for kb in ['k_v', 'k_d']:
             if combo[kb]['min'] <= 0 or combo[kb]['min'] >= combo[kb]['max']:
@@ -1505,7 +1493,7 @@ class PartitionDriver(object):
                 })
 
     # ----------------------------------------------------------------------------------------
-    def write_to_single_input_file(self, fname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=False):
+    def write_to_single_input_file(self, fname, nsets, parameter_dir, shuffle_input=False):
         csvfile = open(fname, 'w')
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
@@ -1518,16 +1506,18 @@ class PartitionDriver(object):
             self.write_fake_cache_file(nsets)
 
         genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
-        gene_counts = utils.read_overall_gene_probs(parameter_dir, debug=True)
-
+        genes_with_enough_counts = utils.get_genes_with_enough_counts(parameter_dir, self.args.min_allele_prevalence_fractions)  # it would be nice to do this at some earlier step, but then we have to rerun sw (note that there usually won't be any to remove for V, since the same threshold was already applied in alleleremover, but there we can't do d and j since we don't yet have annotations for them)
         glfo_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r]])
         if self.args.only_genes is None and len(genes_with_hmm_files - glfo_genes) > 0:
-            print '  %s hmm files for %s that aren\'t in glfo' % (utils.color('red', 'warning'), ' '.join(genes_with_hmm_files - glfo_genes))
+            print '  %s hmm files for %s that aren\'t in glfo' % (utils.color('red', 'warning'), utils.color_genes(genes_with_hmm_files - glfo_genes))
         if len(glfo_genes - genes_with_hmm_files) > 0:
-            print '  %s no hmm files for glfo genes %s' % (utils.color('red', 'warning'), ' '.join(glfo_genes - genes_with_hmm_files))
+            print '    skipping matches from %d genes that don\'t have hmm files' % len(glfo_genes - genes_with_hmm_files)
+        if len(glfo_genes - genes_with_enough_counts) > 0:
+            print '    skipping matches from %d genes without enough counts' % len(glfo_genes - genes_with_enough_counts)
+        available_genes = genes_with_hmm_files & genes_with_enough_counts
 
         for query_name_list in nsets:  # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get removed 'cause in bcrham everything's stored as hash maps, so any duplicates just overwites the original upon reading its input
-            combined_query = self.combine_queries(query_name_list, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches, gene_counts=gene_counts)
+            combined_query = self.combine_queries(query_name_list, available_genes)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             writer.writerow({
@@ -1567,14 +1557,7 @@ class PartitionDriver(object):
             else:  # plain ol' singletons
                 nsets = [[q] for q in qlist]
 
-        skipped_gene_matches = set()
-        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, skipped_gene_matches, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
-        if self.args.debug and len(skipped_gene_matches) > 0:
-            print '    not found in %s, so removing from consideration for hmm (i.e. were only the nth best, but never the best sw match for any query):' % (parameter_dir),
-            for region in utils.regions:
-                # print '  %s: %d' % (region, len([gene for gene in skipped_gene_matches if utils.get_region(gene) == region])),
-                print '\n      %s: %s' % (region, ' '.join([utils.color_gene(gene) for gene in sorted(skipped_gene_matches) if utils.get_region(gene) == region]))
-            print ''
+        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
 
     # ----------------------------------------------------------------------------------------
     def check_did_bcrham_fail(self, line, errorfo):

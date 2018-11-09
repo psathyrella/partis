@@ -115,7 +115,7 @@ class AlleleRemover(object):
             for ig in range(len(gclass)):
                 gfo = gclass[ig]
 
-                if float(gfo['counts']) / total_counts < self.args.min_allele_prevalence_fraction:  # always skip everybody that's super uncommon
+                if float(gfo['counts']) / total_counts < self.args.min_allele_prevalence_fractions[region]:  # always skip everybody that's super uncommon
                     pass  # don't keep it
                 elif ig == 0:  # keep the first one from this class
                     genes_to_keep.add(gfo['gene'])

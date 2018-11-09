@@ -1632,8 +1632,8 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
     if debug:
         for region in regions:
             print '  %s' % color('green', region)
-            for gene in counts[region]:
-                print '    %5d  %5.4f   %s' % (counts[region][gene], probs[region][gene], color_gene(gene, width='default'))
+            for gene, count in sorted(counts[region].items(), key=operator.itemgetter(1), reverse=True):
+                print '    %5d  %5.4f   %s' % (count, probs[region][gene], color_gene(gene, width='default'))
 
     if only_gene is not None and only_gene not in counts[get_region(only_gene)]:
         if not expect_zero_counts:
@@ -1653,6 +1653,19 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
             return probs[get_region(only_gene)][only_gene]
         else:
             return counts[get_region(only_gene)][only_gene]
+
+# ----------------------------------------------------------------------------------------
+def get_genes_with_enough_counts(parameter_dir, min_prevalence_fractions, debug=False):
+    if debug:
+        print '  applying min gene prevalence fractions: %s' % '  '.join(('%s %.4f' % (r, min_prevalence_fractions[r])) for r in regions)
+    gene_freqs = read_overall_gene_probs(parameter_dir, normalize=True, debug=debug)
+    genes_with_enough_counts = set([g for r in regions for g, f in gene_freqs[r].items() if f > min_prevalence_fractions[r]])  # this is kind of weird because <gene_freqs> of course normalizes within each region, but then we mash all the regions together in the list, but it's all ok
+    if debug:
+        print '   removed genes:'
+        for region in regions:
+            genes_without_enough_counts = set(gene_freqs[region]) - genes_with_enough_counts
+            print '      %s   %s' % (color('green', region), color_genes(sorted(genes_without_enough_counts)))
+    return genes_with_enough_counts
 
 # ----------------------------------------------------------------------------------------
 def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, all_from_region=''):  # NOTE if <gene_name> isn't in <param_dir>, it won't be among the returned genes
