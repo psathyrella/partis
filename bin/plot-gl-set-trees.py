@@ -11,7 +11,6 @@ import os
 import tempfile
 import subprocess
 import sys
-import csv
 import colored_traceback.always
 from collections import OrderedDict
 try:

@@ -1433,7 +1433,7 @@ class PartitionDriver(object):
         return True
 
     # ----------------------------------------------------------------------------------------
-    def combine_queries(self, query_names, genes_with_hmm_files, skipped_gene_matches=None):
+    def combine_queries(self, query_names, genes_with_hmm_files, skipped_gene_matches=None, gene_counts=None):
         """ 
         Return the 'logical OR' of the queries in <query_names>, i.e. the maximal extent in k_v/k_d space and OR of only_gene sets.
         """
@@ -1467,9 +1467,9 @@ class PartitionDriver(object):
 
             genes_to_use = set()  # genes from this query that'll get ORd into the ones from the previous queries
             for region in utils.regions:
-                regmatches = swfo['all_matches'][region]  # the best <n_max_per_region> matches for this query, ordered by sw match quality
-                skipped_gene_matches |= set([g for g in regmatches if g not in genes_with_hmm_files])
-                genes_to_use |= set([g for g in regmatches if g in genes_with_hmm_files])
+                regmatches = set(swfo['all_matches'][region])  # the best <n_max_per_region> matches for this query, ordered by sw match quality (well, ordered before we call set())
+                skipped_gene_matches |= regmatches - genes_with_hmm_files
+                genes_to_use |= regmatches & genes_with_hmm_files
 
             # OR this query's genes into the ones from previous queries
             combo['only_genes'] = list(set(genes_to_use) | set(combo['only_genes']))  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
@@ -1518,6 +1518,7 @@ class PartitionDriver(object):
             self.write_fake_cache_file(nsets)
 
         genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
+        gene_counts = utils.read_overall_gene_probs(parameter_dir, debug=True)
 
         glfo_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r]])
         if self.args.only_genes is None and len(genes_with_hmm_files - glfo_genes) > 0:
@@ -1526,7 +1527,7 @@ class PartitionDriver(object):
             print '  %s no hmm files for glfo genes %s' % (utils.color('red', 'warning'), ' '.join(glfo_genes - genes_with_hmm_files))
 
         for query_name_list in nsets:  # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get removed 'cause in bcrham everything's stored as hash maps, so any duplicates just overwites the original upon reading its input
-            combined_query = self.combine_queries(query_name_list, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches)
+            combined_query = self.combine_queries(query_name_list, genes_with_hmm_files, skipped_gene_matches=skipped_gene_matches, gene_counts=gene_counts)
             if len(combined_query) == 0:  # didn't find all regions
                 continue
             writer.writerow({

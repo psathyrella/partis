@@ -1610,7 +1610,7 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
     """
     Return the observed counts/probabilities of choosing each gene version.
     If <normalize> then return probabilities
-    If <only_gene> is specified, just return the prob/count for that gene
+    If <only_gene> is specified, just return the prob/count for that gene  NOTE but don't forget read_single_gene_count() above ^, which I think probably does the same thing
     """
     counts, probs = {r : {} for r in regions}, {r : {} for r in regions}
     for region in regions:
