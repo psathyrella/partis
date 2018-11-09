@@ -1512,7 +1512,7 @@ class PartitionDriver(object):
             print '  %s hmm files for %s that aren\'t in glfo' % (utils.color('red', 'warning'), utils.color_genes(genes_with_hmm_files - glfo_genes))
         if len(glfo_genes - genes_with_hmm_files) > 0:
             print '    skipping matches from %d genes that don\'t have hmm files' % len(glfo_genes - genes_with_hmm_files)
-        if len(glfo_genes - genes_with_enough_counts) > 0:
+        if self.current_action == 'cache-parameters' and len(glfo_genes - genes_with_enough_counts) > 0:
             print '    skipping matches from %d genes without enough counts' % len(glfo_genes - genes_with_enough_counts)
         available_genes = genes_with_hmm_files & genes_with_enough_counts
 
