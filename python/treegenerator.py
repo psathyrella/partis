@@ -175,8 +175,11 @@ class TreeGenerator(object):
                     tstr = line.strip()
                     if tstr == '':  # skip empty lines
                         continue
-                    ages.append(treeutils.get_mean_leaf_height(treestr=tstr))
-                    treestrs.append(tstr)
+                    dtree = treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)
+                    old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
+                    treeutils.translate_labels(dtree, old_new_label_pairs, debug=True)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
+                    ages.append(treeutils.get_mean_leaf_height(tree=dtree))
+                    treestrs.append(dtree.as_string(schema='newick').strip())
             if any(a > 1. for a in ages):
                 raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
             print '    setting --n-trees to %d to match trees read from %s' % (len(ages), self.args.input_simulation_treefname)
