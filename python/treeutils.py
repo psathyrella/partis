@@ -18,24 +18,6 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
 import utils
 
 # ----------------------------------------------------------------------------------------
-# two classes to work around the fact baltic doesn't yet support one-leaf trees
-class TinyLeaf(object):
-    def __init__(self, name, length, height):
-        self.name = name
-        self.numName = self.name
-        self.length = length
-        self.height = height
-        self.branchType = 'leaf'
-class OneLeafTree(object):
-    def __init__(self, name, height):
-        self.leaves = [TinyLeaf(name, height, height)]
-        self.Objects = self.leaves
-    def traverse_tree(self):
-        self.leaves[0].height = self.leaves[0].length
-    def toString(self, numName=None):
-        return '%s:%.15f;' % (self.leaves[0].name, self.leaves[0].length)
-
-# ----------------------------------------------------------------------------------------
 def get_treestr(treefname):
     with open(treefname) as treefile:
         return '\n'.join(treefile.readlines())
@@ -71,12 +53,6 @@ def import_bio_phylo():
     return sys.modules['Bio.Phylo']
 
 # ----------------------------------------------------------------------------------------
-def import_baltic():
-    if 'baltic' not in sys.modules:
-        import baltic  # non-standard location, and I don't want to bother with always adding it to the path because I don't want to use it any more
-    return sys.modules['baltic']
-
-# ----------------------------------------------------------------------------------------
 def get_bio_tree(treestr=None, treefname=None, schema='newick'):  # NOTE don't use this in future (all current uses are commented)
     Phylo = import_bio_phylo()
     if treestr is not None:
@@ -88,24 +64,9 @@ def get_bio_tree(treestr=None, treefname=None, schema='newick'):  # NOTE don't u
         assert False
 
 # ----------------------------------------------------------------------------------------
-def get_baltic_tree(treestr):  # NOTE trying to use dendropy in future, it seems the nicest tree handler
-    if treestr.count(':') == 1:  # one-leaf tree
-        name, lengthstr = treestr.strip().rstrip(';').split(':')
-        tree = OneLeafTree(name, float(lengthstr))
-    else:
-        baltic = import_baltic()
-        tree = baltic.tree()
-        baltic.make_tree(treestr, tree, verbose=False)
-    tree.traverse_tree()
-    return tree
-
-# ----------------------------------------------------------------------------------------
 def get_leaf_depths(tree, treetype='dendropy'):  # NOTE structure of dictionary may depend on <treetype>, e.g. whether non-named nodes are included (maybe it doesn't any more? unless you return <clade_keyed_depths> at least)
     if treetype == 'dendropy':
         depths = {n.taxon.label : n.distance_from_root() for n in tree.leaf_node_iter()}
-    elif treetype == 'baltic':
-        assert False  # l.label doesn't seem to be set. Not sure why tf not
-        depths = {l.label : l.height for l in tree.leaves}
     elif treetype == 'Bio':
         clade_keyed_depths = tree.depths()  # keyed by clade, not clade name (so unlabelled nodes are accessible)
         depths = {n.name : clade_keyed_depths[n] for n in tree.find_clades()}
@@ -302,16 +263,16 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
 # ----------------------------------------------------------------------------------------
 def rescale_tree(treestr, new_height, debug=False):
     """ rescale the branch lengths in <treestr> (newick-formatted) by <factor> """
-    baltic_tree = get_baltic_tree(treestr)
-    mean_height = get_mean_leaf_height(treestr=treestr)
+    dtree = get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
+    mean_height = get_mean_leaf_height(tree=dtree)
     if debug:
         print '  current mean: %.4f   target height: %.4f' % (mean_height, new_height)
-    for ln in baltic_tree.Objects:
+    for edge in dtree.postorder_edge_iter():
         if debug:
-            print '     %5s  %7e  -->  %7e' % (ln.numName if ln.branchType == 'leaf' else ln.branchType, ln.length, ln.length * new_height / mean_height)
-        ln.length *= new_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
-    baltic_tree.traverse_tree()
-    treestr = baltic_tree.toString(numName=True)
+            print '     %5s  %7e  -->  %7e' % (dtree.head_node, edge.length, edge.length * new_height / mean_height)
+        edge.length *= new_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
+    dtree.update_bipartitions()  # probably doesn't really need to be done
+    treestr = dtree.as_string(schema='newick').strip()
     if debug:
         print '    final mean: %.4f' % get_mean_leaf_height(treestr=treestr)
     return treestr
@@ -336,7 +297,7 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=F
     print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
 # ----------------------------------------------------------------------------------------
-def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):  # baltic barfs on (some) dashes
+def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):
     if debug:
         print '    running FastTree on %d sequences plus a naive' % len(seqfos)
     with tempfile.NamedTemporaryFile() as tmpfile:

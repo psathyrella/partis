@@ -9,7 +9,6 @@ import sys
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 sys.path.insert(1, current_script_dir)
-sys.path.insert(1, current_script_dir + '/../packages/baltic')
 import utils
 import indelutils
 import treeutils
