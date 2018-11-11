@@ -80,31 +80,6 @@ class TreeGenerator(object):
                 raise Exception('not normalized %f' % check_sum)
 
     #----------------------------------------------------------------------------------------
-    def post_process_trees(self, treefname, ages, treestrs):
-        """ 
-        Each tree is written with branch length the mean branch length over the whole sequence
-        So we need to add the length for each region afterward, so each line looks e.g. like
-        (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87
-        """
-
-        if self.args.debug:
-            mean_leaf_height_list = [treeutils.get_mean_leaf_height(treestr=tstr) for tstr in treestrs]
-            n_leaf_list = [treeutils.get_n_leaves(treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)) for tstr in treestrs]
-            print '    mean over %d trees:   depth %.5f   leaves %.2f' % (len(mean_leaf_height_list), numpy.mean(mean_leaf_height_list), numpy.mean(n_leaf_list))
-
-        # add the region-specific branch info as an extra string tacked onto the right of the newick tree (so the output file isn't newick any more, sigh)
-        length_list = ['%s:%f' % (region, self.branch_lengths[region]['mean'] / self.branch_lengths['all']['mean']) for region in utils.regions]
-        for itree in range(len(ages)):
-            if treestrs[itree].count(';') != 1 or treestrs[itree][-1] != ';':
-                raise Exception('malformatted newick string:\n  %s' % treestrs[itree])
-            treestrs[itree] = treestrs[itree].replace(';', ';%s' % ','.join(length_list))
-
-        # then write the modified lines for recombinator to read
-        with open(treefname, 'w') as treefile:
-            for tstr in treestrs:
-                treefile.write('%s\n' % tstr)
-
-    #----------------------------------------------------------------------------------------
     def choose_full_sequence_branch_length(self):
         iprob = numpy.random.uniform(0,1)
         sum_prob = 0.0
@@ -192,8 +167,10 @@ class TreeGenerator(object):
         if self.args.input_simulation_treefname is None:  # default: generate our own trees
             ages, treestrs = self.run_treesim(seed, outfname, workdir)
         else:  # read trees from a file that pass set on the command line
+            if self.args.input_simulation_treefname is not None:
+                utils.simplerun('cp %s %s' % (self.args.input_simulation_treefname, outfname), debug=False)
             ages, treestrs = [], []
-            with open(outfname) as treefile:  # NOTE don't *read* the trees from self.args.input_simulation_treefname, though, since we copied them to <outfname> in recombinator
+            with open(outfname) as treefile:
                 for line in treefile:
                     tstr = line.strip()
                     if tstr == '':  # skip empty lines
@@ -206,4 +183,22 @@ class TreeGenerator(object):
             self.args.n_trees = len(ages)
         os.remove(outfname)  # remove it here, just to make clear that we *re*write it in self.post_process_trees() so that recombinator can later read it
 
-        self.post_process_trees(outfname, ages, treestrs)
+        if self.args.debug:
+            mean_leaf_height_list = [treeutils.get_mean_leaf_height(treestr=tstr) for tstr in treestrs]
+            n_leaf_list = [treeutils.get_n_leaves(treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)) for tstr in treestrs]
+            print '    mean over %d trees:   depth %.5f   leaves %.2f' % (len(mean_leaf_height_list), numpy.mean(mean_leaf_height_list), numpy.mean(n_leaf_list))
+
+        # Each tree is written with branch length the mean branch length over the whole sequence, so we need to add the length for each region afterward,
+        #   so each line looks e.g. like (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87
+
+        # add the region-specific branch info as an extra string tacked onto the right of the newick tree (so the output file isn't newick any more, sigh)
+        length_list = ['%s:%f' % (region, self.branch_lengths[region]['mean'] / self.branch_lengths['all']['mean']) for region in utils.regions]
+        for itree in range(len(ages)):
+            if treestrs[itree].count(';') != 1 or treestrs[itree][-1] != ';':
+                raise Exception('malformatted newick string:\n  %s' % treestrs[itree])
+            treestrs[itree] = treestrs[itree].replace(';', ';%s' % ','.join(length_list))
+
+        # then write the modified lines for recombinator to read
+        with open(outfname, 'w') as treefile:
+            for tstr in treestrs:
+                treefile.write('%s\n' % tstr)
