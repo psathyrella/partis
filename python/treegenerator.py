@@ -163,31 +163,36 @@ class TreeGenerator(object):
         return ages, treestrs
 
     # ----------------------------------------------------------------------------------------
+    def read_input_tree_file(self, outfname):
+        utils.simplerun('cp %s %s' % (self.args.input_simulation_treefname, outfname), debug=False)
+        ages, treestrs = [], []
+        with open(outfname) as treefile:
+            for line in treefile:
+                tstr = line.strip()
+                if tstr == '':  # skip empty lines
+                    continue
+                dtree = treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)
+                old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
+                treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
+                age = self.choose_full_sequence_branch_length()
+                if self.args.debug:
+                    print '   rescaling tree depth from input tree file %.3f --> %.3f' % (treeutils.get_mean_leaf_height(tree=dtree), age)
+                treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
+                ages.append(age)
+                treestrs.append(dtree.as_string(schema='newick').strip())
+        if any(a > 1. for a in ages):
+            raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
+        print '    setting --n-trees to %d to match trees read from %s' % (len(ages), self.args.input_simulation_treefname)
+        self.args.n_trees = len(ages)
+
+        return ages, treestrs
+
+    # ----------------------------------------------------------------------------------------
     def generate_trees(self, seed, outfname, workdir):
         if self.args.input_simulation_treefname is None:  # default: generate our own trees
             ages, treestrs = self.run_treesim(seed, outfname, workdir)
         else:  # read trees from a file that pass set on the command line
-            if self.args.input_simulation_treefname is not None:
-                utils.simplerun('cp %s %s' % (self.args.input_simulation_treefname, outfname), debug=False)
-            ages, treestrs = [], []
-            with open(outfname) as treefile:
-                for line in treefile:
-                    tstr = line.strip()
-                    if tstr == '':  # skip empty lines
-                        continue
-                    dtree = treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)
-                    old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
-                    treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
-                    age = self.choose_full_sequence_branch_length()
-                    if self.args.debug:
-                        print '   rescaling tree depth from input tree file %.3f --> %.3f' % (treeutils.get_mean_leaf_height(tree=dtree), age)
-                    treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
-                    ages.append(age)
-                    treestrs.append(dtree.as_string(schema='newick').strip())
-            if any(a > 1. for a in ages):
-                raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
-            print '    setting --n-trees to %d to match trees read from %s' % (len(ages), self.args.input_simulation_treefname)
-            self.args.n_trees = len(ages)
+            ages, treestrs = self.read_input_tree_file(outfname)
         os.remove(outfname)  # remove it here, just to make clear that we *re*write it in self.post_process_trees() so that recombinator can later read it
 
         if self.args.debug:
