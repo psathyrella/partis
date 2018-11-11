@@ -168,6 +168,8 @@ There are a wide variety of options for manipulating how the characteristics of 
 | `--n-leaves <N>`                              | Parameter controlling the n-leaf distribution (e.g. for the geometric distribution, it's the mean number of leaves)
 | `--constant-number-of-leaves`                 | instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
 | `--root-mrca-weibull-parameter`               | adjusts tree balance/speciation by switching to TreeSimGM (useful range: 0.3 to 1.3)
+| `--n-trees <N>`                               | Before actually generating events, we first make a set of `<N>` phylogentic trees. For each event, we then choose a tree at random from this set. Defaults to the value of --n-sim-events.
+| `--input-simulation-treefname <N>`            | File with list of trees as newick-formatted lines, from which to draw for each event (instead of generating with TreeSim or TreeSimGM)
 
 **SHM indel control:**
 
