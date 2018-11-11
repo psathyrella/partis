@@ -261,21 +261,24 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
         return '%sone leaf' % extra_str
 
 # ----------------------------------------------------------------------------------------
-def rescale_tree(treestr, new_height, debug=False):
-    """ rescale the branch lengths in <treestr> (newick-formatted) by <factor> """
-    dtree = get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
+def rescale_tree(new_height, dtree=None, treestr=None, debug=False):
+    """ rescale the branch lengths in dtree/treestr by <factor> """
+    if dtree is None:
+        dtree = get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
     mean_height = get_mean_leaf_height(tree=dtree)
     if debug:
         print '  current mean: %.4f   target height: %.4f' % (mean_height, new_height)
     for edge in dtree.postorder_edge_iter():
+        if edge.head_node is dtree.seed_node:  # why tf does the root node have an edge where it's the child?
+            continue
         if debug:
-            print '     %5s  %7e  -->  %7e' % (dtree.head_node, edge.length, edge.length * new_height / mean_height)
+            print '     %5s  %7e  -->  %7e' % (edge.head_node.taxon.label if edge.head_node.taxon is not None else 'None', edge.length, edge.length * new_height / mean_height)
         edge.length *= new_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
     dtree.update_bipartitions()  # probably doesn't really need to be done
-    treestr = dtree.as_string(schema='newick').strip()
     if debug:
-        print '    final mean: %.4f' % get_mean_leaf_height(treestr=treestr)
-    return treestr
+        print '    final mean: %.4f' % get_mean_leaf_height(tree=dtree)
+    if treestr:
+        return dtree.as_string(schema='newick').strip()
 
 # ----------------------------------------------------------------------------------------
 def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=False):

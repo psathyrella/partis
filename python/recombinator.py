@@ -549,7 +549,7 @@ class Recombinator(object):
                 ratio *= self.args.mutation_multiplier
             regional_heights[region] = mean_total_height * ratio
 
-        scaled_trees = {r : treeutils.rescale_tree(chosen_tree, regional_heights[r]) for r in utils.regions}
+        scaled_trees = {r : treeutils.rescale_tree(regional_heights[r], treestr=chosen_tree) for r in utils.regions}
 
         if self.args.debug:
             print '  chose tree with total height %f' % treeutils.get_mean_leaf_height(treestr=chosen_tree)

@@ -158,7 +158,7 @@ class TreeGenerator(object):
 
         # rescale branch lengths (TreeSim lets you specify the number of leaves and the height at the same time, but TreeSimGM doesn't, and TreeSim's numbers are usually a little off anyway... so we rescale everybody)
         for itree in range(len(ages)):
-            treestrs[itree] = treeutils.rescale_tree(treestrs[itree], ages[itree])
+            treestrs[itree] = treeutils.rescale_tree(ages[itree], treestr=treestrs[itree])
 
         return ages, treestrs
 
@@ -177,8 +177,12 @@ class TreeGenerator(object):
                         continue
                     dtree = treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)
                     old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
-                    treeutils.translate_labels(dtree, old_new_label_pairs, debug=True)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
-                    ages.append(treeutils.get_mean_leaf_height(tree=dtree))
+                    treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
+                    age = self.choose_full_sequence_branch_length()
+                    if self.args.debug:
+                        print '   rescaling tree depth from input tree file %.3f --> %.3f' % (treeutils.get_mean_leaf_height(tree=dtree), age)
+                    treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
+                    ages.append(age)
                     treestrs.append(dtree.as_string(schema='newick').strip())
             if any(a > 1. for a in ages):
                 raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
