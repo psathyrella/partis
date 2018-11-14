@@ -185,11 +185,14 @@ class Tester(object):
             action = info['action']
             cmd_str = info['bin'] + ' ' + action
             cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
+
             if name == 'simulate':
                 cmd_str += ' --outfname ' + self.infnames['new']['simu']
                 cmd_str += ' --indel-frequency 0.01 --indel-location v'
-            elif 'cache-parameters-' not in name:
-                cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.yaml'  # '.csv'
+            if name != 'simulate' and 'cache-parameters-' not in name:
+                cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.yaml'
+            if name == 'annotate-ref-simu':  # rewrite the sw cache file during annotate, so we hit the sw run-code at least once, but then the other ref steps read from the new sw cache file
+                cmd_str += ' --write-sw-cachefile'
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
             print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
