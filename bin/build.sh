@@ -7,10 +7,6 @@ else
     basedir=$PWD
 fi
 
-echo -e "\n--> building samtools"
-export LEIN_ROOT=1
-cd $basedir/packages/samtools/ && make
-
 echo -e "\n--> building ig-sw"
 cd $basedir/packages/ig-sw/src/ig_align/ && scons
 cd $basedir/
