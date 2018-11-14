@@ -283,7 +283,7 @@ class PartitionDriver(object):
     def annotate(self):
         print 'annotating'
         if self.sw_info is None:
-            self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)
+            self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile, count_parameters=self.args.count_parameters)
         if self.args.only_smith_waterman:
             if self.args.outfname is not None:  # NOTE this is _not_ identical to the sw cache file (e.g. padding, failed query writing, plus probably other stuff)
                 self.write_output(None, set(), write_sw=True)  # note that if you're auto-parameter caching, this will just be rewriting an sw output file that's already there from parameter caching, but oh, well. If you're setting --only-smith-waterman and not using cache-parameters, you have only yourself to blame
@@ -408,7 +408,7 @@ class PartitionDriver(object):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         print 'partitioning'
         if self.sw_info is None:
-            self.run_waterer(look_for_cachefile=True, count_parameters=self.args.count_parameters)  # run smith-waterman
+            self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile, count_parameters=self.args.count_parameters)  # run smith-waterman
         if len(self.sw_info['queries']) == 0:
             if self.args.outfname is not None:
                 ClusterPath().write(self.args.outfname, False)
@@ -1082,7 +1082,7 @@ class PartitionDriver(object):
             # fuck it, this isn't worth it (but not yet quite willing to delete the effort)
             # print '  %s persistent hmm cache file %s exists (probably just copied it from %s), so we\'re assuming that the sub cluster annotations *weren\'t* written to the output file, i.e. this is old-style output (if you set --infname (and --parameter-dir is either set or the default corresponds to an existing parameter directory), we\'ll just run the cluster annotations for cache file uidstrs right now. Otherwise this\'ll still work, it just won\'t have the v/d/j gene info)' % (utils.color('yellow', 'note'), self.hmm_cachefname, self.args.persistent_cachefname)
             # if self.args.parameter_dir is not None and self.args.infname is not None:
-            #     self.run_waterer(look_for_cachefile=True)  # need sw info to run the hmm (this is not really a good idea to be running new stuff during an action that's supposed to be running on existing output, but it's only for backwards compatibility, so oh well)
+            #     self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile)  # need sw info to run the hmm (this is not really a good idea to be running new stuff during an action that's supposed to be running on existing output, but it's only for backwards compatibility, so oh well)
             #     cache_clusters = [set(uidstr.split(':')) for uidstr in cachefo]  # all of 'em
             #     cache_clusters = [sc for sc in cache_clusters if sc <= uids_of_interest]  # just the ones that are composed entire of queries in uids_of_interest
             #     # DAMMIT neither of these ways of handling missing sw queries work. oh, well

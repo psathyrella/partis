@@ -268,6 +268,7 @@ parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hm
 parent_parser.add_argument('--parameter-out-dir', help='Special parameter dir for writing multi-hmm parameters, i.e. when running annotate or partition with --count-parameters set (if not set, defaults to <--parameter-dir>/multi-hmm).')
 parent_parser.add_argument('--persistent-cachefname', help='Name of file which will be used as an initial cache file (if it exists), and to which all cached info will be written out before exiting.')
 parent_parser.add_argument('--sw-cachefname', help='Smith-Waterman cache file name. Default is set using a hash of all the input sequence ids (in partitiondriver, since we have to read the input file first).')
+parent_parser.add_argument('--write-sw-cachefile', action='store_true', help='Write sw results to the sw cache file during actions for which we\'d normally only look for an existing one (i.e annotate and partition).')
 parent_parser.add_argument('--workdir', help='Temporary working directory (default is set below)')
 
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (by default this is not set, and consequently no plots are written')
