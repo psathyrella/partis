@@ -793,14 +793,15 @@ class PartitionDriver(object):
                 if len(cached_naive_seqs) == len(expected_queries):  # already got everybody
                     break
 
-        if set(cached_naive_seqs) != set(expected_queries):  # probably not really necessary, but, eh
+        if set(cached_naive_seqs) != set(expected_queries):  # can happen if hmm can't find a path for a sequence for which sw *did* have an annotation (but in that case the annotation is almost certainly garbage)
             extra = set(cached_naive_seqs) - set(expected_queries)
             missing = set(expected_queries) - set(cached_naive_seqs)
             if len(extra) > 0:
-                print '  %d extra in synth: %s' % (len(extra), ' '.join(extra))
+                print '    %s read %d extra queries from hmm cache file %s' % (utils.color('yellow', 'warning:'), len(extra), ' '.join(extra))
             if len(missing) > 0:
-                print '  %d missing from synth: %s' % (len(missing), ' '.join(missing))
-            raise Exception('error above')
+                print '    %s missing %d queries from hmm cache file (using sw naive sequence instead): %s' % (utils.color('yellow', 'warning:'), len(missing), ' '.join(missing))
+                for uid in missing:
+                    cached_naive_seqs[uid] = self.sw_info[uid]['naive_seq']
 
         return cached_naive_seqs
 
