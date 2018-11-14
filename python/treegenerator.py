@@ -19,18 +19,6 @@ class TreeGenerator(object):
         self.parameter_dir = parameter_dir
         self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
-        if self.args.debug:
-            if self.args.input_simulation_treefname is None:
-                print '  generating %d trees,' % self.args.n_trees,
-                if self.args.constant_number_of_leaves:
-                    print 'all with %s leaves' % str(self.args.n_leaves)
-                else:
-                    print 'n-leaves from %s distribution with parameter %s' % (self.args.n_leaf_distribution, str(self.args.n_leaves))
-                print '        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch')
-                for mtype in ['all',] + utils.regions:
-                    print '         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
-            else:
-                print '  --input-simulation-treefname: reading trees from %s' % self.args.input_simulation_treefname
 
     #----------------------------------------------------------------------------------------
     def convert_observed_changes_to_branch_length(self, mute_freq):
@@ -110,6 +98,16 @@ class TreeGenerator(object):
 
     # ----------------------------------------------------------------------------------------
     def run_treesim(self, seed, outfname, workdir):
+        if self.args.debug:
+            print '  generating %d trees,' % self.args.n_trees,
+            if self.args.constant_number_of_leaves:
+                print 'all with %s leaves' % str(self.args.n_leaves)
+            else:
+                print 'n-leaves from %s distribution with parameter %s' % (self.args.n_leaf_distribution, str(self.args.n_leaves))
+            print '        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch')
+            for mtype in ['all',] + utils.regions:
+                print '         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
+
         ages, treestrs = [], []
 
         cmd_lines = []
@@ -164,6 +162,8 @@ class TreeGenerator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_input_tree_file(self, outfname):
+        if self.args.debug:
+            print '  reading trees from %s' % self.args.input_simulation_treefname
         utils.simplerun('cp %s %s' % (self.args.input_simulation_treefname, outfname), debug=False)
         ages, treestrs = [], []
         with open(outfname) as treefile:
@@ -172,14 +172,18 @@ class TreeGenerator(object):
                 if tstr == '':  # skip empty lines
                     continue
                 dtree = treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)
+                if dtree.seed_node.edge_length is None:  # make sure root edge length is set (otherwise bppseqgen barfs)
+                    dtree.seed_node.edge_length = 0.
                 old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
                 age = self.choose_full_sequence_branch_length()
-                if self.args.debug:
-                    print '   rescaling tree depth from input tree file %.3f --> %.3f' % (treeutils.get_mean_leaf_height(tree=dtree), age)
+                if self.args.debug:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height
+                    print '    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age)
                 treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
                 ages.append(age)
                 treestrs.append(dtree.as_string(schema='newick').strip())
+                if self.args.debug:
+                    print utils.pad_lines(treeutils.get_ascii_tree(dtree))
         if any(a > 1. for a in ages):
             raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
         print '    setting --n-trees to %d to match trees read from %s' % (len(ages), self.args.input_simulation_treefname)
