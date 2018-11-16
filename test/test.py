@@ -34,8 +34,7 @@ class Tester(object):
             os.makedirs(self.dirs['new'])
         self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.yaml' for dt in self.dtypes} for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
-        self.common_extras = ['--seed', '1', '--n-procs', '10', '--simulation-germline-dir', 'data/germlines/human', '--write-full-yaml-output']
-        self.parameter_caching_extras = []
+        self.common_extras = ['--seed', '1', '--n-procs', '%d' % utils.auto_n_procs()]
 
         self.tiny_eps = 1e-4
         self.run_times = {}
@@ -51,38 +50,32 @@ class Tester(object):
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
 
-        self.n_partition_queries = '500'
-        self.n_sim_events = '500'
-        # n_data_inference_queries = '50'
+        self.n_partition_queries = '500'  # TODO
+        self.n_sim_events = '500'  # TODO
         self.logfname = self.dirs['new'] + '/test.log'
         self.sw_cache_paths = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
-        self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in self.stypes }
+        self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in ['new']}  # self.stypes
 
         self.tests = OrderedDict()
 
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
             self.tests['multi-annotate-' + input_stype + '-simu']    = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
-            # self.tests['annotate-' + input_stype + '-data']          = {'extras' : ['--n-max-queries', n_data_inference_queries]}  # don't really need this as long as we're caching parameters on data
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
                 '--n-max-queries', self.n_partition_queries,
                 '--n-precache-procs', '10',
                 '--plot-annotation-performance',
-                '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
+                # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             ]}
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', self.n_partition_queries]}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', self.n_partition_queries]}
 
-        if not args.skip_ref:
-            add_inference_tests('ref')
-        if not args.only_ref:
-            self.tests['cache-parameters-data']  = {'extras' : [ostr for ostr in self.parameter_caching_extras]}  # list comprehension to make sure it's a copy
-            self.tests['simulate']  = {'extras' : ['--n-sim-events', self.n_sim_events, '--n-trees', self.n_sim_events, '--n-leaves', '5']}
-            self.tests['cache-parameters-simu']  = {'extras' : [ostr for ostr in self.parameter_caching_extras]}  # list comprehension to make sure it's a copy
-            add_inference_tests('new')
+        self.tests['cache-parameters-simu']  = {'extras' : [], 'output-path' : 'test/parameters/simu'}
+        add_inference_tests('new')
+        self.tests['cache-parameters-data']  = {'extras' : [], 'output-path' : 'test/parameters/data'}
+        self.tests['simulate']  = {'extras' : ['--n-sim-events', self.n_sim_events, '--n-trees', self.n_sim_events, '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
 
-        self.quick_tests = ['annotate-ref-simu']
-        self.production_tests = ['cache-parameters-data', 'simulate', 'cache-parameters-simu']  # vs "inference" tests. Kind of crappy names, but we need to distinguish these three from all the other ones
+        self.quick_tests = ['cache-parameters-simu']
 
         self.perfdirs = {}  # set in fiddle_with_arguments() NOTE these correspond only to annotation performance, whereas <self.perf_info> has also partition performance
         for ptest, argfo in self.tests.items():
@@ -93,37 +86,53 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def test(self, args):
         if args.comparison_plots:
+            assert False  # needs updating
             self.make_comparison_plots()
             return
         if not args.dont_run:
             self.run(args)
         if args.dryrun:
             return
-        if not args.skip_ref:
-            self.compare_stuff(input_stype='ref')
-        if not args.only_ref and not args.quick:
-            self.compare_production_results()
-            self.compare_stuff(input_stype='new')
+        self.compare_production_results(['cache-parameters-simu'])
+        self.compare_stuff(input_stype='new')
+        self.compare_production_results(['cache-parameters-data', 'simulate'])
         self.compare_run_times()
 
     # ----------------------------------------------------------------------------------------
     def fiddle_with_arguments(self, ptest, argfo):
         namelist = ptest.split('-')
-        input_stype = 'new' if ptest in self.production_tests else namelist[-2]
-        input_dtype = namelist[-1] if ptest != 'simulate' else None
-        assert input_stype in self.stypes
-        assert input_dtype in self.dtypes or input_dtype is None
+        if ptest == 'simulate':
+            input_stype = 'new'
+            input_dtype = None
+        elif 'cache-parameters' in ptest:
+            input_stype = 'new'
+            input_dtype = namelist[-1]
+        else:
+            input_stype, input_dtype = namelist[-2:]
+
+        assert input_stype in self.stypes + [None]
+        assert input_dtype in self.dtypes + [None]
         argfo['input_stype'] = input_stype
         argfo['bin'] = self.partis
+
+        if ptest == 'simulate':
+            argfo['parameter-dir'] = self.param_dirs[input_stype]['data']
+        else:
+            argfo['infname'] = self.infnames['new' if args.bust_cache else 'ref'][input_dtype]
+            argfo['parameter-dir'] = self.param_dirs[input_stype][input_dtype]
+            if input_dtype == 'simu':
+                argfo['extras'] += ['--is-simu']
+            argfo['sw-cachefname'] = self.sw_cache_paths[input_stype][input_dtype] + '.yaml'
+
         if 'annotate' in ptest:
-            argfo['action'] = 'annotate'  # NOTE now that this isn't 'run-viterbi' we can combine it with the others
+            argfo['action'] = 'annotate'
         elif 'partition' in ptest:
             argfo['action'] = 'partition'
             argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]
         elif 'cache-parameters-' in ptest:
             argfo['action'] = 'cache-parameters'
-            if True:  #args.make_plots:
-                argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + input_dtype]
+            # if True:  #args.make_plots:
+            #     argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + input_dtype]
         else:
             argfo['action'] = ptest
 
@@ -134,24 +143,14 @@ class Tester(object):
         if '--plotdir' in argfo['extras']:
             argfo['extras'] += ['--only-csv-plots', '--only-overall-plots']
 
-        if ptest == 'simulate':
-            argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype]['data']]
-        else:
-            if input_dtype == 'simu':
-                argfo['extras'] += ['--is-simu', ]
-            argfo['extras'] += ['--sw-cachefname', self.sw_cache_paths[input_stype][input_dtype] + '.yaml']
-            argfo['extras'] += ['--infname', self.infnames[input_stype][input_dtype]]
-            argfo['extras'] += ['--parameter-dir', self.param_dirs[input_stype][input_dtype]]
-
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):
         print '%s input' % input_stype
-        for version_stype in self.stypes:
+        for version_stype in self.stypes:  # <version_stype> is the code version, i.e. 'ref' is the reference results, 'new' is the results we just made with the new code
             self.read_annotation_performance(version_stype, input_stype)
             self.read_partition_performance(version_stype, input_stype)  # NOTE also calls read_annotation_performance()
         self.compare_performance(input_stype)
         self.compare_partition_cachefiles(input_stype)
-        # self.compare_data_annotation(input_stype)
 
     # ----------------------------------------------------------------------------------------
     def prepare_to_run(self, args, name, info):
@@ -168,7 +167,7 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(args.locus, self.infnames[info['input_stype']]['simu'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(info['infname'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
@@ -184,15 +183,18 @@ class Tester(object):
 
             action = info['action']
             cmd_str = info['bin'] + ' ' + action
-            cmd_str += ' ' + ' '.join(info['extras'] + self.common_extras)
+            if 'infname' in info:
+                cmd_str += ' --infname %s' % info['infname']
+            cmd_str += ' --parameter-dir %s' % info['parameter-dir']
+            if 'sw-cachefname' in info:
+                cmd_str += ' --sw-cachefname %s' % info['sw-cachefname']
+            cmd_str += ' %s' % ' '.join(info['extras'] + self.common_extras)
 
             if name == 'simulate':
                 cmd_str += ' --outfname ' + self.infnames['new']['simu']
                 cmd_str += ' --indel-frequency 0.01 --indel-location v'
-            if name != 'simulate' and 'cache-parameters-' not in name:
+            elif 'cache-parameters-' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.yaml'
-            # if name == 'annotate-ref-simu':  # rewrite the sw cache file during annotate, so we hit the sw run-code at least once, but then the other ref steps read from the new sw cache file
-            #     cmd_str += ' --write-sw-cachefile'
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
             print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
@@ -215,7 +217,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_reference_results(self, expected_content):
-        print '  remove ref files'
+        print '  removing ref files'
         dir_content = set([os.path.basename(f) for f in glob.glob(self.dirs['ref'] + '/*')])
         if len(dir_content - expected_content) > 0 or len(expected_content - dir_content) > 0:
             if len(dir_content - expected_content) > 0:
@@ -225,6 +227,8 @@ class Tester(object):
             raise Exception('unexpected or missing content in reference dir (see above)')
         for fname in [self.dirs['ref'] + '/' + ec for ec in expected_content]:
             print '    rm %s' % fname
+            if args.dryrun:
+                continue
             if os.path.isdir(fname):
                 shutil.rmtree(fname)
             else:
@@ -232,7 +236,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def bust_cache(self):
-        test_outputs = [k + '.yaml' for k in self.tests.keys() if k not in self.production_tests]
+        test_outputs = [k + '.yaml' for k, tfo in self.tests.items() if 'output-path' not in tfo]
         expected_content = set(test_outputs + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
         expected_content.add('run-times.csv')
 
@@ -240,25 +244,12 @@ class Tester(object):
         self.remove_reference_results(expected_content)
 
         # copy over parameters, simulation, and plots
-        # NOTE in the ref dir, the ref in new input_stype files are always identical, since we'd always make sure we actually pass the tests before committing
         print '  copy new files to ref'
         for fname in expected_content:
-            source_fname = self.dirs['new'] + '/' + fname
-            if '-ref-' in fname:  # these correspond to stuff run on the old reference simulation and parameters, so we no longer need it
-                if os.path.isdir(source_fname):
-                    shutil.rmtree(source_fname)
-                else:
-                    os.remove(source_fname)
-                continue
-
-            if '-new-' in fname:  # whereas the stuff that's on the new simulation and parameters replaces both the ref and new stuff
-                print '    cp %s   -->  %s/ (new --> ref)' % (fname, self.dirs['ref'])
-                if os.path.isdir(source_fname):
-                    shutil.copytree(source_fname, self.dirs['ref'] + '/' + fname.replace('-new-', '-ref-'))
-                else:
-                    shutil.copy(source_fname, self.dirs['ref'] + '/' + fname.replace('-new-', '-ref-'))
             print '    mv %s   -->  %s/' % (fname, self.dirs['ref'])
-            shutil.move(source_fname, self.dirs['ref'] + '/')
+            if args.dryrun:
+                continue
+            shutil.move(self.dirs['new'] + '/' + fname, self.dirs['ref'] + '/')
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_performance(self, version_stype, input_stype, these_are_cluster_annotations=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
@@ -351,25 +342,6 @@ class Tester(object):
                 self.read_each_annotation_performance('single', version_stype, input_stype, these_are_cluster_annotations=True)
 
     # ----------------------------------------------------------------------------------------
-    def compare_data_annotation(self, input_stype):
-        raise Exception('might need updating')
-        # NOTE don't really need to do this for simulation, since for simulation we already compare the performance info
-        ptest = 'annotate-' + input_stype + '-data'
-        if args.quick and ptest not in self.quick_tests:
-            return
-        print '  %s data annotation' % input_stype
-        infnames = [self.dirs[version_stype] + '/' + ptest + '.yaml' for version_stype in self.stypes]
-        raise Exception('doesn\'t make any sense for new yaml files')
-        cmd = 'diff -u ' + ' '.join(infnames) + ' | grep "^+[^+]" | wc -l'
-        n_diff_lines = int(check_output(cmd, shell=True))
-        if n_diff_lines == 0:
-            print '      ok'
-        else:
-            n_total_lines = int(check_output(['wc', '-l', infnames[0]]).split()[0])
-            print utils.color('red', '      %d / %d lines differ' % (n_diff_lines, n_total_lines)),
-            print '   (%s)' % cmd
-
-    # ----------------------------------------------------------------------------------------
     def compare_performance(self, input_stype):
 
         def print_comparison_str(ref_val, new_val, epsval):
@@ -447,11 +419,12 @@ class Tester(object):
             print ''
 
     # ----------------------------------------------------------------------------------------
-    def compare_production_results(self):
-        if args.quick:
-            return
+    def compare_production_results(self, ptests):
         print 'diffing production results'
-        for fname in ['test/parameters/data', 'test/simu.yaml', 'test/parameters/simu']:
+        for ptest in ptests:
+            if args.quick and ptest not in self.quick_tests:
+                continue
+            fname = self.tests[ptest]['output-path']  # this is kind of messy
             print '    %-30s' % fname,
             cmd = 'diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
@@ -502,12 +475,8 @@ class Tester(object):
         for stype in self.stypes:
             read_run_times(stype)
 
-        for name in times['ref']:
+        for name in self.tests:
             if args.quick and name not in self.quick_tests:
-                continue
-            if args.only_ref and '-ref-' not in name:
-                continue
-            if args.skip_ref and '-ref-' in name:
                 continue
             print '  %30s   %7.1f' % (name, times['ref'][name]),
             if name not in times['new']:
@@ -654,24 +623,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dont-run', action='store_true', help='don\'t actually run anything, just check the results')
 parser.add_argument('--dryrun', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
 parser.add_argument('--quick', action='store_true')
-parser.add_argument('--only-ref', action='store_true', help='only run with input_stype of \'ref\'')
-parser.add_argument('--skip-ref', action='store_true', help='skip stuff that\'s run by --only-ref')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--comparison-plots', action='store_true')
 parser.add_argument('--print-width', type=int, default=300)
-# parser.add_argument('--make-plots', action='store_true')
+# parser.add_argument('--make-plots', action='store_true')  # needs updating
 # example to make comparison plots:
 #   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
 
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
-# this is less true than it used to be, because with --only-ref we now just read sw-cache files
-# if not args.quick and not args.only_ref and not args.skip_ref:
-#     print '%s even if you\'re about to bust the cache, there\'s probably not really a reason to be running the ref *and* non-ref stuff' % utils.color('yellow', 'warning')
 
 tester = Tester()
 if args.bust_cache:
+    tester.test(args)
     tester.bust_cache()
 else:
     tester.test(args)
