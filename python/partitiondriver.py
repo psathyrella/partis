@@ -32,15 +32,6 @@ from partitionplotter import PartitionPlotter
 from hist import Hist
 
 # ----------------------------------------------------------------------------------------
-def timeprinter(fcn):
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        # print fcn.__name__,
-        fcn(*args, **kwargs)
-        print '    %s: (%.1f sec)' % (fcn.__name__, time.time()-start)
-    return wrapper
-
-# ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args, glfo, input_info, simglfo, reco_info):
@@ -1536,7 +1527,7 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    @timeprinter
+    @utils.timeprinter
     def prepare_for_hmm(self, algorithm, parameter_dir, partition, shuffle_input=False):
         """ Write input file for bcrham """
 

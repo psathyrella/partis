@@ -45,6 +45,15 @@ def choose_random_subdir(dirname):
     return dirname + '/' + subname
 
 # ----------------------------------------------------------------------------------------
+def timeprinter(fcn):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        # print fcn.__name__,
+        fcn(*args, **kwargs)
+        print '    %s: (%.1f sec)' % (fcn.__name__, time.time()-start)
+    return wrapper
+
+# ----------------------------------------------------------------------------------------
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
 regions = ['v', 'd', 'j']
 constant_regions = ['c', 'm', 'g', 'a', 'd', 'e']  # NOTE d is in here, which is stupid but necessary, so use is_constant_gene()
@@ -2770,7 +2779,7 @@ def get_cluster_ids(uids, partition):
     return clids
 
 # ----------------------------------------------------------------------------------------
-def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None):
+def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None, debug=False):
     if seed_unique_id is None:
         check_intersection_and_complement(partition, true_partition)
     reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # just a teensy lil' optimization
@@ -2801,8 +2810,10 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_u
         for uid in true_cluster:
             if seed_unique_id is not None and uid != seed_unique_id:
                 continue
-            if len(clids[uid]) != 1:
-                print 'WARNING %s in multiple clusters' % uid
+            if len(clids[uid]) != 1:  # this seems to only happen for earlier partitions (more than one proc) when seed_unique_id is set, since we pass seed_unique_id to all the subprocs. I.e. it's expected in these cases, and the ccfs don't make sense when a uid is in more than one cluster, since it's no longer a partition, so just return None, None
+                if debug:
+                    print '  %s found %s in multiple clusters while calculating ccfs (returning None, None)' % (color('red', 'warning'), uid)
+                return None, None
             inferred_cluster = partition[clids[uid][0]]  # we only look at the first cluster in which it appears
             mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
             mean_fraction_present += get_fraction_present(inferred_cluster, true_cluster)
@@ -3259,9 +3270,9 @@ def find_genes_that_have_hmms(parameter_dir):
     return genes
 
 # ----------------------------------------------------------------------------------------
-def choose_seed_unique_id(locus, simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
-    _, reco_info, _ = seqfileopener.read_sequence_file(simfname, is_data=False, n_max_queries=n_max_queries, quiet=not debug)
-    true_partition = get_true_partition(reco_info)
+def choose_seed_unique_id(simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
+    _, annotation_list, _ = read_output(simfname, n_max_queries=n_max_queries, dont_add_implicit_info=True)
+    true_partition = [l['unique_ids'] for l in annotation_list]
 
     nth_seed = 0  # don't always take the first one we find
     for cluster in true_partition:
