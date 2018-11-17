@@ -50,8 +50,8 @@ class Tester(object):
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
 
-        self.n_partition_queries = '500'  # TODO
-        self.n_sim_events = '500'  # TODO
+        self.n_partition_queries = '500'
+        self.n_sim_events = '500'
         self.logfname = self.dirs['new'] + '/test.log'
         self.sw_cache_paths = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in ['new']}  # self.stypes
@@ -75,7 +75,7 @@ class Tester(object):
         self.tests['cache-parameters-data']  = {'extras' : [], 'output-path' : 'test/parameters/data'}
         self.tests['simulate']  = {'extras' : ['--n-sim-events', self.n_sim_events, '--n-trees', self.n_sim_events, '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
 
-        self.quick_tests = ['cache-parameters-simu']
+        self.quick_tests = ['cache-parameters-simu', 'annotate-new-simu']
 
         self.perfdirs = {}  # set in fiddle_with_arguments() NOTE these correspond only to annotation performance, whereas <self.perf_info> has also partition performance
         for ptest, argfo in self.tests.items():
