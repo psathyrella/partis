@@ -34,7 +34,7 @@ class Tester(object):
             os.makedirs(self.dirs['new'])
         self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.yaml' for dt in self.dtypes} for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
-        self.common_extras = ['--seed', '1', '--n-procs', '%d' % utils.auto_n_procs()]
+        self.common_extras = ['--seed', '1', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you changed the number of procs
 
         self.tiny_eps = 1e-4
         self.run_times = {}
