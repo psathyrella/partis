@@ -34,7 +34,7 @@ class Tester(object):
             os.makedirs(self.dirs['new'])
         self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.yaml' for dt in self.dtypes} for st in self.stypes}
         self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
-        self.common_extras = ['--seed', '1', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you changed the number of procs
+        self.common_extras = ['--seed', '2', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you changed the number of procs
 
         self.tiny_eps = 1e-4
         self.run_times = {}
@@ -50,8 +50,9 @@ class Tester(object):
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
 
-        self.n_partition_queries = '500'
-        self.n_sim_events = '500'
+        self.n_partition_queries = 500
+        self.n_sim_events = 500
+        self.n_data_queries = -1
         self.logfname = self.dirs['new'] + '/test.log'
         self.sw_cache_paths = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in ['new']}  # self.stypes
@@ -62,18 +63,26 @@ class Tester(object):
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
             self.tests['multi-annotate-' + input_stype + '-simu']    = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
-                '--n-max-queries', self.n_partition_queries,
+                '--n-max-queries', str(self.n_partition_queries),
                 '--n-precache-procs', '10',
                 '--plot-annotation-performance',
                 # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             ]}
-            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', self.n_partition_queries]}
-            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', self.n_partition_queries]}
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', str(self.n_partition_queries)]}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', str(self.n_partition_queries)]}
 
-        self.tests['cache-parameters-simu']  = {'extras' : [], 'output-path' : 'test/parameters/simu'}
+        pcache_data_args = {'extras' : ['--n-max-queries', str(self.n_data_queries)], 'output-path' : 'test/parameters/data'}
+        pcache_simu_args = {'extras' : [], 'output-path' : 'test/parameters/simu'}
+        simulate_args = {'extras' : ['--n-sim-events', str(self.n_sim_events), '--n-trees', str(self.n_sim_events), '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
+
+        if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
+            self.tests['cache-parameters-data'] = pcache_data_args
+            self.tests['simulate'] = simulate_args
+        self.tests['cache-parameters-simu'] = pcache_simu_args
         add_inference_tests('new')
-        self.tests['cache-parameters-data']  = {'extras' : [], 'output-path' : 'test/parameters/data'}
-        self.tests['simulate']  = {'extras' : ['--n-sim-events', self.n_sim_events, '--n-trees', self.n_sim_events, '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
+        if not args.bust_cache:  # normally (if we're not cache busting) we want to run these last, to make it super clear that the inference tests are running on the *reference* simulation file
+            self.tests['cache-parameters-data'] = pcache_data_args
+            self.tests['simulate'] = simulate_args
 
         self.quick_tests = ['cache-parameters-simu', 'annotate-new-simu']
 
@@ -167,7 +176,7 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(info['infname'], 5, 8, n_max_queries=int(self.n_partition_queries), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(info['infname'], 5, 8, n_max_queries=self.n_partition_queries, debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
