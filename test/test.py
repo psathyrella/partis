@@ -91,7 +91,7 @@ class Tester(object):
             return
         if not args.dont_run:
             self.run(args)
-        if args.dryrun:
+        if args.dryrun or args.bust_cache:
             return
         self.compare_production_results(['cache-parameters-simu'])
         self.compare_stuff(input_stype='new')
