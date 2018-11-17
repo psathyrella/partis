@@ -53,6 +53,7 @@ class Tester(object):
         self.n_partition_queries = 500
         self.n_sim_events = 500
         self.n_data_queries = -1
+        self.n_quick_queries = 100
         self.logfname = self.dirs['new'] + '/test.log'
         self.sw_cache_paths = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in ['new']}  # self.stypes
@@ -71,20 +72,22 @@ class Tester(object):
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', str(self.n_partition_queries)]}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', str(self.n_partition_queries)]}
 
-        pcache_data_args = {'extras' : ['--n-max-queries', str(self.n_data_queries)], 'output-path' : 'test/parameters/data'}
-        pcache_simu_args = {'extras' : [], 'output-path' : 'test/parameters/simu'}
-        simulate_args = {'extras' : ['--n-sim-events', str(self.n_sim_events), '--n-trees', str(self.n_sim_events), '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
+        if args.quick:
+            self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.n_quick_queries)]}
+        else:
+            pcache_data_args = {'extras' : ['--n-max-queries', str(self.n_data_queries)], 'output-path' : 'test/parameters/data'}
+            pcache_simu_args = {'extras' : [], 'output-path' : 'test/parameters/simu'}
+            simulate_args = {'extras' : ['--n-sim-events', str(self.n_sim_events), '--n-trees', str(self.n_sim_events), '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
+            if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
+                self.tests['cache-parameters-data'] = pcache_data_args
+                self.tests['simulate'] = simulate_args
+            self.tests['cache-parameters-simu'] = pcache_simu_args
+            add_inference_tests('new')
+            if not args.bust_cache:  # normally (if we're not cache busting) we want to run these last, to make it super clear that the inference tests are running on the *reference* simulation file
+                self.tests['cache-parameters-data'] = pcache_data_args
+                self.tests['simulate'] = simulate_args
 
-        if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
-            self.tests['cache-parameters-data'] = pcache_data_args
-            self.tests['simulate'] = simulate_args
-        self.tests['cache-parameters-simu'] = pcache_simu_args
-        add_inference_tests('new')
-        if not args.bust_cache:  # normally (if we're not cache busting) we want to run these last, to make it super clear that the inference tests are running on the *reference* simulation file
-            self.tests['cache-parameters-data'] = pcache_data_args
-            self.tests['simulate'] = simulate_args
-
-        self.quick_tests = ['cache-parameters-simu', 'annotate-new-simu']
+        self.quick_tests = ['cache-parameters-quick-new-simu']  # this is kind of dumb to keep track of what the quick tests are in two different ways, but I only just started not adding the non-quick tests if --quick is set, and I don't want to mess with all the other places that use <self.quick_tests>
 
         self.perfdirs = {}  # set in fiddle_with_arguments() NOTE these correspond only to annotation performance, whereas <self.perf_info> has also partition performance
         for ptest, argfo in self.tests.items():
@@ -100,7 +103,7 @@ class Tester(object):
             return
         if not args.dont_run:
             self.run(args)
-        if args.dryrun or args.bust_cache:
+        if args.dryrun or args.bust_cache or args.quick:
             return
         self.compare_production_results(['cache-parameters-simu'])
         self.compare_stuff(input_stype='new')
@@ -129,7 +132,7 @@ class Tester(object):
         else:
             argfo['infname'] = self.infnames['new' if args.bust_cache else 'ref'][input_dtype]
             argfo['parameter-dir'] = self.param_dirs[input_stype][input_dtype]
-            if input_dtype == 'simu':
+            if input_dtype == 'simu' and not args.quick:
                 argfo['extras'] += ['--is-simu']
             argfo['sw-cachefname'] = self.sw_cache_paths[input_stype][input_dtype] + '.yaml'
 
@@ -215,6 +218,8 @@ class Tester(object):
             start = time.time()
             try:
                 check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
+                if args.quick:
+                    print '\n  %s' % 'ok'
             except CalledProcessError, err:
                 # print err  # this just says it exited with code != 0
                 print '  log tail:'
@@ -222,7 +227,8 @@ class Tester(object):
                 sys.exit(1)  # raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
 
-        self.write_run_times()
+        if not args.quick:
+            self.write_run_times()
 
     # ----------------------------------------------------------------------------------------
     def remove_reference_results(self, expected_content):
