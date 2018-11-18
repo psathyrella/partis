@@ -460,11 +460,14 @@ def read_extra_info(glfo, gldir):
 
 #----------------------------------------------------------------------------------------
 # groups by gene family unless <use_primary_version> is set
-def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate_cons_seqs=False):  # NOTE kind of similar to bin/cf-alleles.py
+def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate_cons_seqs=False, only_region=None, input_groupfcn=None):  # NOTE kind of similar to bin/cf-alleles.py
     if gene_groups is None:
         gene_groups = {}
-        for region in utils.regions:
-            groupfcn = utils.primary_version if use_primary_version else utils.gene_family
+        for region in (utils.regions if only_region is None else [only_region]):
+            if input_groupfcn is None:
+                groupfcn = utils.primary_version if use_primary_version else utils.gene_family
+            else:
+                groupfcn = input_groupfcn
             group_labels = sorted(set([groupfcn(g) for g in glfo['seqs'][region]]))
             gene_groups[region] = [(glabel, {g : glfo['seqs'][region][g] for g in glfo['seqs'][region] if groupfcn(g) == glabel}) for glabel in group_labels]
 
@@ -490,7 +493,7 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate
 
             first_cons_seq = None
             for clusterfo in msa_info:
-                align = region == 'd'
+                align = region == 'd' or input_groupfcn is not None
                 if first_cons_seq is None:  # shenanigans to account for vsearch splitting up my groups
                     first_cons_seq = clusterfo['cons_seq']
                     print '    %s    consensus (first cluster)' % clusterfo['cons_seq']
@@ -515,7 +518,8 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate
                     # NOTE if you <align> below here the codon info is wrong (and I _think_ I've fixed it so I no longer ever need to align)
 
                     cons_seq = clusterfo['cons_seq'] if print_separate_cons_seqs else first_cons_seq
-                    print '    %s    %s      %s' % (utils.color_mutants(cons_seq, seqfo['seq'], align=align, emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
+                    leftpad = len(cons_seq) - len(cons_seq.lstrip('-'))
+                    print '    %s%s    %s      %s' % (' ' * leftpad, utils.color_mutants(cons_seq, seqfo['seq'], align=align, emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------
 def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file

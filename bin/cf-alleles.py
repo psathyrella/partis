@@ -41,7 +41,8 @@ def get_genes(base, alleles=None):
     return [args.locus.upper() + args.region.upper() + base + '*' + al for al in alleles]
 
 if args.bases == 'all':
-    glutils.print_glfo(glfo)
+    input_groupfcn = None  # lambda g: str(utils.primary_version(g) in ['4', '5'])  # this example puts all the 4 and 5 primary versions in one group, and everybody else in another
+    glutils.print_glfo(glfo, only_region=(args.region if args.region != 'v' else None), input_groupfcn=input_groupfcn)  # not much point in doing only v, since it's the one that takes most of the time
     sys.exit(0)
 
 args.bases = utils.get_arg_list(args.bases)
