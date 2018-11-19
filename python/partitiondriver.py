@@ -1501,11 +1501,11 @@ class PartitionDriver(object):
         genes_with_enough_counts = utils.get_genes_with_enough_counts(parameter_dir, self.args.min_allele_prevalence_fractions)  # it would be nice to do this at some earlier step, but then we have to rerun sw (note that there usually won't be any to remove for V, since the same threshold was already applied in alleleremover, but there we can't do d and j since we don't yet have annotations for them)
         glfo_genes = set([g for r in utils.regions for g in self.glfo['seqs'][r]])
         if self.args.only_genes is None and len(genes_with_hmm_files - glfo_genes) > 0:
-            print '  %s hmm files for %s that aren\'t in glfo' % (utils.color('red', 'warning'), utils.color_genes(genes_with_hmm_files - glfo_genes))
+            print '  %s hmm files for genes that aren\'t in glfo: %s' % (utils.color('red', 'warning'), utils.color_genes(genes_with_hmm_files - glfo_genes))
         if len(glfo_genes - genes_with_hmm_files) > 0:
-            print '    skipping matches from %d genes that don\'t have hmm files' % len(glfo_genes - genes_with_hmm_files)
+            print '    skipping matches from %d genes that don\'t have hmm files: %s' % (len(glfo_genes - genes_with_hmm_files), utils.color_genes(glfo_genes - genes_with_hmm_files))
         if self.current_action == 'cache-parameters' and len(glfo_genes - genes_with_enough_counts) > 0:
-            print '    skipping matches from %d genes without enough counts' % len(glfo_genes - genes_with_enough_counts)
+            print '    skipping matches from %d genes without enough counts: %s' % (len(glfo_genes - genes_with_enough_counts), utils.color_genes(glfo_genes - genes_with_enough_counts))
         available_genes = genes_with_hmm_files & genes_with_enough_counts
 
         for query_name_list in nsets:  # NOTE in principle I think I should remove duplicate singleton <seed_unique_id>s here. But I think they in effect get removed 'cause in bcrham everything's stored as hash maps, so any duplicates just overwites the original upon reading its input
