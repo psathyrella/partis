@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import operator
 import yaml
 import glob
 import csv
@@ -19,8 +20,6 @@ import glutils
 from hist import Hist
 sys.path.insert(1, './datascripts')
 import heads
-
-sim_locus = 'igh'
 
 study_translations = {  # for zenodo
     'jason-mg' : 'myasthenia-gravis',
@@ -118,8 +117,8 @@ def get_outdir(args, baseoutdir, varname, varval, n_events=None):
 
 # ----------------------------------------------------------------------------------------
 def get_single_performance(region, outdir, method, debug=False):
-    sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=sim_locus)
-    iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=sim_locus)
+    sglfo = glutils.read_glfo(outdir + '/germlines/simulation', locus=args.locus)
+    iglfo = glutils.read_glfo(outdir + '/' + method + '/sw/germline-sets', locus=args.locus)
     glutils.synchronize_glfos(ref_glfo=sglfo, new_glfo=iglfo, region=region)
     missing_alleles = set(sglfo['seqs'][region]) - set(iglfo['seqs'][region])
     spurious_alleles = set(iglfo['seqs'][region]) - set(sglfo['seqs'][region])
@@ -260,7 +259,7 @@ def get_gls_gen_annotation_performance_plots(args, region, baseoutdir):
         make_ytitle = (iproc > 2) or (args.gls_gen_difficulty == 'easy')
 
         for plotname in plotnames:
-            hfnames = {meth : get_gls_fname(region, outdir, meth, sim_locus, annotation_performance_plots=True) for meth in args.methods}
+            hfnames = {meth : get_gls_fname(region, outdir, meth, args.locus, annotation_performance_plots=True) for meth in args.methods}
             for hfn in hfnames.values():
                 if not os.path.exists(hfn):
                     raise Exception('%s d.n.e.: need to first run non-plotting (without --plot) --annotation-performance-plots (which involves re-running partis, I think the difference being partis is now running with --plot-annotation-performance' % hfn)
@@ -316,15 +315,15 @@ def get_gls_gen_tree_plots(args, region, baseoutdir, method):
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
         print '%-2d                            %s' % (iproc, outdir)
-        simfname = get_gls_fname(region, outdir, method=None, locus=sim_locus, sim_truth=True)
-        inffname = get_gls_fname(region, outdir, method, sim_locus)
+        simfname = get_gls_fname(region, outdir, method=None, locus=args.locus, sim_truth=True)
+        inffname = get_gls_fname(region, outdir, method, args.locus)
         plotdir = outdir + '/' + method + '/gls-gen-plots'
         if args.all_regions:
             plotdir += '/' + region
         make_gls_tree_plot(args, region, plotdir, varvalstr(varname, varval),
                            glsfnames=[simfname, inffname],
                            glslabels=['sim', 'inf'],
-                           locus=sim_locus, ref_label='sim', legend_title=methstr(method), title=gls_sim_str(args.gls_gen_difficulty, iproc))  #, title_color=method)
+                           locus=args.locus, ref_label='sim', legend_title=methstr(method), title=gls_sim_str(args.gls_gen_difficulty, iproc))  #, title_color=method)
 
 # ----------------------------------------------------------------------------------------
 def get_character_str(character, charval):
@@ -526,6 +525,50 @@ def write_zenodo_files(args, baseoutdir):
             write_single_zenodo_subdir(outdir, args, study, dset, method, metafos[dset])
 
 # ----------------------------------------------------------------------------------------
+def print_data_table(dsetfos, method, latex=False):
+    # latex = True
+    def getvalstr(gene, val):
+        if gene is None:
+            return '%5.2s  %-20s' % (' - ', ' - ')
+        else:
+            return '%5.2f  %20s' % (100 * val, utils.color_gene(gene, width=20))
+    def print_line(rfos):
+        if latex:
+            assert False
+            print '  %s   %s%4.1f%s %s %s' % ('&' if latex else '', '$' if latex else '', 100 * val, '$' if latex else '', shorten_name(gene) if latex else utils.color_gene(gene), '\\\\' if latex else '')
+        else:
+            print '  %s'  % '   '.join([getvalstr(g, v) for g, v in rfos])
+
+    for region in utils.regions:
+        param_dirs = [get_param_dir(heads.get_datadir(study, 'processed', extra_str=args.label) + '/' + dset, method) for study, dset in dsetfos]
+        countfos = [utils.read_overall_gene_probs(pdir, normalize=True)[region] for pdir in param_dirs]
+        # print '%20s     %s' % ('', ' '.join([('%-16s' % st) for st in statuses]))
+        # print '%20s  %30s  %s' % (study, dset, method)
+        rowfos = [sorted(cfo.items(), key=operator.itemgetter(1), reverse=True) for cfo in countfos]
+        print [len(rfo) for rfo in rowfos]
+        irow = 0
+        while True:
+            rfos = [rfo[irow] if irow < len(rfo) else (None, None) for rfo in rowfos]
+            if set(rfos) == set([(None, None)]):
+                break
+            print_line(rfos)
+            irow += 1
+        sys.exit()
+
+# # ----------------------------------------------------------------------------------------
+#     print '%20s     %s' % ('', ' '.join([('%-16s' % st) for st in statuses]))
+#     for meth in args.methods:
+#         print '%20s' % methstr(meth),
+#         for status in statuses:
+#             mean = float(sum(meanvals[meth][status])) / len(meanvals[meth][status])
+#             err = numpy.std(meanvals[meth][status], ddof=1) / math.sqrt(len(meanvals[meth][status]))
+#             print '  %s   %s%4.1f %s %-4.1f%s' % ('&' if latex else '', '$' if latex else '', mean, '\\pm' if latex else '+/-', err, '$' if latex else ''),
+#         print '%s' % ('\\\\' if latex else '')
+# # ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
 def plot_tests(args, region, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False, print_summary_table=False):
     if args.action == 'gls-gen':
         if annotation_performance_plots:
@@ -709,6 +752,7 @@ default_varvals = {
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
+        'bf520-synth' : ['BF520-k-merged', 'BF520-l-merged'],  # ['BF520-g-merged', 'BF520-m-merged'],
         # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-p3d', 'FV-igh-p7d'],
         # 'jason-influenza' : [
         #     # 'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',
@@ -731,6 +775,9 @@ default_varvals = {
     }
 }
 all_data_groups = {
+    'bf520-synth' : [
+        ['BF520-g-merged', 'BF520-m-merged'],
+    ],
     'kate-qrs' : [
         ['1g', '4g'],
         ['1k', '4k'],
@@ -801,6 +848,7 @@ parser.add_argument('--methods', default='partis') # not using <choices> 'cause 
 parser.add_argument('--method-vs-method', action='store_true')
 parser.add_argument('--sample-vs-sample', action='store_true')
 parser.add_argument('--v-genes', default='IGHV4-39*01')
+parser.add_argument('--locus', default='igh')
 parser.add_argument('--all-regions', action='store_true')  # it'd be nicer to just have an arg for which region we're running on, but i need a way to keep the directory structure for single-region plots the same as before I generalized to d and j
 parser.add_argument('--varvals')
 parser.add_argument('--n-event-list', default='1000:2000:4000:8000')  # NOTE modified later for multi-nsnp also NOTE not used for gen-gset
@@ -829,6 +877,8 @@ args = parser.parse_args()
 args.methods = sorted(utils.get_arg_list(args.methods))
 args.v_genes = utils.get_arg_list(args.v_genes)
 args.n_event_list = utils.get_arg_list(args.n_event_list, intify=True)
+if args.print_table and args.action == 'data':  # only want to print table for single samples
+    assert not args.sample_vs_sample and not args.method_vs_method
 
 # ----------------------------------------------------------------------------------------
 alfdir = utils.fsdir() + '/partis/allele-finder'
@@ -855,13 +905,19 @@ if args.write_zenodo_files:
     assert args.action == 'data'  # would need to implement it
     write_zenodo_files(args, baseoutdir)
 elif args.plot:
-    for region in ['v'] if not args.all_regions else utils.loci[sim_locus]:  # this is messy... but it makes it so existing result directory structures are still parseable (i.e. the structure only changes if you set --all-regions)
+    if args.print_table:  # I wish this didn't have to be separate, but we want to do all the regions at once here, so it's hard to do it inside plot_tests()
+        dsetfos = [v.split('/') for v in args.varvals]  # (study, dset)
+        for method in args.methods:  # should really usually call this with one dset and one method at a time, but I guess it's nicer to write it this way
+            print_data_table(dsetfos, method)
+        sys.exit(0)
+
+    for region in ['v'] if not args.all_regions else utils.loci[args.locus]:  # this is messy... but it makes it so existing result directory structures are still parseable (i.e. the structure only changes if you set --all-regions)
         print '%s' % utils.color('reverse_video', utils.color('green', region))
         if args.method_vs_method:
             plot_tests(args, region, baseoutdir, method=None, method_vs_method=True)
         elif args.plot_annotation_performance:
             plot_tests(args, region, baseoutdir, method=None, annotation_performance_plots=True)
-        elif args.print_table:
+        elif args.print_table and args.action == 'gls-gen':  # table printer funciton here is only set up for missing/spurious/ok alleles (data table printer is in the tree plotting script)
             plot_tests(args, region, baseoutdir, method=None, print_summary_table=True)
         else:
             for method in [m for m in args.methods if m != 'simu']:
