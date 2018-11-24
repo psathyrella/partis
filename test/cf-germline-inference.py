@@ -526,22 +526,31 @@ def write_zenodo_files(args, baseoutdir):
 
 # ----------------------------------------------------------------------------------------
 def print_data_table(dsetfos, method, latex=False):
-    latex = False
+    latex = True
     def getvalstr(gene, val):
-        cstr = '&' if latex else ''
-        estr = '$' if latex else ''
-        if gene is None:
+        if gene is None or (utils.get_region(gene) == 'd' and not utils.has_d_gene(utils.get_locus(gene))):
             return '%s  %5.2s  %s  %-16s%s' % (cstr, ' - ', cstr, ' - ', 4 * ' ' if latex else '')
         else:
             gstr = utils.shorten_gene_name(gene) if latex else utils.color_gene(gene, width=18)
             return '%s  %s%5.2f%s %s %-20s' % (cstr, estr, 100 * val, estr, cstr, gstr)
     def print_line(rfos):
-        print '  %s%s'  % ('   '.join([getvalstr(g, v) for g, v in rfos]), '\\\\' if latex else '')
+        print '  %s%s'  % ('   '.join([getvalstr(g, v) for g, v in rfos]), lstr)
+    def ds_str(ds, region):
+        lstr = ds.split('-')[1]
+        return ('IG%s%s' % (('h' if lstr in ['g', 'm'] else lstr).upper(), region.upper())) if latex else ds
 
+    cstr = '&' if latex else ''
+    estr = '$' if latex else ''
+    lstr = '\\\\' if latex else ''
     for region in utils.regions:
         param_dirs = [get_param_dir(heads.get_datadir(study, 'processed', extra_str=args.label) + '/' + dset, method) for study, dset in dsetfos]
         countfos = [utils.read_overall_gene_probs(pdir, normalize=True)[region] for pdir in param_dirs]
-        print '      %s' % (' '.join([('%-35s' % ds) for _, ds in dsetfos]))
+        gene_val_str = (' %s   ' % cstr).join([('  %s   %s   %-20s' % ('\\%' if latex else '', cstr, ds_str(ds, region))) for _, ds in dsetfos])
+        tmpline = '  %s   %s  %s' % (cstr, gene_val_str, lstr)
+        if latex:
+            hstr = '\\hline'
+            tmpline = '  %s\n%s\n  %s' % (hstr, tmpline, hstr)
+        print tmpline
         rowfos = [sorted(cfo.items(), key=operator.itemgetter(1), reverse=True) for cfo in countfos]
         irow = 0
         while True:
