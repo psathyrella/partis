@@ -99,23 +99,6 @@ def get_cmdfos(cmdstr, workdir, outfname):
              'outfname' : outfname}]
 
 # ----------------------------------------------------------------------------------------
-def shorten_name(name):
-    if name[:2] != 'IG':
-        raise Exception('bad node name %s' % name)
-
-    pv, sv, allele = utils.split_gene(name)
-    if glutils.is_novel(name):
-        _, template_name, mutstrs = glutils.split_inferred_allele_name(name)
-        if mutstrs is None:
-            allele = '%s (+...)' % (utils.allele(template_name))
-        else:
-            allele = '%s (+%d snp%s)' % (utils.allele(template_name), len(mutstrs), utils.plural(len(mutstrs)))
-    if sv is not None:
-        return '%s-%s*%s' % (pv, sv, allele)
-    else:
-        return '%s*%s' % (pv, allele)
-
-# ----------------------------------------------------------------------------------------
 def make_tree(all_genes, workdir, use_cache=False):
     aligned_fname = workdir + '/all-aligned.fa'
     raxml_label = 'xxx'
@@ -317,7 +300,7 @@ def set_distance_to_zero(node, debug=False):
     descendents = set([leaf.name for leaf in node])
     gene_families = set([utils.gene_family(d) for d in descendents])
     if debug:
-        print '  %s' % ' '.join([shorten_name(d) for d in descendents])
+        print '  %s' % ' '.join([utils.shorten_gene_name(d) for d in descendents])
         print '      %s' % ' '.join(gene_families)
     if len(gene_families) == 0:
         raise Exception('zero length gene family set from %s' % ' '.join([leaf.name for leaf in node]))
@@ -452,7 +435,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
 
     if ref_label is None:  # have to do it in a separate loop so it doesn't screw up the distance setting
         for node in [n for n in etree.traverse() if n.is_leaf()]:  # yeah I'm sure there's a fcn for that
-            node.name = shorten_name(node.name)
+            node.name = utils.shorten_gene_name(node.name)
 
     tstyle = ete3.TreeStyle()
     tstyle.show_scale = False

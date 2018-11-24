@@ -1486,6 +1486,23 @@ def split_gene(gene):
     return primary_version, sub_version, allele
 
 # ----------------------------------------------------------------------------------------
+def shorten_gene_name(name):
+    if name[:2] != 'IG':
+        raise Exception('bad node name %s' % name)
+
+    pv, sv, al = split_gene(name)
+    if glutils.is_novel(name):
+        _, template_name, mutstrs = glutils.split_inferred_allele_name(name)
+        if mutstrs is None:
+            al = '%s (+...)' % (allele(template_name))
+        else:
+            al = '%s (+%d snp%s)' % (allele(template_name), len(mutstrs), plural(len(mutstrs)))
+    if sv is not None:
+        return '%s-%s*%s' % (pv, sv, al)
+    else:
+        return '%s*%s' % (pv, al)
+
+# ----------------------------------------------------------------------------------------
 def rejoin_gene(locus, region, primary_version, sub_version, allele):
     """ reverse the action of split_gene() """
     return_str = locus.upper() + region.upper() + primary_version

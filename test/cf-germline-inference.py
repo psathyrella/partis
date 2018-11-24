@@ -526,26 +526,23 @@ def write_zenodo_files(args, baseoutdir):
 
 # ----------------------------------------------------------------------------------------
 def print_data_table(dsetfos, method, latex=False):
-    # latex = True
+    latex = False
     def getvalstr(gene, val):
+        cstr = '&' if latex else ''
+        estr = '$' if latex else ''
         if gene is None:
-            return '%5.2s  %-20s' % (' - ', ' - ')
+            return '%s  %5.2s  %s  %-16s%s' % (cstr, ' - ', cstr, ' - ', 4 * ' ' if latex else '')
         else:
-            return '%5.2f  %20s' % (100 * val, utils.color_gene(gene, width=20))
+            gstr = utils.shorten_gene_name(gene) if latex else utils.color_gene(gene, width=18)
+            return '%s  %s%5.2f%s %s %-20s' % (cstr, estr, 100 * val, estr, cstr, gstr)
     def print_line(rfos):
-        if latex:
-            assert False
-            print '  %s   %s%4.1f%s %s %s' % ('&' if latex else '', '$' if latex else '', 100 * val, '$' if latex else '', shorten_name(gene) if latex else utils.color_gene(gene), '\\\\' if latex else '')
-        else:
-            print '  %s'  % '   '.join([getvalstr(g, v) for g, v in rfos])
+        print '  %s%s'  % ('   '.join([getvalstr(g, v) for g, v in rfos]), '\\\\' if latex else '')
 
     for region in utils.regions:
         param_dirs = [get_param_dir(heads.get_datadir(study, 'processed', extra_str=args.label) + '/' + dset, method) for study, dset in dsetfos]
         countfos = [utils.read_overall_gene_probs(pdir, normalize=True)[region] for pdir in param_dirs]
-        # print '%20s     %s' % ('', ' '.join([('%-16s' % st) for st in statuses]))
-        # print '%20s  %30s  %s' % (study, dset, method)
+        print '      %s' % (' '.join([('%-35s' % ds) for _, ds in dsetfos]))
         rowfos = [sorted(cfo.items(), key=operator.itemgetter(1), reverse=True) for cfo in countfos]
-        print [len(rfo) for rfo in rowfos]
         irow = 0
         while True:
             rfos = [rfo[irow] if irow < len(rfo) else (None, None) for rfo in rowfos]
@@ -553,20 +550,6 @@ def print_data_table(dsetfos, method, latex=False):
                 break
             print_line(rfos)
             irow += 1
-        sys.exit()
-
-# # ----------------------------------------------------------------------------------------
-#     print '%20s     %s' % ('', ' '.join([('%-16s' % st) for st in statuses]))
-#     for meth in args.methods:
-#         print '%20s' % methstr(meth),
-#         for status in statuses:
-#             mean = float(sum(meanvals[meth][status])) / len(meanvals[meth][status])
-#             err = numpy.std(meanvals[meth][status], ddof=1) / math.sqrt(len(meanvals[meth][status]))
-#             print '  %s   %s%4.1f %s %-4.1f%s' % ('&' if latex else '', '$' if latex else '', mean, '\\pm' if latex else '+/-', err, '$' if latex else ''),
-#         print '%s' % ('\\\\' if latex else '')
-# # ----------------------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
 def plot_tests(args, region, baseoutdir, method, method_vs_method=False, annotation_performance_plots=False, print_summary_table=False):
@@ -752,7 +735,7 @@ default_varvals = {
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
-        'bf520-synth' : ['BF520-k-merged', 'BF520-l-merged'],  # ['BF520-g-merged', 'BF520-m-merged'],
+        'bf520-synth' : ['BF520-m-merged', 'BF520-g-merged', 'BF520-k-merged', 'BF520-l-merged'],  # ['BF520-g-merged', 'BF520-m-merged'],
         # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-p3d', 'FV-igh-p7d'],
         # 'jason-influenza' : [
         #     # 'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',
