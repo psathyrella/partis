@@ -525,13 +525,18 @@ def write_zenodo_files(args, baseoutdir):
             write_single_zenodo_subdir(outdir, args, study, dset, method, metafos[dset])
 
 # ----------------------------------------------------------------------------------------
-def print_data_table(dsetfos, method, latex=False):
+def print_data_table(dsetfos, method, latex=False, emph_genes=['IGHV1-2*02+G35A', 'IGHD3-10*01', 'IGHJ4*02', 'IGKV3-15*01', 'IGKJ3*01']):
     latex = True
     def getvalstr(gene, val):
         if gene is None or (utils.get_region(gene) == 'd' and not utils.has_d_gene(utils.get_locus(gene))):
             return '%s  %5.2s  %s  %-16s%s' % (cstr, ' - ', cstr, ' - ', 4 * ' ' if latex else '')
         else:
-            gstr = utils.shorten_gene_name(gene) if latex else utils.color_gene(gene, width=18)
+            if latex:
+                gstr = utils.shorten_gene_name(gene, use_one_based_indexing=True, n_max_mutstrs=5)
+                if emph_genes is not None and gene in emph_genes:
+                    gstr = '\\color{red}{\\textbf{%s}}' % gstr
+            else:
+                gstr = utils.color_gene(gene, width=18)
             return '%s  %s%5.2f%s %s %-20s' % (cstr, estr, 100 * val, estr, cstr, gstr)
     def print_line(rfos):
         print '  %s%s'  % ('   '.join([getvalstr(g, v) for g, v in rfos]), lstr)
@@ -744,7 +749,7 @@ default_varvals = {
         # 'three-finger' : ['3ftx-1-igh'], #, 'pla2-1-igh'],
         # 'kate-qrs' : ['1g', '4g', '1k', '1l', '4k', '4l'],
         # 'laura-mb-2' : ['BF520-m-W1', 'BF520-m-M9', 'BF520-g-W1', 'BF520-g-M9'], #, 'BF520-k-W1', 'BF520-l-W1', 'BF520-k-M9', 'BF520-l-M9']
-        'bf520-synth' : ['BF520-m-merged', 'BF520-g-merged', 'BF520-k-merged', 'BF520-l-merged'],  # ['BF520-g-merged', 'BF520-m-merged'],
+        'bf520-synth' : ['BF520-m-merged', 'BF520-k-merged', 'BF520-l-merged'],  # ['BF520-g-merged', 'BF520-m-merged'],
         # 'jason-influenza' : ['FV-igh-m2d', 'FV-igh-p3d', 'FV-igh-p7d'],
         # 'jason-influenza' : [
         #     # 'FV-igh-m8d', 'FV-igh-m2d', 'FV-igh-m1h', 'FV-igh-p1h', 'FV-igh-p1d', 'FV-igh-p3d', 'FV-igh-p7d', 'FV-igh-p14d', 'FV-igh-p21d', 'FV-igh-p28d',

@@ -1486,15 +1486,19 @@ def split_gene(gene):
     return primary_version, sub_version, allele
 
 # ----------------------------------------------------------------------------------------
-def shorten_gene_name(name):
+def shorten_gene_name(name, use_one_based_indexing=False, n_max_mutstrs=3):
     if name[:2] != 'IG':
         raise Exception('bad node name %s' % name)
 
     pv, sv, al = split_gene(name)
     if glutils.is_novel(name):
         _, template_name, mutstrs = glutils.split_inferred_allele_name(name)
+        if use_one_based_indexing:
+            mutstrs = [('%s%d%s' % (mstr[0], int(mstr[1:-1]) + 1, mstr[-1])) for mstr in mutstrs]
         if mutstrs is None:
             al = '%s (+...)' % (allele(template_name))
+        elif len(mutstrs) < n_max_mutstrs:
+            al = ('%s+%s' % (allele(template_name), '.'.join(mutstrs)))
         else:
             al = '%s (+%d snp%s)' % (allele(template_name), len(mutstrs), plural(len(mutstrs)))
     if sv is not None:
