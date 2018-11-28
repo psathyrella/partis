@@ -729,7 +729,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
 
     # get tree and calculate metrics for inferred lines
     n_clusters_calculated, n_skipped = 0, 0
-    print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join([str(len(l['unique_ids'])) for l in lines_to_use]))
+    print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(sorted([str(len(l['unique_ids'])) for l in lines_to_use], reverse=True)))
     for line in lines_to_use:
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
