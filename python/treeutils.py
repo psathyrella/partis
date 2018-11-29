@@ -2,6 +2,7 @@ import operator
 import string
 import itertools
 import copy
+import collections
 import random
 import csv
 from cStringIO import StringIO
@@ -16,6 +17,8 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
 import utils
+
+lb_metrics = collections.OrderedDict(('lb' + let, 'local branching ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
 
 # ----------------------------------------------------------------------------------------
 def get_treestr(treefname):
@@ -394,7 +397,7 @@ def calculate_lb_values(annotation, dtree, tau, naive_seq_name=None, extra_str=N
                 continue
             iseq = annotation['unique_ids'].index(node.taxon.label)
             node.multiplicity = len(annotation['duplicates'][iseq]) + 1
-        if len(missing_from_annotation) > 0:
+        if debug and len(missing_from_annotation) > 0:  # these should mostly/all be internal nodes that were inferred by the phylogenetic method
             print '  %s %d nodes in tree missing from annotation: %s' % (utils.color('yellow', 'note'), len(missing_from_annotation), ' '.join(missing_from_annotation))
 
     if naive_seq_name is not None:  # not really sure if there's a reason to do this
@@ -729,7 +732,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
 
     # get tree and calculate metrics for inferred lines
     n_clusters_calculated, n_skipped = 0, 0
-    print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(sorted([str(len(l['unique_ids'])) for l in lines_to_use], reverse=True)))
+    print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(str(l) for l in sorted([len(l['unique_ids']) for l in lines_to_use], reverse=True)))
     for line in lines_to_use:
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
             n_skipped += 1
@@ -747,7 +750,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
             line['tree-info']['lonr'] = lonr_info
         elif cpath is not None and not use_true_clusters:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work
-            print '    making cpath tree'
+            # print '    making cpath tree'
             i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])  # if this fails, the cpath and lines_to_use are out of sync (which I think shouldn't happen?)
             cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True)
             dtree = cpath.trees[i_only_cluster]  # as we go through the loop, the <cpath> is presumably filling all of these in
@@ -763,9 +766,9 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
     if base_plotdir is not None:
         import plotting
         inf_plotdir = base_plotdir + '/inferred-tree-metrics'
-        utils.prep_dir(inf_plotdir, wildlings=['*.svg'])
-        plotting.plot_inferred_lbi(inf_plotdir, lines_to_use)
-        plotting.make_html(inf_plotdir)
+        utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=lb_metrics.keys())
+        fnames = plotting.plot_inferred_lb_values(inf_plotdir, lines_to_use, min_tree_metric_cluster_size)
+        plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
 
     if reco_info is not None:
         # calculate lb values for true lines
@@ -781,9 +784,9 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
                 import plotting
                 true_plotdir = base_plotdir + '/true-tree-metrics'
                 utils.prep_dir(true_plotdir, wildlings=['*.svg'])
-                for lb_letter, lb_label in (('i', 'index'), ('r', 'ratio')):
-                    plotting.plot_true_lb(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
-                    plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, 'lb%s' % lb_letter, 'local branching %s' % lb_label)
+                for lb_metric, lb_label in lb_metrics.items():
+                    plotting.plot_true_lb(true_plotdir, true_lines_to_use, lb_metrics, lb_label)
+                    plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, lb_metrics, lb_label)
                 # plotting.plot_per_mutation_lonr(xxx base_plotdir + '/lonr', lines_to_use, reco_info)
                 # plotting.plot_aggregate_lonr(xxx base_plotdir + '/lonr', lines_to_use, reco_info)
                 plotting.make_html(true_plotdir, n_columns=4)

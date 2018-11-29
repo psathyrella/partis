@@ -1186,19 +1186,56 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr):
     make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
-def plot_inferred_lbi(plotdir, lines_to_use):
-    fig, ax = mpl_init()
+def plot_inferred_lb_values(baseplotdir, lines_to_use, min_tree_metric_cluster_size):
+    sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
 
-    plotvals = {'lbi' : [], 'shm' : []}
-    for line in lines_to_use:
-        lbi_info = line['tree-info']['lb']['lbi']
-        for iseq, uid in enumerate(line['unique_ids']):
-            plotvals['lbi'].append(lbi_info[uid])
-            plotvals['shm'].append(line['n_mutations'][iseq])
+    # get depth/n_mutations for each node
+    plotvals = {x : [] for x in ['shm'] + treeutils.lb_metrics.keys()}
+    for line in sorted_lines:
+        dtree = treeutils.get_dendro_tree(treestr=line['tree-info']['lb']['tree'])
+        n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
+        max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
+        for node in dtree.preorder_node_iter():
+            tree_depth = node.distance_from_root()
+            if node.taxon.label in line['unique_ids']:
+                n_muted = line['n_mutations'][line['unique_ids'].index(node.taxon.label)]
+                # nmstr = '%4d' % n_muted
+            else:
+                n_muted = tree_depth * n_max_mutes / float(max_depth)
+                # nmstr = '%6.1f' % n_muted
+            # print '    %8.3f   %s' % (tree_depth, nmstr)
+            for lb_metric in treeutils.lb_metrics:
+                plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
+            plotvals['shm'].append(n_muted)
 
-    ax.scatter(plotvals['shm'], plotvals['lbi'], alpha=0.4)
-    plotname = 'lbi-vs-shm'
-    mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel='local branching index')
+    fnames = [[]]
+    for lb_metric, lb_label in treeutils.lb_metrics.items():
+        fig, ax = mpl_init()
+        ax.scatter(plotvals['shm'], plotvals[lb_metric], alpha=0.4)
+        plotname = '%s-vs-shm' % lb_metric
+        fnames[-1].append('%s/%s.svg' % (baseplotdir, plotname))
+        mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric)
+
+    n_per_row = 4
+    for lb_metric, lb_label in treeutils.lb_metrics.items():
+        plotdir = baseplotdir + '/' + lb_metric
+        utils.prep_dir(plotdir, wildlings=['*.svg'])
+        fnames.append([])
+        for iclust, line in enumerate(sorted_lines):
+            if len(line['unique_ids']) < min_tree_metric_cluster_size:
+                continue
+            plotvals = line['tree-info']['lb'][lb_metric].values()
+            hist = Hist(30, min(plotvals), max(plotvals), value_list=plotvals)
+            fig, ax = mpl_init()
+            hist.mpl_plot(ax)
+            # ax.text(0.45 * ax.get_xlim()[1], 0.85 * ax.get_ylim()[1], 'size %d' % len(line['unique_ids']), fontsize=17, color='red', fontweight='bold')  # omfg this is impossible to get in the right place
+            plotname = '%s-%d' % (lb_metric, iclust)
+            mpl_finish(ax, plotdir, plotname, xlabel=lb_label, ylabel='counts', log='', title='%s  (size %d)' % (lb_metric, len(line['unique_ids'])))
+            if iclust < n_per_row:
+                fnames[-1].append('%s/%s.svg' % (plotdir, plotname))
+            make_html(plotdir)
+
+    return fnames
 
 # ----------------------------------------------------------------------------------------
 def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):

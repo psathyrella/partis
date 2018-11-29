@@ -11,6 +11,7 @@ class Hist(object):
         self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
         if fname is None:
+            assert xmin is not None and xmax is not None
             self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
         else:
             self.file_init(fname)
