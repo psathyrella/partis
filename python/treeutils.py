@@ -732,6 +732,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
 
     # get tree and calculate metrics for inferred lines
     n_clusters_calculated, n_skipped = 0, 0
+    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
     print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(str(l) for l in sorted([len(l['unique_ids']) for l in lines_to_use], reverse=True)))
     for line in lines_to_use:
         if len(line['unique_ids']) < min_tree_metric_cluster_size:
@@ -743,25 +744,27 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
         # figure out where the tree's supposed to come from
         line['tree-info'] = {}
         if treefname is not None:
-            print '    reading tree from %s' % treefname
             dtree = get_dendro_tree(treefname=treefname, debug=debug)
+            tree_origin_counts['treefname']['count'] += 1
         elif use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
             lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
             line['tree-info']['lonr'] = lonr_info
+            tree_origin_counts['lonr']['count'] += 1
         elif cpath is not None and not use_true_clusters:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work
-            # print '    making cpath tree'
             i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])  # if this fails, the cpath and lines_to_use are out of sync (which I think shouldn't happen?)
             cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True)
             dtree = cpath.trees[i_only_cluster]  # as we go through the loop, the <cpath> is presumably filling all of these in
+            tree_origin_counts['cpath']['count'] += 1
         else:
-            print '    running fasttree on each cluster'
             seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
             dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
+            tree_origin_counts['fasttree']['count'] += 1
         line['tree-info']['lb'] = calculate_lb_values(line, dtree, lb_tau, extra_str='inf tree', debug=debug)
         n_clusters_calculated += 1
 
     print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
+    print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
 
     if base_plotdir is not None:
         import plotting
