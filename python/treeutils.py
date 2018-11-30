@@ -694,7 +694,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, affy_info=None, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -731,15 +731,18 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
                 true_lines_to_use.append(true_line)
 
     # get tree and calculate metrics for inferred lines
-    n_clusters_calculated, n_skipped = 0, 0
+    n_skipped = len([l for l in lines_to_use if len(l['unique_ids']) < min_tree_metric_cluster_size])
+    n_already_there = 0
+    lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-    print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(str(l) for l in sorted([len(l['unique_ids']) for l in lines_to_use], reverse=True)))
+    print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+    print '    skipping %d smaller than %d' % (n_skipped, min_tree_metric_cluster_size)
     for line in lines_to_use:
-        if len(line['unique_ids']) < min_tree_metric_cluster_size:
-            n_skipped += 1
-            continue
         if debug:
             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
+        if 'tree-info' in line:
+            n_already_there += 1
+            continue
 
         # figure out where the tree's supposed to come from
         line['tree-info'] = {}
@@ -761,16 +764,15 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
             dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
             tree_origin_counts['fasttree']['count'] += 1
         line['tree-info']['lb'] = calculate_lb_values(line, dtree, lb_tau, extra_str='inf tree', debug=debug)
-        n_clusters_calculated += 1
-
-    print '  calculated tree metrics for %d cluster%s (skipped %d smaller than %d)' % (n_clusters_calculated, utils.plural(n_clusters_calculated), n_skipped, min_tree_metric_cluster_size)
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
+    if n_already_there > 0:
+        print '      skipped %d / %d that already had tree info' % (n_already_there, len(lines_to_use))
 
     if base_plotdir is not None:
         import plotting
         inf_plotdir = base_plotdir + '/inferred-tree-metrics'
-        utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=lb_metrics.keys())
-        fnames = plotting.plot_inferred_lb_values(inf_plotdir, lines_to_use, min_tree_metric_cluster_size)
+        utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + '-vs-affinity' for m in lb_metrics] + lb_metrics.keys())
+        fnames = plotting.plot_inferred_lb_values(inf_plotdir, lines_to_use, affy_info=affy_info)
         plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
 
     if reco_info is not None:

@@ -1,3 +1,4 @@
+import yaml
 import json
 import numpy
 import time
@@ -288,8 +289,12 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def calculate_tree_metrics(self, annotations, cpath=None):
+        affy_info = None
+        if self.args.affinity_fname is not None:
+            with open(self.args.affinity_fname) as affyfile:
+                affy_info = yaml.load(affyfile)
         treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, self.args.lb_tau, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
-                                         use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir)
+                                         use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, affy_info=affy_info)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_lines, ignore_args_dot_queries=False, process_csv=False):

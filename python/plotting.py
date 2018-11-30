@@ -1186,7 +1186,7 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr):
     make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
-def plot_inferred_lb_values(baseplotdir, lines_to_use, min_tree_metric_cluster_size):
+def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
     sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
 
     # get depth/n_mutations for each node
@@ -1214,7 +1214,7 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, min_tree_metric_cluster_s
         ax.scatter(plotvals['shm'], plotvals[lb_metric], alpha=0.4)
         plotname = '%s-vs-shm' % lb_metric
         fnames[-1].append('%s/%s.svg' % (baseplotdir, plotname))
-        mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric)
+        mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper())
 
     n_per_row = 4
     for lb_metric, lb_label in treeutils.lb_metrics.items():
@@ -1222,20 +1222,51 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, min_tree_metric_cluster_s
         utils.prep_dir(plotdir, wildlings=['*.svg'])
         fnames.append([])
         for iclust, line in enumerate(sorted_lines):
-            if len(line['unique_ids']) < min_tree_metric_cluster_size:
-                continue
             plotvals = line['tree-info']['lb'][lb_metric].values()
-            hist = Hist(30, min(plotvals), max(plotvals), value_list=plotvals)
+            leafskipstr = ''
+            if lb_metric == 'lbr':
+                plotvals = [v for v in plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable
+                leafskipstr = ', skipped %d leaves' % len([v for v in line['tree-info']['lb'][lb_metric].values() if v == 0.])  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
+            hist = Hist(30, 0., max(plotvals), value_list=plotvals)
             fig, ax = mpl_init()
-            hist.mpl_plot(ax)
+            hist.mpl_plot(ax) #, square_bins=True, errors=False)
             # ax.text(0.45 * ax.get_xlim()[1], 0.85 * ax.get_ylim()[1], 'size %d' % len(line['unique_ids']), fontsize=17, color='red', fontweight='bold')  # omfg this is impossible to get in the right place
             plotname = '%s-%d' % (lb_metric, iclust)
-            mpl_finish(ax, plotdir, plotname, xlabel=lb_label, ylabel='counts', log='', title='%s  (size %d)' % (lb_metric, len(line['unique_ids'])))
+            mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y' if lb_metric == 'lbr' else '', ylabel='counts', title='%s  (size %d%s)' % (lb_metric.upper(), len(line['unique_ids']), leafskipstr))
             if iclust < n_per_row:
                 fnames[-1].append('%s/%s.svg' % (plotdir, plotname))
             make_html(plotdir)
 
+    fnames.append([])
+    if affy_info is not None:
+        for lb_metric, lb_label in treeutils.lb_metrics.items():
+            lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}
+            for iclust, line in enumerate(sorted_lines):
+                for uid in [u for u in affy_info if u in line['unique_ids']]:
+                    lb_vs_affinity_vals['affinity'].append(affy_info[uid])
+                    lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+                if len(lb_vs_affinity_vals['affinity']) > 0:
+                    fn = plot_lb_vs_affy('iclust-%d' % iclust, '%s/%s-vs-affinity' % (baseplotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, lb_metric.upper())
+                    fnames[-1].append(fn)
+        if len(fnames[-1]) == 0:
+            print '  %s no affinity values for sequences in lines_to_use' % utils.color('yellow', 'warning')
+            fnames.pop(-1)
+
     return fnames
+
+# ----------------------------------------------------------------------------------------
+def plot_lb_vs_affy(plotname, plotdir, plotvals, lb_metric, lb_label, title):
+    if len(plotvals['affinity']) == 0:
+        # print '    no %s vs affy info' % lb_metric
+        return
+    fig, ax = mpl_init()
+    # cmap, norm = get_normalized_cmap_and_norm()
+    # ax.hexbin(plotvals['affinity'], plotvals[lb_metric], gridsize=15, cmap=plt.cm.Blues)
+    sorted_xvals = sorted(plotvals['affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
+    xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
+    ax.scatter(plotvals['affinity'], plotvals[lb_metric], alpha=0.4)
+    mpl_finish(ax, plotdir, plotname, title=title, xlabel='affinity', ylabel=lb_label, xbounds=(0.95 * xmin, 1.05 * xmax))  # factor on <xmin> is only right if xmin is positive, but it should always be
+    return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
 def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
@@ -1246,14 +1277,7 @@ def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
         for uid, affinity in zip(line['unique_ids'], line['affinities']):
             lb_vs_affinity_vals['affinity'].append(affinity)
             lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
-    fig, ax = mpl_init()
-    # cmap, norm = get_normalized_cmap_and_norm()
-    # ax.hexbin(lb_vs_affinity_vals['affinity'], lb_vs_affinity_vals[lb_metric], gridsize=15, cmap=plt.cm.Blues)
-    sorted_xvals = sorted(lb_vs_affinity_vals['affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
-    xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
-    ax.scatter(lb_vs_affinity_vals['affinity'], lb_vs_affinity_vals[lb_metric], alpha=0.4)
-    plotname = '%s-true-tree-hexbin' % lb_metric
-    mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='affinity', ylabel=lb_label, xbounds=(0.95 * xmin, 1.05 * xmax))  # factor on <xmin> is only right if xmin is positive, but it should always be
+    plot_lb_vs_affy('%s-true-tree-hexbin' % lb_metric, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper())
 
     if debug:
         print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
