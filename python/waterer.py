@@ -1231,59 +1231,54 @@ class Waterer(object):
                             print '      using keyseq from %s instead of %s' % (kuids, uid)
                         return kseq
                 return seq  # if we fall through, it didn't match anybody
+        # ----------------------------------------------------------------------------------------
+        def get_pre_kept_queries():
+            pre_kept_uids = set()
+            if self.args.seed_unique_id is not None:
+                pre_kept_uids.add(self.args.seed_unique_id)
+            if self.args.queries is not None:
+                pre_kept_uids |= set(self.args.queries)
+            if self.args.queries_to_include is not None:  # note that the seed seq is added to queries_to_include, which is good if we're parameter caching since seed_unique_id will be set to None
+                pre_kept_uids |= set(self.args.queries_to_include)
+            info_queries = set(self.info['queries'])
+            if len(pre_kept_uids - info_queries) > 0:
+                print '  %s %d requested uid%s not in sw info: %s' % (utils.color('yellow', 'warning'), len(pre_kept_uids - info_queries), utils.plural(len(pre_kept_uids - info_queries)), ' '.join(pre_kept_uids - info_queries))
+            pre_kept_uids &= info_queries
+            return pre_kept_uids
 
-        uids_to_pre_keep = set()  # add these uids/seqs before looping through all the queries
-        if self.args.seed_unique_id is not None:
-            uids_to_pre_keep.add(self.args.seed_unique_id)
-        if self.args.queries is not None:
-            uids_to_pre_keep |= set(self.args.queries)
-        if self.args.queries_to_include is not None:  # note that the seed seq is added to queries_to_include, which is good if we're parameter caching since seed_unique_id will be set to None
-            uids_to_pre_keep |= set(self.args.queries_to_include)
-
-        if debug and len(uids_to_pre_keep) > 0:
-            print 'pre-keeping %s' % ' '.join(uids_to_pre_keep)
-            print '  checking pre-keepers'
         seqs_to_keep = {}  # seq : [uids that correspond to seq]
-        for utpk in uids_to_pre_keep:
-            if utpk not in self.info:
-                print 'requested uid %s not in sw info (probably failed above)' % utpk
-                continue
-            keyseq = get_key_seq(utpk)
-            if keyseq not in seqs_to_keep:  # NOTE it's kind of weird to have more than one uid for a sequence, but it probably just means the user specified some duplicate sequences with --queries
-                seqs_to_keep[keyseq] = []
-                if debug:
-                    print '      new key for %s' % utpk
-            seqs_to_keep[keyseq].append(utpk)
-            if debug:
-                if len(seqs_to_keep[keyseq]) > 1:
-                    print '    add to existing key: %s' % ' '.join(seqs_to_keep[keyseq])
 
-        if debug:
-            print '  checking non-pre-kept'
-        n_kept, n_removed = len(uids_to_pre_keep), 0
-        for uid in copy.deepcopy(self.info['queries']):
-            if uid in uids_to_pre_keep:
-                continue
+        # handle any pre-kept queries, just adding any duplicates to the appropriate list in <seqs_to_keep> *without* actually removing the duplicates
+        pre_kept_uids = get_pre_kept_queries()
+        for utpk in pre_kept_uids:
+            keyseq = get_key_seq(utpk)
+            if keyseq not in seqs_to_keep:  # it's kind of weird to have duplicates in the pre-kept sequences, but it probably just means the user specified some duplicate sequences with --queries or --queries-to-include
+                seqs_to_keep[keyseq] = []
+            seqs_to_keep[keyseq].append(utpk)
+        if debug and len(pre_kept_uids) > 0:
+            print '  pre-keeping %d uids: %s' % (len(pre_kept_uids), ' '.join(pre_kept_uids))
+            if len(seqs_to_keep) < len(pre_kept_uids):
+                print '     note: duplicate sequences in pre-kept queries: %s' % ',   '.join(' '.join(uids) for uids in seqs_to_keep.values() if len(uids) > 1)
+
+        removed_queries = set()
+        for uid in set(self.info['queries']) - pre_kept_uids:
             keyseq = get_key_seq(uid)
             if keyseq in seqs_to_keep:
                 seqs_to_keep[keyseq].append(uid)
                 self.remove_query(uid)
-                n_removed += 1
-                if debug:
-                    print '    removing %s' % uid
+                removed_queries.add(uid)
             else:
                 seqs_to_keep[keyseq] = [uid]
-                n_kept += 1
-                if debug:
-                    print '    new key for %s' % uid
 
         for seq, uids in seqs_to_keep.items():
-            assert uids[0] in self.info  # the first one should've been the one we kept
-            self.info[uids[0]]['duplicates'][0] = list(set(self.info[uids[0]]['duplicates'][0] + uids[1:]))  # this is wasteful (and overly verbose), but I just want to hack in a way to remove the duplicated duplicates (I think they're sneaking in from multiple waterer runs) without screwing anything up
-            self.duplicates[uids[0]] = self.info[uids[0]]['duplicates'][0]  # just copies over from previous line. Note that <self.duplicates> is really just so partitiondriver can pass in previous duplicates, but then now that we have the information in two places we need to keep it synchronized
+            kept_uid = uids[0]
+            previous_duplicates = set(self.info[kept_uid]['duplicates'][0])  # probably from previous waterer run
+            new_duplicates = set(uids[1:]) - pre_kept_uids  # don't actually add as duplicates uids that are in <pre_kept_uids>, since these will not have been removed from <self.info>
+            self.info[kept_uid]['duplicates'][0] = list(previous_duplicates | new_duplicates)
+            self.duplicates[kept_uid] = self.info[kept_uid]['duplicates'][0]  # copy info from previous line to <self.duplicates>, which is just so partitiondriver can pass in previous duplicates, and yes having the info in two places is dumb
 
-        if n_removed > 0:
-            print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (n_removed, n_removed + n_kept, n_removed / float(n_removed + n_kept), len(self.info['queries']))
+        if len(removed_queries) > 0:
+            print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (len(removed_queries), len(removed_queries) + len(self.info['queries']), len(removed_queries) / float(len(removed_queries) + len(self.info['queries'])), len(self.info['queries']))
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
