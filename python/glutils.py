@@ -119,13 +119,13 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         print ''
 
 #----------------------------------------------------------------------------------------
-def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, functionalities=None):
+def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, functionalities=None, add_dummy_name_components=False, locus=None, region=None):
     n_skipped_pseudogenes, n_skipped_orfs = 0, 0
     seq_to_gene_map = {}
     for seqfo in utils.read_fastx(fname):
         functy = None
         # first get gene name
-        if seqfo['name'][:2] != 'IG' and seqfo['name'][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+        if (not add_dummy_name_components) and seqfo['name'][:2] != 'IG' and seqfo['name'][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
             if len(seqfo['infostrs']) < len(imgt_info_indices):
                 raise Exception('info str %s is too short (len %d) to correspond to imgt info indices %s (len %d)' % (seqfo['infostrs'], len(seqfo['infostrs']), imgt_info_indices, len(imgt_info_indices)))
             gene = seqfo['infostrs'][imgt_info_indices.index('gene')]
@@ -140,6 +140,8 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, fun
                 continue
         else:  # plain fasta with just the gene name after the '>'
             gene = seqfo['name']
+        if add_dummy_name_components:
+            gene = utils.construct_valid_gene_name(gene, locus=locus, region=region)
         utils.split_gene(gene)  # just to check if it's a valid gene name
         if not aligned and utils.get_region(gene) != utils.get_region(os.path.basename(fname)):  # if <aligned> is True, file name is expected to be whatever
             raise Exception('gene %s from %s has unexpected region %s' % (gene, os.path.basename(fname), utils.get_region(gene)))
@@ -178,10 +180,10 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, fun
         print '    skipped %d %s orfs (leaving %d genes)' % (n_skipped_orfs, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
 
 #----------------------------------------------------------------------------------------
-def read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities):
+def read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities, add_dummy_name_components=False):
     seqs = {r : OrderedDict() for r in utils.regions}
     for region in utils.getregions(locus):
-        read_fasta_file(seqs, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, functionalities=functionalities)
+        read_fasta_file(seqs, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, functionalities=functionalities, add_dummy_name_components=add_dummy_name_components, locus=locus, region=region)
     if not utils.has_d_gene(locus):  # choose a sequence for the dummy d
         seqs['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
     return seqs
@@ -522,7 +524,7 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate
                     print '    %s%s    %s      %s' % (' ' * leftpad, utils.color_mutants(cons_seq, seqfo['seq'], align=align, emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------
-def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
+def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, add_dummy_name_components=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
     # NOTE <skip_pseudogenes> and <skip_orfs> only have an effect with just-downloaded imgt files (otherwise we don't in general have the functionality info)
     if not os.path.exists(gldir + '/' + locus):  # NOTE doesn't re-link it if we already made the link before
         if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
@@ -534,7 +536,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
     if debug:
         print '  reading %s locus glfo from %s' % (locus, gldir)
     glfo = {'locus' : locus, 'functionalities' : {}}
-    glfo['seqs'] = read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities=glfo['functionalities'])
+    glfo['seqs'] = read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities=glfo['functionalities'], add_dummy_name_components=add_dummy_name_components)
     read_extra_info(glfo, gldir)
     get_missing_codon_info(glfo, template_glfo=template_glfo, remove_bad_genes=remove_bad_genes, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)

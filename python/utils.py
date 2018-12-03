@@ -1460,6 +1460,36 @@ def are_alleles(gene1, gene2):
     return primary_version(gene1) == primary_version(gene2) and sub_version(gene1) == sub_version(gene2)
 
 # ----------------------------------------------------------------------------------------
+def construct_valid_gene_name(gene, locus=None, region=None, debug=False):  # kind of duplicates too much of split_gene(), but I don't want to rewrite split_gene() to be robust to all the ways a gene name can be broken
+    try:  # if it's ok, don't do anything
+        split_gene(gene)
+        return gene
+    except:
+        pass
+
+    if debug:
+        initial_name = gene
+
+    if len(gene) < 4 or gene[:3].lower() not in loci or gene[3].lower() not in regions:
+        if locus is not None or region is not None:
+            gene = locus.upper() + region.upper() + gene  # just tack (e.g.) 'IGHV' on the fron of whatever crap was originall there
+        else:
+            raise Exception('gene name %s doesn\'t have locus/region info, and it wasn\'t passed to us' % gene)
+
+    if debug:
+        middle_name = gene
+
+    if gene.count('*') == 0:
+        gene = gene + '*x'
+    elif gene.count('*') > 1:
+        gene = gene.replace('*', '.s.') + '*x'
+
+    if debug:
+        print '  %-25s  -->  %-25s  --> %-25s' % (initial_name, middle_name if middle_name != initial_name else '-', gene if gene != middle_name else '-')
+
+    return gene
+
+# ----------------------------------------------------------------------------------------
 def split_gene(gene):
     """ returns (primary version, sub version, allele) """
     # make sure {IG,TR}{[HKL],[abgd]}[VDJ] is at the start, and there's a *
