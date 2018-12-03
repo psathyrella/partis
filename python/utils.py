@@ -2096,6 +2096,9 @@ def get_line_for_output(headers, info, glfo=None):
         else:
             outfo[key] = str_fcn(outfo[key])
 
+        # if key == 'tree':  # if this is commented, the newick tree strings get written with trailing newline, which looks weird when you look at the .csv by hand, but otherwise works just fine
+        #     outfo[key] = outfo[key].strip()
+
     return outfo
 
 # ----------------------------------------------------------------------------------------
