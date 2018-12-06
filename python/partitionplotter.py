@@ -449,8 +449,8 @@ class PartitionPlotter(object):
                 # print '      %4d%6s' % (len(seqfos) - 1 + n_naive_in_cluster, subset_str),
                 print '      %4d%6s' % (len(seqfos), subset_str),
 
-            mds.bios2mds_kmeans_cluster(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
-                                        queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
+            mds.run_bios2mds(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
+                             queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
             self.addfname(fnames, '%s' % get_fname(iclust))
 
             if debug:
@@ -546,7 +546,7 @@ class PartitionPlotter(object):
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info) #, color_rule='wtf')
-            fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
+            # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         if not self.args.only_csv_plots:

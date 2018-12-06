@@ -31,4 +31,4 @@ for iseq in range(len(seqfos)):
     seqfos[iseq]['name'] = str(iseq)
 
 # mds.run_sklearn_mds(args.n_components, args.n_clusters, seqfos, args.seed, plotdir=args.plotdir)
-mds.bios2mds_kmeans_cluster(args.n_components, args.n_clusters, seqfos, args.workdir, args.seed, plotdir=args.plotdir)
+mds.run_bios2mds(args.n_components, args.n_clusters, seqfos, args.workdir, args.seed, plotdir=args.plotdir)

@@ -158,9 +158,9 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         plot_component_pair(ipair, '%s/%s%s.svg' % (plotdir, plotname, pcstr), color_map)
 
 # ----------------------------------------------------------------------------------------
-def bios2mds_kmeans_cluster(n_components, n_clusters, seqfos, base_workdir, seed, aligned=False, reco_info=None, region=None,
-                            max_runs=100, max_iterations=1000, method='euclidean',
-                            plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, labels=None, title=None, debug=False):
+def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=False, reco_info=None, region=None,
+                 max_runs=100, max_iterations=1000, method='euclidean',
+                 plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, labels=None, title=None, debug=False):
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
     mdsfname = workdir + '/components.txt'
