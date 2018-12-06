@@ -442,7 +442,8 @@ class PartitionPlotter(object):
 
         if debug:
             print '  making mds plots starting with %d clusters' % len(sorted_clusters)
-            print '       size (+naive)   mds    plot   total'
+            if not run_in_parallel:
+                print '       size (+naive)   mds    plot   total'
         skipped_cluster_lengths = []
         fnames = [[]]
         cmdfos = []
@@ -459,7 +460,7 @@ class PartitionPlotter(object):
                 # print '   %s setting color_scale_vals to None so we can use colors for nearest target seq index' % utils.color('red', 'note')
                 color_scale_vals = None  # not sure this is really the best way to do this
 
-            if debug:
+            if debug and not run_in_parallel:
                 start = time.time()
                 subset_str = '' if len(sorted_clusters[iclust]) <= max_cluster_size else utils.color('red', '/%d' % len(sorted_clusters[iclust]), width=6, padside='right')  # -1 is for the added naive seq
                 tmpfo = annotations[':'.join(sorted_clusters[iclust])]
@@ -472,9 +473,8 @@ class PartitionPlotter(object):
             else:
                 mds.run_bios2mds(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
                                  queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
-            if debug:
-                print '  %5.1f' % (time.time() - start)
-
+                if debug:
+                    print '  %5.1f' % (time.time() - start)
             self.addfname(fnames, '%s' % get_fname(iclust))
 
         if run_in_parallel:
@@ -576,4 +576,4 @@ class PartitionPlotter(object):
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds']])  # , 'sfs
 
-        print '(%.1f sec)' % (time.time()-start)
+        print '   time: %.1f sec' % (time.time()-start)
