@@ -153,7 +153,7 @@ class Tester(object):
             argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[ptest]]
 
         if '--plotdir' in argfo['extras']:
-            argfo['extras'] += ['--only-csv-plots', '--only-overall-plots']
+            argfo['extras'] += ['--only-csv-plots']
 
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):

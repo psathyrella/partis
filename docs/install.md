@@ -51,7 +51,7 @@ If you want to run the `simulate` action, partis needs some tree-related R packa
 ```
 conda install -y r-essentials
 unset R_LIBS_SITE
-R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "bios2mds"), repos="http://cran.rstudio.com/")'
+R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM"), repos="http://cran.rstudio.com/")'
 ```
 
 note that the above ^ process will likely screw up environment variables related to where your system looks for gcc, so after running this in a terminal you'll likely need to specify full paths.

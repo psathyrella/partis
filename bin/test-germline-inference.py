@@ -122,7 +122,7 @@ def run_performance_plot(args, method):
     cmd_str += ' --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'
     cmd_str += ' --initial-germline-dir ' + get_outfname(args, method, return_parent_gl_dir=True)  # i.e. use the inferred glfo from <method>
     cmd_str += ' --parameter-dir ' + perf_outdir + '/dummy-parameter-dir'
-    cmd_str += ' --only-overall-plots --plotdir ' + perf_outdir
+    cmd_str += ' --plotdir ' + perf_outdir
     cmd_str += ' --only-smith-waterman --leave-default-germline --dont-write-parameters'  # i.e. we really want to annotate, not cache parameters, but then it'd look for a parameter dir
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.n_max_queries is not None:
@@ -179,7 +179,7 @@ def run_partis_parameter_cache(args, method):
         cmd_str += ' --initial-germline-dir ' + args.inf_glfo_dir  # --dont-remove-unlikely-alleles
 
     cmd_str += ' --parameter-dir ' + paramdir
-    cmd_str += ' --only-overall-plots --plotdir ' + plotdir
+    cmd_str += ' --plotdir ' + plotdir
     if args.seed is not None:
         cmd_str += ' --seed ' + str(args.seed)
     if args.plot_and_fit_absolutely_everything is not None:

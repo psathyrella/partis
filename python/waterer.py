@@ -251,7 +251,7 @@ class Waterer(object):
 
         if self.count_parameters:
             if self.args.plotdir is not None:
-                pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots, only_overall=self.args.only_overall_plots)
+                pcounter.plot(self.args.plotdir + '/sw', only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots)
             if self.parameter_out_dir is not None and not self.args.dont_write_parameters:
                 pcounter.write(self.parameter_out_dir)
 
