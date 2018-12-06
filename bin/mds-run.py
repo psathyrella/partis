@@ -1,17 +1,7 @@
 #!/usr/bin/env python
-import string
 import sys
-import scipy
-import numpy as np
 import argparse
 import random
-
-from matplotlib import pyplot as plt
-
-from sklearn import manifold
-from sklearn.metrics import euclidean_distances
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
 
 sys.path.insert(0, 'python')
 import utils
@@ -19,16 +9,24 @@ import mds
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--n-clusters', type=int, required=True)
+parser.add_argument('infname')
+parser.add_argument('--n-clusters', type=int)  # if not set, it just runs mds (i.e. without k-means clustering)
 parser.add_argument('--n-components', type=int, default=2)
 parser.add_argument('--plotdir')
+parser.add_argument('--plotname')
+parser.add_argument('--queries-to-include')
 parser.add_argument('--workdir', default='/tmp/dralph/mds/' + str(random.randint(0, 999999)))
 parser.add_argument('--seed', type=int, default=1)
 args = parser.parse_args()
+args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 
-seqfos = utils.read_fastx('v-qr.fa', n_max_queries=500)
-for iseq in range(len(seqfos)):
-    seqfos[iseq]['name'] = str(iseq)
+seqfos = utils.read_fastx(args.infname)
+color_scale_vals = {}
+for sfo in seqfos:
+    if len(sfo['infostrs']) == 2:
+        color_scale_vals[sfo['name']] = int(sfo['infostrs'][1])
+if len(color_scale_vals) == 0:
+    color_scale_vals = None
 
 # mds.run_sklearn_mds(args.n_components, args.n_clusters, seqfos, args.seed, plotdir=args.plotdir)
-mds.run_bios2mds(args.n_components, args.n_clusters, seqfos, args.workdir, args.seed, plotdir=args.plotdir)
+mds.run_bios2mds(args.n_components, args.n_clusters, seqfos, args.workdir, args.seed, plotdir=args.plotdir, plotname=args.plotname, queries_to_include=args.queries_to_include)

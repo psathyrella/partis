@@ -1,3 +1,4 @@
+import os
 import math
 import numpy
 import itertools
@@ -361,7 +362,7 @@ class PartitionPlotter(object):
     #     return fnames
 
     # ----------------------------------------------------------------------------------------
-    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, debug=False):
+    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, debug=False):
         debug = True
         # ----------------------------------------------------------------------------------------
         def get_fname(ic):
@@ -421,6 +422,22 @@ class PartitionPlotter(object):
             return labels
 
         # ----------------------------------------------------------------------------------------
+        def prep_cmdfo(iclust, seqfos, queries_to_include, color_scale_vals):
+            subworkdir = '%s/mds-%d' % (self.args.workdir, iclust)
+            utils.prep_dir(subworkdir)
+            tmpfname = '%s/seqs.fa' % subworkdir
+            with open(tmpfname, 'w') as tmpfile:
+                for sfo in seqfos:
+                    csval = None
+                    if sfo['name'] in color_scale_vals:
+                        csval = color_scale_vals[sfo['name']]
+                    tmpfile.write('>%s%s\n%s\n' % (sfo['name'], (' %d' % csval) if csval is not None else '' , sfo['seq']))
+            cmdstr = './bin/mds-run.py %s --plotdir %s --plotname %s --workdir %s --seed %d' % (tmpfname, plotdir, get_fname(iclust), subworkdir, self.args.seed)
+            if queries_to_include is not None:
+                cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
+            return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : '%s/%s.svg' % (plotdir, get_fname(iclust)), 'infname' : tmpfname}
+
+        # ----------------------------------------------------------------------------------------
         subd, plotdir = self.init_subd('mds', base_plotdir)
 
         if debug:
@@ -428,6 +445,7 @@ class PartitionPlotter(object):
             print '       size (+naive)   mds    plot   total'
         skipped_cluster_lengths = []
         fnames = [[]]
+        cmdfos = []
         for iclust in range(len(sorted_clusters)):
             if not self.plot_this_cluster(sorted_clusters, iclust):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
@@ -449,12 +467,18 @@ class PartitionPlotter(object):
                 # print '      %4d%6s' % (len(seqfos) - 1 + n_naive_in_cluster, subset_str),
                 print '      %4d%6s' % (len(seqfos), subset_str),
 
-            mds.run_bios2mds(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
-                             queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
-            self.addfname(fnames, '%s' % get_fname(iclust))
-
+            if run_in_parallel:
+                cmdfos.append(prep_cmdfo(iclust, seqfos, queries_to_include, color_scale_vals))
+            else:
+                mds.run_bios2mds(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed, aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
+                                 queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
             if debug:
                 print '  %5.1f' % (time.time() - start)
+
+            self.addfname(fnames, '%s' % get_fname(iclust))
+
+        if run_in_parallel:
+            utils.run_cmds(cmdfos, clean_on_success=True)  # , debug='print')
 
         if debug and len(skipped_cluster_lengths) > 0:
             print '    skipped %d clusters with lengths: %s (+%d singletons)' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths if l > 1]), skipped_cluster_lengths.count(1))
@@ -545,11 +569,11 @@ class PartitionPlotter(object):
             self.remove_failed_clusters(partition, annotations)
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
-            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info) #, color_rule='wtf')
+            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
             # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         if not self.args.only_csv_plots:
-            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds', 'sfs']])
+            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds']])  # , 'sfs
 
         print '(%.1f sec)' % (time.time()-start)

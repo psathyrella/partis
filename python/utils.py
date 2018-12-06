@@ -2545,7 +2545,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None):  # set sleep to False if your commands are going to run really really really quickly
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None, clean_on_success=False):  # set sleep to False if your commands are going to run really really really quickly
     if n_max_tries is None:
         n_max_tries = 1 if batch_system is None else 3
     prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
@@ -2561,7 +2561,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr)
+                finish_process(iproc, procs, n_tries, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success)
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
@@ -2602,7 +2602,7 @@ def get_slurm_node(errfname):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False):
+def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False, clean_on_success=False):
     procs[iproc].communicate()
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
@@ -2611,6 +2611,11 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
         if os.path.exists(cmdfo['outfname']):
             process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug, ignore_stderr=ignore_stderr)
             procs[iproc] = None  # job succeeded
+            if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
+                if 'infname' in cmdfo and os.path.exists(cmdfo['infname']):
+                    os.remove(cmdfo['infname'])
+                if os.path.isdir(cmdfo['workdir']):
+                    os.rmdir(cmdfo['workdir'])
             return
 
     # handle failure
