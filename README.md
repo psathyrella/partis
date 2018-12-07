@@ -5,7 +5,7 @@ It is built on top of the [ham](https://github.com/psathyrella/ham) HMM compiler
 
 * [manual](https://github.com/psathyrella/partis/blob/master/manual.md)
 * [docker image](https://hub.docker.com/r/psathyrella/partis/)
-* [support forum](https://groups.google.com/forum/#!forum/partis)
+* [support forum](https://groups.google.com/forum/#!forum/partis) subscribe to this for (very occasional) updates when something important gets changed
 
 It is described in the following papers:
 
