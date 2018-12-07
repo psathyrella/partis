@@ -1,9 +1,12 @@
-### output format
+### output file formatting
 
   * [output file overview](#output-file-overview)
   * [description of keys](#description-of-keys)
   * [output file example](#output-file-example)
 
+### writing default plots
+
+  * [default plots](#default-plots)
 
 All output is written to a unified yaml file (for documentation on the old csv formats, see [here](https://github.com/psathyrella/partis/blob/9d78600ba6b7d511825f27724de1f8e937a5ada3/docs/output-formats.md)).
 The `annotate` action writes annotations for each single sequence in the input.
@@ -191,3 +194,30 @@ events:
   - - [IGHV4-31*10, 1.0]
   vd_insertion: ''
 ```
+
+#### default plots
+
+#  - R --vanilla --slave -e 'install.packages(c("bios2mds"), repos="http://cran.rstudio.com/")'
+
+The addition of `--plotdir <plotdir>` to most every partis command will write the variety of plots to disk that we find useful for that command.
+These plots are written as svg files organized into subdirectories, with html files displaying clickable summaries of the svgs.
+In addition, plots that are simply histograms usually also have their histogram content written to a csv in the same directory to make later comparison easier (for example with `bin/compare-plotdirs.py`).
+
+For example, adding `--plotdir <plotdir` to `cache-parameters` or `annotate` will write plots summarizing the distributions of rearrangement parameters in the sample.
+An example of this is provided with these docs: plots of repertoire-wide rearrangement parameters [here](example-plots/hmm/overall.html) (view in a browser), and repertoire-wide SHM frequencies broken down in various ways [here](example-plots/hmm/mute-freqs/overall.html).
+If you also set `--make-per-gene-plots`, similar plots will be written for each gene, for instance the per-position SHM rates and 5' deletion lengths for each V gene.
+
+An overview of the plots written for the `partition` action can be found [here](example-plots/partitions/overview.html).
+At top left is a plot showing a colored blob/slug for each clonal family (sorted by size) whose extent along the x direction shows the distribution of SHM rates within that family.
+The (zero-indexed) family rank and size are shown along the right side, and note that the three colors (green, blue, and yellow) have no separate significance, and are only to more easily separate adjacent slugs.
+This particular plot also shows the result of setting some sequences of interest using `--queries-to-include a:b:z:ac`, such that sequences labeled a, b, z, and ac will be highlighted in red.
+Only the first (with the biggest clusters) of these slug plots is shown in overview.html -- to get to the rest click the `shm-vs-size` link at top left.
+The rest of the top row is occupied by log and non-log scatter plots showing the size vs mean SHM rate for each family.
+
+Below this, there is a "multi-dimensional scaling" (MDS) plot for each clonal family, where each sequence in each family is a point on the plot
+For a better idea of what MDS is, it's better to go to the google than to try to explain here, but it's essentially an improved version of principal component analysis (PCA).
+For our purposes, MDS takes each family and squishes it out in two dimensions, choosing axes such as to maximize how squished out the family gets, while keeping relative distances between sequences the same as in the real space (where the real space is 400-odd dimensional hamming distance space, which is rather harder to visualize).
+This means that while there is no easy biological interpretation for distance in various directions, the plots do a good job of giving an idea of the basic structure of each family at a glance.
+The inferred naive sequence for each cluster is shown as a red point on these plots (as are any queries specified with `--queries-to-include`), and the SHM rate of each sequence is given by its transparency (darker is more mutated).
+The plot title shows the family's size (for comparison to the slug plots), as well as the amino acid translation of its CDR3.
+The overview html again only shows plots for the largest few clusters, while the rest can be found by following the `mds` link at the top of the page.
