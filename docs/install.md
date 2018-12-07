@@ -44,6 +44,16 @@ Once conda is installed, run the rest of the commands in the Dockerfile whose li
 In order to avoid polluting your environment, we do not automatically add partis to your path.
 Several methods of accomplishing this are described [here](subcommands.md#subcommands).
 
+#### Plotting
+
+For plotting to work with the `partition` action (i.e. if you're setting `--plotdir`), you need to install R, and a separate package
+
+```
+conda install -y r-essentials
+unset R_LIBS_SITE
+R --vanilla --slave -e 'install.packages(c("bios2mds"), repos="http://cran.rstudio.com/")'
+```
+
 #### Simulation
 
 If you want to run the `simulate` action, partis needs some tree-related R packages, which can be installed with

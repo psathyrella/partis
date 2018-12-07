@@ -23,7 +23,7 @@ Permament parameter files, on the other hand, are written to `--parameter-dir`, 
 
 The details of the output formats are described [here](output-formats.md).
 
-A variety of overview plots will be written if you set `--plotdir <plotdir`. Details regarding their content can be found [here](output-formats.md#default-plots).
+A variety of overview plots will be written to disk if you set `--plotdir <plotdir`. Details on their content can be found [here](output-formats.md#default-plots).
 
 ###### Text output and logging
   - If you're looking at partis ascii art annotation output, you'll want to make sure the ansi color codes in stdout are displayed properly:
