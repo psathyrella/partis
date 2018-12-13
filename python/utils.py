@@ -1460,7 +1460,7 @@ def are_alleles(gene1, gene2):
     return primary_version(gene1) == primary_version(gene2) and sub_version(gene1) == sub_version(gene2)
 
 # ----------------------------------------------------------------------------------------
-def construct_valid_gene_name(gene, locus=None, region=None, debug=False):  # kind of duplicates too much of split_gene(), but I don't want to rewrite split_gene() to be robust to all the ways a gene name can be broken
+def construct_valid_gene_name(gene, locus=None, region=None, default_allele_str='x', debug=False):  # kind of duplicates too much of split_gene(), but I don't want to rewrite split_gene() to be robust to all the ways a gene name can be broken
     try:  # if it's ok, don't do anything
         split_gene(gene)
         return gene
@@ -1480,9 +1480,9 @@ def construct_valid_gene_name(gene, locus=None, region=None, debug=False):  # ki
         middle_name = gene
 
     if gene.count('*') == 0:
-        gene = gene + '*x'
+        gene = gene + '*' + default_allele_str
     elif gene.count('*') > 1:
-        gene = gene.replace('*', '.s.') + '*x'
+        gene = gene.replace('*', '.s.') + '*' + default_allele_str
 
     if debug:
         print '  %-25s  -->  %-25s  --> %-25s' % (initial_name, middle_name if middle_name != initial_name else '-', gene if gene != middle_name else '-')

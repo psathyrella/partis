@@ -1,3 +1,4 @@
+import traceback
 import tempfile
 import operator
 import copy
@@ -119,13 +120,18 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         print ''
 
 #----------------------------------------------------------------------------------------
-def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, functionalities=None, add_dummy_name_components=False, locus=None, region=None):
+def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=False, add_dummy_name_components=False, locus=None, debug=False):
+    glseqs = glfo['seqs'][region]  # shorthand
     n_skipped_pseudogenes, n_skipped_orfs = 0, 0
     seq_to_gene_map = {}
+    printed_imgt_warning = False
     for seqfo in utils.read_fastx(fname):
         functy = None
         # first get gene name
         if (not add_dummy_name_components) and seqfo['name'][:2] != 'IG' and seqfo['name'][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+            if not printed_imgt_warning:
+                print '  %s couldn\'t parse gene name \'%s\' from %s, so assuming this is a file downloaded directly from http://www.imgt.org/vquest/refseqh.html, i.e. that the meta info is splattered all over the fasta line starting with \'>\'\n  %s ...therefore if this is *not* an imgt file, then you may want to set --sanitize-input-germlines.' % (utils.color('yellow', 'warning'), seqfo['name'], fname, utils.color('yellow', 'warning'))
+                printed_imgt_warning = True
             if len(seqfo['infostrs']) < len(imgt_info_indices):
                 raise Exception('info str %s is too short (len %d) to correspond to imgt info indices %s (len %d)' % (seqfo['infostrs'], len(seqfo['infostrs']), imgt_info_indices, len(imgt_info_indices)))
             gene = seqfo['infostrs'][imgt_info_indices.index('gene')]
@@ -141,13 +147,27 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, fun
         else:  # plain fasta with just the gene name after the '>'
             gene = seqfo['name']
         if add_dummy_name_components:
+            old_name = gene
             gene = utils.construct_valid_gene_name(gene, locus=locus, region=region)
-        utils.split_gene(gene)  # just to check if it's a valid gene name
-        if not aligned and utils.get_region(gene) != utils.get_region(os.path.basename(fname)):  # if <aligned> is True, file name is expected to be whatever
-            raise Exception('gene %s from %s has unexpected region %s' % (gene, os.path.basename(fname), utils.get_region(gene)))
-        if gene in seqs[utils.get_region(gene)]:
-            utils.color_mutants(seqs[utils.get_region(gene)][gene], utils.remove_gaps(seqfo['seq']), align=True, print_result=True)
-            raise Exception('gene name %s appears twice in %s' % (gene, fname))
+            if gene != old_name:
+                cpositions = utils.cdn_positions(glfo, region)  # returns None for d
+                if cpositions is not None and old_name in cpositions:
+                    cpositions[gene] = cpositions[old_name]
+                    del cpositions[old_name]
+                if debug:
+                    print '      renaming: %s --> %s' % (old_name, gene)
+        try:
+            utils.split_gene(gene)  # just to check if it's a valid gene name
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print utils.pad_lines(''.join(lines))
+            raise Exception('Unhandled gene name \'%s \' in %s (see above). If you don\'t mind us (trivially) renaming your genes, you can set --sanitize-input-germlines.' % (gene, fname))
+        if utils.get_region(gene) != region:
+            raise Exception('region %s from gene name %s doesn\'t match input region %s' % (utils.get_region(gene), gene, region))
+        if gene in glseqs:
+            utils.color_mutants(glseqs[gene], utils.remove_gaps(seqfo['seq']), align=True, print_result=True)
+            raise Exception('gene name %s appears twice in %s (see the two seqs above)' % (gene, fname))
 
         # then the sequence
         seq = seqfo['seq']
@@ -162,9 +182,9 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, fun
             seq_to_gene_map[seq] = []
         seq_to_gene_map[seq].append(gene)
 
-        seqs[utils.get_region(gene)][gene] = seq
-        if functy is not None and functionalities is not None:
-            functionalities[gene] = functy  # kind of dumb to split seqs by region but not functionalities, but I kind of wish I hadn't done seqs that way
+        glseqs[gene] = seq
+        if functy is not None and glfo['functionalities'] is not None:
+            glfo['functionalities'][gene] = functy  # kind of dumb to split seqs by region but not functionalities, but I kind of wish I hadn't done seqs that way
 
     tmpcounts = [len(gl) for gl in seq_to_gene_map.values()]  # number of names corresponding to each sequence (should all be ones)
     if tmpcounts.count(1) != len(tmpcounts):
@@ -175,18 +195,19 @@ def read_fasta_file(seqs, fname, skip_pseudogenes, skip_orfs, aligned=False, fun
         print '  it is highly recommended to remove the duplicates to avoid ambiguity'
 
     if n_skipped_pseudogenes > 0:
-        print '    skipped %d %s pseudogenes (leaving %d genes)' % (n_skipped_pseudogenes, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
+        print '    skipped %d %s pseudogenes (leaving %d genes)' % (n_skipped_pseudogenes, region, len(glseqs))
     if n_skipped_orfs > 0:
-        print '    skipped %d %s orfs (leaving %d genes)' % (n_skipped_orfs, utils.get_region(os.path.basename(fname)), len(seqs[utils.get_region(os.path.basename(fname))]))
+        print '    skipped %d %s orfs (leaving %d genes)' % (n_skipped_orfs, region, len(glseqs))
 
 #----------------------------------------------------------------------------------------
-def read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities, add_dummy_name_components=False):
-    seqs = {r : OrderedDict() for r in utils.regions}
+def read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_name_components=False, debug=False):
+    glfo = {'locus' : locus, 'functionalities' : {}, 'seqs' : {r : OrderedDict() for r in utils.regions}}
+    read_extra_info(glfo, gldir)
     for region in utils.getregions(locus):
-        read_fasta_file(seqs, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, functionalities=functionalities, add_dummy_name_components=add_dummy_name_components, locus=locus, region=region)
+        read_fasta_file(glfo, region, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, add_dummy_name_components=add_dummy_name_components, locus=locus, debug=debug)
     if not utils.has_d_gene(locus):  # choose a sequence for the dummy d
         seqs['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
-    return seqs
+    return glfo
 
 # ----------------------------------------------------------------------------------------
 def read_aligned_gl_seqs(fname, glfo):  # only used in partitiondriver with --aligned-germline-fname (which I think is only used for presto output)
@@ -318,6 +339,8 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
                     glfo[codon + '-positions'][template_gene] = template_glfo[codon + '-positions'][template_gene]
             else:
                 renamed_template_gene = template_gene + '_TEMPLATE'
+                if debug:
+                    print '    adding gene with codon position %s from template glfo, to align against new genes' % utils.color_gene(template_gene)
                 if renamed_template_gene in glfo['seqs'][region]:  # ok there's not really any way that could happen
                     raise Exception('%s already in glfo' % renamed_template_gene)
                 newfo = {'gene' : renamed_template_gene, 'seq' : template_glfo['seqs'][region][template_gene], 'cpos' : template_glfo[codon + '-positions'][template_gene]}
@@ -538,9 +561,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
 
     if debug:
         print '  reading %s locus glfo from %s' % (locus, gldir)
-    glfo = {'locus' : locus, 'functionalities' : {}}
-    glfo['seqs'] = read_germline_seqs(gldir, locus, skip_pseudogenes, skip_orfs, functionalities=glfo['functionalities'], add_dummy_name_components=add_dummy_name_components)
-    read_extra_info(glfo, gldir)
+    glfo = read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_name_components=add_dummy_name_components, debug=debug)
     get_missing_codon_info(glfo, template_glfo=template_glfo, remove_bad_genes=remove_bad_genes, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
 

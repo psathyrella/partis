@@ -153,7 +153,13 @@ def read_inputs(args, actions):
         else:
             raise Exception('couldn\'t guess germline info location: set it with either --intitial-germline-dir or --parameter-dir')
 
-    glfo = glutils.read_glfo(gldir, locus=args.locus, only_genes=args.only_genes) if gldir is not None else None
+    glfo = None
+    if gldir is not None:
+        template_glfo = None
+        if args.sanitize_input_germlines:
+            print '   using default germline dir %s for template glfo (e.g. for codon positions)' % args.default_initial_germline_dir
+            template_glfo = glutils.read_glfo(args.default_initial_germline_dir, args.locus)
+        glfo = glutils.read_glfo(gldir, args.locus, only_genes=args.only_genes, template_glfo=template_glfo, add_dummy_name_components=args.sanitize_input_germlines, debug=2 if args.sanitize_input_germlines else False)
 
     simglfo = None
     if not args.is_data:
@@ -279,6 +285,7 @@ parent_parser.add_argument('--make-per-gene-plots', action='store_true', help='i
 
 parent_parser.add_argument('--default-initial-germline-dir', default=partis_dir + '/data/germlines', help='For internal use only. To specify your own germline directory from which to start, use --initial-germline-dir instead.')
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
+parent_parser.add_argument('--sanitize-input-germlines', action='store_true', help='By default we require all gene names to look like IGHVx*y. If you set this option when you\'re also setting --initial-germline-dir, then we instead allow arbitrary strings as gene names in this input germline directory, and we sanitize them by adding the correct locus and region info at the start (so make sure that you have --locus set correctly), and adding an arbitrary allele string at the end (e.g. <stuff> --> IGHV<stuff>*x).')
 parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (used if --is-simu is set, altough if the default germline info is similar to that used for simulation it may not be necessary)')
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with alignments for each V gene (if using with --presto-output, must contain an alignment also for all D and J genes). An example is located in data/germlines/imgt-aligned-igh.fa')
 
