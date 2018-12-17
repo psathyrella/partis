@@ -3,6 +3,7 @@ import csv
 import os
 import sys
 import argparse
+import colored_traceback.always
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')

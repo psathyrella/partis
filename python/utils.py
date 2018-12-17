@@ -164,6 +164,8 @@ conserved_codons = {l : {'v' : 'cyst',
 def cdn(glfo, region):  # returns None for d
     return conserved_codons[glfo['locus']].get(region, None)
 def cdn_positions(glfo, region):
+    if cdn(glfo, region) is None:
+        return None
     return glfo[cdn(glfo, region) + '-positions']
 def cdn_pos(glfo, region, gene):
     if cdn(glfo, region) is None:
