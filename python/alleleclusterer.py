@@ -302,7 +302,7 @@ class AlleleClusterer(object):
 
         # NOTE do *not* modify <self.glfo> (in the future it would be nice to just modify <self.glfo>, but for now we need it to be super clear in partitiondriver what is happening to <self.glfo>)
         default_initial_glfo = self.glfo
-        if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
+        if self.args.default_initial_germline_dir is not None:  # if this is set (and it essentially always is, since it has a default value), we want to take any new allele names from this directory's glfo if they're in there
             default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, self.glfo['locus'])
         else:
             print '  %s --default-initial-germline-dir isn\'t set, so new allele names won\'t correspond to existing names' % utils.color('yellow', 'warning')
@@ -386,7 +386,7 @@ class AlleleClusterer(object):
             print '%s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
             new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq, 'cpos' : template_cpos}
             if new_alleles[new_name]['gene'] not in glfo_to_modify['seqs'][self.region]:  # if it's in <default_initial_glfo> it'll already be in there
-                glutils.add_new_allele(glfo_to_modify, new_alleles[new_name], use_template_for_codon_info=False)  # just so we can check for equivalency
+                glutils.add_new_allele(glfo_to_modify, new_alleles[new_name], use_template_for_codon_info=False)  # just so we can check for equivalency next time through (we don't really actually do anything else with <glfo_to_modify>)
 
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))

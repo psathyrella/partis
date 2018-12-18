@@ -21,6 +21,11 @@ The workdir defaults to a subdirectory of `/tmp` (`/tmp/$USER/hmms/<random.randi
 
 Permament parameter files, on the other hand, are written to `--parameter-dir`, which defaults to a subdirectory of the current directory (see [here](subcommands.md#cache-parameters)).
 
+You can add `--debug 1` (or `--debug 2`) to print a lot of additional information about what's going on.
+There is also a `--debug-allele-finding` flag to print detailed info on the germline inference steps being performed.
+
+For details on the large number of available options, run `partis <subcommand> --help`, where `<subcommand>` is, e.g. `cache-parameters` or `partition`.
+
 The details of the output formats are described [here](output-formats.md).
 
 A variety of overview plots will be written to disk if you set `--plotdir <plotdir`. Details on their content can be found [here](output-formats.md#default-plots).
