@@ -304,9 +304,9 @@ class AlleleClusterer(object):
         default_initial_glfo = self.glfo
         if self.args.default_initial_germline_dir is not None:  # if this is set, we want to take any new allele names from this directory's glfo if they're in there
             default_initial_glfo = glutils.read_glfo(self.args.default_initial_germline_dir, self.glfo['locus'])
-            glfo_to_modify = copy.deepcopy(default_initial_glfo)  # so we can add new genes to it, so we can check for equivalency more easily TODO fix that shit, obviously
         else:
             print '  %s --default-initial-germline-dir isn\'t set, so new allele names won\'t correspond to existing names' % utils.color('yellow', 'warning')
+        glfo_to_modify = copy.deepcopy(default_initial_glfo)  # so we can add new genes to it, so we can check for equivalency more easily TODO fix that shit, obviously
 
         qr_seqs, threshold = self.choose_clonal_representatives(swfo, debug=debug)
         if qr_seqs is None:
@@ -384,9 +384,9 @@ class AlleleClusterer(object):
                 continue
 
             print '%s %s%s' % (utils.color('red', 'new'), utils.color_gene(new_name), ' (exists in default germline dir)' if new_name in default_initial_glfo['seqs'][self.region] else '')
-            new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq}
+            new_alleles[new_name] = {'template-gene' : template_gene, 'gene' : new_name, 'seq' : new_seq, 'cpos' : template_cpos}
             if new_alleles[new_name]['gene'] not in glfo_to_modify['seqs'][self.region]:  # if it's in <default_initial_glfo> it'll already be in there
-                glutils.add_new_allele(glfo_to_modify, new_alleles[new_name])  # just so we can check for equivalency
+                glutils.add_new_allele(glfo_to_modify, new_alleles[new_name], use_template_for_codon_info=False)  # just so we can check for equivalency
 
         if debug:
             print '  %d / %d clusters consensed to existing genes' % (n_existing_gene_clusters, len(msa_info))
@@ -394,7 +394,7 @@ class AlleleClusterer(object):
         self.reassign_template_counts(msa_info, new_alleles, debug=False)
         for new_name, newfo in new_alleles.items():
             # print '%s  %s  %.1f / %.1f = %.4f' % (new_name, newfo['template-gene'], self.adjusted_glcounts[newfo['template-gene']], float(sum(self.adjusted_glcounts.values())), self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())))
-            if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.min_allele_prevalence_fractions[self.region]:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
+            if self.adjusted_glcounts[newfo['template-gene']] / float(sum(self.adjusted_glcounts.values())) < self.args.min_allele_prevalence_fractions[self.region]:  # NOTE self.adjusted_glcounts only includes large clusters, and the constituents of those clusters are clonal representatives, so this isn't quite the same as in alleleremover
                 newfo['remove-template-gene'] = True
 
         return new_alleles
