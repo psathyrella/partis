@@ -49,9 +49,7 @@ Several methods of accomplishing this are described [here](subcommands.md#subcom
 For plotting to work with the `partition` action (i.e. if you're setting `--plotdir`), you need to install R, and a separate package
 
 ```
-<!-- apt-get install xorg libx11-dev libglu1-mesa-dev  # may not be necessary, depending on existing R install, but is at least necessary in docker -->
-<!-- apt-get install r-cran-rgl -->
-conda install -y -cr r-rgl r-essentials
+conda install -y r-essentials
 unset R_LIBS_SITE
 R --vanilla --slave -e 'install.packages(c("bios2mds"), repos="http://cran.rstudio.com/")'
 ```
