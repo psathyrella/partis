@@ -193,7 +193,10 @@ class Waterer(object):
             sys.exit(1)
 
         dupl_str = (', %d duplicates' % sum([len(dupes) for dupes in self.duplicates.values()])) if just_read_cachefile else ''  # kind of messy, but if we just read the cache file then we need to print this info, but if we didn't just read the cache file then we haven't yet removed duplicates so we can't
-        print '      info for %d / %d = %.3f   (%d failed%s)' % (len(self.info['queries']), len(self.input_info), float(len(self.info['queries'])) / len(self.input_info), len(self.info['failed-queries']), dupl_str)
+        tmp_pass_frac = float(len(self.info['queries'])) / len(self.input_info)
+        print '      info for %d / %d = %.3f   (%d failed%s)' % (len(self.info['queries']), len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
+        if tmp_pass_frac < 0.80:
+            print '  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning())
         if len(self.kept_unproductive_queries) > 0:
             print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
 
@@ -1145,7 +1148,7 @@ class Waterer(object):
             print '  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
             return None
         if not self.args.dont_remove_framework_insertions and self.args.is_data and k_v_min - len(line['fv_insertion']) < 0:  # it happened. like, once
-            print '%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']))
+            print '%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d   %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']), utils.reverse_complement_warning())
             return None
 
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},

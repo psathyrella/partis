@@ -181,6 +181,10 @@ def ambig_frac(seq):
     ambig_seq = filter(ambiguous_bases.__contains__, seq)
     return float(len(ambig_seq)) / len(seq)
 
+# ----------------------------------------------------------------------------------------
+def reverse_complement_warning():
+    return '%s maybe need to take reverse complement? (partis only searches in forward direction)' % color('red', 'note:')
+
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
     'tryp' : ['TGG', ],
@@ -3770,7 +3774,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_inde
         returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, get_annotations=get_annotations)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
         if sum(returnfo['gene-counts'].values()) == 0 and not expect_failure:
-            print '%s vsearch couldn\'t align anything to input sequences (maybe need to take reverse complement?)\n  %s' % (color('yellow', 'warning'), cmd)
+            print '%s vsearch couldn\'t align anything to input sequences (cmd below)   %s\n  %s' % (color('yellow', 'warning'), reverse_complement_warning(), cmd)
     else:
         assert False
     os.remove(infname)
