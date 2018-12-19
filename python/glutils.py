@@ -124,7 +124,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
     glseqs = glfo['seqs'][region]  # shorthand
     n_skipped_pseudogenes, n_skipped_orfs = 0, 0
     seq_to_gene_map = {}
-    printed_imgt_warning = False
+    printed_imgt_warning, renamed_genes = False, []
     for seqfo in utils.read_fastx(fname):
         functy = None
         # first get gene name
@@ -155,7 +155,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
                     cpositions[gene] = cpositions[old_name]
                     del cpositions[old_name]
                 if debug:
-                    print '      renaming: %s --> %s' % (old_name, gene)
+                    renamed_genes.append((old_name, gene))
         try:
             utils.split_gene(gene)  # just to check if it's a valid gene name
         except:
@@ -185,6 +185,11 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
         glseqs[gene] = seq
         if functy is not None and glfo['functionalities'] is not None:
             glfo['functionalities'][gene] = functy  # kind of dumb to split seqs by region but not functionalities, but I kind of wish I hadn't done seqs that way
+
+    if debug and len(renamed_genes) > 0:
+        n_max_print = 10
+        tmpstr = ',  '.join(('%s --> %s' % (og, ng)) for og, ng in renamed_genes[:n_max_print])
+        print '    renamed %d genes from %s: %s%s' % (len(renamed_genes), fname, tmpstr, '  [...]' if len(renamed_genes) > n_max_print else '')
 
     tmpcounts = [len(gl) for gl in seq_to_gene_map.values()]  # number of names corresponding to each sequence (should all be ones)
     if tmpcounts.count(1) != len(tmpcounts):
