@@ -336,8 +336,10 @@ def runs_on_existing_output(actionstr):
 
 subargs = {subname : [] for subname in subconfig}
 
+# ----------------------------------------------------------------------------------------
 subargs['annotate'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster.'}})
 
+# ----------------------------------------------------------------------------------------
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
 subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Throw out all sequences that are not clonally related to this sequence id. Much much much faster than partitioning the entire sample (well, unless your whole sample is one family).'}})
@@ -364,6 +366,8 @@ subargs['partition'].append({'name' : '--max-cluster-size', 'kwargs' : {'type' :
 subargs['partition'].append({'name' : '--write-additional-cluster-annotations', 'kwargs' : {'help' : 'in addition to writing annotations for each cluster in the best partition, also write annotations for all the clusters in several partitions on either side of the best partition. Specified as a pair of numbers \'m:n\' for m partitions before, and n partitions after, the best partition.'}})
 subargs['partition'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster.'}})
 
+# ----------------------------------------------------------------------------------------
+# basic simulation:
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
 subargs['simulate'].append({'name' : '--mimic-data-read-length', 'kwargs' : {'action' : 'store_true', 'help' : 'trim V 5\' and D 3\' to mimic read lengths seen in data'}})
 subargs['simulate'].append({'name' : '--n-sim-events', 'kwargs' : {'type' : int, 'default' : 1, 'help' : 'Number of rearrangement events to simulate'}})
@@ -371,12 +375,15 @@ subargs['simulate'].append({'name' : '--n-trees', 'kwargs' : {'type' : int, 'hel
 subargs['simulate'].append({'name' : '--n-leaves', 'kwargs' : {'type' : float, 'default' : 5., 'help' : 'Parameter describing the number of leaves per tree (maybe the mean, maybe not -- depends on the distribution)'}})
 subargs['simulate'].append({'name' : '--constant-number-of-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Give all trees the same number of leaves'}})
 subargs['simulate'].append({'name' : '--n-leaf-distribution', 'kwargs' : {'default' : 'geometric', 'choices' : ['geometric', 'box', 'zipf'], 'help' : 'distribution from which to draw the number of leaves for each tree'}})
-subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' : 0., 'type' : float, 'help' : 'fraction of simulated sequences with indels'}})
-subargs['simulate'].append({'name' : '--n-indels-per-indeld-seq', 'kwargs' : {'default' : '1:2', 'help' : 'list of integers from which to choose the number of indels in each sequence which we\'ve already decided has indels'}})
-subargs['simulate'].append({'name' : '--mean-indel-length', 'kwargs' : {'type' : float, 'default' : 5, 'help' : 'mean length of each indel (geometric distribution)'}})
-subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' : [None, 'v', 'cdr3'], 'help' : 'where to put the indels. All options exclude the first and last five bases of the bcr sequence (None: anywhere in sequence, v: before cysteine, cdr3: within cdr3'}})
-# NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
-subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})
+subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})  # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
+subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and value passed as the parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})
+subargs['simulate'].append({'name' : '--input-simulation-treefname', 'kwargs' : {'help' : 'file with newick-formatted lines corresponding to trees to use for simulation. Note that a) the tree depths are rescaled according to the shm rates requested by other command line arguments, i.e. the depths in the tree file are ignored, and b) the resulting sequences do not use the leaf names from the trees.'}})
+# shm indels:
+subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' : 0., 'type' : float, 'help' : 'fraction of simulated sequences with SHM indels'}})
+subargs['simulate'].append({'name' : '--n-indels-per-indeld-seq', 'kwargs' : {'default' : '1:2', 'help' : 'list of integers from which to choose the number of SHM indels in each sequence that we\'ve already decided has indels'}})
+subargs['simulate'].append({'name' : '--mean-indel-length', 'kwargs' : {'type' : float, 'default' : 5, 'help' : 'mean length of each SHM indel (geometric distribution)'}})
+subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'choices' : [None, 'v', 'cdr3'], 'help' : 'where to put the SHM indels. All options exclude the first and last five bases of the bcr sequence (None: anywhere in sequence, v: before cysteine, cdr3: within cdr3'}})
+# from-scratch (rather than mimicking a particular data sample):
 subargs['simulate'].append({'name' : '--rearrange-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory for rearrangement-level parameters, and instead make up some plausible stuff from scratch. Have to also set --shm-parameter-dir.'}})
 subargs['simulate'].append({'name' : '--mutate-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory for shm-level (mutation) parameters, and instead make up stuff from scratch (by default this means shm rate varies over positions and sequences, but is the same for all regions). Have to also set --reco-parameter-dir.'}})
 subargs['simulate'].append({'name' : '--simulate-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'same as setting both --rearrange-from-scratch and --mutate-from-scratch'}})
@@ -385,14 +392,12 @@ subargs['simulate'].append({'name' : '--reco-parameter-dir', 'kwargs' : {'help' 
 subargs['simulate'].append({'name' : '--scratch-mute-freq', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'shm rate used by --mutate-from-scratch'}})
 subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm rate (--scratch-mute-freq) for all positions (in practice it\'s not that much flatter than the Gamma that is used by default --mutate-from-scratch). For use with --mutate-from-scratch.'}})
 subargs['simulate'].append({'name' : '--same-mute-freq-for-all-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm rate (--scratch-mute-freq) for all sequences. For use with --mutate-from-scratch. NOTE: this means we tell bppseqgen to use the same expected rate for every sequence -- there\'s still variance in the resulting number of output mutation per sequence.'}})
-# subargs['simulate'].append({'name' : '--scratch-mute-freq-dir', 'kwargs' : {'default' : partis_dir + '/data/recombinator/scratch-parameters', 'help' : 'synthetic/partial parameter directory with only shm-level (mutation) information, which allows to specify --rearrange-from-scratch without also setting --mutate-from-scratch'}})
+# new allele/germline set generation (this is also for from-scratch)
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a subset of the available genes to represent this sample\'s germline.'}})
 subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'default' : glutils.default_n_genes_per_region, 'help' : 'colon-separated list specifying the number of genes (not alleles -- i.e. the *total* number of alleles is this times the number of alleles per gene) for each region (for use with --generate-germline-set)'}})
 subargs['simulate'].append({'name' : '--n-sim-alleles-per-gene', 'kwargs' : {'default' : glutils.default_n_alleles_per_gene, 'help' : 'colon-separated list of mean alleles per gene for each region (for use with --generate-germline-set).'}})
 subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'default' : glutils.default_min_allele_prevalence_freq,'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between 0.01 and 1'}})
 subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'help' : 'abandon help all ye who enter here'}})
-subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and value passed as the parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})
-subargs['simulate'].append({'name' : '--input-simulation-treefname', 'kwargs' : {'help' : 'file with newick-formatted lines corresponding to trees to use for simulation. Note that a) the tree depths are rescaled according to the shm rates requested by other command line arguments, i.e. the depths in the tree file are ignored, and b) the resulting sequences do not use the leaf names from the trees.'}})
 
 subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this process has subsidiary simulation processes handled by Popen'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this is a sub-process handled by --subsimproc'}})
