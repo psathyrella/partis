@@ -1055,9 +1055,12 @@ def get_alleles_per_gene_weights(n_alleles_per_gene):  # given desired mean alle
     return a, b
 
 # ----------------------------------------------------------------------------------------
-def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, debug=False):
+def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene, n_max_alleles_per_gene=2, debug=False):
     """ choose a gene (i.e. a primary and sub-version) from <allelic_groups>, and its attendant alleles """
     # NOTE also modifies <allelic_groups>
+
+    if n_alleles_per_gene[region] >= n_max_alleles_per_gene:
+        raise Exception('requested mean number of alleles per gene has to be less than the max alleles per gene, but %f >= %f' % (n_alleles_per_gene[region], n_max_alleles_per_gene))
 
     if len(allelic_groups[region]) == 0:
         raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)  # note that we don't reuse pv/sv pairs (the idea being such a pair represents an actual gene), and we don't directly control how many alleles are chosen from each such pair, so there isn't really a way to make sure you get every single allele in the germline set.
@@ -1065,7 +1068,7 @@ def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene
     while available_versions is None or len(available_versions) == 0:
         # if available_versions is not None:
         #     print '  %s couldn\'t find any versions that have %d alleles, so trying again' % (utils.color('red', 'warning'), n_alleles)
-        n_alleles = numpy.random.choice([1, 2], p=get_alleles_per_gene_weights(n_alleles_per_gene[region]))
+        n_alleles = numpy.random.choice(list(range(1, n_max_alleles_per_gene + 1)), p=get_alleles_per_gene_weights(n_alleles_per_gene[region]))
         available_versions = [(pv, subv) for pv in allelic_groups[region] for subv in allelic_groups[region][pv] if len(allelic_groups[region][pv][subv]) >= n_alleles]
     ichoice = numpy.random.randint(0, len(available_versions) - 1) if len(available_versions) > 1 else 0  # numpy.random.choice() can't handle list of tuples (and barfs if you give it only one thing to choose from)
     primary_version, sub_version = available_versions[ichoice]
@@ -1118,6 +1121,7 @@ def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_al
     allele_prevalence_freqs[region] = {g : f for g, f in zip(glfo['seqs'][region].keys(), prevalence_freqs)}
     assert utils.is_normed(allele_prevalence_freqs[region])
     if debug:
+        print '    choosing %s allele prevalence freqs:' % region
         print '      counts %s' % ' '.join([('%5d' % c) for c in prevalence_counts])
         print '      freqs  %s' % ' '.join([('%5.3f' % c) for c in prevalence_freqs])
         print '      min ratio: %.3f' % (min(prevalence_freqs) / max(prevalence_freqs))

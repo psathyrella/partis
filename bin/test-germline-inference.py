@@ -381,9 +381,9 @@ available_methods = set(['simu', 'partis', 'full', 'tigger-default', 'tigger-tun
 if len(set(args.methods) - available_methods) > 0:
     raise Exception('unexpected --methods: %s' % ' '.join(set(args.methods) - available_methods))
 
-args.default_germline_dir = 'old-glfo/%s' % args.species  # 'data/germlines/%s' % args.species
-# gad damnit, I just deleted old-glfo, had no idea what it was for
-# args.default_germline_dir = 'data/germlines/%s' % args.species  # 'data/germlines/%s' % args.species
+# args.default_germline_dir = 'old-glfo/%s' % args.species  # 'data/germlines/%s' % args.species  # NOTE gad damnit, I just deleted old-glfo, had no idea what it was for
+print '  %s hopefully old-glfo/ isn\'t needed to recreate old results (see comment)' % utils.color('yellow', 'note:')
+args.default_germline_dir = 'data/germlines/%s' % args.species  # 'data/germlines/%s' % args.species
 
 positions = {
     'snp' : utils.get_arg_list(args.snp_positions),
