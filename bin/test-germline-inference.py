@@ -15,6 +15,7 @@ partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 
 import utils
 import glutils
+import processargs
 
 # ----------------------------------------------------------------------------------------
 def get_outfname(args, method, annotation_performance_plots=False, return_parent_gl_dir=False):
@@ -51,8 +52,6 @@ def simulate(args):
 
     # figure what genes we're using
     if args.gls_gen:
-        assert args.sim_v_genes is None and args.allele_prevalence_freqs is None
-
         sglfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus)
         glutils.remove_v_genes_with_bad_cysteines(sglfo)
         glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, dont_remove_template_genes=args.dont_remove_template_genes, debug=True)
@@ -350,8 +349,9 @@ parser.add_argument('--n-genes-per-region', default=glutils.default_n_genes_per_
 parser.add_argument('--n-sim-alleles-per-gene', default=glutils.default_n_alleles_per_gene, help='see bin/partis --help')
 parser.add_argument('--min-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float, help='see bin/partis --help')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
-parser.add_argument('--dont-remove-template-genes', action='store_true', help='when generating snps, remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
+parser.add_argument('--dont-remove-template-genes', action='store_true', help='when generating snps, *don\'t* remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
 parser.add_argument('--mut-mult', type=float, help='see bin/partis --help')
+parser.add_argument('--mutation-multiplier', type=float, help='see bin/partis --help')  # see note below
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dryrun', action='store_true')
@@ -372,10 +372,6 @@ parser.add_argument('--locus', default='igh')
 
 args = parser.parse_args()
 assert args.locus == 'igh'  # would just need to update some things, e.g. propagate through to the various methods
-args.dj_genes = utils.get_arg_list(args.dj_genes)
-args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
-args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
-args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
 args.methods = utils.get_arg_list(args.methods)
 available_methods = set(['simu', 'partis', 'full', 'tigger-default', 'tigger-tuned', 'igdiscover'])
 if len(set(args.methods) - available_methods) > 0:
@@ -385,58 +381,22 @@ if len(set(args.methods) - available_methods) > 0:
 print '  %s hopefully old-glfo/ isn\'t needed to recreate old results (see comment)' % utils.color('yellow', 'note:')
 args.default_germline_dir = 'data/germlines/%s' % args.species  # 'data/germlines/%s' % args.species
 
-positions = {
-    'snp' : utils.get_arg_list(args.snp_positions),
-    'indel' : utils.get_arg_list(args.indel_positions),
-}
-numbers = {
-    'snp' : utils.get_arg_list(args.nsnp_list, intify=True),
-    'indel' : utils.get_arg_list(args.nindel_list, intify=True),
-}
-args.snp_positions = None  # just to make sure you don't accidentally use them
-args.indel_positions = None
-args.nsnp_list = None
-args.nindel_list = None
-# if we're generating/inferring a whole germline set these are either set automatically or not used
-if args.gls_gen:
-    args.sim_v_genes = None
-    args.inf_v_genes = None
-    args.dj_genes = None
+args.generate_germline_set = args.gls_gen  # for compatibility with bin/partis (i.e. so they can both use the fcn in processargs, but I don't have to rewrite either)
+args.mut_mult = args.mutation_multiplier  # for compatibility with bin/partis (i.e. so they can both use the fcn in processargs, but I don't have to rewrite either)
+if args.generate_germline_set:  # if we're generating/inferring a whole germline set these are either set automatically or not used
+    delattr(args, 'sim_v_genes')
+    delattr(args, 'inf_v_genes')
+    delattr(args, 'dj_genes')
     args.allele_prevalence_freqs = None
     args.inf_glfo_dir = None
+else:
+    args.dj_genes = utils.get_arg_list(args.dj_genes)
+    args.sim_v_genes = utils.get_arg_list(args.sim_v_genes)
+    args.inf_v_genes = utils.get_arg_list(args.inf_v_genes)
+    args.allele_prevalence_freqs = utils.get_arg_list(args.allele_prevalence_freqs, floatify=True)
 
-n_new_alleles = None
-mtypes = ['snp', 'indel']
-for mtype in mtypes:
-    if positions[mtype] is not None:  # if specific positions were specified on the command line
-        positions[mtype] = [[int(p) for p in pos_str.split(',')] for pos_str in positions[mtype]]
-        if len(positions[mtype]) != len(args.sim_v_genes):
-            raise Exception('--%s-positions %s and --sim-v-genes %s not the same length (%d vs %d)' % (mtype, positions[mtype], args.sim_v_genes, len(positions[mtype]), len(args.sim_v_genes)))
-    if numbers[mtype] is not None:
-        if not args.gls_gen and len(numbers[mtype]) != len(args.sim_v_genes):
-            raise Exception('--n%s-list %s and --sim-v-genes %s not the same length (%d vs %d)' % (mtype, numbers[mtype], args.sim_v_genes, len(numbers[mtype]), len(args.sim_v_genes)))
-        if positions[mtype] is not None:
-            raise Exception('can\'t specify both --n%s-list and --%s-positions' % (mtype, mtype))
-        positions[mtype] = [[None for _ in range(number)] for number in numbers[mtype]]  # the <None> tells glutils to choose a position at random
-    if positions[mtype] is not None:
-        if n_new_alleles is None:
-            n_new_alleles = len(positions[mtype])
-        if len(positions[mtype]) != n_new_alleles:
-            raise Exception('mismatched number of new alleles for %s' % ' vs '.join(mtypes))
-if n_new_alleles is None:
-    n_new_alleles = 0
-for mtype in mtypes:
-    if positions[mtype] is None:  # if it wasn't specified at all, i.e. we don't want to generate any new alleles
-        positions[mtype] = [[] for _ in range(n_new_alleles)]
-args.new_allele_info = [{'gene' : args.sim_v_genes[igene] if not args.gls_gen else None,
-                         'snp-positions' : positions['snp'][igene],
-                         'indel-positions' : positions['indel'][igene]}
-                        for igene in range(n_new_alleles)]
+processargs.process_gls_gen_args(args)  # well, also does stuff with non-gls-gen new allele args
 
-if args.allele_prevalence_freqs is not None:
-    # easier to check the length after we've generated snpd genes (above)
-    if not utils.is_normed(args.allele_prevalence_freqs):
-        raise Exception('--allele-prevalence-freqs %s not normalized' % args.allele_prevalence_freqs)
 if args.inf_glfo_dir is None:
     args.inf_glfo_dir = args.outdir + '/germlines/inference'
 if args.simfname is None:

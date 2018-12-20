@@ -6,6 +6,50 @@ import subprocess
 import utils
 
 # ----------------------------------------------------------------------------------------
+# split this out so we can call it from both bin/partis and bin/test-germline-inference.py
+def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
+    positions = {
+        'snp' : utils.get_arg_list(args.snp_positions),
+        'indel' : utils.get_arg_list(args.indel_positions),
+    }
+    numbers = {
+        'snp' : utils.get_arg_list(args.nsnp_list, intify=True),
+        'indel' : utils.get_arg_list(args.nindel_list, intify=True),
+    }
+    delattr(args, 'snp_positions')  # just to make sure you don't accidentally use them (should only use the new args.new_allele_info that gets created below)
+    delattr(args, 'indel_positions')
+    delattr(args, 'nsnp_list')
+    delattr(args, 'nindel_list')
+
+    n_new_alleles = None
+    mtypes = ['snp', 'indel']
+    for mtype in mtypes:
+        if positions[mtype] is not None:  # if specific positions were specified on the command line
+            positions[mtype] = [[int(p) for p in pos_str.split(',')] for pos_str in positions[mtype]]
+            if len(positions[mtype]) != len(args.sim_v_genes):  # we shouldn't be able to get here unless args has .sim_v_genes
+                raise Exception('--%s-positions %s and --sim-v-genes %s not the same length (%d vs %d)' % (mtype, positions[mtype], args.sim_v_genes, len(positions[mtype]), len(args.sim_v_genes)))
+        if numbers[mtype] is not None:
+            if not args.generate_germline_set and len(numbers[mtype]) != len(args.sim_v_genes):  # we shouldn't be able to get here unless args has .sim_v_genes
+                raise Exception('--n%s-list %s and --sim-v-genes %s not the same length (%d vs %d)' % (mtype, numbers[mtype], args.sim_v_genes, len(numbers[mtype]), len(args.sim_v_genes)))
+            if positions[mtype] is not None:
+                raise Exception('can\'t specify both --n%s-list and --%s-positions' % (mtype, mtype))
+            positions[mtype] = [[None for _ in range(number)] for number in numbers[mtype]]  # the <None> tells glutils to choose a position at random
+        if positions[mtype] is not None:
+            if n_new_alleles is None:
+                n_new_alleles = len(positions[mtype])
+            if len(positions[mtype]) != n_new_alleles:
+                raise Exception('mismatched number of new alleles for %s' % ' vs '.join(mtypes))
+    if n_new_alleles is None:
+        n_new_alleles = 0
+    for mtype in mtypes:
+        if positions[mtype] is None:  # if it wasn't specified at all, i.e. we don't want to generate any new alleles
+            positions[mtype] = [[] for _ in range(n_new_alleles)]
+    args.new_allele_info = [{'gene' : args.sim_v_genes[igene] if not args.generate_germline_set else None,  # we shouldn't be able to get here unless args has .sim_v_genes
+                             'snp-positions' : positions['snp'][igene],
+                             'indel-positions' : positions['indel'][igene]}
+                            for igene in range(n_new_alleles)]
+
+# ----------------------------------------------------------------------------------------
 def process(args):
     if args.action == 'run-viterbi':
         print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (this doesn\'t change any actual behavior)'
@@ -219,6 +263,11 @@ def process(args):
 
         if args.generate_germline_set and not args.rearrange_from_scratch:
             raise Exception('can only --generate-germline-set if also rearranging from scratch (set --rearrange-from-scratch)')
+
+        if args.generate_germline_set:
+            args.snp_positions = None  # if you want to control the exact positions, you have to use bin/test-germline-inference.py
+            args.indel_positions = None
+            process_gls_gen_args(args)
 
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')

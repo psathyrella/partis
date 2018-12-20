@@ -45,7 +45,7 @@ def run_simulation(args):
             input_gldir = args.reco_parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
     glfo = glutils.read_glfo(input_gldir, args.locus, only_genes=args.only_genes)
     if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
-        glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname, debug=args.debug)  # NOTE removes unwanted genes from <glfo>
+        glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname, new_allele_info=args.new_allele_info, debug=args.debug)  # NOTE removes unwanted genes from <glfo>
         if utils.getsuffix(args.outfname) == '.csv':
             print '  writing generated germline set to %s/' % args.outfname.replace('.csv', '-glfo')
             glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
@@ -398,6 +398,8 @@ subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'defaul
 subargs['simulate'].append({'name' : '--n-sim-alleles-per-gene', 'kwargs' : {'default' : glutils.default_n_alleles_per_gene, 'help' : 'colon-separated list of mean alleles per gene for each region (for use with --generate-germline-set).'}})
 subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'default' : glutils.default_min_allele_prevalence_freq,'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between 0.01 and 1'}})
 subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'help' : 'abandon help all ye who enter here'}})
+subargs['simulate'].append({'name' : '--nsnp-list', 'kwargs' : {'help' : 'When --generate-germline-set is set, this is a colon-separated list whose length gives the number of novel alleles to add to the germline set. Each entry in the list is the number of SNPs to generate for the corresponding new allele. If both --nsnp-list and --nindel-list are set, they must be the same length; if one is unset, it is assumed to be all zeroes.'}})
+subargs['simulate'].append({'name' : '--nindel-list', 'kwargs' : {'help' : 'When --generate-germline-set is set, this is a colon-separated list whose length gives the number of novel alleles to add to the germline set. Each entry in the list is the number of indels to generate for the corresponding new allele. If both --nsnp-list and --nindel-list are set, they must be the same length; if one is unset, it is assumed to be all zeroes.'}})
 
 subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this process has subsidiary simulation processes handled by Popen'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'set to true if this is a sub-process handled by --subsimproc'}})
