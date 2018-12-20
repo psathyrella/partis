@@ -211,7 +211,7 @@ def read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_na
     for region in utils.getregions(locus):
         read_fasta_file(glfo, region, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, add_dummy_name_components=add_dummy_name_components, locus=locus, debug=debug)
     if not utils.has_d_gene(locus):  # choose a sequence for the dummy d
-        seqs['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
+        glfo['seqs']['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
     return glfo
 
 # ----------------------------------------------------------------------------------------
