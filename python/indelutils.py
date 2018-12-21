@@ -391,6 +391,10 @@ def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this f
     check_indelfo_consistency(line, debug=debug)
 
 # ----------------------------------------------------------------------------------------
+class IndelfoReconstructionError(Exception):
+    pass
+
+# ----------------------------------------------------------------------------------------
 def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  # old-style files
     if 'reversed_seq' in indel_list:  # handle super-old files
         print '%s encountered file with super old, unhandled indel format, proceeding, but indel info may be inconsistent' % (utils.color('red', 'error'))
@@ -412,6 +416,10 @@ def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  #
     while iqr < len(line['input_seqs'][iseq]):
         if debug:
             print '  %3d  %3d' % (iqr, igl),
+        if igl >= len(line['naive_seq']):  # if the pos is longer than the qr seq, we won't fall off the end (so i'm ignoring that case here), but we presumably will miss an indel and crash somewhere else. Note that I can't just check before the loop, since indel positions can be longer than the initial sequence lengths (i.e. before adding other indels)
+            offending_indels = [ifo for p, ifo in ifos_by_pos.items() if p >= len(line['naive_seq'])]
+            print '%s %s indel position beyond end of sequence len %d (setting to invalid): %s' % (utils.color('red', 'error'), ':'.join(line['unique_ids']), len(line['naive_seq']), offending_indels)
+            raise IndelfoReconstructionError()  # no, I don't like doing it this way, I don't like using exceptions for control flow. But, this only happens when we read in an old file with ridiculous inconsistent info (so I can't fix the underlying wrong info), and there's no way to know it's inconsistent until we get to here (so I can't just throw it away earlier)
         if iindel in ifos_by_pos:
             ifo = ifos_by_pos[iindel]
             if ifo['type'] == 'insertion':
