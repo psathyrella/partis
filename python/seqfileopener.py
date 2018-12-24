@@ -88,7 +88,7 @@ def get_seqfile_info(x, is_data=False):
     raise Exception('renamed and changed returned vals (see below)')
 
 # ----------------------------------------------------------------------------------------
-def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False):
+def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False, more_input_info=None):
     # NOTE renamed this from get_seqfile_info() since I'm changing the return values, but I don't want to update the calls everywhere (e.g. in compareutils)
     yaml_glfo = None
     suffix = utils.getsuffix(infname)
@@ -190,6 +190,13 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             if not quiet:  # just adding <quiet>, and too lazy to decide what other print statements it should effect, this is the only one I care about right now
                 print '  --n-max-queries: stopped after reading %d queries from input file' % len(input_info)
             break
+
+    if more_input_info is not None:  # if you use this on simulation, the extra queries that aren't in <reco_info> may end up breaking something down the line (but I don't imagine this really getting used on simulation)
+        if len(set(more_input_info) & set(input_info)) > 0:
+            raise Exception('found %d queries in both --infname and --queries-to-include-fname: %s' % (len(set(more_input_info) & set(input_info)), ' '.join(set(more_input_info) & set(input_info))))  # I guess there isn't really necessarily anything wrong with having overlap, but it makes no sense, and I don't want to worry about enforcing that a name doesn't have different sequences in the two files
+        if args.seed_unique_id is not None and args.seed_unique_id in more_input_info:
+            found_seed = True
+        input_info.update(more_input_info)
 
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 

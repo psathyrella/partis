@@ -225,11 +225,12 @@ class Waterer(object):
                 perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
 
         # remove queries with cdr3 length different to the seed sequence
-        if self.args.seed_unique_id is not None:  # it might be nice to get the seed cdr3 length before running anything, and then not add seqs with different cdr3 length to start with, so those other sequences' gene matches don't get mixed in? then again  aren't we pretty much always reading cached values if we're seed partitioning?
+        if self.args.seed_unique_id is not None:
+            assert not self.count_parameters  # informative exception is raised in bin/partis
             if self.args.seed_unique_id in self.info['queries']:
                 seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']
             else:  # if it failed
-                print '    seed unique id \'%s\' not in final s-w queries, so removing all queries' % self.args.seed_unique_id
+                print '    %s seed unique id \'%s\' not in final s-w queries, so removing all queries' % (utils.color('yellow', 'note:'), self.args.seed_unique_id)
                 seed_cdr3_length = -1
             initial_n_queries = len(self.info['queries'])
             for query in copy.deepcopy(self.info['queries']):

@@ -173,7 +173,15 @@ def read_inputs(args, actions):
     if args.infname is None:
         return None, None, glfo, simglfo
 
-    input_info, reco_info, yaml_glfo = seqfileopener.read_sequence_file(args.infname, args.is_data, n_max_queries=args.n_max_queries, args=args, simglfo=simglfo)
+    more_input_info = None
+    if args.queries_to_include_fname is not None:
+        more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data)
+        print '  --queries-to-include-fname: adding %d extra sequence%s from %s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname)
+        if args.queries_to_include is None:
+            args.queries_to_include = []
+        args.queries_to_include += more_input_info.keys()
+
+    input_info, reco_info, yaml_glfo = seqfileopener.read_sequence_file(args.infname, args.is_data, n_max_queries=args.n_max_queries, args=args, simglfo=simglfo, more_input_info=more_input_info)
     if not args.is_data and yaml_glfo is not None:  # NOTE is is extremely important that <glfo> doesn't get set to the true info in a simulation yaml
         simglfo = yaml_glfo
 
@@ -192,6 +200,8 @@ def run_partitiondriver(args):
     if args.action in ['annotate', 'partition'] and not os.path.exists(args.parameter_dir):
         actions = ['cache-parameters'] + actions
         print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, actions[1])
+        if args.seed_unique_id is not None or args.seed_seq is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
+            raise Exception('if setting --seed-unique-id or --seed-seq for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
 
     input_info, reco_info, glfo, simglfo = read_inputs(args, actions)
     parter = PartitionDriver(args, glfo, input_info, simglfo, reco_info)
@@ -213,7 +223,8 @@ parent_parser.add_argument('--loci', help='which immunoglobulin or t-cell recept
 parent_parser.add_argument('--chain', choices=('h', 'k', 'l'), help='DEPRECATED in favor of --locus, exists only for backwards compatibility')
 parent_parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which to restrict the analysis')
-parent_parser.add_argument('--queries-to-include', help='when using --n-random-queries, look for, and include, these additional uids (in contast to --queries, which includes *only* the indicated uids) NOTE *not* compatible with --n-max-queries, i.e. use --n-random-queries instead')
+parent_parser.add_argument('--queries-to-include', help='When reading the input file, look for and include these additional uids when --n-random-queries is set (*not* compatible with --n-max-queries). Contrast with --queries, which includes *only* the indicated uids. Additionally, these queries are treated differently e.g. when partition plotting or removing duplicate sequences.')
+parent_parser.add_argument('--queries-to-include-fname', help='In cases where you want certain sequences to be included in --queries-to-include or --seed-unique-id, but these sequences are not in --infname, you can put them in this file. Typically, this is useful when you have a number of seed sequences that are from a separate experiment than the NGS data in --infname.')
 parent_parser.add_argument('--reco-ids', help='Colon-separated list of rearrangement-event IDs to which we restrict ourselves')  # or recombination events
 parent_parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences to read from input file, starting from beginning of file')
 parent_parser.add_argument('--n-random-queries', type=int, help='choose this many queries at random from entire input file')
@@ -342,7 +353,7 @@ subargs['annotate'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action' 
 # ----------------------------------------------------------------------------------------
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
-subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Throw out all sequences that are not clonally related to this sequence id. Much much much faster than partitioning the entire sample (well, unless your whole sample is one family).'}})
+subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Throw out all sequences that are not clonally related to this sequence id. Much much much faster than partitioning the entire sample (well, unless your whole sample is one family).'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same effect as --seed-unique-id, but specifies the sequence instead of that sequence\'s id (so that it doesn\'t have to be in the original input file)'}})
 subargs['partition'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'choose a sequence at random from the input file, and use it as the seed for seed partitioning (as if it had been set as the --seed-unique-id)'}})
 subargs['partition'].append({'name' : '--annotation-clustering', 'kwargs' : {'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})

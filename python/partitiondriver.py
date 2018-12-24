@@ -191,10 +191,12 @@ class PartitionDriver(object):
             if os.path.exists(self.sw_cache_path + '.csv'):  # ...but if there's already an old csv, use that
                 cachefname = self.sw_cache_path + '.csv'
         else:  # i.e. if we're not explicitly told to look for it (and it exists) then it should be out of date
-            waterer.clean_cache(self.sw_cache_path)
+            waterer.clean_cache(self.sw_cache_path)  # hm, should this be <cachefname> instead of <self.sw_cache_path>? i mean they're the same, but still
         if look_for_cachefile and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
         else:
+            if look_for_cachefile:
+                print '    couldn\'t find sw cache file %s, so running sw%s' % (cachefname, ' (this is probably because --seed-seq/--seed-unique-id is set to a sequence that wasn\'t in the input file on which we cached parameters [if it\'s inconvenient to put your seed sequences in your input file, you can avoid this by putting them instead in separate file and set --queries-to-include-fname])' if self.args.seed_unique_id is not None else '')
             waterer.run(cachefname if write_cachefile else None)
 
         self.sw_info = waterer.info
