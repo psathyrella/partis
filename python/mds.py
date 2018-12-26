@@ -67,7 +67,7 @@ def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
 # ----------------------------------------------------------------------------------------
 def read_component_file(mdsfname, n_components, seqfos):
     if not os.path.exists(mdsfname):  # r failed (probably with complex eigenvalues)
-        os.remove(os.path.dirname(mdsfname) + '/mds.r')  # this should really be integrated with utils.run_r()
+        os.remove(os.path.dirname(mdsfname) + '/run.r')  # this should really be integrated with utils.run_r()
         return {sfo['name'] : [0. for _ in range(n_components)] for sfo in seqfos}
 
     pc_names = None
