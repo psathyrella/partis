@@ -50,6 +50,17 @@ def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new al
                             for igene in range(n_new_alleles)]
 
 # ----------------------------------------------------------------------------------------
+def get_workdir(batch_system=None):  # split this out so we can use it in datascripts (ok, then I ended up commenting it in datascripts, but maybe later I want to uncomment)
+    basestr = os.getenv('USER') if os.getenv('USER') is not None else 'partis-work'
+    if batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
+        workdir = utils.choose_random_subdir('/fh/fast/matsen_e/%s/_tmp/hmms' % basestr)
+    else:
+        workdir = utils.choose_random_subdir('/tmp/%s/hmms' % basestr)
+        if batch_system is not None:
+            print '  %s: using batch system %s with default --workdir (%s) -- if this dir isn\'t visible to your batch nodes, you\'ll need to set --workdir to something that is' % (utils.color('red', 'warning'), batch_system, workdir)
+    return workdir
+
+# ----------------------------------------------------------------------------------------
 def process(args):
     if args.action == 'run-viterbi':
         print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (this doesn\'t change any actual behavior)'
@@ -168,13 +179,7 @@ def process(args):
         args.mutation_multiplier = 0.
 
     if args.workdir is None:  # set default here so we know whether it was set by hand or not
-        basestr = os.getenv('USER') if os.getenv('USER') is not None else 'partis-work'
-        if args.batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
-            args.workdir = utils.choose_random_subdir('/fh/fast/matsen_e/%s/_tmp/hmms' % basestr)
-        else:
-            args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % basestr)
-            if args.batch_system is not None:
-                print '  %s: using batch system %s with default --workdir (%s) -- if this isn\'t visible to the batch nodes on your system, you\'ll need to change it' % (utils.color('red', 'warning'), args.batch_system, args.workdir)
+        args.workdir = get_workdir()
     else:
         args.workdir = args.workdir.rstrip('/')
     if os.path.exists(args.workdir):
