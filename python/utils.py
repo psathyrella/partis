@@ -3455,6 +3455,14 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
+def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
+    if not os.path.isdir(os.path.dirname(fname)):
+        os.makedirs(os.path.dirname(fname))
+    with open(fname, 'w') as seqfile:
+        for sfo in seqfos:
+            seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
+
+# ----------------------------------------------------------------------------------------
 def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):  # Bio.SeqIO takes too goddamn long to import
     if ftype is None:
         suffix = getsuffix(fname)
