@@ -1274,9 +1274,9 @@ def add_linearham_info(sw_info, line):
             if left_germ_len < 1 or right_germ_len < 1:
                 return 'nonsense'
 
-        if rpair['left'] == 'v' and left_germ_len > 5:
-            line['flexbounds'][left_region][0] -= 5
-            line['flexbounds'][left_region][1] -= 5
+        if rpair['left'] == 'v' and left_germ_len > 10:
+            line['flexbounds'][left_region][0] -= 10
+            line['flexbounds'][left_region][1] -= 10
 
         # the D gene match region is constrained to have a length of 1
         if rpair['left'] == 'd':
@@ -1286,9 +1286,9 @@ def add_linearham_info(sw_info, line):
             line['flexbounds'][right_region][0] += (right_germ_len / 2)
             line['flexbounds'][right_region][1] += (right_germ_len / 2)
 
-        if rpair['right'] == 'j' and right_germ_len > 5:
-            line['flexbounds'][right_region][0] += 5
-            line['flexbounds'][right_region][1] += 5
+        if rpair['right'] == 'j' and right_germ_len > 10:
+            line['flexbounds'][right_region][0] += 10
+            line['flexbounds'][right_region][1] += 10
 
     # align the V-entry/J-exit flexbounds to the possible sequence positions
     line['flexbounds']['v_l'][0] = 0
