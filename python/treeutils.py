@@ -339,7 +339,7 @@ def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, norma
 
     # node.lbi is the sum of <node.down_polarizer> (downward message from <node>'s parent) and its children's up_polarizers (upward messages)
 
-    # traverse the tree in postorder (children first) to calculate msg to parents
+    # traverse the tree in postorder (children first) to calculate message to parents (i.e. node.up_polarizer)
     for node in dtree.postorder_node_iter():
         node.down_polarizer = 0  # used for <node>'s lbi (this probabably shouldn't be initialized here, since it gets reset in the next loop [at least I think they all do])
         node.up_polarizer = 0  # used for <node>'s parent's lbi (but not <node>'s lbi)
@@ -349,7 +349,7 @@ def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, norma
         node.up_polarizer *= numpy.exp(-bl)  # sum of child <up_polarizer>s weighted by an exponential decayed by the distance to <node>'s parent
         node.up_polarizer += getmulti(node) * tau * (1 - numpy.exp(-bl))  # add the actual contribution (to <node>'s parent's lbi) of <node>: zero if the two are very close, increasing toward asymptote of <tau> for distances near 1/tau (integral from 0 to l of decaying exponential)
 
-    # traverse the tree in preorder (parents first) to calculate msg to children
+    # traverse the tree in preorder (parents first) to calculate message to children (i.e. child1.down_polarizer)
     for node in dtree.preorder_internal_node_iter():
         for child1 in node.child_node_iter():  # calculate down_polarizer for each of <node>'s children
             child1.down_polarizer = node.down_polarizer  # first sum <node>'s down_polarizer...
