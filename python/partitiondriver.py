@@ -339,10 +339,15 @@ class PartitionDriver(object):
         self.print_subcluster_naive_seqs(self.args.queries)
 
     # ----------------------------------------------------------------------------------------
-    def print_results(self, cpath, annotations):  # NOTE this duplicates code that already prints annotations (in self.read_annotation_output()) and partitions (in self.partition())
+    def print_results(self, cpath, annotations):
         if cpath is not None:
             print utils.color('green', 'partitions:')
-            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices)
+            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices, calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'))
+            if not self.args.is_data and self.reco_info is not None:  # if we're reading existing output, it's pretty common to not have the reco info even when it's simulation, since you have to also pass in the simulation input file on the command line
+                true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+                true_cp.add_partition(utils.get_true_partition(self.reco_info), -1., 1)
+                print 'true:'
+                true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
         if len(annotations) > 0:
             print utils.color('green', 'annotations:')
@@ -350,17 +355,13 @@ class PartitionDriver(object):
             if self.args.cluster_indices is not None:
                 sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
             for line in sorted_annotations:
+                if self.args.only_print_best_partition and cpath is not None and line['unique_ids'] not in cpath.partitions[cpath.i_best]:
+                    continue
                 label = ''
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
                     label = 'inferred:'
-                utils.print_reco_event(line, extra_str='  ', label=label)
-
-        # best_partition = cpath.partitions[cpath.i_best]
-        # seed_clusters = [cluster for cluster in best_partition if cpath.seed_unique_id in cluster]
-        # assert len(seed_clusters) == 1
-        # seed_annotation = annotations[':'.join(seed_clusters[0])]
-        # print 'best naive for %s: %s ' % (cpath.seed_unique_id, seed_annotation['naive_seq'])
+                utils.print_reco_event(line, extra_str='  ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
     def read_existing_output(self, outfname=None, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):
@@ -434,12 +435,7 @@ class PartitionDriver(object):
 
         if self.args.debug:
             print 'final'
-            cpath.print_partitions(self.reco_info, print_header=True, calc_missing_values=('all' if (len(self.input_info) < 500) else 'best'))
-            if not self.args.is_data:
-                true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-                true_cp.add_partition(utils.get_true_partition(self.reco_info), -1., 1)
-                print 'true:'
-                true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
+            self.print_results(cpath, best_cluster_annotations)
 
         self.check_partition(cpath.partitions[cpath.i_best])
 
@@ -760,7 +756,7 @@ class PartitionDriver(object):
         self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, read_output=False)
         if n_procs > 1:
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
-        best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, print_annotations=self.args.print_cluster_annotations, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
+        best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
         if self.args.get_tree_metrics:
             self.calculate_tree_metrics(best_annotations, cpath=cpath)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:  # NOTE need to write *before* removing any clusters from the non-best partition
@@ -1040,7 +1036,7 @@ class PartitionDriver(object):
                     cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data, reco_info=self.reco_info, true_partition=utils.get_true_partition(self.reco_info) if not self.args.is_data else None)
 
             if algorithm == 'viterbi' and not precache_all_naive_seqs:
-                annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
+                annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug)
 
             if os.path.exists(self.hmm_infname):
                 os.remove(self.hmm_infname)
@@ -1769,9 +1765,6 @@ class PartitionDriver(object):
                     line_to_use = eroded_line
                     eroded_annotations[uidstr] = eroded_line  # these only get used if there aren't any multi-seq lines, so it's ok that they don't all get added if there is a multi seq line
 
-                if self.args.debug or print_annotations:
-                    self.print_hmm_output(line_to_use, print_true=True)
-
                 n_events_processed += 1
                 n_seqs_processed += len(uids)
 
@@ -1825,6 +1818,8 @@ class PartitionDriver(object):
                 print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
         annotations_to_use = padded_annotations if at_least_one_mult_hmm_line else eroded_annotations  # if every query is a single-sequence query, then the output will be less confusing to people if the N padding isn't there. But you kinda need the padding in order to make the multi-seq stuff work
+        if print_annotations:
+            self.print_results(None, annotations_to_use)
 
         self.check_for_unexpectedly_missing_keys(annotations_to_use, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
 
@@ -1865,14 +1860,6 @@ class PartitionDriver(object):
 
         if outfname is not None:
             outfile.close()
-
-    # ----------------------------------------------------------------------------------------
-    def print_hmm_output(self, line, print_true=False):
-        label = ''
-        if print_true and not self.args.is_data:  # first print true event (if this is simulation)
-            utils.print_true_events(self.glfo, self.reco_info, line)
-            label = 'inferred:'
-        utils.print_reco_event(line, extra_str='    ', label=label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
     def write_output(self, annotation_list, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False):

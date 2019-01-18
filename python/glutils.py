@@ -562,7 +562,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
             print '    note: linking new germline dir name to old name in %s' % gldir
             check_call('cd '  + gldir + ' && ln -sfv ' + locus[2] + ' ' + locus, shell=True)
         else:
-            raise Exception('germline set directory \'%s\' does not exist (maybe --parameter-dir is corrupted, maybe crashed while writing parameters?)' % (gldir + '/' + locus))
+            raise Exception('germline set directory \'%s\' does not exist (maybe --parameter-dir is corrupted or mis-specified?)' % (gldir + '/' + locus))
 
     if debug:
         print '  reading %s locus glfo from %s' % (locus, gldir)

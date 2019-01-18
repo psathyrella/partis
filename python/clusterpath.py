@@ -36,6 +36,12 @@ class ClusterPath(object):
             self.readlines(partition_lines)
 
     # ----------------------------------------------------------------------------------------
+    def n_seqs(self, ip=0):  # number of sequences in each partition (shouldn't depend on which partition, but I'm not sure that I absolutely forbid the number to change)
+        if len(self.partitions) == 0:
+            return 0
+        return len([u for c in self.partitions[ip] for u in c])
+
+    # ----------------------------------------------------------------------------------------
     def get_headers(self, is_data):
         headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
         if not is_data:
@@ -168,7 +174,7 @@ class ClusterPath(object):
         return ccf_str
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None):
+    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None, right_extrastr=''):
         #  NOTE it's nicer to *not* sort by cluster size here, since preserving the order tends to frequently make it obvious which clusters are merging as your eye scans downwards through the output
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
@@ -201,6 +207,7 @@ class ClusterPath(object):
                 print ' %s' % cluster_str,
             else:
                 print '   %s' % cluster_str,
+        print '%s' % right_extrastr,
         print ''
 
     # ----------------------------------------------------------------------------------------
@@ -225,7 +232,8 @@ class ClusterPath(object):
                 mark = mark[:-2] + '* '
             if mark.count(' ') < len(mark):
                 mark = utils.color('yellow', mark)
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices)
+            right_extrastr = '' if self.n_seqs() < 400 else mark  # if line is going to be really long, put the yellow stuff also on the right side
+            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices, right_extrastr=right_extrastr)
 
     # ----------------------------------------------------------------------------------------
     def get_surrounding_partitions(self, n_partitions):
