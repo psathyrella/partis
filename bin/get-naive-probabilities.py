@@ -14,10 +14,19 @@ sys.path.insert(1, partis_dir + '/python')
 
 import utils
 
+# ----------------------------------------------------------------------------------------
+def is_acceptable(scol, acceptable_values, lval):
+    if lval in acceptable_values:
+        return True
+    if args.any_allele and '_gene' in scol and any(utils.are_alleles(g, lval) for g in acceptable_values):
+        return True
+    return False
+
 parser = argparse.ArgumentParser()
 parser.add_argument('infname')
 parser.add_argument('--config-fname', help='yaml file with info on columns for which we want to specify particular values (and skip others). Default/example set below.')
 parser.add_argument('--outfname')
+parser.add_argument('--any-allele', action='store_true', help='if set, also include any other alleles of any of the genes specified in \'skip_column_vals\' (note: can also set it in the cfg file).')
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
@@ -40,6 +49,10 @@ else:
         skip_column_vals = yamlfo['skip_column_vals']
         for scol in skip_column_vals:
             skip_column_vals[scol] = [str(v) for v in skip_column_vals[scol]]  # yaml.load() converts to integers, which is usually nice, but here we don't want it to since we're not converting when reading all-probs.csv (I think there's options to yaml.load to change this, I just don't want to figure it out now)
+        if 'any_allele' in yamlfo:
+            if args.any_allele and not yamlfo['any_allele']:  # if it's set to true on the command line, but false in the file
+                print ' %s overwriting --any-allele with value from cfg file %s' % (utils.color('red', 'warning'), args.config_fname)
+            args.any_allele = yamlfo['any_allele']
 
 info = {}
 lines_skipped, lines_used = 0, 0
@@ -53,7 +66,7 @@ with open(args.infname) as csvfile:
     for line in reader:
         skip_this_line = False
         for scol, acceptable_values in skip_column_vals.items():
-            if line[scol] not in acceptable_values:
+            if not is_acceptable(scol, acceptable_values, line[scol]):
                 skip_this_line = True
                 lines_skipped += 1
                 counts_skipped += int(line['count'])
@@ -73,7 +86,7 @@ if args.debug:
         lo, hi = fraction_uncertainty.err(obs, total)
         return 0.5 * (hi - lo)
 
-    print '  applied restrictions:'
+    print '  applied restrictions:%s' % ('     (including all alleles of these genes)' if args.any_allele else '')
     for scol, acceptable_values in skip_column_vals.items():
         print '      %15s in %s' % (scol, acceptable_values)
     print '   used:'
