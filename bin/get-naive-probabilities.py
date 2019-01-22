@@ -30,6 +30,7 @@ parser.add_argument('--any-allele', action='store_true', help='if set, also incl
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
+non_summed_column = None
 if args.config_fname is None:
     non_summed_column = 'v_gene'
     skip_column_vals = {  # to input your own dict on the command line, just convert with str() and quote it
@@ -41,11 +42,12 @@ if args.config_fname is None:
         'j_gene' : ['IGHJ4*02'],
         'cdr3_length' : ['66',],  #  TGTGCGAGAGGGCCATTCCCGAATTACTATGGTCCGGGGAGTTATTGGGGGGGTTTTGACCACTGG
     }
-    print '%s using default skip column values' % utils.color('yellow', 'note')
+    print '%s using default skip column/non-summed column values' % utils.color('yellow', 'note')
 else:
     with open(args.config_fname) as yamlfile:
         yamlfo = yaml.load(yamlfile)
-        non_summed_column = yamlfo['non_summed_column']
+        if 'non_summed_column' in yamlfo:
+            non_summed_column = yamlfo['non_summed_column']
         skip_column_vals = yamlfo['skip_column_vals']
         for scol in skip_column_vals:
             skip_column_vals[scol] = [str(v) for v in skip_column_vals[scol]]  # yaml.load() converts to integers, which is usually nice, but here we don't want it to since we're not converting when reading all-probs.csv (I think there's options to yaml.load to change this, I just don't want to figure it out now)
@@ -74,35 +76,42 @@ with open(args.infname) as csvfile:
         if skip_this_line:
             continue
 
-        if line[non_summed_column] not in info:
-            info[line[non_summed_column]] = 0
-        info[line[non_summed_column]] += int(line['count'])
+        if non_summed_column is not None:
+            if line[non_summed_column] not in info:
+                info[line[non_summed_column]] = 0
+            info[line[non_summed_column]] += int(line['count'])
+
         lines_used += 1
         counts_used += int(line['count'])
 
-if args.debug:
-    import fraction_uncertainty
-    def frac_err(obs, total):
-        lo, hi = fraction_uncertainty.err(obs, total)
-        return 0.5 * (hi - lo)
+# ----------------------------------------------------------------------------------------
+import fraction_uncertainty
+def frac_err(obs, total):
+    lo, hi = fraction_uncertainty.err(obs, total)
+    return 0.5 * (hi - lo)
+count_fraction = counts_used / float(counts_used + counts_skipped)
 
+if args.debug:
     print '  applied restrictions:%s' % ('     (including all alleles of these genes)' if args.any_allele else '')
     for scol, acceptable_values in skip_column_vals.items():
         print '      %15s in %s' % (scol, acceptable_values)
     print '   used:'
     print '     %6d / %-6d = %.3f  lines'  % (lines_used, lines_used + lines_skipped, lines_used / float(lines_used + lines_skipped))
-    print '     %6d / %-6d = %.3f +/- %.3f counts'  % (counts_used, counts_used + counts_skipped, counts_used / float(counts_used + counts_skipped), frac_err(counts_used, counts_used + counts_skipped))
+    print '     %6d / %-6d = %.3f +/- %.3f counts'  % (counts_used, counts_used + counts_skipped, count_fraction, frac_err(counts_used, counts_used + counts_skipped))
 
-    print '    %18s      count      / %d = fraction' % (non_summed_column, counts_used)
-    for val, count in sorted(info.items(), key=operator.itemgetter(1), reverse=True):  # sort by counts
-    # for val, count in sorted(info.items()):  # sort by column value (e.g. cdr3 length)
-        print '   %18s   %6d          %.3f +/- %.3f' % (val, count, count / float(counts_used), frac_err(count, counts_used))
+    if non_summed_column is not None:
+        print '    %18s      count      / %d = fraction' % (non_summed_column, counts_used)
+        for val, count in sorted(info.items(), key=operator.itemgetter(1), reverse=True):  # sort by counts
+        # for val, count in sorted(info.items()):  # sort by column value (e.g. cdr3 length)
+            print '   %18s   %6d          %.3f +/- %.3f' % (val, count, count / float(counts_used), frac_err(count, counts_used))
 
 if args.outfname is not None:
     if args.debug:
-        print '  writing %d info entries to %s' % (len(info), args.outfname)
+        print '  writing total counts (plus %d info entries) to %s' % (len(info), args.outfname)
     with open(args.outfname, 'w') as outfile:
         yamlfo = {'counts' : counts_used,
                   'total' : counts_used + counts_skipped,
+                  'fraction' : count_fraction,
+                  'frac_err' : frac_err(counts_used, counts_used + counts_skipped),
                   'info' : info}
         yaml.dump(yamlfo, outfile, width=150)
