@@ -5,6 +5,9 @@ import subprocess
 
 import utils
 
+def get_dummy_outfname(workdir):
+    return '%s/XXX-dummy-simu.yaml' % workdir
+
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
 def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
@@ -245,6 +248,7 @@ def process(args):
             args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
         if args.outfname is None:
             print '  note: no --outfname specified, so nothing will be written to disk'
+            args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the wole run_simulation() in bin/partis to handle None type outfname
         if args.n_max_queries != -1:
             print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
 

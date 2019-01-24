@@ -125,6 +125,8 @@ def run_simulation(args):
 
     if not args.im_a_subproc:
         try:
+            if args.outfname == processargs.get_dummy_outfname(args.workdir) and os.path.exists(processargs.get_dummy_outfname(args.workdir)):
+                os.remove(processargs.get_dummy_outfname(args.workdir))
             os.rmdir(args.workdir)
         except OSError:
             raise Exception('workdir (%s) not empty: %s' % (args.workdir, ' '.join(os.listdir(args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
