@@ -1237,20 +1237,21 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
                 fnames[-1].append('%s/%s.svg' % (plotdir, plotname))
             make_html(plotdir)
 
-    fnames.append([])
     if affy_info is not None:
         for lb_metric, lb_label in treeutils.lb_metrics.items():
+            fnames.append([])
             for iclust, line in enumerate(sorted_lines):
-                lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}
+                lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity', 'uids']}
                 for uid in [u for u in affy_info if u in line['unique_ids']]:
                     lb_vs_affinity_vals['affinity'].append(affy_info[uid])
                     lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+                    lb_vs_affinity_vals['uids'].append(uid)
                 if len(lb_vs_affinity_vals['affinity']) > 0:
                     fn = plot_lb_vs_affy('iclust-%d' % iclust, '%s/%s-vs-affinity' % (baseplotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, lb_metric.upper())
                     fnames[-1].append(fn)
-        if len(fnames[-1]) == 0:
-            print '  %s no affinity values for sequences in lines_to_use' % utils.color('yellow', 'warning')
-            fnames.pop(-1)
+            if len(fnames[-1]) == 0:
+                print '  %s no affinity values for sequences in lines_to_use' % utils.color('yellow', 'warning')
+                fnames.pop(-1)
 
     return fnames
 
@@ -1265,6 +1266,11 @@ def plot_lb_vs_affy(plotname, plotdir, plotvals, lb_metric, lb_label, title):
     sorted_xvals = sorted(plotvals['affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
     xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
     ax.scatter(plotvals['affinity'], plotvals[lb_metric], alpha=0.4)
+    if 'uids' in plotvals:
+        for xval, yval, uid in zip(plotvals['affinity'], plotvals[lb_metric], plotvals['uids']):
+            ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+            ax.text(xval, yval, uid, color='red', fontsize=8)
+
     mpl_finish(ax, plotdir, plotname, title=title, xlabel='affinity', ylabel=lb_label, xbounds=(0.95 * xmin, 1.05 * xmax))  # factor on <xmin> is only right if xmin is positive, but it should always be
     return '%s/%s.svg' % (plotdir, plotname)
 
