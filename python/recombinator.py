@@ -28,7 +28,7 @@ class Recombinator(object):
         self.args = args
         self.glfo = glfo
         if len(glfo['seqs']['v']) > 100:  # this is kind of a shitty criterion, but I don't know what would be better (we basically just want to warn people if they're simulating from data/germlines/human)
-            print '  note: simulating with a very large number (%d) of V genes (the use of realistic diploid sets can be controlled by using inferred germline sets that you\'ve got lying around (--reco-parameter-dir), or with --generate-germline-set)' % len(glfo['seqs']['v'])
+            print '  note: simulating with a very large number (%d) of V genes (the use of realistic diploid sets can be controlled either by using inferred germline sets that you\'ve got lying around (--reco-parameter-dir), or with --generate-germline-set)' % len(glfo['seqs']['v'])
 
         self.workdir = tempfile.mkdtemp()
         utils.prep_dir(self.workdir)
