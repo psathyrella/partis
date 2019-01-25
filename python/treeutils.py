@@ -413,7 +413,7 @@ def calculate_lb_values(annotation, dtree, tau, naive_seq_name=None, extra_str=N
     if len(missing_from_tree) > 0:
         raise Exception('%d sequences in annotation, but missing from tree: %s' % (len(missing_from_tree), ' '.join(missing_from_tree)))
     set_multiplicities()
-    modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=True, debug=debug)
+    modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, debug=debug)
 
     return {'tree' : dtree.as_string(schema='newick'),
             'lbi' : {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()},

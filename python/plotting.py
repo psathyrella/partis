@@ -1240,9 +1240,11 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
     fnames.append([])
     if affy_info is not None:
         for lb_metric, lb_label in treeutils.lb_metrics.items():
-            lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}
             for iclust, line in enumerate(sorted_lines):
+                lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}
+                print '  %d  %d' % (iclust, len(line['unique_ids']))
                 for uid in [u for u in affy_info if u in line['unique_ids']]:
+                    print '    %.3f  %s' % (affy_info[uid], uid)
                     lb_vs_affinity_vals['affinity'].append(affy_info[uid])
                     lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
                 if len(lb_vs_affinity_vals['affinity']) > 0:
