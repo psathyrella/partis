@@ -1188,9 +1188,12 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr):
 # ----------------------------------------------------------------------------------------
 def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
     sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
+    fnames = [[]]
 
+    # ----------------------------------------------------------------------------------------
     # get depth/n_mutations for each node
     plotvals = {x : [] for x in ['shm'] + treeutils.lb_metrics.keys()}
+    uid_vals = {lb : {} for lb in treeutils.lb_metrics}
     for line in sorted_lines:
         dtree = treeutils.get_dendro_tree(treestr=line['tree-info']['lb']['tree'])
         n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
@@ -1204,18 +1207,23 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
                 n_muted = tree_depth * n_max_mutes / float(max_depth)
                 # nmstr = '%6.1f' % n_muted
             # print '    %8.3f   %s' % (tree_depth, nmstr)
+            plotvals['shm'].append(n_muted)
             for lb_metric in treeutils.lb_metrics:
                 plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
-            plotvals['shm'].append(n_muted)
+                if affy_info is not None and node.taxon.label in affy_info:
+                    uid_vals[lb_metric][node.taxon.label] = (plotvals['shm'][-1], plotvals[lb_metric][-1])
 
-    fnames = [[]]
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         fig, ax = mpl_init()
         ax.scatter(plotvals['shm'], plotvals[lb_metric], alpha=0.4)
+        for uid, (xval, yval) in uid_vals[lb_metric].items():
+            ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+            ax.text(xval, yval, uid, color='red', fontsize=8)
         plotname = '%s-vs-shm' % lb_metric
         fnames[-1].append('%s/%s.svg' % (baseplotdir, plotname))
         mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper())
 
+    # ----------------------------------------------------------------------------------------
     n_per_row = 4
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         plotdir = baseplotdir + '/' + lb_metric
@@ -1237,6 +1245,7 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
                 fnames[-1].append('%s/%s.svg' % (plotdir, plotname))
             make_html(plotdir)
 
+    # ----------------------------------------------------------------------------------------
     if affy_info is not None:
         for lb_metric, lb_label in treeutils.lb_metrics.items():
             fnames.append([])
