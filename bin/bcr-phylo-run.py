@@ -15,16 +15,15 @@ import treeutils
 from event import RecombinationEvent
 
 base_outdir = '%s/partis/bcr-phylo' % os.getenv('fs')
-label = 'test'
 
 ete_path = '/home/' + os.getenv('USER') + '/anaconda_ete/bin'
 bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
 
 # ----------------------------------------------------------------------------------------
 def simdir(stype):
-    return '%s/%s/%s/simu' % (base_outdir, stype, label)
+    return '%s/%s/%s/simu' % (base_outdir, stype, args.label)
 def infdir(stype):
-    return '%s/%s/%s/partis' % (base_outdir, stype, label)
+    return '%s/%s/%s/partis' % (base_outdir, stype, args.label)
 def simfname(stype):
     return '%s/mutated-simu.yaml' % simdir(stype)
 
@@ -171,6 +170,7 @@ def partition():
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--stype', default='selection', choices=('selection', 'neutral'))
+parser.add_argument('--label', default='test', help='output subdirectory')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
