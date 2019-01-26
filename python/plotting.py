@@ -1256,7 +1256,7 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
                     lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
                     lb_vs_affinity_vals['uids'].append(uid)
                 if len(lb_vs_affinity_vals['affinity']) > 0:
-                    fn = plot_lb_vs_affy('iclust-%d' % iclust, '%s/%s-vs-affinity' % (baseplotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, lb_metric.upper())
+                    fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (baseplotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, lb_metric.upper())
                     fnames[-1].append(fn)
             if len(fnames[-1]) == 0:
                 print '  %s no affinity values for sequences in lines_to_use' % utils.color('yellow', 'warning')
@@ -1265,26 +1265,27 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
     return fnames
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affy(plotname, plotdir, plotvals, lb_metric, lb_label, title):
-    if len(plotvals['affinity']) == 0:
-        # print '    no %s vs affy info' % lb_metric
+def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity'):
+    if len(plotvals[xvar]) == 0:
+        # print '    no %s vs affy info' % yvar
         return
     fig, ax = mpl_init()
     # cmap, norm = get_normalized_cmap_and_norm()
-    # ax.hexbin(plotvals['affinity'], plotvals[lb_metric], gridsize=15, cmap=plt.cm.Blues)
-    sorted_xvals = sorted(plotvals['affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
+    # ax.hexbin(plotvals[xvar], plotvals[yvar], gridsize=15, cmap=plt.cm.Blues)
+    sorted_xvals = sorted(plotvals[xvar])  # not sure why, but ax.scatter() is screwing up the x bounds
     xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
-    ax.scatter(plotvals['affinity'], plotvals[lb_metric], alpha=0.4)
+    ax.scatter(plotvals[xvar], plotvals[yvar], alpha=0.4)
     if 'uids' in plotvals:
-        for xval, yval, uid in zip(plotvals['affinity'], plotvals[lb_metric], plotvals['uids']):
+        for xval, yval, uid in zip(plotvals[xvar], plotvals[yvar], plotvals['uids']):
             ax.plot([xval], [yval], color='red', marker='.', markersize=10)
             ax.text(xval, yval, uid, color='red', fontsize=8)
 
-    mpl_finish(ax, plotdir, plotname, title=title, xlabel='affinity', ylabel=lb_label, xbounds=(0.95 * xmin, 1.05 * xmax))  # factor on <xmin> is only right if xmin is positive, but it should always be
+    mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=(0.95 * xmin, 1.05 * xmax))  # factor on <xmin> is only right if xmin is positive, but it should always be
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
 def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
+    fnames = []
 
     # first plot lb metric vs affinity hexbin
     lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}
@@ -1292,7 +1293,9 @@ def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
         for uid, affinity in zip(line['unique_ids'], line['affinities']):
             lb_vs_affinity_vals['affinity'].append(affinity)
             lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
-    plot_lb_vs_affy('%s-true-tree-hexbin' % lb_metric, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper())
+    plotname = '%s-true-tree-hexbin' % lb_metric
+    plot_2d_scatter(plotname, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper())
+    fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     if debug:
         print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
@@ -1328,9 +1331,14 @@ def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
     plotname = '%s-true-tree-ptiles' % lb_metric
     mpl_finish(ax, plotdir, plotname, xbounds=(15, 100), ybounds=(45, 100), leg_loc=(0.04, 0.7), title='potential %s thresholds (true tree)' % lb_metric.upper(), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
+    fnames.append('%s/%s.svg' % (plotdir, plotname))
+
+    return fnames
 
 # ----------------------------------------------------------------------------------------
 def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
+    fnames = []
+
     delta_affinity_vals = {val_type : [] for val_type in [lb_metric, 'delta-affinity']}
     for line in true_lines:
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
@@ -1353,7 +1361,7 @@ def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
     # ax.hexbin(delta_affinity_vals['delta-affinity'], delta_affinity_vals[lb_metric], gridsize=15, cmap=plt.cm.Blues)
     plotname = '%s-vs-delta-affinity' % lb_metric
     mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='affinity change (from parent)', ylabel=lb_label, xbounds=(1.05 * xmin, 1.05 * xmax))  # NOTE factor on <xmin> is only right if xmin is negative, but it should always be
-
+    fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     # then plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # NOTE because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
@@ -1419,6 +1427,19 @@ def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
     # xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
     plotname = '%s-vs-n-ancestors-since-affy-increase' % lb_metric  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
     mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label) #, xbounds=(1.05 * xmin, 1.05 * xmax))
+    fnames.append('%s/%s.svg' % (plotdir, plotname))
+
+    return fnames
+
+# ----------------------------------------------------------------------------------------
+def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label, debug=False):
+    plotvals = {val_type : {uid : l['tree-info']['lb'][lb_metric][uid] for l in lines for uid in l['unique_ids']}
+                for val_type, lines in (('true', true_lines), ('inf', inf_lines))}
+    common_uids = set(plotvals['true']) & set(plotvals['inf'])  # there should/may be a bunch of internal nodes in the simulation lines but not in the inferred lines, but otherwise they should have the same uids
+    plotvals = {val_type : [plotvals[val_type][uid] for uid in common_uids] for val_type in plotvals}
+    plotname = '%s-true-vs-inferred' % lb_metric
+    plot_2d_scatter(plotname, plotdir, plotvals, 'inf', 'inferred %s' % lb_metric.upper(), 'true vs inferred %s' % lb_metric.upper(), xvar='true', xlabel='true %s' % lb_metric.upper())
+    return ['%s/%s.svg' % (plotdir, plotname)]
 
 # ----------------------------------------------------------------------------------------
 def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info):
