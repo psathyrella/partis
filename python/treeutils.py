@@ -790,8 +790,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
                 true_plotdir = base_plotdir + '/true-tree-metrics'
                 utils.prep_dir(true_plotdir, wildlings=['*.svg'])
                 for lb_metric, lb_label in lb_metrics.items():
-                    plotting.plot_true_lb(true_plotdir, true_lines_to_use, lb_metrics, lb_label)
-                    plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, lb_metrics, lb_label)
+                    plotting.plot_true_lb(true_plotdir, true_lines_to_use, lb_metric, lb_label)
+                    plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, lb_metric, lb_label)
                 # plotting.plot_per_mutation_lonr(xxx base_plotdir + '/lonr', lines_to_use, reco_info)
                 # plotting.plot_aggregate_lonr(xxx base_plotdir + '/lonr', lines_to_use, reco_info)
                 plotting.make_html(true_plotdir, n_columns=4)
