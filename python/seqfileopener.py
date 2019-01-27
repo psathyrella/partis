@@ -151,8 +151,6 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
                 iid += 1
             print '  %s uid %s already read from input file %s, so replacing with new uid %s' % (utils.color('yellow', 'warning'), uid, infname, new_uid)
             uid = new_uid
-        if args is not None and args.timepoint_column is not None:
-            uid += '@' + line[args.timepoint_column]
         inseq = line['input_seqs'][0]
 
         # # it would be nice to check here for forbidden characters (in addition to in the .fa code above), but it's hard because we won't have read the csv properly above if it has them
