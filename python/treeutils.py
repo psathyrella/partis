@@ -773,6 +773,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
         inf_plotdir = base_plotdir + '/inferred-tree-metrics'
         utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + '-vs-affinity' for m in lb_metrics] + lb_metrics.keys())
         fnames = plotting.plot_inferred_lb_values(inf_plotdir, lines_to_use)
+        fnames.append([])
+        fnames[-1] += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'])
         plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
 
     if reco_info is not None:
@@ -791,7 +793,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
                 utils.prep_dir(true_plotdir, wildlings=['*.svg'])
                 fnames = []
                 for lb_metric, lb_label in lb_metrics.items():
-                    tmpfns = plotting.plot_true_lb(true_plotdir, true_lines_to_use, lb_metric, lb_label)
+                    tmpfns = plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True)
                     tmpfns += plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, lb_metric, lb_label)
                     fnames.append(tmpfns)
                 fnames.append([])

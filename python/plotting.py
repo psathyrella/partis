@@ -1191,10 +1191,10 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use):
     fnames = [[]]
 
     # ----------------------------------------------------------------------------------------
-    # get depth/n_mutations for each node
+    # lb vs shm (all clusters)
     plotvals = {x : [] for x in ['shm'] + treeutils.lb_metrics.keys()}
     uid_vals = {lb : {} for lb in treeutils.lb_metrics}
-    for line in sorted_lines:
+    for line in sorted_lines:  # get depth/n_mutations for each node
         dtree = treeutils.get_dendro_tree(treestr=line['tree-info']['lb']['tree'])
         n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
         max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
@@ -1218,6 +1218,7 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use):
         mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper())
 
     # ----------------------------------------------------------------------------------------
+    # lb distributions (each cluster)
     n_per_row = 4
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         plotdir = baseplotdir + '/' + lb_metric
@@ -1238,24 +1239,6 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use):
             if iclust < n_per_row:
                 fnames[-1].append('%s/%s.svg' % (plotdir, plotname))
             make_html(plotdir)
-
-    # ----------------------------------------------------------------------------------------
-    for lb_metric, lb_label in treeutils.lb_metrics.items():
-        fnames.append([])
-        for iclust, line in enumerate(sorted_lines):
-            if 'affinities' not in line:
-                continue
-            lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity', 'uids']}
-            for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line['affinities']) if a is not None]:
-                lb_vs_affinity_vals['affinity'].append(affy)
-                lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
-                lb_vs_affinity_vals['uids'].append(uid)
-            if len(lb_vs_affinity_vals['affinity']) > 0:
-                fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (baseplotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, lb_metric.upper())
-                fnames[-1].append(fn)
-        if len(fnames[-1]) == 0:
-            print '  %s didn\'t find any affinity values in lines_to_use' % utils.color('yellow', 'warning')
-            fnames.pop(-1)
 
     return fnames
 
@@ -1279,18 +1262,25 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
+def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, debug=False):
     fnames = []
 
-    # first plot lb metric vs affinity hexbin
-    lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}
-    for line in true_lines:
-        for uid, affinity in zip(line['unique_ids'], line['affinities']):
-            lb_vs_affinity_vals['affinity'].append(affinity)
+    # first plot lb metric vs affinity scatter (all clusters)
+    lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity', 'uids']}
+    for iclust, line in enumerate(lines):
+        if 'affinities' not in line:
+            continue
+        for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line['affinities']) if a is not None]:
+            lb_vs_affinity_vals['affinity'].append(affy)
             lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
-    plotname = '%s-true-tree-hexbin' % lb_metric
-    plot_2d_scatter(plotname, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper())
-    fnames.append('%s/%s.svg' % (plotdir, plotname))
+            # lb_vs_affinity_vals['uids'].append(uid)
+        if not all_clusters_together and len(lb_vs_affinity_vals['affinity']) > 0:
+            fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (plotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
+            fnames.append(fn)
+    if all_clusters_together:
+        plotname = '%s-%s-tree-hexbin' % (lb_metric, plot_str)
+        plot_2d_scatter(plotname, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
+        fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     if debug:
         print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
@@ -1324,8 +1314,8 @@ def plot_true_lb(plotdir, true_lines, lb_metric, lb_label, debug=False):
     ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # or maybe just a straight line?
     ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
-    plotname = '%s-true-tree-ptiles' % lb_metric
-    mpl_finish(ax, plotdir, plotname, xbounds=(15, 100), ybounds=(45, 100), leg_loc=(0.04, 0.7), title='potential %s thresholds (true tree)' % lb_metric.upper(), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
+    plotname = '%s-%s-tree-ptiles' % (lb_metric, plot_str)
+    mpl_finish(ax, plotdir, plotname, xbounds=(15, 100), ybounds=(45, 100), leg_loc=(0.04, 0.7), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     return fnames
