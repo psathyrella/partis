@@ -729,6 +729,35 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
     return lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
+def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, debug=False):
+    import plotting
+
+    inf_plotdir = base_plotdir + '/inferred-tree-metrics'
+    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + '-vs-affinity' for m in lb_metrics] + lb_metrics.keys())
+    fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
+    fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
+    fnames.append([])
+    fnames[-1] += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'])
+    plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
+
+    if true_lines_to_use is not None:
+        if all(affy is None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise presumably for nobody
+            print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
+        else:
+            true_plotdir = base_plotdir + '/true-tree-metrics'
+            utils.prep_dir(true_plotdir, wildlings=['*.svg'])
+            fnames = []
+            for lb_metric, lb_label in lb_metrics.items():
+                tmpfns = plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True)
+                tmpfns += plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, lb_metric, lb_label)
+                fnames.append(tmpfns)
+            fnames.append([])
+            for lb_metric, lb_label in lb_metrics.items():
+                fnames[-1] += plotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)
+            fnames += plotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
+            plotting.make_html(true_plotdir, fnames=fnames)
+
+# ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
@@ -774,38 +803,12 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
     if n_already_there > 0:
         print '      skipped %d / %d that already had tree info' % (n_already_there, len(lines_to_use))
 
-    # plot inferred lb values
-    if base_plotdir is not None:
-        import plotting
-        inf_plotdir = base_plotdir + '/inferred-tree-metrics'
-        utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + '-vs-affinity' for m in lb_metrics] + lb_metrics.keys())
-        fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
-        fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
-        fnames.append([])
-        fnames[-1] += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'])
-        plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
-
-    if reco_info is not None:
-        # calculate lb values for true lines/trees
+    # calculate lb values for true lines/trees
+    if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_line, true_dtree, lb_tau, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
 
-        if base_plotdir is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
-            if all(affy is None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise presumably for nobody
-                print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
-            else:
-                import plotting
-                true_plotdir = base_plotdir + '/true-tree-metrics'
-                utils.prep_dir(true_plotdir, wildlings=['*.svg'])
-                fnames = []
-                for lb_metric, lb_label in lb_metrics.items():
-                    tmpfns = plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True)
-                    tmpfns += plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, lb_metric, lb_label)
-                    fnames.append(tmpfns)
-                fnames.append([])
-                for lb_metric, lb_label in lb_metrics.items():
-                    fnames[-1] += plotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)
-                fnames += plotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
-                plotting.make_html(true_plotdir, fnames=fnames)
+    if base_plotdir is not None:
+        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, debug=debug)
