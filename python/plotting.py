@@ -1186,39 +1186,52 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr):
     make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
-def plot_inferred_lb_values(baseplotdir, lines_to_use):
-    sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
+def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False):  # <is_simu> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+    def get_tree(line):
+        if is_simu:
+            return line['tree']
+        if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
+            return None
+        return line['tree-info']['lb']['tree']
+    sorted_lines = sorted([l for l in lines_to_use if get_tree(l) is not None], key=lambda l: len(l['unique_ids']), reverse=True)
     fnames = [[]]
 
-    # ----------------------------------------------------------------------------------------
-    # lb vs shm (all clusters)
-    plotvals = {x : [] for x in ['shm'] + treeutils.lb_metrics.keys()}
-    uid_vals = {lb : {} for lb in treeutils.lb_metrics}
+    # note: all clusters together
+    plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm'] + treeutils.lb_metrics.keys()}
+    # uid_vals = {lb : {} for lb in treeutils.lb_metrics}
     for line in sorted_lines:  # get depth/n_mutations for each node
-        dtree = treeutils.get_dendro_tree(treestr=line['tree-info']['lb']['tree'])
+        dtree = treeutils.get_dendro_tree(treestr=get_tree(line))
         n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
         max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
         for node in dtree.preorder_node_iter():
             iseq = line['unique_ids'].index(node.taxon.label) if node.taxon.label in line['unique_ids'] else None
             n_muted = line['n_mutations'][iseq] if node.taxon.label in line['unique_ids'] else node.distance_from_root() * n_max_mutes / float(max_depth)
-            plotvals['shm'].append(n_muted)
+            tkey = 'leaf' if node.is_leaf() else 'internal'
+            plotvals['shm'][tkey].append(n_muted)
             for lb_metric in treeutils.lb_metrics:
-                plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
-                if 'affinities' in line and iseq is not None and line['affinities'][iseq] is not None:
-                    uid_vals[lb_metric][node.taxon.label] = (plotvals['shm'][-1], plotvals[lb_metric][-1])
+                plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
+                # if 'affinities' in line and iseq is not None and line['affinities'][iseq] is not None:
+                #     uid_vals[lb_metric][node.taxon.label] = (plotvals['shm'][-1], plotvals[lb_metric][-1])
 
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         fig, ax = mpl_init()
-        ax.scatter(plotvals['shm'], plotvals[lb_metric], alpha=0.4)
-        for uid, (xval, yval) in uid_vals[lb_metric].items():
-            ax.plot([xval], [yval], color='red', marker='.', markersize=10)
-            ax.text(xval, yval, uid, color='red', fontsize=8)
+        for tkey, color in zip(plotvals['shm'], (None, 'darkgreen')):
+            ax.scatter(plotvals['shm'][tkey], plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
+        # for uid, (xval, yval) in uid_vals[lb_metric].items():
+        #     ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+        #     ax.text(xval, yval, uid, color='red', fontsize=8)
         plotname = '%s-vs-shm' % lb_metric
         fnames[-1].append('%s/%s.svg' % (baseplotdir, plotname))
-        mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper())
+        mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper(), leg_loc=(0.7, 0.7))
+        # plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s vs SHM (all clusters)' % lb_metric.upper(), xvar='shm', xlabel='N mutations')
 
-    # ----------------------------------------------------------------------------------------
-    # lb distributions (each cluster)
+    return fnames
+
+# ----------------------------------------------------------------------------------------
+def plot_lb_distributions(baseplotdir, lines_to_use):
+    sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
+    fnames = []
+
     n_per_row = 4
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         plotdir = baseplotdir + '/' + lb_metric
@@ -1236,7 +1249,7 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use):
             # ax.text(0.45 * ax.get_xlim()[1], 0.85 * ax.get_ylim()[1], 'size %d' % len(line['unique_ids']), fontsize=17, color='red', fontweight='bold')  # omfg this is impossible to get in the right place
             plotname = '%s-%d' % (lb_metric, iclust)
             mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y' if lb_metric == 'lbr' else '', ylabel='counts', title='%s  (size %d%s)' % (lb_metric.upper(), len(line['unique_ids']), leafskipstr))
-            if iclust < n_per_row:
+            if iclust < n_per_row:  # i.e. only put one row's worth in the html
                 fnames[-1].append('%s/%s.svg' % (plotdir, plotname))
             make_html(plotdir)
 

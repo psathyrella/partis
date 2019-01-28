@@ -694,11 +694,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
-    if reco_info is not None:
-        for tmpline in reco_info.values():
-            assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
-
+def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debug=False):
     # collect inferred and true events
     lines_to_use, true_lines_to_use = None, None
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
@@ -730,6 +726,16 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
                 true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
                 true_lines_to_use.append(true_line)
 
+    return lines_to_use, true_lines_to_use
+
+# ----------------------------------------------------------------------------------------
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
+    if reco_info is not None:
+        for tmpline in reco_info.values():
+            assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
+
+    lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debug=debug)
+
     # get tree and calculate metrics for inferred lines
     n_skipped = len([l for l in lines_to_use if len(l['unique_ids']) < min_tree_metric_cluster_size])
     n_already_there = 0
@@ -744,7 +750,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
             n_already_there += 1
             continue
 
-        # figure out where the tree's supposed to come from
+        # figure out how we want to get the inferred tree
         line['tree-info'] = {}
         if treefname is not None:
             dtree = get_dendro_tree(treefname=treefname, debug=debug)
@@ -768,17 +774,19 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
     if n_already_there > 0:
         print '      skipped %d / %d that already had tree info' % (n_already_there, len(lines_to_use))
 
+    # plot inferred lb values
     if base_plotdir is not None:
         import plotting
         inf_plotdir = base_plotdir + '/inferred-tree-metrics'
         utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + '-vs-affinity' for m in lb_metrics] + lb_metrics.keys())
-        fnames = plotting.plot_inferred_lb_values(inf_plotdir, lines_to_use)
+        fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
+        fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
         fnames.append([])
         fnames[-1] += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'])
         plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
 
     if reco_info is not None:
-        # calculate lb values for true lines
+        # calculate lb values for true lines/trees
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_line, true_dtree, lb_tau, extra_str='true tree', debug=debug)
@@ -799,4 +807,5 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
                 fnames.append([])
                 for lb_metric, lb_label in lb_metrics.items():
                     fnames[-1] += plotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)
+                fnames += plotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
                 plotting.make_html(true_plotdir, fnames=fnames)
