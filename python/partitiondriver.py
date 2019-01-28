@@ -291,12 +291,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def calculate_tree_metrics(self, annotations, cpath=None):
-        affy_info = None
-        if self.args.affinity_fname is not None:
-            with open(self.args.affinity_fname) as affyfile:
-                affy_info = yaml.load(affyfile)
         treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, self.args.lb_tau, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
-                                         use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, affy_info=affy_info, debug=self.args.debug)
+                                         use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_lines, ignore_args_dot_queries=False, process_csv=False):
@@ -1714,6 +1710,7 @@ class PartitionDriver(object):
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
                 padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <padded_line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
+                padded_line['affinities'] = [self.input_info[uid].get('affinities', [None])[0] for uid in uids]  # I think there's no reason to add this to sw info, so I'm just pulling it from input info here
 
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)

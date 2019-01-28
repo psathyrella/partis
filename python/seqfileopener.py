@@ -9,6 +9,7 @@ from collections import OrderedDict
 import random
 import re
 import string
+import yaml
 
 import utils
 
@@ -182,6 +183,8 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             reco_info[uid] = copy.deepcopy(line)
             if simglfo is not None:
                 utils.add_implicit_info(simglfo, reco_info[uid])
+            if 'affinities' in reco_info[uid]:  # this is kind of weird to copy from sim info to input info, but it makes sense because affinity is really meta info (the only other place affinity could come from is --input-metafname below). Where i'm defining meta info more or less as any input info besides name and sequence (i think the distinction is only really important because we want to support fastas, which can't [shouldn't!] handle anything else))
+                input_info[uid]['affinities'] = copy.deepcopy(reco_info[uid]['affinities'])  # note that the args.input_metafname stuff below should print a warning if you've also specified that (which you shouldn't, if it's simulation)
 
         n_queries_added += 1
         if n_max_queries > 0 and n_queries_added >= n_max_queries:
@@ -192,9 +195,18 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     if more_input_info is not None:  # if you use this on simulation, the extra queries that aren't in <reco_info> may end up breaking something down the line (but I don't imagine this really getting used on simulation)
         if len(set(more_input_info) & set(input_info)) > 0:
             print '  %s found %d queries in both --infname and --queries-to-include-fname (note that we don\'t check here that they correspond to they same sequence): %s' % (utils.color('red', 'note:'), len(set(more_input_info) & set(input_info)), ' '.join(set(more_input_info) & set(input_info)))  # not necessarily a problem, but you probably *shouldn't* have sequences floating around in two different files
-        if args.seed_unique_id is not None and args.seed_unique_id in more_input_info:
+        if args is not None and args.seed_unique_id is not None and args.seed_unique_id in more_input_info:
             found_seed = True
         input_info.update(more_input_info)
+    if args is not None and args.input_metafname is not None:
+        with open(args.input_metafname) as metafile:
+            metafo = yaml.load(metafile)
+        for uid in set(input_info) & set(metafo):  # general design decision: missing metafo is not present in dicts (as opposed to being None)
+            for input_key in set(utils.input_metafile_keys) & set(metafo[uid]):
+                line_key = utils.input_metafile_keys[input_key]  # key that we use in the standard internal <line> dicts
+                if line_key in input_info[uid] and metafo[uid][input_key] != input_info[uid][line_key]:  # the meta info shouldn't  generally already be in the input file if you're also specifying a separate meta file
+                    print ' %s replacing \'%s\'/\'%s\' value for \'%s\' with value from %s: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, uid, args.input_metafname, input_info[uid][line_key], metafo[uid][input_key])
+                input_info[uid][line_key] = [metafo[uid][input_key]]
 
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 

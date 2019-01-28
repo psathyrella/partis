@@ -1186,7 +1186,7 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr):
     make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
-def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
+def plot_inferred_lb_values(baseplotdir, lines_to_use):
     sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
     fnames = [[]]
 
@@ -1199,18 +1199,12 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
         n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
         max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
         for node in dtree.preorder_node_iter():
-            tree_depth = node.distance_from_root()
-            if node.taxon.label in line['unique_ids']:
-                n_muted = line['n_mutations'][line['unique_ids'].index(node.taxon.label)]
-                # nmstr = '%4d' % n_muted
-            else:
-                n_muted = tree_depth * n_max_mutes / float(max_depth)
-                # nmstr = '%6.1f' % n_muted
-            # print '    %8.3f   %s' % (tree_depth, nmstr)
+            iseq = line['unique_ids'].index(node.taxon.label) if node.taxon.label in line['unique_ids'] else None
+            n_muted = line['n_mutations'][iseq] if node.taxon.label in line['unique_ids'] else node.distance_from_root() * n_max_mutes / float(max_depth)
             plotvals['shm'].append(n_muted)
             for lb_metric in treeutils.lb_metrics:
                 plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
-                if affy_info is not None and node.taxon.label in affy_info:
+                if 'affinities' in line and iseq is not None and line['affinities'][iseq] is not None:
                     uid_vals[lb_metric][node.taxon.label] = (plotvals['shm'][-1], plotvals[lb_metric][-1])
 
     for lb_metric, lb_label in treeutils.lb_metrics.items():
@@ -1246,21 +1240,22 @@ def plot_inferred_lb_values(baseplotdir, lines_to_use, affy_info=None):
             make_html(plotdir)
 
     # ----------------------------------------------------------------------------------------
-    if affy_info is not None:
-        for lb_metric, lb_label in treeutils.lb_metrics.items():
-            fnames.append([])
-            for iclust, line in enumerate(sorted_lines):
-                lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity', 'uids']}
-                for uid in [u for u in affy_info if u in line['unique_ids']]:
-                    lb_vs_affinity_vals['affinity'].append(affy_info[uid])
-                    lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
-                    lb_vs_affinity_vals['uids'].append(uid)
-                if len(lb_vs_affinity_vals['affinity']) > 0:
-                    fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (baseplotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, lb_metric.upper())
-                    fnames[-1].append(fn)
-            if len(fnames[-1]) == 0:
-                print '  %s no affinity values for sequences in lines_to_use' % utils.color('yellow', 'warning')
-                fnames.pop(-1)
+    for lb_metric, lb_label in treeutils.lb_metrics.items():
+        fnames.append([])
+        for iclust, line in enumerate(sorted_lines):
+            if 'affinities' not in line:
+                continue
+            lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity', 'uids']}
+            for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line['affinities']) if a is not None]:
+                lb_vs_affinity_vals['affinity'].append(affy)
+                lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+                lb_vs_affinity_vals['uids'].append(uid)
+            if len(lb_vs_affinity_vals['affinity']) > 0:
+                fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (baseplotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, lb_metric.upper())
+                fnames[-1].append(fn)
+        if len(fnames[-1]) == 0:
+            print '  %s didn\'t find any affinity values in lines_to_use' % utils.color('yellow', 'warning')
+            fnames.pop(-1)
 
     return fnames
 

@@ -694,7 +694,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, affy_info=None, debug=False):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -772,7 +772,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
         import plotting
         inf_plotdir = base_plotdir + '/inferred-tree-metrics'
         utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + '-vs-affinity' for m in lb_metrics] + lb_metrics.keys())
-        fnames = plotting.plot_inferred_lb_values(inf_plotdir, lines_to_use, affy_info=affy_info)
+        fnames = plotting.plot_inferred_lb_values(inf_plotdir, lines_to_use)
         plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
 
     if reco_info is not None:

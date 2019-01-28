@@ -296,7 +296,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'affinities', 'nearest_target_indices'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'nearest_target_indices'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -309,6 +309,12 @@ all_linekeys = set([k for cols in linekeys.values() for k in cols])
 implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs'] + \
                         [r + '_gl_seq' for r in regions] + \
                         ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
+
+input_metafile_keys = {  # map between the key we want the user to put in the meta file, and the key we use in the regular <line> dicts (basically just pluralizing)
+    'affinity' : 'affinities',  # should maybe add all of these to <annotation_headers>?
+    'timepoint' : 'timepoints',
+    'multiplicity' : 'multiplicities',
+}
 
 # ----------------------------------------------------------------------------------------
 special_indel_columns_for_output = ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)
