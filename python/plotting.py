@@ -1324,11 +1324,11 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     fig, ax = mpl_init()
     ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
     # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
-    ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # or maybe just a straight line?
     ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
+    ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # or maybe just a straight line?
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
     plotname = '%s-vs-affinity-%s-tree-ptiles' % (lb_metric, plot_str)
-    mpl_finish(ax, plotdir, plotname, xbounds=(min(ptile_vals['lb_ptiles']), max(ptile_vals['lb_ptiles'])), ybounds=(45, 100), leg_loc=(0.04, 0.7), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
+    mpl_finish(ax, plotdir, plotname, xbounds=(min(ptile_vals['lb_ptiles']), max(ptile_vals['lb_ptiles'])), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     return [fnames]
