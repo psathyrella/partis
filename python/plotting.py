@@ -1275,7 +1275,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, debug=False):
+def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, ptile_range_tuple=(50., 100., 1.), debug=False):
     fnames = []
 
     # first plot lb metric vs affinity scatter (all clusters)
@@ -1301,7 +1301,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : []}  # , 'reshuffled_vals' : []}
     lbvals = lb_vs_affinity_vals[lb_metric]  # should really use these shorthands for the previous plot as well
     affyvals = lb_vs_affinity_vals['affinity']
-    for percentile in numpy.arange(50, 100, 1):
+    for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
         corresponding_affinities = [affy for lb, affy in zip(lbvals, affyvals) if lb > lb_ptile_val]  # affinities corresponding to lb greater than <lb_ptile_val> (i.e. the affinities that you'd get if you took all the lb values greater than that)
         corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow
@@ -1364,7 +1364,7 @@ def plot_lb_vs_delta_affinity(plotdir, true_lines, lb_metric, lb_label, debug=Fa
     return [fnames]
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label, plot_str='true', debug=False):
+def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), debug=False):
     # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # NOTE because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
     fnames = []
@@ -1437,25 +1437,46 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
     # then plot potential lb cut thresholds with percentiles
     if debug:
         print '    ptile   %s     mean N ancestors' % lb_metric
-    ptile_vals = {'lb_ptiles' : [], 'mean_n_ancestors' : []}
+    lb_ptile_vals = {'lb_ptiles' : [], 'mean_n_ancestors' : []}
     lbvals = n_ancestor_vals[lb_metric]
     n_anc_vals = n_ancestor_vals['n-ancestors']
-    for percentile in numpy.arange(50, 100, 1):
+    for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
-        corresponding_n_anc_vals = [n_anc for lb, n_anc in zip(lbvals, n_anc_vals) if lb > lb_ptile_val]  # n-anc vals corresponding to lb greater than <lb_ptile_val> (i.e. the n-anc vals that you'd get if you took all the lb values greater than that)
+        corresponding_n_anc_vals = [n_anc for lb, n_anc in zip(lbvals, n_anc_vals) if lb >= lb_ptile_val]  # n-anc vals corresponding to lb greater than <lb_ptile_val> (i.e. the n-anc vals that you'd get if you took all the lb values greater than that)
         if len(corresponding_n_anc_vals) == 0:
             if debug:
                 print '   %5.0f    no vals' % percentile
             continue
-        ptile_vals['lb_ptiles'].append(percentile)
-        ptile_vals['mean_n_ancestors'].append(numpy.mean(corresponding_n_anc_vals))
+        lb_ptile_vals['lb_ptiles'].append(percentile)
+        lb_ptile_vals['mean_n_ancestors'].append(numpy.mean(corresponding_n_anc_vals))
         if debug:
-            print '   %5.0f   %5.2f   %8.4f' % (percentile, lb_ptile_val, ptile_vals['mean_n_ancestors'][-1])
+            print '   %5.0f   %5.2f   %8.4f' % (percentile, lb_ptile_val, lb_ptile_vals['mean_n_ancestors'][-1])
+
+    # then make the "perfect" line
+    if debug:
+        print '    ptile  n_taken   %s     mean N ancestors' % 'affy'
+    perfect_ptile_vals = {'ptiles' : [], 'mean_n_ancestors' : []}
+    sorted_n_anc_vals = sorted(n_ancestor_vals['n-ancestors'])
+    for percentile in numpy.arange(*ptile_range_tuple):
+        n_to_take = int((1. - percentile / 100) * len(sorted_n_anc_vals))
+        corresponding_n_anc_vals = sorted_n_anc_vals[:n_to_take]
+        if len(corresponding_n_anc_vals) == 0:
+            if debug:
+                print '   %5.0f   %5d    no vals' % (percentile, n_to_take)
+            continue
+        perfect_ptile_vals['ptiles'].append(percentile)
+        perfect_ptile_vals['mean_n_ancestors'].append(numpy.mean(corresponding_n_anc_vals))
+        if debug:
+            print '   %5.0f   %5d   %8.4f' % (percentile, n_to_take, perfect_ptile_vals['mean_n_ancestors'][-1])
 
     fig, ax = mpl_init()
-    ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_n_ancestors'], linewidth=3, alpha=0.7)
+    ax.plot(lb_ptile_vals['lb_ptiles'], lb_ptile_vals['mean_n_ancestors'], linewidth=3, alpha=0.7)
+    mean_n_anc = numpy.mean(n_anc_vals)
+    ax.plot(ax.get_xlim(), (mean_n_anc, mean_n_anc), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
+    ax.plot(perfect_ptile_vals['ptiles'], perfect_ptile_vals['mean_n_ancestors'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
     plotname = '%s-vs-n-ancestors-%s-tree-ptiles' % (lb_metric, plot_str)
-    mpl_finish(ax, plotdir, plotname, ybounds=(0, 1.1 * max(ptile_vals['mean_n_ancestors'])), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean N ancestors since affinity increase')
+    ymax = max([mean_n_anc] + lb_ptile_vals['mean_n_ancestors'] + perfect_ptile_vals['mean_n_ancestors'])
+    mpl_finish(ax, plotdir, plotname, xbounds=(min(lb_ptile_vals['lb_ptiles']), max(lb_ptile_vals['lb_ptiles'])), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean N ancestors since affinity increase')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     return [fnames]
