@@ -736,8 +736,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
     utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + '-vs-affinity' for m in lb_metrics] + lb_metrics.keys())
     fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
     fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
-    fnames.append([])
-    fnames[-1] += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'])
+    fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'])
     plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
 
     if true_lines_to_use is not None:
@@ -748,9 +747,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
             utils.prep_dir(true_plotdir, wildlings=['*.svg'])
             fnames = []
             for lb_metric, lb_label in lb_metrics.items():
-                tmpfns = plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True)
-                tmpfns += plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, lb_metric, lb_label)
-                fnames.append(tmpfns)
+                fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True)
+                fnames[-1] += plotting.plot_true_lb_change(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
                 fnames[-1] += plotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)

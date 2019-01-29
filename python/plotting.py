@@ -1194,7 +1194,7 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False):  # <is_simu> is th
             return None
         return line['tree-info']['lb']['tree']
     sorted_lines = sorted([l for l in lines_to_use if get_tree(l) is not None], key=lambda l: len(l['unique_ids']), reverse=True)
-    fnames = [[]]
+    fnames = []
 
     # note: all clusters together
     plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm'] + treeutils.lb_metrics.keys()}
@@ -1221,11 +1221,11 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False):  # <is_simu> is th
         #     ax.plot([xval], [yval], color='red', marker='.', markersize=10)
         #     ax.text(xval, yval, uid, color='red', fontsize=8)
         plotname = '%s-vs-shm' % lb_metric
-        fnames[-1].append('%s/%s.svg' % (baseplotdir, plotname))
+        fnames.append('%s/%s.svg' % (baseplotdir, plotname))
         mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper(), leg_loc=(0.7, 0.7))
         # plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s vs SHM (all clusters)' % lb_metric.upper(), xvar='shm', xlabel='N mutations')
 
-    return fnames
+    return [fnames]
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_distributions(baseplotdir, lines_to_use):
@@ -1331,7 +1331,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     mpl_finish(ax, plotdir, plotname, xbounds=(15, 100), ybounds=(45, 100), leg_loc=(0.04, 0.7), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
-    return fnames
+    return [fnames]
 
 # ----------------------------------------------------------------------------------------
 def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
@@ -1427,7 +1427,7 @@ def plot_true_lb_change(plotdir, true_lines, lb_metric, lb_label, debug=False):
     mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label) #, xbounds=(1.05 * xmin, 1.05 * xmax))
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
-    return fnames
+    return [fnames]
 
 # ----------------------------------------------------------------------------------------
 def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label, debug=False):
