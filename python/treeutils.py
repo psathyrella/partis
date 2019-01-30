@@ -264,19 +264,19 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
         return '%sone leaf' % extra_str
 
 # ----------------------------------------------------------------------------------------
-def rescale_tree(new_height, dtree=None, treestr=None, debug=False):
+def rescale_tree(new_mean_height, dtree=None, treestr=None, debug=False):
     """ rescale the branch lengths in dtree/treestr by <factor> """
     if dtree is None:
         dtree = get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
     mean_height = get_mean_leaf_height(tree=dtree)
     if debug:
-        print '  current mean: %.4f   target height: %.4f' % (mean_height, new_height)
+        print '  current mean: %.4f   target height: %.4f' % (mean_height, new_mean_height)
     for edge in dtree.postorder_edge_iter():
         if edge.head_node is dtree.seed_node:  # why tf does the root node have an edge where it's the child?
             continue
         if debug:
-            print '     %5s  %7e  -->  %7e' % (edge.head_node.taxon.label if edge.head_node.taxon is not None else 'None', edge.length, edge.length * new_height / mean_height)
-        edge.length *= new_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
+            print '     %5s  %7e  -->  %7e' % (edge.head_node.taxon.label if edge.head_node.taxon is not None else 'None', edge.length, edge.length * new_mean_height / mean_height)
+        edge.length *= new_mean_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
     dtree.update_bipartitions()  # probably doesn't really need to be done
     if debug:
         print '    final mean: %.4f' % get_mean_leaf_height(tree=dtree)
@@ -453,7 +453,11 @@ def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=
     return new_dtree
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(annotation, dtree, tau, add_dummy_root=False, add_dummy_leaves=False, naive_seq_name=None, extra_str=None, debug=False):
+def calculate_lb_values(annotation, dtree, lbi_tau, lbr_tau, add_dummy_root=False, add_dummy_leaves=False, naive_seq_name=None, extra_str=None, debug=False):
+
+    if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
+        print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
+        dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
 
     if naive_seq_name is not None:  # not really sure if there's a reason to do this
         raise Exception('think about this before turning it on again')
@@ -461,19 +465,21 @@ def calculate_lb_values(annotation, dtree, tau, add_dummy_root=False, add_dummy_
 
     if debug:
         print '   lbi/lbr%s:' % ('' if extra_str is None else ' for %s' % extra_str)
-        print '      calculating lb values with tau %.4f and tree:' % tau
+        print '      calculating lb values with taus %.4f (%.4f) and tree:' % (lbi_tau, lbr_tau)
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
     missing_from_tree = [uid for uid in annotation['unique_ids'] if dtree.find_node_with_taxon_label(uid) is None]
     if len(missing_from_tree) > 0:
         raise Exception('%d sequences in annotation, but missing from tree: %s' % (len(missing_from_tree), ' '.join(missing_from_tree)))
     set_multiplicities(dtree, annotation, debug=debug)
-    set_lb_values(dtree, tau, use_multiplicities=False, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
 
-    return {'tree' : dtree.as_string(schema='newick'),
-            'lbi' : {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()},
-            'lbr' : {n.taxon.label : float(n.lbr) for n in dtree.postorder_node_iter()},
-    }
+    lbvals = {'tree' : dtree.as_string(schema='newick')}  # NOTE at least for now, i'm adding the tree *before* calculating lbi or lbr, since the different tau values means it'd be more complicated
+    set_lb_values(dtree, lbi_tau, use_multiplicities=False, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
+    lbvals['lbi'] = {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()}
+    set_lb_values(dtree, lbr_tau, use_multiplicities=False, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
+    lbvals['lbr'] = {n.taxon.label : float(n.lbr) for n in dtree.postorder_node_iter()}
+
+    return lbvals
 
 # ----------------------------------------------------------------------------------------
 lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called
@@ -812,7 +818,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
             plotting.make_html(true_plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, add_dummy_root=False, debug=False):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
+                           use_liberman_lonr_tree=False, add_dummy_root=False, lbr_tau_factor=20, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -852,7 +859,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
             seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
             dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
             tree_origin_counts['fasttree']['count'] += 1
-        line['tree-info']['lb'] = calculate_lb_values(line, dtree, lb_tau, add_dummy_root=add_dummy_root, extra_str='inf tree', debug=debug)
+        line['tree-info']['lb'] = calculate_lb_values(line, dtree, lb_tau, lbr_tau_factor * lb_tau, add_dummy_root=add_dummy_root, extra_str='inf tree', debug=debug)
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
         print '      skipped %d / %d that already had tree info' % (n_already_there, len(lines_to_use))
@@ -861,7 +868,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_line, true_dtree, lb_tau, add_dummy_root=add_dummy_root, extra_str='true tree')
+            true_lb_info = calculate_lb_values(true_line, true_dtree, lb_tau, lbr_tau_factor * lb_tau, add_dummy_root=add_dummy_root, extra_str='true tree')
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:

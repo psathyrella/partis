@@ -184,7 +184,7 @@ parser.add_argument('--target-count', type=int, default=10, help='Number of targ
 parser.add_argument('--branching-parameter', type=float, default=2., help='')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='')
 
-parser.add_argument('--lb-tau', type=float, default=0.4, help='')
+parser.add_argument('--lb-tau', type=float, default=0.001, help='')
 args = parser.parse_args()
 
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
