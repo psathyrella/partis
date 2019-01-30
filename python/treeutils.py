@@ -321,14 +321,18 @@ def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespa
 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
-# NOTE see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, normalize=False, debug=False):
+# also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
+def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dummy_branches=False, debug=False):
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI.
     tree     -- tree for whose nodes the LBI is being computed (was biopython, now dendropy)
     """
     def getmulti(node):  # number of reads with the same sequence
         return node.multiplicity if use_multiplicities else 1
+
+    if add_dummy_branches:
+        input_dtree = dtree
+        dtree = get_tree_with_dummy_branches(dtree, 10*tau, debug=debug)  # replace <dtree> with a modified tree
 
     # calculate clock length (i.e. for each node, the distance to that node's parent)
     for node in dtree.postorder_node_iter():  # postorder vs preorder doesn't matter, but I have to choose one
@@ -377,28 +381,75 @@ def modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, norma
         for node in dtree.postorder_node_iter():
             node.lbi /= max_LBI
 
+    if add_dummy_branches:  # get the lb values from the modified tree, and the swap back
+        for node in input_dtree.preorder_node_iter():
+            ntmp = dtree.find_node_with_taxon_label(node.taxon.label)
+            node.clock_length = ntmp.clock_length
+            node.lbi = ntmp.lbi
+            node.lbr = ntmp.lbr
+        dtree = input_dtree  # only actually affects the debug print below
+
     if debug:
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
         print ('   %' + max_width + 's   multi     lbi       lbr      clock length') % 'node'
-        for node in dtree.postorder_node_iter():  # postorder shouldn't matter, but I have to choose one or the other when I'm copying from the bio version
+        for node in dtree.postorder_node_iter():
             multi_str = str(getmulti(node)) if (use_multiplicities and getmulti(node) > 1) else ''
             print ('    %' + max_width + 's  %3s   %8.3f  %8.3f    %8.3f') % (node.taxon.label, multi_str, node.lbi, node.lbr, node.clock_length)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(annotation, dtree, tau, naive_seq_name=None, extra_str=None, debug=False):
-    def set_multiplicities():
-        missing_from_annotation = []
-        for node in dtree.postorder_node_iter():
-            node.multiplicity = 1
-            if node.taxon.label not in annotation['unique_ids']:  # could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
-                missing_from_annotation.append(node.taxon.label)
-                continue
-            if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but even if not, if there's no duplicate info then assuming multiplicities of 1 should be fine (maybe should add duplicate info to simulation? it wouldn't really make sense though, since we don't collapse duplicates in simulation info)
-                continue
-            iseq = annotation['unique_ids'].index(node.taxon.label)
-            node.multiplicity = len(annotation['duplicates'][iseq]) + 1
-        if debug and len(missing_from_annotation) > 0:  # these should mostly/all be internal nodes that were inferred by the phylogenetic method
-            print '  %s %d nodes in tree missing from annotation: %s' % (utils.color('yellow', 'note'), len(missing_from_annotation), ' '.join(missing_from_annotation))
+def set_multiplicities(dtree, annotation, debug=False):
+    missing_from_annotation = []
+    for node in dtree.postorder_node_iter():
+        node.multiplicity = 1
+        if node.taxon.label not in annotation['unique_ids']:  # could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
+            missing_from_annotation.append(node.taxon.label)
+            continue
+        if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but even if not, if there's no duplicate info then assuming multiplicities of 1 should be fine (maybe should add duplicate info to simulation? it wouldn't really make sense though, since we don't collapse duplicates in simulation info)
+            continue
+        iseq = annotation['unique_ids'].index(node.taxon.label)
+        node.multiplicity = len(annotation['duplicates'][iseq]) + 1
+    if debug and len(missing_from_annotation) > 0:  # these should mostly/all be internal nodes that were inferred by the phylogenetic method
+        print '  %s %d nodes in tree missing from annotation: %s' % (utils.color('yellow', 'note'), len(missing_from_annotation), ' '.join(missing_from_annotation))
+
+# ----------------------------------------------------------------------------------------
+def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, dummy_str='dummy', debug=False): # add long branches above root and below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
+    # add parent above old root (i.e. root of new tree)
+    tns = dendropy.TaxonNamespace()
+    new_root_label = dummy_str + '-root'
+    tns.add_taxon(dendropy.Taxon(new_root_label))
+    new_root_node = dendropy.Node(taxon=tns.get_taxon(new_root_label))
+    new_root_node.multiplicity = old_dtree.seed_node.multiplicity
+    new_dtree = dendropy.Tree(taxon_namespace=tns, seed_node=new_root_node)
+
+    # then add the entire old tree under this, node by node (I tried just adding the old tree root as a child of the new root, but some internal things got screwed up, e.g. update_bipartitions() was crashing (although it did partially work))
+    tns.add_taxon(dendropy.Taxon(old_dtree.seed_node.taxon.label))
+    tmpnode = new_root_node.new_child(taxon=tns.get_taxon(old_dtree.seed_node.taxon.label), edge_length=dummy_edge_length)
+    tmpnode.multiplicity = old_dtree.seed_node.multiplicity
+    for edge in new_root_node.child_edge_iter():
+        edge.length = dummy_edge_length
+    for old_node in old_dtree.preorder_node_iter():
+        new_node = new_dtree.find_node_with_taxon_label(old_node.taxon.label)
+        for edge in old_node.child_edge_iter():
+            tns.add_taxon(dendropy.Taxon(edge.head_node.taxon.label))
+            tmpnode = new_node.new_child(taxon=tns.get_taxon(edge.head_node.taxon.label), edge_length=edge.length)
+            tmpnode.multiplicity = old_node.multiplicity
+
+    # then add dummy child branches to each leaf
+    for lnode in new_dtree.leaf_node_iter():
+        new_label = '%s-%s' % (dummy_str, lnode.taxon.label)
+        tns.add_taxon(dendropy.Taxon(new_label))
+        new_child_node = lnode.new_child(taxon=tns.get_taxon(new_label), edge_length=dummy_edge_length)
+        new_child_node.multiplicity = lnode.multiplicity
+    # new_dtree.update_bipartitions()  # not sure if I should do this?
+
+    if debug:
+        print '    added dummy branches to tree:'
+        print get_ascii_tree(dendro_tree=new_dtree, extra_str='      ', width=350)
+
+    return new_dtree
+
+# ----------------------------------------------------------------------------------------
+def calculate_lb_values(annotation, dtree, tau, add_dummy_branches=False, naive_seq_name=None, extra_str=None, debug=False):
 
     if naive_seq_name is not None:  # not really sure if there's a reason to do this
         raise Exception('think about this before turning it on again')
@@ -407,13 +458,13 @@ def calculate_lb_values(annotation, dtree, tau, naive_seq_name=None, extra_str=N
     if debug:
         print '   lbi/lbr%s:' % ('' if extra_str is None else ' for %s' % extra_str)
         print '      calculating lb values with tau %.4f and tree:' % tau
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
+        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
     missing_from_tree = [uid for uid in annotation['unique_ids'] if dtree.find_node_with_taxon_label(uid) is None]
     if len(missing_from_tree) > 0:
         raise Exception('%d sequences in annotation, but missing from tree: %s' % (len(missing_from_tree), ' '.join(missing_from_tree)))
-    set_multiplicities()
-    modify_dendro_tree_for_lb_values(dtree, tau, use_multiplicities=False, debug=debug)
+    set_multiplicities(dtree, annotation, debug=debug)
+    set_lb_values(dtree, tau, use_multiplicities=False, add_dummy_branches=add_dummy_branches, debug=debug)
 
     return {'tree' : dtree.as_string(schema='newick'),
             'lbi' : {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()},
@@ -747,7 +798,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
             utils.prep_dir(true_plotdir, wildlings=['*.svg'])
             fnames = []
             for lb_metric, lb_label in lb_metrics.items():
-                fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True)
+                fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True)
                 # fnames[-1] += plotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
                 fnames[-1] += plotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
             fnames.append([])
@@ -757,7 +808,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
             plotting.make_html(true_plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, debug=False):
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None, use_liberman_lonr_tree=False, add_dummy_branches=False, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -797,7 +848,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
             seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
             dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
             tree_origin_counts['fasttree']['count'] += 1
-        line['tree-info']['lb'] = calculate_lb_values(line, dtree, lb_tau, extra_str='inf tree', debug=debug)
+        line['tree-info']['lb'] = calculate_lb_values(line, dtree, lb_tau, add_dummy_branches=add_dummy_branches, extra_str='inf tree', debug=debug)
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
         print '      skipped %d / %d that already had tree info' % (n_already_there, len(lines_to_use))
@@ -806,7 +857,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_line, true_dtree, lb_tau, extra_str='true tree', debug=debug)
+            true_lb_info = calculate_lb_values(true_line, true_dtree, lb_tau, add_dummy_branches=add_dummy_branches, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:
