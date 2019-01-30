@@ -1394,7 +1394,7 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
     if debug:
         print '  finding N ancestors since last affinity increase'
         print '         node        ancestors   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
-    n_ancestor_vals = {val_type : [] for val_type in [lb_metric, 'n-ancestors']}
+    n_ancestor_vals = {val_type : [] for val_type in [lb_metric, 'n-ancestors']}  # , 'uids']}
     # TMP_plotvals = {x : {'leaf' : [], 'internal' : []} for x in [lb_metric, 'n-ancestors']}  # TODO all this commented stuff is for splitting apart leaf and internal plots. If I end up wanting to do that again, I should combine it with plot_lb_vs_shm().
     for line in true_lines:
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
@@ -1438,6 +1438,7 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
 
             n_ancestor_vals['n-ancestors'].append(n_steps)
             n_ancestor_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][this_uid])
+            # n_ancestor_vals['uids'].append(this_uid)
             # tkey = 'leaf' if node.is_leaf() else 'internal'
             # TMP_plotvals['n-ancestors'][tkey].append(n_steps)
             # TMP_plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][this_uid])
@@ -1452,12 +1453,12 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
         if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:
             print'  %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('red', 'error'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
 
-    fig, ax = mpl_init()
-    ax.scatter(n_ancestor_vals['n-ancestors'], n_ancestor_vals[lb_metric], alpha=0.4)
+    plotname = '%s-vs-n-ancestors-%s-tree' % (lb_metric, plot_str)  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
+    # fig, ax = mpl_init()
     # for tkey, color in zip(TMP_plotvals['n-ancestors'], (None, 'darkgreen')):
     #     ax.scatter(TMP_plotvals['n-ancestors'][tkey], TMP_plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
-    plotname = '%s-vs-n-ancestors-%s-tree' % (lb_metric, plot_str)  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
-    mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label)
+    # mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label)
+    plot_2d_scatter(plotname, plotdir, n_ancestor_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar='n-ancestors', xlabel='N ancestors since affinity increase')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     # then plot potential lb cut thresholds with percentiles
