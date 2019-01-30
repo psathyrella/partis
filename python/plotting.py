@@ -1186,21 +1186,23 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr):
     make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
+def get_tree_from_line(line, is_simu):
+    if is_simu:
+        return line['tree']
+    if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
+        return None
+    return line['tree-info']['lb']['tree']
+
+# ----------------------------------------------------------------------------------------
 def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False):  # <is_simu> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
-    def get_tree(line):
-        if is_simu:
-            return line['tree']
-        if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
-            return None
-        return line['tree-info']['lb']['tree']
-    sorted_lines = sorted([l for l in lines_to_use if get_tree(l) is not None], key=lambda l: len(l['unique_ids']), reverse=True)
+    sorted_lines = sorted([l for l in lines_to_use if get_tree_from_line(l, is_simu) is not None], key=lambda l: len(l['unique_ids']), reverse=True)
     fnames = []
 
     # note: all clusters together
     plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm'] + treeutils.lb_metrics.keys()}
     # uid_vals = {lb : {} for lb in treeutils.lb_metrics}
     for line in sorted_lines:  # get depth/n_mutations for each node
-        dtree = treeutils.get_dendro_tree(treestr=get_tree(line))
+        dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
         n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
         max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
         for node in dtree.preorder_node_iter():
@@ -1275,32 +1277,45 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, ptile_range_tuple=(50., 100., 1.), debug=False):
+def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, ptile_range_tuple=(50., 100., 1.), is_simu=False, debug=False):
     fnames = []
 
     # first plot lb metric vs affinity scatter (all clusters)
-    lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity', 'uids']}
+    lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}
+    # TMP_plotvals = {x : {'leaf' : [], 'internal' : []} for x in [lb_metric, 'affinity']}  # , 'uids']}  # TODO all this commented stuff is for splitting apart leaf and internal plots. If I end up wanting to do that again, I should combine it with plot_lb_vs_shm().
     for iclust, line in enumerate(lines):
+        # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
         if 'affinities' not in line:
             continue
         for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line['affinities']) if a is not None]:
+            # node = dtree.find_node_with_taxon_label(uid)
             lb_vs_affinity_vals['affinity'].append(affy)
             lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
             # lb_vs_affinity_vals['uids'].append(uid)
+            # tkey = 'leaf' if node.is_leaf() else 'internal'
+            # TMP_plotvals['affinity'][tkey].append(affy)
+            # TMP_plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][uid])
         if not all_clusters_together and len(lb_vs_affinity_vals['affinity']) > 0:
             fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (plotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
             fnames.append(fn)
     if all_clusters_together:
         plotname = '%s-vs-affinity-%s-tree' % (lb_metric, plot_str)
         plot_2d_scatter(plotname, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
+        # fig, ax = mpl_init()
+        # for tkey, color in zip(TMP_plotvals['affinity'], (None, 'darkgreen')):
+        #     ax.scatter(TMP_plotvals['affinity'][tkey], TMP_plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
+        # xbounds = (0.95 * min(lb_vs_affinity_vals['affinity']), 1.05 * max(lb_vs_affinity_vals['affinity']))
+        # ybounds = (0 if lb_metric == 'lbi' else -0.1, 1.05 * max(lb_vs_affinity_vals[lb_metric]))
+        # mpl_finish(ax, plotdir, plotname, xbounds=xbounds, ybounds=ybounds, xlabel='affinity', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper())
         fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     # then plot potential lb cut thresholds with percentiles
     if debug:
         print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
-    ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : []}  # , 'reshuffled_vals' : []}
+    ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
     lbvals = lb_vs_affinity_vals[lb_metric]  # should really use these shorthands for the previous plot as well
     affyvals = lb_vs_affinity_vals['affinity']
+    sorted_affyvals = sorted(affyvals, reverse=True)
     for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
         corresponding_affinities = [affy for lb, affy in zip(lbvals, affyvals) if lb > lb_ptile_val]  # affinities corresponding to lb greater than <lb_ptile_val> (i.e. the affinities that you'd get if you took all the lb values greater than that)
@@ -1312,7 +1327,13 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
         ptile_vals['lb_ptiles'].append(percentile)
         ptile_vals['mean_affy_ptiles'].append(numpy.mean(corr_affy_ptiles))
         if debug:
-            print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1])
+            print '   %5.0f   %5.2f   %8.4f     %5.0f  %s' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1], '')  # sorted(corr_affy_ptiles))
+
+        # make a "perfect" line from actual affinities, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
+        n_to_take = int((1. - percentile / 100) * len(sorted_affyvals))
+        corresponding_perfect_affy_vals = sorted_affyvals[:n_to_take]
+        corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy) for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow
+        ptile_vals['perfect_vals'].append(numpy.mean(corr_perfect_affy_ptiles))
 
         # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
         # shuffled_lb_vals = copy.deepcopy(lbvals)
@@ -1324,7 +1345,8 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     fig, ax = mpl_init()
     ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
     # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
-    ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
+    # ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
+    ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
     ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # or maybe just a straight line?
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
     plotname = '%s-vs-affinity-%s-tree-ptiles' % (lb_metric, plot_str)
@@ -1374,6 +1396,7 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
         print '  finding N ancestors since last affinity increase'
         print '         node        ancestors   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
     n_ancestor_vals = {val_type : [] for val_type in [lb_metric, 'n-ancestors']}
+    # TMP_plotvals = {x : {'leaf' : [], 'internal' : []} for x in [lb_metric, 'n-ancestors']}  # TODO all this commented stuff is for splitting apart leaf and internal plots. If I end up wanting to do that again, I should combine it with plot_lb_vs_shm().
     for line in true_lines:
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
         affinity_changes = []
@@ -1416,6 +1439,10 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
 
             n_ancestor_vals['n-ancestors'].append(n_steps)
             n_ancestor_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][this_uid])
+            # tkey = 'leaf' if node.is_leaf() else 'internal'
+            # TMP_plotvals['n-ancestors'][tkey].append(n_steps)
+            # TMP_plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][this_uid])
+
         # make sure affinity changes are all roughly the same size
         affinity_changes = sorted(affinity_changes)
         if debug:
@@ -1428,10 +1455,10 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
 
     fig, ax = mpl_init()
     ax.scatter(n_ancestor_vals['n-ancestors'], n_ancestor_vals[lb_metric], alpha=0.4)
-    # sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
-    # xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
+    # for tkey, color in zip(TMP_plotvals['n-ancestors'], (None, 'darkgreen')):
+    #     ax.scatter(TMP_plotvals['n-ancestors'][tkey], TMP_plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
     plotname = '%s-vs-n-ancestors-%s-tree' % (lb_metric, plot_str)  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
-    mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label) #, xbounds=(1.05 * xmin, 1.05 * xmax))
+    mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label)
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     # then plot potential lb cut thresholds with percentiles
