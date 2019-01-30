@@ -1328,7 +1328,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # or maybe just a straight line?
     # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
     plotname = '%s-vs-affinity-%s-tree-ptiles' % (lb_metric, plot_str)
-    mpl_finish(ax, plotdir, plotname, xbounds=(min(ptile_vals['lb_ptiles']), max(ptile_vals['lb_ptiles'])), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
+    mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     return [fnames]
@@ -1476,7 +1476,7 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
     ax.plot(perfect_ptile_vals['ptiles'], perfect_ptile_vals['mean_n_ancestors'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
     plotname = '%s-vs-n-ancestors-%s-tree-ptiles' % (lb_metric, plot_str)
     ymax = max([mean_n_anc] + lb_ptile_vals['mean_n_ancestors'] + perfect_ptile_vals['mean_n_ancestors'])
-    mpl_finish(ax, plotdir, plotname, xbounds=(min(lb_ptile_vals['lb_ptiles']), max(lb_ptile_vals['lb_ptiles'])), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean N ancestors since affinity increase')
+    mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean N ancestors since affinity increase')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     return [fnames]
