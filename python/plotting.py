@@ -1327,7 +1327,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
         ptile_vals['lb_ptiles'].append(percentile)
         ptile_vals['mean_affy_ptiles'].append(numpy.mean(corr_affy_ptiles))
         if debug:
-            print '   %5.0f   %5.2f   %8.4f     %5.0f  %s' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1], '')  # sorted(corr_affy_ptiles))
+            print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1])
 
         # make a "perfect" line from actual affinities, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
         n_to_take = int((1. - percentile / 100) * len(sorted_affyvals))
@@ -1344,11 +1344,10 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
 
     fig, ax = mpl_init()
     ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
-    # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
-    # ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
-    ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
-    ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # or maybe just a straight line?
-    # ax.text(0.1, 30, 'if we take seqs with LBI in top (1-x) ptile, what ptiles are the corresponding affinities?', color='green')  # NOTE doesn't work (for some reasong)
+    # ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # straight line
+    ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # perfect vals
+    ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
+    # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
     plotname = '%s-vs-affinity-%s-tree-ptiles' % (lb_metric, plot_str)
     mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
