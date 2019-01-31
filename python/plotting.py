@@ -1199,22 +1199,23 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False):  # <is_simu> is th
     fnames = []
 
     # note: all clusters together
-    plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm'] + treeutils.lb_metrics.keys()}
-    for line in sorted_lines:  # get depth/n_mutations for each node
-        dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
-        n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
-        max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
-        for node in dtree.preorder_node_iter():
-            iseq = line['unique_ids'].index(node.taxon.label) if node.taxon.label in line['unique_ids'] else None
-            n_muted = line['n_mutations'][iseq] if node.taxon.label in line['unique_ids'] else node.distance_from_root() * n_max_mutes / float(max_depth)
-            tkey = 'leaf' if node.is_leaf() else 'internal'
-            plotvals['shm'][tkey].append(n_muted)
-            for lb_metric in treeutils.lb_metrics:
+    for lb_metric, lb_label in treeutils.lb_metrics.items():
+        plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric]}
+        for line in sorted_lines:  # get depth/n_mutations for each node
+            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
+            n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
+            max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
+            for node in dtree.preorder_node_iter():
+                if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][node.taxon.label] == 0:  # lbr equals 0 should really be treated as None/missing
+                    continue
+                iseq = line['unique_ids'].index(node.taxon.label) if node.taxon.label in line['unique_ids'] else None
+                n_muted = line['n_mutations'][iseq] if node.taxon.label in line['unique_ids'] else node.distance_from_root() * n_max_mutes / float(max_depth)
+                tkey = 'leaf' if node.is_leaf() else 'internal'
+                plotvals['shm'][tkey].append(n_muted)
                 plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
 
-    for lb_metric, lb_label in treeutils.lb_metrics.items():
         plotname = '%s-vs-shm' % lb_metric
-        plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s vs SHM (all clusters)' % lb_metric.upper(), xvar='shm', xlabel='N mutations')
+        plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s vs SHM (all clusters)' % lb_metric.upper(), xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
         fnames.append('%s/%s.svg' % (baseplotdir, plotname))
 
     return [fnames]
@@ -1248,7 +1249,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use):
     return fnames
 
 # ----------------------------------------------------------------------------------------
-def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log=''):
+def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log='', leg_loc=None):
     if len(plotvals[xvar]) == 0:
         # print '    no %s vs affy info' % yvar
         return
@@ -1270,8 +1271,11 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
             ax.text(xval, yval, uid, color='red', fontsize=8)
 
     xbounds = xmin - 0.01 * (xmax - xmin), 1.05 * xmax
-    ybounds = ymin - 0.01 * (ymax - ymin), 1.05 * ymax
-    mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log)  # factor on <xmin> is only right if xmin is positive, but it should always be
+    if 'y' in log:
+        ybounds = 0.95 * ymin, 1.05 * ymax
+    else:
+        ybounds = ymin - 0.01 * (ymax - ymin), 1.05 * ymax
+    mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc)
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
@@ -1401,6 +1405,8 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
             node = dtree.find_node_with_taxon_label(this_uid)
             if node is dtree.seed_node:  # root doesn't have any ancestors
                 continue
+            if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][this_uid] == 0:  # lbr equals 0 should really be treated as None/missing
+                continue
 
             if debug:
                 print '     %12s %12s %9.4f' % (this_uid, '', this_affinity)
@@ -1456,7 +1462,7 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
     # for tkey, color in zip(TMP_plotvals['n-ancestors'], (None, 'darkgreen')):
     #     ax.scatter(TMP_plotvals['n-ancestors'][tkey], TMP_plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
     # mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label)
-    plot_2d_scatter(plotname, plotdir, n_ancestor_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar='n-ancestors', xlabel='N ancestors since affinity increase') #, log='y' if lb_metric == 'lbr' else '')
+    plot_2d_scatter(plotname, plotdir, n_ancestor_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar='n-ancestors', xlabel='N ancestors since affinity increase', log='y' if lb_metric == 'lbr' else '')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     # then plot potential lb cut thresholds with percentiles
