@@ -1200,7 +1200,6 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False):  # <is_simu> is th
 
     # note: all clusters together
     plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm'] + treeutils.lb_metrics.keys()}
-    # uid_vals = {lb : {} for lb in treeutils.lb_metrics}
     for line in sorted_lines:  # get depth/n_mutations for each node
         dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
         n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
@@ -1212,20 +1211,11 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False):  # <is_simu> is th
             plotvals['shm'][tkey].append(n_muted)
             for lb_metric in treeutils.lb_metrics:
                 plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
-                # if 'affinities' in line and iseq is not None and line['affinities'][iseq] is not None:
-                #     uid_vals[lb_metric][node.taxon.label] = (plotvals['shm'][-1], plotvals[lb_metric][-1])
 
     for lb_metric, lb_label in treeutils.lb_metrics.items():
-        fig, ax = mpl_init()
-        for tkey, color in zip(plotvals['shm'], (None, 'darkgreen')):
-            ax.scatter(plotvals['shm'][tkey], plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
-        # for uid, (xval, yval) in uid_vals[lb_metric].items():
-        #     ax.plot([xval], [yval], color='red', marker='.', markersize=10)
-        #     ax.text(xval, yval, uid, color='red', fontsize=8)
         plotname = '%s-vs-shm' % lb_metric
+        plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s vs SHM (all clusters)' % lb_metric.upper(), xvar='shm', xlabel='N mutations')
         fnames.append('%s/%s.svg' % (baseplotdir, plotname))
-        mpl_finish(ax, baseplotdir, plotname, xlabel='N mutations', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper(), leg_loc=(0.7, 0.7))
-        # plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s vs SHM (all clusters)' % lb_metric.upper(), xvar='shm', xlabel='N mutations')
 
     return [fnames]
 
@@ -1265,15 +1255,23 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     fig, ax = mpl_init()
     # cmap, norm = get_normalized_cmap_and_norm()
     # ax.hexbin(plotvals[xvar], plotvals[yvar], gridsize=15, cmap=plt.cm.Blues)
-    sorted_xvals = sorted(plotvals[xvar])  # not sure why, but ax.scatter() is screwing up the x bounds
-    xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
-    ax.scatter(plotvals[xvar], plotvals[yvar], alpha=0.4)
+    if 'leaf' not in plotvals[xvar]:  # single plot
+        ax.scatter(plotvals[xvar], plotvals[yvar], alpha=0.4)
+        xmin, xmax = min(plotvals[xvar]), max(plotvals[xvar])
+        ymin, ymax = min(plotvals[yvar]), max(plotvals[yvar])
+    else:  # separate plots for leaf/internal nodes
+        for tkey, color in zip(plotvals[xvar], (None, 'darkgreen')):
+            ax.scatter(plotvals[xvar][tkey], plotvals[yvar][tkey], label=tkey, alpha=0.4, color=color)
+        xmin, xmax = min(x for tk in plotvals[xvar] for x in plotvals[xvar][tk]), max(x for tk in plotvals[xvar] for x in plotvals[xvar][tk])
+        ymin, ymax = min(y for tk in plotvals[yvar] for y in plotvals[yvar][tk]), max(y for tk in plotvals[yvar] for y in plotvals[yvar][tk])
     if 'uids' in plotvals:
         for xval, yval, uid in zip(plotvals[xvar], plotvals[yvar], plotvals['uids']):
             ax.plot([xval], [yval], color='red', marker='.', markersize=10)
             ax.text(xval, yval, uid, color='red', fontsize=8)
 
-    mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=(xmin - 0.01 * (xmax - xmin), 1.05 * xmax), log=log)  # factor on <xmin> is only right if xmin is positive, but it should always be
+    xbounds = xmin - 0.01 * (xmax - xmin), 1.05 * xmax
+    ybounds = ymin - 0.01 * (ymax - ymin), 1.05 * ymax
+    mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log)  # factor on <xmin> is only right if xmin is positive, but it should always be
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------

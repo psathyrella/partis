@@ -819,7 +819,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
 
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           use_liberman_lonr_tree=False, add_dummy_root=False, lbr_tau_factor=20, debug=False):
+                           add_dummy_root=False, lbr_tau_factor=20, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -845,7 +845,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
         if treefname is not None:
             dtree = get_dendro_tree(treefname=treefname, debug=debug)
             tree_origin_counts['treefname']['count'] += 1
-        elif use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
+        elif False:  # use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
             lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
             line['tree-info']['lonr'] = lonr_info
