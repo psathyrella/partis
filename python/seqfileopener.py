@@ -22,11 +22,11 @@ def add_seed_seq(args, input_info, reco_info, is_data):
         reco_info[args.seed_unique_id] = 'unknown!'  # hopefully more obvious than a key error
 
 # ----------------------------------------------------------------------------------------
-def add_input_metafo(input_metafname, input_info, debug=False):
+def read_input_metafo(input_metafname, annotation_list, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info>
     with open(input_metafname) as metafile:
         metafo = yaml.load(metafile)
-    n_added, added_keys = 0, set()
-    for line in input_info.values():
+    added_uids, added_keys = set(), set()
+    for line in annotation_list:
         for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
@@ -37,12 +37,34 @@ def add_input_metafo(input_metafname, input_info, debug=False):
                 mval = metafo[uid][input_key]
                 if line_key in line and mval != line[line_key][iseq]:  # the meta info shouldn't generally already be in the input file if you're also specifying a separate meta file
                     print ' %s replacing \'%s\'/\'%s\' value for \'%s\' with value from %s: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, uid, input_metafname, line[line_key][iseq], mval)
-                n_added += 1
+                added_uids.add(uid)
                 added_keys.add(line_key)
                 mvals[iseq] = mval
             line[line_key] = mvals
     if debug:
-        print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), n_added, input_metafname)
+        print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids), input_metafname)
+
+# ----------------------------------------------------------------------------------------
+def add_input_metafo(input_info, annotation_list, debug=False):  # transfer input metafo from <input_info> to <annotation_list>
+    # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafname, from <input_info>, from <sw_info>. As it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
+    added_uids, added_keys = set(), set()
+    for line in annotation_list:
+        for input_key, line_key in utils.input_metafile_keys.items():
+            if line_key not in utils.linekeys['per_seq']:
+                raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
+            mvals = [input_info[u][line_key][0] for u in line['unique_ids'] if line_key in input_info[u]]
+            if len(mvals) == 0:
+                continue
+            elif len(mvals) == len(line['unique_ids']):
+                if line_key in line and mvals != line[line_key]:
+                    print ' %s replacing input metafo \'%s\'/\'%s\' value for \'%s\' with value: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, ' '.join(line['unique_ids']), line[line_key], mvals)
+                line[line_key] = mvals
+                added_uids |= set(line['unique_ids'])
+                added_keys.add(line_key)
+            else:
+                raise Exception('invalid input meta info in <input_info> (%d values, but expected 0 or %d)' % (len(mvals), len(line['unique_ids'])))
+    if debug:
+        print '  transferred input meta info (%s) for %d sequences from input_info' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids))
 
 # ----------------------------------------------------------------------------------------
 def post_process(input_info, reco_info, args, infname, found_seed, is_data, iline):
@@ -222,7 +244,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             found_seed = True
         input_info.update(more_input_info)
     if args is not None and args.input_metafname is not None:
-        add_input_metafo(args.input_metafname, input_info, debug=True)
+        read_input_metafo(args.input_metafname, input_info.values(), debug=True)
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 
     if len(input_info) == 0:

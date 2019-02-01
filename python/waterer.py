@@ -17,6 +17,7 @@ import glutils
 import indelutils
 from parametercounter import ParameterCounter
 from performanceplotter import PerformancePlotter
+import seqfileopener
 
 # best mismatch (with a match score of 5):
 # mfreq     boundaries     mutation
@@ -244,6 +245,7 @@ class Waterer(object):
             self.remove_framework_insertions()
             self.remove_duplicate_sequences()
 
+        seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']])
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below
         if cachefname is not None:
             self.write_cachefile(cachefname)
