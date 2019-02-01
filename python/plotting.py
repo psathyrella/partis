@@ -1203,7 +1203,7 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric]}
         for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
-            iclust_plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric]}
+            iclust_plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric, 'uids']}
             dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
             n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
             max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
@@ -1215,12 +1215,15 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
                 tkey = 'leaf' if node.is_leaf() else 'internal'
                 iclust_plotvals['shm'][tkey].append(n_muted)
                 iclust_plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
-            plotname = '%s-vs-shm-%d' % (lb_metric, iclust)
+                affyval = line['affinities'][iseq] if 'affinities' in line and iseq is not None else None
+                if not is_simu:
+                    iclust_plotvals['uids'][tkey].append(node.taxon.label if affyval is not None else None)
+            plotname = '%s-vs-shm-iclust-%d' % (lb_metric, iclust)
             title = '%s vs SHM (%d observed, %d total)' % (lb_metric.upper(), len(line['unique_ids']), len(line['tree-info']['lb'][lb_metric]))
-            plot_2d_scatter(plotname, baseplotdir, iclust_plotvals, lb_metric, lb_label, title, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
+            fn = plot_2d_scatter(plotname, '%s/%s-vs-shm' % (baseplotdir, lb_metric), iclust_plotvals, lb_metric, lb_label, title, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
             if iclust < n_per_row:  # i.e. only put one row's worth in the html
-                subfnames[lb_metric].append('%s/%s.svg' % (baseplotdir, plotname))
-            for vtype in plotvals:
+                subfnames[lb_metric].append(fn)
+            for vtype in [vt for vt in plotvals if vt != 'uids']:
                 for ltype in plotvals[vtype]:
                     plotvals[vtype][ltype] += iclust_plotvals[vtype][ltype]
         plotname = '%s-vs-shm' % lb_metric
@@ -1259,6 +1262,12 @@ def plot_lb_distributions(baseplotdir, lines_to_use, n_per_row=4):
 
 # ----------------------------------------------------------------------------------------
 def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log='', leg_loc=None):
+    def getall(k):
+        if 'leaf' in plotvals[xvar]:
+            return [v for tk in plotvals[k] for v in plotvals[k][tk]]
+        else:
+            return plotvals[k]
+
     if len(plotvals[xvar]) == 0:
         # print '    no %s vs affy info' % yvar
         return
@@ -1267,18 +1276,18 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     # ax.hexbin(plotvals[xvar], plotvals[yvar], gridsize=15, cmap=plt.cm.Blues)
     if 'leaf' not in plotvals[xvar]:  # single plot
         ax.scatter(plotvals[xvar], plotvals[yvar], alpha=0.4)
-        xmin, xmax = min(plotvals[xvar]), max(plotvals[xvar])
-        ymin, ymax = min(plotvals[yvar]), max(plotvals[yvar])
     else:  # separate plots for leaf/internal nodes
         for tkey, color in zip(plotvals[xvar], (None, 'darkgreen')):
             ax.scatter(plotvals[xvar][tkey], plotvals[yvar][tkey], label=tkey, alpha=0.4, color=color)
-        xmin, xmax = min(x for tk in plotvals[xvar] for x in plotvals[xvar][tk]), max(x for tk in plotvals[xvar] for x in plotvals[xvar][tk])
-        ymin, ymax = min(y for tk in plotvals[yvar] for y in plotvals[yvar][tk]), max(y for tk in plotvals[yvar] for y in plotvals[yvar][tk])
     if 'uids' in plotvals:
-        for xval, yval, uid in zip(plotvals[xvar], plotvals[yvar], plotvals['uids']):
+        for xval, yval, uid in zip(getall(xvar), getall(yvar), getall('uids')):  # note: two ways to signal not to do this: sometimes we have 'uids' in the dict, but don't fill it (so the zip() gives an empty list), but sometimes we populate 'uids' with None values
+            if uid is None:
+                continue
             ax.plot([xval], [yval], color='red', marker='.', markersize=10)
             ax.text(xval, yval, uid, color='red', fontsize=8)
 
+    xmin, xmax = min(getall(xvar)), max(getall(xvar))
+    ymin, ymax = min(getall(yvar)), max(getall(yvar))
     xbounds = xmin - 0.01 * (xmax - xmin), 1.05 * xmax
     if 'y' in log:
         ybounds = 0.95 * ymin, 1.05 * ymax
@@ -1288,37 +1297,34 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, ptile_range_tuple=(50., 100., 1.), is_simu=False, debug=False):
+def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, ptile_range_tuple=(50., 100., 1.), is_simu=False, n_per_row=4, debug=False):
     fnames = []
 
     # first plot lb metric vs affinity scatter (all clusters)
     lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}
-    # TMP_plotvals = {x : {'leaf' : [], 'internal' : []} for x in [lb_metric, 'affinity']}  # , 'uids']}  # TODO all this commented stuff is for splitting apart leaf and internal plots. If I end up wanting to do that again, I should combine it with plot_lb_vs_shm().
     for iclust, line in enumerate(lines):
+        iclust_lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}
         # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
         if 'affinities' not in line:
             continue
         for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line['affinities']) if a is not None]:
             # node = dtree.find_node_with_taxon_label(uid)
-            lb_vs_affinity_vals['affinity'].append(affy)
-            lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
-            # lb_vs_affinity_vals['uids'].append(uid)
-            # tkey = 'leaf' if node.is_leaf() else 'internal'
-            # TMP_plotvals['affinity'][tkey].append(affy)
-            # TMP_plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][uid])
-        if not all_clusters_together and len(lb_vs_affinity_vals['affinity']) > 0:
-            fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (plotdir, lb_metric), lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
-            fnames.append(fn)
+            iclust_lb_vs_affinity_vals['affinity'].append(affy)
+            iclust_lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+        if not all_clusters_together and len(iclust_lb_vs_affinity_vals['affinity']) > 0:
+            fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (plotdir, lb_metric), iclust_lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
+            if iclust < n_per_row:
+                fnames.append(fn)
+        for vtype in [vt for vt in lb_vs_affinity_vals if vt != 'uids']:
+            lb_vs_affinity_vals[vtype] += iclust_lb_vs_affinity_vals[vtype]
     if all_clusters_together:
         plotname = '%s-vs-affinity-%s-tree' % (lb_metric, plot_str)
         plot_2d_scatter(plotname, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
-        # fig, ax = mpl_init()
-        # for tkey, color in zip(TMP_plotvals['affinity'], (None, 'darkgreen')):
-        #     ax.scatter(TMP_plotvals['affinity'][tkey], TMP_plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
-        # xbounds = (0.95 * min(lb_vs_affinity_vals['affinity']), 1.05 * max(lb_vs_affinity_vals['affinity']))
-        # ybounds = (0 if lb_metric == 'lbi' else -0.1, 1.05 * max(lb_vs_affinity_vals[lb_metric]))
-        # mpl_finish(ax, plotdir, plotname, xbounds=xbounds, ybounds=ybounds, xlabel='affinity', ylabel=lb_label, title='%s vs SHM (all clusters)' % lb_metric.upper())
         fnames.append('%s/%s.svg' % (plotdir, plotname))
+
+    if len(lb_vs_affinity_vals[lb_metric]) == 0:
+        print '  no affinity values when trying to make lb vs affinity plots'
+        return [fnames]
 
     # then plot potential lb cut thresholds with percentiles
     if debug:

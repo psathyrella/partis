@@ -22,6 +22,29 @@ def add_seed_seq(args, input_info, reco_info, is_data):
         reco_info[args.seed_unique_id] = 'unknown!'  # hopefully more obvious than a key error
 
 # ----------------------------------------------------------------------------------------
+def add_input_metafo(input_metafname, input_info, debug=False):
+    with open(input_metafname) as metafile:
+        metafo = yaml.load(metafile)
+    n_added, added_keys = 0, set()
+    for line in input_info.values():
+        for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not
+            if line_key not in utils.linekeys['per_seq']:
+                raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
+            mvals = [None for _ in line['unique_ids']]
+            for iseq, uid in enumerate(line['unique_ids']):
+                if uid not in metafo or input_key not in metafo[uid]:
+                    continue
+                mval = metafo[uid][input_key]
+                if line_key in line and mval != line[line_key][iseq]:  # the meta info shouldn't generally already be in the input file if you're also specifying a separate meta file
+                    print ' %s replacing \'%s\'/\'%s\' value for \'%s\' with value from %s: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, uid, input_metafname, line[line_key][iseq], mval)
+                n_added += 1
+                added_keys.add(line_key)
+                mvals[iseq] = mval
+            line[line_key] = mvals
+    if debug:
+        print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), n_added, input_metafname)
+
+# ----------------------------------------------------------------------------------------
 def post_process(input_info, reco_info, args, infname, found_seed, is_data, iline):
     if args is None:
         return
@@ -199,15 +222,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             found_seed = True
         input_info.update(more_input_info)
     if args is not None and args.input_metafname is not None:
-        with open(args.input_metafname) as metafile:
-            metafo = yaml.load(metafile)
-        for uid in set(input_info) & set(metafo):  # general design decision: missing metafo is not present in dicts (as opposed to being None)
-            for input_key in set(utils.input_metafile_keys) & set(metafo[uid]):
-                line_key = utils.input_metafile_keys[input_key]  # key that we use in the standard internal <line> dicts
-                if line_key in input_info[uid] and metafo[uid][input_key] != input_info[uid][line_key]:  # the meta info shouldn't  generally already be in the input file if you're also specifying a separate meta file
-                    print ' %s replacing \'%s\'/\'%s\' value for \'%s\' with value from %s: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, uid, args.input_metafname, input_info[uid][line_key], metafo[uid][input_key])
-                input_info[uid][line_key] = [metafo[uid][input_key]]
-
+        add_input_metafo(args.input_metafname, input_info, debug=True)
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 
     if len(input_info) == 0:

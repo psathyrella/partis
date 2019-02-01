@@ -321,7 +321,7 @@ special_indel_columns_for_output = ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seq
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
-                     + functional_columns + ['codon_positions'] + ['tree-info']
+                     + functional_columns + ['codon_positions'] + ['tree-info'] + input_metafile_keys.values()
 simulation_headers = linekeys['simu'] + [h for h in annotation_headers if h not in linekeys['hmm']]
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',
@@ -3990,6 +3990,8 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     for key in [k for k in headers if k not in yamlfo]:
         if key in line:
             yamlfo[key] = line[key]
+        elif key in input_metafile_keys.values():  # these are optional
+            continue
         else:
             add_extra_column(key, line, yamlfo, glfo=glfo)
     return yamlfo

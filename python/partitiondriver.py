@@ -31,6 +31,7 @@ from allelefinder import AlleleFinder
 from performanceplotter import PerformancePlotter
 from partitionplotter import PartitionPlotter
 from hist import Hist
+import seqfileopener
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -291,6 +292,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def calculate_tree_metrics(self, annotations, cpath=None):
+        if self.current_action == 'get-tree-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-tree-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
+            seqfileopener.add_input_metafo(self.args.input_metafname, annotations, debug=True)
         treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, self.args.lb_tau, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, debug=self.args.debug)
 
@@ -1710,7 +1713,6 @@ class PartitionDriver(object):
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
                 padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <padded_line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
-                padded_line['affinities'] = [self.input_info[uid].get('affinities', [None])[0] for uid in uids]  # I think there's no reason to add this to sw info, so I'm just pulling it from input info here
 
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
@@ -1815,6 +1817,8 @@ class PartitionDriver(object):
                 print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
         annotations_to_use = padded_annotations if at_least_one_mult_hmm_line else eroded_annotations  # if every query is a single-sequence query, then the output will be less confusing to people if the N padding isn't there. But you kinda need the padding in order to make the multi-seq stuff work
+        if self.args.input_metafname is not None:  # it's kind of weird to re-read the file when we should already have the info in <self.input_info>, but this way we don't have to duplicate the logic in the reading fcn
+            seqfileopener.add_input_metafo(self.args.input_metafname, annotations_to_use)
         if print_annotations:
             self.print_results(None, annotations_to_use)
 

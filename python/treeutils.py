@@ -794,7 +794,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
     import plotting
 
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
-    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + '-vs-affinity' for m in lb_metrics] + lb_metrics.keys())
+    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']])
     fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
     # fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
     fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'])
