@@ -462,7 +462,10 @@ void ig_align_reads(const char *ref_path, const uint8_t n_extra_refs,
 
   // Read reference sequences
   ref_fp = gzopen(ref_path, "r");
-  assert(ref_fp != NULL && "Failed to open reference");
+  if(ref_fp == NULL) {
+    fprintf(stderr, "Failed to open reference %s\n", ref_path);
+    assert(0);
+  }
   seq = kseq_init(ref_fp);
   kseq_v ref_seqs;
   ref_seqs = read_seqs(seq, 0);
