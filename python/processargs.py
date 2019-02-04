@@ -53,7 +53,7 @@ def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new al
                             for igene in range(n_new_alleles)]
 
 # ----------------------------------------------------------------------------------------
-def get_workdir(batch_system=None):  # split this out so we can use it in datascripts (ok, then I ended up commenting it in datascripts, but maybe later I want to uncomment)
+def get_workdir(batch_system):  # split this out so we can use it in datascripts (ok, then I ended up commenting it in datascripts, but maybe later I want to uncomment)
     basestr = os.getenv('USER') if os.getenv('USER') is not None else 'partis-work'
     if batch_system is not None and os.path.exists('/fh/fast/matsen_e'):
         workdir = utils.choose_random_subdir('/fh/fast/matsen_e/%s/_tmp/hmms' % basestr)
@@ -182,7 +182,7 @@ def process(args):
         args.mutation_multiplier = 0.
 
     if args.workdir is None:  # set default here so we know whether it was set by hand or not
-        args.workdir = get_workdir()
+        args.workdir = get_workdir(args.batch_system)
     else:
         args.workdir = args.workdir.rstrip('/')
     if os.path.exists(args.workdir):
