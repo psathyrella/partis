@@ -3,6 +3,7 @@ import os
 import sys
 import math
 import csv
+import copy
 
 import utils
 import treeutils
@@ -394,6 +395,13 @@ class ClusterPath(object):
         def lget(uid_list):
             return ':'.join(uid_list)
 
+        # check for repeated uids (was only from seed uid, which shouldn't happen any more, but the code below throws an infinite loop if we do, so may as well be careful)
+        for partition in partitions:
+            import collections
+            if sum(len(c) for c in partition) > len(set(u for c in partition for u in c)):
+                repeated_uids = [u for u, count in collections.Counter([u for c in partition for u in c]).items() if count > 1]
+                raise Exception('found %d uid%s (%s) in more than one cluster' % (len(repeated_uids), utils.plural(len(repeated_uids)), ', '.join(repeated_uids)))
+
         default_edge_length = 999999  # it's nice to have the edges all set to something that's numeric (so the trees print), but also obvious wrong, if we forget to set somebody
         assert len(partitions[-1]) == 1
         root_label = lget(partitions[-1][0])  # we want the order of the uids in the label to correspond to the order in self.partitions
@@ -500,25 +508,51 @@ class ClusterPath(object):
         return dtree
 
     # ----------------------------------------------------------------------------------------
+    def deduplicate_seed_uid(self, debug=False):
+        n_removed_list = [0 for _ in self.partitions]
+        new_partitions = [[] for _ in self.partitions]
+        for ipart in range(len(self.partitions)):
+            found = False  # leave the seed uid in the first cluster you find it in, remove it from any others
+            for cluster in self.partitions[ipart]:
+                new_cluster = copy.deepcopy(cluster)
+                if self.seed_unique_id in new_cluster:
+                    if found:
+                        while self.seed_unique_id in new_cluster:  # i think it can actually be in one cluster more than once
+                            n_removed_list[ipart] += 1
+                            new_cluster.remove(self.seed_unique_id)
+                    else:
+                        found = True
+                if len(new_cluster) > 0:
+                    new_partitions[ipart].append(new_cluster)
+        if debug:
+            print '  removed seed uid %s from %s clusters across %d partitions' % (self.seed_unique_id, ' '.join([str(n) for n in n_removed_list]), len(n_removed_list))
+
+        return new_partitions
+
+    # ----------------------------------------------------------------------------------------
     def make_trees(self, annotations, i_only_cluster=None, get_fasttrees=False, debug=False):  # makes a tree for each cluster in the most likely (not final) partition
         # i_only_cluster: only make the tree corresponding to the <i_only_cluster>th cluster in the best partition
         if self.i_best is None:
             return
 
+        partitions = self.partitions
+        if self.seed_unique_id is not None:
+            partitions = self.deduplicate_seed_uid(debug=debug)
+
         if debug:
-            print '  making %d tree%s over %d partitions' % (len(self.partitions[self.i_best]) if i_only_cluster is None else 1, 's' if i_only_cluster is None else '', self.i_best + 1)
+            print '  making %d tree%s over %d partitions' % (len(partitions[self.i_best]) if i_only_cluster is None else 1, 's' if i_only_cluster is None else '', self.i_best + 1)
         if self.trees is None:
-            self.trees = [None for _ in self.partitions[self.i_best]]
+            self.trees = [None for _ in partitions[self.i_best]]
         else:
-            assert len(self.trees) == len(self.partitions[self.i_best])  # presumably because we were already called with <i_only_cluster> set for a different cluster
-        for i_cluster in range(len(self.partitions[self.i_best])):
+            assert len(self.trees) == len(partitions[self.i_best])  # presumably because we were already called with <i_only_cluster> set for a different cluster
+        for i_cluster in range(len(partitions[self.i_best])):
             if i_only_cluster is not None and i_cluster != i_only_cluster:
                 continue
-            final_cluster = self.partitions[self.i_best][i_cluster]
+            final_cluster = partitions[self.i_best][i_cluster]
             uid_set = set(final_cluster)  # usually the set() isn't doing anything, but sometimes I think we have uids duplicated between clusters, e.g. I think when seed partitioning (or even within a cluster, because order matters within a cluster because of bcrham caching)
             sub_partitions = [[] for _ in range(self.i_best + 1)]  # new list of partitions, but only including clusters that overlap with <final_cluster>
             for ipart in range(self.i_best + 1):
-                for tmpclust in self.partitions[ipart]:
+                for tmpclust in partitions[ipart]:
                     if len(set(tmpclust) & uid_set) == 0:
                         continue
                     sub_partitions[ipart].append(tmpclust)  # note that many of these adjacent sub-partitions can be identical, if the merges happened between clusters that correspond to a different final cluster
