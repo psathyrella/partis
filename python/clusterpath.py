@@ -4,6 +4,7 @@ import sys
 import math
 import csv
 import copy
+import collections
 
 import utils
 import treeutils
@@ -397,7 +398,6 @@ class ClusterPath(object):
 
         # check for repeated uids (was only from seed uid, which shouldn't happen any more, but the code below throws an infinite loop if we do, so may as well be careful)
         for partition in partitions:
-            import collections
             if sum(len(c) for c in partition) > len(set(u for c in partition for u in c)):
                 repeated_uids = [u for u, count in collections.Counter([u for c in partition for u in c]).items() if count > 1]
                 raise Exception('found %d uid%s (%s) in more than one cluster' % (len(repeated_uids), utils.plural(len(repeated_uids)), ', '.join(repeated_uids)))
