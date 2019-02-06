@@ -3990,7 +3990,7 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     for key in [k for k in headers if k not in yamlfo]:
         if key in line:
             yamlfo[key] = line[key]
-        elif key in input_metafile_keys.values():  # these are optional
+        elif key in input_metafile_keys.values():  # these are optional, so if they're missing, don't worry about it
             continue
         else:
             add_extra_column(key, line, yamlfo, glfo=glfo)
