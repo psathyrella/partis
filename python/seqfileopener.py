@@ -239,7 +239,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
 
     if more_input_info is not None:  # if you use this on simulation, the extra queries that aren't in <reco_info> may end up breaking something down the line (but I don't imagine this really getting used on simulation)
         if len(set(more_input_info) & set(input_info)) > 0:
-            print '  %s found %d queries in both --infname and --queries-to-include-fname (note that we don\'t check here that they correspond to they same sequence): %s' % (utils.color('red', 'note:'), len(set(more_input_info) & set(input_info)), ' '.join(set(more_input_info) & set(input_info)))  # not necessarily a problem, but you probably *shouldn't* have sequences floating around in two different files
+            print '  %s found %d queries in both --infname and --queries-to-include-fname (note that we don\'t check here that they correspond to the same sequence): %s' % (utils.color('red', 'note:'), len(set(more_input_info) & set(input_info)), ' '.join(set(more_input_info) & set(input_info)))  # not necessarily a problem, but you probably *shouldn't* have sequences floating around in two different files
         if args is not None and args.seed_unique_id is not None and args.seed_unique_id in more_input_info:
             found_seed = True
         input_info.update(more_input_info)
