@@ -482,7 +482,7 @@ class PartitionPlotter(object):
             self.addfname(fnames, '%s' % get_fname(iclust))
 
         if run_in_parallel:
-            utils.run_cmds(cmdfos, clean_on_success=True)  # , debug='print')
+            utils.run_cmds(cmdfos, clean_on_success=True, debug='print')
 
         if debug and len(skipped_cluster_lengths) > 0:
             print '    skipped %d clusters with lengths: %s (+%d singletons)' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths if l > 1]), skipped_cluster_lengths.count(1))

@@ -208,7 +208,7 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
     rstart = time.time()
     try:
         utils.run_r(cmdlines, workdir)  #, print_time='kmeans')
-    except subprocess.CalledProcessError as e:  # complex eigenvalues
+    except subprocess.CalledProcessError as e:  # typically happens because of complex eigenvalues
         print e
         print '   mds failed on cluster'  # NOTE will still crash in read_kmeans_clusterfile(), but I'm not using that a.t.m.
         title = (title if title is not None else '') + ' mds failed'

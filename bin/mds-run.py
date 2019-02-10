@@ -2,6 +2,7 @@
 import sys
 import argparse
 import random
+import colored_traceback.always
 
 sys.path.insert(0, 'python')
 import utils

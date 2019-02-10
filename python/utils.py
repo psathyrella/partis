@@ -2451,15 +2451,11 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return
         print pad_lines('\n'.join(cmdlines))
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
-    outstr, errstr = simplerun('R --slave -f %s' % cmdfname, return_out_err=True, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
+    retval = simplerun('R --slave -f %s' % cmdfname, return_out_err=return_out_err, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
     os.remove(cmdfname)  # different sort of <cmdfname> to that in simplerun()
     if return_out_err:
+        outstr, errstr = retval
         return outstr, errstr
-    else:
-        for oestr in (outstr, errstr):
-            if oestr.strip() == '':
-                continue
-            print pad_lines(oestr)
 
 # ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):
