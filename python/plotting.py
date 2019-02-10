@@ -1303,7 +1303,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     # first plot lb metric vs affinity scatter (all clusters)
     lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}
     for iclust, line in enumerate(lines):
-        iclust_lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}
+        iclust_lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity' , 'uids']}
         # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
         if 'affinities' not in line:
             continue
@@ -1311,6 +1311,8 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
             # node = dtree.find_node_with_taxon_label(uid)
             iclust_lb_vs_affinity_vals['affinity'].append(affy)
             iclust_lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+            if not is_simu:
+                iclust_lb_vs_affinity_vals['uids'].append(uid)
         if not all_clusters_together and len(iclust_lb_vs_affinity_vals['affinity']) > 0:
             fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (plotdir, lb_metric), iclust_lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
             if iclust < n_per_row:
