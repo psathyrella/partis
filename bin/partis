@@ -153,7 +153,10 @@ def read_inputs(args, actions):
         elif args.parameter_dir is not None and os.path.exists(args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir):
             gldir = args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
         else:
-            raise Exception('couldn\'t guess germline info location: set it with either --intitial-germline-dir or --parameter-dir')
+            tstr = ''
+            if args.parameter_dir is not None and not os.path.exists(args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir):
+                tstr = ' (--parameter-dir was set to %s, but the corresponding glfo dir %s doesn\'t exist)' % (args.parameter_dir, args.parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir)
+            raise Exception('couldn\'t guess germline info location: set it with either --intitial-germline-dir or --parameter-dir%s' % tstr)
 
     glfo = None
     if gldir is not None:
