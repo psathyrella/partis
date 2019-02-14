@@ -175,9 +175,6 @@ def read_inputs(args, actions):
         else:
             raise Exception('couldn\'t find simulation germline info: either set with --simulation-germline-dir, or use .yaml simulation files and set --infname')
 
-    if args.infname is None:
-        return None, None, glfo, simglfo
-
     more_input_info = None
     if args.queries_to_include_fname is not None:
         more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data)
@@ -185,6 +182,9 @@ def read_inputs(args, actions):
         if args.queries_to_include is None:
             args.queries_to_include = []
         args.queries_to_include += more_input_info.keys()
+
+    if args.infname is None:  # put this *after* setting queries_to_include from a file, since we need that set
+        return None, None, glfo, simglfo
 
     input_info, reco_info, yaml_glfo = seqfileopener.read_sequence_file(args.infname, args.is_data, n_max_queries=args.n_max_queries, args=args, simglfo=simglfo, more_input_info=more_input_info)
     if not args.is_data and yaml_glfo is not None:  # NOTE is is extremely important that <glfo> doesn't get set to the true info in a simulation yaml
