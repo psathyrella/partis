@@ -46,20 +46,22 @@ Several methods of accomplishing this are described [here](subcommands.md#subcom
 
 #### Plotting
 
-For plotting to work with the `partition` action (i.e. if you're setting `--plotdir`), you need to install R, and a separate package
+For plotting to work with the `partition` action (i.e. if you're setting `--plotdir`), you need to install R (skip if you already have it installed), along with some packages
 
 ```
-conda install -y r-essentials
+apt-get install xorg libx11-dev libglu1-mesa-dev  # may not be necessary, depending on existing R install, but is at least necessary in docker
+apt-get install r-cran-rgl
+conda install -y -cr r-rgl r-essentials
 unset R_LIBS_SITE
 R --vanilla --slave -e 'install.packages(c("bios2mds"), repos="http://cran.rstudio.com/")'
 ```
 
 #### Simulation
 
-If you want to run the `simulate` action, partis needs some tree-related R packages, which can be installed with
+If you want to run the `simulate` action, partis needs R installed along with some tree simulation packages (although this can be avoided if you specify your own trees with --input-simulation-treefname)
 
 ```
-conda install -y r-essentials
+conda install -y r-essentials  # this is simpler than the instructions under Plotting above because we don't need the x11 cruft
 unset R_LIBS_SITE
 R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM"), repos="http://cran.rstudio.com/")'
 ```
