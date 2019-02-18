@@ -1584,3 +1584,11 @@ def plot_aggregate_lonr(plotdir, lines_to_use, reco_info, debug=False):
     # for mt, hist in hists.items():
     #     hist.mpl_plot(ax, label=mt, remove_empty_bins=True)
     # mpl_finish(ax, plotdir, plotname, xlabel='LONR', ylabel='mutations') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+
+# ----------------------------------------------------------------------------------------
+def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
+    hist = Hist(30, min(eigenvalues), max(eigenvalues), value_list=eigenvalues)
+    fig, ax = mpl_init()
+    hist.mpl_plot(ax)
+    mpl_finish
+    mpl_finish(ax, plotdir, plotname, xlabel='eigenvalues', ylabel='count', title=title)

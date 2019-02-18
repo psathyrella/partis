@@ -387,14 +387,14 @@ class PartitionDriver(object):
 
         annotations = self.parse_existing_annotations(annotation_lines, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
 
-        if tmpact == 'plot-partitions':
-            partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info)
-
         if tmpact == 'get-tree-metrics':
             self.calculate_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
             print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
             self.write_output(annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
+
+        if tmpact == 'plot-partitions':
+            partplotter = PartitionPlotter(self.args)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotations)

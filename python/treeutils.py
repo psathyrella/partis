@@ -873,3 +873,52 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
 
     if base_plotdir is not None:
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, debug=debug)
+
+# ----------------------------------------------------------------------------------------
+def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None):
+    #  - > res<-spectR(Phyllostomidae)  # compute eigenvalues (and some metrics describing the distribution, e.g. skewness, kurtosis, eigengap)
+    #  - > plot_spectR(res)  # make plots for eigenvalue spectrum
+    #  - if eigengap (largest gap between sorted eigenvalues) is e.g. between 3 and 4, then the tree can be separated into three regions, and you use the BIC stuff to find those regions
+    #    - > res<-BICompare(Phyllostomidae,3)
+    #    - > plot_BICompare(Phyllostomidae,res)
+    #  - > res<-JSDtree(Phyllostomidae_genera)  # pairwise jensen-shannon distances between the 25 phylogenies
+    #  - > JSDtree_cluster(res)  # plots heatmap and hierarchical cluster
+
+    print utils.pad_lines(get_ascii_tree(treestr=treestr))
+    print treestr
+    # dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))
+    # treestr = rescale_tree(10, treestr=treestr)
+
+    if workdir is None:
+        workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
+    eigenfname = '%s/eigenvalues.txt' % workdir
+    os.makedirs(workdir)
+
+    cmdlines = [
+        'library(ape, quiet=TRUE)',
+        'library(RPANDA, quiet=TRUE)',
+        'tree <- read.tree(text = "%s")' % treestr,
+        # 'print(tree)',
+        'specvals <- spectR(tree)',  # compute eigenvalues (and some metrics describing the distribution, e.g. skewness, kurtosis, eigengap)
+        # 'print(specvals)',
+        'capture.output(specvals$eigenvalues, file="%s")' % eigenfname,
+    ]
+
+    utils.run_r(cmdlines, workdir)
+
+    eigenvalues = []
+    with open(eigenfname) as efile:
+        for line in efile:
+            for tstr in line.split():
+                if '[' in tstr:
+                    if int(tstr.strip('[]')) != len(eigenvalues) + 1:
+                        raise Exception('couldn\'t process line:\n%s' % line)
+                else:
+                    eigenvalues.append(float(tstr))
+
+    os.remove(eigenfname)
+    os.rmdir(workdir)
+
+    if plotdir is not None:
+        import plotting
+        plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)

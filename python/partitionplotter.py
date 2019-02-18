@@ -9,6 +9,7 @@ from hist import Hist
 import utils
 from clusterpath import ClusterPath
 import mds
+import treeutils
 
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
@@ -29,6 +30,7 @@ class PartitionPlotter(object):
         self.n_plots_per_row = 4
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
+        self.laplacian_spectra_min_clusters_size = 4
         self.max_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
 
         self.n_mds_components = 2
@@ -493,6 +495,32 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
+    def make_laplacian_spectra_plots(self, sorted_clusters, annotations, plotdir):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
+        subd, plotdir = self.init_subd('laplacian-spectra', plotdir)
+
+        fnames = [[]]
+        for iclust in range(len(sorted_clusters)):
+            if not self.plot_this_cluster(sorted_clusters, iclust):
+                continue
+            annotation = annotations[':'.join(sorted_clusters[iclust])]
+            if len(annotation['unique_ids']) < self.laplacian_spectra_min_clusters_size:
+                continue
+            if 'tree-info' not in annotation or 'lb' not in annotation['tree-info']:
+                print '  %s no tree in annotation, so can\'t run laplacian spectra' % utils.color('yellow', 'warning')
+                continue
+            try:
+                treeutils.run_laplacian_spectra(annotation['tree-info']['lb']['tree'], plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))
+            except:
+                print 'wtf'
+            if len(fnames[-1]) < self.n_plots_per_row:
+                self.addfname(fnames, 'icluster-%d' % iclust)
+
+        if not self.args.only_csv_plots:
+            self.plotting.make_html(plotdir, fnames=fnames)
+
+        return [[subd + '/' + fn for fn in fnames[0]]]
+
+    # ----------------------------------------------------------------------------------------
     def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region=None, debug=False):
         def addplot(oindexlist, ofracslist, n_seqs, fname, cdr3titlestr, red_text=None):
             hist = Hist(30, 0., 1.)
@@ -574,6 +602,7 @@ class PartitionPlotter(object):
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
+            # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir)
             # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
