@@ -6,6 +6,7 @@ import collections
 import copy
 import os
 import sys
+import numpy
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 sys.path.insert(1, current_script_dir)
@@ -111,6 +112,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
             print '        in final_line, but missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(kdvals))
         final_line['affinities'] = [1. / kdvals[u] for u in final_line['unique_ids']]
         tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % outdir)
+        tree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))
         if args.debug:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
         final_line['tree'] = tree.as_string(schema='newick')
