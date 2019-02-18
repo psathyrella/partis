@@ -265,6 +265,7 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
 
 # ----------------------------------------------------------------------------------------
 def rescale_tree(new_mean_height, dtree=None, treestr=None, debug=False):
+    # TODO switch calls of this to dendro's scale_edges()
     """ rescale the branch lengths in dtree/treestr by <factor> """
     if dtree is None:
         dtree = get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
