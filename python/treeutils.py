@@ -876,6 +876,12 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None):
+    #  - https://www.ncbi.nlm.nih.gov/pubmed/26658901/
+    #  - instructions here: https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12526
+    # I think this is what ended up working (thought probably not in docker):
+    #  apt-get install libgmp-dev libmpfr-dev
+    #  > install.packages("RPANDA",dependencies=TRUE)
+    # condensation of docs from the above paper:
     #  - > res<-spectR(Phyllostomidae)  # compute eigenvalues (and some metrics describing the distribution, e.g. skewness, kurtosis, eigengap)
     #  - > plot_spectR(res)  # make plots for eigenvalue spectrum
     #  - if eigengap (largest gap between sorted eigenvalues) is e.g. between 3 and 4, then the tree can be separated into three regions, and you use the BIC stuff to find those regions
