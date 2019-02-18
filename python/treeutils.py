@@ -805,7 +805,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
             print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
         else:
             true_plotdir = base_plotdir + '/true-tree-metrics'
-            utils.prep_dir(true_plotdir, wildlings=['*.svg'])
+            utils.prep_dir(true_plotdir, wildlings=['*.svg'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-shm']])
             fnames = []
             for lb_metric, lb_label in lb_metrics.items():
                 fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True)

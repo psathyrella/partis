@@ -1202,6 +1202,7 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
     subfnames = {lb_metric : [] for lb_metric in treeutils.lb_metrics}
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric]}
+        basetitle = '%s %s vs SHM' % ('true' if is_simu else 'inferred', lb_metric.upper())
         for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
             iclust_plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric, 'uids']}
             dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
@@ -1219,7 +1220,7 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
                 if not is_simu:
                     iclust_plotvals['uids'][tkey].append(node.taxon.label if affyval is not None else None)
             plotname = '%s-vs-shm-iclust-%d' % (lb_metric, iclust)
-            title = '%s vs SHM (%d observed, %d total)' % (lb_metric.upper(), len(line['unique_ids']), len(line['tree-info']['lb'][lb_metric]))
+            title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(line['tree-info']['lb'][lb_metric]))
             fn = plot_2d_scatter(plotname, '%s/%s-vs-shm' % (baseplotdir, lb_metric), iclust_plotvals, lb_metric, lb_label, title, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
             if iclust < n_per_row:  # i.e. only put one row's worth in the html
                 subfnames[lb_metric].append(fn)
@@ -1227,7 +1228,7 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
                 for ltype in plotvals[vtype]:
                     plotvals[vtype][ltype] += iclust_plotvals[vtype][ltype]
         plotname = '%s-vs-shm' % lb_metric
-        plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s vs SHM (all clusters)' % lb_metric.upper(), xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
+        plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s (all clusters)' % basetitle, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
         fnames[-1].append('%s/%s.svg' % (baseplotdir, plotname))
     fnames += [subfnames[lbm] for lbm in treeutils.lb_metrics]
 
@@ -1478,7 +1479,7 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
     # fig, ax = mpl_init()
     # for tkey, color in zip(TMP_plotvals['n-ancestors'], (None, 'darkgreen')):
     #     ax.scatter(TMP_plotvals['n-ancestors'][tkey], TMP_plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
-    # mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label)
+    # mpl_finish(ax, plotdir, plotname, title='%s on true tree' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label)
     plot_2d_scatter(plotname, plotdir, n_ancestor_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar='n-ancestors', xlabel='N ancestors since affinity increase', log='y' if lb_metric == 'lbr' else '')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
@@ -1536,7 +1537,7 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label
     common_uids = set(plotvals['true']) & set(plotvals['inf'])  # there should/may be a bunch of internal nodes in the simulation lines but not in the inferred lines, but otherwise they should have the same uids
     plotvals = {val_type : [plotvals[val_type][uid] for uid in common_uids] for val_type in plotvals}
     plotname = '%s-true-vs-inferred' % lb_metric
-    plot_2d_scatter(plotname, plotdir, plotvals, 'inf', 'inferred %s' % lb_metric.upper(), 'true vs inferred %s' % lb_metric.upper(), xvar='true', xlabel='true %s' % lb_metric.upper())
+    plot_2d_scatter(plotname, plotdir, plotvals, 'inf', '%s on inferred tree' % lb_metric.upper(), 'true vs inferred %s' % lb_metric.upper(), xvar='true', xlabel='%s on true tree' % lb_metric.upper())
     return ['%s/%s.svg' % (plotdir, plotname)]
 
 # ----------------------------------------------------------------------------------------
