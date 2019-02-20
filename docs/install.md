@@ -54,6 +54,10 @@ apt-get install r-cran-rgl
 conda install -y -cr r-rgl r-essentials
 unset R_LIBS_SITE
 R --vanilla --slave -e 'install.packages(c("bios2mds"), repos="http://cran.rstudio.com/")'
+
+# RPANDA stuff (sorry this is hackey, but at least a.t.m. we need modified src from what it is in CRAN)
+mkdir -p packages/RPANDA/lib
+R CMD INSTALL -l packages/RPANDA/lib packages/RPANDA/
 ```
 
 #### Simulation
