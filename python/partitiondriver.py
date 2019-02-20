@@ -394,7 +394,7 @@ class PartitionDriver(object):
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info, cpath=cpath)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotations)
@@ -430,7 +430,7 @@ class PartitionDriver(object):
 
         if self.args.plotdir is not None:
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=best_cluster_annotations, reco_info=self.reco_info)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=best_cluster_annotations, reco_info=self.reco_info, cpath=cpath)
 
         if self.args.debug:
             print 'final'

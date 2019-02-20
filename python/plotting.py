@@ -324,11 +324,11 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             alpha = alphas[ih]
         htmp.mpl_plot(ax, color=tmpcolors[ih], linewidth=linewidth, linestyle=tmplinestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize, remove_empty_bins=remove_empty_bins, square_bins=square_bins)
 
-    # TODO combine xline, yline, and xyline (I don't want to go find everwhere that calls this right now)
+    # NOTE it would be nice to combine xline, yline, and xyline (I don't want to go find everwhere that calls this right now)
     if xline is not None:
         ax.plot([xline, xline], [-0.1*ymax, 0.5*ymax], color='black', linestyle='--', linewidth=3)
     if yline is not None:
-        print 'TODO fix y line'
+        print '%s fix y line' % utils.color('red', 'error')
     if xyline is not None:
         assert len(xyline) == 2
         assert len(xyline[0]) == 2 and len(xyline[1]) == 2

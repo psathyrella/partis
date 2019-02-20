@@ -819,6 +819,30 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
             plotting.make_html(true_plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
+def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, debug=False):
+    # figure out how we want to get the inferred tree
+    if treefname is not None:
+        dtree = get_dendro_tree(treefname=treefname, debug=debug)
+        origin = 'treefname'
+    elif False:  # use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
+        lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
+        dtree = get_dendro_tree(treestr=lonr_info['tree'])
+        # line['tree-info']['lonr'] = lonr_info
+        origin = 'lonr'
+    elif cpath is not None and not use_true_clusters:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work
+        assert annotations is not None
+        i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])  # if this fails, the cpath and lines_to_use are out of sync (which I think shouldn't happen?)
+        cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True, debug=False)
+        dtree = cpath.trees[i_only_cluster]  # as we go through the loop, the <cpath> is presumably filling all of these in
+        origin = 'cpath'
+    else:
+        seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
+        dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
+        origin = 'fasttree'
+
+    return {'tree' : dtree, 'origin' : origin}
+
+# ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            add_dummy_root=False, lbr_tau_factor=20, debug=False):
     if reco_info is not None:
@@ -840,27 +864,11 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
         if 'tree-info' in line:
             n_already_there += 1
             continue
+        treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
+        tree_origin_counts[treefo['origin']]['count'] += 1
+        line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
+        line['tree-info']['lb'] = calculate_lb_values(line, treefo['tree'], lb_tau, lbr_tau_factor * lb_tau, add_dummy_root=add_dummy_root, extra_str='inf tree', debug=debug)
 
-        # figure out how we want to get the inferred tree
-        line['tree-info'] = {}
-        if treefname is not None:
-            dtree = get_dendro_tree(treefname=treefname, debug=debug)
-            tree_origin_counts['treefname']['count'] += 1
-        elif False:  # use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
-            lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
-            dtree = get_dendro_tree(treestr=lonr_info['tree'])
-            line['tree-info']['lonr'] = lonr_info
-            tree_origin_counts['lonr']['count'] += 1
-        elif cpath is not None and not use_true_clusters:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work
-            i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])  # if this fails, the cpath and lines_to_use are out of sync (which I think shouldn't happen?)
-            cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True, debug=False)
-            dtree = cpath.trees[i_only_cluster]  # as we go through the loop, the <cpath> is presumably filling all of these in
-            tree_origin_counts['cpath']['count'] += 1
-        else:
-            seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
-            dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
-            tree_origin_counts['fasttree']['count'] += 1
-        line['tree-info']['lb'] = calculate_lb_values(line, dtree, lb_tau, lbr_tau_factor * lb_tau, add_dummy_root=add_dummy_root, extra_str='inf tree', debug=debug)
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
         print '      skipped %d / %d that already had tree info' % (n_already_there, len(lines_to_use))
@@ -876,12 +884,14 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None):
+def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):
     #  - https://www.ncbi.nlm.nih.gov/pubmed/26658901/
     #  - instructions here: https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12526
     # I think this is what ended up working (thought probably not in docker):
     #  apt-get install libgmp-dev libmpfr-dev
     #  > install.packages("RPANDA",dependencies=TRUE)
+    #  ok but then I needed to modify the code, so downloaded the source from cran, and swapped out for the spectR.R that eric sent, then installed with:
+    # R CMD INSTALL -l packages/RPANDA/lib packages/RPANDA/  # NOTE needs to happen whenever you modify the R source
     # condensation of docs from the above paper:
     #  - > res<-spectR(Phyllostomidae)  # compute eigenvalues (and some metrics describing the distribution, e.g. skewness, kurtosis, eigengap)
     #  - > plot_spectR(res)  # make plots for eigenvalue spectrum
@@ -891,10 +901,9 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     #  - > res<-JSDtree(Phyllostomidae_genera)  # pairwise jensen-shannon distances between the 25 phylogenies
     #  - > JSDtree_cluster(res)  # plots heatmap and hierarchical cluster
 
-    print utils.pad_lines(get_ascii_tree(treestr=treestr))
-    print treestr
-    # dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))
-    # treestr = rescale_tree(10, treestr=treestr)
+    if debug:
+        print utils.pad_lines(get_ascii_tree(treestr=treestr))
+        print treestr
 
     if workdir is None:
         workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
@@ -903,14 +912,16 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
 
     cmdlines = [
         'library(ape, quiet=TRUE)',
-        'library(RPANDA, quiet=TRUE)',
+        # 'library(RPANDA, quiet=TRUE)',  # old way, before I had to modify the source code because the CRAN version removes all eigenvalues <1 (for method="standard" -- with method="normal" it's <0, which is probably better, but it also seems to smoosh all the eigenvalues to be almost exactly 1)
+        'library("RPANDA", lib.loc="%s/packages/RPANDA/lib", quiet=TRUE)' % os.path.dirname(os.path.realpath(__file__)).replace('/python', ''),
         'tree <- read.tree(text = "%s")' % treestr,
         # 'print(tree)',
-        'specvals <- spectR(tree)',  # compute eigenvalues (and some metrics describing the distribution, e.g. skewness, kurtosis, eigengap)
+        'specvals <- spectR(tree, method=c("standard"))',  # compute eigenvalues (and some metrics describing the distribution, e.g. skewness, kurtosis, eigengap)
         # 'print(specvals)',
         'capture.output(specvals$eigenvalues, file="%s")' % eigenfname,
     ]
 
+    # This is vegan 2.5-3  # dammit I want to filter this, but if I do it will eat the out/err when it crashes
     utils.run_r(cmdlines, workdir)
 
     eigenvalues = []

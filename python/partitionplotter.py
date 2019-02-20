@@ -495,7 +495,7 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_laplacian_spectra_plots(self, sorted_clusters, annotations, plotdir):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
+    def make_laplacian_spectra_plots(self, sorted_clusters, annotations, plotdir, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
         subd, plotdir = self.init_subd('laplacian-spectra', plotdir)
 
         fnames = [[]]
@@ -505,13 +505,13 @@ class PartitionPlotter(object):
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             if len(annotation['unique_ids']) < self.laplacian_spectra_min_clusters_size:
                 continue
-            if 'tree-info' not in annotation or 'lb' not in annotation['tree-info']:
-                print '  %s no tree in annotation, so can\'t run laplacian spectra' % utils.color('yellow', 'warning')
-                continue
-            try:
-                treeutils.run_laplacian_spectra(annotation['tree-info']['lb']['tree'], plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))
-            except:
-                print 'wtf'
+            if 'tree-info' in annotation and 'lb' in annotation['tree-info']:
+                treestr = annotation['tree-info']['lb']['tree']
+            else:  # if this is simulation, and calculate_tree_metrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partition
+                treefo = treeutils.get_tree_for_line(annotation, cpath=cpath, annotations=annotations, debug=debug)
+                print '  %s no tree in annotation, so getting new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
+                treestr = treefo['tree'].as_string(schema='newick').strip()
+            treeutils.run_laplacian_spectra(treestr, plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))
             if len(fnames[-1]) < self.n_plots_per_row:
                 self.addfname(fnames, 'icluster-%d' % iclust)
 
@@ -587,7 +587,7 @@ class PartitionPlotter(object):
             partition.remove(fclust)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, partition=None, infiles=None, annotations=None, reco_info=None):
+    def plot(self, plotdir, partition=None, infiles=None, annotations=None, reco_info=None, cpath=None):
         if self.args.only_csv_plots:
             print '  --only-csv-plots not implemented for partition plots, so skipping'
             return
@@ -602,7 +602,7 @@ class PartitionPlotter(object):
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
-            # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir)
+            fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
             # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
