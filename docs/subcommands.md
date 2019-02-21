@@ -122,16 +122,23 @@ If however, you're doing less typical things (running on a subset of sequences i
 
 #### germline sets
 
-By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in `data/germlines`.
+By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in `data/germlines/<--species>`.
 The resulting per-sample germline sets are written both to the output yaml file (if you've set `--outfname`), and to `<--parameter-dir>/hmm/germline-sets` (as three fasta files and a meta-info csv).
+To start from a non-default germline set, use `--initial-germline-dir <dir>.`
+This dir must use the same format as `data/germlines/<--species>`, i.e. have a subdir for the `--locus` you want to run, and in that subdir have a fasta file for v, d, and j, and a csv file with the conserved codon positions for each v/j gene.
+The easiest way to construct this is to copy the files from `data/germlines/<--species>`, end then substitute the fasta files for your own.
+Partis aligns any genes that are missing codon information against genes with known info, so as long as there's some overlap with the default germline, it should be able to figure out a position for each gene.
 
 By default, if `--species` is set to human this only looks for alleles that are separated by point mutations from existing genes.
 This is appropriate for humans, since the known germline set is fairly complete.
 For species for which the known germline sets are much less complete (e.g. macaque and mice), it makes sense to also look for alleles that are separated by indels and/or many SNPs from existing genes.
 This is the default for non-human species, and is equivalent to turning on `--allele-cluster`.
 
-At the moment we only actually infer germline sets for V, and not for D and J (although we plan to fix this).
+At the moment we only infer germline sets for V, and not for D and J (although we plan to fix this).
 This isn't horribly nonsensical, since there is much less variation in D and J, but it does mean that you should treat the D germline set, in particular, with quite a bit of skepticism.
+
+We unfortunately do not yet have a way to report simple confidence estimates for each gene in the inferred germline set.
+There is, however, a wealth of information that can be used to get a good sense of this confidence [here](germline-inference.md).
 
 ### simulate
 
