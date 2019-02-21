@@ -95,3 +95,12 @@ Looking at the log file, this has a high ratio of 18, but this is entirely due t
 In the plot, you can see this -- the points are scattered much less than you'd expect based on the uncertainties.
 More importantly, the green null hypothesis doesn't actually fit that badly (goodness of fit of 2.72), indicating decent, but not overwhelming, confidence.
 
+Finally, the prevalence frequencies for each gene in the final germline set are also worth looking at.
+These are in the `--plotdir`, under `<plotdir>/sw/overall/{v,d,j}_gene.{csv,svg}`, with the svg version screenshotted here:
+
+![v gene probs](images/v-gene-probs.png)
+
+but the csv version probably generally more useful.
+These are also written after the hmm step (in `<plotdir>/hmm/overall/{v,d,j}_gene.{csv,svg}`), and those will generally be very similar, except that a more stringent minimum prevalence threshold is applied, so any genes with a very small number of counts will be absent.
+This is probably more accurate, hence why it's done that way, but is far from assured that they're not actually present at a low level.
+Note that this prevalence info is also written to the `--parameter-dir`, so is available even if `--plotdir` isn't set.
