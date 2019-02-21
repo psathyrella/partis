@@ -1102,7 +1102,7 @@ class AlleleFinder(object):
                 print '  shouldn\'t be able to get here if there\'s no candidfos with the right <istart>'
                 continue
             return newfo['gene'], cfos[0]['fitfos'][pos]  # just arbitrarily take the first one (I don't think you can really get two -- that would mean a position was shared by more than one new allele)
-        return None
+        return None, None
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, only_csv=False):
