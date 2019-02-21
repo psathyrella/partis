@@ -13,4 +13,4 @@ It's probably worth piping the resulting std out to a log file, e.g. with `<cmd>
 The first step in germline inference is allele removal, where we group all V genes with matches into subgroups such that genes within a group are separated by a handful of point mutations (i.e. confusable by SHM), but genes in different groups are not.
 This process is illustrated in the first block of output printed by `--debug-allele-finding`, a screenshot of which is included here:
 
-![what is this, xkcd?][images/allele-removal.png]
+![what is this, xkcd?](images/allele-removal.png)
