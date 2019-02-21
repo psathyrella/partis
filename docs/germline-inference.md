@@ -98,7 +98,7 @@ More importantly, the green null hypothesis doesn't actually fit that badly (goo
 Finally, the prevalence frequencies for each gene in the final germline set are also worth looking at.
 These are in the `--plotdir`, under `<plotdir>/sw/overall/{v,d,j}_gene.{csv,svg}`, with the svg version screenshotted here:
 
-![v gene probs](images/v-gene-probs.png)
+![v gene counts](images/v-gene-counts.png)
 
 but the csv version probably generally more useful.
 These are also written after the hmm step (in `<plotdir>/hmm/overall/{v,d,j}_gene.{csv,svg}`), and those will generally be very similar, except that a more stringent minimum prevalence threshold is applied, so any genes with a very small number of counts will be absent.
