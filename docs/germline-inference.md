@@ -13,4 +13,22 @@ It's probably worth piping the resulting std out to a log file, e.g. with `<cmd>
 The first step in germline inference is allele removal, where we group all V genes with matches into subgroups such that genes within a group are separated by a handful of point mutations (i.e. confusable by SHM), but genes in different groups are not.
 This process is illustrated in the first block of output printed by `--debug-allele-finding`, a screenshot of which is included here:
 
-![what is this, xkcd?](images/allele-removal.png)
+![allele removal](images/allele-removal.png)
+
+Each entry in the lefthand "genes to keep" column is a kept gene, i.e. the most common gene from that group, with the corresponding counts in the next column.
+The alleles within that group that were removed are detailed in the last column.
+This last column consists of two lists: a list of parenthesis-inclosed numbers for each removed gene (number of SNPs to the kept gene, and the counts), and the corresponding list of removed gene names.
+
+After reducing the germline set to a minimal list of genes about whose presence we can be quite confident, partis then runs smith-waterman alignment on these genes, and performs new-allele inference.
+This will re-infer any genes that were removed in the first step for which there is substantial evidence, along with any novel alleles (alleles not in the original germline set).
+
+Because the mutation accumulation plots require independent mutation events, it then collapses clonal families into a small number of representatives.
+The results are summarized in the debug output, an example of which is shown here:
+
+![clonal collapse](images/clonal-collapse.png)
+
+Where the first line, for instance, tells us that 2698 total sequences aligned most closely to IGHV1-46*01, that these corresponded to 1815 clonal families, and that 2034 sequences were chosen to represent these clonal families in germline inference.
+
+Next we print a summary of the number of mutations observed in the sequences assigned to each gene:
+
+![mutation summary](images/mutation-summary.png)
