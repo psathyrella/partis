@@ -949,7 +949,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
     # subprocess.check_call(['chmod', '664', htmlfname])
 
 # ----------------------------------------------------------------------------------------
-def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None):
+def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None, new_gene=None):
     xmin, xmax = -0.3, xmax
     fig, ax = mpl_init()
 
@@ -965,7 +965,10 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None)
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
     ymax = max(values['freqs']) + max(values['errs'])
-    mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.01, ymax), leg_loc=(0.95, 0.1), adjust={'right' : 0.85}, title='position ' + str(position) + ' in ' + gene)
+    title = 'position %d in %s' % (position, gene)
+    if new_gene is not None:
+        ax.text(0.3 * (xmax - xmin), 0.95 * (ymax - 0), 'inferred: %s' % new_gene, color='red', fontsize=15)
+    mpl_finish(ax, plotdir, str(position), xlabel='mutations in %s segment' % utils.get_region(gene), ylabel='position\'s mut freq', xbounds=(xmin, xmax), ybounds=(-0.01, ymax), leg_loc=(0.95, 0.1), adjust={'right' : 0.85}, title=title)
 
 # ----------------------------------------------------------------------------------------
 def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, only_csv=False, write_csv=False):

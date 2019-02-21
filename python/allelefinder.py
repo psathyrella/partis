@@ -1101,7 +1101,7 @@ class AlleleFinder(object):
             if len(cfos) == 0:
                 print '  shouldn\'t be able to get here if there\'s no candidfos with the right <istart>'
                 continue
-            return cfos[0]['fitfos'][pos]  # just arbitrarily take the first one (I don't think you can really get two -- that would mean a position was shared by more than one new allele)
+            return newfo['gene'], cfos[0]['fitfos'][pos]  # just arbitrarily take the first one (I don't think you can really get two -- that would mean a position was shared by more than one new allele)
         return None
 
     # ----------------------------------------------------------------------------------------
@@ -1131,8 +1131,8 @@ class AlleleFinder(object):
         if self.args.plot_and_fit_absolutely_everything is None:
             for gene in self.positions_to_plot:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
                 for position in self.positions_to_plot[gene]:
-                    fitfos = self.get_fitfo_for_plotting(gene, position)
-                    plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos)
+                    new_gene, fitfos = self.get_fitfo_for_plotting(gene, position)
+                    plotting.make_allele_finding_plot(plotdir + '/' + utils.sanitize_name(gene), gene, position, self.xyvals[gene][position], xmax=self.args.n_max_mutations_per_segment, fitfos=fitfos, new_gene=new_gene)
         else:
             for gene in self.counts:  # we can make plots for the positions we didn't fit, but there's a *lot* of them and they're slow
                 for position in sorted(self.counts[gene]):
