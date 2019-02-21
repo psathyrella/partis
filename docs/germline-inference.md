@@ -54,3 +54,27 @@ The html summary for example is [here](http://psathyrella.github.io/partis/examp
 Here's a screenshot of the row corresponding to the IGHV1-69*13 inference:
 
 ![1-69 fits](images/1-69-fits.png)
+
+These are the same three positions as in the previous paragraph, and each bin in these plots corresponds to a column in the table.
+For instance, the fourth column in the table for position 169 says that of the 1892 unmutated sequences, zero were mutated at position 169.
+Somewhat less tautologically, the next column says that of the 1269 sequences with one V mutation, two had that mutatio nat position 169.
+These are exactly the numbers that go into the bins in the fit plots.
+
+The fit plots show the one-piece (null hypothesis) in green, and the two-piece (new allele hypothesis) in red.
+And here we see that, indeed, the red fits much better than the green, but is still a pretty crappy fit.
+In this case, the poor fit of the two-piece fit is actually expected: this sample happens to have a very low SHM rate, with a big spike near zero.
+The SHM distributions are written under your plotdir at `<plotdir>/sw/mute-freqs/overall.html`, and are screenshot here:
+
+![SHM rate](images/shm-rate.png)
+
+This spike in overall SHM rate creates a spike in the 3-bin in these fits, and is the reason that we use the ratio of goodness of fit values.
+The're many more details in the paper, but in short everything is working as it should.
+
+Taking it all together, this is a very strong inference.
+The ratio of goodness of fit values for one piece/two piece is very large, and while it's not shown in the paper, this is distributed as essentially a normal distribution.
+This means that it corresponds roughly to p-values, i.e. a value between two and three corresponds to between roughly .1 and 1 percent, hence why the thresholds for calling new genes are around that range (see paper).
+
+Continuing down, the next block in the IGHV1-69*13 table above is for a 7-SNP candidate that is not significant.
+Then, it says that the minimum ratio among positions for the 3-SNP candidate was 20, which is big, so it infers the allele.
+It then checks through known genes, and discovers that this is a known gene (that, indeed, was removed in the first step): 1-69*10.
+
