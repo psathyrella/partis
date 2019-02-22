@@ -79,25 +79,29 @@ This means that it corresponds roughly to p-values, i.e. a value between two and
 Continuing down, the next block in the IGHV1-69\*13 table above is for a 7-SNP candidate that is not significant.
 Then, it says that the minimum ratio among positions for the 3-SNP candidate was 20, which is big, so it infers the allele.
 It then checks through known genes, and discovers that this is a known gene (that, indeed, was removed in the first step): IGHV1-69\*10.
+Note that removing and re-inferring it is much more accurate than try to guess a prevalence threshold in the allele removal step (many more details in the paper).
 
 The rest of the log file has similar information for the rest of the inferences, and summary information at the end.
-But for our purposes, it's quicker to glance through the rest of the plots in the html file linked above.
+But for the moment, it's quicker to glance through the rest of the plots in the html file linked above.
 The second row shows a slam-dunk inference of an allele with prevalence of 1 (i.e. the "template" gene isn't actually present):
 
 ![homozygous fit](images/homozygous-fit.png)
+
+Note that since the y axis is the fraction of times that the position of interest was mutated, the height of the red line corresponds roughly to the prevalence of the inferred allele.
+In cases such as the IGHV1-69 inference above where the red line is very far from horizontal, this relationship is more complicated.
 
 Scrolling down further, the two inferences from a template of IGHV4-59*01 are interesting:
 
 ![4-59 fits](images/4-59-fits.png)
 
-They're both pretty solid fits in that the two-piece red fit describes the data well, but they're quite difference in prevalence.
-The bottom one (position 260) has much higher prevalence (30-40%), and thus enough observations for very confident inference (cross-referencing to the log file, it has a one-piece/two-piece ratio of 10
+They're both pretty solid fits in that the two-piece red fit describes the data well, but they're quite different in prevalence.
+The bottom one (position 260) has much higher prevalence (30-40%), and thus enough observations for very confident inference (cross-referencing to the log file, it has a one-piece/two-piece ratio of 10.
 The top one, though (position 114), has a prevalence of only 1-2%, and as seen by the uncertainties in the fit plot, it is far less certain.
 Looking at the log file, this has a high ratio of 18, but this is entirely due to a very low goodness of fit of 0.15, which indicates an unrealistically good fit, which is essentially always due to chance.
 In the plot, you can see this -- the points are scattered much less than you'd expect based on the uncertainties.
 More importantly, the green null hypothesis doesn't actually fit that badly (goodness of fit of 2.72), indicating decent, but not overwhelming, confidence.
 
-Finally, the prevalence frequencies for each gene in the final germline set are also worth looking at.
+Finally, the prevalence frequencies for each gene in the inferred germline set after the smith-waterman step are also worth looking at.
 These are in the `--plotdir`, under `<plotdir>/sw/overall/{v,d,j}_gene.{csv,svg}`, with the svg version screenshotted here:
 
 ![v gene counts](images/v-gene-counts.png)
