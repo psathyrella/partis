@@ -101,13 +101,13 @@ Looking at the log file:
 
 ![4-59 table](images/4-59-table.png)
 
-this has a high ratio of 18, but this is entirely due to a very low goodness of fit of 0.15, which indicates an unrealistically good fit, which is essentially always due to chance.
+this has a high ratio of 18, but this is entirely due to a very low goodness of fit of 0.15, which indicates an unrealistically good fit, which is almost always due to chance (well, or incorrect uncertainties. But we checked our uncertainty model pretty carefully).
 In the plot, you can see this -- the points are scattered much less than you'd expect based on the uncertainties.
 More importantly, the green null hypothesis doesn't actually fit that badly (goodness of fit of 2.72), indicating decent, but not overwhelming, confidence.
-Another thing to notice in the table is that since it tells you the exact numbers that go into the fits, you can make judgments independent of our uncertainty and fitting models.
-You can for instance see that the position 260 inference is essentially based on 506 sequences being in the 1-mutation bin, rather than the 0-bin.
+Another thing to notice in the table is that since it tells you the exact numbers that go into the fits, you can make judgments on the data independent of our uncertainty and fitting models.
+You can for instance see that the position 260 inference is essentially based on 506 sequences being in the 1-mutation bin, rather than (mostly) in the 0-bin.
 That is a lot of observations.
-Whereas the position 114 inference is mostly based on 25 sequences being similarly out of place: observing something 25 times is enough to be pretty darn suspicious, but it's not five sigma no matter what your model is.
+Whereas the position 114 inference is mostly based on 25 sequences being similarly out of place: observing something 20-odd times is enough to be pretty darn suspicious, but it's not five sigma no matter your model.
 Keep in mind that these numbers are after clonal collapse, though, so a more accurate clustering algorithm (see the paper, but we don't use the most accurate one for this) might get different numbers.
 
 Finally, the prevalence frequencies for each gene in the inferred germline set after the smith-waterman step are also worth looking at.
