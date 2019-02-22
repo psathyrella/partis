@@ -152,7 +152,7 @@ def run_partis_parameter_cache(args, method):
 
     # generate germline set and cache parameters
     cmd_str = args.partis_path + ' cache-parameters --infname ' + args.simfname + ' --only-smith-waterman'
-    cmd_str += ' --initial-germline-dir %s' % args.default_germline_dir
+    cmd_str += ' --initial-germline-dir %s' % (args.default_germline_dir if args.gls_gen else args.inf_glfo_dir)
     if method == 'partis':
         cmd_str += ' --debug-allele-finding' # --always-find-new-alleles'
         cmd_str += ' --is-simu --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
@@ -173,9 +173,6 @@ def run_partis_parameter_cache(args, method):
         cmd_str += ' --n-max-queries ' + str(args.n_max_queries)  # NOTE do *not* use --n-random-queries, since it'll change the cluster size distribution
     if args.slurm:
         cmd_str += ' --batch-system slurm'
-
-    if not args.gls_gen:  # otherwise it uses the default (full) germline dir
-        cmd_str += ' --initial-germline-dir ' + args.inf_glfo_dir  # --dont-remove-unlikely-alleles
 
     cmd_str += ' --parameter-dir ' + paramdir
     cmd_str += ' --plotdir ' + plotdir
