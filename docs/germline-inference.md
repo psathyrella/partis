@@ -97,9 +97,18 @@ Scrolling down further, the two inferences from a template of IGHV4-59*01 are in
 They're both pretty solid fits in that the two-piece red fit describes the data well, but they're quite different in prevalence.
 The bottom one (position 260) has much higher prevalence (30-40%), and thus enough observations for very confident inference (cross-referencing to the log file, it has a one-piece/two-piece ratio of 10.
 The top one, though (position 114), has a prevalence of only 1-2%, and as seen by the uncertainties in the fit plot, it is far less certain.
-Looking at the log file, this has a high ratio of 18, but this is entirely due to a very low goodness of fit of 0.15, which indicates an unrealistically good fit, which is essentially always due to chance.
+Looking at the log file:
+
+![4-59 table](images/4-59-table.png)
+
+this has a high ratio of 18, but this is entirely due to a very low goodness of fit of 0.15, which indicates an unrealistically good fit, which is essentially always due to chance.
 In the plot, you can see this -- the points are scattered much less than you'd expect based on the uncertainties.
 More importantly, the green null hypothesis doesn't actually fit that badly (goodness of fit of 2.72), indicating decent, but not overwhelming, confidence.
+Another thing to notice in the table is that since it tells you the exact numbers that go into the fits, you can make judgments independent of our uncertainty and fitting models.
+You can for instance see that the position 260 inference is essentially based on 506 sequences being in the 1-mutation bin, rather than the 0-bin.
+That is a lot of observations.
+Whereas the position 114 inference is mostly based on 25 sequences being similarly out of place: observing something 25 times is enough to be pretty darn suspicious, but it's not five sigma no matter what your model is.
+Keep in mind that these numbers are after clonal collapse, though, so a more accurate clustering algorithm (see the paper, but we don't use the most accurate one for this) might get different numbers.
 
 Finally, the prevalence frequencies for each gene in the inferred germline set after the smith-waterman step are also worth looking at.
 These are in the `--plotdir`, under `<plotdir>/sw/overall/{v,d,j}_gene.{csv,svg}`, with the svg version screenshotted here:
