@@ -328,14 +328,42 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def view_alternative_naive_seqs(self):
-        if self.args.queries is None:
-            _, cpath = self.read_existing_output(read_partitions=True)
-            clusterstrs = []
-            for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
-                clusterstrs.append('      %s' % ':'.join(cluster))
-            raise Exception('in order to view alternative naive sequences, you have to specify (with --queries) a cluster from the final partition. Choose from the following:\n%s' % '\n'.join(clusterstrs))
+        print '  %s getting alternative annotation information from existing output file. These results will only be meaningful if you had --calculate-alternative-naive-seqs set when writing the output file (so that all subcluster annotations were stored), and we can\'t check for that here, so instead we print this warning ;-)' % utils.color('yellow', 'note')
 
-        self.print_subcluster_naive_seqs(self.args.queries)
+        # we used to require that you set --queries to tell us which to get, but I think now it makes sense to by default just get all of them (but not sure enough to delete this yet)
+        # if self.args.queries is None:
+        #     _, cpath = self.read_existing_output(read_partitions=True)
+        #     clusterstrs = []
+        #     for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
+        #         clusterstrs.append('      %s' % ':'.join(cluster))
+        #     raise Exception('in order to view alternative naive sequences, you have to specify (with --queries) a cluster from the final partition. Choose from the following:\n%s' % '\n'.join(clusterstrs))
+
+        cluster_annotations, cpath = self.read_existing_output(ignore_args_dot_queries=True, read_partitions=True, read_annotations=True)  # note that even if we don't need the cpath to re-write output below, we need to set read_annotations=True, since the fcn gets confused otherwise and doesn't read the right cluster annotation file (for deprecated csv files)
+
+        # just for backwards compatibility with old style csv output/cache file (we used to keep the hmm cache file around to read here, but now we just write everything we need to the regular output file)
+        cachefo = None
+        if os.path.exists(self.hmm_cachefname):
+            cachefo = self.read_hmm_cachefile()
+            print '  %s persistent hmm cache file %s exists (probably just copied it from %s), so we\'re assuming that all the sub cluster annotations *weren\'t* written to the output file, i.e. this is old-style output. This\'ll still work, it will just be missing a lot of the v/d/j gene info)' % (utils.color('yellow', 'note'), self.hmm_cachefname, self.args.persistent_cachefname)
+            # fuck it, this isn't worth it (but not yet quite willing to delete the effort)
+            # print '  %s persistent hmm cache file %s exists (probably just copied it from %s), so we\'re assuming that the sub cluster annotations *weren\'t* written to the output file, i.e. this is old-style output (if you set --infname (and --parameter-dir is either set or the default corresponds to an existing parameter directory), we\'ll just run the cluster annotations for cache file uidstrs right now. Otherwise this\'ll still work, it just won\'t have the v/d/j gene info)' % (utils.color('yellow', 'note'), self.hmm_cachefname, self.args.persistent_cachefname)
+            # if self.args.parameter_dir is not None and self.args.infname is not None:
+            #     self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile)  # need sw info to run the hmm (this is not really a good idea to be running new stuff during an action that's supposed to be running on existing output, but it's only for backwards compatibility, so oh well)
+            #     cache_clusters = [set(uidstr.split(':')) for uidstr in cachefo]  # all of 'em
+            #     cache_clusters = [sc for sc in cache_clusters if sc <= uids_of_interest]  # just the ones that are composed entire of queries in uids_of_interest
+            #     # DAMMIT neither of these ways of handling missing sw queries work. oh, well
+            #     # cache_clusters = [sc for sc in cache_clusters if len(sc & set(self.sw_info['failed-queries'])) == 0]  # and remove any sw failues (arg, this shouldn't be needed, why are they failing now when they didn't before?)
+            #     # cache_clusters = [sc - set(self.sw_info['failed-queries']) for sc in cache_clusters if len(sc & set(self.sw_info['failed-queries'])) == 0]  # and remove any sw failues (arg, this shouldn't be needed, why are they failing now when they didn't before?)
+            #     cache_clusters = set([tuple(sc) for sc in cache_clusters])
+            #     cluster_annotations = self.get_cluster_annotations(cpath=None, clusters_to_annotate=cache_clusters, dont_write_anything=True, extra_dbg_str=' (using clusters from old hmm cache file, not final partition)')  # replaces <cluster_annotations> that was just read the existing output file:
+            #     cachefo = cluster_annotations  # account for the clusters we removed because they had queries that weren't in uids_of_interest
+
+        clusters_to_use = cpath.partitions[cpath.i_best] if self.args.queries is None else [self.args.queries]
+        for cluster in clusters_to_use:
+            self.get_subcluster_naive_seqs(cluster, cluster_annotations, cachefo=cachefo)
+
+        print '  note: rewriting output file with newly-calculated alternative annotation info'
+        self.write_output(cluster_annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
     # ----------------------------------------------------------------------------------------
     def print_results(self, cpath, annotations):
@@ -758,6 +786,11 @@ class PartitionDriver(object):
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
         if self.args.get_tree_metrics:
             self.calculate_tree_metrics(best_annotations, cpath=cpath)  # adds tree metrics to <annotations>
+
+        if self.args.calculate_alternative_naive_seqs:
+            for cluster in cpath.partitions[cpath.i_best]:
+                self.get_subcluster_naive_seqs(cluster, best_annotations)  # NOTE modifies the annotations (adds alternative annotation info)
+
         if self.args.outfname is not None:  # NOTE need to write *before* removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
 
@@ -1062,30 +1095,15 @@ class PartitionDriver(object):
         return cachefo
 
     # ----------------------------------------------------------------------------------------
-    def print_subcluster_naive_seqs(self, uids_of_interest):
-        uids_of_interest = set(uids_of_interest)
-        cluster_annotations, _ = self.read_existing_output(ignore_args_dot_queries=True, read_partitions=True, read_annotations=True)  # we don't really need to read the partitions, but the fcn gets confused otherwise and doesn't read the right cluster annotation file (for deprecated csv files)
+    def get_subcluster_naive_seqs(self, uids_of_interest, cluster_annotations, cachefo=None):
+        if cachefo is None:  # <cachefo> and <cluster_annotations> are only different (i.e. cachefo is passed in) if we're reading old-style (csv) output with a separate cache file
+            cachefo = cluster_annotations
 
+        uids_of_interest = set(uids_of_interest)
         uidstr_of_interest = None  # we don't yet know in what order the uids in <uids_of_interest> appear in the file
         sub_info = {}  # map from naive seq : sub uid strs
+        final_info = {'naive-seqs' : OrderedDict(), 'gene-calls' : {r : OrderedDict() for r in utils.regions}}  # this is the only info that's persistent, it get's added to the cluster annotation corresponding to <uids_of_interest>
 
-        if os.path.exists(self.hmm_cachefname):
-            cachefo = self.read_hmm_cachefile()
-            print '  %s persistent hmm cache file %s exists (probably just copied it from %s), so we\'re assuming that all the sub cluster annotations *weren\'t* written to the output file, i.e. this is old-style output. This\'ll still work, it will just be missing a lot of the v/d/j gene info)' % (utils.color('yellow', 'note'), self.hmm_cachefname, self.args.persistent_cachefname)
-            # fuck it, this isn't worth it (but not yet quite willing to delete the effort)
-            # print '  %s persistent hmm cache file %s exists (probably just copied it from %s), so we\'re assuming that the sub cluster annotations *weren\'t* written to the output file, i.e. this is old-style output (if you set --infname (and --parameter-dir is either set or the default corresponds to an existing parameter directory), we\'ll just run the cluster annotations for cache file uidstrs right now. Otherwise this\'ll still work, it just won\'t have the v/d/j gene info)' % (utils.color('yellow', 'note'), self.hmm_cachefname, self.args.persistent_cachefname)
-            # if self.args.parameter_dir is not None and self.args.infname is not None:
-            #     self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile)  # need sw info to run the hmm (this is not really a good idea to be running new stuff during an action that's supposed to be running on existing output, but it's only for backwards compatibility, so oh well)
-            #     cache_clusters = [set(uidstr.split(':')) for uidstr in cachefo]  # all of 'em
-            #     cache_clusters = [sc for sc in cache_clusters if sc <= uids_of_interest]  # just the ones that are composed entire of queries in uids_of_interest
-            #     # DAMMIT neither of these ways of handling missing sw queries work. oh, well
-            #     # cache_clusters = [sc for sc in cache_clusters if len(sc & set(self.sw_info['failed-queries'])) == 0]  # and remove any sw failues (arg, this shouldn't be needed, why are they failing now when they didn't before?)
-            #     # cache_clusters = [sc - set(self.sw_info['failed-queries']) for sc in cache_clusters if len(sc & set(self.sw_info['failed-queries'])) == 0]  # and remove any sw failues (arg, this shouldn't be needed, why are they failing now when they didn't before?)
-            #     cache_clusters = set([tuple(sc) for sc in cache_clusters])
-            #     cluster_annotations = self.get_cluster_annotations(cpath=None, clusters_to_annotate=cache_clusters, dont_write_anything=True, extra_dbg_str=' (using clusters from old hmm cache file, not final partition)')  # replaces <cluster_annotations> that was just read the existing output file:
-            #     cachefo = cluster_annotations  # account for the clusters we removed because they had queries that weren't in uids_of_interest
-        else:
-            cachefo = cluster_annotations  # ok, this is a weird way to write this, but it makes clear that it's this way to handled backwards compatibility with old output (where we have to read the hmm cache file)
         for uidstr, info in cachefo.items():
             if info['naive_seq'] == '':  # hmm cache file lines that only have logprobs
                 continue
@@ -1103,7 +1121,6 @@ class PartitionDriver(object):
             raise Exception('hmm cache file doesn\'t have a cluster with the exact requested uids (run without setting --queries to get a list of available clusters): %s' % uids_of_interest)
 
         cache_file_naive_seq = cachefo[uidstr_of_interest]['naive_seq']  # ok not actually from the hmm cache file with new-style output, but I don't feel like renaming it
-        print '  subcluster naive sequences for:\n    %s\n   (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
 
         if uidstr_of_interest not in cluster_annotations:  # only possible if we're reading the hmm cache file, i.e. old-style output
             raise Exception('annotations don\'t have cluster corresponding to that found in hmm cache file')
@@ -1119,17 +1136,21 @@ class PartitionDriver(object):
             utils.color_mutants(naive_seq_of_interest, cache_file_naive_seq, print_result=True, ref_label='cluster annotation  ', seq_label='cache file  ', extra_str='     ')
             print ''
 
+        print '  subcluster naive sequences for:\n    %s\n   (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
         print ''
-        utils.print_reco_event(utils.synthesize_single_seq_line(line_of_interest, iseq=0), extra_str='      ', label='annotation for a single (arbitrary) sequence:')
+        utils.print_reco_event(utils.synthesize_single_seq_line(line_of_interest, iseq=0), extra_str='      ', label='annotation for a single (arbitrary) sequence from the cluster:')
         print ''
         print ''
         print '%s  total unique      inconsistent (%s: missing info)     cluster' % (' ' * len(cache_file_naive_seq), utils.color('blue', 'x'))  # 'missing info' means that we didn\'t have an annotation for at least one of the clusters in that line. This is probably because we're using an old hmm cache file, and at best passed in the sw cache file annotations, which are only single-sequence.
         print '%s        seqs        regions         genes               sizes (+singletons)' % (' ' * len(cache_file_naive_seq))
         max_len_other_gene_str = 20
         independent_seq_info = {naive_seq : set([uid for uidstr in uid_str_list for uid in uidstr.split(':')]) for naive_seq, uid_str_list in sub_info.items()}
+        total_independent_seqs = sum(len(uids) for uids in independent_seq_info.values())
         unique_seqs_for_each_gene = {r : {} for r in utils.regions}  # for each gene, keeps track of the number of unique sequences that contributed to an annotation that used that gene
         cluster_sizes_for_each_gene = {r : {} for r in utils.regions}  # same, but number/sizes of different clusters (so we can tell if a gene is only supported by like one really large cluster, but all the smaller clusters point to another gene)
         for naive_seq in sorted(independent_seq_info, key=lambda ns: len(independent_seq_info[ns]), reverse=True):
+            final_info['naive-seqs'][naive_seq] = len(independent_seq_info[naive_seq]) / float(total_independent_seqs)
+
             uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
 
             # print the v gene along side the first naive sequence, as well as for any subsequent ones that have a different v
@@ -1189,10 +1210,14 @@ class PartitionDriver(object):
         print '                     unique seqs        cluster sizes (+singletons)'
         for region in utils.regions:
             print '    %s' % utils.color('green', region)
+            total_unique_seqs_this_region = sum(len(uids) for uids in unique_seqs_for_each_gene[region].values())  # yes, it is in general different for each region
             for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
+                final_info['gene-calls'][region][gene_call] = len(uids) / float(total_unique_seqs_this_region)
                 print '      %s   %4d' % (utils.color_gene(gene_call, width=15), len(uids)),
                 csizes = cluster_sizes_for_each_gene[region][gene_call]
                 print '             %s (+%d)' % (' '.join('%d' % cs for cs in sorted(csizes, reverse=True) if cs > 1), csizes.count(1))
+
+        line_of_interest['alternative-annotations'] = final_info
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
