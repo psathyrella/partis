@@ -32,4 +32,10 @@ In cases where the plots are, on the other hand, uniformly speckled all over, th
 The plot title shows the family's size (this size, and the plot's file name, match the numbers on the right side of the slug plots), as well as the amino acid translation of its CDR3.
 The overview html again only shows plots for the largest few clusters, while the rest can be found in the `mds/` subdirectory (or click `mds` link at top of page).
 
+Below the MDS plots, there is a row of plots showing the Laplacian spectral decomposition for each cluster's tree (the rest are in the `laplacian-spectra/` subdir).
+This converts the tree's distances into a set of eigenvalues, as described in [this paper](https://www.ncbi.nlm.nih.gov/pubmed/26658901), and implemented in the [RPANDA](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12526) R package.
+This method is newer to us, so we have less to say about how best to interpret it, but it is perhaps useful to draw an analogy to analyzing a wave.
+In a travelling wave the time domain (the tree, in our case) provides the most interpretable description of what is actually happening.
+Moving to the frequency domain by Fourier transform (the Laplacian decomposition, in our case), while less interpretable in terms of the individual movements of the propagating medium, is typically far superior in terms of understanding the underlying processes driving wave formation.
+
 For a description of the plots written during germline inference, see [here](germline-inference.md).
