@@ -71,9 +71,9 @@ Cases where memory is a limiting factor typically stem from a sample with severa
 ##### annotation uncertainties
 
 In order to get an idea of the uncertainty on a given cluster's naive sequence and gene calls, you can specify `--calculate-alternative-naive-seqs` during the partition step.
-This will write all the annotations for intermediate sub-clusters to the output file so that, as well as counting up how many subclusters voted for each alternative naive sequence or gene call.
+This will write all the annotations for intermediate sub-clusters to the output file so that it counts up how many subclusters voted for each alternative naive sequence or gene call.
 Since most annotation uncertainty in large-ish families boils down to two sub-families disagreeing about, say, which is the correct D gene, this approach typically does a decent job of spanning the real uncertainty (despite being quite heuristic).
-This can be accessed either by pulling out the resulting 'alternative-annotations' key from the output file, or by running 'view-alternative-naive-seqs' (or running the partition with `--debug 1`).
+The resulting information can be accessed either by pulling out the resulting ['alternative-annotations' key](output-formats.md#description-of-keys) from the output file, or by running 'view-alternative-naive-seqs' (or running the partition with `--debug 1`).
 For instance:
 
 ```
