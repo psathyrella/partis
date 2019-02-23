@@ -607,6 +607,6 @@ class PartitionPlotter(object):
         self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         if not self.args.only_csv_plots:
-            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds']])  # , 'sfs
+            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds', 'laplacian-spectra']])  # , 'sfs
 
         print '   time: %.1f sec' % (time.time()-start)
