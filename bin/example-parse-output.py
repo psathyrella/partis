@@ -14,7 +14,7 @@ import glutils
 from clusterpath import ClusterPath
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--fname', default=partis_dir + '/test/reference-results/partition-ref-simu.yaml')
+parser.add_argument('--fname', default=partis_dir + '/test/reference-results/partition-new-simu.yaml')
 parser.add_argument('--glfo-dir', default=partis_dir + '/data/germlines/human')
 parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
