@@ -329,7 +329,7 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
     tree     -- tree for whose nodes the LBI is being computed (was biopython, now dendropy)
     """
     def getmulti(node):  # number of reads with the same sequence
-        return node.multiplicity if use_multiplicities else 1
+        return node.multiplicity if use_multiplicities else 1  # it's nice to just not set a multiplicity if we don't want to incorporate them, since then we absolutely know it'll crash if we accidentally try to access it
 
     if add_dummy_root or add_dummy_leaves:
         if add_dummy_leaves:  # not set up to do it this way round at the moment
@@ -400,19 +400,27 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
             print ('    %' + max_width + 's  %3s   %8.3f  %8.3f    %8.3f') % (node.taxon.label, multi_str, node.lbi, node.lbr, node.clock_length)
 
 # ----------------------------------------------------------------------------------------
-def set_multiplicities(dtree, annotation, debug=False):
-    missing_from_annotation = []
+def set_multiplicities(dtree, annotation, input_metafo, debug=False):
+    def getmulti(uid):
+        if input_metafo is None:  # NOTE the input meta file key 'multiplicities' *could* be in the annotation but we *don't* want to use it (at least at the moment, since we haven't yet established rules for precedence with 'duplicates')
+            if uid not in annotation['unique_ids']:  # could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
+                return 1
+            if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but even if not, if there's no duplicate info then assuming multiplicities of 1 should be fine (maybe should add duplicate info to simulation? it wouldn't really make sense though, since we don't collapse duplicates in simulation info)
+                return 1
+            iseq = annotation['unique_ids'].index(uid)
+            return len(annotation['duplicates'][iseq]) + 1
+        elif annotation is None:
+            if uid not in input_metafo:
+                return 1
+            return input_metafo[uid]['multiplicity']
+        else:
+            assert False  # doesn't make sense to set both of 'em
+
+    if annotation is None and input_metafo is None:
+        raise Exception('have to get the multiplicity info from somewhere')
+
     for node in dtree.postorder_node_iter():
-        node.multiplicity = 1
-        if node.taxon.label not in annotation['unique_ids']:  # could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
-            missing_from_annotation.append(node.taxon.label)
-            continue
-        if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but even if not, if there's no duplicate info then assuming multiplicities of 1 should be fine (maybe should add duplicate info to simulation? it wouldn't really make sense though, since we don't collapse duplicates in simulation info)
-            continue
-        iseq = annotation['unique_ids'].index(node.taxon.label)
-        node.multiplicity = len(annotation['duplicates'][iseq]) + 1
-    if debug and len(missing_from_annotation) > 0:  # these should mostly/all be internal nodes that were inferred by the phylogenetic method
-        print '  %s %d nodes in tree missing from annotation: %s' % (utils.color('yellow', 'note'), len(missing_from_annotation), ' '.join(missing_from_annotation))
+        node.multiplicity = get_multi(node.taxon.label)
 
 # ----------------------------------------------------------------------------------------
 def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=False, dummy_str='dummy', debug=False): # add long branches above root and below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
@@ -454,9 +462,11 @@ def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=
     return new_dtree
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(annotation, dtree, lbi_tau, lbr_tau, add_dummy_root=False, add_dummy_leaves=False, naive_seq_name=None, extra_str=None, debug=False):
+def calculate_lb_values(dtree, lbi_tau, lbr_tau, annotation=None, input_metafo=None, add_dummy_root=False, add_dummy_leaves=False, use_multiplicities=False, naive_seq_name=None, extra_str=None, debug=False):
 
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
+        if annotation is None:
+            raise Exception('tree needs rescaling in lb calculation (metrics will be wrong), but no annotation was passed in')
         print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
         dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
 
@@ -469,15 +479,13 @@ def calculate_lb_values(annotation, dtree, lbi_tau, lbr_tau, add_dummy_root=Fals
         print '      calculating lb values with taus %.4f (%.4f) and tree:' % (lbi_tau, lbr_tau)
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
-    missing_from_tree = [uid for uid in annotation['unique_ids'] if dtree.find_node_with_taxon_label(uid) is None]
-    if len(missing_from_tree) > 0:
-        raise Exception('%d sequences in annotation, but missing from tree: %s' % (len(missing_from_tree), ' '.join(missing_from_tree)))
-    set_multiplicities(dtree, annotation, debug=debug)
+    if use_multiplicities:  # it's kind of weird to, if we don't want to incorporate multiplicities,  both not set them *and* tell set_lb_values() not to use them, but I like the super explicitness of this setup, i.e. this makes it impossible to silently/accidentally pass in multiplicities.
+        set_multiplicities(dtree, annotation, input_metafo, debug=debug)
 
     lbvals = {'tree' : dtree.as_string(schema='newick')}  # NOTE at least for now, i'm adding the tree *before* calculating lbi or lbr, since the different tau values means it'd be more complicated
-    set_lb_values(dtree, lbi_tau, use_multiplicities=False, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
+    set_lb_values(dtree, lbi_tau, use_multiplicities=use_multiplicities, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
     lbvals['lbi'] = {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()}
-    set_lb_values(dtree, lbr_tau, use_multiplicities=False, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
+    set_lb_values(dtree, lbr_tau, use_multiplicities=use_multiplicities, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
     lbvals['lbr'] = {n.taxon.label : float(n.lbr) for n in dtree.postorder_node_iter()}
 
     return lbvals
@@ -867,7 +875,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
         treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
         tree_origin_counts[treefo['origin']]['count'] += 1
         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-        line['tree-info']['lb'] = calculate_lb_values(line, treefo['tree'], lb_tau, lbr_tau_factor * lb_tau, add_dummy_root=add_dummy_root, extra_str='inf tree', debug=debug)
+        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor * lb_tau, annotation=line, add_dummy_root=add_dummy_root, extra_str='inf tree', debug=debug)
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
@@ -877,7 +885,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_line, true_dtree, lb_tau, lbr_tau_factor * lb_tau, add_dummy_root=add_dummy_root, extra_str='true tree')
+            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor * lb_tau, annotation=true_line, add_dummy_root=add_dummy_root, extra_str='true tree')
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:
