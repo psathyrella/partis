@@ -1102,7 +1102,7 @@ class PartitionDriver(object):
         uids_of_interest = set(uids_of_interest)
         uidstr_of_interest = None  # we don't yet know in what order the uids in <uids_of_interest> appear in the file
         sub_info = {}  # map from naive seq : sub uid strs
-        final_info = {'naive-seqs' : OrderedDict(), 'gene-calls' : {r : OrderedDict() for r in utils.regions}}  # this is the only info that's persistent, it get's added to the cluster annotation corresponding to <uids_of_interest>
+        final_info = {'naive-seqs' : [], 'gene-calls' : {r : [] for r in utils.regions}}  # this is the only info that's persistent, it get's added to the cluster annotation corresponding to <uids_of_interest>
 
         for uidstr, info in cachefo.items():
             if info['naive_seq'] == '':  # hmm cache file lines that only have logprobs
@@ -1187,7 +1187,7 @@ class PartitionDriver(object):
         unique_seqs_for_each_gene = {r : {} for r in utils.regions}  # for each gene, keeps track of the number of unique sequences that contributed to an annotation that used that gene
         cluster_sizes_for_each_gene = {r : {} for r in utils.regions}  # same, but number/sizes of different clusters (so we can tell if a gene is only supported by like one really large cluster, but all the smaller clusters point to another gene)
         for naive_seq in sorted(independent_seq_info, key=lambda ns: len(independent_seq_info[ns]), reverse=True):
-            final_info['naive-seqs'][naive_seq] = len(independent_seq_info[naive_seq]) / float(total_independent_seqs)
+            final_info['naive-seqs'] += [(naive_seq, len(independent_seq_info[naive_seq]) / float(total_independent_seqs))]
 
             uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
 
@@ -1214,7 +1214,7 @@ class PartitionDriver(object):
         for region in utils.regions:
             total_unique_seqs_this_region = sum(len(uids) for uids in unique_seqs_for_each_gene[region].values())  # yes, it is in general different for each region
             for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
-                final_info['gene-calls'][region][gene_call] = len(uids) / float(total_unique_seqs_this_region)
+                final_info['gene-calls'][region] += [(gene_call, len(uids) / float(total_unique_seqs_this_region))]
         if debug:
             print ''
             print '                     unique seqs        cluster sizes (+singletons)'

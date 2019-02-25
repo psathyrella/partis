@@ -361,11 +361,13 @@ io_column_configs = {
     'ints' : ['n_mutations', 'cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns + ['has_shm_indels', 'invalid'],
-    'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
+    'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches', 'alternative-annotations'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
     'lists' : [k for k in linekeys['per_seq'] if k != 'indelfos'],  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string
     'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions]
 }
 
+# NOTE these are all *input* conversion functions (for ouput we mostly just call str())
+# also NOTE these only get used on deprecated csv output files
 conversion_fcns = {}
 for key in io_column_configs['ints']:
     conversion_fcns[key] = int
