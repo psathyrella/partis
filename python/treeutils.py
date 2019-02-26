@@ -399,7 +399,7 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
         print ('   %' + max_width + 's   multi     lbi       lbr      clock length') % 'node'
         for node in dtree.postorder_node_iter():
-            multi_str = str(getmulti(node)) if (use_multiplicities and getmulti(node) > 1) else ''
+            multi_str = str(getmulti(node)) if use_multiplicities else ''
             print ('    %' + max_width + 's  %3s   %8.3f  %8.3f    %8.3f') % (node.taxon.label, multi_str, node.lbi, node.lbr, node.clock_length)
 
 # ----------------------------------------------------------------------------------------
