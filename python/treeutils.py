@@ -19,6 +19,8 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
 import utils
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'local branching ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
+default_lb_tau = 0.001
+default_lbr_tau_factor = 20
 
 # ----------------------------------------------------------------------------------------
 def get_treestr(treefname):
@@ -852,7 +854,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
 
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           add_dummy_root=False, lbr_tau_factor=20, debug=False):
+                           add_dummy_root=False, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -875,7 +877,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
         treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
         tree_origin_counts[treefo['origin']]['count'] += 1
         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor * lb_tau, annotation=line, add_dummy_root=add_dummy_root, extra_str='inf tree', debug=debug)
+        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, default_lbr_tau_factor * lb_tau, annotation=line, add_dummy_root=add_dummy_root, extra_str='inf tree', debug=debug)
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
@@ -885,7 +887,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor * lb_tau, annotation=true_line, add_dummy_root=add_dummy_root, extra_str='true tree')
+            true_lb_info = calculate_lb_values(true_dtree, lb_tau, default_lbr_tau_factor * lb_tau, annotation=true_line, add_dummy_root=add_dummy_root, extra_str='true tree')
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:
