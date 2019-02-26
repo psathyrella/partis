@@ -404,7 +404,7 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
 
 # ----------------------------------------------------------------------------------------
 def set_multiplicities(dtree, annotation, input_metafo, debug=False):
-    def getmulti(uid):
+    def get_multi(uid):
         if input_metafo is None:  # NOTE the input meta file key 'multiplicities' *could* be in the annotation but we *don't* want to use it (at least at the moment, since we haven't yet established rules for precedence with 'duplicates')
             if uid not in annotation['unique_ids']:  # could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
                 return 1
