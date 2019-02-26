@@ -395,6 +395,7 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
         dtree = input_dtree  # only actually affects the debug print below
 
     if debug:
+        print '  calculated lb values with tau %.3f' % tau
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
         print ('   %' + max_width + 's   multi     lbi       lbr      clock length') % 'node'
         for node in dtree.postorder_node_iter():
@@ -489,6 +490,11 @@ def calculate_lb_values(dtree, lbi_tau, lbr_tau, annotation=None, input_metafo=N
     lbvals['lbi'] = {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()}
     set_lb_values(dtree, lbr_tau, use_multiplicities=use_multiplicities, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
     lbvals['lbr'] = {n.taxon.label : float(n.lbr) for n in dtree.postorder_node_iter()}
+
+    # this is ugly, but a) I don't use the values attached to the nodes anywhere a.t.m. and b) at least for now I'm running twice with different tau values for lbi/lbr, which I don't really like, but it means there's the potential for pulling a metric calculated with the wrong tau value from the tree
+    for node in dtree.postorder_node_iter():
+        delattr(node, 'lbi')
+        delattr(node, 'lbr')
 
     return lbvals
 
