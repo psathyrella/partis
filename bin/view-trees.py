@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 import os
+import sys
 import argparse
 import pickle
 import csv
 from ete3 import TreeNode, TreeStyle, NodeStyle, SVG_COLORS
+
+# if you move this script, you'll need to change this method of getting the imports
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+sys.path.insert(1, partis_dir + '/packages/bcr-phylo-benchmark/bin')
+import GCutils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle-tree-file')
