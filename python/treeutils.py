@@ -827,7 +827,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
             for lb_metric, lb_label in lb_metrics.items():
                 fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True)
                 # fnames[-1] += plotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
-                fnames[-1] += plotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
+                fnames[-1] += plotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=False)[0]
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
                 fnames[-1] += plotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)

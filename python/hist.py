@@ -351,9 +351,11 @@ class Hist(object):
                 if abs(xvals[-1] - xvals[0]) > 5:  # greater/less than five is kind of a shitty way to decide whether to int() and +/- 0.5 or not, but I'm calling it now with a range much less than 1, and I don't want the int()s, but where I call it elsewhere I do and the range is much larger, so...
                     npbins = list(numpy.arange(int(xvals[0]) - 0.5, int(xvals[-1]) - 0.5))
                     npbins.append(npbins[-1] + 1)
-                else:
+                elif xvals[0] != xvals[-1]:
                     n_bins = len(xvals)  # uh, maybe?
                     npbins = list(numpy.arange(xvals[0], xvals[-1], (xvals[-1] - xvals[0]) / float(n_bins)))
+                else:
+                    npbins = [0, 1]
                 kwargs = {k : kwargs[k] for k in kwargs if k not in ['marker', 'markersize']}
                 kwargs['histtype'] = 'step'
                 return plt.hist(xvals, npbins, weights=yvals, **kwargs)

@@ -1074,7 +1074,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
             return False
         if otime in (len(numpyhists),):
             return True
-        if otime % int(len(numpyhists) / float(n_plots)) == 0:
+        if otime % max(1, int(len(numpyhists) / float(n_plots))) == 0:
             return True
         return False
     # ----------------------------------------------------------------------------------------
@@ -1272,7 +1272,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         else:
             return plotvals[k]
 
-    if len(plotvals[xvar]) == 0:
+    if len(getall(xvar)) == 0:
         # print '    no %s vs affy info' % yvar
         return
     fig, ax = mpl_init()
@@ -1472,6 +1472,8 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
         affinity_changes = sorted(affinity_changes)
         if debug:
             print '    chosen affinity changes: %s' % ' '.join(['%.4f' % a for a in affinity_changes])
+        if len(affinity_changes) == 0:
+            continue
         if len([a for a in affinity_changes if a < 0.]):
             print '  %s negative affinity changes in %s' % (utils.color('red', 'error'), ' '.join(['%.4f' % a for a in affinity_changes]))
         max_diff = affinity_changes[-1] - affinity_changes[0]
@@ -1485,6 +1487,10 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
     # mpl_finish(ax, plotdir, plotname, title='%s on true tree' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label)
     plot_2d_scatter(plotname, plotdir, n_ancestor_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar='n-ancestors', xlabel='N ancestors since affinity increase', log='y' if lb_metric == 'lbr' else '')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
+
+    if len(n_ancestor_vals['n-ancestors']) == 0:
+        print '    no n-ancestor vals'
+        return [fnames]
 
     # then plot potential lb cut thresholds with percentiles
     if debug:
