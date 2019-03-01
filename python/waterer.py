@@ -193,9 +193,10 @@ class Waterer(object):
             print '%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning')
             sys.exit(1)
 
-        dupl_str = (', %d duplicates' % sum([len(dupes) for dupes in self.duplicates.values()])) if just_read_cachefile else ''  # kind of messy, but if we just read the cache file then we need to print this info, but if we didn't just read the cache file then we haven't yet removed duplicates so we can't
-        tmp_pass_frac = float(len(self.info['queries'])) / len(self.input_info)
-        print '      info for %d / %d = %.3f   (%d failed%s)' % (len(self.info['queries']), len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
+        n_dupes = sum([len(dupes) for dupes in self.duplicates.values()])
+        dupl_str = (', %d duplicates' % n_dupes) if just_read_cachefile else ''  # kind of messy, but if we just read the cache file then we need to print this info, but if we didn't just read the cache file then we haven't yet removed duplicates so we can't
+        tmp_pass_frac = float(len(self.info['queries']) + n_dupes) / len(self.input_info)
+        print '      info for %d / %d = %.3f   (%d failed%s)' % (len(self.info['queries']) + n_dupes, len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
         if tmp_pass_frac < 0.80:
             print '  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning())
         if len(self.kept_unproductive_queries) > 0:
