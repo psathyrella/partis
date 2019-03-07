@@ -38,7 +38,7 @@ def rearrange():
 def run_bcr_phylo(naive_line, outdir, ievent):
     tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
     os.makedirs(tmpdir)
-    prof_cmds = '' # -m cProfile -s tottime -o prof.out'
+    prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
     cmd = 'export TMPDIR=%s && export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (tmpdir, ete_path, prof_cmds, bcr_phylo_path)
 
     if args.run_help:
@@ -66,6 +66,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
 
     cmd += ' --debug 1'
     cmd += ' --no_context'
+    cmd += ' --no_plot'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     cmd += ' --naive_seq %s' % naive_line['naive_seq']
     cmd += ' --random_seed %d' % (args.seed + ievent)
