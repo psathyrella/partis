@@ -18,6 +18,9 @@ import csv
 import numpy
 import subprocess
 import operator
+import tempfile
+import yaml
+import colorsys
 
 import utils
 import plotconfig
@@ -33,6 +36,18 @@ plot_ratios = {
     'j' : (8, 3)
 }
 
+# # ----------------------------------------------------------------------------------------
+# def _hls2hex(rgb_tuple):
+#     h, l, s, alpha = rgb_tuple
+#     hexstr = '#%02x%02x%02x' %tuple(map(lambda x: int(x*255), colorsys.hls_to_rgb(h, l, s)))
+#     print rgb_tuple, hexstr
+#     return hexstr
+
+# ----------------------------------------------------------------------------------------
+def rgb_to_hex(rgb_tuple):
+    assert len(rgb_tuple) == 3
+    return '#%02x%02x%02x' %tuple(map(lambda x: int(x*255), rgb_tuple[:3]))
+
 # ----------------------------------------------------------------------------------------
 def get_normalized_cmap_and_norm(vals, cmap=None):
     if cmap is None:
@@ -41,6 +56,12 @@ def get_normalized_cmap_and_norm(vals, cmap=None):
     vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
     norm = mpl.colors.Normalize(vmin=vmin, vmax=sorted_vals[-1])
     return cmap, norm
+
+# ----------------------------------------------------------------------------------------
+def get_normalized_scalar_map(vals, cmap=None):
+    cmap, norm = get_normalized_cmap_and_norm(vals, cmap=cmap)
+    scalarMap = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+    return scalarMap
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
@@ -1548,6 +1569,27 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label
     plotname = '%s-true-vs-inferred' % lb_metric
     plot_2d_scatter(plotname, plotdir, plotvals, 'inf', '%s on inferred tree' % lb_metric.upper(), 'true vs inferred %s' % lb_metric.upper(), xvar='true', xlabel='%s on true tree' % lb_metric.upper())
     return ['%s/%s.svg' % (plotdir, plotname)]
+
+# ----------------------------------------------------------------------------------------
+def plot_lb_trees(plotdir, lines, lb_tau, ete_path, is_simu=False):
+    for iclust, line in enumerate(lines):
+        treestr = get_tree_from_line(line, is_simu)
+        with tempfile.NamedTemporaryFile() as treefile, tempfile.NamedTemporaryFile() as metafile:
+            treefile.write(treestr)
+            treefile.flush()
+            # metafo = {u : {line['tree-info']['lb'][lbm][} for iseq, u in enumerate(line['unique_ids'])}
+            metafo = copy.deepcopy(line['tree-info']['lb'])
+            if 'affinities' in line:
+                metafo['affinity'] = {uid : affy for uid, affy in zip(line['unique_ids'], line['affinities'])}
+            yaml.dump(metafo, metafile)
+            # ete3 requires its own python version, so we run as a subprocess
+            cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-lb-tree.py' % ete_path
+            cmdstr += ' --treefname %s' % treefile.name
+            cmdstr += ' --metafname %s' % metafile.name
+            cmdstr += ' --plotdir %s/trees' % plotdir
+            cmdstr += ' --lb-tau %f' % lb_tau
+            cmdstr += ' --plotname lb-tree-iclust-%d' % iclust
+            utils.simplerun(cmdstr, shell=True)
 
 # ----------------------------------------------------------------------------------------
 def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info):

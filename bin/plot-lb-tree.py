@@ -93,6 +93,9 @@ def draw_tree(args, treefo):
 
     tstyle = ete3.TreeStyle()
     # tstyle.show_scale = False
+    # tstyle.scale_length = args.lb_tau
+    # tstyle.show_branch_length = True
+    # tstyle.complete_branch_lines_when_necessary = True
 
     if args.metafo is not None:
         lbfo = args.metafo[lb_metric]
@@ -159,6 +162,7 @@ def plot_trees(args):
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--treefname', required=True)
 parser.add_argument('--plotdir', required=True)
+parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--plotname', default='test')
 parser.add_argument('--metafname')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')

@@ -807,14 +807,16 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
     return lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, debug=False):
+def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete_path=None, debug=False):
     import plotting
 
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
-    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']])
+    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']] + ['trees'])
     fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
     # fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
-    fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'])
+    fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], debug=debug)
+    if ete_path is not None:
+        plotting.plot_lb_trees(inf_plotdir, lines_to_use, lb_tau, ete_path, is_simu=False)
     plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
 
     if true_lines_to_use is not None:
@@ -822,16 +824,18 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, deb
             print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
         else:
             true_plotdir = base_plotdir + '/true-tree-metrics'
-            utils.prep_dir(true_plotdir, wildlings=['*.svg'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-shm']])
+            utils.prep_dir(true_plotdir, wildlings=['*.svg'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-shm']] + ['trees'])
             fnames = []
             for lb_metric, lb_label in lb_metrics.items():
-                fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True)
+                fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True, debug=debug)
                 # fnames[-1] += plotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
-                fnames[-1] += plotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=False)[0]
+                fnames[-1] += plotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=debug)[0]
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
                 fnames[-1] += plotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)
             fnames += plotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
+            if ete_path is not None:
+                plotting.plot_lb_trees(true_plotdir, true_lines_to_use, lb_tau, ete_path, is_simu=True)
             plotting.make_html(true_plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
@@ -860,7 +864,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
 
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           add_dummy_root=False, debug=False):
+                           add_dummy_root=False, ete_path=None, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -897,7 +901,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:
-        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, debug=debug)
+        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete_path=ete_path, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):
