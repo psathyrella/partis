@@ -1327,6 +1327,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
 
     # first plot lb metric vs affinity scatter (all clusters)
     lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}
+    uid_vals = []  # keep a separate one for the worst correlation printing
     for iclust, line in enumerate(lines):
         iclust_lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity' , 'uids']}
         # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
@@ -1338,6 +1339,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
             iclust_lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
             if not is_simu:
                 iclust_lb_vs_affinity_vals['uids'].append(uid)
+            uid_vals.append(uid)
         if not all_clusters_together and len(iclust_lb_vs_affinity_vals['affinity']) > 0:
             fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (plotdir, lb_metric), iclust_lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
             if iclust < n_per_row:
@@ -1346,12 +1348,19 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
             lb_vs_affinity_vals[vtype] += iclust_lb_vs_affinity_vals[vtype]
     if all_clusters_together:
         plotname = '%s-vs-affinity-%s-tree' % (lb_metric, plot_str)
+        # lb_vs_affinity_vals['uids'] = uid_vals
         plot_2d_scatter(plotname, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
         fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     if len(lb_vs_affinity_vals[lb_metric]) == 0:
         print '  no affinity values when trying to make lb vs affinity plots'
         return [fnames]
+
+    # # NOTE doesn't actually work -- would I think maybe need to fit for a line and measure deviation from that line?
+    # # find the nodes with the worst correlation
+    # if lb_metric == 'lbi':
+    #     lb_affy_ratios = [(uid, lbval / affy) for lbval, affy in zip(lb_vs_affinity_vals[lb_metric], lb_vs_affinity_vals['affinity'])]
+    #     print 'x', sorted(lb_affy_ratios, key=operator.itemgetter(1), reverse=True)
 
     # then plot potential lb cut thresholds with percentiles
     if debug:
