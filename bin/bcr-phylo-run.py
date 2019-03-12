@@ -58,6 +58,9 @@ def run_bcr_phylo(naive_line, outdir, ievent):
         cmd += ' --carry_cap %d' % args.carry_cap
         cmd += ' --observe_common_ancestors'
 
+        # cmd += ' --n_target_clusters 1'
+        # cmd += ' --target_cluster_distance 1'
+
         # cmd += ' --metric_for_target_dist nuc'
         # cmd += ' --observe_based_on_affinity'  # implementation in bcr-phylo needs some work
     else:
