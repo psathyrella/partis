@@ -300,7 +300,7 @@ parent_parser.add_argument('--plot-performance', action='store_true', help='rena
 parent_parser.add_argument('--plot-annotation-performance', action='store_true', help='Write out plots comparing true and inferred annotation accuracy distributions')
 parent_parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots (svg writing is pretty slow, and it\'s frequently better to make comparison plots from csvs with ./bin/compare-plotdirs.py anyway)')
 parent_parser.add_argument('--make-per-gene-plots', action='store_true', help='in addition to plots aggregating over genes, write plots displaying info for each gene of, e.g., per position shm rate, deletion frequencies')
-parent_parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
+parent_parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
 
 parent_parser.add_argument('--default-initial-germline-dir', default=partis_dir + '/data/germlines', help='For internal use only. To specify your own germline directory from which to start, use --initial-germline-dir instead.')
 parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, perhaps (i.e. if specified) with modification. NOTE default is set below, because control flow is too complicated for argparse')
