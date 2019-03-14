@@ -88,7 +88,63 @@ def get_size(vmin, vmax, val):
     return min_size + (val - vmin) * (max_size - min_size) / (vmax - vmin)
 
 # ----------------------------------------------------------------------------------------
-def draw_tree(args, treefo):
+def set_meta_styles(args, etree, tstyle):
+    lbfo = args.metafo[lb_metric]
+    lbvals = lbfo.values()
+    lb_min, lb_max = min(lbvals), max(lbvals)
+    # lb_smap = plotting.get_normalized_scalar_map(lbvals, None)
+
+    if 'affinity' in args.metafo:
+        affyfo = args.metafo['affinity']
+        affyvals = affyfo.values()
+        affy_min, affy_max = min(affyvals), max(affyvals)
+        affy_smap = plotting.get_normalized_scalar_map(affyvals, 'viridis')
+
+    for node in etree.traverse():
+        node.img_style['size'] = 0
+        if node.name not in lbfo:  # really shouldn't happen
+            print '  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name)
+            continue
+        rfsize = get_size(lb_min, lb_max, lbfo[node.name])
+        if affyfo is not None:
+            if node.name in affyfo:
+                bgcolor = get_color(affy_smap, affyfo, node.name)
+            else:
+                bgcolor = getgrey()
+        rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
+        rface.opacity = opacity
+        node.add_face(rface, column=0)
+
+    # lb legend
+    tstyle.legend.add_face(ete3.TextFace(lb_metric + '   ', fsize=fsize), column=0)
+    tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=0)
+    tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=0)
+    middle_val = affy_min + (affy_max - affy_min) / 2.
+    tstyle.legend.add_face(ete3.RectFace(min_size, min_size, bgcolor=get_color(affy_smap, affyfo, key=None, val=middle_val), fgcolor=None), column=1)
+    tstyle.legend.add_face(ete3.RectFace(max_size, max_size, bgcolor=get_color(affy_smap, affyfo, key=None, val=middle_val), fgcolor=None), column=1)
+    tstyle.legend.add_face(ete3.TextFace('  %.4f' % lb_min, fsize=fsize), column=2)
+    tstyle.legend.add_face(ete3.TextFace('  %.4f' % lb_max, fsize=fsize), column=2)
+
+    # affy legend
+    tstyle.legend.add_face(ete3.TextFace('   affinity ', fsize=fsize), column=3)
+    delta_affy = (affy_max - affy_min) / 5.
+    affy_val_list = list(numpy.arange(affy_min, affy_max + utils.eps, delta_affy))  # first value is exactly <affy_min>, last value is exactly <affy_max>
+    affy_key_list = [None for _ in affy_val_list]
+    affy_val_list += [None]
+    affy_key_list += ['missing!']  # doesn't matter what the last one is as long as it isn't in <affyfo>
+    for aval, akey in zip(affy_val_list, affy_key_list):
+        tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=3)
+        middle_size = min_size + (max_size - min_size) / 2.
+        rface = ete3.RectFace(middle_size, middle_size, bgcolor=get_color(affy_smap, affyfo, key=akey, val=aval), fgcolor=None)
+        rface.opacity = opacity
+        tstyle.legend.add_face(rface, column=4)
+        tstyle.legend.add_face(ete3.TextFace(('  %.4f' % aval) if akey is None else '  missing', fsize=fsize), column=5)
+
+
+# ----------------------------------------------------------------------------------------
+def plot_trees(args):
+    treefo = read_input(args)
+
     etree = ete3.Tree(treefo['treestr'], format=1)
 
     tstyle = ete3.TreeStyle()
@@ -98,65 +154,13 @@ def draw_tree(args, treefo):
     # tstyle.complete_branch_lines_when_necessary = True
 
     if args.metafo is not None:
-        lbfo = args.metafo[lb_metric]
-        lbvals = lbfo.values()
-        lb_min, lb_max = min(lbvals), max(lbvals)
-        # lb_smap = plotting.get_normalized_scalar_map(lbvals, None)
-        
-        if 'affinity' in args.metafo:
-            affyfo = args.metafo['affinity']
-            affyvals = affyfo.values()
-            affy_min, affy_max = min(affyvals), max(affyvals)
-            affy_smap = plotting.get_normalized_scalar_map(affyvals, 'viridis')
-
-        for node in etree.traverse():
-            node.img_style['size'] = 0
-            if node.name in lbfo:
-                rfsize = get_size(lb_min, lb_max, lbfo[node.name])
-                if affyfo is not None:
-                    if node.name in affyfo:
-                        bgcolor = get_color(affy_smap, affyfo, node.name)
-                    else:
-                        bgcolor = getgrey()
-                rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
-                rface.opacity = opacity
-                node.add_face(rface, column=0)
-
-        # lb legend
-        tstyle.legend.add_face(ete3.TextFace(lb_metric + '   ', fsize=fsize), column=0)
-        tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=0)
-        tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=0)
-        middle_val = affy_min + (affy_max - affy_min) / 2.
-        tstyle.legend.add_face(ete3.RectFace(min_size, min_size, bgcolor=get_color(affy_smap, affyfo, key=None, val=middle_val), fgcolor=None), column=1)
-        tstyle.legend.add_face(ete3.RectFace(max_size, max_size, bgcolor=get_color(affy_smap, affyfo, key=None, val=middle_val), fgcolor=None), column=1)
-        tstyle.legend.add_face(ete3.TextFace('  %.4f' % lb_min, fsize=fsize), column=2)
-        tstyle.legend.add_face(ete3.TextFace('  %.4f' % lb_max, fsize=fsize), column=2)
-
-        # affy legend
-        tstyle.legend.add_face(ete3.TextFace('   affinity ', fsize=fsize), column=3)
-        delta_affy = (affy_max - affy_min) / 5.
-        affy_val_list = list(numpy.arange(affy_min, affy_max + utils.eps, delta_affy))  # first value is exactly <affy_min>, last value is exactly <affy_max>
-        affy_key_list = [None for _ in affy_val_list]
-        affy_val_list += [None]
-        affy_key_list += ['missing!']  # doesn't matter what the last one is as long as it isn't in <affyfo>
-        for aval, akey in zip(affy_val_list, affy_key_list):
-            tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=3)
-            middle_size = min_size + (max_size - min_size) / 2.
-            rface = ete3.RectFace(middle_size, middle_size, bgcolor=get_color(affy_smap, affyfo, key=akey, val=aval), fgcolor=None)
-            rface.opacity = opacity
-            tstyle.legend.add_face(rface, column=4)
-            tstyle.legend.add_face(ete3.TextFace(('  %.4f' % aval) if akey is None else '  missing', fsize=fsize), column=5)
+        set_meta_styles(args, etree, tstyle)
 
     suffix = '.svg'
     imagefname = args.plotdir + '/' + args.plotname + suffix
     print '      %s' % imagefname
     tstyle.show_leaf_name = False
     etree.render(imagefname, tree_style=tstyle)
-
-# ----------------------------------------------------------------------------------------
-def plot_trees(args):
-    treefo = read_input(args)
-    draw_tree(args, treefo)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
