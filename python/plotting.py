@@ -51,7 +51,7 @@ def rgb_to_hex(rgb_tuple):
 # ----------------------------------------------------------------------------------------
 def get_normalized_cmap_and_norm(vals, cmap=None):
     if cmap is None:
-        cmap = 'Blues'
+        cmap = plt.cm.Blues  # 'Blues'
     sorted_vals = sorted(vals)
     vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
     norm = mpl.colors.Normalize(vmin=vmin, vmax=sorted_vals[-1])
@@ -1580,7 +1580,7 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label
     return ['%s/%s.svg' % (plotdir, plotname)]
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(plotdir, lines, lb_tau, ete_path, is_simu=False):
+def plot_lb_trees(plotdir, lines, lb_metric, ete_path, is_simu=False):
     for iclust, line in enumerate(lines):
         treestr = get_tree_from_line(line, is_simu)
         with tempfile.NamedTemporaryFile() as treefile, tempfile.NamedTemporaryFile() as metafile:
@@ -1596,8 +1596,10 @@ def plot_lb_trees(plotdir, lines, lb_tau, ete_path, is_simu=False):
             cmdstr += ' --treefname %s' % treefile.name
             cmdstr += ' --metafname %s' % metafile.name
             cmdstr += ' --plotdir %s/trees' % plotdir
-            cmdstr += ' --lb-tau %f' % lb_tau
-            cmdstr += ' --plotname lb-tree-iclust-%d' % iclust
+            cmdstr += ' --lb-metric %s' % lb_metric
+            # cmdstr += ' --lb-tau %f' % lb_tau
+            cmdstr += ' --log-lbr'
+            cmdstr += ' --plotname %s-tree-iclust-%d' % (lb_metric, iclust)
             utils.simplerun(cmdstr, shell=True)
 
 # ----------------------------------------------------------------------------------------
