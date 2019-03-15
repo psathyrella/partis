@@ -49,17 +49,20 @@ def rgb_to_hex(rgb_tuple):
     return '#%02x%02x%02x' %tuple(map(lambda x: int(x*255), rgb_tuple[:3]))
 
 # ----------------------------------------------------------------------------------------
-def get_normalized_cmap_and_norm(vals, cmap=None):
+def get_normalized_cmap_and_norm(vals, cmap=None, remove_top_end=False):
     if cmap is None:
         cmap = plt.cm.Blues  # 'Blues'
     sorted_vals = sorted(vals)
     vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
-    norm = mpl.colors.Normalize(vmin=vmin, vmax=sorted_vals[-1])
+    vmax = sorted_vals[-1]
+    if remove_top_end:  # remove the top end of the color spectrum (at least when I'm adding this, it's because the Reds and Blues top color is way too close to black [and I can't set opacity on lines in ete3, which would also fix it])
+        vmax = vmax + 0.3 * (vmax - vmin)
+    norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
     return cmap, norm
 
 # ----------------------------------------------------------------------------------------
-def get_normalized_scalar_map(vals, cmap=None):
-    cmap, norm = get_normalized_cmap_and_norm(vals, cmap=cmap)
+def get_normalized_scalar_map(vals, cmap=None, remove_top_end=False):
+    cmap, norm = get_normalized_cmap_and_norm(vals, cmap=cmap, remove_top_end=remove_top_end)
     scalarMap = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
     return scalarMap
 

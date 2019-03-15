@@ -100,7 +100,7 @@ def get_size(vmin, vmax, val):
     return min_size + (val - vmin) * (max_size - min_size) / (vmax - vmin)
 
 # ----------------------------------------------------------------------------------------
-def add_cmap_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=4, fsize=4):
+def add_cmap_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):
     if len(all_vals) == 0:
         return
     assert add_sign in [None, '-', '+']
@@ -117,7 +117,8 @@ def add_cmap_legend(tstyle, varname, all_vals, smap, info, start_column, add_mis
     for val, key in zip(val_list, key_list):
         tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=start_column)
         rface = ete3.RectFace(6, 6, bgcolor=get_color(smap, info, key=key, val=val), fgcolor=None)
-        rface.opacity = opacity
+        if not no_opacity:
+            rface.opacity = opacity
         tstyle.legend.add_face(rface, column=start_column + 1)
         tstyle.legend.add_face(ete3.TextFace(('  %s%.4f' % (add_sign if add_sign is not None else '', math.exp(val) if reverse_log else val)) if key is None else '  missing', fsize=fsize), column=start_column + 2)
 
@@ -137,11 +138,10 @@ def set_meta_styles(args, etree, tstyle):
             affyvals = affyfo.values()
             affy_smap = plotting.get_normalized_scalar_map(affyvals, 'viridis')
         elif args.lb_metric == 'lbr':
-            sorted_lbvals = sorted(lbvals)
-            lb_smap = plotting.get_normalized_scalar_map(sorted_lbvals, 'viridis')
+            lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis')
             delta_affyvals = set_delta_affinities(etree, affyfo)
-            delta_affy_increase_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v > 0], 'Reds') if len(delta_affyvals) > 0 else None
-            delta_affy_decrease_smap = plotting.get_normalized_scalar_map([abs(v) for v in delta_affyvals if v < 0], 'Blues') if len(delta_affyvals) > 0 else None
+            delta_affy_increase_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v > 0], 'Reds', remove_top_end=True) if len(delta_affyvals) > 0 else None
+            delta_affy_decrease_smap = plotting.get_normalized_scalar_map([abs(v) for v in delta_affyvals if v < 0], 'Blues', remove_top_end=True) if len(delta_affyvals) > 0 else None
         else:
             assert False
 
@@ -189,8 +189,8 @@ def set_meta_styles(args, etree, tstyle):
         add_cmap_legend(tstyle, 'affinity', affyvals, affy_smap, affyfo, 3)
     elif args.lb_metric == 'lbr':
         add_cmap_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, reverse_log=args.log_lbr)
-        add_cmap_legend(tstyle, 'affinity decrease', [abs(v) for v in delta_affyvals if v < 0], delta_affy_decrease_smap, affyfo, 3, add_sign='-')
-        add_cmap_legend(tstyle, 'affinity increase', [v for v in delta_affyvals if v > 0], delta_affy_increase_smap, affyfo, 6, add_sign='+')
+        add_cmap_legend(tstyle, 'affinity decrease', [abs(v) for v in delta_affyvals if v < 0], delta_affy_decrease_smap, affyfo, 3, add_sign='-', no_opacity=True)
+        add_cmap_legend(tstyle, 'affinity increase', [v for v in delta_affyvals if v > 0], delta_affy_increase_smap, affyfo, 6, add_sign='+', no_opacity=True)
 
 # ----------------------------------------------------------------------------------------
 def plot_trees(args):
