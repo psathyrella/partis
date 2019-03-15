@@ -84,6 +84,18 @@ lb_metric = 'lbi'
 fsize = 7
 
 # ----------------------------------------------------------------------------------------
+def set_delta_affinities(etree, affyfo):  # set change in affinity from parent for each node, and return a list of all such affinity changes (for normalizing the cmap)
+    delta_affyvals = []
+    for node in etree.traverse():
+        if node.name not in affyfo or node.up is None or node.up.name not in affyfo:
+            node.add_feature('affinity_change', None)
+            continue
+        node.add_feature('affinity_change', affyfo[node.name] - affyfo[node.up.name])
+        delta_affyvals.append(affyfo[node.name] - affyfo[node.up.name])
+
+    return delta_affyvals
+
+# ----------------------------------------------------------------------------------------
 def get_size(vmin, vmax, val):
     return min_size + (val - vmin) * (max_size - min_size) / (vmax - vmin)
 
@@ -94,11 +106,15 @@ def set_meta_styles(args, etree, tstyle):
     lb_min, lb_max = min(lbvals), max(lbvals)
     # lb_smap = plotting.get_normalized_scalar_map(lbvals, None)
 
+    affyfo = None
     if 'affinity' in args.metafo:
         affyfo = args.metafo['affinity']
         affyvals = affyfo.values()
         affy_min, affy_max = min(affyvals), max(affyvals)
         affy_smap = plotting.get_normalized_scalar_map(affyvals, 'viridis')
+        delta_affyvals = set_delta_affinities(etree, affyfo)
+        delta_affy_increase_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v > 0], 'Reds') if len(delta_affyvals) > 0 else None
+        delta_affy_decrease_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v < 0], 'Blues') if len(delta_affyvals) > 0 else None
 
     for node in etree.traverse():
         node.img_style['size'] = 0
@@ -109,6 +125,15 @@ def set_meta_styles(args, etree, tstyle):
         if affyfo is not None:
             if node.name in affyfo:
                 bgcolor = get_color(affy_smap, affyfo, node.name)
+                if delta_affy_increase_smap is not None and node.affinity_change is not None:
+                    if node.affinity_change > 0:  # increase
+                        node.img_style['hz_line_color'] = get_color(delta_affy_increase_smap, None, None, val=node.affinity_change)
+                        node.img_style['hz_line_width'] = 1.2
+                    elif node.affinity_change < 0:  # decrease
+                        node.img_style['hz_line_color'] = get_color(delta_affy_decrease_smap, None, None, val=node.affinity_change)
+                        node.img_style['hz_line_width'] = 1.2
+                    else:
+                        node.img_style['hz_line_color'] = getgrey()
             else:
                 bgcolor = getgrey()
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
@@ -127,8 +152,8 @@ def set_meta_styles(args, etree, tstyle):
 
     # affy legend
     tstyle.legend.add_face(ete3.TextFace('   affinity ', fsize=fsize), column=3)
-    delta_affy = (affy_max - affy_min) / 5.
-    affy_val_list = list(numpy.arange(affy_min, affy_max + utils.eps, delta_affy))  # first value is exactly <affy_min>, last value is exactly <affy_max>
+    max_delta_affy = (affy_max - affy_min) / 5.
+    affy_val_list = list(numpy.arange(affy_min, affy_max + utils.eps, max_delta_affy))  # first value is exactly <affy_min>, last value is exactly <affy_max>
     affy_key_list = [None for _ in affy_val_list]
     affy_val_list += [None]
     affy_key_list += ['missing!']  # doesn't matter what the last one is as long as it isn't in <affyfo>

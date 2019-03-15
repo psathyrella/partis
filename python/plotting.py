@@ -51,7 +51,7 @@ def rgb_to_hex(rgb_tuple):
 # ----------------------------------------------------------------------------------------
 def get_normalized_cmap_and_norm(vals, cmap=None):
     if cmap is None:
-        cmap = plt.cm.Blues
+        cmap = 'Blues'
     sorted_vals = sorted(vals)
     vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
     norm = mpl.colors.Normalize(vmin=vmin, vmax=sorted_vals[-1])
