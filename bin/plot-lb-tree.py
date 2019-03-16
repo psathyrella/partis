@@ -68,7 +68,7 @@ def read_input(args):
     return {'treestr' : treestr}
 
 # ----------------------------------------------------------------------------------------
-def get_color(smap, info, key, val=None):
+def get_color(smap, info, key=None, val=None):  # specify *either* <key> or <val> (don't need <info> if you're passing <val>)
     if val is None:
         assert key is not None
         if key not in info:
@@ -156,21 +156,21 @@ def set_meta_styles(args, etree, tstyle):
             rfsize = get_size(lb_min, lb_max, lbfo[node.name])
             if affyfo is None or node.name not in affyfo:
                 continue
-            bgcolor = get_color(affy_smap, affyfo, node.name)
+            bgcolor = get_color(affy_smap, affyfo, key=node.name)
         elif args.lb_metric == 'lbr':
             node.img_style['vt_line_color'] = getgrey()  # if they're black, it's too hard to see the large changes in affinity, since they're very dark (at least with current color schemes)
             # rfsize = get_size(lb_min, lb_max, lbfo[node.name]) if node.name in lbfo else 1.5
             rfsize = 5 if node.name in lbfo else 1.5
-            bgcolor = get_color(lb_smap, lbfo, node.name)
+            bgcolor = get_color(lb_smap, lbfo, key=node.name)
             if delta_affy_increase_smap is None or node.affinity_change is None:
                 continue
             # tface = ete3.TextFace(('%+.4f' % node.affinity_change) if node.affinity_change != 0 else '0.', fsize=3)
             # node.add_face(tface, column=0)
             if node.affinity_change > 0:  # increase
-                node.img_style['hz_line_color'] = get_color(delta_affy_increase_smap, None, None, val=node.affinity_change)
+                node.img_style['hz_line_color'] = get_color(delta_affy_increase_smap, None, val=node.affinity_change)
                 node.img_style['hz_line_width'] = 1.2
             elif node.affinity_change < 0:  # decrease
-                node.img_style['hz_line_color'] = get_color(delta_affy_decrease_smap, None, None, val=abs(node.affinity_change))
+                node.img_style['hz_line_color'] = get_color(delta_affy_decrease_smap, None, val=abs(node.affinity_change))
                 node.img_style['hz_line_width'] = 1.2
             else:
                 node.img_style['hz_line_color'] = getgrey()
