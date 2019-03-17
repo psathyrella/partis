@@ -7,9 +7,9 @@ import csv
 from ete3 import TreeNode, TreeStyle, NodeStyle, SVG_COLORS
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pickle-tree-file')
-parser.add_argument('--kdfile', required=True)
-parser.add_argument('--newick-tree-file', required=True)
+parser.add_argument('--pickle-tree-file', help='bcr phylo output pickle tree file')
+parser.add_argument('--kdfile', required=True, help='output csv file with kd info')
+parser.add_argument('--newick-tree-file', required=True, help='output newick tree file')
 args = parser.parse_args()
 
 with open(args.pickle_tree_file, 'rb') as lfile:
@@ -25,7 +25,7 @@ with open(args.newick_tree_file, 'w') as ntfile:
     ntfile.write(treestr)
 
 with open(args.kdfile, 'w') as kdfile:
-    writer = csv.DictWriter(kdfile, ('uid', 'kd'))
+    writer = csv.DictWriter(kdfile, ('uid', 'kd', 'relative_kd', 'lambda'))
     writer.writeheader()
     for node in tree.traverse():  # small kd is higher affinity
-        writer.writerow({'uid' : node.name, 'kd' : node.Kd})
+        writer.writerow({'uid' : node.name, 'kd' : node.Kd, 'relative_kd' : node.relative_Kd, 'lambda' : node.lambda_})

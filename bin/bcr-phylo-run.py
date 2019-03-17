@@ -103,18 +103,24 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if args.stype == 'selection':
-        cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/view-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, outdir, args.extrastr, outdir, outdir)
+        cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, outdir, args.extrastr, outdir, outdir)
         utils.simplerun(cmd, shell=True)
-        kdvals = {}
+        nodefo = {}
         with open('%s/kd-vals.csv' % outdir) as kdfile:
             reader = csv.DictReader(kdfile)
             for line in reader:
-                kdvals[line['uid']] = float(line['kd'])
-        if len(set(kdvals) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
-            print '        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(kdvals) - set(final_line['unique_ids']))
-        if len(set(final_line['unique_ids']) - set(kdvals)) > 0:
-            print '        in final_line, but missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(kdvals))
-        final_line['affinities'] = [1. / kdvals[u] for u in final_line['unique_ids']]
+                nodefo[line['uid']] = {
+                    'kd' : float(line['kd']),
+                    'relative_kd' : float(line['relative_kd']),
+                    'lambda' : line.get('lambda', None),
+                }
+        if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
+            print '        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(nodefo) - set(final_line['unique_ids']))
+        if len(set(final_line['unique_ids']) - set(nodefo)) > 0:
+            print '        in final_line, but missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(nodefo))
+        final_line['affinities'] = [1. / nodefo[u]['kd'] for u in final_line['unique_ids']]
+        final_line['relative_affinities'] = [1. / nodefo[u]['relative_kd'] for u in final_line['unique_ids']]
+        final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
         tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % outdir)
         tree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))
         if args.debug:

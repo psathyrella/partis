@@ -106,6 +106,8 @@ def add_cmap_legend(tstyle, varname, all_vals, smap, info, start_column, add_mis
     assert add_sign in [None, '-', '+']
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
     min_val, max_val = min(all_vals), max(all_vals)
+    if min_val == max_val:
+        return
     max_diff = (max_val - min_val) / float(n_entries - 1)
     val_list = list(numpy.arange(min_val, max_val + utils.eps, max_diff))  # first value is exactly <min_val>, last value is exactly <max_val> (eps is to keep it from missing the last one)
     # if add_sign is not None and add_sign == '-':  # for negative changes, we have the cmap using abs() and want to legend order to correspond
