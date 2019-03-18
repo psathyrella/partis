@@ -130,17 +130,18 @@ def set_meta_styles(args, etree, tstyle):
     if args.lb_metric == 'lbr':  # remove zeroes
         lbfo = {u : (math.log(v) if args.log_lbr else v) for u, v in lbfo.items() if v > 0}
     lbvals = lbfo.values()
+    if args.lb_metric == 'lbr':
+        lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis')
     lb_min, lb_max = min(lbvals), max(lbvals)
     # lb_smap = plotting.get_normalized_scalar_map(lbvals, None)
 
     affyfo = None
-    if 'affinity' in args.metafo:
-        affyfo = args.metafo['affinity']
+    if args.affy_key in args.metafo:
+        affyfo = args.metafo[args.affy_key]
         if args.lb_metric == 'lbi':
             affyvals = affyfo.values()
             affy_smap = plotting.get_normalized_scalar_map(affyvals, 'viridis')
         elif args.lb_metric == 'lbr':
-            lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis')
             delta_affyvals = set_delta_affinities(etree, affyfo)
             delta_affy_increase_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v > 0], 'Reds', remove_top_end=True) if len(delta_affyvals) > 0 else None
             delta_affy_decrease_smap = plotting.get_normalized_scalar_map([abs(v) for v in delta_affyvals if v < 0], 'Blues', remove_top_end=True) if len(delta_affyvals) > 0 else None
@@ -164,7 +165,7 @@ def set_meta_styles(args, etree, tstyle):
             # rfsize = get_size(lb_min, lb_max, lbfo[node.name]) if node.name in lbfo else 1.5
             rfsize = 5 if node.name in lbfo else 1.5
             bgcolor = get_color(lb_smap, lbfo, key=node.name)
-            if delta_affy_increase_smap is None or node.affinity_change is None:
+            if affyfo is None or delta_affy_increase_smap is None or node.affinity_change is None:
                 continue
             # tface = ete3.TextFace(('%+.4f' % node.affinity_change) if node.affinity_change != 0 else '0.', fsize=3)
             # node.add_face(tface, column=0)
@@ -180,6 +181,7 @@ def set_meta_styles(args, etree, tstyle):
         rface.opacity = opacity
         node.add_face(rface, column=0)
 
+    affy_label = args.affy_key.replace('_', ' ')
     if args.lb_metric == 'lbi':
         tstyle.legend.add_face(ete3.TextFace(args.lb_metric + '   ', fsize=fsize), column=0)
         tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=0)
@@ -188,11 +190,13 @@ def set_meta_styles(args, etree, tstyle):
         tstyle.legend.add_face(ete3.RectFace(max_size, max_size, bgcolor=getgrey(), fgcolor=None), column=1)
         tstyle.legend.add_face(ete3.TextFace('  %.4f' % lb_min, fsize=fsize), column=2)
         tstyle.legend.add_face(ete3.TextFace('  %.4f' % lb_max, fsize=fsize), column=2)
-        add_cmap_legend(tstyle, 'affinity', affyvals, affy_smap, affyfo, 3)
+        if affyfo is not None:
+            add_cmap_legend(tstyle, affy_label, affyvals, affy_smap, affyfo, 3)
     elif args.lb_metric == 'lbr':
         add_cmap_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, reverse_log=args.log_lbr)
-        add_cmap_legend(tstyle, 'affinity decrease', [abs(v) for v in delta_affyvals if v < 0], delta_affy_decrease_smap, affyfo, 3, add_sign='-', no_opacity=True)
-        add_cmap_legend(tstyle, 'affinity increase', [v for v in delta_affyvals if v > 0], delta_affy_increase_smap, affyfo, 6, add_sign='+', no_opacity=True)
+        if affyfo is not None:
+            add_cmap_legend(tstyle, '%s decrease' % affy_label, [abs(v) for v in delta_affyvals if v < 0], delta_affy_decrease_smap, affyfo, 3, add_sign='-', no_opacity=True)
+            add_cmap_legend(tstyle, '%s increase' % affy_label, [v for v in delta_affyvals if v > 0], delta_affy_increase_smap, affyfo, 6, add_sign='+', no_opacity=True)
 
 # ----------------------------------------------------------------------------------------
 def plot_trees(args):
@@ -220,6 +224,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpForm
 parser.add_argument('--treefname', required=True)
 parser.add_argument('--plotdir', required=True)
 parser.add_argument('--lb-metric', default='lbi', choices=['lbi', 'lbr'])
+parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'relative_affinity'])
 # parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--plotname', default='test')
 parser.add_argument('--metafname')

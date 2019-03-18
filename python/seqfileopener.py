@@ -228,8 +228,9 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             reco_info[uid] = copy.deepcopy(line)
             if simglfo is not None:
                 utils.add_implicit_info(simglfo, reco_info[uid])
-            if 'affinities' in reco_info[uid]:  # this is kind of weird to copy from sim info to input info, but it makes sense because affinity is really meta info (the only other place affinity could come from is --input-metafname below). Where i'm defining meta info more or less as any input info besides name and sequence (i think the distinction is only really important because we want to support fastas, which can't [shouldn't!] handle anything else))
-                input_info[uid]['affinities'] = copy.deepcopy(reco_info[uid]['affinities'])  # note that the args.input_metafname stuff below should print a warning if you've also specified that (which you shouldn't, if it's simulation)
+            for line_key in utils.input_metafile_keys.values():
+                if line_key in reco_info[uid]:  # this is kind of weird to copy from sim info to input info, but it makes sense because affinity is really meta info (the only other place affinity could come from is --input-metafname below). Where i'm defining meta info more or less as any input info besides name and sequence (i think the distinction is only really important because we want to support fastas, which can't [shouldn't!] handle anything else))
+                    input_info[uid][line_key] = copy.deepcopy(reco_info[uid][line_key])  # note that the args.input_metafname stuff below should print a warning if you've also specified that (which you shouldn't, if it's simulation)
 
         n_queries_added += 1
         if n_max_queries > 0 and n_queries_added >= n_max_queries:

@@ -312,9 +312,11 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
 
 input_metafile_keys = {  # map between the key we want the user to put in the meta file, and the key we use in the regular <line> dicts (basically just pluralizing)
     'affinity' : 'affinities',  # should maybe add all of these to <annotation_headers>?
+    'relative_affinity' : 'relative_affinities',
     'timepoint' : 'timepoints',
     'multiplicity' : 'multiplicities',
 }
+reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
 # ----------------------------------------------------------------------------------------
 special_indel_columns_for_output = ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)

@@ -1325,18 +1325,19 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, ptile_range_tuple=(50., 100., 1.), is_simu=False, n_per_row=4, debug=False):
+def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, ptile_range_tuple=(50., 100., 1.), is_simu=False, n_per_row=4, affy_key='affinities', debug=False):
     fnames = []
+    affy_key_str = '-relative' if 'relative' in affy_key else ''
 
     # first plot lb metric vs affinity scatter (all clusters)
-    lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}
+    lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
     uid_vals = []  # keep a separate one for the worst correlation printing
     for iclust, line in enumerate(lines):
         iclust_lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity' , 'uids']}
         # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
-        if 'affinities' not in line:
+        if affy_key not in line:
             continue
-        for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line['affinities']) if a is not None]:
+        for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None]:
             # node = dtree.find_node_with_taxon_label(uid)
             iclust_lb_vs_affinity_vals['affinity'].append(affy)
             iclust_lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
@@ -1344,15 +1345,19 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
                 iclust_lb_vs_affinity_vals['uids'].append(uid)
             uid_vals.append(uid)
         if not all_clusters_together and len(iclust_lb_vs_affinity_vals['affinity']) > 0:
-            fn = plot_2d_scatter('iclust-%d' % iclust, '%s/%s-vs-affinity' % (plotdir, lb_metric), iclust_lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
+            fn = plot_2d_scatter('iclust-%d%s' % (iclust, affy_key_str),
+                                 '%s/%s-vs-affinity' % (plotdir, lb_metric),
+                                 iclust_lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))  # NOTE duplication below
             if iclust < n_per_row:
                 fnames.append(fn)
         for vtype in [vt for vt in lb_vs_affinity_vals if vt != 'uids']:
             lb_vs_affinity_vals[vtype] += iclust_lb_vs_affinity_vals[vtype]
     if all_clusters_together:
-        plotname = '%s-vs-affinity-%s-tree' % (lb_metric, plot_str)
+        plotname = '%s-vs-affinity-%s-tree%s' % (lb_metric, plot_str, affy_key_str)
         # lb_vs_affinity_vals['uids'] = uid_vals
-        plot_2d_scatter(plotname, plotdir, lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str))
+        plot_2d_scatter(plotname,
+                        plotdir,
+                        lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))  # NOTE duplication above
         fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     if len(lb_vs_affinity_vals[lb_metric]) == 0:
@@ -1404,8 +1409,8 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # perfect vals
     ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
     # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
-    plotname = '%s-vs-affinity-%s-tree-ptiles' % (lb_metric, plot_str)
-    mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting affinities')
+    plotname = '%s-vs-affinity-%s-tree-ptiles%s' % (lb_metric, plot_str, affy_key_str)
+    mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting %saffinities' % affy_key_str.replace('-', ''))
     fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     return [fnames]
@@ -1583,27 +1588,34 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label
     return ['%s/%s.svg' % (plotdir, plotname)]
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(plotdir, lines, lb_metric, ete_path, is_simu=False):
-    for iclust, line in enumerate(lines):
-        treestr = get_tree_from_line(line, is_simu)
-        with tempfile.NamedTemporaryFile() as treefile, tempfile.NamedTemporaryFile() as metafile:
-            treefile.write(treestr)
-            treefile.flush()
-            # metafo = {u : {line['tree-info']['lb'][lbm][} for iseq, u in enumerate(line['unique_ids'])}
-            metafo = copy.deepcopy(line['tree-info']['lb'])
-            if 'affinities' in line:
-                metafo['affinity'] = {uid : affy for uid, affy in zip(line['unique_ids'], line['affinities'])}
-            yaml.dump(metafo, metafile)
-            # ete3 requires its own python version, so we run as a subprocess
-            cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-lb-tree.py' % ete_path
-            cmdstr += ' --treefname %s' % treefile.name
-            cmdstr += ' --metafname %s' % metafile.name
-            cmdstr += ' --plotdir %s/trees' % plotdir
-            cmdstr += ' --lb-metric %s' % lb_metric
-            # cmdstr += ' --lb-tau %f' % lb_tau
-            cmdstr += ' --log-lbr'
-            cmdstr += ' --plotname %s-tree-iclust-%d' % (lb_metric, iclust)
-            utils.simplerun(cmdstr, shell=True)
+def plot_lb_tree(plotdir, line, iclust, lb_metric, affy_key, ete_path, is_simu=False):
+    treestr = get_tree_from_line(line, is_simu)
+    with tempfile.NamedTemporaryFile() as treefile, tempfile.NamedTemporaryFile() as metafile:
+        treefile.write(treestr)
+        treefile.flush()
+        # metafo = {u : {line['tree-info']['lb'][lbm][} for iseq, u in enumerate(line['unique_ids'])}
+        metafo = copy.deepcopy(line['tree-info']['lb'])
+        if affy_key in line:  # either 'affinities' or 'relative_affinities'
+            metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
+        yaml.dump(metafo, metafile)
+        # ete3 requires its own python version, so we run as a subprocess
+        cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-lb-tree.py' % ete_path
+        cmdstr += ' --treefname %s' % treefile.name
+        cmdstr += ' --metafname %s' % metafile.name
+        cmdstr += ' --plotdir %s/trees' % plotdir
+        cmdstr += ' --lb-metric %s' % lb_metric
+        cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
+        # cmdstr += ' --lb-tau %f' % lb_tau
+        cmdstr += ' --log-lbr'
+        cmdstr += ' --plotname %s-tree-iclust-%d%s' % (lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
+        utils.simplerun(cmdstr, shell=True)
+
+# ----------------------------------------------------------------------------------------
+def plot_lb_trees(plotdir, lines, ete_path, is_simu=False):
+    for lb_metric, lb_label in treeutils.lb_metrics.items():
+        for iclust, line in enumerate(lines):
+            for affy_key in treeutils.affy_keys[lb_metric]:
+                plot_lb_tree(plotdir, line, iclust, lb_metric, affy_key, ete_path, is_simu=is_simu)
 
 # ----------------------------------------------------------------------------------------
 def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info):
