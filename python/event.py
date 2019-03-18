@@ -139,7 +139,6 @@ class RecombinationEvent(object):
         line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
         self.set_ids(line, irandom=irandom)
         treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']))  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
-        line['affinities'] = [None for _ in line['unique_ids']]
         line['tree'] = self.tree.as_string(schema='newick')
 
         utils.add_implicit_info(self.glfo, line)
