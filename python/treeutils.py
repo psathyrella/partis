@@ -828,14 +828,19 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
             utils.prep_dir(true_plotdir, wildlings=['*.svg'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-shm']] + ['trees'])
             fnames = []
             for lb_metric, lb_label in lb_metrics.items():
-                for affy_key in affy_keys[lb_metric]:
-                    fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True, affy_key=affy_key, debug=debug)
+                if lb_metric == 'lbi':
+                    for affy_key in affy_keys[lb_metric]:
+                        fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True, affy_key=affy_key, debug=debug)
+                elif lb_metric == 'lbr':
+                    fnames[0] += plotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=debug)[0]
                 # fnames[-1] += plotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
-                fnames[-1] += plotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=debug)[0]
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
                 fnames[-1] += plotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)
-            fnames += plotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
+            lb_vs_shm_fnames = plotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
+            assert len(lb_vs_shm_fnames) > 1
+            fnames[-1] += lb_vs_shm_fnames[0]
+            fnames += lb_vs_shm_fnames[1:]
             if ete_path is not None:
                 plotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, is_simu=True)
             plotting.make_html(true_plotdir, fnames=fnames)
