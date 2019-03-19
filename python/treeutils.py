@@ -780,7 +780,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
         assert reco_info is not None
         true_partition = utils.get_true_partition(reco_info)
-        print '    using %d true clusters to calculate inferred tree metrics (sizes: %s)' % (len(true_partition), ' '.join([str(len(c)) for c in true_partition]))
+        print '    using %d true clusters to calculate inferred tree metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True)))
         lines_to_use, true_lines_to_use = [], []
         for cluster in true_partition:
             true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
@@ -814,20 +814,22 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
     start = time.time()
 
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
-    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']] + ['trees'])
+    subdirs = [m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']] + ['trees']
+    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=subdirs)
     fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
     # fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
     fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], debug=debug)
     if ete_path is not None:
         plotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
-    plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
+    plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
     if true_lines_to_use is not None:
-        if all(affy is None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise presumably for nobody
-            print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
+        if 'affinities' not in true_lines_to_use[0] or all(affy is None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
+            # print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
+            pass
         else:
             true_plotdir = base_plotdir + '/true-tree-metrics'
-            utils.prep_dir(true_plotdir, wildlings=['*.svg'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-shm']] + ['trees'])
+            utils.prep_dir(true_plotdir, wildlings=['*.svg'], subdirs=subdirs)
             fnames = []
             for lb_metric, lb_label in lb_metrics.items():
                 if lb_metric == 'lbi':
@@ -845,7 +847,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
             fnames += lb_vs_shm_fnames[1:]
             if ete_path is not None:
                 plotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
-            plotting.make_html(true_plotdir, fnames=fnames)
+            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
     print '    tree metric plotting time: %.1f sec' % (time.time() - start)
 
@@ -876,6 +878,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            add_dummy_root=False, ete_path=None, workdir=None, debug=False):
+    print 'getting tree metrics'
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -887,8 +890,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
     n_already_there = 0
     lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-    print 'calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
-    print '    skipping %d smaller than %d' % (n_skipped, min_tree_metric_cluster_size)
+    print '    calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+    print '      skipping %d smaller than %d' % (n_skipped, min_tree_metric_cluster_size)
     for line in lines_to_use:
         if debug:
             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))

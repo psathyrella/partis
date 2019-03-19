@@ -1362,7 +1362,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
         fnames.append('%s/%s.svg' % (plotdir, plotname))
 
     if len(lb_vs_affinity_vals[lb_metric]) == 0:
-        print '  no affinity values when trying to make lb vs affinity plots'
+        # print '  no affinity values when trying to make lb vs affinity plots'
         return [fnames]
 
     # # NOTE doesn't actually work -- would I think maybe need to fit for a line and measure deviation from that line?
@@ -1622,7 +1622,7 @@ def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False):
         os.makedirs(workdir)
     cmdfos = []
     for lb_metric, lb_label in treeutils.lb_metrics.items():
-        for iclust, line in enumerate(lines):
+        for iclust, line in enumerate(lines):  # note that <min_tree_metric_cluster_size> was already applied in treeutils
             for affy_key in treeutils.affy_keys[lb_metric]:
                 cmdfos.append(get_lb_tree_cmd(plotdir, line, iclust, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), is_simu=is_simu))
 
