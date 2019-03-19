@@ -2527,7 +2527,7 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
             break
 
 # ----------------------------------------------------------------------------------------
-def run_cmd(cmdfo, batch_system=None, batch_options=None):
+def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
     cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     # print cmd_str
     # sys.exit()
@@ -2557,21 +2557,21 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None):
         os.makedirs(cmdfo['logdir'])
 
     # print cmd_str
-    proc = subprocess.Popen(cmd_str.split(),
+    proc = subprocess.Popen(cmd_str if shell else cmd_str.split(),
                             stdout=None if fout is None else open(fout, 'w'),
                             stderr=None if ferr is None else open(ferr, 'w'),
-                            env=cmdfo['env'])
+                            env=cmdfo['env'], shell=shell)
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None, clean_on_success=False):  # set sleep to False if your commands are going to run really really really quickly
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None, clean_on_success=False, shell=False):  # set sleep to False if your commands are going to run really really really quickly
     if n_max_tries is None:
         n_max_tries = 1 if batch_system is None else 3
     prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
     procs, n_tries = [], []
     per_proc_sleep_time = 0.01 / len(cmdfos)
     for iproc in range(len(cmdfos)):
-        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options))
+        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell))
         n_tries.append(1)
         if sleep:
             time.sleep(per_proc_sleep_time)
@@ -2580,7 +2580,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success)
+                finish_process(iproc, procs, n_tries, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, shell=shell)
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
@@ -2621,7 +2621,7 @@ def get_slurm_node(errfname):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False, clean_on_success=False):
+def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False, clean_on_success=False, shell=False):
     procs[iproc].communicate()
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
@@ -2633,6 +2633,8 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
             if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
                 if 'infname' in cmdfo and os.path.exists(cmdfo['infname']):
                     os.remove(cmdfo['infname'])
+                if 'metafname' in cmdfo and os.path.exists(cmdfo['metafname']):
+                    os.remove(cmdfo['metafname'])
                 if os.path.isdir(cmdfo['workdir']):
                     os.rmdir(cmdfo['workdir'])
             return
@@ -2668,7 +2670,7 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
 
     if n_tries[iproc] < n_max_tries:
         print '    restarting proc %d' % iproc
-        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options)
+        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options, shell=shell)
         n_tries[iproc] += 1
     else:
         failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmdfo['cmd_str'], cmdfo['workdir'], cmdfo['logdir'])

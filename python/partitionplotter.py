@@ -444,9 +444,10 @@ class PartitionPlotter(object):
         # ----------------------------------------------------------------------------------------
         subd, plotdir = self.init_subd('mds', base_plotdir)
 
+        start = time.time()
         if debug:
-            print '  making mds plots starting with %d clusters' % len(sorted_clusters)
             if not run_in_parallel:
+                print '    making mds plots starting with %d clusters' % len(sorted_clusters)
                 print '       size (+naive)   mds    plot   total'
         skipped_cluster_lengths = []
         fnames = [[]]
@@ -465,7 +466,7 @@ class PartitionPlotter(object):
                 color_scale_vals = None  # not sure this is really the best way to do this
 
             if debug and not run_in_parallel:
-                start = time.time()
+                substart = time.time()
                 subset_str = '' if len(sorted_clusters[iclust]) <= max_cluster_size else utils.color('red', '/%d' % len(sorted_clusters[iclust]), width=6, padside='right')  # -1 is for the added naive seq
                 tmpfo = annotations[':'.join(sorted_clusters[iclust])]
                 # n_naive_in_cluster = len([iseq for iseq in range(len(sorted_clusters[iclust])) if tmpfo['n_mutations'][iseq] == 0])  # work out if there was a sequence already in the cluster that was the same as the naive sequence
@@ -480,17 +481,19 @@ class PartitionPlotter(object):
                                  aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
                                  queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
                 if debug:
-                    print '  %5.1f' % (time.time() - start)
+                    print '  %5.1f' % (time.time() - substart)
             self.addfname(fnames, '%s' % get_fname(iclust))
 
         if run_in_parallel:
-            utils.run_cmds(cmdfos, clean_on_success=True, debug='print')
+            utils.run_cmds(cmdfos, clean_on_success=True) #, debug='print')
 
         if debug and len(skipped_cluster_lengths) > 0:
             print '    skipped %d clusters with lengths: %s (+%d singletons)' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths if l > 1]), skipped_cluster_lengths.count(1))
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
+
+        print '    made %d mds plots (%.1fs)' % (sum(len(x) for x in fnames), time.time() - start)
 
         return [[subd + '/' + fn for fn in fnames[0]]]
 
@@ -609,4 +612,4 @@ class PartitionPlotter(object):
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds', 'laplacian-spectra']])  # , 'sfs
 
-        print '   time: %.1f sec' % (time.time()-start)
+        print '    partition plotting time: %.1f sec' % (time.time()-start)

@@ -213,20 +213,17 @@ def plot_trees(args):
     if args.metafo is not None:
         set_meta_styles(args, etree, tstyle)
 
-    suffix = '.svg'
-    imagefname = args.plotdir + '/' + args.plotname + suffix
-    print '      %s' % imagefname
+    print '      %s' % args.outfname
     tstyle.show_leaf_name = False
-    etree.render(imagefname, tree_style=tstyle)
+    etree.render(args.outfname, tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--treefname', required=True)
-parser.add_argument('--plotdir', required=True)
+parser.add_argument('--outfname', required=True)
 parser.add_argument('--lb-metric', default='lbi', choices=['lbi', 'lbr'])
 parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'relative_affinity'])
 # parser.add_argument('--lb-tau', required=True, type=float)
-parser.add_argument('--plotname', default='test')
 parser.add_argument('--metafname')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')

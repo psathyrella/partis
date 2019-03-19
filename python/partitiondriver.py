@@ -295,7 +295,7 @@ class PartitionDriver(object):
         if self.current_action == 'get-tree-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-tree-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
             seqfileopener.read_input_metafo(self.args.input_metafname, annotations.values(), debug=True)
         treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, self.args.lb_tau, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
-                                         use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, debug=self.args.debug)
+                                         use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_lines, ignore_args_dot_queries=False, process_csv=False):

@@ -21,6 +21,7 @@ import operator
 import tempfile
 import yaml
 import colorsys
+import time
 
 import utils
 import plotconfig
@@ -1394,7 +1395,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
         n_to_take = int((1. - percentile / 100) * len(sorted_affyvals))
         corresponding_perfect_affy_vals = sorted_affyvals[:n_to_take]
         corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy) for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow
-        ptile_vals['perfect_vals'].append(numpy.mean(corr_perfect_affy_ptiles))
+        ptile_vals['perfect_vals'].append(numpy.mean(corr_perfect_affy_ptiles) if len(corr_perfect_affy_ptiles) > 0 else 100)  # not really sure just using 100 is right, but I'm pretty sure it doesn't matter (and it gets rid of a stupid numpy warning)
 
         # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
         # shuffled_lb_vals = copy.deepcopy(lbvals)
@@ -1516,7 +1517,7 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
             print '  %s negative affinity changes in %s' % (utils.color('red', 'error'), ' '.join(['%.4f' % a for a in affinity_changes]))
         max_diff = affinity_changes[-1] - affinity_changes[0]
         if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:
-            print'  %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
+            print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
 
     plotname = '%s-vs-n-ancestors-%s-tree' % (lb_metric, plot_str)  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
     # fig, ax = mpl_init()
@@ -1588,34 +1589,48 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label
     return ['%s/%s.svg' % (plotdir, plotname)]
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_tree(plotdir, line, iclust, lb_metric, affy_key, ete_path, is_simu=False):
-    treestr = get_tree_from_line(line, is_simu)
-    with tempfile.NamedTemporaryFile() as treefile, tempfile.NamedTemporaryFile() as metafile:
-        treefile.write(treestr)
-        treefile.flush()
-        # metafo = {u : {line['tree-info']['lb'][lbm][} for iseq, u in enumerate(line['unique_ids'])}
-        metafo = copy.deepcopy(line['tree-info']['lb'])
-        if affy_key in line:  # either 'affinities' or 'relative_affinities'
-            metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
+def get_lb_tree_cmd(plotdir, line, iclust, lb_metric, affy_key, ete_path, subworkdir, is_simu=False):
+    treefname = '%s/tree.nwk' % subworkdir
+    metafname = '%s/meta.yaml' % subworkdir
+    outfname = '%s/trees/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
+    if not os.path.exists(subworkdir):
+        os.makedirs(subworkdir)
+    with open(treefname, 'w') as treefile:
+        treefile.write(get_tree_from_line(line, is_simu))
+    # metafo = {u : {line['tree-info']['lb'][lbm][} for iseq, u in enumerate(line['unique_ids'])}
+    metafo = copy.deepcopy(line['tree-info']['lb'])
+    if affy_key in line:  # either 'affinities' or 'relative_affinities'
+        metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
+    with open(metafname, 'w') as metafile:
         yaml.dump(metafo, metafile)
-        # ete3 requires its own python version, so we run as a subprocess
-        cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-lb-tree.py' % ete_path
-        cmdstr += ' --treefname %s' % treefile.name
-        cmdstr += ' --metafname %s' % metafile.name
-        cmdstr += ' --plotdir %s/trees' % plotdir
-        cmdstr += ' --lb-metric %s' % lb_metric
-        cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
-        # cmdstr += ' --lb-tau %f' % lb_tau
-        cmdstr += ' --log-lbr'
-        cmdstr += ' --plotname %s-tree-iclust-%d%s' % (lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
-        utils.simplerun(cmdstr, shell=True)
+    # ete3 requires its own python version, so we run as a subprocess
+    cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-lb-tree.py' % ete_path
+    cmdstr += ' --treefname %s' % treefname
+    cmdstr += ' --metafname %s' % metafname
+    cmdstr += ' --outfname %s' % outfname
+    cmdstr += ' --lb-metric %s' % lb_metric
+    cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
+    # cmdstr += ' --lb-tau %f' % lb_tau
+    cmdstr += ' --log-lbr'
+
+    return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'infname' : treefname, 'metafname' : metafname}
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(plotdir, lines, ete_path, is_simu=False):
+def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False):
+    workdir = '%s/ete3-plots' % base_workdir
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
+    cmdfos = []
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         for iclust, line in enumerate(lines):
             for affy_key in treeutils.affy_keys[lb_metric]:
-                plot_lb_tree(plotdir, line, iclust, lb_metric, affy_key, ete_path, is_simu=is_simu)
+                cmdfos.append(get_lb_tree_cmd(plotdir, line, iclust, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), is_simu=is_simu))
+
+    start = time.time()
+    utils.run_cmds(cmdfos, clean_on_success=True, shell=True)  # , debug='print'
+    print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
+
+    os.rmdir(workdir)
 
 # ----------------------------------------------------------------------------------------
 def plot_per_mutation_lonr(plotdir, lines_to_use, reco_info):

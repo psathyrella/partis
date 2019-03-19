@@ -13,6 +13,7 @@ import numpy
 import sys
 from distutils.version import StrictVersion
 import dendropy
+import time
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
@@ -808,8 +809,9 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
     return lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete_path=None, debug=False):
+def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete_path=None, workdir=None, debug=False):
     import plotting
+    start = time.time()
 
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
     utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=[m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']] + ['trees'])
@@ -817,7 +819,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
     # fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
     fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], debug=debug)
     if ete_path is not None:
-        plotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, is_simu=False)
+        plotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
     plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (inf_plotdir, subd)) for subd in lb_metrics.keys()])
 
     if true_lines_to_use is not None:
@@ -842,8 +844,10 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
             fnames[-1] += lb_vs_shm_fnames[0]
             fnames += lb_vs_shm_fnames[1:]
             if ete_path is not None:
-                plotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, is_simu=True)
+                plotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
             plotting.make_html(true_plotdir, fnames=fnames)
+
+    print '    tree metric plotting time: %.1f sec' % (time.time() - start)
 
 # ----------------------------------------------------------------------------------------
 def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, debug=False):
@@ -871,7 +875,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
 
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           add_dummy_root=False, ete_path=None, debug=False):
+                           add_dummy_root=False, ete_path=None, workdir=None, debug=False):
     if reco_info is not None:
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
@@ -908,7 +912,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, cp
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:
-        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete_path=ete_path, debug=debug)
+        assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
+        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete_path=ete_path, workdir=workdir, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):
@@ -948,8 +953,12 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
         'capture.output(specvals$eigenvalues, file="%s")' % eigenfname,
     ]
 
-    # This is vegan 2.5-3  # dammit I want to filter this, but if I do it will eat the out/err when it crashes
-    utils.run_r(cmdlines, workdir)
+    outstr, errstr = utils.run_r(cmdlines, workdir, return_out_err=True)  # if it crashes, call it without return_out_err, so it prints stuff as it goes
+    errstr = '\n'.join([l.strip() for l in errstr.split('\n') if 'This is vegan' not in l])
+    for oestr in (outstr, errstr):
+        if oestr.strip() == '':
+            continue
+        print utils.pad_lines(outstr)
 
     eigenvalues = []
     with open(eigenfname) as efile:
