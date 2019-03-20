@@ -35,4 +35,7 @@ if args.input_metafname is not None:
     with open(args.input_metafname) as imfile:
         input_metafo = yaml.load(imfile)
 
-treeutils.calculate_lb_values(dtree, treeutils.default_lb_tau, treeutils.default_lbr_tau_factor * treeutils.default_lb_tau, input_metafo=input_metafo, use_multiplicities=(input_metafo is not None), debug=args.debug)
+lbvals = treeutils.calculate_lb_values(dtree, treeutils.default_lb_tau, treeutils.default_lbr_tau_factor * treeutils.default_lb_tau, input_metafo=input_metafo, use_multiplicities=(input_metafo is not None), debug=args.debug)
+
+with open(args.outfname, 'w') as outfile:
+    yaml.dump(lbvals, outfile, width=200)
