@@ -134,10 +134,8 @@ def set_meta_styles(args, etree, tstyle):
     if args.lb_metric == 'lbr':  # remove zeroes
         lbfo = {u : (math.log(v) if args.log_lbr else v) for u, v in lbfo.items() if v > 0}
     lbvals = lbfo.values()
-    # if args.lb_metric == 'lbr':
     lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis')
     lb_min, lb_max = min(lbvals), max(lbvals)
-    # lb_smap = plotting.get_normalized_scalar_map(lbvals, None)
 
     affyfo = None
     if args.affy_key in args.metafo:

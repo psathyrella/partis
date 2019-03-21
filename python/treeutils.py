@@ -172,15 +172,17 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
         if current_label is None or ignore_existing_internal_node_labels:
             new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names)
         else:
-            if tns.has_taxon_label(current_label):
-                raise Exception('duplicate node label \'%s\'' % current_label)
+            # turning this off since it's slow, and has been here a while without getting tripped (and I'm pretty sure the tns checks, anyway)
+            # if tns.has_taxon_label(current_label):
+            #     raise Exception('duplicate node label \'%s\'' % current_label)
             new_label = current_label
 
-        if tns.has_taxon_label(new_label):
-            raise Exception('failed labeling internal nodes (chose name \'%s\' that was already in the taxon namespace)' % new_label)
+        # turning this off since it's slow, and has been here a while without getting tripped (and I'm pretty sure the tns checks, anyway)
+        # if tns.has_taxon_label(new_label):
+        #     raise Exception('failed labeling internal nodes (chose name \'%s\' that was already in the taxon namespace)' % new_label)
 
-        tns.add_taxon(dendropy.Taxon(new_label))
-        node.taxon = tns.get_taxon(new_label)
+        node.taxon = dendropy.Taxon(new_label)
+        tns.add_taxon(node.taxon)
         relabeled_dbg += ['%s' % new_label]
 
     if debug:
@@ -327,7 +329,7 @@ def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespa
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 # also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dummy_root=False, add_dummy_leaves=False, debug=False):
+def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dummy_root=False, add_dummy_leaves=False, only_calc_val=None, debug=False):
     """
     traverses the tree in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI.
     tree     -- tree for whose nodes the LBI is being computed (was biopython, now dendropy)
@@ -402,7 +404,7 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
         print ('   %' + max_width + 's   multi     lbi       lbr      clock length') % 'node'
         for node in dtree.postorder_node_iter():
             multi_str = str(getmulti(node)) if use_multiplicities else ''
-            print ('    %' + max_width + 's  %3s   %8.3f  %8.3f    %8.3f') % (node.taxon.label, multi_str, node.lbi, node.lbr, node.clock_length)
+            print ('    %' + max_width + 's  %3s   %s  %s    %8.3f') % (node.taxon.label, multi_str, '%8.3f' % node.lbi if only_calc_val in [None, 'lbi'] else '', '%8.3f' % node.lbr if only_calc_val in [None, 'lbr'] else '', node.clock_length)
 
 # ----------------------------------------------------------------------------------------
 def set_multiplicities(dtree, annotation, input_metafo, debug=False):
@@ -467,7 +469,7 @@ def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=
     return new_dtree
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, lbi_tau, lbr_tau, annotation=None, input_metafo=None, add_dummy_root=False, add_dummy_leaves=False, use_multiplicities=False, naive_seq_name=None, extra_str=None, debug=False):
+def calculate_lb_values(dtree, lbi_tau, lbr_tau, annotation=None, input_metafo=None, add_dummy_root=False, add_dummy_leaves=False, use_multiplicities=False, naive_seq_name=None, extra_str=None, only_calc_val=None, debug=False):
 
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
@@ -488,15 +490,56 @@ def calculate_lb_values(dtree, lbi_tau, lbr_tau, annotation=None, input_metafo=N
         set_multiplicities(dtree, annotation, input_metafo, debug=debug)
 
     lbvals = {'tree' : dtree.as_string(schema='newick')}  # NOTE at least for now, i'm adding the tree *before* calculating lbi or lbr, since the different tau values means it'd be more complicated
-    set_lb_values(dtree, lbi_tau, use_multiplicities=use_multiplicities, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
-    lbvals['lbi'] = {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()}
-    set_lb_values(dtree, lbr_tau, use_multiplicities=use_multiplicities, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, debug=debug)
-    lbvals['lbr'] = {n.taxon.label : float(n.lbr) for n in dtree.postorder_node_iter()}
+    if only_calc_val in [None, 'lbi']:
+        set_lb_values(dtree, lbi_tau, use_multiplicities=use_multiplicities, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, only_calc_val='lbi', debug=debug)
+        lbvals['lbi'] = {n.taxon.label : float(n.lbi) for n in dtree.postorder_node_iter()}
+    if only_calc_val in [None, 'lbr']:
+        set_lb_values(dtree, lbr_tau, use_multiplicities=use_multiplicities, add_dummy_root=add_dummy_root, add_dummy_leaves=add_dummy_leaves, only_calc_val='lbr', debug=debug)
+        lbvals['lbr'] = {n.taxon.label : float(n.lbr) for n in dtree.postorder_node_iter()}
 
     # this is ugly, but a) I don't use the values attached to the nodes anywhere a.t.m. and b) at least for now I'm running twice with different tau values for lbi/lbr, which I don't really like, but it means there's the potential for pulling a metric calculated with the wrong tau value from the tree
     for node in dtree.postorder_node_iter():
         delattr(node, 'lbi')
         delattr(node, 'lbr')
+
+    return lbvals
+
+# ----------------------------------------------------------------------------------------
+def get_min_lbi(seq_len, tau, n_tau_lengths=10):
+    dtree = dendropy.Tree()
+    n_generations = max(1, int(seq_len * tau * n_tau_lengths))
+    print '   %d generations = seq_len * tau * n_tau_lengths = %d * %.4f * %d = max(1, int(%.2f))' % (n_generations, seq_len, tau, n_tau_lengths, seq_len * tau * n_tau_lengths)
+
+    leaf_node = dtree.seed_node
+    for igen in range(n_generations):
+        leaf_node = leaf_node.new_child(edge_length=1./seq_len)
+
+    label_nodes(dtree)
+    lbvals = calculate_lb_values(dtree, tau, default_lbr_tau_factor * tau, only_calc_val='lbi')
+    print '  min of %d lbi values: %.4f' % (len(lbvals['lbi']), min(lbvals['lbi'].values()))
+
+    return lbvals
+
+# ----------------------------------------------------------------------------------------
+def get_max_lbi(seq_len, tau, n_tau_lengths=10, n_offspring=2):
+    start = time.time()
+
+    n_generations = max(1, int(seq_len * tau * n_tau_lengths))
+    print '   %d generations = seq_len * tau * n_tau_lengths = %d * %.4f * %d = max(1, int(%.2f))' % (n_generations, seq_len, tau, n_tau_lengths, seq_len * tau * n_tau_lengths)
+
+    dtree = dendropy.Tree()  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculat lb values)
+    old_leaf_nodes = [dtree.seed_node]
+    new_leaf_nodes = []
+    for igen in range(n_generations):
+        for ileaf in range(len(old_leaf_nodes)):
+            for ioff in range(n_offspring):
+                new_leaf_nodes += [old_leaf_nodes[ileaf].new_child(edge_length=1./seq_len)]
+        old_leaf_nodes = new_leaf_nodes
+        new_leaf_nodes = []
+
+    label_nodes(dtree)
+    lbvals = calculate_lb_values(dtree, tau, default_lbr_tau_factor * tau, only_calc_val='lbi')
+    print '  max of %d lbi values (%.1fs): %.4f' % (len(lbvals['lbi']), time.time() - start, max(lbvals['lbi'].values()))
 
     return lbvals
 

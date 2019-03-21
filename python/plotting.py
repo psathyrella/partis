@@ -1589,24 +1589,20 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label
     return ['%s/%s.svg' % (plotdir, plotname)]
 
 # ----------------------------------------------------------------------------------------
-def get_lb_tree_cmd(plotdir, line, iclust, lb_metric, affy_key, ete_path, subworkdir, is_simu=False):
+def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
-    outfname = '%s/trees/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
     if not os.path.exists(subworkdir):
         os.makedirs(subworkdir)
     with open(treefname, 'w') as treefile:
-        treefile.write(get_tree_from_line(line, is_simu))
-    # metafo = {u : {line['tree-info']['lb'][lbm][} for iseq, u in enumerate(line['unique_ids'])}
-    metafo = copy.deepcopy(line['tree-info']['lb'])
-    if affy_key in line:  # either 'affinities' or 'relative_affinities'
-        metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
-    with open(metafname, 'w') as metafile:
-        yaml.dump(metafo, metafile)
+        treefile.write(treestr)
     # ete3 requires its own python version, so we run as a subprocess
     cmdstr = 'export PATH=%s:$PATH && xvfb-run -a ./bin/plot-lb-tree.py' % ete_path
     cmdstr += ' --treefname %s' % treefname
-    cmdstr += ' --metafname %s' % metafname
+    if metafo is not None:
+        with open(metafname, 'w') as metafile:
+            yaml.dump(metafo, metafile)
+        cmdstr += ' --metafname %s' % metafname
     cmdstr += ' --outfname %s' % outfname
     cmdstr += ' --lb-metric %s' % lb_metric
     cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
@@ -1623,11 +1619,16 @@ def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False):
     cmdfos = []
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         for iclust, line in enumerate(lines):  # note that <min_tree_metric_cluster_size> was already applied in treeutils
+            treestr = get_tree_from_line(line, is_simu)
             for affy_key in treeutils.affy_keys[lb_metric]:
-                cmdfos.append(get_lb_tree_cmd(plotdir, line, iclust, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), is_simu=is_simu))
+                metafo = copy.deepcopy(line['tree-info']['lb'])
+                if affy_key in line:  # either 'affinities' or 'relative_affinities'
+                    metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
+                outfname = '%s/trees/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
+                cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo)]
 
     start = time.time()
-    utils.run_cmds(cmdfos, clean_on_success=True, shell=True)  # , debug='print'
+    utils.run_cmds(cmdfos, clean_on_success=True, shell=True) #, debug='print')
     print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
 
     os.rmdir(workdir)
