@@ -100,7 +100,7 @@ def get_size(vmin, vmax, val):
     return min_size + (val - vmin) * (max_size - min_size) / (vmax - vmin)
 
 # ----------------------------------------------------------------------------------------
-def add_cmap_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):
+def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):
     if len(all_vals) == 0:
         return
     assert add_sign in [None, '-', '+']
@@ -118,7 +118,11 @@ def add_cmap_legend(tstyle, varname, all_vals, smap, info, start_column, add_mis
         key_list += ['missing!']  # doesn't matter what the last one is as long as it isn't in <affyfo>
     for val, key in zip(val_list, key_list):
         tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=start_column)
-        rface = ete3.RectFace(6, 6, bgcolor=get_color(smap, info, key=key, val=val), fgcolor=None)
+        if smap is None:
+            sz = get_size(min_val, max_val, val)
+            rface = ete3.RectFace(sz, sz, bgcolor=getgrey(), fgcolor=None)
+        else:
+            rface = ete3.RectFace(6, 6, bgcolor=get_color(smap, info, key=key, val=val), fgcolor=None)
         if not no_opacity:
             rface.opacity = opacity
         tstyle.legend.add_face(rface, column=start_column + 1)
@@ -130,8 +134,8 @@ def set_meta_styles(args, etree, tstyle):
     if args.lb_metric == 'lbr':  # remove zeroes
         lbfo = {u : (math.log(v) if args.log_lbr else v) for u, v in lbfo.items() if v > 0}
     lbvals = lbfo.values()
-    if args.lb_metric == 'lbr':
-        lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis')
+    # if args.lb_metric == 'lbr':
+    lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis')
     lb_min, lb_max = min(lbvals), max(lbvals)
     # lb_smap = plotting.get_normalized_scalar_map(lbvals, None)
 
@@ -156,47 +160,44 @@ def set_meta_styles(args, etree, tstyle):
             if node.name not in lbfo:  # really shouldn't happen
                 print '  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name)
                 continue
-            rfsize = get_size(lb_min, lb_max, lbfo[node.name])
-            if affyfo is None or node.name not in affyfo:
-                continue
-            bgcolor = get_color(affy_smap, affyfo, key=node.name)
+            if affyfo is not None and node.name in affyfo:
+                rfsize = get_size(lb_min, lb_max, lbfo[node.name])
+                bgcolor = get_color(affy_smap, affyfo, key=node.name)
+            else:
+                rfsize = 5
+                bgcolor = get_color(lb_smap, lbfo, key=node.name)
         elif args.lb_metric == 'lbr':
             node.img_style['vt_line_color'] = getgrey()  # if they're black, it's too hard to see the large changes in affinity, since they're very dark (at least with current color schemes)
             # rfsize = get_size(lb_min, lb_max, lbfo[node.name]) if node.name in lbfo else 1.5
             rfsize = 5 if node.name in lbfo else 1.5
             bgcolor = get_color(lb_smap, lbfo, key=node.name)
-            if affyfo is None or delta_affy_increase_smap is None or node.affinity_change is None:
-                continue
-            # tface = ete3.TextFace(('%+.4f' % node.affinity_change) if node.affinity_change != 0 else '0.', fsize=3)
-            # node.add_face(tface, column=0)
-            if node.affinity_change > 0:  # increase
-                node.img_style['hz_line_color'] = get_color(delta_affy_increase_smap, None, val=node.affinity_change)
-                node.img_style['hz_line_width'] = 1.2
-            elif node.affinity_change < 0:  # decrease
-                node.img_style['hz_line_color'] = get_color(delta_affy_decrease_smap, None, val=abs(node.affinity_change))
-                node.img_style['hz_line_width'] = 1.2
-            else:
-                node.img_style['hz_line_color'] = getgrey()
+            if affyfo is not None and delta_affy_increase_smap is not None and node.affinity_change is not None:
+                # tface = ete3.TextFace(('%+.4f' % node.affinity_change) if node.affinity_change != 0 else '0.', fsize=3)
+                # node.add_face(tface, column=0)
+                if node.affinity_change > 0:  # increase
+                    node.img_style['hz_line_color'] = get_color(delta_affy_increase_smap, None, val=node.affinity_change)
+                    node.img_style['hz_line_width'] = 1.2
+                elif node.affinity_change < 0:  # decrease
+                    node.img_style['hz_line_color'] = get_color(delta_affy_decrease_smap, None, val=abs(node.affinity_change))
+                    node.img_style['hz_line_width'] = 1.2
+                else:
+                    node.img_style['hz_line_color'] = getgrey()
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
 
     affy_label = args.affy_key.replace('_', ' ')
     if args.lb_metric == 'lbi':
-        tstyle.legend.add_face(ete3.TextFace(args.lb_metric + '   ', fsize=fsize), column=0)
-        tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=0)
-        tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=0)
-        tstyle.legend.add_face(ete3.RectFace(min_size, min_size, bgcolor=getgrey(), fgcolor=None), column=1)
-        tstyle.legend.add_face(ete3.RectFace(max_size, max_size, bgcolor=getgrey(), fgcolor=None), column=1)
-        tstyle.legend.add_face(ete3.TextFace('  %.4f' % lb_min, fsize=fsize), column=2)
-        tstyle.legend.add_face(ete3.TextFace('  %.4f' % lb_max, fsize=fsize), column=2)
-        if affyfo is not None:
-            add_cmap_legend(tstyle, affy_label, affyvals, affy_smap, affyfo, 3)
+        if affyfo is None:
+            add_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, n_entries=4)
+        else:
+            add_legend(tstyle, args.lb_metric, lbvals, None, lbfo, 0, n_entries=4)
+            add_legend(tstyle, affy_label, affyvals, affy_smap, affyfo, 3)
     elif args.lb_metric == 'lbr':
-        add_cmap_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, reverse_log=args.log_lbr)
+        add_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, reverse_log=args.log_lbr)
         if affyfo is not None:
-            add_cmap_legend(tstyle, '%s decrease' % affy_label, [abs(v) for v in delta_affyvals if v < 0], delta_affy_decrease_smap, affyfo, 3, add_sign='-', no_opacity=True)
-            add_cmap_legend(tstyle, '%s increase' % affy_label, [v for v in delta_affyvals if v > 0], delta_affy_increase_smap, affyfo, 6, add_sign='+', no_opacity=True)
+            add_legend(tstyle, '%s decrease' % affy_label, [abs(v) for v in delta_affyvals if v < 0], delta_affy_decrease_smap, affyfo, 3, add_sign='-', no_opacity=True)
+            add_legend(tstyle, '%s increase' % affy_label, [v for v in delta_affyvals if v > 0], delta_affy_increase_smap, affyfo, 6, add_sign='+', no_opacity=True)
 
 # ----------------------------------------------------------------------------------------
 def plot_trees(args):
