@@ -70,6 +70,8 @@ class AlleleFinder(object):
 
         self.min_min_candidate_ratio_to_plot = 1.5  # don't plot positions that're below this (for all <istart>)
 
+        self.n_warn_alleles_per_gene = 2
+
         self.default_slope_bounds = (-0.1, 1.)  # fitting function needs some reasonable bounds from which to start (I could at some point make slope part of the criteria for candidacy, but it wouldn't add much sensitivity)
         self.unbounded_y_icpt_bounds = (-1., 1.5)
 
@@ -1070,8 +1072,10 @@ class AlleleFinder(object):
                 these_positions = set(candidfo['positions'])
                 if len(these_positions & already_used_positions) > 0:
                     continue
+                alleles_this_gene = [g for g in (self.counts.keys() + [gfo['gene'] for gfo in self.new_allele_info]) if utils.are_alleles(g, gene)]  # <gene> is the template gene
+                if len(alleles_this_gene) >= self.n_warn_alleles_per_gene:
+                    print '  %s inferred %d alleles for gene %s' % (utils.color('yellow', 'note:'), len(alleles_this_gene), gene)
                 if self.args.n_max_alleles_per_gene is not None:  # NOTE we're not really looping over the most likely new alleles first here (and there isn't really a good way to do that), so it's pretty arbitrary which ones get skipped
-                    alleles_this_gene = [g for g in (self.counts.keys() + [gfo['gene'] for gfo in self.new_allele_info]) if utils.are_alleles(g, gene)]  # <gene> is the template gene
                     if len(alleles_this_gene) >= self.args.n_max_alleles_per_gene:
                         print '    --n-max-alleles-per-gene: already have %d allele%s for %s (%s), so skipping new inferred allele' % (len(alleles_this_gene), utils.plural(len(alleles_this_gene)), utils.color_gene(gene), ' '.join(utils.color_gene(g) for g in alleles_this_gene))
                         continue
