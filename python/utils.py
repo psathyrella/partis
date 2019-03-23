@@ -2569,7 +2569,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
         n_max_tries = 1 if batch_system is None else 3
     prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
     procs, n_tries = [], []
-    per_proc_sleep_time = 0.01 / len(cmdfos)
+    per_proc_sleep_time = 0.01 / max(1, len(cmdfos))
     for iproc in range(len(cmdfos)):
         procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell))
         n_tries.append(1)
