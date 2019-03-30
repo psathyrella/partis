@@ -1104,6 +1104,7 @@ class PartitionDriver(object):
         sub_info = {}  # map from naive seq : sub uid strs
         final_info = {'naive-seqs' : [], 'gene-calls' : {r : [] for r in utils.regions}}  # this is the only info that's persistent, it get's added to the cluster annotation corresponding to <uids_of_interest>
 
+        # pull all the clusters out of the cache info that have any overlap with <uids_of_interest>
         for uidstr, info in cachefo.items():
             if info['naive_seq'] == '':  # hmm cache file lines that only have logprobs
                 continue
@@ -1122,9 +1123,21 @@ class PartitionDriver(object):
 
         cache_file_naive_seq = cachefo[uidstr_of_interest]['naive_seq']  # ok not actually from the hmm cache file with new-style output, but I don't feel like renaming it
 
-        if uidstr_of_interest not in cluster_annotations:  # only possible if we're reading the hmm cache file, i.e. old-style output
-            raise Exception('annotations don\'t have cluster corresponding to that found in hmm cache file')
-        line_of_interest = cluster_annotations[uidstr_of_interest]
+        if uidstr_of_interest in cluster_annotations:
+            line_of_interest = cluster_annotations[uidstr_of_interest]
+        else:  # only possible if we're reading the hmm cache file, i.e. old-style output
+            n_max_overlap, max_cluster = None, None  # see if it's in there in a different order (not sure how, but this happened once)
+            for clusterstr in cluster_annotations:
+                cluster = clusterstr.split(':')
+                overlap = set(cluster) & uids_of_interest
+                if n_max_overlap is None or len(overlap) > n_max_overlap:
+                    n_max_overlap = len(overlap)
+                    max_cluster = cluster
+            if n_max_overlap == len(uids_of_interest):
+                print '  %s uids of interest in cluster annotations are in a different order to those in cache file (not really sure how this would happen, but it should only be possible on deprecated csv files, so oh well)' % utils.color('yellow', 'warning')
+                line_of_interest = cluster_annotations[':'.join(max_cluster)]
+            else:
+                raise Exception('annotations don\'t have cluster corresponding to that found in hmm cache file')
 
         genes_of_interest = {r : line_of_interest[r + '_gene'] for r in utils.regions}
         gene_strs_of_interest = {r : utils.color_gene(genes_of_interest[r]) for r in utils.regions}  # have to do this up here so we know the width before we start looping
