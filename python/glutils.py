@@ -120,7 +120,7 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         print ''
 
 #----------------------------------------------------------------------------------------
-def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=False, add_dummy_name_components=False, locus=None, debug=False):
+def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=False, add_dummy_name_components=False, locus=None, skip_other_region=False, debug=False):
     glseqs = glfo['seqs'][region]  # shorthand
     n_skipped_pseudogenes, n_skipped_orfs = 0, 0
     seq_to_gene_map = {}
@@ -163,6 +163,8 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
             print utils.pad_lines(''.join(lines))
             raise Exception('Unhandled gene name \'%s \' in %s (see above). If you don\'t mind us (trivially) renaming your genes, you can set --sanitize-input-germlines.' % (gene, fname))
+        if skip_other_region and utils.get_region(gene) != region:
+            continue
         if utils.get_region(gene) != region:
             raise Exception('region %s from gene name %s doesn\'t match input region %s' % (utils.get_region(gene), gene, region))
         if gene in glseqs:
@@ -215,9 +217,11 @@ def read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_na
     return glfo
 
 # ----------------------------------------------------------------------------------------
-def read_aligned_gl_seqs(fname, glfo):  # only used in partitiondriver with --aligned-germline-fname (which I think is only used for presto output)
-    aligned_gl_seqs = {r : OrderedDict() for r in utils.regions}
-    read_fasta_file(aligned_gl_seqs, fname, skip_pseudogenes=False, skip_orfs=False, aligned=True)
+def read_aligned_gl_seqs(fname, glfo, locus):  # only used in partitiondriver with --aligned-germline-fname (which is only used for presto output)
+    tmpglfo = {'locus' : locus, 'functionalities' : {}, 'seqs' : {r : OrderedDict() for r in utils.regions}}  # HACK HACK HACK
+    for region in utils.regions:
+        read_fasta_file(tmpglfo, region, fname, skip_pseudogenes=False, skip_orfs=False, aligned=True, skip_other_region=True)
+    aligned_gl_seqs = {r : tmpglfo['seqs'][region] for r in utils.regions}
 
     # pad all the Vs to the same length (imgt fastas just leave them all unequal lengths on the right of the alignment)
     max_aligned_length = max([len(seq) for seq in aligned_gl_seqs['v'].values()])

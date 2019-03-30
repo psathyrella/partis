@@ -78,7 +78,7 @@ class PartitionDriver(object):
 
         self.aligned_gl_seqs = None
         if self.args.aligned_germline_fname is not None:
-            self.aligned_gl_seqs = glutils.read_aligned_gl_seqs(self.args.aligned_germline_fname, self.glfo)
+            self.aligned_gl_seqs = glutils.read_aligned_gl_seqs(self.args.aligned_germline_fname, self.glfo, self.args.locus)
 
         self.action_fcns = {
             'cache-parameters'            : self.cache_parameters,

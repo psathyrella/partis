@@ -201,6 +201,8 @@ def process(args):
             raise Exception('have to use \'view-output\' action to view .yaml output files')
 
     if args.presto_output:
+        if args.outfname is None:
+            raise Exception('have to set --outfname if --presto-output is set')
         if args.action == 'annotate' and utils.getsuffix(args.outfname) != '.tsv':
             raise Exception('--outfname suffix has to be .tsv for annotation with --presto-output (got %s)' % utils.getsuffix(args.outfname))
         if args.action == 'partition' and utils.getsuffix(args.outfname) not in ['.fa', 'fasta']:
