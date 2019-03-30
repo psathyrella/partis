@@ -221,7 +221,7 @@ def read_aligned_gl_seqs(fname, glfo, locus):  # only used in partitiondriver wi
     tmpglfo = {'locus' : locus, 'functionalities' : {}, 'seqs' : {r : OrderedDict() for r in utils.regions}}  # HACK HACK HACK
     for region in utils.regions:
         read_fasta_file(tmpglfo, region, fname, skip_pseudogenes=False, skip_orfs=False, aligned=True, skip_other_region=True)
-    aligned_gl_seqs = {r : tmpglfo['seqs'][region] for r in utils.regions}
+    aligned_gl_seqs = {r : tmpglfo['seqs'][r] for r in utils.regions}
 
     # pad all the Vs to the same length (imgt fastas just leave them all unequal lengths on the right of the alignment)
     max_aligned_length = max([len(seq) for seq in aligned_gl_seqs['v'].values()])
