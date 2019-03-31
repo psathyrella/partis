@@ -146,7 +146,7 @@ glutils.write_glfo('cleaned-up-new-germline-dir', new_glfo, debug=True)
 sys.exit()
 ```
 
-Where we pass the `ref_glfo` as a template glfo, which makes it more likely to be able to figure out the cyst/tryp/phen info. And you'll probably want to pipe to '|less -RS', especially if on a laptop.
+Where we pass the `ref_glfo` as a template glfo, which makes it more likely to be able to figure out the cyst/tryp/phen info. And you'll probably want to pipe to `|less -RS`, especially if on a laptop.
 
 
 By default, if `--species` is set to human this only looks for alleles that are separated by point mutations from existing genes.
