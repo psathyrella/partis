@@ -88,7 +88,9 @@ This second command prints an ascii representation of the various naive sequence
 
 To print the partitions and/or annotations in an existing output file, run
 
-``` partis view-annotations --outfname _output/example.yaml ```
+``` 
+partis view-annotations --outfname _output/example.yaml
+```
 
 ### cache-parameters
 
@@ -102,7 +104,9 @@ These files are then passed as input to a second, HMM-based, annotation step, wh
 
 To explicitly run this parameter caching step by itself:
 
-``` partis cache-parameters --infname test/example.fa --parameter-dir _output/example ```
+``` 
+partis cache-parameters --infname test/example.fa --parameter-dir _output/example
+```
 
 The resulting parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
