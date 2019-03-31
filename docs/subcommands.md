@@ -102,7 +102,7 @@ These files are then passed as input to a second, HMM-based, annotation step, wh
 
 To explicitly run this parameter caching step by itself:
 
-``` partis cache-parameters --infname test/example.fa --parameter-dir _output/example```
+``` partis cache-parameters --infname test/example.fa --parameter-dir _output/example ```
 
 The resulting parameter csvs from Smith-Waterman and the HMM are put into `/sw` and `/hmm` subdirectories of `--parameter-dir`.
 Within each of these, there are a bunch of csv files with (hopefully) self-explanatory names, e.g. `j_gene-j_5p_del-probs.csv` has counts for J 5' deletions subset by J gene.
@@ -126,9 +126,24 @@ If however, you're doing less typical things (running on a subset of sequences i
 By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in `data/germlines/<--species>`.
 The resulting per-sample germline sets are written both to the output yaml file (if you've set `--outfname`), and to `<--parameter-dir>/hmm/germline-sets` (as three fasta files and a meta-info csv).
 To start from a non-default germline set, use `--initial-germline-dir <dir>.`
-This dir must use the same format as `data/germlines/<--species>`, i.e. have a subdir for the `--locus` you want to run, and in that subdir have a fasta file for v, d, and j, and a csv file with the conserved codon positions for each v/j gene.
-The easiest way to construct this is to copy the files from `data/germlines/<--species>`, end then substitute the fasta files for your own.
+This dir must use the same format as `data/germlines/<--species>`, i.e. have a subdir for the `--locus` you want to run, and in that subdir have a fasta file for v, d, and j, and a csv file with the (zero-indexed!) conserved codon positions for each v/j gene.
+The easiest way to construct this is to copy the files from `data/germlines/<--species>`, and then substitute the fasta files for your own.
 Partis aligns any genes that are missing codon information against genes with known info, so as long as there's some overlap with the default germline, it should be able to figure out a position for each gene.
+
+If you want to be more careful, it's a good idea to check how it's figuring out the extras.csv info.
+You can do this (after modifying the new dir) by running the following lines, for example by adding them to the top of bin/example-output-processing.py (just after it imports glutils):
+
+```
+ref_glfo = glutils.read_glfo('data/germlines/human', locus='igh', debug=True)
+new_glfo = glutils.read_glfo('new-germline-dir', locus='igh', template_glfo=ref_glfo, debug=2)  # adds missing codon info
+print 'cleaned up glfo:'
+glutils.print_glfo(new_glfo)  # print the cleaned up glfo
+glutils.write_glfo('cleaned-up-new-germline-dir', new_glfo, debug=True)
+sys.exit()
+```
+
+Where we pass the `ref_glfo` as a template glfo, which makes it more likely to be able to figure out the cyst/tryp/phen info. And you'll probably want to pipe to '|less -RS', especially if on a laptop.
+
 
 By default, if `--species` is set to human this only looks for alleles that are separated by point mutations from existing genes.
 This is appropriate for humans, since the known germline set is fairly complete.
