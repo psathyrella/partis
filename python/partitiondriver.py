@@ -328,7 +328,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def view_alternative_naive_seqs(self):
-        print '  %s getting alternative annotation information from existing output file. These results will only be meaningful if you had --calculate-alternative-naive-seqs set when writing the output file (so that all subcluster annotations were stored), and we can\'t check for that here, so instead we print this warning ;-)' % utils.color('yellow', 'note')
+        print '  %s getting alternative annotation information from existing output file. These results will only be meaningful if you had --calculate-alternative-naive-seqs set when writing the output file (so that all subcluster annotations were stored). We can\'t check for that here directly, so instead we print this warning to make sure you had it set ;-)' % utils.color('yellow', 'note')
 
         # we used to require that you set --queries to tell us which to get, but I think now it makes sense to by default just get all of them (but not sure enough to delete this yet)
         # if self.args.queries is None:
@@ -384,11 +384,13 @@ class PartitionDriver(object):
             for line in sorted_annotations:
                 if self.args.only_print_best_partition and cpath is not None and line['unique_ids'] not in cpath.partitions[cpath.i_best]:
                     continue
-                label = ''
+                label, post_label = '', ''
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
                     label = 'inferred:'
-                utils.print_reco_event(line, extra_str='  ', label=label, seed_uid=self.args.seed_unique_id)
+                if cpath is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
+                    post_label += ' (from best partition)'
+                utils.print_reco_event(line, extra_str='  ', label=label, post_label=post_label, seed_uid=self.args.seed_unique_id)
 
     # ----------------------------------------------------------------------------------------
     def read_existing_output(self, outfname=None, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):

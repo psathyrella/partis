@@ -1436,11 +1436,11 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
             color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(line, one_line=False, extra_str='', label='', seed_uid=None):
+def print_reco_event(line, one_line=False, extra_str='', label='', post_label='', seed_uid=None):
     if len(line['unique_ids']) > 1:
         label += '%s%d sequences with %.1f mean mutations' % ('' if label == '' else '    ', len(line['unique_ids']), numpy.mean(line['n_mutations']))
     for iseq in range(len(line['unique_ids'])):
-        prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
+        prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label + post_label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):
