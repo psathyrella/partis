@@ -382,13 +382,13 @@ class PartitionDriver(object):
             if self.args.cluster_indices is not None:
                 sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
             for line in sorted_annotations:
-                if self.args.only_print_best_partition and cpath is not None and line['unique_ids'] not in cpath.partitions[cpath.i_best]:
+                if self.args.only_print_best_partition and cpath is not None and cpath.i_best is not None and line['unique_ids'] not in cpath.partitions[cpath.i_best]:
                     continue
                 label, post_label = '', ''
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
                     label = 'inferred:'
-                if cpath is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
+                if cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
                     post_label += ' (from best partition)'
                 utils.print_reco_event(line, extra_str='  ', label=label, post_label=post_label, seed_uid=self.args.seed_unique_id)
 
