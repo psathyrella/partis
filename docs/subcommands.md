@@ -86,6 +86,38 @@ partis view-alternative-naive-seqs --outfname _output/example.yaml  # pipe this 
 If you only care about one cluster, you can print only the cluster corresponding to a given set of queries by setting `--queries <queries of interest>` in the second step.
 This second command prints an ascii representation of the various naive sequences and gene calls, as well as summaries of how many unique sequences and clusters of various sizes voted for each naive sequence and gene call.
 
+##### progress file
+
+Since individual steps of the partition algorithm can be somewhat time consuming, during each step we periodically update a file with clustering status information so you can monitor progress.
+This file is written to the working directory, which you've either set, or is under `/tmp/$USER/hmms`.
+The easiest way to find the working directory is to run an appropriate `ps` command to get the complete command lines of each subprocess (for instance `ps -Ho pid,args` or `ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,pid,args:100 --sort pmem,pcpu`, depending if you're running from the terminal that called partis or not).
+For instance running the former in a terminal in which I've backgrounded the partis command gives (so the parent python process is currently clustering with one bcrham subprocess):
+
+```
+  PID COMMAND
+ 2677 -bash
+ 4685   python ./bin/partis partition --infname test/reference-results/test/simu.yaml
+ 4734     /home/dralph/work/partis/packages/ham/bcrham --algorithm forward --hmmdir /home/dralph/work/partis/_output/test_reference-results_test_simu/hmm/hmms --datadir /tmp/dralph/hmms/902992/germline-sets --infile /tmp/dralph/hmms/902992/hmm_input.csv --outfile /tmp/dralph/hmms/902992/hmm_output.csv --locus igh --random-seed 1554239923 --input-cachefname /tmp/dralph/hmms/902992/hmm_cached_info.csv --output-cachefname /tmp/dralph/hmms/902992/hmm_cached_info.csv --partition --max-logprob-drop 5.0 --hamming
+ 5310   ps -Ho pid,args
+```
+
+There will be a progress file for each subprocess in the clustering step, in their own subdirectories, and the name of each progress file will look like `<stuff>.progress`.
+A few lines from a typical progress file might look like:
+
+```
+      Apr 02 14:19:35    1850 clusters        45160 / 32857084 kB =  0.137 %           calcd:   vtb 281   fwd 0     hfrac 154382          merged:  hfrac 1    lratio 0                  clusters:  38 30 15 7 7 7 7 7 6 6 6 6 6 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+      Apr 02 14:29:22    1841 clusters        47068 / 32857084 kB =  0.143 %           calcd:   vtb 281   fwd 0     hfrac 155609          merged:  hfrac 10   lratio 0                  clusters:  38 30 15 7 7 7 7 7 7 6 6 6 6 6 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+      Apr 02 14:29:53    1813 clusters        50876 / 32857084 kB =  0.155 %           calcd:   vtb 289   fwd 0     hfrac 159161          merged:  hfrac 38   lratio 0                  clusters:  38 30 15 13 11 9 9 7 7 7 7 7 6 6 6 6 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+```
+
+The columns are:
+  * time the line was written. There are a number of points in the clustering code that trigger a progress file write, but typically a new line is written once each time it loops through all the current clusters looking for merges.
+  * total number of clusters
+  * memory allocated to this clustering process (i.e. bcrham). Doesn't include memory for any other bcrham processes, or for the overall python process.
+  * total number of viterbi, forward, and naive hamming fraction calculations that have so far been made
+  * total number of cluster merges that have so far been performed, broken down into hamming fraction merges and likelihood ratio (i.e. forward calculation) merges
+  * a list of all cluster sizes in the current partition
+
 ### view-output
 
 To print the partitions and/or annotations in an existing output file, run
