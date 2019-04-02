@@ -22,12 +22,15 @@ def is_acceptable(scol, acceptable_values, lval):
         return True
     return False
 
-parser = argparse.ArgumentParser()
-parser.add_argument('infname')
-parser.add_argument('--config-fname', help='yaml file with info on columns for which we want to specify particular values (and skip others). Default/example set below.')
+class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
+    pass
+formatter_class = MultiplyInheritedFormatter
+parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter)
+parser.add_argument('--infname', default='test/reference-results/test/parameters/data/hmm/all-probs.csv', help='input all-probs.csv file from a previously-inferred partis parameter directory, for instance: test/reference-results/test/parameters/data/hmm/all-probs.csv')
+parser.add_argument('--config-fname', help='yaml file with info on columns for which we want to specify particular values (and skip others). See default/example set below. To create a yaml config file to start from, uncomment the yaml.dump() line below.')
 parser.add_argument('--outfname')
 parser.add_argument('--any-allele', action='store_true', help='if set, also include any other alleles of any of the genes specified in \'skip_column_vals\' (note: can also set it in the cfg file).')
-parser.add_argument('--debug', action='store_true')
+parser.add_argument('--debug', action='store_true', default=True)  # it's kind of confusing without the debug printout
 args = parser.parse_args()
 
 non_summed_column = None
@@ -35,14 +38,15 @@ if args.config_fname is None:
     non_summed_column = 'v_gene'
     skip_column_vals = {  # to input your own dict on the command line, just convert with str() and quote it
         # 'cdr3_length' : ['33', '36', '39', '42', '45', '48'],  # <value> is list of acceptable values NOTE need to all be strings, otherwise you have to worry about converting the values in the csv file
-
-        # bf520.1:
         'v_gene' : ['IGHV1-2*02+G35A', 'IGHV1-2*02+T147C', 'IGHV1-2*02'],
         # 'd_gene' : ['IGHD3-22*01'],
         'j_gene' : ['IGHJ4*02'],
-        'cdr3_length' : ['66',],  #  TGTGCGAGAGGGCCATTCCCGAATTACTATGGTCCGGGGAGTTATTGGGGGGGTTTTGACCACTGG
+        'cdr3_length' : ['66',],
     }
-    print '%s using default skip column/non-summed column values' % utils.color('yellow', 'note')
+    print '%s using default skip column/non-summed column values (which probably don\'t correspond to what you\'re actually interested in)' % utils.color('red', 'note')
+    # # uncomment to create a yaml file to start from:
+    # with open('tmp.yaml', 'w') as tfile:
+    #     yaml.dump({'non_summed_column' : non_summed_column, 'skip_column_vals' : skip_column_vals}, tfile)
 else:
     with open(args.config_fname) as yamlfile:
         yamlfo = yaml.load(yamlfile)
@@ -59,6 +63,7 @@ else:
 info = {}
 lines_skipped, lines_used = 0, 0
 counts_skipped, counts_used = 0, 0
+print '  reading probs from %s' % args.infname
 with open(args.infname) as csvfile:
     reader = csv.DictReader(csvfile)
     # if args.debug:

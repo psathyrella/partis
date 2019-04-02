@@ -4,6 +4,8 @@
   - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, runs automatically before annotation and partitioning)
     - [germline sets](#germline-sets)
   - [simulate](#simulate) make simulated sequences
+  - [miscellany](#miscellany)
+    - [naive probability estimates](#naive-probability-estimates)
 
 ### Subcommands
 
@@ -266,4 +268,14 @@ You can then add novel alleles to the germline set by telling it how many novel 
 | `--snp-positions <stuff>`               | colon-separated list of comma-separated SNP positions for each gene, e.g. '3,71:45' will generate two novel alleles, separated by two SNPs (at zero-indexed sequence positions 3 and 71) and one SNP (at 45) from the two genes in --sim-v-genes.
 | `--indel-positions <m:n:...>`           | same as --snp-positions, but for indels
 | `--allele-prevalence-freqs <f1:f2:...>` | colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)
+
+
+### Miscellany
+
+##### naive probability estimates
+
+The script `bin/get-naive-probabilities.py` is designed to answer the question "What is the probability of a particular rearrangement in this sample?".
+It uses the `all-probs.csv` file that is written to each parameter directory, which contains a line counting how many times we saw each unique rearrangement in that sample.
+Using a yaml config file, you can have the script use a variety of criteria, for instance, find the probability of rearrangements that use any IGHV1 family gene, and that have CDR3 length of 60, 63, or 66.
+For more details run `./bin/get-naive-probabilities.py --help`.
 
