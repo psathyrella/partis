@@ -151,7 +151,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
             seqfo['infostrs'] = seqfo['infostrs'].split('|')
             seqfo['name'] = get_imgt_info(seqfo['infostrs'], 'gene')
             if not printed_imgt_warning:
-                print '  %s couldn\'t parse gene name \'%s\' from %s, so assuming this is a file downloaded directly from http://www.imgt.org/vquest/refseqh.html, i.e. that the meta info is splattered all over the fasta line starting with \'>\'\n  %s ...therefore if this is *not* an imgt file, then you may want to set --sanitize-input-germlines.' % (utils.color('yellow', 'warning'), seqfo['name'], fname, utils.color('yellow', 'warning'))
+                print '  note: assuming %s is a file downloaded directly from http://www.imgt.org/vquest/refseqh.html, i.e. that the meta info is splattered all over the fasta line starting with \'>\' (if this is *not* an imgt file, then you may want to set --sanitize-input-germlines).' % fname
                 printed_imgt_warning = True
             if len(seqfo['infostrs']) < len(imgt_info_indices):
                 raise Exception('info str is too short (len %d) to correspond to imgt info indices (len %d):\n  %s\n  %s' % (len(seqfo['infostrs']), len(imgt_info_indices), seqfo['infostrs'], imgt_info_indices))
