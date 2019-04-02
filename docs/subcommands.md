@@ -113,7 +113,7 @@ A few lines from a typical progress file might look like:
 The columns are:
   * time the line was written. There are a number of points in the clustering code that trigger a progress file write, but typically a new line is written once each time it loops through all the current clusters looking for merges.
   * total number of clusters
-  * memory allocated to this clustering process (i.e. bcrham). Note that this doesn't include memory for any other bcrham processes, or for the overall python process.
+  * memory allocated to this clustering process (i.e. bcrham).
   * total number of viterbi, forward, and naive hamming fraction calculations that have so far been made
   * total number of cluster merges that have so far been performed, broken down into hamming fraction merges and likelihood ratio (i.e. forward calculation) merges
   * a list of all cluster sizes in the current partition
