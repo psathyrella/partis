@@ -556,7 +556,7 @@ presto_headers = OrderedDict([  # enforce this ordering so the output files are 
 # ----------------------------------------------------------------------------------------
 def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
     """ convert <line> to presto csv format """
-    if len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()
+    if len(line['unique_ids']) > 1:  # has to happen *before* utils.get_line_for_output()  UPDATE wtf does this mean?
         raise Exception('multiple seqs not handled for presto output')
 
     presto_line = {}
@@ -574,17 +574,24 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
 
 # ----------------------------------------------------------------------------------------
 def write_presto_annotations(outfname, glfo, annotation_list, failed_queries):
+    print '   writing presto annotations to %s' % outfname
+    assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
     with open(outfname, 'w') as outfile:
         writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
         writer.writeheader()
 
-        for full_line in annotation_list:
-            writer.writerow(get_line_with_presto_headers(full_line))
+        for line in annotation_list:
+            if len(line['unique_ids']) == 1:
+                writer.writerow(get_line_with_presto_headers(line))
+            else:
+                for iseq in range(len(line['unique_ids'])):
+                    writer.writerow(get_line_with_presto_headers(synthesize_single_seq_line(line, iseq)))
 
         # and write empty lines for seqs that failed either in sw or the hmm
-        for failfo in failed_queries:
-            assert len(failfo['unique_ids']) == 1
-            writer.writerow({'SEQUENCE_ID' : failfo['unique_ids'][0], 'SEQUENCE_INPUT' : failfo['input_seqs'][0]})
+        if failed_queries is not None:
+            for failfo in failed_queries:
+                assert len(failfo['unique_ids']) == 1
+                writer.writerow({'SEQUENCE_ID' : failfo['unique_ids'][0], 'SEQUENCE_INPUT' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
@@ -3599,7 +3606,7 @@ def getprefix(fname):  # basename before the dot
     return os.path.splitext(fname)[0]
 
 # ----------------------------------------------------------------------------------------
-def getsuffix(fname):
+def getsuffix(fname):  # suffix, including the dot
     if len(os.path.splitext(fname)) != 2:
         raise Exception('couldn\'t split %s into two pieces using dot' % fname)
     return os.path.splitext(fname)[1]

@@ -205,8 +205,8 @@ def process(args):
             raise Exception('have to set --outfname if --presto-output is set')
         if args.action == 'annotate' and utils.getsuffix(args.outfname) != '.tsv':
             raise Exception('--outfname suffix has to be .tsv for annotation with --presto-output (got %s)' % utils.getsuffix(args.outfname))
-        if args.action == 'partition' and utils.getsuffix(args.outfname) not in ['.fa', 'fasta']:
-            raise Exception('--outfname suffix has to be .fa or .fasta for partition with --presto-output (got %s)' % utils.getsuffix(args.outfname))
+        if args.action == 'partition' and utils.getsuffix(args.outfname) not in ['.fa', '.fasta']:
+            raise Exception('--outfname suffix has to be .fa or .fasta for partitioning with --presto-output (got %s)' % utils.getsuffix(args.outfname))
         if args.aligned_germline_fname is None:
             raise Exception('in order to get presto output, you have to set --aligned-germline-fname to a fasta file with germline alignments for every germline gene, an example is located in data/germlines/imgt-aligned-igh.fa (this isn\'t set by default because imgt alignments are subject to change)')
 

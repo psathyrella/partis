@@ -367,6 +367,8 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def write_presto_partitions(self, outfname, input_info):
+        print '   writing presto partition %s' % outfname
+        assert utils.getsuffix(outfname) in ['.fa', '.fasta']  # already checked in processargs.py
         with open(outfname, 'w') as outfile:
             iclust = 0
             for cluster in self.partitions[self.i_best]:

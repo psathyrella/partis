@@ -1922,10 +1922,11 @@ class PartitionDriver(object):
             failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
 
         if self.args.presto_output:
-            if cpath is None:  # can't write presto annotations for multi-sequence annotations, so can't write cluster annotations
-                utils.write_presto_annotations(self.args.outfname, self.glfo, annotation_list, failed_queries=failed_queries)
-            else:
+            presto_annotation_fname = self.args.outfname
+            if cpath is not None:  # note that if we're partitioning, we get here with <self.current_action> set to 'annotate'
+                presto_annotation_fname = utils.getprefix(self.args.outfname) + '.tsv'
                 cpath.write_presto_partitions(self.args.outfname, self.input_info)
+            utils.write_presto_annotations(presto_annotation_fname, self.glfo, annotation_list, failed_queries=failed_queries)
             return
 
         partition_lines = None
