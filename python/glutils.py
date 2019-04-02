@@ -44,11 +44,13 @@ def functionality_fname(species=None, gldir=None):  # _not_ generally present (b
 
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
-imgt_info_indices = ('accession-number', 'gene', 'species', 'species', 'functionality', '', '', '', '', '', '', '', '', '')  # I think this is the right number of entries, but it doesn't really matter NOTE duplicate species is 'cause I split on ' ' and '|' in utils.read_fastx(), which should maybe probably eventually be changed
+imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', 'region')  # , '', '', '', '', '', '', '', '', '', '', '', '')  # here we ignore a bunch of ones at the end that we either don't care about, are blank, or sometimes aren't there
 separators = ['()', '[]']  # not actually sure what the parentheses and brackets mean
 possible_functionalities = ['F', 'ORF', 'P']
 def strip_functionality(funcstr):
     return funcstr.strip(''.join(separators))
+def get_imgt_info(infostrs, key):
+    return infostrs[imgt_info_indices.index(key)]
 
 duplicate_names = {
     'v' : [
@@ -119,23 +121,42 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
             print '  %d mutated' % n_bad_codons,
         print ''
 
+# ----------------------------------------------------------------------------------------
+def get_is_imgt_file(infostr):
+    if infostr[:3].lower() in utils.loci:  # imgt files have another field (like X97051) before the gene name
+        return False
+    info_str_list = infostr.split('|')
+    if len(info_str_list) < len(imgt_info_indices):  # has to at least have the ones we expect all the time
+        return False
+    if get_imgt_info(info_str_list, 'gene')[:3].lower() not in utils.loci:
+        return False
+    region_str = get_imgt_info(info_str_list, 'region')
+    if region_str[0].lower() not in utils.regions or region_str[1:] != '-REGION':
+        return False
+    return True
+
 #----------------------------------------------------------------------------------------
 def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=False, add_dummy_name_components=False, locus=None, skip_other_region=False, debug=False):
     glseqs = glfo['seqs'][region]  # shorthand
     n_skipped_pseudogenes, n_skipped_orfs = 0, 0
     seq_to_gene_map = {}
     printed_imgt_warning, renamed_genes = False, []
-    for seqfo in utils.read_fastx(fname):
-        functy = None
+    is_imgt_file = None
+    for seqfo in utils.read_fastx(fname, dont_split_infostrs=True):
+        if is_imgt_file is None:
+            is_imgt_file = get_is_imgt_file(seqfo['infostrs'])  # if the fasta lines aren't all formatted the same, who cares it, should crash somewhere
         # first get gene name
-        if (not add_dummy_name_components) and seqfo['name'][:2] != 'IG' and seqfo['name'][:2] != 'TR':  # if it's an imgt file, with a bunch of header info (and the accession number first)
+        functy = None
+        if (not add_dummy_name_components) and is_imgt_file:  # if it's an imgt file, with a bunch of header info, and the accession number first (if we're adding dummy name components, we just take whatever garbage is first and smash on IGH or whatever)
+            seqfo['infostrs'] = seqfo['infostrs'].split('|')
+            seqfo['name'] = get_imgt_info(seqfo['infostrs'], 'gene')
             if not printed_imgt_warning:
                 print '  %s couldn\'t parse gene name \'%s\' from %s, so assuming this is a file downloaded directly from http://www.imgt.org/vquest/refseqh.html, i.e. that the meta info is splattered all over the fasta line starting with \'>\'\n  %s ...therefore if this is *not* an imgt file, then you may want to set --sanitize-input-germlines.' % (utils.color('yellow', 'warning'), seqfo['name'], fname, utils.color('yellow', 'warning'))
                 printed_imgt_warning = True
             if len(seqfo['infostrs']) < len(imgt_info_indices):
-                raise Exception('info str %s is too short (len %d) to correspond to imgt info indices %s (len %d)' % (seqfo['infostrs'], len(seqfo['infostrs']), imgt_info_indices, len(imgt_info_indices)))
-            gene = seqfo['infostrs'][imgt_info_indices.index('gene')]
-            functy = strip_functionality(seqfo['infostrs'][imgt_info_indices.index('functionality')])
+                raise Exception('info str is too short (len %d) to correspond to imgt info indices (len %d):\n  %s\n  %s' % (len(seqfo['infostrs']), len(imgt_info_indices), seqfo['infostrs'], imgt_info_indices))
+            gene = seqfo['name']
+            functy = strip_functionality(get_imgt_info(seqfo['infostrs'], 'functionality'))
             if functy not in possible_functionalities:
                 raise Exception('unexpected functionality %s in %s' % (functy, fname))
             if skip_pseudogenes and functy == 'P':
@@ -145,7 +166,10 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
                 n_skipped_orfs += 1
                 continue
         else:  # plain fasta with just the gene name after the '>'
+            seqfo['infostrs'] = [s3.strip() for s1 in seqfo['infostrs'].split(' ') for s2 in s1.split('\t') for s3 in s2.split('|')]  # just doing what the old/default is in read_fastx(), in case something depends on that
+            seqfo['name'] = seqfo['infostrs'][0]
             gene = seqfo['name']
+
         if add_dummy_name_components:
             old_name = gene
             gene = utils.construct_valid_gene_name(gene, locus=locus, region=region)
@@ -162,7 +186,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
             print utils.pad_lines(''.join(lines))
-            raise Exception('Unhandled gene name \'%s \' in %s (see above). If you don\'t mind us (trivially) renaming your genes, you can set --sanitize-input-germlines.' % (gene, fname))
+            raise Exception('Unhandled gene name \'%s \' in %s (see above). If you don\'t mind us renaming your genes (we just add locus and dummy allele, e.g. IGH<your stuff>*x), you can set --sanitize-input-germlines.' % (gene, fname))
         if skip_other_region and utils.get_region(gene) != region:
             continue
         if utils.get_region(gene) != region:

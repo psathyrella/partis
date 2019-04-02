@@ -3473,7 +3473,7 @@ def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have w
             seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):  # Bio.SeqIO takes too goddamn long to import
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):  # Bio.SeqIO takes too goddamn long to import
     if ftype is None:
         suffix = getsuffix(fname)
         if suffix == '.fa' or suffix == '.fasta':
@@ -3539,8 +3539,12 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, sanitize=Fa
                 elif iline >= istartstop[1]:
                     continue
 
-            infostrs = [s3.strip() for s1 in headline.split(' ') for s2 in s1.split('\t') for s3 in s2.split('|')]  # NOTE the uid is left untranslated in here
-            uid = infostrs[0]
+            if not dont_split_infostrs:  # by default, we split by everything that could be a separator, which isn't really ideal, but we're reading way too many different kinds of fasta files at this point to change the default
+                infostrs = [s3.strip() for s1 in headline.split(' ') for s2 in s1.split('\t') for s3 in s2.split('|')]  # NOTE the uid is left untranslated in here
+                uid = infostrs[0]
+            else:  # otherwise we let the calling fcn handle all the infostr parsing
+                infostrs = headline
+                uid = infostrs
             if sanitize and any(fc in uid for fc in forbidden_characters):
                 if not already_printed_forbidden_character_warning:
                     print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in forbidden_characters]), uid, uid.translate(forbidden_character_translations))
