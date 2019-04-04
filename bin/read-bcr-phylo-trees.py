@@ -25,7 +25,7 @@ with open(args.newick_tree_file, 'w') as ntfile:
     ntfile.write(treestr)
 
 with open(args.kdfile, 'w') as kdfile:
-    writer = csv.DictWriter(kdfile, ('uid', 'kd', 'relative_kd', 'lambda'))
+    writer = csv.DictWriter(kdfile, ('uid', 'kd', 'relative_kd', 'lambda', 'target_index'))
     writer.writeheader()
     for node in tree.traverse():  # small kd is higher affinity
-        writer.writerow({'uid' : node.name, 'kd' : node.Kd, 'relative_kd' : node.relative_Kd, 'lambda' : node.lambda_})
+        writer.writerow({'uid' : node.name, 'kd' : node.Kd, 'relative_kd' : node.relative_Kd, 'lambda' : node.lambda_, 'target_index' : node.target_index})

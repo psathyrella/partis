@@ -113,6 +113,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
                     'kd' : float(line['kd']),
                     'relative_kd' : float(line['relative_kd']),
                     'lambda' : line.get('lambda', None),
+                    'target_index' : int(line['target_index']),
                 }
         if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
             print '        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(nodefo) - set(final_line['unique_ids']))
@@ -121,6 +122,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
         final_line['affinities'] = [1. / nodefo[u]['kd'] for u in final_line['unique_ids']]
         final_line['relative_affinities'] = [1. / nodefo[u]['relative_kd'] for u in final_line['unique_ids']]
         final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
+        final_line['nearest_target_indices'] = [nodefo[u]['target_index'] for u in final_line['unique_ids']]
         tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % outdir)
         tree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))
         if args.debug:
@@ -132,14 +134,6 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
     # get target sequences
     target_seqfos = utils.read_fastx('%s/%s_targets.fa' % (outdir, args.extrastr))
     final_line['target_seqs'] = [tfo['seq'] for tfo in target_seqfos]
-    from Bio.Seq import Seq
-    final_line['nearest_target_indices'] = []
-    aa_targets = [Seq(seq).translate() for seq in final_line['target_seqs']]
-    for mseq in final_line['input_seqs']:
-        aa_mseq = Seq(mseq).translate()
-        aa_hdists = [utils.hamming_distance(aa_t, aa_mseq, amino_acid=True) for aa_t in aa_targets]
-        imin = aa_hdists.index(min(aa_hdists))  # NOTE doesn't do anything differently if there's more than one min
-        final_line['nearest_target_indices'].append(imin)
 
     return final_line
 
