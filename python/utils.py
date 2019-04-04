@@ -3954,10 +3954,10 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 
 # ----------------------------------------------------------------------------------------
 def write_linearham_seqs(outfname, annotation_list):
-    """ write the indel-reversed partition sequences to fasta files """
+    """ write the indel-reversed cluster sequences to fasta files """
     outdir_prefix = os.path.dirname(os.path.abspath(outfname))
     for i, annotation in enumerate(annotation_list):
-        outdir = outdir_prefix + '/partition' + str(i)
+        outdir = outdir_prefix + '/cluster' + str(i)
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         with open(outdir + '/input_seqs.fasta', 'w') as fastafile:
