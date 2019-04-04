@@ -241,6 +241,7 @@ parent_parser.add_argument('--sw-debug', type=int, choices=[0, 1, 2], help='Debu
 parent_parser.add_argument('--abbreviate', action='store_true', help='Abbreviate/translate sequence ids to improve readability of partition debug output. Uses a, b, c, ..., aa, ab, ...')
 parent_parser.add_argument('--print-git-commit', action='store_true', help='print sys.argv, git commit hash, and tag info')
 parent_parser.add_argument('--only-print-best-partition', action='store_true', help='when printing cluster annotations (either with --debug 1 for \'partition\', or for \'view-output\'), instead of the default of printing the annotation for every cluster for which we calculated one (see --calculate-alternative-naive-seqs and --n-partitions-to-write), only print annotations for clusters in the best partition.')
+parent_parser.add_argument('--only-print-seed-cluster', action='store_true', help='same as --only-print-best-partition, but in addition, only print the seed cluster')
 
 parent_parser.add_argument('--n-procs', type=int, default=1, help='Number of processes over which to parallelize. This is usually the maximum that will be initialized at any given time, but for internal reasons, certain steps (e.g. smith waterman and partition naive sequence precaching) sometimes use slightly more.')
 parent_parser.add_argument('--n-max-to-calc-per-process', default=250, help='if a bcrham process calc\'d more than this many fwd + vtb values (and this is the first time with this number of procs), don\'t decrease the number of processes in the next step (default %(default)d)')
