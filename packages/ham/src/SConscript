@@ -3,8 +3,14 @@ import sys
 import glob
 
 env = Environment(ENV=os.environ)
-env.Append(CPPFLAGS =  ['-Ofast', '-std=c++11', '-Wall', '-Wextra', '-pedantic'])  # '-pg', '-g', 
-env.Append(LINKFLAGS = ['-Ofast', '-std=c++11'])                                   # '-pg', '-g', 
+# conf = Configure(env)
+# print conf.CheckLib('yaml-cpp')
+
+# profiling (uh, i think, it's been a while): '-pg', '-g',
+# increase compile time verbosity (e.g. figure out include paths): , '--verbose'
+# increase link time verbosity (e.g. figure out lib paths):, '-Wl,--verbose'
+env.Append(CPPFLAGS =  ['-Ofast', '-std=c++11', '-Wall', '-Wextra', '-pedantic'])
+env.Append(LINKFLAGS = ['-Ofast', '-std=c++11'])
 env.Append(CPPPATH = ['../include'])
 env.Append(CPPDEFINES={'STATE_MAX':'500', 'SIZE_MAX':'\(\(size_t\)-1\)', 'PI':'3.1415926535897932', 'EPS':'1e-6'})  # maybe reduce the state max to something reasonable?
 
