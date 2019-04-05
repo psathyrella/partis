@@ -22,6 +22,7 @@ import tempfile
 import yaml
 import colorsys
 import time
+import warnings
 
 import utils
 import plotconfig
@@ -1144,7 +1145,9 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
         jpdata.append([x for x, y in zip(hist.get_bin_centers(), hist.bin_contents) for _ in range(int(y)) if x > xmin and x < xmax])  # NOTE this is repeating the 'for _ in range()' in the fcn above, but that's because I used to be actually using the Hist()s, and maybe I will again
 
     fig, ax = mpl_init()
-    fig, axes = joypy.joyplot(jpdata, labels=all_labels, fade=True, hist=True, overlap=0.5, ax=ax, x_range=(xmin, xmax), bins=int(xmax - xmin))
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')  # i don't know why it has to warn me that it's clearing the fig/ax I'm passing in, and I don't know how else to stop it
+        fig, axes = joypy.joyplot(jpdata, labels=all_labels, fade=True, hist=True, overlap=0.5, ax=ax, x_range=(xmin, xmax), bins=int(xmax - xmin))
     # NOTE do *not* set your own x ticks/labels in the next line, since they'll be in the wrong place (i.e. not the same as where joypy puts them)
     mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel='generation', leg_loc=(0.7, 0.45)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
