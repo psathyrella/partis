@@ -1444,10 +1444,12 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(line, one_line=False, extra_str='', label='', post_label='', seed_uid=None):
+    duplicate_counts = [(u, line['unique_ids'].count(u)) for u in line['unique_ids']]
+    duplicated_uids = {u : c for u, c in duplicate_counts if c > 1}
     if len(line['unique_ids']) > 1:
         label += '%s%d sequences with %.1f mean mutations' % ('' if label == '' else '    ', len(line['unique_ids']), numpy.mean(line['n_mutations']))
     for iseq in range(len(line['unique_ids'])):
-        prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label + post_label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid)
+        prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label + post_label if iseq==0 else ''), one_line=(iseq>0), seed_uid=seed_uid, duplicated_uids=duplicated_uids)
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):
