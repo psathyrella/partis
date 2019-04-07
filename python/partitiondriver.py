@@ -359,19 +359,18 @@ class PartitionDriver(object):
             #     cachefo = cluster_annotations  # account for the clusters we removed because they had queries that weren't in uids_of_interest
 
         clusters_to_use = cpath.partitions[cpath.i_best] if self.args.queries is None else [self.args.queries]
-        for cluster in clusters_to_use:
-            self.get_subcluster_naive_seqs(cluster, cluster_annotations, cachefo=cachefo, debug=True)
+        clusters_in_partitions = set([':'.join(c) for partition in cpath.partitions for c in partition])
+        for cluster in sorted(clusters_to_use, key=len, reverse=True):
+            self.get_subcluster_naive_seqs(cluster, cluster_annotations, clusters_in_partitions, cachefo=cachefo, debug=True)
 
         print '  note: rewriting output file with newly-calculated alternative annotation info'
         self.write_output(cluster_annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
     # ----------------------------------------------------------------------------------------
     def print_results(self, cpath, annotations):
-        seed_uid = None
-        if self.args.seed_unique_id is not None:
-            seed_uid = self.args.seed_unique_id
-
+        seed_uid = self.args.seed_unique_id
         if cpath is not None:
+            # it's expected that sometimes you'll write a seed partition cpath, but then when you read the file you don't bother to seed the seed id on the command line. The reverse, however, shouldn't happen
             if seed_uid is not None and cpath.seed_unique_id != seed_uid:
                 print '  %s seed uids from args and cpath don\'t match %s %s ' % (utils.color('red', 'error'), self.args.seed_unique_id, cpath.seed_unique_id)
             seed_uid = cpath.seed_unique_id
@@ -391,7 +390,7 @@ class PartitionDriver(object):
             for line in sorted_annotations:
                 if self.args.only_print_best_partition and cpath is not None and cpath.i_best is not None and line['unique_ids'] not in cpath.partitions[cpath.i_best]:
                     continue
-                if self.args.only_print_seed_cluster and seed_uid not in line['unique_ids']:
+                if (self.args.only_print_seed_clusters or self.args.seed_unique_id is not None) and seed_uid not in line['unique_ids']:  # we only use the seed id from the command line here, so you can print all the clusters even if you ran seed partitioning UPDATE wait did I change my mind? need to check
                     continue
                 label, post_label = '', ''
                 if self.args.infname is not None and self.reco_info is not None:
@@ -799,7 +798,7 @@ class PartitionDriver(object):
             self.calculate_tree_metrics(best_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
         if self.args.calculate_alternative_naive_seqs:
-            for cluster in cpath.partitions[cpath.i_best]:
+            for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
                 self.get_subcluster_naive_seqs(cluster, best_annotations, debug=self.args.debug)  # NOTE modifies the annotations (adds alternative annotation info)
 
         if self.args.outfname is not None:  # NOTE need to write *before* removing any clusters from the non-best partition
@@ -1106,14 +1105,21 @@ class PartitionDriver(object):
         return cachefo
 
     # ----------------------------------------------------------------------------------------
-    def get_subcluster_naive_seqs(self, uids_of_interest, cluster_annotations, cachefo=None, debug=False):
+    def get_subcluster_naive_seqs(self, uids_of_interest, cluster_annotations, clusters_in_partitions, cachefo=None, debug=False):
+        # <clusters_in_partitions> is a list of the clusters that actually occur in one of the partitions in the clusterpath. It's so we can ignore annotations for clusters that were never actually formed, i.e. where we got the annotation for a potential cluster, but decided not to make the merge (at least, I think this is why some annotations don't correspond to clusters in the cluster path)
+        # NOTE that when seed partitioning, in the steps before we throw out non-seeded clusters, there's *tons* of very overlapping clusters, since I think we take the the biggest seeded cluster, and pass that to all the subprocs, so then if a different sequence gets added to it in each subproc you end up with lots of different versions (including potentially lots of different orderings of the exact same cluster)
+
         if cachefo is None:  # <cachefo> and <cluster_annotations> are only different (i.e. cachefo is passed in) if we're reading old-style (csv) output with a separate cache file
             cachefo = cluster_annotations
+
+        if self.args.seed_unique_id is not None and debug and self.args.seed_unique_id not in uids_of_interest:
+            print '  note: only printing alternative annotations for seed clusters (the rest are still written to disk, but if you want to print the others, don\'t set --seed-unique-id)'
+            debug = False
 
         uids_of_interest = set(uids_of_interest)
         uidstr_of_interest = None  # we don't yet know in what order the uids in <uids_of_interest> appear in the file
         sub_info = {}  # map from naive seq : sub uid strs
-        final_info = {'naive-seqs' : [], 'gene-calls' : {r : [] for r in utils.regions}}  # this is the only info that's persistent, it get's added to the cluster annotation corresponding to <uids_of_interest>
+        final_info = {'naive-seqs' : OrderedDict(), 'gene-calls' : {r : OrderedDict() for r in utils.regions}}  # this is the only info that's persistent, it get's added to the cluster annotation corresponding to <uids_of_interest>
 
         # pull all the clusters out of the cache info that have any overlap with <uids_of_interest>
         for uidstr, info in cachefo.items():
@@ -1121,6 +1127,8 @@ class PartitionDriver(object):
                 continue
             uid_set = set(info['unique_ids'])
             if len(uid_set & uids_of_interest) == 0:
+                continue
+            if ':' in uidstr and uidstr not in clusters_in_partitions:  # first bit is because singletons are not in general all in a partition, since the first partition is from after initial naive seq merging (at least seems to be? I kind of thought I added the singleton partition, but I guess not)
                 continue
             naive_seq = cachefo[uidstr]['naive_seq']
             if naive_seq not in sub_info:
@@ -1204,14 +1212,28 @@ class PartitionDriver(object):
                 if uidstr_of_interest in uid_str_list:
                     pre_str = utils.color('blue', '-->', width=5)
                     post_str = utils.color('blue', ' <-- requested uids', width=5)
+                if self.args.print_all_annotations:
+                    print '  printing annotations for all clusters supporting naive seq with fraction %.3f:' % final_info['naive-seqs'][naive_seq]
                 print ('%5s %s  %4d        %s     %s    %s%s') % (pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), n_independent_seqs, gene_str, other_gene_str, ' '.join(cluster_size_strs), post_str)
+                if self.args.print_all_annotations:
+                    for uidstr in sorted(uid_str_list, key=lambda x: x.count(':'), reverse=True):
+                        if uidstr in cluster_annotations:
+                            utils.print_reco_event(cluster_annotations[uidstr], extra_str='      ', label='')
+                        else:
+                            print '    %s missing from cluster annotations' % uidstr
+                    print '\n'
 
         independent_seq_info = {naive_seq : set([uid for uidstr in uid_str_list for uid in uidstr.split(':')]) for naive_seq, uid_str_list in sub_info.items()}
         total_independent_seqs = sum(len(uids) for uids in independent_seq_info.values())
         unique_seqs_for_each_gene = {r : {} for r in utils.regions}  # for each gene, keeps track of the number of unique sequences that contributed to an annotation that used that gene
         cluster_sizes_for_each_gene = {r : {} for r in utils.regions}  # same, but number/sizes of different clusters (so we can tell if a gene is only supported by like one really large cluster, but all the smaller clusters point to another gene)
+        uidstrs_for_each_gene = {r : {} for r in utils.regions}  # need the actual uid strs, but only use them for --print-all-annotations
+        def init_dicts(region, gene_call):  # ick
+            unique_seqs_for_each_gene[region][gene_call] = set()
+            cluster_sizes_for_each_gene[region][gene_call] = []
+            uidstrs_for_each_gene[region][gene_call] = []
         for naive_seq in sorted(independent_seq_info, key=lambda ns: len(independent_seq_info[ns]), reverse=True):
-            final_info['naive-seqs'] += [(naive_seq, len(independent_seq_info[naive_seq]) / float(total_independent_seqs))]
+            final_info['naive-seqs'][naive_seq] = len(independent_seq_info[naive_seq]) / float(total_independent_seqs)
 
             uid_str_list = sorted(sub_info[naive_seq], key=lambda uidstr: uidstr.count(':') + 1, reverse=True)
 
@@ -1225,11 +1247,10 @@ class PartitionDriver(object):
                         if gene_call != genes_of_interest[region]:
                             other_genes[region].add(gene_call)
                         if gene_call not in unique_seqs_for_each_gene[region]:
-                            unique_seqs_for_each_gene[region][gene_call] = set()
+                            init_dicts(region, gene_call)
                         unique_seqs_for_each_gene[region][gene_call] |= set(cluster_annotations[uidstr]['unique_ids'])
-                        if gene_call not in cluster_sizes_for_each_gene[region]:
-                            cluster_sizes_for_each_gene[region][gene_call] = []
                         cluster_sizes_for_each_gene[region][gene_call].append(len(cluster_annotations[uidstr]['unique_ids']))
+                        uidstrs_for_each_gene[region][gene_call].append(uidstr)
                     else:
                         no_info = True
             if debug:
@@ -1238,7 +1259,7 @@ class PartitionDriver(object):
         for region in utils.regions:
             total_unique_seqs_this_region = sum(len(uids) for uids in unique_seqs_for_each_gene[region].values())  # yes, it is in general different for each region
             for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
-                final_info['gene-calls'][region] += [(gene_call, len(uids) / float(total_unique_seqs_this_region))]
+                final_info['gene-calls'][region][gene_call] = len(uids) / float(total_unique_seqs_this_region)
         if debug:
             print ''
             print '                     unique seqs        cluster sizes (+singletons)'
@@ -1246,10 +1267,23 @@ class PartitionDriver(object):
                 print '    %s' % utils.color('green', region)
                 for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
                     csizes = cluster_sizes_for_each_gene[region][gene_call]
-                    print '      %s   %4d' % (utils.color_gene(gene_call, width=15), len(uids)),
-                    print '             %s (+%d)' % (' '.join('%d' % cs for cs in sorted(csizes, reverse=True) if cs > 1), csizes.count(1))
+                    if self.args.print_all_annotations:
+                        print '  printing annotations for all clusters supprting gene call with fraction %.3f:' % final_info['gene-calls'][region][gene_call]
+                    cluster_size_strs = ['%d' % cs for cs in sorted(csizes, reverse=True) if cs > 1]
+                    n_singletons = csizes.count(1)
+                    if n_singletons > 0:
+                        cluster_size_strs.append('(+%d)' % n_singletons)
+                    print '      %s   %4d             %s' % (utils.color_gene(gene_call, width=15), len(uids), ' '.join(cluster_size_strs))
+                    if self.args.print_all_annotations:
+                        for uidstr in sorted(uidstrs_for_each_gene[region][gene_call], key=lambda x: x.count(':'), reverse=True):
+                            if uidstr in cluster_annotations:
+                                utils.print_reco_event(cluster_annotations[uidstr], extra_str='      ', label='')
+                            else:
+                                print '    %s missing from cluster annotations' % uidstr
+                        print '\n'
 
-        line_of_interest['alternative-annotations'] = final_info
+        # this is messy because we want to acces them as dicts in this fcn, for dbg printing, but want them in the output file as simple combinations of lists/tuples
+        line_of_interest['alternative-annotations'] = {'naive-seqs' : final_info['naive-seqs'].items(), 'gene-calls' : {r : final_info['gene-calls'][r].items() for r in utils.regions}}
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
