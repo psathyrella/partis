@@ -69,7 +69,7 @@ The following keys are written to output by default:
 | duplicates     |  list of "duplicate" sequences for each sequence, i.e. sequences which, after trimming fv/jf insertions, were identical and were thus collapsed. `[per-seq]`
 | tree           |  simulation only: newick-formatted string of the true phylogenetic tree (inferred trees are included in `tree-info`, in order to accomodate multiple trees inferred by different methods)
 | tree-info      |  inferred tree-related information from various methods (e.g. local branching index/ratio), including associated inferred trees. Written for 'get-tree-metrics' action or when --get-tree-metrics is set.
-| alternative-annotations | summary of alternative annotation information (a.t.m. naive sequences and gene calls), where counts of unique sequences have been normalized to give a number between 0 and 1 that can be interpreted as a (heuristically-derived!) probability of each potential naive sequence and gene call. See --calculate-alternative-naive-seqs and the 'view-alternative-naive-seqs' action for details.
+| alternative-annotations | summary of alternative annotation information (a.t.m. naive sequences and gene calls), where counts of unique sequences have been normalized to give a number between 0 and 1 that can be interpreted as a (heuristically-derived!) probability of each potential naive sequence and gene call. See --calculate-alternative-annotations and the 'view-alternative-annotations action for details.
 
 The following keys are available in the dictionary in memory, but not written to disk by default (can be written by setting `--extra-annotation-columns key_a:key_b`):
 

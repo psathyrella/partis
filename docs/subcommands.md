@@ -72,15 +72,15 @@ Cases where memory is a limiting factor typically stem from a sample with severa
 
 ##### annotation uncertainties
 
-In order to get an idea of the uncertainty on a given cluster's naive sequence and gene calls, you can specify `--calculate-alternative-naive-seqs` during the partition step.
-This will write all the annotations for intermediate sub-clusters to the output file so that it counts up how many subclusters voted for each alternative naive sequence or gene call.
+In order to get an idea of the uncertainty on a given cluster's naive sequence and gene calls, you can specify `--calculate-alternative-annotations` during the partition step.
+This will write all the annotations for intermediate sub-clusters to the output file so that it counts up how many subclusters "voted" for each alternative naive sequence or gene call.
 Since most annotation uncertainty in large-ish families boils down to two sub-families disagreeing about, say, which is the correct D gene, this approach typically does a decent job of spanning the real uncertainty (despite being quite heuristic).
-The resulting information can be accessed either by pulling out the resulting ['alternative-annotations' key](output-formats.md#description-of-keys) from the output file, or by running 'view-alternative-naive-seqs' (or running the partition with `--debug 1`).
+The resulting information can be accessed either by pulling out the resulting ['alternative-annotations' key](output-formats.md#description-of-keys) from the output file, or by running 'view-alternative-annotations (or running the partition step with `--debug 1`).
 For instance:
 
 ```
-partis partition --infname test/example.fa --outfname _output/example.yaml --calculate-alternative-naive-seqs
-partis view-alternative-naive-seqs --outfname _output/example.yaml  # pipe this to less by adding "| less -RS"
+partis partition --infname test/example.fa --outfname _output/example.yaml --calculate-alternative-annotations
+partis view-alternative-annotations --outfname _output/example.yaml  # pipe this to less by adding "| less -RS"
 ```
 
 If you only care about one cluster, you can print only the cluster corresponding to a given set of queries by setting `--queries <queries of interest>` in the second step.
