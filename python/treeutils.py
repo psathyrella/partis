@@ -840,7 +840,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
                 print '    note: couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d)' % (max_in_common, len(cluster))
             lines_to_use.append(annotations[ustr_to_use])
     else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
-        if cpath is not None:  # restrict it to clusters in the best partition (at the moment there will only be extra ones if either --calculate-alternative-naive-seqs or --write-additional-cluster-annotations are set, but in the future it could also be the default)
+        if cpath is not None:  # restrict it to clusters in the best partition (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
             lines_to_use = [annotations[':'.join(c)] for c in cpath.partitions[cpath.i_best]]
         else:
             lines_to_use = annotations.values()

@@ -388,7 +388,7 @@ class ClusterPath(object):
                 if uid_set is None:
                     uid_set = set(uidstr.split(':'))  # should only get called if it's a singleton
                 # note that for internal nodes in a fasttree-derived subtree, the uids will be out of order compared the the annotation keys
-                for line in annotations.values():  # we may actually have the annotation for every subcluster (e.g. if --calculate-alternative-naive-seqs was set), but in case we don't, this is fine
+                for line in annotations.values():  # we may actually have the annotation for every subcluster (e.g. if --calculate-alternative-annotations was set), but in case we don't, this is fine
                     if len(uid_set & set(line['unique_ids'])) > 0:  # just take the first one with any overlap. Yeah, it's not necessarily the best, but its naive sequence probably isn't that different, and for just getting the fasttree it reeeeeeaaaallly doesn't matter
                         return line
             raise Exception('couldn\'t find uid %s in annotations' % uid)

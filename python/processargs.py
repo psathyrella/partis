@@ -66,8 +66,15 @@ def get_workdir(batch_system):  # split this out so we can use it in datascripts
 # ----------------------------------------------------------------------------------------
 def process(args):
     if args.action == 'run-viterbi':
-        print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (this doesn\'t change any actual behavior)'
+        print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (you don\'t need to change anything unless you want this warning message to go away)'
         args.action = 'annotate'
+    if args.action == 'view-alternative-naive-seqs':
+        print'  note: replacing deprecated action name \'view-alternative-naive-seqs\' with current name \'view-alternative-annotations\' (you don\'t need to change anything unless you want this warning message to go away)'
+        args.action = 'view-alternative-annotations'
+    if args.calculate_alternative_naive_seqs:
+        print '    note: replacing deprecated option \'--calculate-alternative-naive-seqs\' with new option \'--calculate-alternative-annotations\' (you don\'t need to change anything unless you want this warning message to go away)'
+        args.calculate_alternative_annotations = True
+        delattr(args, 'calculate_alternative_naive_seqs')
 
     if args.chain is not None:
         print '    note: transferring argument from deprecated option \'--chain %s\' to new option \'--locus %s\'' % (args.chain, 'ig' + args.chain)
@@ -213,9 +220,9 @@ def process(args):
     if args.cluster_annotation_fname is None and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':  # if it wasn't set on the command line (<outfname> _was_ set), _and_ if we were asked for a csv, then use the old file name format
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
 
-    if args.calculate_alternative_naive_seqs and args.outfname is None:
-        raise Exception('have to specify --outfname in order to calculate alternative naive sequences')
-    if args.action == 'view-alternative-naive-seqs' and args.persistent_cachefname is None:  # handle existing old-style output
+    if args.calculate_alternative_annotations and args.outfname is None:
+        raise Exception('have to specify --outfname in order to calculate alternative annotations')
+    if args.action == 'view-alternative-annotations' and args.persistent_cachefname is None:  # handle existing old-style output
         assert args.outfname is not None
         if os.path.exists(utils.getprefix(args.outfname) + '-hmm-cache.csv'):
             args.persistent_cachefname = utils.getprefix(args.outfname) + '-hmm-cache.csv'  # written by bcrham, so has to be csv, not yaml
@@ -299,5 +306,5 @@ def process(args):
         args.allele_cluster = False
         args.dont_find_new_alleles = True
 
-    if args.infname is None and args.action not in ['simulate', 'view-output', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-naive-seqs', 'get-tree-metrics']:
+    if args.infname is None and args.action not in ['simulate', 'view-output', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-tree-metrics']:
         raise Exception('--infname is required for action \'%s\'' % args.action)

@@ -81,15 +81,15 @@ class PartitionDriver(object):
             self.aligned_gl_seqs = glutils.read_aligned_gl_seqs(self.args.aligned_germline_fname, self.glfo, self.args.locus)
 
         self.action_fcns = {
-            'cache-parameters'            : self.cache_parameters,
-            'annotate'                    : self.annotate,
-            'partition'                   : self.partition,
-            'view-output'                 : self.read_existing_output,
-            'view-annotations'            : self.read_existing_output,
-            'view-partitions'             : self.read_existing_output,
-            'plot-partitions'             : self.read_existing_output,
-            'get-tree-metrics'            : self.read_existing_output,
-            'view-alternative-naive-seqs' : self.view_alternative_naive_seqs,
+            'cache-parameters'             : self.cache_parameters,
+            'annotate'                     : self.annotate,
+            'partition'                    : self.partition,
+            'view-output'                  : self.read_existing_output,
+            'view-annotations'             : self.read_existing_output,
+            'view-partitions'              : self.read_existing_output,
+            'plot-partitions'              : self.read_existing_output,
+            'get-tree-metrics'             : self.read_existing_output,
+            'view-alternative-annotations'  : self.view_alternative_annotations,
         }
 
     # ----------------------------------------------------------------------------------------
@@ -327,8 +327,8 @@ class PartitionDriver(object):
         return annotations
 
     # ----------------------------------------------------------------------------------------
-    def view_alternative_naive_seqs(self):
-        print '  %s getting alternative annotation information from existing output file. These results will only be meaningful if you had --calculate-alternative-naive-seqs set when writing the output file (so that all subcluster annotations were stored). We can\'t check for that here directly, so instead we print this warning to make sure you had it set ;-)' % utils.color('yellow', 'note')
+    def view_alternative_annotations(self):
+        print '  %s getting alternative annotation information from existing output file. These results will only be meaningful if you had --calculate-alternative-annotations set when writing the output file (so that all subcluster annotations were stored). We can\'t check for that here directly, so instead we print this warning to make sure you had it set ;-)' % utils.color('yellow', 'note')
 
         # we used to require that you set --queries to tell us which to get, but I think now it makes sense to by default just get all of them (but not sure enough to delete this yet)
         # if self.args.queries is None:
@@ -336,7 +336,7 @@ class PartitionDriver(object):
         #     clusterstrs = []
         #     for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
         #         clusterstrs.append('      %s' % ':'.join(cluster))
-        #     raise Exception('in order to view alternative naive sequences, you have to specify (with --queries) a cluster from the final partition. Choose from the following:\n%s' % '\n'.join(clusterstrs))
+        #     raise Exception('in order to view alternative annotations, you have to specify (with --queries) a cluster from the final partition. Choose from the following:\n%s' % '\n'.join(clusterstrs))
 
         cluster_annotations, cpath = self.read_existing_output(ignore_args_dot_queries=True, read_partitions=True, read_annotations=True)  # note that even if we don't need the cpath to re-write output below, we need to set read_annotations=True, since the fcn gets confused otherwise and doesn't read the right cluster annotation file (for deprecated csv files)
 
@@ -651,7 +651,7 @@ class PartitionDriver(object):
             print ''
 
         n_before, n_after = self.args.n_partitions_to_write, self.args.n_partitions_to_write  # this takes more than we need, since --n-partitions-to-write is the *full* width, not half-width, but oh, well
-        if self.args.debug or self.args.calculate_alternative_naive_seqs or self.args.get_tree_metrics:  # take all of 'em
+        if self.args.debug or self.args.calculate_alternative_annotations or self.args.get_tree_metrics:  # take all of 'em
             n_before, n_after = sys.maxint, sys.maxint
         elif self.args.write_additional_cluster_annotations is not None:
             n_before, n_after = [max(waca, n_) for waca, n_ in zip(self.args.write_additional_cluster_annotations, (n_before, n_after))]
@@ -760,7 +760,7 @@ class PartitionDriver(object):
                 istop = min(len(cpath.partitions), cpath.i_best + 1 + self.args.write_additional_cluster_annotations[1])
                 for ip in range(istart, istop):
                     cluster_set |= set([tuple(c) for c in cpath.partitions[ip]])
-            if self.args.calculate_alternative_naive_seqs:  # add every cluster from the entire clustering history NOTE stuff that's in self.hmm_cachefname (which we used to use for this), but not in the cpath progress files: translated clusters, clusters that we calculated but didn't merge (maybe? not sure)
+            if self.args.calculate_alternative_annotations:  # add every cluster from the entire clustering history NOTE stuff that's in self.hmm_cachefname (which we used to use for this), but not in the cpath progress files: translated clusters, clusters that we calculated but didn't merge (maybe? not sure)
                 cluster_set |= set([(uid,) for cluster in cpath.partitions[cpath.i_best] for uid in cluster])  # add the singletons separately, since we don't write a singleton partition before collapsing naive sequences before the first clustering step
                 cluster_set |= set([tuple(cluster) for partition in cpath.partitions for cluster in partition])  # kind of wasteful to re-add clusters from the best partition here, but oh well
             print '    added %d clusters (in addition to the %d from the best partition) before running cluster annotations' % (len(cluster_set) - len(clusters_to_annotate), len(clusters_to_annotate))
@@ -779,7 +779,7 @@ class PartitionDriver(object):
 
         # ----------------------------------------------------------------------------------------
         clusters_to_annotate = cpath.partitions[cpath.i_best]
-        if self.args.write_additional_cluster_annotations is not None or self.args.calculate_alternative_naive_seqs:
+        if self.args.write_additional_cluster_annotations is not None or self.args.calculate_alternative_annotations:
             clusters_to_annotate = add_additional_clusters(clusters_to_annotate)
             extra_dbg_str += ' (including additional clusters)'
 
@@ -797,9 +797,10 @@ class PartitionDriver(object):
         if self.args.get_tree_metrics:
             self.calculate_tree_metrics(best_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
-        if self.args.calculate_alternative_naive_seqs:
+        if self.args.calculate_alternative_annotations:
+            clusters_in_partitions = set([':'.join(c) for partition in cpath.partitions for c in partition])
             for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
-                self.get_subcluster_naive_seqs(cluster, best_annotations, debug=self.args.debug)  # NOTE modifies the annotations (adds alternative annotation info)
+                self.get_subcluster_naive_seqs(cluster, best_annotations, clusters_in_partitions, debug=self.args.debug)  # NOTE modifies the annotations (adds alternative annotation info)
 
         if self.args.outfname is not None:  # NOTE need to write *before* removing any clusters from the non-best partition
             self.write_output(best_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
