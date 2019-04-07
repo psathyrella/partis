@@ -1175,8 +1175,8 @@ class PartitionDriver(object):
             utils.print_reco_event(utils.synthesize_single_seq_line(line_of_interest, iseq=0), extra_str='      ', label='annotation for a single (arbitrary) sequence from the cluster:')
             print ''
             print ''
-            print '%s  total unique      inconsistent (%s: missing info)     cluster' % (' ' * len(cache_file_naive_seq), utils.color('blue', 'x'))  # 'missing info' means that we didn\'t have an annotation for at least one of the clusters in that line. This is probably because we're using an old hmm cache file, and at best passed in the sw cache file annotations, which are only single-sequence.
-            print '%s        seqs        regions         genes               sizes (+singletons)' % (' ' * len(cache_file_naive_seq))
+            print '%s          unique       inconsistent (%s: missing info)     cluster' % (' ' * len(cache_file_naive_seq), utils.color('blue', 'x'))  # 'missing info' means that we didn\'t have an annotation for at least one of the clusters in that line. This is probably because we're using an old hmm cache file, and at best passed in the sw cache file annotations, which are only single-sequence.
+            print '%s        seqs  frac     regions         genes               sizes (+singletons)' % (' ' * len(cache_file_naive_seq))
 
             # ----------------------------------------------------------------------------------------
             def print_naive_line(other_genes, uid_str_list, naive_seq, n_independent_seqs, max_len_other_gene_str=20):
@@ -1215,7 +1215,7 @@ class PartitionDriver(object):
                     post_str = utils.color('blue', ' <-- requested uids', width=5)
                 if self.args.print_all_annotations:
                     print '  printing annotations for all clusters supporting naive seq with fraction %.3f:' % final_info['naive-seqs'][naive_seq]
-                print ('%5s %s  %4d        %s     %s    %s%s') % (pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), n_independent_seqs, gene_str, other_gene_str, ' '.join(cluster_size_strs), post_str)
+                print ('%5s %s  %4d  %4.2f     %s     %s    %s%s') % (pre_str, utils.color_mutants(cache_file_naive_seq, naive_seq), n_independent_seqs, final_info['naive-seqs'][naive_seq], gene_str, other_gene_str, ' '.join(cluster_size_strs), post_str)
                 if self.args.print_all_annotations:
                     for uidstr in sorted(uid_str_list, key=lambda x: x.count(':'), reverse=True):
                         if uidstr in cluster_annotations:
@@ -1263,7 +1263,8 @@ class PartitionDriver(object):
                 final_info['gene-calls'][region][gene_call] = len(uids) / float(total_unique_seqs_this_region)
         if debug:
             print ''
-            print '                     unique seqs        cluster sizes (+singletons)'
+            print '                        unique'
+            print '                      seqs  frac          cluster sizes (+singletons)'
             for region in utils.regions:
                 print '    %s' % utils.color('green', region)
                 for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
@@ -1274,7 +1275,7 @@ class PartitionDriver(object):
                     n_singletons = csizes.count(1)
                     if n_singletons > 0:
                         cluster_size_strs.append('(+%d)' % n_singletons)
-                    print '      %s   %4d             %s' % (utils.color_gene(gene_call, width=15), len(uids), ' '.join(cluster_size_strs))
+                    print '      %s %4d  %4.2f             %s' % (utils.color_gene(gene_call, width=15), len(uids), final_info['gene-calls'][region][gene_call], ' '.join(cluster_size_strs))
                     if self.args.print_all_annotations:
                         for uidstr in sorted(uidstrs_for_each_gene[region][gene_call], key=lambda x: x.count(':'), reverse=True):
                             if uidstr in cluster_annotations:
