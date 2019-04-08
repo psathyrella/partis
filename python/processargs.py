@@ -215,7 +215,9 @@ def process(args):
         if args.action == 'partition' and utils.getsuffix(args.outfname) not in ['.fa', '.fasta']:
             raise Exception('--outfname suffix has to be .fa or .fasta for partitioning with --presto-output (got %s)' % utils.getsuffix(args.outfname))
         if args.aligned_germline_fname is None:
-            raise Exception('in order to get presto output, you have to set --aligned-germline-fname to a fasta file with germline alignments for every germline gene, an example is located in data/germlines/imgt-aligned-igh.fa (this isn\'t set by default because imgt alignments are subject to change)')
+            args.aligned_germline_fname = '%s/%s/imgt-alignments/%s.fa' % (args.default_initial_germline_dir, args.species, args.locus)
+        if not os.path.exists(args.aligned_germline_fname):
+            raise Exception('--aligned-germline-fname %s doesn\'t exist, but we need it in order to write presto output' % args.aligned_germline_fname)
 
     if args.cluster_annotation_fname is None and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':  # if it wasn't set on the command line (<outfname> _was_ set), _and_ if we were asked for a csv, then use the old file name format
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)

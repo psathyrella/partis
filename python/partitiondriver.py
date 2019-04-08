@@ -246,6 +246,8 @@ class PartitionDriver(object):
             alcluster_alleles = alclusterer.get_alleles(self.sw_info, debug=self.args.debug_allele_finding, plotdir=None if self.args.plotdir is None else self.args.plotdir + '/sw/alcluster')
             if len(alcluster_alleles) > 0:
                 glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo, debug=True)
+                if self.aligned_gl_seqs is not None:
+                    glutils.add_missing_alignments(self.glfo, self.aligned_gl_seqs, debug=True)
             alclusterer = None
 
         if not self.args.dont_find_new_alleles:
@@ -257,6 +259,8 @@ class PartitionDriver(object):
             if len(new_allele_info) > 0:
                 glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
                 glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo, use_template_for_codon_info=False)  # <remove_template_genes> stuff is handled in <new_allele_info> (also note, can't use template for codon info since we may have already removed it)
+                if self.aligned_gl_seqs is not None:
+                    glutils.add_missing_alignments(self.glfo, self.aligned_gl_seqs)
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True, dbg_str='writing parameters')

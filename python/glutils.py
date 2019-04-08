@@ -140,7 +140,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
     glseqs = glfo['seqs'][region]  # shorthand
     n_skipped_pseudogenes, n_skipped_orfs = 0, 0
     seq_to_gene_map = {}
-    printed_imgt_warning, renamed_genes = False, []
+    renamed_genes = []
     is_imgt_file = None
     for seqfo in utils.read_fastx(fname, dont_split_infostrs=True):
         if is_imgt_file is None:
@@ -150,9 +150,6 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
         if (not add_dummy_name_components) and is_imgt_file:  # if it's an imgt file, with a bunch of header info, and the accession number first (if we're adding dummy name components, we just take whatever garbage is first and smash on IGH or whatever)
             seqfo['infostrs'] = seqfo['infostrs'].split('|')
             seqfo['name'] = get_imgt_info(seqfo['infostrs'], 'gene')
-            if not printed_imgt_warning:
-                print '  note: assuming %s is a file downloaded directly from http://www.imgt.org/vquest/refseqh.html, i.e. that the meta info is splattered all over the fasta line starting with \'>\' (if this is *not* an imgt file, then you may want to set --sanitize-input-germlines).' % fname
-                printed_imgt_warning = True
             if len(seqfo['infostrs']) < len(imgt_info_indices):
                 raise Exception('info str is too short (len %d) to correspond to imgt info indices (len %d):\n  %s\n  %s' % (len(seqfo['infostrs']), len(imgt_info_indices), seqfo['infostrs'], imgt_info_indices))
             gene = seqfo['name']
@@ -246,6 +243,7 @@ def read_aligned_gl_seqs(fname, glfo, locus):  # only used in partitiondriver wi
     for region in utils.regions:
         read_fasta_file(tmpglfo, region, fname, skip_pseudogenes=False, skip_orfs=False, aligned=True, skip_other_region=True)
     aligned_gl_seqs = {r : tmpglfo['seqs'][r] for r in utils.regions}
+    add_missing_alignments(glfo, aligned_gl_seqs)
 
     # pad all the Vs to the same length (imgt fastas just leave them all unequal lengths on the right of the alignment)
     max_aligned_length = max([len(seq) for seq in aligned_gl_seqs['v'].values()])
@@ -262,19 +260,25 @@ def read_aligned_gl_seqs(fname, glfo, locus):  # only used in partitiondriver wi
     return aligned_gl_seqs
 
 # ----------------------------------------------------------------------------------------
-def get_new_alignments(glfo, region, debug=False):
-    aligned_seqs = {}
+def add_missing_alignments(glfo, aligned_gl_seqs, debug=False):
+    for region in utils.regions:
+        _ = get_new_alignments(glfo, region, aligned_seqs=aligned_gl_seqs[region], debug=debug)  # don't need the returned one, since the one we pass in is modified (and it's the same)
 
-    genes_with_alignments = set(aligned_seqs)  # used to already have some sequences aligned, and may as well keep around the code to handle that case
+# ----------------------------------------------------------------------------------------
+def get_new_alignments(glfo, region, aligned_seqs=None, debug=False):
+    if aligned_seqs is None:
+        aligned_seqs = {}
+
+    genes_with_alignments = set(aligned_seqs)  # used to already have some sequences aligned, and may as well keep around the code to handle that case UPDATE and now we've re-added it!
     genes_without_alignments = set(glfo['seqs'][region]) - set(aligned_seqs)
     if len(genes_without_alignments) == 0:
         if debug:
-            print '  no missing %s alignments' % region
+            print '        no missing %s alignments' % region
         return
 
     if debug:
-        print '        missing alignments for %d %s genes' % (len(genes_without_alignments), region)
-        if len(aligned_seqs) > 0:
+        print '        missing alignments for %d %s gene%s: %s' % (len(genes_without_alignments), region, utils.plural(len(genes_without_alignments)), utils.color_genes(genes_without_alignments))
+        if debug > 1 and len(aligned_seqs) > 0:
             print '      existing alignments:'
             for g, seq in aligned_seqs.items():
                 print '    %s   %s' % (seq, utils.color_gene(g))
@@ -309,7 +313,7 @@ def get_new_alignments(glfo, region, debug=False):
 
     # actually run mafft
     cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fnamefname + ' >' + mafft_outfname  # options=  # "--localpair --maxiterate 1000"
-    if debug:
+    if debug > 1:
         print '          RUN %s' % cmd
     proc = Popen(cmd, shell=True, stderr=PIPE)
     _, err = proc.communicate()  # debug info goes to err
@@ -331,9 +335,9 @@ def get_new_alignments(glfo, region, debug=False):
     for seqfo in utils.read_fastx(mafft_outfname):
         gene = seqfo['name']
         seq = seqfo['seq']
-        if gene not in glfo['seqs'][region]:  # only really possible if there's a bug in the preceding fifty lines, but oh well, you can't be too careful
-            raise Exception('unexpected gene %s in mafft output' % gene)
         aligned_seqs[gene] = seq  # overwrite the old alignment with the new one
+    if debug:
+        print '          added %d new alignments' % len(set(aligned_seqs) & set(genes_without_alignments))
     if debug > 1:
         print '  new alignments:'
         for g, seq in aligned_seqs.items():
