@@ -260,7 +260,7 @@ class PartitionDriver(object):
                 glutils.restrict_to_genes(self.glfo, list(self.sw_info['all_best_matches']))
                 glutils.add_new_alleles(self.glfo, new_allele_info, debug=True, simglfo=self.simglfo, use_template_for_codon_info=False)  # <remove_template_genes> stuff is handled in <new_allele_info> (also note, can't use template for codon info since we may have already removed it)
                 if self.aligned_gl_seqs is not None:
-                    glutils.add_missing_alignments(self.glfo, self.aligned_gl_seqs)
+                    glutils.add_missing_alignments(self.glfo, self.aligned_gl_seqs, debug=True)
 
         # get and write sw parameters
         self.run_waterer(count_parameters=True, write_parameters=True, write_cachefile=True, dbg_str='writing parameters')
