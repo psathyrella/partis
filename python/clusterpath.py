@@ -402,7 +402,7 @@ class ClusterPath(object):
         for partition in partitions:
             if sum(len(c) for c in partition) > len(set(u for c in partition for u in c)):
                 repeated_uids = [u for u, count in collections.Counter([u for c in partition for u in c]).items() if count > 1]
-                raise Exception('found %d uid%s (%s) in more than one cluster' % (len(repeated_uids), utils.plural(len(repeated_uids)), ', '.join(repeated_uids)))
+                raise Exception('found %d uid%s in more than one cluster (%s)' % (len(repeated_uids), utils.plural(len(repeated_uids)), ', '.join(repeated_uids)))
 
         default_edge_length = 999999  # it's nice to have the edges all set to something that's numeric (so the trees print), but also obvious wrong, if we forget to set somebody
         assert len(partitions[-1]) == 1

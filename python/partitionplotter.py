@@ -4,6 +4,7 @@ import numpy
 import itertools
 import sys
 import time
+import collections
 
 from hist import Hist
 import utils
@@ -507,6 +508,10 @@ class PartitionPlotter(object):
                 continue
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             if len(annotation['unique_ids']) < self.laplacian_spectra_min_clusters_size:
+                continue
+            if len(set(sorted_clusters[iclust])) < len(sorted_clusters[iclust]):
+                repeated_uids = [u for u, count in collections.Counter(sorted_clusters[iclust]).items() if count > 1]
+                print '  skipping laplacian spectra plotting for cluster with %d duplicate uids (%s)' % (len(repeated_uids), ' '.join(repeated_uids))
                 continue
             if 'tree-info' in annotation and 'lb' in annotation['tree-info']:
                 treestr = annotation['tree-info']['lb']['tree']
