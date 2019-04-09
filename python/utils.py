@@ -2778,7 +2778,10 @@ def summarize_bcrham_dbgstrs(dbgfos, action):
                     print '        %s bcrham procs had different \'%s\' \'%s\' info: %d vs %d' % (color('red', 'warning'), vtype, dbgcat, procfo[dbgcat][vtype], summaryfo[dbgcat][vtype])
         for dbgcat in bcrham_dbgstr_types[action]['sum']:  # lines for which we want to add up the values
             for vtype in bcrham_dbgstrs[action][dbgcat]:
-                summaryfo[dbgcat][vtype] += procfo[dbgcat][vtype]
+                if procfo[dbgcat][vtype] is None:  # can't seem to replicate this, but it happened once
+                    print '  %s none type dbg info read from subprocess (maybe the batch system made the subprocess print out something extra so it didn\'t parse correctly?)' % color('yellow', 'warning')
+                else:
+                    summaryfo[dbgcat][vtype] += procfo[dbgcat][vtype]
         for dbgcat in bcrham_dbgstr_types[action]['min-max']:  # lines for which we want to keep track of the smallest and largest values (e.g. time required)
             for vtype in bcrham_dbgstrs[action][dbgcat]:
                 summaryfo[dbgcat][vtype].append(procfo[dbgcat][vtype])
