@@ -9,6 +9,7 @@ import subprocess
 import multiprocessing
 import numpy
 import scipy
+import collections
 if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
     raise RuntimeError("scipy version 0.17 or later is required (found version %s)." % scipy.__version__)
 import colored_traceback.always
@@ -333,21 +334,22 @@ parent_parser.add_argument('--lb-tau', type=float, default=treeutils.default_lb_
 parent_parser.add_argument('--no-sw-vsearch', action='store_true', help='By default, we get preliminary V annotations from vsearch that we pass to sw. This improves accuracy because the vsearch shm rate estimates let us separate sequences into groups by optimal sw match/mismatch scores, and improves speed by letting us reverse shm V indels before running sw (so fewer sw iterations; also vsearch is faster than sw). Setting this option skips the preliminary vsearch step (although if caching parameters, we still use vsearch to remove less-likely genes; but no vsearch info is passed to sw)')
 
 # ----------------------------------------------------------------------------------------
-subconfig = {
-    'version'          : {'func' : int, 'help' : 'print version information and exit'},  # int doesn't do anything, it's just because I have to put something here
-    'cache-parameters' : {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'},
-    'annotate'         : {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'},
-    'partition'        : {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'},
-    'simulate'         : {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'},
-    'view-output'      : {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'},
-    'view-annotations' : {'func' : run_partitiondriver, 'help' : 'Print annotations from an existing annotation output csv.'},
-    'view-partitions'  : {'func' : run_partitiondriver, 'help' : 'Print partitions from an existing partition output csv.'},
-    'view-alternative-annotations' : {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'},
-    'view-alternative-naive-seqs' : {'func' : run_partitiondriver, 'help' : 'DEPRECATED use view-alternative-annotations'},
-    'plot-partitions'  : {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'},
-    'get-tree-metrics' : {'func' : run_partitiondriver, 'help' : 'Calculate tree-based selection metrics on existing output.'},
-    'run-viterbi'      : {'func' : run_partitiondriver, 'help' : 'deprecated, do not use'},
-}
+subconfig = collections.OrderedDict((
+    ('version'          , {'func' : int, 'help' : 'print version information and exit'}),  # int doesn't do anything, it's just because I have to put something here
+    ('cache-parameters' , {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'}),
+    ('annotate'         , {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'}),
+    ('partition'        , {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'}),
+    ('simulate'         , {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'}),
+    ('view-output'      , {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'}),
+    ('view-alternative-annotations' , {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs (or --persistent-cachefname) in a previous partition step so that this information was saved.'}),
+    ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
+    ('get-tree-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate tree-based selection metrics on existing output.'}),
+    # deprecated actions:
+    ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
+    ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
+    ('view-alternative-naive-seqs'  , {'func' : run_partitiondriver, 'help' : 'DEPRECATED use \'view-alternative-annotations\''}),
+    ('run-viterbi'      , {'func' : run_partitiondriver, 'help' : 'DEPRECATED use \'annotate\''}),
+))
 
 def runs_on_existing_output(actionstr):
     if actionstr == 'get-tree-metrics':
