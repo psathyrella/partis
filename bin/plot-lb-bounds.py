@@ -33,7 +33,7 @@ except ImportError as e:
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 
 if args.workdir is None:
-    args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER') if os.getenv('USER') is not None else 'partis-work'))
+    args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work'))
 
 # import plotting
 # xvals, yvals = zip(*((1, 0.0034),

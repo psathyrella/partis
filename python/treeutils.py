@@ -802,7 +802,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     if tree_method is None:
         tree_method = 'dnapars' if len(input_seqfos) < 500 else 'neighbor'
 
-    workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
+    workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER', default='partis-work'))
     os.makedirs(workdir)
 
     if debug:
@@ -984,7 +984,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
         print treestr
 
     if workdir is None:
-        workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
+        workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER', default='partis-work'))
     eigenfname = '%s/eigenvalues.txt' % workdir
     os.makedirs(workdir)
 
