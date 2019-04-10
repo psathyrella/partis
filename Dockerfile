@@ -1,5 +1,8 @@
 FROM continuumio/anaconda
 
+RUN cat /etc/os-release
+RUN echo $PATH
+
 RUN apt-get update && apt-get install -y \
   build-essential \
   libboost-dev \
