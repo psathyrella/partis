@@ -204,6 +204,7 @@ def plot_trees(args):
     etree = ete3.Tree(treefo['treestr'], format=1)
 
     tstyle = ete3.TreeStyle()
+    tstyle.mode = 'c'
     # tstyle.show_scale = False
     # tstyle.scale_length = args.lb_tau
     # tstyle.show_branch_length = True
@@ -212,7 +213,7 @@ def plot_trees(args):
     if args.metafo is not None:
         set_meta_styles(args, etree, tstyle)
 
-    print '      %s' % args.outfname
+    # print '      %s' % args.outfname
     tstyle.show_leaf_name = False
     etree.render(args.outfname, tree_style=tstyle)
 

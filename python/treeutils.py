@@ -399,7 +399,7 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
         dtree = input_dtree  # only actually affects the debug print below
 
     if debug:
-        print '  calculated lb values with tau %.3f' % tau
+        print '  calculated lb values with tau %.4f' % tau
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
         print ('   %' + max_width + 's   multi     lbi       lbr      clock length') % 'node'
         for node in dtree.postorder_node_iter():
@@ -470,7 +470,6 @@ def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=
 
 # ----------------------------------------------------------------------------------------
 def calculate_lb_values(dtree, lbi_tau, lbr_tau, annotation=None, input_metafo=None, add_dummy_root=False, add_dummy_leaves=False, use_multiplicities=False, naive_seq_name=None, extra_str=None, only_calc_val=None, debug=False):
-
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong), but no annotation was passed in')
@@ -521,11 +520,17 @@ def get_min_lbi(seq_len, tau, n_tau_lengths=10):
     return lbvals
 
 # ----------------------------------------------------------------------------------------
-def get_max_lbi(seq_len, tau, n_tau_lengths=10, n_offspring=2):
+def get_max_lbi(seq_len, tau, n_tau_lengths=5, n_generations=None, n_offspring=2, debug=False):
     start = time.time()
 
-    n_generations = max(1, int(seq_len * tau * n_tau_lengths))
-    print '   %d generations = seq_len * tau * n_tau_lengths = %d * %.4f * %d = max(1, int(%.2f))' % (n_generations, seq_len, tau, n_tau_lengths, seq_len * tau * n_tau_lengths)
+    if n_generations is None:
+        assert n_tau_lengths is not None  # have to specify one or the other
+        n_generations = max(1, int(seq_len * tau * n_tau_lengths))
+        if debug:
+            print '   %d generations = seq_len * tau * n_tau_lengths = %d * %.4f * %d = max(1, int(%.2f))' % (n_generations, seq_len, tau, n_tau_lengths, seq_len * tau * n_tau_lengths)
+    else:
+        if debug:
+            print '   %d generations' % n_generations
 
     dtree = dendropy.Tree()  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculat lb values)
     old_leaf_nodes = [dtree.seed_node]
@@ -539,9 +544,11 @@ def get_max_lbi(seq_len, tau, n_tau_lengths=10, n_offspring=2):
 
     label_nodes(dtree)
     lbvals = calculate_lb_values(dtree, tau, default_lbr_tau_factor * tau, only_calc_val='lbi')
-    print '  max of %d lbi values (%.1fs): %.4f' % (len(lbvals['lbi']), time.time() - start, max(lbvals['lbi'].values()))
+    max_name, max_val = max(lbvals['lbi'].items(), key=operator.itemgetter(1))
+    if debug:
+        print '  max of %d lbi values (%.1fs):  %s  %.4f' % (len(lbvals['lbi']), time.time() - start, max_name, max_val)
 
-    return lbvals
+    return max_name, max_val, lbvals
 
 # ----------------------------------------------------------------------------------------
 lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called
