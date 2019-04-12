@@ -610,7 +610,7 @@ class PartitionPlotter(object):
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
-            fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+            # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
             # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
