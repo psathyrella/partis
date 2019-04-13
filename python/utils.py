@@ -669,7 +669,7 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def align_many_seqs(seqfos, outfname=None):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
+def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
     def outfile_fcn():
         if outfname is None:
             return tempfile.NamedTemporaryFile()
@@ -680,17 +680,39 @@ def align_many_seqs(seqfos, outfname=None):  # if <outfname> is specified, we ju
         for seqfo in seqfos:
             fin.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
         fin.flush()
-        subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
+        if existing_aligned_seqfos is None:  # default: align all the sequences in <seqfos>
+            # subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
+            outstr, errstr = simplerun('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True, return_out_err=True, debug=False)
+        else:  # if <existing_aligned_seqfos> is set, we instead add the sequences in <seqfos> to the alignment in <existing_aligned_seqfos>
+            with tempfile.NamedTemporaryFile() as existing_alignment_file:  # NOTE duplicates code in glutils.get_new_alignments()
+                biggest_length = max(len(sfo['seq']) for sfo in existing_aligned_seqfos)
+                for sfo in existing_aligned_seqfos:
+                    dashstr = '-' * (biggest_length - len(sfo['seq']))
+                    existing_alignment_file.write('>%s\n%s\n' % (sfo['name'], sfo['seq'].replace('.', '-') + dashstr))
+                existing_alignment_file.flush()
+                # subprocess.check_call('mafft --keeplength --add %s %s >%s' % (fin.name, existing_alignment_file.name, fout.name), shell=True)  #  --reorder
+                outstr, errstr = simplerun('mafft --keeplength --add %s %s >%s' % (fin.name, existing_alignment_file.name, fout.name), shell=True, return_out_err=True, debug=False)  #  --reorder
+
         if outfname is not None:
             return None
+
         msa_info = read_fastx(fout.name, ftype='fa')
+        if existing_aligned_seqfos is not None:  # this may not be necessary, but may as well stay as consistent as possible
+            for sfo in msa_info:
+                sfo.update({'seq' : sfo['seq'].replace('-', '.')})
+
         input_ids = set([sfo['name'] for sfo in seqfos])
         output_ids = set([sfo['name'] for sfo in msa_info])
-        if output_ids != input_ids:
-            print '  input ids not in output: %s' % ' '.join(input_ids - output_ids)
-            print '  extra ids in output: %s' % ' '.join(output_ids - input_ids)
-            subprocess.check_call(['cat', fin.name])
-            raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
+        missing_ids = input_ids - output_ids
+        extra_ids = output_ids - input_ids
+        if len(missing_ids) > 0 or (not ignore_extra_ids and len(extra_ids) > 0):
+            print '  %d input ids not in output: %s' % (len(missing_ids), ' '.join(missing_ids))
+            print '  %d extra ids in output: %s' % (len(extra_ids), ' '.join(extra_ids))
+            print '  mafft out/err:'
+            print pad_lines(outstr)
+            print pad_lines(errstr)
+            raise Exception('error reading mafft output from %s (see previous lines)' % fin.name)
+
     return msa_info
 
 # ----------------------------------------------------------------------------------------

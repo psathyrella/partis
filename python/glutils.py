@@ -136,7 +136,7 @@ def get_is_imgt_file(infostr):
     return True
 
 #----------------------------------------------------------------------------------------
-def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=False, add_dummy_name_components=False, locus=None, skip_other_region=False, debug=False):
+def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=False, add_dummy_name_components=False, locus=None, skip_other_region=False, dont_warn_about_duplicates=False, debug=False):
     glseqs = glfo['seqs'][region]  # shorthand
     n_skipped_pseudogenes, n_skipped_orfs = 0, 0
     seq_to_gene_map = {}
@@ -215,7 +215,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
         print '    renamed %d genes from %s: %s%s' % (len(renamed_genes), fname, tmpstr, '  [...]' if len(renamed_genes) > n_max_print else '')
 
     tmpcounts = [len(gl) for gl in seq_to_gene_map.values()]  # number of names corresponding to each sequence (should all be ones)
-    if tmpcounts.count(1) != len(tmpcounts):
+    if tmpcounts.count(1) != len(tmpcounts) and not dont_warn_about_duplicates:
         print '  %s mutliple names in %s for the following sequences:' % (utils.color('red', 'warning'), fname)
         for seq, genelist in seq_to_gene_map.items():
             if len(genelist) > 1:
@@ -238,10 +238,10 @@ def read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_na
     return glfo
 
 # ----------------------------------------------------------------------------------------
-def read_aligned_gl_seqs(fname, glfo, locus):  # only used in partitiondriver with --aligned-germline-fname (which is only used for presto output)
+def read_aligned_gl_seqs(fname, glfo, locus, dont_warn_about_duplicates=False):  # only used in partitiondriver with --aligned-germline-fname (which is only used for presto output)
     tmpglfo = {'locus' : locus, 'functionalities' : {}, 'seqs' : {r : OrderedDict() for r in utils.regions}}  # HACK HACK HACK
     for region in utils.regions:
-        read_fasta_file(tmpglfo, region, fname, skip_pseudogenes=False, skip_orfs=False, aligned=True, skip_other_region=True)
+        read_fasta_file(tmpglfo, region, fname, skip_pseudogenes=False, skip_orfs=False, aligned=True, skip_other_region=True, dont_warn_about_duplicates=dont_warn_about_duplicates)
     aligned_gl_seqs = {r : tmpglfo['seqs'][r] for r in utils.regions}
     add_missing_alignments(glfo, aligned_gl_seqs, debug=True)
 
@@ -265,7 +265,7 @@ def add_missing_alignments(glfo, aligned_gl_seqs, debug=False):
         _ = get_new_alignments(glfo, region, aligned_seqs=aligned_gl_seqs[region], debug=debug)  # don't need the returned one, since the one we pass in is modified (and it's the same)
 
 # ----------------------------------------------------------------------------------------
-def get_new_alignments(glfo, region, aligned_seqs=None, debug=False):
+def get_new_alignments(glfo, region, aligned_seqs=None, use_old_mafft_merge_method=False, debug=False):
     if aligned_seqs is None:
         aligned_seqs = {}
 
@@ -281,75 +281,71 @@ def get_new_alignments(glfo, region, aligned_seqs=None, debug=False):
         if debug > 1 and len(aligned_seqs) > 0:
             print '      existing alignments:'
             for g, seq in aligned_seqs.items():
-                print '    %s   %s' % (seq, utils.color_gene(g))
+                print '            %s   %s' % (seq, utils.color_gene(g))
 
-    # find the longest aligned sequence, so we can pad everybody else with dots on the right out to that length
-    biggest_length = None
-    for gene in genes_with_alignments:
-        if biggest_length is None or len(aligned_seqs[gene]) > biggest_length:
-            biggest_length = len(aligned_seqs[gene])
-
-    tmpdir = tempfile.mkdtemp()
-    already_aligned_fname = tmpdir + '/already-aligned.fasta'
-    not_aligned_fname = tmpdir + '/not-aligned.fasta'
-    msa_table_fname = tmpdir + '/msa-table.txt'
-    aligned_and_not_fnamefname = tmpdir + '/aligned-and-not.fasta'
-    mafft_outfname = tmpdir + '/everybody-aligned.fasta'
-    with open(already_aligned_fname, 'w') as tmpfile, open(msa_table_fname, 'w') as msafile:
-        mysterious_index = 1
-        msa_str = ''
+    if use_old_mafft_merge_method:  # NOTE could really probably remove this, I doubt I'll really use it any more (I think I only used --merge because I didn't know about --add)
+        # find the longest aligned sequence, so we can pad everybody else with dots on the right out to that length
+        biggest_length = None
         for gene in genes_with_alignments:
-            dotstr = '.' * (biggest_length - len(aligned_seqs[gene]))
-            alistr = aligned_seqs[gene] + dotstr
-            tmpfile.write('>%s\n%s\n' % (gene, alistr.replace('.', '-')))
-            msa_str += ' ' + str(mysterious_index)
-            mysterious_index += 1
-        msafile.write('%s # %s\n' % (msa_str, already_aligned_fname))
-    with open(not_aligned_fname, 'w') as tmpfile:
-        for gene in genes_without_alignments:
-            tmpfile.write('>%s\n%s\n' % (gene, glfo['seqs'][region][gene]))
+            if biggest_length is None or len(aligned_seqs[gene]) > biggest_length:
+                biggest_length = len(aligned_seqs[gene])
 
-    check_call('cat ' + already_aligned_fname + ' ' + not_aligned_fname + ' >' + aligned_and_not_fnamefname, shell=True)
+        tmpdir = tempfile.mkdtemp()
+        already_aligned_fname = tmpdir + '/already-aligned.fasta'
+        not_aligned_fname = tmpdir + '/not-aligned.fasta'
+        msa_table_fname = tmpdir + '/msa-table.txt'
+        aligned_and_not_fname = tmpdir + '/aligned-and-not.fasta'
+        mafft_outfname = tmpdir + '/everybody-aligned.fasta'
+        with open(already_aligned_fname, 'w') as tmpfile, open(msa_table_fname, 'w') as msafile:
+            mysterious_index = 1
+            msa_str = ''
+            for gene in genes_with_alignments:
+                dotstr = '.' * (biggest_length - len(aligned_seqs[gene]))
+                alistr = aligned_seqs[gene] + dotstr
+                tmpfile.write('>%s\n%s\n' % (gene, alistr.replace('.', '-')))
+                msa_str += ' ' + str(mysterious_index)
+                mysterious_index += 1
+            msafile.write('%s # %s\n' % (msa_str, already_aligned_fname))
+        with open(not_aligned_fname, 'w') as tmpfile:
+            for gene in genes_without_alignments:
+                tmpfile.write('>%s\n%s\n' % (gene, glfo['seqs'][region][gene]))
 
-    # actually run mafft
-    cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fnamefname + ' >' + mafft_outfname  # options=  # "--localpair --maxiterate 1000"
-    if debug > 1:
-        print '          RUN %s' % cmd
-    proc = Popen(cmd, shell=True, stderr=PIPE)
-    _, err = proc.communicate()  # debug info goes to err
+        check_call('cat ' + already_aligned_fname + ' ' + not_aligned_fname + ' >' + aligned_and_not_fname, shell=True)
 
-    if debug and False:  # aw, screw it, I don't even know what any of mafft's output means
-        # deal with debug info (for err -- out gets redirected to a file)
-        err = err.replace('\r', '\n')
-        printstrs = []
-        for errstr in err.split('\n'):  # remove the stupid progress bar things
-            matches = re.findall('[0-9][0-9]* / [0-9][0-9]*', errstr)
-            if len(matches) == 1 and errstr.strip() == matches[0]:
-                continue
-            if len(errstr) == 0:
-                continue
-            printstrs.append(errstr)
-        print '        ' + '\n        '.join(printstrs)
+        # actually run mafft
+        cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fname + ' >' + mafft_outfname  # options=  # "--localpair --maxiterate 1000"
+        if debug > 1:
+            print '          RUN %s' % cmd
+        proc = Popen(cmd, shell=True, stderr=PIPE)
+        _, err = proc.communicate()  # debug info goes to err
+        aligned_seqfos = utils.read_fastx(mafft_outfname)
+    else:
+        aligned_seqfos = utils.align_many_seqs([{'name' : g, 'seq' : glfo['seqs'][region][g]} for g in genes_without_alignments],
+                                               existing_aligned_seqfos=[{'name' : g, 'seq' : s} for g, s in aligned_seqs.items()],
+                                               ignore_extra_ids=True)
 
-    # deal with fasta output
-    for seqfo in utils.read_fastx(mafft_outfname):
-        gene = seqfo['name']
-        seq = seqfo['seq']
-        aligned_seqs[gene] = seq  # overwrite the old alignment with the new one
+    # overwrite the old alignment with the new one
+    for seqfo in aligned_seqfos:
+        aligned_seqs[seqfo['name']] = seqfo['seq']
+
+    genes_still_missing = set(genes_without_alignments) - set(aligned_seqs)
+    if len(genes_still_missing) > 0:
+        raise Exception('missing alignment for %d genes: %s' % (len(genes_still_missing), utils.color_genes(genes_still_missing)))
     if debug:
         print '          added %d new alignments' % len(set(aligned_seqs) & set(genes_without_alignments))
     if debug > 1:
         print '  new alignments:'
-        for g, seq in aligned_seqs.items():
-            print '            %s   %s  %s' % (seq, utils.color_gene(g, width=12 if region == 'v' else 8), '<--- new' if g in genes_without_alignments else '')
+        for g in genes_without_alignments:
+            print '            %s   %s  %s' % (aligned_seqs[g], utils.color_gene(g, width=12 if region == 'v' else 8), '<--- new' if g in genes_without_alignments else '')
         print ''
 
-    os.remove(already_aligned_fname)
-    os.remove(not_aligned_fname)
-    os.remove(msa_table_fname)
-    os.remove(aligned_and_not_fnamefname)
-    os.remove(mafft_outfname)
-    os.rmdir(tmpdir)
+    if use_old_mafft_merge_method:
+        os.remove(already_aligned_fname)
+        os.remove(not_aligned_fname)
+        os.remove(msa_table_fname)
+        os.remove(aligned_and_not_fname)
+        os.remove(mafft_outfname)
+        os.rmdir(tmpdir)
 
     return aligned_seqs
 
