@@ -204,7 +204,7 @@ def plot_trees(args):
     etree = ete3.Tree(treefo['treestr'], format=1)
 
     tstyle = ete3.TreeStyle()
-    tstyle.mode = 'c'
+    tstyle.mode = args.tree_style[0]
     # tstyle.show_scale = False
     # tstyle.scale_length = args.lb_tau
     # tstyle.show_branch_length = True
@@ -225,6 +225,7 @@ parser.add_argument('--lb-metric', default='lbi', choices=['lbi', 'lbr'])
 parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'relative_affinity'])
 # parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--metafname')
+parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
 args = parser.parse_args()

@@ -1592,7 +1592,7 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label
     return ['%s/%s.svg' % (plotdir, plotname)]
 
 # ----------------------------------------------------------------------------------------
-def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None):
+def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
@@ -1611,11 +1611,13 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
     # cmdstr += ' --lb-tau %f' % lb_tau
     cmdstr += ' --log-lbr'
+    if tree_style is not None:
+        cmdstr += ' --tree-style %s' % tree_style
 
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'infname' : treefname, 'metafname' : metafname}
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False):
+def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False, tree_style=None):
     workdir = '%s/ete3-plots' % base_workdir
     if not os.path.exists(workdir):
         os.makedirs(workdir)
@@ -1628,7 +1630,7 @@ def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False):
                 if affy_key in line:  # either 'affinities' or 'relative_affinities'
                     metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
                 outfname = '%s/trees/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
-                cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo)]
+                cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style)]
 
     start = time.time()
     utils.run_cmds(cmdfos, clean_on_success=True, shell=True) #, debug='print')
