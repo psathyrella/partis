@@ -37,7 +37,6 @@ def rearrange():
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(naive_line, outdir, ievent):
     tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
-    os.makedirs(tmpdir)
     prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
     cmd = 'export TMPDIR=%s && export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (tmpdir, ete_path, prof_cmds, bcr_phylo_path)
 
@@ -75,8 +74,8 @@ def run_bcr_phylo(naive_line, outdir, ievent):
     cmd += ' --random_seed %d' % (args.seed + ievent)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-
-    utils.simplerun(cmd, shell=True, extra_str='        ', debug=True) #, dryrun=True)
+    os.makedirs(tmpdir)
+    utils.simplerun(cmd, shell=True, extra_str='        ', debug=True)  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
     os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
