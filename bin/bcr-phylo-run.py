@@ -65,17 +65,19 @@ def run_bcr_phylo(naive_line, outdir, ievent):
     else:
         assert False
 
-
     cmd += ' --debug 1'
     cmd += ' --no_context'
     cmd += ' --no_plot'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
-    cmd += ' --naive_seq %s' % naive_line['naive_seq']
     cmd += ' --random_seed %d' % (args.seed + ievent)
+    cmd += ' --naive_seq %s' % naive_line['naive_seq']
+
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     os.makedirs(tmpdir)
-    utils.simplerun(cmd, shell=True, extra_str='        ', debug=True)  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
+
+    utils.simplerun(cmd, shell=True, extra_str='        ')  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
+
     os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
@@ -173,8 +175,10 @@ def partition():
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
+all_actions = ('simu', 'partis')
 parser = argparse.ArgumentParser()
 parser.add_argument('--stype', default='selection', choices=('selection', 'neutral'))
+parser.add_argument('--actions', default='simu:partis')
 parser.add_argument('--label', default='test', help='output subdirectory')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--run-help', action='store_true')
@@ -194,7 +198,10 @@ parser.add_argument('--lb-tau', type=float, default=0.001, help='')
 args = parser.parse_args()
 
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
+args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 
 # ----------------------------------------------------------------------------------------
-simulate()
-partition()
+if 'simu' in args.actions:
+    simulate()
+if 'partis' in args.actions:
+    partition()
