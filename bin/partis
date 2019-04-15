@@ -205,6 +205,8 @@ def run_partitiondriver(args):
 
     actions = [args.action]  # do *not* use <args.action> after this (well, for anything other than checking what was actually set on the command line)
     if args.action in ['annotate', 'partition'] and not os.path.exists(args.parameter_dir):
+        if args.refuse_to_cache_parameters:
+            raise Exception('--parameter-dir %s doesn\'t exist, and --refuse-to-cache-parameters was set' % args.parameter_dir)
         actions = ['cache-parameters'] + actions
         print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, actions[1])
         if args.seed_unique_id is not None or args.seed_seq is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
@@ -292,6 +294,7 @@ parent_parser.add_argument('--cluster-annotation-fname', help='output file for c
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, a default location is used (and printed to std out). If it does not exist, we infer parameters before proceeding to the desired action.')
 parent_parser.add_argument('--parameter-type', default='hmm', choices=('sw', 'hmm'), help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you should almost certainly use the hmm ones, but sw is occasionally useful for debugging)')
 parent_parser.add_argument('--parameter-out-dir', help='Special parameter dir for writing multi-hmm parameters, i.e. when running annotate or partition with --count-parameters set (if not set, defaults to <--parameter-dir>/multi-hmm).')
+parent_parser.add_argument('--refuse-to-cache-parameters', action='store_true', help='Disables auto parameter caching, i.e. if --parameter-dir doesn\'t exist, instead of inferring parameters, raise an exception. Useful for batch/production use where you want to make sure you\'re caching parameters in a separate step.')
 parent_parser.add_argument('--persistent-cachefname', help='Name of file which will be used as an initial cache file (if it exists), and to which all cached info will be written out before exiting.')
 parent_parser.add_argument('--sw-cachefname', help='Smith-Waterman cache file name. Default is set using a hash of all the input sequence ids (in partitiondriver, since we have to read the input file first).')
 parent_parser.add_argument('--write-sw-cachefile', action='store_true', help='Write sw results to the sw cache file during actions for which we\'d normally only look for an existing one (i.e annotate and partition).')
