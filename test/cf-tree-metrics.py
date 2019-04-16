@@ -16,6 +16,9 @@ def get_outfname(outdir):
 
 # ----------------------------------------------------------------------------------------
 def calc_max_lbi(args):
+    if args.overwrite:
+        raise Exception('not implemented')
+
     parsed_info = {}
     for lbt in args.lb_tau_list:
 
@@ -27,9 +30,9 @@ def calc_max_lbi(args):
         for n_gen in gen_list:
 
             # if ntl is not None:
-            #     this_outdir = '%s/%s/n-tau-%.2f-lbt-%.4f' % (args.base_outdir, args.label, ntl, lbt)
+            #     this_outdir = '%s/ XXX %s/n-tau-%.2f-lbt-%.4f' % (args.base_outdir, args.label, ntl, lbt)
             # elif n_gen is not None:
-            this_outdir = '%s/%s/n_gen-%d-lbt-%.4f' % (args.base_outdir, args.label, n_gen, lbt)
+            this_outdir = '%s/lb-tau-optimization/%s/n_gen-%d-lbt-%.4f' % (args.base_outdir, args.label, n_gen, lbt)
 
             if os.path.exists(get_outfname(this_outdir)):
                 if args.make_plots:
@@ -62,25 +65,45 @@ def calc_max_lbi(args):
         for lbt in sorted(parsed_info, reverse=True):
             n_gen_list, max_lbi_list = zip(*sorted(parsed_info[lbt].items(), key=operator.itemgetter(0)))
             ax.plot(n_gen_list, max_lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-        plotting.mpl_finish(ax, args.base_outdir, 'tau-vs-n-gen-vs-max-lbi', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+        plotting.mpl_finish(ax, args.base_outdir + '/lb-tau-optimization', 'tau-vs-n-gen-vs-max-lbi', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
 
         # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
         fig, ax = plotting.mpl_init()
         for lbt in sorted(parsed_info, reverse=True):
             n_gen_list, max_lbi_list = zip(*sorted(parsed_info[lbt].items(), key=operator.itemgetter(0)))
             ax.plot(n_gen_list, max_lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-        plotting.mpl_finish(ax, args.base_outdir, 'tau-vs-n-gen-vs-max-lbi-log', log='y', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+        plotting.mpl_finish(ax, args.base_outdir + '/lb-tau-optimization', 'tau-vs-n-gen-vs-max-lbi-log', log='y', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+
+# ----------------------------------------------------------------------------------------
+def run_bcr_phylo(args):
+
+    cmdfos = []
+    for ilbt, lbt in enumerate(args.lb_tau_list):
+        cmd = './bin/bcr-phylo-run.py --n-sim-seqs-per-generation 150 --obs-times 150'
+        cmd += ' --actions simu --lb-tau %f' % lbt
+        cmd += ' --label %s' % args.label
+        cmd += ' --seed %d' % args.random_seed
+        if args.overwrite:
+            cmd += ' --overwrite'
+        cmdfos += [{
+            'cmd_str' : cmd,
+            'outfname' : '%s/bcr-phylo/selection/%s/simu/mutated-simu.yaml' % (args.base_outdir, args.label),
+            'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, ilbt),
+        }]
+    utils.run_cmds(cmdfos, debug='print')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['get-max-lbi'])
+parser.add_argument('action', choices=['get-max-lbi', 'run-bcr-phylo'])
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.005:0.008')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10', help='set either this or --n-tau-lengths-list')
 parser.add_argument('--seq-len', default=400, type=int)
-parser.add_argument('--base-outdir', default='%s/partis/lb-tau-optimization' % os.getenv('fs'))
+parser.add_argument('--random-seed', default=1, type=int)
+parser.add_argument('--base-outdir', default='%s/partis' % os.getenv('fs'))
 parser.add_argument('--label', default='test')
 parser.add_argument('--make-plots', action='store_true')
+parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
@@ -107,3 +130,5 @@ if args.workdir is None:
 # ----------------------------------------------------------------------------------------
 if args.action == 'get-max-lbi':
     calc_max_lbi(args)
+elif args.action == 'run-bcr-phylo':
+    run_bcr_phylo(args)
