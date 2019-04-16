@@ -2599,11 +2599,11 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
     if n_max_tries is None:
         n_max_tries = 1 if batch_system is None else 3
     prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
-    procs, n_tries = [], []
+    procs, n_tries_list = [], []
     per_proc_sleep_time = 0.01 / max(1, len(cmdfos))
     for iproc in range(len(cmdfos)):
         procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell))
-        n_tries.append(1)
+        n_tries_list.append(1)
         if sleep:
             time.sleep(per_proc_sleep_time)
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
@@ -2611,7 +2611,7 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, shell=shell)
+                finish_process(iproc, procs, n_tries_list, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, shell=shell)
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
@@ -2652,7 +2652,7 @@ def get_slurm_node(errfname):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False, clean_on_success=False, shell=False):
+def finish_process(iproc, procs, n_tries_list, cmdfo, n_max_tries, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False, clean_on_success=False, shell=False):
     procs[iproc].communicate()
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
@@ -2671,16 +2671,11 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
             return
 
     # handle failure
-    print '    proc %d try %d' % (iproc, n_tries[iproc]),
+    print '    proc %d try %d' % (iproc, n_tries_list[iproc]),
     if procs[iproc].returncode == 0 and not os.path.exists(cmdfo['outfname']):  # don't really need both the clauses
         print 'succeded but output is missing'
     else:
-        print 'failed with %d (output %s)' % (procs[iproc].returncode, 'exists' if os.path.exists(cmdfo['outfname']) else 'is missing')
-    for strtype in ['out', 'err']:
-        if os.path.exists(cmdfo['logdir'] + '/' + strtype) and os.stat(cmdfo['logdir'] + '/' + strtype).st_size > 0:
-            print '        %s tail:           %s' % (strtype, cmdfo['logdir'] + '/' + strtype)
-            logstr = subprocess.check_output(['tail', '-n30', cmdfo['logdir'] + '/' + strtype])
-            print pad_lines(logstr, padwidth=12);
+        print 'failed with exit code %d (output %s)' % (procs[iproc].returncode, ('exists: %s' % cmdfo['outfname']) if os.path.exists(cmdfo['outfname']) else 'is missing')
     if batch_system is not None and batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
         if 'nodelist' in cmdfo:  # if we're doing everything from within an existing slurm allocation
             nodelist = cmdfo['nodelist']
@@ -2699,13 +2694,31 @@ def finish_process(iproc, procs, n_tries, cmdfo, n_max_tries, dbgfo=None, batch_
         print '        progress file (%s):' % (cmdfo['outfname'] + '.progress')
         print pad_lines(subprocess.check_output(['cat', cmdfo['outfname'] + '.progress']), padwidth=12)
 
-    if n_tries[iproc] < n_max_tries:
+    # ----------------------------------------------------------------------------------------
+    def logfname(ltype):
+        return cmdfo['logdir'] + '/' + ltype
+    # ----------------------------------------------------------------------------------------
+    def getlogstrs(logtypes=None):  # not actually using stdout at all, but maybe I should?
+        if logtypes is None:
+            logtypes = ['out', 'err']
+        returnstr = []
+        for ltype in logtypes:
+            if os.path.exists(logfname(ltype)) and os.stat(logfname(ltype)).st_size > 0:
+                returnstr += ['        std%s:           %s' % (ltype, logfname(ltype))]
+                returnstr += [pad_lines(subprocess.check_output(['cat', logfname(ltype)]), padwidth=12)]
+        return '\n'.join(returnstr)
+
+    if n_tries_list[iproc] < n_max_tries:
+        print getlogstrs(['err'])
         print '    restarting proc %d' % iproc
         procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options, shell=shell)
-        n_tries[iproc] += 1
+        n_tries_list[iproc] += 1
     else:
-        failstr = 'exceeded max number of tries for cmd\n    %s\nlook for output in %s and %s' % (cmdfo['cmd_str'], cmdfo['workdir'], cmdfo['logdir'])
-        print failstr
+        if n_tries_list[iproc] > 1:
+            failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n  %s\n' % (n_tries_list[iproc], n_max_tries, cmdfo['cmd_str'])
+        else:
+            failstr = 'subprocess failed with command:\n  %s\n' % cmdfo['cmd_str']
+        failstr += getlogstrs(['err'])
         raise Exception(failstr)
 
 # ----------------------------------------------------------------------------------------
