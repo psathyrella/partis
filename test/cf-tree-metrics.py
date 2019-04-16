@@ -73,11 +73,12 @@ def calc_max_lbi(args):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('--lb-tau-list', required=True)
+parser.add_argument('action', choices=['get-max-lbi'])
+parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.005:0.008')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
-parser.add_argument('--n-generations-list', help='set either this or --n-tau-lengths-list')
+parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10', help='set either this or --n-tau-lengths-list')
 parser.add_argument('--seq-len', default=400, type=int)
-parser.add_argument('--base-outdir', required=True)
+parser.add_argument('--base-outdir', default='%s/partis/lb-tau-optimization' % os.getenv('fs'))
 parser.add_argument('--label', default='test')
 parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--workdir')  # default set below
@@ -104,4 +105,5 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 # ----------------------------------------------------------------------------------------
-calc_max_lbi(args)
+if args.action == 'get-max-lbi':
+    calc_max_lbi(args)
