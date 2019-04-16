@@ -194,10 +194,7 @@ parser.add_argument('--actions', default='simu:partis')
 parser.add_argument('--label', default='test', help='output subdirectory')
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--run-help', action='store_true')
-# ----------------------------------------------------------------------------------------
-# TODO make sure this actually deletes what you need it to
 parser.add_argument('--overwrite', action='store_true')
-# ----------------------------------------------------------------------------------------
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--n-procs', type=int, default=1)
 parser.add_argument('--base-outdir', default='%s/partis/bcr-phylo' % os.getenv('fs'))
