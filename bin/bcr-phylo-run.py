@@ -15,27 +15,36 @@ import indelutils
 import treeutils
 from event import RecombinationEvent
 
-base_outdir = '%s/partis/bcr-phylo' % os.getenv('fs')
-
 ete_path = '/home/' + os.getenv('USER') + '/anaconda_ete/bin'
 bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
 
 # ----------------------------------------------------------------------------------------
-def simdir(stype):
-    return '%s/%s/%s/simu' % (base_outdir, stype, args.label)
-def infdir(stype):
-    return '%s/%s/%s/partis' % (base_outdir, stype, args.label)
-def simfname(stype):
-    return '%s/mutated-simu.yaml' % simdir(stype)
+def simdir():
+    return '%s/%s/%s/simu' % (args.base_outdir, args.stype, args.label)
+def infdir():
+    return '%s/%s/%s/partis' % (args.base_outdir, args.stype, args.label)
+def naive_fname():
+    return '%s/naive-simu.yaml' % simdir()
+def bcr_phylo_fasta_fname(outdir):
+    return '%s/%s.fasta' % (outdir, args.extrastr)
+def simfname():
+    return '%s/mutated-simu.yaml' % simdir()
+def partition_fname():
+    return '%s/partition.yaml' % infdir()
 
 # ----------------------------------------------------------------------------------------
 def rearrange():
+    if utils.output_exists(args, simfname(), outlabel='naive simu', offset=0):
+        return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
-    cmd += ' --debug %d --seed %d --outfname %s/naive-simu.yaml --n-sim-events %d' % (int(args.debug), args.seed, simdir(args.stype), args.n_sim_events)
+    cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, simfname(), args.n_sim_events)
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(naive_line, outdir, ievent):
+    if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=0):
+        return
+
     tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
     prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
     cmd = 'export TMPDIR=%s && export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (tmpdir, ete_path, prof_cmds, bcr_phylo_path)
@@ -65,7 +74,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
     else:
         assert False
 
-    cmd += ' --debug %d' % (args.debug + 1)
+    cmd += ' --debug %d' % args.debug
     cmd += ' --no_context'
     cmd += ' --no_plot'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
@@ -82,7 +91,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
 
 # ----------------------------------------------------------------------------------------
 def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
-    seqfos = utils.read_fastx('%s/%s.fasta' % (outdir, args.extrastr))  # output mutated sequences from bcr-phylo
+    seqfos = utils.read_fastx(bcr_phylo_fasta_fname(outdir))  # output mutated sequences from bcr-phylo
 
     assert len(naive_line['unique_ids']) == 1  # enforces that we ran naive-only, 1-leaf partis simulation above
     assert not indelutils.has_indels(naive_line['indelfos'][0])  # would have to handle this below
@@ -143,21 +152,23 @@ def simulate():
 
     rearrange()
 
-    glfo, naive_event_list, cpath = utils.read_output('%s/naive-simu.yaml' % simdir(args.stype))
+    glfo, naive_event_list, cpath = utils.read_output(naive_fname())
     assert len(naive_event_list) == args.n_sim_events
 
-    outdirs = ['%s/event-%d' % (simdir(args.stype), i) for i in range(len(naive_event_list))]
+    outdirs = ['%s/event-%d' % (simdir(), i) for i in range(len(naive_event_list))]
 
-    print '    running bcr-phylo for %d naive rearrangements' % len(naive_event_list)
     for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
         run_bcr_phylo(naive_line, outdir, ievent)
+
+    if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=0):  # i guess if it crashes during the plotting just below, this'll get confused
+        return
 
     mutated_events = []
     for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
         mutated_events.append(parse_bcr_phylo_output(glfo, naive_line, outdir, ievent))
 
-    print '  writing annotations to %s' % simfname(args.stype)
-    utils.write_annotations(simfname(args.stype), glfo, mutated_events, utils.simulation_headers)
+    print '  writing annotations to %s' % simfname()
+    utils.write_annotations(simfname(), glfo, mutated_events, utils.simulation_headers)
 
     import plotting
     for outdir, event in zip(outdirs, mutated_events):
@@ -166,11 +177,13 @@ def simulate():
 
 # ----------------------------------------------------------------------------------------
 def partition():
-    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(args.stype), infdir(args.stype), args.n_procs, args.seed)
+    if utils.output_exists(args, partition_fname(), outlabel='partition', offset=0):
+        return
+    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(), infdir(), args.n_procs, args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
-    cmd = './bin/partis partition --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --lb-tau %f --is-simu --get-tree-metrics --infname %s --parameter-dir %s/params --plotdir %s --n-procs %d --outfname %s/partition.yaml --seed %d' % (args.lb_tau, simfname(args.stype), infdir(args.stype), infdir(args.stype) + '/plots', args.n_procs, infdir(args.stype), args.seed)
+    cmd = './bin/partis partition --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --lb-tau %f --is-simu --get-tree-metrics --infname %s --parameter-dir %s/params --plotdir %s --n-procs %d --outfname %s --seed %d' % (args.lb_tau, simfname(), infdir(), infdir() + '/plots', args.n_procs, partition_fname(), args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)
-    # cmd = './bin/partis get-tree-metrics --outfname %s/partition.yaml' % infdir(args.stype)
+    # cmd = './bin/partis get-tree-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
@@ -179,10 +192,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--stype', default='selection', choices=('selection', 'neutral'))
 parser.add_argument('--actions', default='simu:partis')
 parser.add_argument('--label', default='test', help='output subdirectory')
-parser.add_argument('--debug', action='store_true')
+parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--run-help', action='store_true')
+# ----------------------------------------------------------------------------------------
+# TODO make sure this actually deletes what you need it to
+parser.add_argument('--overwrite', action='store_true')
+# ----------------------------------------------------------------------------------------
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--n-procs', type=int, default=1)
+parser.add_argument('--base-outdir', default='%s/partis/bcr-phylo' % os.getenv('fs'))
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
 parser.add_argument('--n-sim-seqs-per-generation', type=int, default=100, help='Number of sequences to sample at each time in --obs-times.')
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
@@ -193,8 +211,8 @@ parser.add_argument('--metric-for-target-distance', default='aa', choices=['aa',
 parser.add_argument('--target-count', type=int, default=1, help='Number of target sequences to generate.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='')
-
 parser.add_argument('--lb-tau', type=float, default=0.001, help='')
+
 args = parser.parse_args()
 
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
