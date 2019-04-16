@@ -81,8 +81,8 @@ def run_bcr_phylo(args):
     for ilbt, lbt in enumerate(args.lb_tau_list):
         cmd = './bin/bcr-phylo-run.py --n-sim-seqs-per-generation 150 --obs-times 150'
         cmd += ' --actions simu --lb-tau %f' % lbt
-        cmd += ' --label %s' % args.label
         cmd += ' --seed %d' % args.random_seed
+        cmd += ' --base-outdir %s/partis/bcr-phylo/%s/lb-tau-%.4f' % (os.getenv('fs', default=os.getenv('HOME')), args.label, lbt)
         if args.overwrite:
             cmd += ' --overwrite'
         cmdfos += [{

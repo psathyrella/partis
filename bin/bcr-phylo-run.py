@@ -20,9 +20,9 @@ bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
 
 # ----------------------------------------------------------------------------------------
 def simdir():
-    return '%s/%s/%s/simu' % (args.base_outdir, args.stype, args.label)
+    return '%s/%s/simu' % (args.base_outdir, args.stype)
 def infdir():
-    return '%s/%s/%s/partis' % (args.base_outdir, args.stype, args.label)
+    return '%s/%s/partis' % (args.base_outdir, args.stype)
 def naive_fname():
     return '%s/naive-simu.yaml' % simdir()
 def bcr_phylo_fasta_fname(outdir):
@@ -34,10 +34,10 @@ def partition_fname():
 
 # ----------------------------------------------------------------------------------------
 def rearrange():
-    if utils.output_exists(args, simfname(), outlabel='naive simu', offset=0):
+    if utils.output_exists(args, naive_fname(), outlabel='naive simu', offset=0):
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
-    cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, simfname(), args.n_sim_events)
+    cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, naive_fname(), args.n_sim_events)
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
@@ -191,13 +191,12 @@ all_actions = ('simu', 'partis')
 parser = argparse.ArgumentParser()
 parser.add_argument('--stype', default='selection', choices=('selection', 'neutral'))
 parser.add_argument('--actions', default='simu:partis')
-parser.add_argument('--label', default='test', help='output subdirectory')
+parser.add_argument('--base-outdir', default='%s/partis/bcr-phylo' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--n-procs', type=int, default=1)
-parser.add_argument('--base-outdir', default='%s/partis/bcr-phylo' % os.getenv('fs'))
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
 parser.add_argument('--n-sim-seqs-per-generation', type=int, default=100, help='Number of sequences to sample at each time in --obs-times.')
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
