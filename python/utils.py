@@ -96,7 +96,7 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pairs=False, choices=None):  # make lists from args that are passed as strings of colon-separated values
+def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_lists=False, choices=None):  # make lists from args that are passed as strings of colon-separated values
     if arg is None:
         return None
 
@@ -107,9 +107,9 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_pa
         convert_fcn = float
 
     arglist = arg.strip().split(':')  # to allow ids with minus signs, you can add a space (if you don't use --name=val), which you then have to strip() off
-    if list_of_pairs:
-        arglist = [pairstr.split(',') for pairstr in arglist]
-        arglist = [[convert_fcn(p) for p in pair] for pair in arglist]
+    if list_of_lists:
+        arglist = [substr.split(',') for substr in arglist]
+        arglist = [[convert_fcn(p) for p in sublist] for sublist in arglist]
     else:
         arglist = [convert_fcn(x) for x in arglist]
 

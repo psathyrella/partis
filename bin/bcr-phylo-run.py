@@ -60,7 +60,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
         cmd += ' --lambda %f' % args.branching_parameter
         cmd += ' --lambda0 %f' % args.base_mutation_rate
         cmd += ' --obs_times %s' % ' '.join(['%d' % t for t in args.obs_times])
-        cmd += ' --n_to_sample %d' % args.n_sim_seqs_per_generation
+        cmd += ' --n_to_sample %s' % ' '.join('%d' % n for n in args.n_sim_seqs_per_generation)
         cmd += ' --metric_for_target_dist %s' % args.metric_for_target_distance
         cmd += ' --target_dist %d' % args.target_distance
         cmd += ' --target_count %d' % args.target_count
@@ -199,7 +199,7 @@ parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--n-procs', type=int, default=1)
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
-parser.add_argument('--n-sim-seqs-per-generation', type=int, default=100, help='Number of sequences to sample at each time in --obs-times.')
+parser.add_argument('--n-sim-seqs-per-generation', default='100', help='Number of sequences to sample at each time in --obs-times.')
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
 parser.add_argument('--obs-times', default='100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
@@ -213,6 +213,7 @@ parser.add_argument('--lb-tau', type=float, default=0.001, help='')
 args = parser.parse_args()
 
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
+args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generation, intify=True)
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 
 # ----------------------------------------------------------------------------------------

@@ -28,7 +28,7 @@ def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new al
     mtypes = ['snp', 'indel']
     for mtype in mtypes:
         if positions[mtype] is not None:  # if specific positions were specified on the command line
-            positions[mtype] = [[int(p) for p in pos_str.split(',')] for pos_str in positions[mtype]]
+            positions[mtype] = [[int(p) for p in pos_str.split(',')] for pos_str in positions[mtype]]  # NOTE I think I could switch this to utils.get_arg_list() with list_of_lists=True
             if len(positions[mtype]) != len(args.sim_v_genes):  # we shouldn't be able to get here unless args has .sim_v_genes
                 raise Exception('--%s-positions %s and --sim-v-genes %s not the same length (%d vs %d)' % (mtype, positions[mtype], args.sim_v_genes, len(positions[mtype]), len(args.sim_v_genes)))
         if numbers[mtype] is not None:
