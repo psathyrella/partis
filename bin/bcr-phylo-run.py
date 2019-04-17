@@ -47,7 +47,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
 
     tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
     prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
-    cmd = 'export TMPDIR=%s && export PATH=%s:$PATH && xvfb-run -a python %s %s/bin/simulator.py' % (tmpdir, ete_path, prof_cmds, bcr_phylo_path)
+    cmd = 'export TMPDIR=%s && export PATH=%s:$PATH && ./bin/xvfb-run -a python %s %s/bin/simulator.py' % (tmpdir, ete_path, prof_cmds, bcr_phylo_path)
 
     if args.run_help:
         cmd += ' --help'
@@ -113,7 +113,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if args.stype == 'selection':
-        cmd = 'export PATH=%s:$PATH && xvfb-run -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, outdir, args.extrastr, outdir, outdir)
+        cmd = 'export PATH=%s:$PATH && ./bin/xvfb-run -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, outdir, args.extrastr, outdir, outdir)
         utils.simplerun(cmd, shell=True)
         nodefo = {}
         with open('%s/kd-vals.csv' % outdir) as kdfile:

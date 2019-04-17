@@ -80,7 +80,7 @@ def run_bcr_phylo(args):
     cmdfos = []
     print '  running %d lb tau values' % len(args.lb_tau_list)
     for ilbt, lbt in enumerate(args.lb_tau_list):
-        print '     %.4f' % lbt
+        print '   %.4f' % lbt
         outdir = '%s/partis/bcr-phylo/%s/lb-tau-%.4f' % (os.getenv('fs', default=os.getenv('HOME')), args.label, lbt)
         outfname = '%s/selection/simu/mutated-simu.yaml' % outdir
         if utils.output_exists(args, outfname, offset=8):
@@ -98,6 +98,7 @@ def run_bcr_phylo(args):
             'logdir' : outdir,
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, ilbt),
         }]
+        print '     %s %s' % (utils.color('red', 'run'), cmd)
     utils.run_cmds(cmdfos, debug='write')
 
 # ----------------------------------------------------------------------------------------
