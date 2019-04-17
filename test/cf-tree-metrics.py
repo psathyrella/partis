@@ -78,19 +78,27 @@ def calc_max_lbi(args):
 def run_bcr_phylo(args):
 
     cmdfos = []
+    print '  running %d lb tau values' % len(args.lb_tau_list)
     for ilbt, lbt in enumerate(args.lb_tau_list):
+        print '     %.4f' % lbt
+        outdir = '%s/partis/bcr-phylo/%s/lb-tau-%.4f' % (os.getenv('fs', default=os.getenv('HOME')), args.label, lbt)
+        outfname = '%s/selection/simu/mutated-simu.yaml' % outdir
+        if utils.output_exists(args, outfname, offset=8):
+            continue
         cmd = './bin/bcr-phylo-run.py --n-sim-seqs-per-generation 150 --obs-times 150'
         cmd += ' --actions simu --lb-tau %f' % lbt
         cmd += ' --seed %d' % args.random_seed
-        cmd += ' --base-outdir %s/partis/bcr-phylo/%s/lb-tau-%.4f' % (os.getenv('fs', default=os.getenv('HOME')), args.label, lbt)
+        cmd += ' --base-outdir %s' % outdir
+        # cmd += ' --debug 1'
         if args.overwrite:
             cmd += ' --overwrite'
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : '%s/bcr-phylo/selection/%s/simu/mutated-simu.yaml' % (args.base_outdir, args.label),
+            'outfname' : outfname,
+            'logdir' : outdir,
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, ilbt),
         }]
-    utils.run_cmds(cmdfos, debug='print')
+    utils.run_cmds(cmdfos, debug='write')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)

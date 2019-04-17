@@ -34,7 +34,7 @@ def partition_fname():
 
 # ----------------------------------------------------------------------------------------
 def rearrange():
-    if utils.output_exists(args, naive_fname(), outlabel='naive simu', offset=0):
+    if utils.output_exists(args, naive_fname(), outlabel='naive simu', offset=4):
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
     cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, naive_fname(), args.n_sim_events)
@@ -42,7 +42,7 @@ def rearrange():
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(naive_line, outdir, ievent):
-    if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=0):
+    if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
         return
 
     tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
@@ -160,7 +160,7 @@ def simulate():
     for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
         run_bcr_phylo(naive_line, outdir, ievent)
 
-    if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=0):  # i guess if it crashes during the plotting just below, this'll get confused
+    if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
         return
 
     mutated_events = []
@@ -177,7 +177,7 @@ def simulate():
 
 # ----------------------------------------------------------------------------------------
 def partition():
-    if utils.output_exists(args, partition_fname(), outlabel='partition', offset=0):
+    if utils.output_exists(args, partition_fname(), outlabel='partition', offset=4):
         return
     cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(), infdir(), args.n_procs, args.seed)
     utils.simplerun(cmd, debug=True) #, dryrun=True)

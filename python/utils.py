@@ -2659,7 +2659,7 @@ def finish_process(iproc, procs, n_tries_list, cmdfo, n_max_tries, dbgfo=None, b
             print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit...' % iproc
             time.sleep(0.5)
         if os.path.exists(cmdfo['outfname']):
-            process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], debug=debug, ignore_stderr=ignore_stderr)
+            process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)
             procs[iproc] = None  # job succeeded
             if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
                 if 'infname' in cmdfo and os.path.exists(cmdfo['infname']):
@@ -2722,7 +2722,7 @@ def finish_process(iproc, procs, n_tries_list, cmdfo, n_max_tries, dbgfo=None, b
         raise Exception(failstr)
 
 # ----------------------------------------------------------------------------------------
-def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_stderr=False):
+def process_out_err(extra_str='', dbgfo=None, logdir=None, cmd_str=None, debug=None, ignore_stderr=False):
     """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
     out, err = '', ''
     if logdir is not None:
@@ -2785,6 +2785,8 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, debug=None, ignore_st
             logfile = logdir + '/log'
             # print 'writing dbg to %s' % logfile
             with open(logfile, 'w') as dbgfile:
+                if cmd_str is not None:
+                    dbgfile.write('%s %s\n' % (color('red', 'run'), cmd_str))  # NOTE duplicates code in datascripts/run.py
                 dbgfile.write(err_str + out)
         else:
             assert False
