@@ -75,6 +75,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
         assert False
 
     cmd += ' --debug %d' % args.debug
+    cmd += ' --n_tries 3'
     cmd += ' --no_context'
     cmd += ' --no_plot'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
