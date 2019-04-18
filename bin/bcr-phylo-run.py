@@ -29,6 +29,8 @@ def bcr_phylo_fasta_fname(outdir):
     return '%s/%s.fasta' % (outdir, args.extrastr)
 def simfname():
     return '%s/mutated-simu.yaml' % simdir()
+def param_dir():
+    return '%s/params' % infdir()
 def partition_fname():
     return '%s/partition.yaml' % infdir()
 
@@ -177,12 +179,17 @@ def simulate():
     # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
 
 # ----------------------------------------------------------------------------------------
+def cache_parameters():
+    if utils.output_exists(args, param_dir() + '/hmm/hmms', outlabel='parameters', offset=4):
+        return
+    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s --n-procs %d --seed %d' % (simfname(), param_dir(), args.n_procs, args.seed)
+    utils.simplerun(cmd, debug=True) #, dryrun=True)
+
+# ----------------------------------------------------------------------------------------
 def partition():
     if utils.output_exists(args, partition_fname(), outlabel='partition', offset=4):
         return
-    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s/params --n-procs %d --seed %d' % (simfname(), infdir(), args.n_procs, args.seed)
-    utils.simplerun(cmd, debug=True) #, dryrun=True)
-    cmd = './bin/partis partition --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --get-tree-metrics --infname %s --parameter-dir %s/params --plotdir %s --n-procs %d --outfname %s --seed %d' % (simfname(), infdir(), infdir() + '/plots', args.n_procs, partition_fname(), args.seed)
+    cmd = './bin/partis partition --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --get-tree-metrics --infname %s --parameter-dir %s --plotdir %s --n-procs %d --outfname %s --seed %d' % (simfname(), param_dir(), infdir() + '/plots', args.n_procs, partition_fname(), args.seed)
     if args.lb_tau is not None:
         cmd += ' --lb-tau %f' % args.lb_tau
     utils.simplerun(cmd, debug=True) #, dryrun=True)
@@ -190,10 +197,10 @@ def partition():
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
-all_actions = ('simu', 'partis')
+all_actions = ('simu', 'cache-parameters', 'partition')
 parser = argparse.ArgumentParser()
 parser.add_argument('--stype', default='selection', choices=('selection', 'neutral'))
-parser.add_argument('--actions', default='simu:partis')
+parser.add_argument('--actions', default=':'.join(all_actions))
 parser.add_argument('--base-outdir', default='%s/partis/bcr-phylo/test' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--run-help', action='store_true')
@@ -221,5 +228,7 @@ args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 # ----------------------------------------------------------------------------------------
 if 'simu' in args.actions:
     simulate()
-if 'partis' in args.actions:
+if 'cache-parameters' in args.actions:
+    cache_parameters()
+if 'partition' in args.actions:
     partition()

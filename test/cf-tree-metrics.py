@@ -89,12 +89,16 @@ def get_bcr_phylo_outdir(varnames, vstr):
     return get_outdir(varnames, vstr, 'simu') + '/bcr-phylo'
 
 # ----------------------------------------------------------------------------------------
-def get_partition_outdir(varnames, vstr):
-    return get_outdir(varnames, vstr, 'partis') + '/partis'
-
-# ----------------------------------------------------------------------------------------
 def get_bcr_phylo_outfname(varnames, vstr):
     return '%s/selection/simu/mutated-simu.yaml' % get_bcr_phylo_outdir(varnames, vstr)
+
+# ----------------------------------------------------------------------------------------
+def get_parameter_dir(varnames, vstr):
+    return '%s/selection/partis/params' % get_bcr_phylo_outdir(varnames, vstr)
+
+# ----------------------------------------------------------------------------------------
+def get_partition_outdir(varnames, vstr):
+    return get_outdir(varnames, vstr, 'partition') + '/partis'
 
 # ----------------------------------------------------------------------------------------
 def get_partition_fname(varnames, vstr):
@@ -121,7 +125,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, valstrs
 
 # ----------------------------------------------------------------------------------------
-def run_bcr_phylo(args):
+def run_bcr_phylo(args):  # also caches parameters
     base_args, varnames, valstrs = get_var_info(args, args.scan_vars['simu'])
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
@@ -131,12 +135,14 @@ def run_bcr_phylo(args):
         outfname = get_bcr_phylo_outfname(varnames, vstrs)
         if utils.output_exists(args, outfname, offset=8):
             continue
-        cmd = './bin/bcr-phylo-run.py --actions simu --base-outdir %s --seed %d %s' % (outdir, args.random_seed, ' '.join(base_args))
+        cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters --base-outdir %s --seed %d %s' % (outdir, args.random_seed, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
             cmd += ' --%s %s' % (vname, vstr)
-        # cmd += ' --debug 1'
+        if args.n_procs > 1:
+            cmd += ' --n-procs %d' % args.n_procs
         if args.overwrite:
             cmd += ' --overwrite'
+        # cmd += ' --debug 1'
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : outfname,
@@ -147,34 +153,34 @@ def run_bcr_phylo(args):
     utils.run_cmds(cmdfos, debug='write')
 
 # ----------------------------------------------------------------------------------------
-def run_partis(args):
-    _, varnames, valstrs = get_var_info(args, args.scan_vars['partis'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
+def partition(args):
+    _, varnames, valstrs = get_var_info(args, args.scan_vars['partition'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     for icombo, vstrs in enumerate(valstrs):
         print '   %s' % ' '.join(vstrs)
 
         partis_outdir = get_partition_outdir(varnames, vstrs)
-        parameter_dir = partis_outdir + '/params'
         plotdir = partis_outdir + '/plots'
         partition_fname = get_partition_fname(varnames, vstrs)
 
         if utils.output_exists(args, partition_fname, outlabel='partition', offset=8):
             continue
 
-        cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s --n-procs %d --seed %d' % (get_bcr_phylo_outfname(varnames, vstrs), parameter_dir, args.n_procs, args.random_seed)
-        # TODO use run_cmds()
-        utils.simplerun(cmd, debug=True, dryrun=True)
-
         cmd = './bin/partis partition --n-final-clusters 1 --is-simu --get-tree-metrics --infname %s' % get_bcr_phylo_outfname(varnames, vstrs)
-        cmd += ' --parameter-dir %s --plotdir %s --n-procs %d --outfname %s --seed %d' % (parameter_dir, plotdir, args.n_procs, partition_fname, args.random_seed)
+        cmd += ' --parameter-dir %s --plotdir %s --n-procs %d --outfname %s --seed %d' % (get_parameter_dir(varnames, vstrs), plotdir, args.n_procs, partition_fname, args.random_seed)
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
-        # TODO use run_cmds()
-        utils.simplerun(cmd, debug=True, dryrun=True)
+        cmdfos += [{
+            'cmd_str' : cmd,
+            'outfname' : partition_fname,
+            'logdir' : partis_outdir,
+        }]
+        print '     %s %s' % (utils.color('red', 'run'), cmd)
+    utils.run_cmds(cmdfos, debug='write')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['get-max-lbi', 'run-bcr-phylo', 'run-partis'])
+parser.add_argument('action', choices=['get-max-lbi', 'run-bcr-phylo', 'partition'])
 parser.add_argument('--carry-cap-list', default='250:1000:4000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='50,75,80:200,250')
 parser.add_argument('--obs-times-list', default='30,40,50:125,150')
@@ -195,7 +201,7 @@ args = parser.parse_args()
 
 args.scan_vars = {
     'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times'],
-    'partis' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'lb-tau'],
+    'partition' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'lb-tau'],
 }
 
 sys.path.insert(1, args.partis_dir + '/python')
@@ -224,5 +230,5 @@ if args.action == 'get-max-lbi':
     calc_max_lbi(args)
 elif args.action == 'run-bcr-phylo':
     run_bcr_phylo(args)
-elif args.action == 'run-partis':
-    run_partis(args)
+elif args.action == 'partition':
+    partition(args)
