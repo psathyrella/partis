@@ -119,19 +119,25 @@ def get_var_info(args, scan_vars):
     def dkey(sv):
         return sv.replace('-', '_') + '_list'
     def getv(sv):
-        return args.__dict__[dkey(sv)]
-
-    base_args = []
-    varnames = []
-    val_lists, valstrs= [[]], [[]]
-    for svar in scan_vars:
-        convert_fcn = str if svar in ['carry-cap', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
+        if sv == 'seed':
+            return [args.random_seed + i for i in range(args.n_replicates)]
+        else:
+            return args.__dict__[dkey(sv)]
+    def handle_var(svar, val_lists, valstrs):
+        convert_fcn = str if svar in ['carry-cap', 'seed', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
         if len(getv(svar)) > 1:
             varnames.append(svar)
             val_lists = [vlist + [sv] for vlist in val_lists for sv in getv(svar)]
             valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in getv(svar)]
         else:
             base_args.append('--%s %s' % (svar, convert_fcn(getv(svar)[0])))
+        return val_lists, valstrs
+
+    base_args = []
+    varnames = []
+    val_lists, valstrs = [[]], [[]]
+    for svar in scan_vars:
+        val_lists, valstrs = handle_var(svar, val_lists, valstrs)
 
     return base_args, varnames, val_lists, valstrs
 
@@ -179,7 +185,7 @@ def run_bcr_phylo(args):  # also caches parameters
         outfname = get_bcr_phylo_outfname(varnames, vstrs)
         if utils.output_exists(args, outfname, offset=8):
             continue
-        cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters --base-outdir %s --seed %d %s' % (outdir, args.random_seed, ' '.join(base_args))
+        cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters --base-outdir %s %s' % (outdir, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
             cmd += ' --%s %s' % (vname, vstr)
         if args.n_procs > 1:
@@ -204,22 +210,20 @@ def partition(args):
     for icombo, vstrs in enumerate(valstrs):
         print '   %s' % ' '.join(vstrs)
 
-        partis_outdir = get_partition_outdir(varnames, vstrs)
         partition_fname = get_partition_fname(varnames, vstrs)
-
         if utils.output_exists(args, partition_fname, outlabel='partition', offset=8):
             continue
 
-        cmd = './bin/partis partition --n-final-clusters 1 --is-simu --get-tree-metrics --infname %s' % get_bcr_phylo_outfname(varnames, vstrs)
-        cmd += ' --parameter-dir %s --plotdir %s --n-procs %d --outfname %s --seed %d' % (get_parameter_dir(varnames, vstrs), get_partition_plotdir(varnames, vstrs), args.n_procs, partition_fname, args.random_seed)
+        action = 'partition'  # 'get-tree-metrics'  # maybe eventually make this a cmd line option, but this is fine for now
+        cmd = './bin/partis %s --is-simu --infname %s --parameter-dir %s --plotdir %s --outfname %s' % (action, get_bcr_phylo_outfname(varnames, vstrs), get_parameter_dir(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname)
+        if action == 'partition':
+            cmd += ' --n-final-clusters 1 --get-tree-metrics --n-procs %d' % args.n_procs
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
-        # cmd = './bin/partis get-tree-metrics --is-simu --infname %s' % get_bcr_phylo_outfname(varnames, vstrs)
-        # cmd += ' --parameter-dir %s --plotdir %s --outfname %s --seed %d' % (get_parameter_dir(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname, args.random_seed)
-        # cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
+        cmd += ' --seed %s' % vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : partition_fname,
-            'logdir' : partis_outdir,
+            'logdir' : get_partition_outdir(varnames, vstrs),
         }]
         print '     %s %s' % (utils.color('red', 'run'), cmd)
     utils.run_cmds(cmdfos, debug='write')
@@ -234,8 +238,9 @@ parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.005:0.0
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10', help='set either this or --n-tau-lengths-list')
 parser.add_argument('--seq-len', default=400, type=int)
+parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--n-procs', default=1, type=int)
-parser.add_argument('--random-seed', default=2, type=int)  # 1 gives a tree that terminates after two generations
+parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
 parser.add_argument('--make-plots', action='store_true')
@@ -246,8 +251,8 @@ parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.gete
 args = parser.parse_args()
 
 args.scan_vars = {
-    'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times'],
-    'partition' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'lb-tau'],
+    'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed'],
+    'partition' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'lb-tau'],
 }
 
 sys.path.insert(1, args.partis_dir + '/python')

@@ -1417,7 +1417,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting %saffinities' % affy_key_str.replace('-', ''))
     fnames.append('%s/%s.svg' % (plotdir, plotname))
     with open('%s/%s.yaml' % (plotdir, plotname), 'w') as yfile:
-        yamlfo = ptile_vals #ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles']
+        yamlfo = ptile_vals
         yaml.dump(yamlfo, yfile)
 
     return [fnames]
