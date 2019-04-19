@@ -865,7 +865,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
 
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
     subdirs = [m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']] + ['trees']
-    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], subdirs=subdirs)
+    utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html', '*.yaml'], subdirs=subdirs)
     fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
     # fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
     fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], debug=debug)
@@ -879,7 +879,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
             pass
         else:
             true_plotdir = base_plotdir + '/true-tree-metrics'
-            utils.prep_dir(true_plotdir, wildlings=['*.svg'], subdirs=subdirs)
+            utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.yaml'], subdirs=subdirs)
             fnames = []
             for lb_metric, lb_label in lb_metrics.items():
                 if lb_metric == 'lbi':

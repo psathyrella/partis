@@ -5,6 +5,8 @@ import os
 import sys
 import yaml
 import colored_traceback.always
+import collections
+import numpy
 
 # ----------------------------------------------------------------------------------------
 def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.get_max_lbi()
@@ -105,6 +107,14 @@ def get_partition_fname(varnames, vstr):
     return '%s/partitions.yaml' % get_partition_outdir(varnames, vstr)
 
 # ----------------------------------------------------------------------------------------
+def get_partition_plotdir(varnames, vstr):
+    return get_partition_outdir(varnames, vstr) + '/plots'
+
+# ----------------------------------------------------------------------------------------
+def get_plotdir():
+    return '%s/%s/plots' % (args.base_outdir, args.label)
+
+# ----------------------------------------------------------------------------------------
 def get_var_info(args, scan_vars):
     def dkey(sv):
         return sv.replace('-', '_') + '_list'
@@ -113,20 +123,54 @@ def get_var_info(args, scan_vars):
 
     base_args = []
     varnames = []
-    valstrs = [[]]
+    val_lists, valstrs= [[]], [[]]
     for svar in scan_vars:
         convert_fcn = str if svar in ['carry-cap', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
         if len(getv(svar)) > 1:
             varnames.append(svar)
+            val_lists = [vlist + [sv] for vlist in val_lists for sv in getv(svar)]
             valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in getv(svar)]
         else:
             base_args.append('--%s %s' % (svar, convert_fcn(getv(svar)[0])))
 
-    return base_args, varnames, valstrs
+    return base_args, varnames, val_lists, valstrs
+
+# ----------------------------------------------------------------------------------------
+def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):
+    _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['partition'])
+    plotvals = collections.OrderedDict()
+    for vlists, vstrs in zip(val_lists, valstrs):
+        n_per_gen = vlists[varnames.index('n-sim-seqs-per-gen')]
+        assert len(n_per_gen) == 1
+        n_per_gen = n_per_gen[0]
+        assert len(args.obs_times_list) == 1
+        n_obs = n_per_gen * len(args.obs_times_list[0])
+        assert len(args.carry_cap_list) == 1
+        n_tot = args.carry_cap_list[0]
+        obs_frac = n_obs / float(n_tot)
+
+        yfname = '%s/true-tree-metrics/lbi-vs-affinity-true-tree-ptiles%s.yaml' % (get_partition_plotdir(varnames, vstrs), '-relative' if use_relative_affy else '')
+        with open(yfname) as yfile:
+            info = yaml.load(yfile)
+        diff_to_perfect = numpy.mean([pafp - afp for lbp, afp, pafp in zip(info['lb_ptiles'], info['mean_affy_ptiles'], info['perfect_vals']) if lbp > min_ptile_to_plot])
+
+        if obs_frac not in plotvals:
+            plotvals[obs_frac] = []
+        plotvals[obs_frac].append((vlists[varnames.index('lb-tau')], diff_to_perfect))
+
+    fig, ax = plotting.mpl_init()
+    for obs_frac in plotvals:
+        lb_taus, diffs_to_perfect = zip(*plotvals[obs_frac])
+        ax.plot(lb_taus, diffs_to_perfect, label='%.4f' % obs_frac, alpha=0.7, linewidth=4)
+    ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+    plotting.mpl_finish(ax, get_plotdir(), 'affy-ptiles-obs-frac-vs-lb-tau', xlabel='tau', ylabel='mean difference to perfect for lbi ptiles in [%.0f, 100]' % min_ptile_to_plot,
+                        leg_title='fraction sampled', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
+                        xticks=lb_taus, xticklabels=[str(t) for t in lb_taus], xticklabelsize=16,
+    )
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(args):  # also caches parameters
-    base_args, varnames, valstrs = get_var_info(args, args.scan_vars['simu'])
+    base_args, varnames, _, valstrs = get_var_info(args, args.scan_vars['simu'])
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     for icombo, vstrs in enumerate(valstrs):
@@ -154,22 +198,24 @@ def run_bcr_phylo(args):  # also caches parameters
 
 # ----------------------------------------------------------------------------------------
 def partition(args):
-    _, varnames, valstrs = get_var_info(args, args.scan_vars['partition'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
+    _, varnames, _, valstrs = get_var_info(args, args.scan_vars['partition'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     for icombo, vstrs in enumerate(valstrs):
         print '   %s' % ' '.join(vstrs)
 
         partis_outdir = get_partition_outdir(varnames, vstrs)
-        plotdir = partis_outdir + '/plots'
         partition_fname = get_partition_fname(varnames, vstrs)
 
         if utils.output_exists(args, partition_fname, outlabel='partition', offset=8):
             continue
 
         cmd = './bin/partis partition --n-final-clusters 1 --is-simu --get-tree-metrics --infname %s' % get_bcr_phylo_outfname(varnames, vstrs)
-        cmd += ' --parameter-dir %s --plotdir %s --n-procs %d --outfname %s --seed %d' % (get_parameter_dir(varnames, vstrs), plotdir, args.n_procs, partition_fname, args.random_seed)
+        cmd += ' --parameter-dir %s --plotdir %s --n-procs %d --outfname %s --seed %d' % (get_parameter_dir(varnames, vstrs), get_partition_plotdir(varnames, vstrs), args.n_procs, partition_fname, args.random_seed)
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
+        # cmd = './bin/partis get-tree-metrics --is-simu --infname %s' % get_bcr_phylo_outfname(varnames, vstrs)
+        # cmd += ' --parameter-dir %s --plotdir %s --outfname %s --seed %d' % (get_parameter_dir(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname, args.random_seed)
+        # cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : partition_fname,
@@ -180,7 +226,7 @@ def partition(args):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['get-max-lbi', 'run-bcr-phylo', 'partition'])
+parser.add_argument('action', choices=['get-max-lbi', 'run-bcr-phylo', 'partition', 'plot'])
 parser.add_argument('--carry-cap-list', default='250:1000:4000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='50,75,80:200,250')
 parser.add_argument('--obs-times-list', default='30,40,50:125,150')
@@ -232,3 +278,5 @@ elif args.action == 'run-bcr-phylo':
     run_bcr_phylo(args)
 elif args.action == 'partition':
     partition(args)
+elif args.action == 'plot':
+    make_plots(args)

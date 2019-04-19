@@ -800,7 +800,7 @@ def mpl_init(figsize=None, fontsize=20):
 
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
-               xticks=None, xticklabels=None, yticks=None, yticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
+               xticks=None, xticklabels=None, xticklabelsize=None, yticks=None, yticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     if not no_legend:
@@ -830,7 +830,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
         median_length = numpy.median([len(xl) for xl in xticklabels])
         if median_length > 4:
-            ax.set_xticklabels(xticklabels, rotation='vertical', size=8)
+            ax.set_xticklabels(xticklabels, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
         else:
             ax.set_xticklabels(xticklabels)
     if yticklabels is not None:
@@ -1389,8 +1389,8 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
             if debug:
                 print '   %5.0f    no vals' % percentile
             continue
-        ptile_vals['lb_ptiles'].append(percentile)
-        ptile_vals['mean_affy_ptiles'].append(numpy.mean(corr_affy_ptiles))
+        ptile_vals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
+        ptile_vals['mean_affy_ptiles'].append(float(numpy.mean(corr_affy_ptiles)))
         if debug:
             print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1])
 
@@ -1398,7 +1398,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
         n_to_take = int((1. - percentile / 100) * len(sorted_affyvals))
         corresponding_perfect_affy_vals = sorted_affyvals[:n_to_take]
         corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy) for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow
-        ptile_vals['perfect_vals'].append(numpy.mean(corr_perfect_affy_ptiles) if len(corr_perfect_affy_ptiles) > 0 else 100)  # not really sure just using 100 is right, but I'm pretty sure it doesn't matter (and it gets rid of a stupid numpy warning)
+        ptile_vals['perfect_vals'].append(float(numpy.mean(corr_perfect_affy_ptiles)) if len(corr_perfect_affy_ptiles) > 0 else 100)  # not really sure just using 100 is right, but I'm pretty sure it doesn't matter (and it gets rid of a stupid numpy warning)
 
         # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
         # shuffled_lb_vals = copy.deepcopy(lbvals)
@@ -1416,6 +1416,9 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     plotname = '%s-vs-affinity-%s-tree-ptiles%s' % (lb_metric, plot_str, affy_key_str)
     mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting %saffinities' % affy_key_str.replace('-', ''))
     fnames.append('%s/%s.svg' % (plotdir, plotname))
+    with open('%s/%s.yaml' % (plotdir, plotname), 'w') as yfile:
+        yamlfo = ptile_vals #ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles']
+        yaml.dump(yamlfo, yfile)
 
     return [fnames]
 
