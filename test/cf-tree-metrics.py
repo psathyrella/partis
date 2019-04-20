@@ -115,22 +115,24 @@ def get_plotdir():
     return '%s/%s/plots' % (args.base_outdir, args.label)
 
 # ----------------------------------------------------------------------------------------
-def get_var_info(args, scan_vars):
+def getsargval(sv):  # ick this name sucks
     def dkey(sv):
         return sv.replace('-', '_') + '_list'
-    def getv(sv):
-        if sv == 'seed':
-            return [args.random_seed + i for i in range(args.n_replicates)]
-        else:
-            return args.__dict__[dkey(sv)]
+    if sv == 'seed':
+        return [args.random_seed + i for i in range(args.n_replicates)]
+    else:
+        return args.__dict__[dkey(sv)]
+
+# ----------------------------------------------------------------------------------------
+def get_var_info(args, scan_vars):
     def handle_var(svar, val_lists, valstrs):
         convert_fcn = str if svar in ['carry-cap', 'seed', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
-        if len(getv(svar)) > 1:
+        if len(getsargval(svar)) > 1:
             varnames.append(svar)
-            val_lists = [vlist + [sv] for vlist in val_lists for sv in getv(svar)]
-            valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in getv(svar)]
+            val_lists = [vlist + [sv] for vlist in val_lists for sv in getsargval(svar)]
+            valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in getsargval(svar)]
         else:
-            base_args.append('--%s %s' % (svar, convert_fcn(getv(svar)[0])))
+            base_args.append('--%s %s' % (svar, convert_fcn(getsargval(svar)[0])))
         return val_lists, valstrs
 
     base_args = []
@@ -145,6 +147,7 @@ def get_var_info(args, scan_vars):
 def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['partition'])
     plotvals = collections.OrderedDict()
+    print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     for vlists, vstrs in zip(val_lists, valstrs):
         n_per_gen = vlists[varnames.index('n-sim-seqs-per-gen')]
         assert len(n_per_gen) == 1
@@ -160,9 +163,25 @@ def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):
             info = yaml.load(yfile)
         diff_to_perfect = numpy.mean([pafp - afp for lbp, afp, pafp in zip(info['lb_ptiles'], info['mean_affy_ptiles'], info['perfect_vals']) if lbp > min_ptile_to_plot])
 
-        if obs_frac not in plotvals:
-            plotvals[obs_frac] = []
-        plotvals[obs_frac].append((vlists[varnames.index('lb-tau')], diff_to_perfect))
+        tau = vlists[varnames.index('lb-tau')]
+        if args.n_replicates > 1:  # need to average over the replicates
+            if obs_frac not in plotvals:
+                plotvals[obs_frac] = {i : [] for i in getsargval('seed')}
+            plotvals[obs_frac][vlists[varnames.index('seed')]].append((tau, diff_to_perfect))
+        else:
+            if obs_frac not in plotvals:
+                plotvals[obs_frac] = []
+            plotvals[obs_frac].append((tau, diff_to_perfect))
+
+    if args.n_replicates > 1:  # need to average over the replicates
+        for obs_frac, ofvals in plotvals.items():
+            mean_vals = []
+            for ipair in range(len(ofvals[0])):  # note that 0 is a dict key, not an index
+                tau = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
+                assert len(set(tau)) == 1  # all of 'em better have the same tau
+                tau = tau[0]
+                mean_vals.append((tau, numpy.mean([ofvals[i][ipair][1] for i in ofvals])))
+            plotvals[obs_frac] = mean_vals
 
     fig, ax = plotting.mpl_init()
     for obs_frac in plotvals:
@@ -219,7 +238,7 @@ def partition(args):
         if action == 'partition':
             cmd += ' --n-final-clusters 1 --get-tree-metrics --n-procs %d' % args.n_procs
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
-        cmd += ' --seed %s' % vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
+        cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : partition_fname,
