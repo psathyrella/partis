@@ -208,7 +208,7 @@ def run_bcr_phylo(args):  # also caches parameters
         for vname, vstr in zip(varnames, vstrs):
             cmd += ' --%s %s' % (vname, vstr)
         if args.n_procs > 1:
-            cmd += ' --n-procs %d' % args.n_procs
+            cmd += ' --n-procs %d' % args.n_procs  # i think this only gets used for partitioning
         if args.overwrite:
             cmd += ' --overwrite'
         # cmd += ' --debug 1'
@@ -219,7 +219,7 @@ def run_bcr_phylo(args):  # also caches parameters
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
         }]
         print '     %s %s' % (utils.color('red', 'run'), cmd)
-    utils.run_cmds(cmdfos, debug='write')
+    utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
 
 # ----------------------------------------------------------------------------------------
 def partition(args):
@@ -245,7 +245,7 @@ def partition(args):
             'logdir' : get_partition_outdir(varnames, vstrs),
         }]
         print '     %s %s' % (utils.color('red', 'run'), cmd)
-    utils.run_cmds(cmdfos, debug='write')
+    utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -264,6 +264,7 @@ parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.geten
 parser.add_argument('--label', default='test')
 parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
+parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
