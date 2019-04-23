@@ -897,7 +897,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
             fnames += lb_vs_shm_fnames[1:]
             if ete_path is not None:
                 plotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
-            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
+            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir_plotdir, subd)) for subd in subdirs])
 
     print '    tree metric plotting time: %.1f sec' % (time.time() - start)
 
