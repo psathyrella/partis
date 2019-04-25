@@ -1602,9 +1602,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         os.makedirs(subworkdir)
     with open(treefname, 'w') as treefile:
         treefile.write(treestr)
-    # ete3 requires its own python version, so we run as a subprocess
-    cmdstr = 'export PATH=%s:$PATH && ./bin/xvfb-run -a ./bin/plot-lb-tree.py' % ete_path
-    cmdstr += ' --treefname %s' % treefname
+    cmdstr = './bin/plot-lb-tree.py --treefname %s' % treefname
     if metafo is not None:
         with open(metafname, 'w') as metafile:
             yaml.dump(metafo, metafile)
@@ -1616,6 +1614,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     cmdstr += ' --log-lbr'
     if tree_style is not None:
         cmdstr += ' --tree-style %s' % tree_style
+    cmdstr, _ = utils.run_ete_script(cmdstr, ete_path, return_for_cmdfos=True, tmpdir=subworkdir)
 
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'infname' : treefname, 'metafname' : metafname}
 

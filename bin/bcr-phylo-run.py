@@ -47,12 +47,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
     if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
         return
 
-    prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
-    tmpdir = utils.choose_random_subdir('/tmp/xvfb-run', make_dir=True)
-    cmd = 'export TMPDIR=%s' % tmpdir
-    cmd += ' && export PATH=%s:$PATH' % ete_path
-    cmd += ' && ./bin/xvfb-run -e %s -a python %s %s/bin/simulator.py' % (outdir + '/xvfb-err', prof_cmds, bcr_phylo_path)
-
+    cmd = '%s/bin/simulator.py' % bcr_phylo_path
     if args.run_help:
         cmd += ' --help'
     elif args.stype == 'neutral':
@@ -89,8 +84,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    utils.simplerun(cmd, shell=True, extra_str='        ')  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
-    os.rmdir(tmpdir)
+    utils.run_ete_script(cmd, ete_path)  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
 
 # ----------------------------------------------------------------------------------------
 def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
@@ -116,12 +110,8 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if args.stype == 'selection':
-        tmpdir = utils.choose_random_subdir('/tmp/xvfb-run', make_dir=True)
-        cmd = 'export TMPDIR=%s' % tmpdir
-        cmd += ' && export PATH=%s:$PATH' % ete_path
-        cmd += ' && ./bin/xvfb-run -e %s -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (outdir + '/xvfb-err', outdir, args.extrastr, outdir, outdir)
-        utils.simplerun(cmd, shell=True)
-        os.rmdir(tmpdir)
+        cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (outdir, args.extrastr, outdir, outdir)
+        utils.run_ete_script(cmd, ete_path)
         nodefo = {}
         with open('%s/kd-vals.csv' % outdir) as kdfile:
             reader = csv.DictReader(kdfile)

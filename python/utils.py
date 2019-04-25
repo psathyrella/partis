@@ -2497,14 +2497,19 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return
         return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
-def run_ete_script(cmd, ete_path):
-    prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
-    tmpdir = choose_random_subdir('/tmp/xvfb-run', make_dir=True)
+def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None):  # ete3 requires its own python version, so we run as a subprocess
+    prof_cmds = '' # ' -m cProfile -s tottime -o prof.out'
+    # xvfb_err_str = '' # '-e %s' % XXX outdir + '/xvfb-err'
+    if tmpdir is None:
+        tmpdir = choose_random_subdir('/tmp/xvfb-run', make_dir=True)
     cmd = 'export TMPDIR=%s' % tmpdir
     cmd += ' && export PATH=%s:$PATH' % ete_path
-    cmd += ' && ./bin/xvfb-run -e %s -a python %s %s' % (outdir + '/xvfb-err', prof_cmds, cmd)
-    simplerun(cmd, shell=True, extra_str='        ')
-    os.rmdir(tmpdir)
+    cmd += ' && ./bin/xvfb-run -a python%s %s' % (prof_cmds, sub_cmd)
+    if return_for_cmdfos:
+        return cmd, tmpdir
+    else:
+        simplerun(cmd, shell=True, extra_str='        ')
+        os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):
