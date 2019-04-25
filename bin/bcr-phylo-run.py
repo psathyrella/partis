@@ -47,9 +47,10 @@ def run_bcr_phylo(naive_line, outdir, ievent):
     if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
         return
 
-    xauth_fname = '%s/xvfb-xauth' % outdir
     prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
-    cmd = 'export PATH=%s:$PATH && ./bin/xvfb-run --auth-file %s -a python %s %s/bin/simulator.py' % (ete_path, xauth_fname, prof_cmds, bcr_phylo_path)
+    cmd = 'export TMPDIR=%s' % outdir
+    cmd += ' && export PATH=%s:$PATH' % ete_path
+    cmd += ' && ./bin/xvfb-run -a python %s %s/bin/simulator.py' % (prof_cmds, bcr_phylo_path)
 
     if args.run_help:
         cmd += ' --help'
@@ -89,8 +90,6 @@ def run_bcr_phylo(naive_line, outdir, ievent):
 
     utils.simplerun(cmd, shell=True, extra_str='        ')  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
 
-    os.remove(xauth_fname)
-
 # ----------------------------------------------------------------------------------------
 def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
     seqfos = utils.read_fastx(bcr_phylo_fasta_fname(outdir))  # output mutated sequences from bcr-phylo
@@ -115,10 +114,10 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if args.stype == 'selection':
-        xauth_fname = '%s/xvfb-xauth' % outdir
-        cmd = 'export PATH=%s:$PATH && ./bin/xvfb-run --auth-file %s -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, xauth_fname, outdir, args.extrastr, outdir, outdir)
+        cmd = 'export TMPDIR=%s' % outdir
+        cmd += ' && export PATH=%s:$PATH' % ete_path
+        cmd += ' && ./bin/xvfb-run -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (outdir, args.extrastr, outdir, outdir)
         utils.simplerun(cmd, shell=True)
-        os.remove(xauth_fname)
         nodefo = {}
         with open('%s/kd-vals.csv' % outdir) as kdfile:
             reader = csv.DictReader(kdfile)
