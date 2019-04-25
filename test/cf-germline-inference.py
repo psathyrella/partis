@@ -168,8 +168,8 @@ def get_gls_dir(outdir, method, sim_truth=False, data=False, annotation_performa
 
 # ----------------------------------------------------------------------------------------
 def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, locus, ref_label=None, title=None, title_color=None, legends=None, legend_title=None, pie_chart_faces=False, param_dirs=None):
-    # ete3 requires its own python version, so we run as a subprocess
-    cmdstr = 'export PATH=%s:$PATH && ./bin/xvfb-run -a ./bin/plot-gl-set-trees.py' % args.ete_path
+    raise Exception('needs to be tested for switch to utils.run_ete_script() (should work ok, I just don\'t want to run it now)')
+    cmdstr = './bin/plot-gl-set-trees.py'
     cmdstr += ' --plotdir ' + plotdir
     cmdstr += ' --plotname ' + plotname
     cmdstr += ' --glsfnames ' + ':'.join(glsfnames)
@@ -194,7 +194,7 @@ def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, lo
         cmdstr += ' --use-cache'
     if args.only_print:
         cmdstr += ' --only-print'
-    utils.simplerun(cmdstr, shell=True, debug=args.dryrun, dryrun=args.dryrun)
+    utils.run_ete_script(cmdstr, args.ete_path, debug=args.dryrun, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
 def print_gls_gen_summary_table(args, region, baseoutdir):
