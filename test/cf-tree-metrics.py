@@ -201,8 +201,7 @@ def run_bcr_phylo(args):  # also caches parameters
     for icombo, vstrs in enumerate(valstrs):
         print '   %s' % ' '.join(vstrs)
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
-        outfname = get_bcr_phylo_outfname(varnames, vstrs)
-        if utils.output_exists(args, outfname, offset=8):
+        if utils.output_exists(args, get_parameter_dir(varnames, vstrs) + '/hmm/hmms', offset=8):
             continue
         cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters --base-outdir %s %s' % (outdir, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
@@ -214,7 +213,7 @@ def run_bcr_phylo(args):  # also caches parameters
         # cmd += ' --debug 1'
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : outfname,
+            'outfname' : get_bcr_phylo_outfname(varnames, vstrs),
             'logdir' : outdir,
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
         }]
