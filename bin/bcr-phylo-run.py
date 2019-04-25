@@ -116,8 +116,14 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if args.stype == 'selection':
-        cmd = 'export PATH=%s:$PATH && ./bin/xvfb-run -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (ete_path, outdir, args.extrastr, outdir, outdir)
+        tmpdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))  # this is I think just for xvfb-run
+        cmd = 'export TMPDIR=%s && export PATH=%s:$PATH && ./bin/xvfb-run -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (tmpdir, ete_path, outdir, args.extrastr, outdir, outdir)
+        os.makedirs(tmpdir)
+
         utils.simplerun(cmd, shell=True)
+
+        os.rmdir(tmpdir)
+
         nodefo = {}
         with open('%s/kd-vals.csv' % outdir) as kdfile:
             reader = csv.DictReader(kdfile)
