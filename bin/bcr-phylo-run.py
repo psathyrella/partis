@@ -48,9 +48,10 @@ def run_bcr_phylo(naive_line, outdir, ievent):
         return
 
     prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
-    cmd = 'export TMPDIR=%s' % outdir
+    tmpdir = utils.choose_random_subdir('/tmp/xvfb-run', make_dir=True)
+    cmd = 'export TMPDIR=%s' % tmpdir
     cmd += ' && export PATH=%s:$PATH' % ete_path
-    cmd += ' && ./bin/xvfb-run -a python %s %s/bin/simulator.py' % (prof_cmds, bcr_phylo_path)
+    cmd += ' && ./bin/xvfb-run -e %s -a python %s %s/bin/simulator.py' % (outdir + '/xvfb-err', prof_cmds, bcr_phylo_path)
 
     if args.run_help:
         cmd += ' --help'
@@ -89,6 +90,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
         os.makedirs(outdir)
 
     utils.simplerun(cmd, shell=True, extra_str='        ')  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
+    os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
 def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
@@ -114,10 +116,12 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if args.stype == 'selection':
-        cmd = 'export TMPDIR=%s' % outdir
+        tmpdir = utils.choose_random_subdir('/tmp/xvfb-run', make_dir=True)
+        cmd = 'export TMPDIR=%s' % tmpdir
         cmd += ' && export PATH=%s:$PATH' % ete_path
-        cmd += ' && ./bin/xvfb-run -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (outdir, args.extrastr, outdir, outdir)
+        cmd += ' && ./bin/xvfb-run -e %s -a python ./bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (outdir + '/xvfb-err', outdir, args.extrastr, outdir, outdir)
         utils.simplerun(cmd, shell=True)
+        os.rmdir(tmpdir)
         nodefo = {}
         with open('%s/kd-vals.csv' % outdir) as kdfile:
             reader = csv.DictReader(kdfile)

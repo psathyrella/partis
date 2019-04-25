@@ -38,10 +38,12 @@ def fsdir():
     return fsdir
 
 # ----------------------------------------------------------------------------------------
-def choose_random_subdir(dirname):
+def choose_random_subdir(dirname, make_dir=False):
     subname = str(random.randint(0, 999999))
     while os.path.exists(dirname + '/' + subname):
         subname = str(random.randint(0, 999999))
+    if make_dir:
+        prep_dir(dirname + '/' + subname)
     return dirname + '/' + subname
 
 # ----------------------------------------------------------------------------------------
