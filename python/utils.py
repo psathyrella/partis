@@ -2497,6 +2497,16 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return
         return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
+def run_ete_script(cmd, ete_path):
+    prof_cmds = '' # '-m cProfile -s tottime -o prof.out'
+    tmpdir = choose_random_subdir('/tmp/xvfb-run', make_dir=True)
+    cmd = 'export TMPDIR=%s' % tmpdir
+    cmd += ' && export PATH=%s:$PATH' % ete_path
+    cmd += ' && ./bin/xvfb-run -e %s -a python %s %s' % (outdir + '/xvfb-err', prof_cmds, cmd)
+    simplerun(cmd, shell=True, extra_str='        ')
+    os.rmdir(tmpdir)
+
+# ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):
     if cmdfname is not None:
         with open(cmdfname, 'w') as cmdfile:
@@ -2570,7 +2580,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
     prefix = None
     if batch_system is not None:
         if batch_system == 'slurm':
-            prefix = 'srun --nodes 1 --ntasks 1'  # --exclude=data/gizmod.txt'
+            prefix = 'srun --export=ALL --nodes 1 --ntasks 1'  # --exclude=data/gizmod.txt'  # --export=ALL seems to be necessary so XDG_RUNTIME_DIR gets passed to the nodes
             if 'threads' in cmdfo:
                 prefix += ' --cpus-per-task %d' % cmdfo['threads']
             if 'nodelist' in cmdfo:

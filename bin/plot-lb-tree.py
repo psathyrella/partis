@@ -244,7 +244,4 @@ if args.metafname is not None:
     with open(args.metafname) as metafile:
         args.metafo = yaml.load(metafile)
 
-if not os.path.exists(os.getenv('XDG_RUNTIME_DIR')):  # I don't know why tf I need this, but it doesn't seem to be there when running under slurm
-    os.makedirs(os.getenv('XDG_RUNTIME_DIR'), mode=0700)
-
 plot_trees(args)
