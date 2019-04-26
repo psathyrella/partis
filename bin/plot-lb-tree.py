@@ -71,7 +71,7 @@ def read_input(args):
 def get_color(smap, info, key=None, val=None):  # specify *either* <key> or <val> (don't need <info> if you're passing <val>)
     if val is None:
         assert key is not None
-        if key not in info:
+        if key not in info or info[key] is None:
             return getgrey()
         val = info[key]
     rgb_code = smap.to_rgba(val)[:3]
@@ -138,11 +138,11 @@ def set_meta_styles(args, etree, tstyle):
     lb_min, lb_max = min(lbvals), max(lbvals)
 
     affyfo = None
-    if args.affy_key in args.metafo:
+    if args.affy_key in args.metafo and set(args.metafo[args.affy_key].values()) != set([None]):
         affyfo = args.metafo[args.affy_key]
         if args.lb_metric == 'lbi':
             affyvals = affyfo.values()
-            affy_smap = plotting.get_normalized_scalar_map(affyvals, 'viridis')
+            affy_smap = plotting.get_normalized_scalar_map([a for a in affyvals if a is not None], 'viridis')
         elif args.lb_metric == 'lbr':
             delta_affyvals = set_delta_affinities(etree, affyfo)
             delta_affy_increase_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v > 0], 'Reds', remove_top_end=True) if len(delta_affyvals) > 0 else None
@@ -190,7 +190,7 @@ def set_meta_styles(args, etree, tstyle):
             add_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, n_entries=4)
         else:
             add_legend(tstyle, args.lb_metric, lbvals, None, lbfo, 0, n_entries=4)
-            add_legend(tstyle, affy_label, affyvals, affy_smap, affyfo, 3)
+            add_legend(tstyle, affy_label, [a for a in affyvals if a is not None], affy_smap, affyfo, 3)
     elif args.lb_metric == 'lbr':
         add_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, reverse_log=args.log_lbr)
         if affyfo is not None:
@@ -201,7 +201,10 @@ def set_meta_styles(args, etree, tstyle):
 def plot_trees(args):
     treefo = read_input(args)
 
-    etree = ete3.Tree(treefo['treestr'], format=1)
+    treestr = treefo['treestr']
+    if len(treestr.split()) == 2 and treestr.split()[0] in ['[&U]', '[&R']:  # dumbest #$!#$#ing format in the goddamn world (ete barfs on other programs' rooting information)
+        treestr = treefo['treestr'].split()[1]
+    etree = ete3.Tree(treestr, format=1)  # , quoted_node_names=True)
 
     tstyle = ete3.TreeStyle()
     tstyle.mode = args.tree_style[0]
