@@ -4126,7 +4126,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
 
         if not skip_annotations:
             if not dont_add_implicit_info and glfo is None:
-                raise Exception('glfo is None, but we were asked to add implicit info')
+                raise Exception('glfo is None, but we were asked to add implicit info for an (old-style) csv output file')
             n_queries_read = 0
             annotation_list = []
             with open(fname) as csvfile:
@@ -4139,7 +4139,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
                     if n_max_queries > 0 and n_queries_read >= n_max_queries:
                         break
 
-    elif getsuffix(fname) == '.yaml':  # NOTE this replaces any <glfo> that was passed (well, only within the local name table of this fcn)
+    elif getsuffix(fname) == '.yaml':  # NOTE this replaces any <glfo> that was passed (well, only within the local name table of this fcn, unless the calling fcn replaces it themselves, since we return this glfo)
         glfo, annotation_list, cpath = read_yaml_output(fname, n_max_queries=n_max_queries, synth_single_seqs=synth_single_seqs,
                                                         dont_add_implicit_info=dont_add_implicit_info, seed_unique_id=seed_unique_id, cpath=cpath, skip_annotations=skip_annotations, debug=debug)
     else:

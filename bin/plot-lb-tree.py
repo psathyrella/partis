@@ -242,6 +242,6 @@ except ImportError as e:
 args.metafo = None
 if args.metafname is not None:
     with open(args.metafname) as metafile:
-        args.metafo = yaml.load(metafile, loader=yaml.BaseLoader)
+        args.metafo = yaml.load(metafile, loader=yaml.Loader)
 
 plot_trees(args)

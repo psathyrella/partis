@@ -49,7 +49,7 @@ if args.config_fname is None:
     #     yaml.dump({'non_summed_column' : non_summed_column, 'skip_column_vals' : skip_column_vals}, tfile)
 else:
     with open(args.config_fname) as yamlfile:
-        yamlfo = yaml.load(yamlfile, Loader=yaml.BaseLoader)
+        yamlfo = yaml.load(yamlfile, Loader=yaml.Loader)
     if 'non_summed_column' in yamlfo:
         non_summed_column = yamlfo['non_summed_column']
     skip_column_vals = yamlfo['skip_column_vals']

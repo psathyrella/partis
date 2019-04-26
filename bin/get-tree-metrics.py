@@ -33,7 +33,7 @@ if args.input_metafname is not None:
     if not os.path.exists(args.input_metafname):
         raise Exception('--input-metafname %s does not exist' % args.input_metafname)
     with open(args.input_metafname) as imfile:
-        input_metafo = yaml.load(imfile, Loader=yaml.BaseLoader)
+        input_metafo = yaml.load(imfile, Loader=yaml.Loader)
 
 lbvals = treeutils.calculate_lb_values(dtree, treeutils.default_lb_tau, treeutils.default_lbr_tau_factor * treeutils.default_lb_tau, input_metafo=input_metafo, use_multiplicities=(input_metafo is not None), debug=args.debug)
 
