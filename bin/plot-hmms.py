@@ -41,7 +41,7 @@ class ModelPlotter(object):
         for infname in filelist:
             gene_name = os.path.basename(infname).replace('.yaml', '')  # the sanitized name, actually
             with open(infname) as infile:
-                model = yaml.load(infile)
+                model = yaml.load(infile, Loader=yaml.Loader)
                 self.make_transition_plot(gene_name, model)
                 self.make_emission_plot(gene_name, model)
 

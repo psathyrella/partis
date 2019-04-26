@@ -2497,9 +2497,9 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return
         return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
-def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None):  # ete3 requires its own python version, so we run as a subprocess
+def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None, dryrun=False, debug=False):  # ete3 requires its own python version, so we run as a subprocess
     prof_cmds = '' # ' -m cProfile -s tottime -o prof.out'
-    # xvfb_err_str = '' # '-e %s' % XXX outdir + '/xvfb-err'
+    # xvfb_err_str = '' # '-e %s' % XXX outdir + '/xvfb-err'  # tell xvfb-run to write its error to this file (rather than its default of /dev/null). This is only errors actually from xvfb-run, e.g. xauth stuff is broken
     if tmpdir is None:
         tmpdir = choose_random_subdir('/tmp/xvfb-run', make_dir=True)
     cmd = 'export TMPDIR=%s' % tmpdir
@@ -2508,7 +2508,7 @@ def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None):  # 
     if return_for_cmdfos:
         return cmd, tmpdir
     else:
-        simplerun(cmd, shell=True, extra_str='        ')
+        simplerun(cmd, shell=True, extra_str='        ', dryrun=dryrun, debug=debug)
         os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------

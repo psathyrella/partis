@@ -39,7 +39,7 @@ def calc_max_lbi(args):
             if os.path.exists(get_outfname(this_outdir)):
                 if args.make_plots:
                     with open(get_outfname(this_outdir)) as outfile:
-                        info = yaml.load(outfile)
+                        info = yaml.load(outfile, Loader=yaml.BaseLoader)
                     if lbt not in parsed_info:
                         parsed_info[lbt] = {}
                     parsed_info[lbt][n_gen] = info['max']['lbi']
@@ -160,7 +160,7 @@ def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):
 
         yfname = '%s/true-tree-metrics/lbi-vs-affinity-true-tree-ptiles%s.yaml' % (get_partition_plotdir(varnames, vstrs), '-relative' if use_relative_affy else '')
         with open(yfname) as yfile:
-            info = yaml.load(yfile)
+            info = yaml.load(yfile, Loader=yaml.BaseLoader)
         diff_to_perfect = numpy.mean([pafp - afp for lbp, afp, pafp in zip(info['lb_ptiles'], info['mean_affy_ptiles'], info['perfect_vals']) if lbp > min_ptile_to_plot])
 
         tau = vlists[varnames.index('lb-tau')]

@@ -49,16 +49,16 @@ if args.config_fname is None:
     #     yaml.dump({'non_summed_column' : non_summed_column, 'skip_column_vals' : skip_column_vals}, tfile)
 else:
     with open(args.config_fname) as yamlfile:
-        yamlfo = yaml.load(yamlfile)
-        if 'non_summed_column' in yamlfo:
-            non_summed_column = yamlfo['non_summed_column']
-        skip_column_vals = yamlfo['skip_column_vals']
-        for scol in skip_column_vals:
-            skip_column_vals[scol] = [str(v) for v in skip_column_vals[scol]]  # yaml.load() converts to integers, which is usually nice, but here we don't want it to since we're not converting when reading all-probs.csv (I think there's options to yaml.load to change this, I just don't want to figure it out now)
-        if 'any_allele' in yamlfo:
-            if args.any_allele and not yamlfo['any_allele']:  # if it's set to true on the command line, but false in the file
-                print ' %s overwriting --any-allele with value from cfg file %s' % (utils.color('red', 'warning'), args.config_fname)
-            args.any_allele = yamlfo['any_allele']
+        yamlfo = yaml.load(yamlfile, Loader=yaml.BaseLoader)
+    if 'non_summed_column' in yamlfo:
+        non_summed_column = yamlfo['non_summed_column']
+    skip_column_vals = yamlfo['skip_column_vals']
+    for scol in skip_column_vals:
+        skip_column_vals[scol] = [str(v) for v in skip_column_vals[scol]]  # yaml.load() converts to integers, which is usually nice, but here we don't want it to since we're not converting when reading all-probs.csv (I think there's options to yaml.load to change this, I just don't want to figure it out now)
+    if 'any_allele' in yamlfo:
+        if args.any_allele and not yamlfo['any_allele']:  # if it's set to true on the command line, but false in the file
+            print ' %s overwriting --any-allele with value from cfg file %s' % (utils.color('red', 'warning'), args.config_fname)
+        args.any_allele = yamlfo['any_allele']
 
 info = {}
 lines_skipped, lines_used = 0, 0

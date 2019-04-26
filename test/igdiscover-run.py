@@ -43,7 +43,7 @@ def prepare_igdiscover_outdir(outdir):
     if os.path.exists(cfgfname):
         os.remove(cfgfname)
     with open(args.yamlfname) as cfgfile:  # whereas this is the template .yaml in partis/test/
-        cfgdata = yaml.load(cfgfile)
+        cfgdata = yaml.load(cfgfile, Loader=yaml.Loader)
     if True: #not args.gls_gen:
         for filtername in ['pre_germline_filter', 'germline_filter']:
             for cfgvar in ['unique_js', 'unique_cdr3s']:
