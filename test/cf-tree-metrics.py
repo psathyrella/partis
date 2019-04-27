@@ -252,7 +252,7 @@ parser.add_argument('action', choices=['get-max-lbi', 'run-bcr-phylo', 'partitio
 parser.add_argument('--carry-cap-list', default='250:1000:4000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='50,75,80:200,250')
 parser.add_argument('--obs-times-list', default='30,40,50:125,150')
-parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.005:0.008')
+parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.005:0.008:0.012')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10', help='set either this or --n-tau-lengths-list')
 parser.add_argument('--seq-len', default=400, type=int)
