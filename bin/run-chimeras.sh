@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# ----------------------------------------------------------------------------------------
+# dual barcode data from chaim/sai(?)
 label=chimera-dual-barcode
 datadir=/fh/fast/matsen_e/data/$label
 
@@ -25,6 +27,7 @@ done
 # ./bin/compare-plotdirs.py --outdir $outdir/comparison-plots/data-vs-simu/$subd --names good:good-simu:chimeras:chimeras-simu --plotdirs $outdir/good/plots/$subd:$outdir/good/simu-plots/$subd:$outdir/chimeras/plots/$subd:$outdir/chimeras/simu-plots/$subd
 
 exit 0
+
 # ----------------------------------------------------------------------------------------
 # initial simulation study
 pd=/fh/fast/matsen_e/dralph/partis/chimera-testing
