@@ -223,6 +223,9 @@ def process(args):
             raise Exception('have to set --outfname if --airr-output is set')
         if utils.getsuffix(args.outfname) != '.tsv':
             raise Exception('--outfname suffix has to be .tsv if --airr-output is set (got %s)' % utils.getsuffix(args.outfname))
+    if args.airr_input:
+        args.seq_column = 'sequence'
+        args.name_column = 'sequence_id'
 
     if args.cluster_annotation_fname is None and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':  # if it wasn't set on the command line (<outfname> _was_ set), _and_ if we were asked for a csv, then use the old file name format
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
