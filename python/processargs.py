@@ -199,7 +199,7 @@ def process(args):
         if '-e' in args.batch_options or '-o' in args.batch_options:
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
-    if args.outfname is not None and not args.presto_output:
+    if args.outfname is not None and not args.presto_output and not args.airr_output:
         if utils.getsuffix(args.outfname) not in ['.csv', '.yaml']:
             raise Exception('unhandled --outfname suffix %s' % utils.getsuffix(args.outfname))
         if utils.getsuffix(args.outfname) != '.yaml':
@@ -218,6 +218,11 @@ def process(args):
             args.aligned_germline_fname = '%s/%s/imgt-alignments/%s.fa' % (args.default_initial_germline_dir, args.species, args.locus)
         if not os.path.exists(args.aligned_germline_fname):
             raise Exception('--aligned-germline-fname %s doesn\'t exist, but we need it in order to write presto output' % args.aligned_germline_fname)
+    if args.airr_output:
+        if args.outfname is None:
+            raise Exception('have to set --outfname if --airr-output is set')
+        if utils.getsuffix(args.outfname) != '.tsv':
+            raise Exception('--outfname suffix has to be .tsv if --airr-output is set (got %s)' % utils.getsuffix(args.outfname))
 
     if args.cluster_annotation_fname is None and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':  # if it wasn't set on the command line (<outfname> _was_ set), _and_ if we were asked for a csv, then use the old file name format
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)

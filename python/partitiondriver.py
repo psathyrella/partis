@@ -1975,7 +1975,10 @@ class PartitionDriver(object):
             if cpath is not None:  # note that if we're partitioning, we get here with <self.current_action> set to 'annotate'
                 presto_annotation_fname = utils.getprefix(self.args.outfname) + '.tsv'
                 cpath.write_presto_partitions(self.args.outfname, self.input_info)
-            utils.write_presto_annotations(presto_annotation_fname, self.glfo, annotation_list, failed_queries=failed_queries)
+            utils.write_presto_annotations(presto_annotation_fname, annotation_list, failed_queries=failed_queries)
+            return
+        elif self.args.airr_output:
+            utils.write_airr_output(self.args.outfname, annotation_list, cpath=cpath, failed_queries=failed_queries)
             return
 
         partition_lines = None

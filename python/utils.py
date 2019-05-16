@@ -555,6 +555,24 @@ presto_headers = OrderedDict([  # enforce this ordering so the output files are 
     ('SEQUENCE_IMGT', 'aligned_v_plus_unaligned_dj'),
 ])
 
+airr_headers = OrderedDict([  # enforce this ordering so the output files are easier to read
+    ('sequence_id', 'unique_ids'),
+    ('sequence', 'input_seqs'),
+    ('rev_comp', None),
+    ('productive', None),
+    ('v_call', 'v_gene'),
+    ('d_call', 'd_gene'),
+    ('j_call', 'j_gene'),
+    ('sequence_alignment', None),
+    ('germline_alignment', None),
+    ('junction', None),
+    ('junction_aa', None),
+    ('v_cigar', None),
+    ('d_cigar', None),
+    ('j_cigar', None),
+    ('clone_id', None),
+])
+
 # ----------------------------------------------------------------------------------------
 def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
     """ convert <line> to presto csv format """
@@ -575,7 +593,7 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
     return presto_line
 
 # ----------------------------------------------------------------------------------------
-def write_presto_annotations(outfname, glfo, annotation_list, failed_queries):
+def write_presto_annotations(outfname, annotation_list, failed_queries):
     print '   writing presto annotations to %s' % outfname
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
     with open(outfname, 'w') as outfile:
@@ -594,6 +612,87 @@ def write_presto_annotations(outfname, glfo, annotation_list, failed_queries):
             for failfo in failed_queries:
                 assert len(failfo['unique_ids']) == 1
                 writer.writerow({'SEQUENCE_ID' : failfo['unique_ids'][0], 'SEQUENCE_INPUT' : failfo['input_seqs'][0]})
+
+# ----------------------------------------------------------------------------------------
+def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
+    if debug:
+        if region == 'v':
+            print line['unique_ids'][iseq]
+        print '  ', region
+    istart, istop = line['regional_bounds'][region]
+    if indelutils.has_indels(line['indelfos'][iseq]):
+        istart += count_gap_chars(qr_gap_seq, unaligned_pos=istart)
+        istop += count_gap_chars(qr_gap_seq, unaligned_pos=istop)
+    assert len(qr_gap_seq) == len(gl_gap_seq)  # this should be checked in a bunch of other places, but it's nice to see it here
+    regional_qr_gap_seq = istart * gap_chars[0] + qr_gap_seq[istart : istop] + (len(qr_gap_seq) - istop) * gap_chars[0]
+    regional_gl_gap_seq = istart * gap_chars[0] + gl_gap_seq[istart : istop] + (len(qr_gap_seq) - istop) * gap_chars[0]
+    if debug:
+        print '      ', regional_qr_gap_seq
+        print '      ', regional_gl_gap_seq
+    cigarstr = indelutils.get_cigarstr_from_gap_seqs(regional_qr_gap_seq, regional_gl_gap_seq, debug=debug)
+    return cigarstr
+
+# ----------------------------------------------------------------------------------------
+def get_airr_line(line, iseq, partition=None, debug=False):
+    qr_gap_seq = line['seqs'][iseq]
+    gl_gap_seq = line['naive_seq']
+    if indelutils.has_indels(line['indelfos'][iseq]):
+        qr_gap_seq = line['indelfos'][iseq]['qr_gap_seq']
+        gl_gap_seq = line['indelfos'][iseq]['gl_gap_seq']
+
+    aline = {}
+    for akey, pkey in airr_headers.items():
+        if pkey is not None:
+            aline[akey] = line[pkey][iseq] if pkey in linekeys['per_seq'] else line[pkey]
+        elif akey == 'rev_comp':
+            aline[akey] = False
+        elif '_cigar' in akey:
+            assert akey[0] in regions
+            aline[akey] = get_airr_cigar_str(line, iseq, akey[0], qr_gap_seq, gl_gap_seq, debug=debug)
+        elif akey == 'productive':
+            aline[akey] = is_functional(line, iseq)
+        elif akey == 'sequence_alignment':
+            aline[akey] = qr_gap_seq
+        elif akey == 'germline_alignment':
+            aline[akey] = gl_gap_seq
+        elif akey == 'junction':
+            aline[akey] = get_cdr3_seq(line, iseq)
+        elif akey == 'junction_aa':
+            if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
+                from Bio.Seq import Seq
+            cdr3_seq = aline.get('junction', get_cdr3_seq(line, iseq))  # should already be in there, since we're using an ordered dict
+            aline[akey] = sys.modules['Bio.Seq'].Seq(cdr3_seq).translate()
+        elif akey == 'clone_id':
+            if partition is None:
+                continue
+            iclusts = [iclust for iclust in range(len(partition)) if line['unique_ids'][iseq] in partition[iclust]]
+            if len(iclusts) == 0:
+                print '  %s sequence \'%s\' not found in partition' % (color('red', 'warning'), line['unique_ids'][iseq])
+                iclusts = [-1]  # uh, sure, that's a good default
+            elif len(iclusts) > 1:
+                print '  %s sequence \'%s\' occurs multiple times (%d) in partition' % (color('red', 'warning'), line['unique_ids'][iseq], len(iclusts))
+            aline[akey] = str(iclusts[0])
+        else:
+            raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
+    return aline
+
+# ----------------------------------------------------------------------------------------
+def write_airr_output(outfname, annotation_list, cpath, failed_queries, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
+    print '   writing airr annotations to %s' % outfname
+    assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
+    with open(outfname, 'w') as outfile:
+        writer = csv.DictWriter(outfile, airr_headers.keys(), delimiter='\t')
+        writer.writeheader()
+        for line in annotation_list:
+            for iseq in range(len(line['unique_ids'])):
+                aline = get_airr_line(line, iseq, partition=cpath.partitions[cpath.i_best] if cpath is not None else None, debug=debug)
+                writer.writerow(aline)
+
+        # and write empty lines for seqs that failed either in sw or the hmm
+        if failed_queries is not None:
+            for failfo in failed_queries:
+                assert len(failfo['unique_ids']) == 1
+                writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
@@ -926,6 +1025,8 @@ def count_gap_chars(aligned_seq, aligned_pos=None, unaligned_pos=None):  # NOTE 
         ipos = 0  # position in unaligned sequence
         n_gaps_passed = 0  # number of gapped positions in the aligned sequence that we pass before getting to <unaligned_pos> (i.e. while ipos < unaligned_pos)
         while ipos < unaligned_pos or (ipos + n_gaps_passed < len(aligned_seq) and aligned_seq[ipos + n_gaps_passed] in gap_chars):  # second bit handles alignments with gaps immediately before <unaligned_pos>
+            if ipos + n_gaps_passed == len(aligned_seq):  # i.e. <unaligned_pos> is just past the end of the sequence, i.e. slice notation for end of sequence (it would be nice to switch the while to a 'while True' and put all the logic into break statements, but I don't want to change the original stuff a.t.m.
+                break
             if aligned_seq[ipos + n_gaps_passed] in gap_chars:
                 n_gaps_passed += 1
             else:
@@ -2095,10 +2196,13 @@ def process_input_line(info, skip_literal_eval=False):
             raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
 
 # ----------------------------------------------------------------------------------------
+def get_cdr3_seq(info, iseq):  # NOTE includeds both codons, i.e. not the same as imgt definition
+    return info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3]    
+
+# ----------------------------------------------------------------------------------------
 def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for_csv=False):
     if key == 'cdr3_seqs':
-        cdr3_seqs = [info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3] for iseq in range(len(info['unique_ids']))]
-        outfo[key] = cdr3_seqs
+        outfo[key] = [get_cdr3_seq(info, iseq) for iseq in range(len(info['unique_ids']))]
     elif key == 'full_coding_naive_seq':
         assert glfo is not None
         delstr_5p = glfo['seqs']['v'][info['v_gene']][ : info['v_5p_del']]  # bit missing from the input sequence

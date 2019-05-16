@@ -471,7 +471,7 @@ def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
         elif qrb in utils.gap_chars:
             return 'D'
         else:
-            assert False  # the shouldn't both be gaps
+            assert False  # they shouldn't both be gaps
 
     if debug:
         print '  reconstructing cigar'
