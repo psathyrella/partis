@@ -57,7 +57,7 @@ The following keys are written to output by default:
 | fv_insertion       |  constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
 | jf_insertion       |  constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
 | codon_positions	 |  zero-indexed indel-reversed-sequence positions of the conserved cyst and tryp/phen codons, e.g. `{'v': 285, 'j': 336}`
-| mutated_invariants |  true if the conserved codons corresponding to the start and end of the CDR3 code for the same amino acid as in their original germline (cyst and tryp/phen, in IMGT numbering) `[per-seq]`
+| mutated_invariants |  true if either of the conserved codons corresponding to the start and end of the CDR3 code for a different amino acid than their original germline (cyst and tryp/phen, in IMGT numbering) `[per-seq]`
 | in_frames          |  true if the net effect of VDJ rearrangement and SHM indels leaves both the start and end of the CDR3 (IMGT cyst and tryp/phen) in frame with respect to the start of the germline V sequence `[per-seq]`
 | stops              |  true if there's a stop codon in frame with respect to the start of the germline V sequence `[per-seq]`
 | v_per_gene_support |  approximate probability supporting the top V gene matches, as a list of lists (or ordered dict) of gene:probability pairs (approximate: monotonically related to the actual probability, but not exactly one-to-one)
