@@ -104,6 +104,8 @@ def process(args):
 
     args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify=True)
 
+    args.allowed_cdr3_lengths = utils.get_arg_list(args.allowed_cdr3_lengths, intify=True)
+
     args.region_end_exclusions = {r : [args.region_end_exclusion_length if ('%s_%s' % (r, e)) in utils.real_erosions else 0 for e in ['5p', '3p']] for r in utils.regions}
     args.region_end_exclusion_length = None  # there isn't really a big reason to set it to None, but this makes clear that I should only be using the dict version
 

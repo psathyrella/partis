@@ -196,6 +196,8 @@ class Recombinator(object):
                     if line[region + '_gene'] not in self.glfo['seqs'][region]:
                         skip = True
                         break
+                if self.args.allowed_cdr3_lengths is not None and int(line['cdr3_length']) not in self.args.allowed_cdr3_lengths:
+                    skip = True
                 if skip:
                     continue
                 total += float(line['count'])
@@ -277,13 +279,23 @@ class Recombinator(object):
         for effbound in utils.effective_boundaries:
             tmpline[effbound + '_insertion'] = ''
 
+        # ----------------------------------------------------------------------------------------
+        def keep_trying(tmpline):
+            if not tmpline['in_frames'][0]:
+                return True
+            if tmpline['stops'][0]:
+                return True
+            if self.args.allowed_cdr3_lengths is not None and tmpline['cdr3_length'] not in self.args.allowed_cdr3_lengths:
+                return True
+            return False
+
         # then choose the things that we may need to try a few times (physical deletions/insertions)
         itry = 0
-        while itry == 0 or not tmpline['in_frames'][0] or tmpline['stops'][0]:  # keep trying until it's both in frame and has no stop codons
+        while itry == 0 or keep_trying(tmpline):  # keep trying until it's both in frame and has no stop codons
             self.try_scratch_erode_insert(tmpline)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
             itry += 1
             if itry % 50 == 0:
-                print '%s finding an in-frame and stop-less rearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), itry)
+                print '%s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry)
 
         # convert insertions back to lengths (hoo boy this shouldn't need to be done)
         for bound in utils.all_boundaries:
