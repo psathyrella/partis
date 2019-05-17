@@ -174,7 +174,15 @@ class Recombinator(object):
 
         self.add_mutants(reco_event, irandom)
 
-        return reco_event.line
+        line = reco_event.line
+        # NOTE don't use reco_event after here, since we don't modify it when we remove non-functional sequences (as noted elsewhere, it would be nice to eventually update to just using <line>s instead of <reco_event> now that that's possible)
+        if self.args.remove_nonfunctional_seqs:
+            functional_iseqs = [iseq for iseq in range(len(line['unique_ids'])) if utils.is_functional(line, iseq)]
+            if len(functional_iseqs) == 0:  # none functional -- try again
+                return None
+            self.remove_nonfunctional_seqs(line)
+
+        return line
 
     # ----------------------------------------------------------------------------------------
     def freqtable_index(self, line):
@@ -607,6 +615,17 @@ class Recombinator(object):
             print '    tree passed to bppseqgen:'
             print treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      ')
             utils.print_reco_event(reco_event.line, extra_str='    ')
+
+    # ----------------------------------------------------------------------------------------
+    def remove_nonfunctional_seqs(self, line):
+        functional_iseqs = [iseq for iseq in range(len(line['unique_ids'])) if utils.is_functional(line, iseq)]
+        if len(functional_iseqs) == len(line['unique_ids']):  # all functional! (this will generally be very rare)
+            return functional_iseqs
+
+        utils.remove_all_implicit_info(line)
+        for tkey in set(utils.linekeys['per_seq']) & set(line):
+            line[tkey] = [line[tkey][iseq] for iseq in range(len(line['unique_ids'])) if iseq in functional_iseqs]
+        utils.add_implicit_info(self.glfo, line)
 
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, mean_total_height, regional_heights, chosen_tree, scaled_trees, regional_naive_seqs, mseqs, reco_event, debug=False):
