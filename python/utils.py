@@ -582,7 +582,6 @@ airr_headers = OrderedDict([  # enforce this ordering so the output files are ea
     ('d_support', None),
     ('j_support', None),
     ('duplicate_count', None),
-    ('rearrangement_id', None),
 ])
 
 # ----------------------------------------------------------------------------------------
@@ -693,11 +692,6 @@ def get_airr_line(line, iseq, partition=None, debug=False):
             aline[akey] = line[pkey][gcall]
         elif akey == 'duplicate_count':
             aline[akey] = len(line['duplicates'][iseq]) + 1
-        elif akey == 'rearrangement_id':
-            pkey = 'reco_id'
-            if pkey not in line:
-                continue
-            aline[akey] = line[pkey]
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
     return aline
