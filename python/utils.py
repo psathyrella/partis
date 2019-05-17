@@ -556,6 +556,7 @@ presto_headers = OrderedDict([  # enforce this ordering so the output files are 
 ])
 
 airr_headers = OrderedDict([  # enforce this ordering so the output files are easier to read
+    # required:
     ('sequence_id', 'unique_ids'),
     ('sequence', 'input_seqs'),
     ('rev_comp', None),
@@ -571,6 +572,17 @@ airr_headers = OrderedDict([  # enforce this ordering so the output files are ea
     ('d_cigar', None),
     ('j_cigar', None),
     ('clone_id', None),
+    # optional:
+    ('vj_in_frame', 'in_frames'),
+    ('stop_codon', 'stops'),
+    ('locus', None),
+    ('np1', 'vd_insertion'),
+    ('np2', 'dj_insertion'),
+    ('v_support', None),  # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
+    ('d_support', None),
+    ('j_support', None),
+    ('duplicate_count', None),
+    ('rearrangement_id', None),
 ])
 
 # ----------------------------------------------------------------------------------------
@@ -646,8 +658,7 @@ def get_airr_line(line, iseq, partition=None, debug=False):
             aline[akey] = line[pkey][iseq] if pkey in linekeys['per_seq'] else line[pkey]
         elif akey == 'rev_comp':
             aline[akey] = False
-        elif '_cigar' in akey:
-            assert akey[0] in regions
+        elif '_cigar' in akey and akey[0] in regions:
             aline[akey] = get_airr_cigar_str(line, iseq, akey[0], qr_gap_seq, gl_gap_seq, debug=debug)
         elif akey == 'productive':
             aline[akey] = is_functional(line, iseq)
@@ -672,6 +683,21 @@ def get_airr_line(line, iseq, partition=None, debug=False):
             elif len(iclusts) > 1:
                 print '  %s sequence \'%s\' occurs multiple times (%d) in partition' % (color('red', 'warning'), line['unique_ids'][iseq], len(iclusts))
             aline[akey] = str(iclusts[0])
+        elif akey == 'locus':
+            aline[akey] = get_locus(line['v_gene'])
+        elif '_support' in akey and akey[0] in regions:  # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
+            pkey = akey[0] + '_per_gene_support'
+            gcall = line[akey[0] + '_gene']
+            if pkey not in line or gcall not in line[pkey]:
+                continue
+            aline[akey] = line[pkey][gcall]
+        elif akey == 'duplicate_count':
+            aline[akey] = len(line['duplicates'][iseq]) + 1
+        elif akey == 'rearrangement_id':
+            pkey = 'reco_id'
+            if pkey not in line:
+                continue
+            aline[akey] = line[pkey]
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
     return aline
