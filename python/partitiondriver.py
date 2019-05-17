@@ -812,6 +812,9 @@ class PartitionDriver(object):
         if self.args.write_additional_cluster_annotations is not None:  # remove the clusters that aren't actually in the best partition (we need them for partition plotting)
             remove_additional_clusters(best_annotations)
 
+        if self.args.count_parameters and not self.args.dont_write_parameters:  # not sure this is absolutely the most sensible place to put this, but I'm trying to kind of mimic where we write the hmms in self.cache_parameters()
+            self.write_hmms(self.multi_hmm_param_dir)  # note that this modifies <self.glfo>
+
         if os.path.exists(self.hmm_infname):
             os.remove(self.hmm_infname)
         self.current_action = action_cache
