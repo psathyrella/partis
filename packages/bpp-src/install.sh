@@ -27,6 +27,8 @@ for pack in $packs; do
     # 	git checkout $branch
     # fi
 
+    # TODO install patch here
+
     # # configure/compile
     # mkdir -p _build
     # cd _build
@@ -35,7 +37,7 @@ for pack in $packs; do
     # cd ..
 
     # git status
-    git diff >../$pack.patch
+    # git diff >../$pack.patch
 
     cd ..
 done
