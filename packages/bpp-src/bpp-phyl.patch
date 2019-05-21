@@ -1,0 +1,26 @@
+diff --git a/src/Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp b/src/Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
+index dde989d..8e20d36 100644
+--- a/src/Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
++++ b/src/Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
+@@ -95,7 +95,7 @@
+ #include "../NewLikelihood/ParametrizablePhyloTree.h"
+ 
+ #include <Bpp/NewPhyl/PhyloLikelihood_DF.h>
+-#include <Bpp/NewPhyl/LikelihoodCalculationCollection.h>
++#include <Bpp/NewPhyl/LikelihoodCalculationSingleProcess.h>
+ 
+ // From bpp-core
+ #include <Bpp/Io/BppODiscreteDistributionFormat.h>
+diff --git a/test/new_likelihood.cpp b/test/new_likelihood.cpp
+index cb3d2d4..09033e5 100644
+--- a/test/new_likelihood.cpp
++++ b/test/new_likelihood.cpp
+@@ -45,7 +45,7 @@
+ #include <Bpp/NewPhyl/FrequenciesSet.h>
+ #include <Bpp/NewPhyl/Model.h>
+ #include <Bpp/NewPhyl/Parametrizable.h>
+-#include <Bpp/NewPhyl/Likelihood.h>
++#include <Bpp/NewPhyl/LikelihoodCalculationSingleProcess.h>
+ #include <Bpp/Phyl/Model/Nucleotide/T92.h>
+ #include <Bpp/Phyl/Model/FrequenciesSet/NucleotideFrequenciesSet.h>
+ #include <Bpp/Seq/Alphabet/AlphabetTools.h>
