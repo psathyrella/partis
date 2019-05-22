@@ -10,31 +10,31 @@ done
 for pack in $packs; do
     echo -e "\n$pack"
 
-    # # clone repo
-    # if [ $pack == "eigen3" ]; then
-    # 	repo=eigenteam/eigen-git-mirror
-    # else
-    # 	repo=BioPP/$pack
-    # fi
-    # git clone git@github.com:$repo $pack
+    # clone repo
+    if [ $pack == "eigen3" ]; then
+    	repo=eigenteam/eigen-git-mirror
+    else
+    	repo=BioPP/$pack
+    fi
+    git clone git@github.com:$repo $pack
 
     cd $pack
 
-    # # switch branches
-    # if [ $pack != "eigen3" ]; then  # crashes on one of the bio repos, which doesn't have a newlik branch
-    # 	branch=newlik # devel
-    # 	git branch --track $branch origin/$branch
-    # 	git checkout $branch
-    # fi
+    # switch branches
+    if [ $pack != "eigen3" ]; then  # crashes on one of the bio repos, which doesn't have a newlik branch
+    	branch=newlik # devel
+    	git branch --track $branch origin/$branch
+    	git checkout $branch
+    fi
 
     # TODO install patch here
 
-    # # configure/compile
-    # mkdir -p _build
-    # cd _build
-    # cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=$bd/_build ..  # -DCMAKE_PREFIX_PATH=/home/dralph/work/partis/packages/bpp-src/bpp-core
-    # make install
-    # cd ..
+    # configure/compile
+    mkdir -p _build
+    cd _build
+    cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=$bd/_build ..  # -DCMAKE_PREFIX_PATH=/home/dralph/work/partis/packages/bpp-src/bpp-core
+    make install
+    cd ..
 
     # git status
     # git diff >../$pack.patch
