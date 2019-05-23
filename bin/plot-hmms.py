@@ -33,12 +33,15 @@ class ModelPlotter(object):
             utils.prep_dir(plotdir, wildlings=['*.png', '*.svg'])
 
         if args.hmmdir != None:
-            filelist = glob.glob(args.hmmdir + '/*.yaml')
+            self.filelist = glob.glob(args.hmmdir + '/*.yaml')
         else:
-            filelist = utils.get_arg_list(args.infiles)
-        if len(filelist) == 0:
+            self.filelist = utils.get_arg_list(args.infiles)
+        if len(self.filelist) == 0:
             raise Exception('zero files passed to modelplotter')
-        for infname in filelist:
+
+    # ----------------------------------------------------------------------------------------
+    def plot(self):
+        for infname in self.filelist:
             gene_name = os.path.basename(infname).replace('.yaml', '')  # the sanitized name, actually
             with open(infname) as infile:
                 model = yaml.load(infile, Loader=yaml.Loader)
@@ -114,14 +117,14 @@ class ModelPlotter(object):
             if state.emissions is None:
                 assert state.name == 'init'
                 continue
+            plotting_info.append({
+                'name' : state.name,
+                'nuke_freqs' : state.emissions['probs'],
+            })
 
-            plotting_info.append({})
-            plotting_info[-1]['name'] = state.name
-            plotting_info[-1]['nuke_freqs'] = state.emissions['probs']
+        paramutils.make_mutefreq_plot(self.base_plotdir + '/emissions', gene_name, plotting_info, debug=True)
 
-        paramutils.make_mutefreq_plot(self.base_plotdir + '/emissions', gene_name, plotting_info)
-
-    # # ----------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--hmmdir')
@@ -140,3 +143,4 @@ if __name__ == '__main__':
     if not os.path.exists(args.outdir):
         raise Exception('output directory %s does not exist' % args.outdir)
     mplot = ModelPlotter(args, args.outdir) # + '/modelplots')
+    mplot.plot()

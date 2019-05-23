@@ -93,7 +93,7 @@ class ParameterCounter(object):
                 utils.prep_dir(thisplotdir, wildlings=['*.csv', '*.svg'])
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, only_csv=False, only_overall=False):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it write() wasn't called first, that is)
+    def plot(self, plotdir, only_csv=False, only_overall=False, make_per_base_plots=False):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it write() wasn't called first, that is)
         import plotting
         print '  plotting parameters in %s' % plotdir,
         sys.stdout.flush()
@@ -101,7 +101,7 @@ class ParameterCounter(object):
 
         self.clean_plots(plotdir)
 
-        self.mfreqer.plot(plotdir + '/mute-freqs', only_csv=only_csv, only_overall=only_overall)
+        self.mfreqer.plot(plotdir + '/mute-freqs', only_csv=only_csv, only_overall=only_overall, make_per_base_plots=make_per_base_plots)
 
         overall_plotdir = plotdir + '/overall'
 

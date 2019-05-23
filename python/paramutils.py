@@ -108,7 +108,7 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
     return mute_freqs
 
 # ----------------------------------------------------------------------------------------
-def make_mutefreq_plot(plotdir, gene_name, positions):
+def make_mutefreq_plot(plotdir, gene_name, positions, debug=False):
     import plotting
     """ NOTE shares a lot with make_transition_plot() in bin/plot-hmms.py. """
     nuke_colors = {'A' : 'red', 'C' : 'blue', 'G' : 'orange', 'T' : 'green'}
@@ -116,7 +116,8 @@ def make_mutefreq_plot(plotdir, gene_name, positions):
     fig.set_size_inches(plotting.plot_ratios[utils.get_region(gene_name)])
 
     ibin = 0
-    print utils.color_gene(utils.unsanitize_name(gene_name))
+    if debug:
+        print '  %s' % utils.color_gene(utils.unsanitize_name(gene_name))
     legend_colors = set()
     for info in positions:
         posname = info['name']

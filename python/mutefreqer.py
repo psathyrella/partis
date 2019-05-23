@@ -128,7 +128,7 @@ class MuteFreqer(object):
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, only_csv=False, only_overall=False):
+    def plot(self, plotdir, only_csv=False, only_overall=False, make_per_base_plots=False):
         import plotting
         if not self.finalized:
             self.finalize()
@@ -161,8 +161,17 @@ class MuteFreqer(object):
             plotting.draw_no_root(self.per_gene_mean_rates[gene], plotdir=plotdir + '/per-gene/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, only_csv=only_csv, shift_overflows=True)
             # per-position plots:
             plotting.draw_no_root(genehist, plotdir=plotdir + '/per-gene-per-position/' + utils.get_region(gene), plotname=utils.sanitize_name(gene), errors=True, write_csv=True, xline=xline, figsize=figsize, only_csv=only_csv, shift_overflows=True)
-            # # per-position, per-base plots:
-            # paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)  # needs translation to mpl UPDATE fcn is fixed, but I can't be bothered uncommenting this at the moment
+
+            if make_per_base_plots:
+                # per-position, per-base plots: (super slow, so commented by default)
+                import paramutils
+                plotting_info = []
+                for pos in sorted_positions:
+                    plotting_info.append({
+                        'name' : str(pos),  # not sure if this is right, but I think so
+                        'nuke_freqs' : {n : freqs[pos][n] for n in utils.nukes},
+                    })
+                paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)
 
         # make mean mute freq hists
         for rstr in ['all', 'cdr3'] + utils.regions:

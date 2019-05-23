@@ -250,6 +250,9 @@ def process(args):
     if args.action == 'plot-partitions' and args.plotdir is None:
         raise Exception('--plotdir must be specified for plot-partitions')
 
+    if args.make_per_gene_per_base_plots and not args.make_per_gene_plots:  # the former doesn't do anything unless the latter is turned on
+        args.make_per_gene_plots = True
+
     if args.parameter_type != 'hmm':
         print '  using non-default parameter type \'%s\'' % args.parameter_type
 

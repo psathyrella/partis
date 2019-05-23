@@ -1894,9 +1894,9 @@ class PartitionDriver(object):
         if pcounter is not None:
             path_str = 'hmm' if parameter_out_dir is None else os.path.basename(parameter_out_dir)  # at the moment, this is just 'hmm' for regular parameter caching, and 'multi-hmm' for parameter caching after partitioning
             if self.args.plotdir is not None:
-                pcounter.plot('%s/%s' % (self.args.plotdir, path_str), only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots)
+                pcounter.plot('%s/%s' % (self.args.plotdir, path_str), only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots, make_per_base_plots=self.args.make_per_gene_per_base_plots)
                 if true_pcounter is not None:
-                    true_pcounter.plot('%s/%s' % (self.args.plotdir, path_str.replace('hmm', 'true')), only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots)
+                    true_pcounter.plot('%s/%s' % (self.args.plotdir, path_str.replace('hmm', 'true')), only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots, make_per_base_plots=self.args.make_per_gene_per_base_plots)
             if not self.args.dont_write_parameters:
                 pcounter.write(parameter_out_dir)
                 if true_pcounter is not None:
