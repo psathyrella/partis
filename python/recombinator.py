@@ -48,7 +48,8 @@ class Recombinator(object):
         self.allele_prevalence_freqs = glutils.read_allele_prevalence_freqs(args.allele_prevalence_fname) if args.allele_prevalence_fname is not None else {}
         self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data (none if rearranging from scratch)
         self.insertion_content_probs = self.read_insertion_content()  # dummy/uniform if rearranging from scratch
-        self.all_mute_freqs = {}
+        self.all_mute_freqs = {}  # NOTE see description of the difference in hmmwriter.py
+        self.all_mute_counts = {}
 
         # read shm info NOTE I'm not inferring the gtr parameters a.t.m., so I'm just (very wrongly) using the same ones for all individuals
         with open(self.args.gtrfname, 'r') as gtrfile:  # read gtr parameters
@@ -109,10 +110,17 @@ class Recombinator(object):
         return self.all_mute_freqs[gene]
 
     # ----------------------------------------------------------------------------------------
+    def get_mute_counts(self, gene):
+        if gene not in self.all_mute_counts:
+            self.read_mute_freq_stuff(gene)
+        return self.all_mute_counts[gene]
+
+    # ----------------------------------------------------------------------------------------
     def read_mute_freq_stuff(self, gene):
         assert gene[:2] not in utils.boundaries  # make sure <gene> isn't actually an insertion (we used to pass insertions in here separately, but now they're smooshed onto either end of d)
         if self.args.mutate_from_scratch:
             self.all_mute_freqs[gene] = {'overall_mean' : self.args.scratch_mute_freq}
+            # self.all_mute_counts[gene] = {'overall_mean' : } TODO see TODOs further down, but at the moment we don't use these if --mutate-from-scratch is set
         else:
             approved_genes = [gene]
 
@@ -122,7 +130,8 @@ class Recombinator(object):
             if gene_counts < self.args.min_observations_per_gene:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's in <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
                 approved_genes += utils.find_replacement_genes(tmp_reco_param_dir, min_counts=self.args.min_observations_per_gene, gene_name=gene)
 
-            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, approved_genes)
+            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, approved_genes)  # NOTE these fcns do quite different things as far as smoothing, see comments elsewhere
+            self.all_mute_counts[gene] = paramutils.read_mute_counts(self.shm_parameter_dir, gene, utils.get_locus(gene))
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
@@ -190,7 +199,7 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_vdj_version_freqs(self):
-        """ Read the frequencies at which various VDJ combinations appeared in data """
+        """ Read the frequencies at which various rearrangement events (VDJ combinations + insertion/deletion lengths) appeared in data """
         if self.args.rearrange_from_scratch:
             return None
 
@@ -416,6 +425,7 @@ class Recombinator(object):
         rates = []  # list with a relative mutation rate for each position in <seq>
         total = 0.0
         # assert len(mute_freqs) == len(seq)  # only equal length if no erosions NO oh right but mute_freqs only covers areas we could align to...
+        # NOTE <inuke> is position/index in the *eroded* sequence that we're dealing with, while <position> is in the uneroded germline gene
         left_erosion_length = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())[utils.get_region(gene) + '_5p']
         for inuke in range(len(seq)):  # append a freq for each nuke
             position = inuke + left_erosion_length
@@ -464,43 +474,91 @@ class Recombinator(object):
         treefname = workdir + '/tree.tre'
         reco_seq_fname = workdir + '/start-seq.txt'
         leaf_seq_fname = workdir + '/leaf-seqs.fa'
-        # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen)
+        # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen; see https://github.com/BioPP/bppsuite/issues/3)
         chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
+        other_files = [reco_seq_fname, treefname]
         self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
 
+        if self.args.per_base_mutation:
+            bpp_path = '%s/packages/bpp-src/_build' % self.args.partis_dir
+        else:
+            bpp_path = '%s/packages/bpp' % self.args.partis_dir
+
         env = os.environ.copy()
-        env['LD_LIBRARY_PATH'] = env.get('LD_LIBRARY_PATH', '') + ':' + self.args.partis_dir + '/packages/bpp/lib'
+        env['LD_LIBRARY_PATH'] = '%s/lib%s' % (bpp_path, (':' + env.get('LD_LIBRARY_PATH')) if env.get('LD_LIBRARY_PATH') is not None else '')
 
         # build up the command line
         # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
-        bpp_binary = self.args.partis_dir + '/packages/bpp/bin/bppseqgen'
+        bpp_binary = '%s/bin/bppseqgen' % bpp_path
         if not os.path.exists(bpp_binary):
             raise Exception('bpp not found in %s' % os.path.dirname(bpp_binary))
 
-        command = bpp_binary  # NOTE should I use the "equilibrium frequencies" option?
-        command += ' alphabet=DNA'
-        command += ' --seed=' + str(seed)
-        command += ' input.infos=' + reco_seq_fname  # input file (specifies initial "state" for each position, and possibly also the mutation rate at that position)
-        command += ' input.infos.states=state'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
-        command += ' input.tree.file=' + treefname
-        command += ' input.tree.format=Newick'
-        command += ' output.sequence.file=' + leaf_seq_fname
-        command += ' output.sequence.format=Fasta'
-        if self.args.mutate_from_scratch:
-            command += ' model=JC69'
-            command += ' input.infos.rates=none'  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
-            if self.args.flat_mute_freq:
-                command += ' rate_distribution=Constant'
-            else:
-                command += ' rate_distribution=Gamma(n=4,alpha=' + self.mute_models[utils.get_region(gene)]['gamma']['alpha']+ ')'
-        else:
-            command += ' input.infos.rates=rate'  # column name in input file
-            pvpairs = [p + '=' + v for p, v in self.mute_models[utils.get_region(gene)]['gtr'].items()]
-            command += ' model=GTR(' + ','.join(pvpairs) + ')'
+        if self.args.per_base_mutation:
+            # NOTE/TODO this successfully gets us per-base mutation rates, but the overall mutation isn't right -- the more asymmetric the rates to the four bases, the higher the tree depth bppseqgen gives back. Not sure why yet
+            assert not self.args.mutate_from_scratch  # TODO
+            assert not self.args.flat_mute_freq  # TODO
+            paramfname = workdir + '/cfg.bpp'
+            other_files.append(paramfname)
+            plines = ['alphabet = DNA']
+            plines += ['number_of_sites = %d' % len(seq)]
+            plines += ['input.tree1 = user(file=%s)' % treefname]
+            plines += ['rate_distribution1 = Constant()']
+            plines += ['input.infos = %s' % reco_seq_fname]
+            plines += ['input.infos.states = state']
+            plines += ['input.infos.rates = rate']
+            plines += ['']
 
-        return {'cmd_str' : command, 'outfname' : leaf_seq_fname, 'workdir' : workdir, 'other-files' : [reco_seq_fname, treefname], 'env' : env}
+            left_erosion_length = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())[utils.get_region(gene) + '_5p']
+            # NOTE <inuke> is position/index in the *eroded* sequence that we're dealing with, while <position> is in the uneroded germline gene
+            mute_counts = self.get_mute_counts(gene)
+            for inuke in range(len(seq)):
+                position = inuke + left_erosion_length
+                mcounts = mute_counts.get(position, {n : 1 for n in utils.nukes})
+                mcounts = {n : max(c, 1) for n, c in mcounts.items()}  # add pseudocounts (NOTE this is quite a bit less involved than in hmmwriter.py process_mutation_info() and get_emission_prob())
+                total = sum(mcounts.values())
+                init_freqs = [mcounts[n] / float(total) for n in sorted(utils.nukes)]  # NOTE bio++ manual says the alphabet is always in alphabetical order, so we assume here it's ACGT (if it isn't, this is all wrong)
+                plines += ['model%d = HKY85(kappa=1., initFreqs=values(%s))' % (inuke + 1, ', '.join(['%f' % f for f in init_freqs]))]
+            plines += ['']
+
+            for inuke in range(len(seq)):
+                plines += ['process%d = Homogeneous(model=%d, tree=1, rate=1)' % tuple(inuke + 1 for _ in range(2))]  # NOTE I"m not really sure that the rate does anything, since I"m passing input.infos
+            plines += ['']
+
+            plines += ['process%d = Partition( \\' % (len(seq) + 1)]
+            for inuke in range(len(seq)):
+                plines += ['                     process%d=%d, process%d.sites=%d, \\' % tuple(inuke + 1 for _ in range(4))]
+            plines += [')', '']
+
+            plines += ['simul1 = Single(process=%d, output.sequence.file=%s)' % (len(seq) + 1, leaf_seq_fname)]
+
+            with open(paramfname, 'w') as pfile:
+                pfile.write('\n'.join(plines))
+            command = '%s param=%s' % (bpp_binary, paramfname)
+        else:
+            command = bpp_binary  # NOTE should I use the "equilibrium frequencies" option?
+            command += ' alphabet=DNA'
+            command += ' --seed=' + str(seed)
+            command += ' input.infos=' + reco_seq_fname  # input file (specifies initial "state" for each position, and possibly also the mutation rate at that position)
+            command += ' input.infos.states=state'  # column name in input file BEWARE bio++ undocumented defaults (i.e. look in the source code)
+            command += ' input.tree.file=' + treefname
+            command += ' input.tree.format=Newick'
+            command += ' output.sequence.file=' + leaf_seq_fname
+            command += ' output.sequence.format=Fasta'
+            if self.args.mutate_from_scratch:
+                command += ' model=JC69'
+                command += ' input.infos.rates=none'  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
+                if self.args.flat_mute_freq:
+                    command += ' rate_distribution=Constant'
+                else:
+                    command += ' rate_distribution=Gamma(n=4,alpha=' + self.mute_models[utils.get_region(gene)]['gamma']['alpha']+ ')'
+            else:
+                command += ' input.infos.rates=rate'  # column name in input file
+                pvpairs = [p + '=' + v for p, v in self.mute_models[utils.get_region(gene)]['gtr'].items()]
+                command += ' model=GTR(' + ','.join(pvpairs) + ')'
+
+        return {'cmd_str' : command, 'outfname' : leaf_seq_fname, 'workdir' : workdir, 'other-files' : other_files, 'env' : env}
 
     # ----------------------------------------------------------------------------------------
     def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
