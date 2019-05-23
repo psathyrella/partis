@@ -493,7 +493,7 @@ class Recombinator(object):
         # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
         bpp_binary = '%s/bin/bppseqgen' % bpp_path
         if not os.path.exists(bpp_binary):
-            raise Exception('bpp not found in %s' % os.path.dirname(bpp_binary))
+            raise Exception('bppseqgen binary not found: %s' % bpp_binary)
 
         if self.args.per_base_mutation:
             # NOTE/TODO this successfully gets us per-base mutation rates, but the overall mutation isn't right -- the more asymmetric the rates to the four bases, the higher the tree depth bppseqgen gives back. Not sure why yet
