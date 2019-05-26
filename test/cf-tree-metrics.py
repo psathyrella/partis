@@ -7,6 +7,7 @@ import yaml
 import colored_traceback.always
 import collections
 import numpy
+import math
 
 # ----------------------------------------------------------------------------------------
 def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.get_max_lbi()
@@ -21,6 +22,8 @@ def calc_max_lbi(args):
     if args.overwrite:
         raise Exception('not implemented')
 
+    outdir = '%s/lb-tau-optimization/%s' % (args.base_outdir, args.label)
+
     parsed_info = {}
     for lbt in args.lb_tau_list:
 
@@ -34,7 +37,7 @@ def calc_max_lbi(args):
             # if ntl is not None:
             #     this_outdir = '%s/ XXX %s/n-tau-%.2f-lbt-%.4f' % (args.base_outdir, args.label, ntl, lbt)
             # elif n_gen is not None:
-            this_outdir = '%s/lb-tau-optimization/%s/n_gen-%d-lbt-%.4f' % (args.base_outdir, args.label, n_gen, lbt)
+            this_outdir = '%s/n_gen-%d-lbt-%.4f' % (outdir, n_gen, lbt)
 
             if os.path.exists(get_outfname(this_outdir)):
                 if args.make_plots:
@@ -67,14 +70,14 @@ def calc_max_lbi(args):
         for lbt in sorted(parsed_info, reverse=True):
             n_gen_list, max_lbi_list = zip(*sorted(parsed_info[lbt].items(), key=operator.itemgetter(0)))
             ax.plot(n_gen_list, max_lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-        plotting.mpl_finish(ax, args.base_outdir + '/lb-tau-optimization', 'tau-vs-n-gen-vs-max-lbi', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+        plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-max-lbi', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
 
         # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
         fig, ax = plotting.mpl_init()
         for lbt in sorted(parsed_info, reverse=True):
             n_gen_list, max_lbi_list = zip(*sorted(parsed_info[lbt].items(), key=operator.itemgetter(0)))
             ax.plot(n_gen_list, max_lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-        plotting.mpl_finish(ax, args.base_outdir + '/lb-tau-optimization', 'tau-vs-n-gen-vs-max-lbi-log', log='y', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+        plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-max-lbi-log', log='y', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
 
 # ----------------------------------------------------------------------------------------
 def get_outdir(varnames, vstr, svtype):
@@ -144,7 +147,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):
+def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):  # have to go lower than 85. for small sample sizes
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['partition'])
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
@@ -162,6 +165,9 @@ def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):
         with open(yfname) as yfile:
             info = yaml.load(yfile, Loader=yaml.Loader)
         diff_to_perfect = numpy.mean([pafp - afp for lbp, afp, pafp in zip(info['lb_ptiles'], info['mean_affy_ptiles'], info['perfect_vals']) if lbp > min_ptile_to_plot])
+        if math.isnan(diff_to_perfect):
+            raise Exception('  empty value list above min ptile to plot of %f -- probably just reduce this value' % min_ptile_to_plot)
+            # continue  # can't just continue, it crashes further down, which I think means things have to be the same length and you can't just skip
 
         tau = vlists[varnames.index('lb-tau')]
         if args.n_replicates > 1:  # need to average over the replicates

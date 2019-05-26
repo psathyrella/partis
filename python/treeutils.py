@@ -532,7 +532,7 @@ def get_max_lbi(seq_len, tau, n_tau_lengths=5, n_generations=None, n_offspring=2
         if debug:
             print '   %d generations' % n_generations
 
-    dtree = dendropy.Tree()  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculat lb values)
+    dtree = dendropy.Tree()  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculate lb values)
     old_leaf_nodes = [dtree.seed_node]
     new_leaf_nodes = []
     for igen in range(n_generations):
