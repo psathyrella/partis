@@ -18,7 +18,9 @@ def get_outfname(outdir):
     return '%s/vals.yaml' % outdir
 
 # ----------------------------------------------------------------------------------------
-def calc_max_lbi(args):
+def calc_max_lbi(args, print_results=False):
+    print_results = True
+
     if args.overwrite:
         raise Exception('not implemented')
 
@@ -54,12 +56,13 @@ def calc_max_lbi(args):
                 os.makedirs(this_outdir)
 
             # lbvals = treeutils.get_min_lbi(args.seq_len, args. XXX lb_tau)
-            max_name, max_lbi, lbvals = treeutils.get_max_lbi(args.seq_len, lbt, n_generations=n_gen)
+            max_name, max_lbi, lbvals = treeutils.get_max_lbi(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lbi_n_offspring)
             # TODO maybe should write tree + lb values to file here?
 
             with open(get_outfname(this_outdir), 'w') as outfile:
                 yaml.dump({'max' : {'name' : max_name, 'lbi' : max_lbi}}, outfile)
 
+            # comment this block to speed up really big trees
             plotdir = this_outdir + '/plots'
             utils.prep_dir(plotdir, wildlings='*.svg')
             cmdfos = [plotting.get_lb_tree_cmd(lbvals['tree'], '%s/tree.svg' % plotdir, 'lbi', 'affinities', args.ete_path, args.workdir, metafo=lbvals, tree_style='circular')]
@@ -70,6 +73,10 @@ def calc_max_lbi(args):
         for lbt in sorted(parsed_info, reverse=True):
             n_gen_list, max_lbi_list = zip(*sorted(parsed_info[lbt].items(), key=operator.itemgetter(0)))
             ax.plot(n_gen_list, max_lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
+            if print_results:
+                print '  %.4f' % lbt
+                for ng, maxl in zip(n_gen_list, max_lbi_list):
+                    print '    %2d  %.4f' % (ng, maxl)
         plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-max-lbi', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
 
         # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
@@ -261,6 +268,7 @@ parser.add_argument('--obs-times-list', default='30,40,50:125,150')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.005:0.008:0.012')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10', help='set either this or --n-tau-lengths-list')
+parser.add_argument('--max-lbi-n-offspring', default=2, type=int, help='multifurcation number for max lbi calculation')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--n-procs', default=1, type=int)
