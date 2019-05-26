@@ -57,7 +57,7 @@ def calc_max_lbi(args, print_results=False):
 
             # lbvals = treeutils.get_min_lbi(args.seq_len, args. XXX lb_tau)
             max_name, max_lbi, lbvals = treeutils.get_max_lbi(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lbi_n_offspring)
-            # TODO maybe should write tree + lb values to file here?
+            # maybe should write tree + all lb values to file here? although it's not really slow any more, so whatever
 
             with open(get_outfname(this_outdir), 'w') as outfile:
                 yaml.dump({'max' : {'name' : max_name, 'lbi' : max_lbi}}, outfile)
@@ -265,7 +265,7 @@ parser.add_argument('action', choices=['get-max-lbi', 'run-bcr-phylo', 'partitio
 parser.add_argument('--carry-cap-list', default='250:1000:4000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='50,75,80:200,250')
 parser.add_argument('--obs-times-list', default='30,40,50:125,150')
-parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.005:0.008:0.012')
+parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.0025:0.003:0.005:0.008:0.012')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10', help='set either this or --n-tau-lengths-list')
 parser.add_argument('--max-lbi-n-offspring', default=2, type=int, help='multifurcation number for max lbi calculation')
