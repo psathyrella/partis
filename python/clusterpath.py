@@ -44,6 +44,10 @@ class ClusterPath(object):
         return len([u for c in self.partitions[ip] for u in c])
 
     # ----------------------------------------------------------------------------------------
+    def find_iparts_for_cluster(self, cluster):  # get index of partitions in which a list of uids (i.e. a cluster) appears
+        return [ip for ip in range(len(self.partitions)) if cluster in self.partitions[ip]]  # NOTE just returns zero-length list if it isn't there
+
+    # ----------------------------------------------------------------------------------------
     def get_headers(self, is_data):
         headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
         if not is_data:
@@ -176,13 +180,13 @@ class ClusterPath(object):
         return ccf_str
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None, right_extrastr=''):
+    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None, print_cluster_indices=False, right_extrastr=''):  # NOTE <highlight_cluster_indices> and <print_cluster_indices> are quite different despite sounding similar, but I can't think of something else to call the latter that makes more sense
         #  NOTE it's nicer to *not* sort by cluster size here, since preserving the order tends to frequently make it obvious which clusters are merging as your eye scans downwards through the output
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
         else:
             delta_str = ''
-        print '      %s  %-12.2f%-7s   %-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, len(self.partitions[ip]), self.n_procs[ip]),
+        print '      %s  %-12.2f%-7s   %s%-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, ('%-5d  ' % ip) if print_cluster_indices else '', len(self.partitions[ip]), self.n_procs[ip]),
 
         print '    ' + self.get_ccf_str(ip),
 
@@ -213,13 +217,13 @@ class ClusterPath(object):
         print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, calc_missing_values='none', highlight_cluster_indices=None):
+    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, calc_missing_values='none', highlight_cluster_indices=None, print_cluster_indices=False):
         assert calc_missing_values in ['none', 'all', 'best']
         if reco_info is not None and calc_missing_values == 'all':
             self.calculate_missing_values(reco_info)
 
         if print_header:
-            print '    %7s %10s   %-7s %5s  %4s' % ('', 'logprob', 'delta', 'clusters', 'n_procs'),
+            print '    %7s %10s   %-7s %s%5s  %4s' % ('', 'logprob', 'delta', 'index  ' if print_cluster_indices else '', 'clusters', 'n_procs'),
             if reco_info is not None or self.we_have_a_ccf:
                 print ' %5s %5s' % ('purity', 'completeness'),
             print ''
@@ -235,7 +239,7 @@ class ClusterPath(object):
             if mark.count(' ') < len(mark):
                 mark = utils.color('yellow', mark)
             right_extrastr = '' if self.n_seqs() < 400 else mark  # if line is going to be really long, put the yellow stuff also on the right side
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices, right_extrastr=right_extrastr)
+            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices, print_cluster_indices=print_cluster_indices, right_extrastr=right_extrastr)
 
     # ----------------------------------------------------------------------------------------
     def get_surrounding_partitions(self, n_partitions):

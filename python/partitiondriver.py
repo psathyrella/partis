@@ -379,7 +379,7 @@ class PartitionDriver(object):
                 print '  %s seed uids from args and cpath don\'t match %s %s ' % (utils.color('red', 'error'), self.args.seed_unique_id, cpath.seed_unique_id)
             seed_uid = cpath.seed_unique_id
             print utils.color('green', 'partitions:')
-            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices, calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'))
+            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices, calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'), print_cluster_indices=True)
             if not self.args.is_data and self.reco_info is not None:  # if we're reading existing output, it's pretty common to not have the reco info even when it's simulation, since you have to also pass in the simulation input file on the command line
                 true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
                 true_cp.add_partition(utils.get_true_partition(self.reco_info), -1., 1)
@@ -396,13 +396,19 @@ class PartitionDriver(object):
                     continue
                 if (self.args.only_print_seed_clusters or self.args.seed_unique_id is not None) and seed_uid not in line['unique_ids']:  # we only use the seed id from the command line here, so you can print all the clusters even if you ran seed partitioning UPDATE wait did I change my mind? need to check
                     continue
-                label, post_label = '', ''
+                label, post_label = [], []
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
-                    label = 'inferred:'
-                if cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
-                    post_label += ' (from best partition)'
-                utils.print_reco_event(line, extra_str='  ', label=label, post_label=post_label, seed_uid=seed_uid)
+                    label += ['inferred:']
+                if cpath is not None and cpath.i_best is not None:  # maybe I could do the iparts stuff even if i_best isn't set, but whatever, I think it's only really not set if the cpath is null anyway
+                    iparts = cpath.find_iparts_for_cluster(line['unique_ids'])
+                    ipartstr = 'none' if len(iparts) == 0 else ' '.join([str(i) for i in iparts])
+                    post_label += ['   partition%s: %s' % (utils.plural(len(iparts)), ipartstr)]
+                    if cpath.i_best in iparts:
+                        post_label += [', %s' % utils.color('yellow', 'best')]
+                    if seed_uid is not None and seed_uid in line['unique_ids']:
+                        post_label += [', %s' % utils.color('red', 'seed')]
+                utils.print_reco_event(line, extra_str='  ', label=''.join(label), post_label=''.join(post_label), seed_uid=seed_uid)
 
     # ----------------------------------------------------------------------------------------
     def read_existing_output(self, outfname=None, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):
