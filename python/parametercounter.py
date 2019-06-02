@@ -2,6 +2,7 @@ import os
 import csv
 import time
 import sys
+import itertools
 
 import utils
 import glutils
@@ -29,9 +30,22 @@ class ParameterCounter(object):
             self.string_columns.add(bound + '_insertion_content')
         self.counts['cdr3_length'] = {}
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}  # now I'm adding the aa content, I wish this had nucleotide in the name, but I don't want to change it since it corresponds to a million existing file paths
+        self.init_aa_stuff()
+        self.counts['seq_aa_content'] = {a : 0 for a in self.all_aa}
         self.string_columns.add('seq_content')
+        self.string_columns.add('seq_aa_content')
+
+        self.no_write_columns = ['cdr3_length', 'seq_aa_content']  # don't write these to the parameter dir, since a) cdr3_length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding them waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding these because I want them plotted)
 
         self.columns_to_subset_by_gene = [e + '_del' for e in utils.all_erosions] + [b + '_insertion' for b in utils.boundaries]
+
+    # ----------------------------------------------------------------------------------------
+    def init_aa_stuff(self):
+        if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
+            from Bio.Seq import Seq
+        self.Seq = sys.modules['Bio.Seq']
+        codons = itertools.product(utils.nukes + ['N'], repeat=3)  # I cannot for the life of me find anything in Bio that will give me the list of amino acids, wtf, but I'm tired of googling, this will be fine
+        self.all_aa = set([self.Seq.translate(''.join(c)) for c in codons])
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -56,10 +70,20 @@ class ParameterCounter(object):
         """ increment parameters that differ for each sequence within the clonal family """
         self.mute_total += 1
         self.mfreqer.increment(info, iseq)
-        for nuke in info['seqs'][iseq]:
-            if nuke in utils.ambiguous_bases:
-                continue
-            self.counts['seq_content'][nuke] += 1
+        for nuke in utils.nukes:
+            self.counts['seq_content'][nuke] += info['seqs'][iseq].count(nuke)
+
+        # aa seq content stuff
+        nseq = info['seqs'][iseq]
+        if info['v_5p_del'] > 0:
+            nseq = info['v_5p_del'] * utils.ambiguous_bases[0] + nseq
+        if len(info['fv_insertion']) > 0:
+            nseq = nseq[len(info['fv_insertion']) :]
+        if len(nseq) % 3 != 0:
+            nseq += utils.ambiguous_bases[0] * (3 - (len(nseq) % 3))
+        aaseq = self.Seq.translate(nseq)
+        for aa in self.all_aa:
+            self.counts['seq_aa_content'][aa] += aaseq.count(aa)
 
     # ----------------------------------------------------------------------------------------
     def increment_per_family_params(self, info):
@@ -169,14 +193,14 @@ class ParameterCounter(object):
         for column in self.counts:
             index = None
             outfname = None
-            if column == 'all':
+            if column in self.no_write_columns:
+                continue
+            elif column == 'all':
                 index = tuple(list(utils.index_columns) + ['cdr3_length', ])
                 outfname = base_outdir + '/' + utils.get_parameter_fname(column='all')
             elif '_content' in column:
                 index = [column,]
                 outfname = base_outdir + '/' + column + '.csv'
-            elif column == 'cdr3_length':  # don't write this, since a) cdr3_length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding it waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding it because I want it plotted)
-                continue
             else:
                 index = [column,] + utils.column_dependencies[column]
                 outfname = base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index)
