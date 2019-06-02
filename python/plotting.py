@@ -940,16 +940,16 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
             for fn in fnames[-1]:
                 fnamelist.remove(fn)
 
-        # and group insertion lengths together
-        found_bound_fnames = []
-        for bound in utils.all_boundaries:
-            for fn in fnamelist:
-                if bound + '_insertion' in fn:
-                    found_bound_fnames.append(fn)
-                    break
-        if len(found_bound_fnames) == len(utils.all_boundaries):
+        # and group insertion lengths and contents together
+        found_bound_fnames = [fn for fn in fnamelist if any(b + '_insertion' == utils.getprefix(os.path.basename(fn)) for b in utils.all_boundaries)]
+        if len(found_bound_fnames) == len(utils.all_boundaries):  # if we don't have all of them, we can't make a complete row, so just let them get grouped below
             fnames.append(found_bound_fnames)
             for fn in found_bound_fnames:
+                fnamelist.remove(fn)
+        found_content_fnames = [fn for fn in fnamelist if '_content' in fn]
+        if len(found_content_fnames) > 0:
+            fnames.append(found_content_fnames)
+            for fn in found_content_fnames:
                 fnamelist.remove(fn)
 
         # then do the rest in groups of <n_columns>

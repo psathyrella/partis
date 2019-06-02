@@ -27,7 +27,8 @@ class ParameterCounter(object):
         for bound in utils.boundaries:
             self.counts[bound + '_insertion_content'] = {n : 0 for n in utils.nukes}  # base content of each insertion
             self.string_columns.add(bound + '_insertion_content')
-        self.counts['seq_content'] = {n : 0 for n in utils.nukes}
+        self.counts['cdr3_length'] = {}
+        self.counts['seq_content'] = {n : 0 for n in utils.nukes}  # now I'm adding the aa content, I wish this had nucleotide in the name, but I don't want to change it since it corresponds to a million existing file paths
         self.string_columns.add('seq_content')
 
         self.columns_to_subset_by_gene = [e + '_del' for e in utils.all_erosions] + [b + '_insertion' for b in utils.boundaries]
@@ -63,6 +64,11 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def increment_per_family_params(self, info):
         """ increment parameters that are the same for the entire clonal family """
+        def sub_increment(column, index):
+            if index not in self.counts[column]:
+                self.counts[column][index] = 0
+            self.counts[column][index] += 1
+
         self.reco_total += 1
 
         all_index = self.get_index(info, tuple(list(utils.index_columns) + ['cdr3_length', ]))
@@ -73,9 +79,10 @@ class ParameterCounter(object):
         for deps in utils.column_dependency_tuples:
             column = deps[0]
             index = self.get_index(info, deps)
-            if index not in self.counts[column]:
-                self.counts[column][index] = 0
-            self.counts[column][index] += 1
+            sub_increment(column, index)
+
+        for column in ['cdr3_length']:  # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
+            sub_increment(column, (info[column], ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
 
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:
@@ -168,6 +175,8 @@ class ParameterCounter(object):
             elif '_content' in column:
                 index = [column,]
                 outfname = base_outdir + '/' + column + '.csv'
+            elif column == 'cdr3_length':  # don't write this, since a) cdr3_length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding it waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding it because I want it plotted)
+                continue
             else:
                 index = [column,] + utils.column_dependencies[column]
                 outfname = base_outdir + '/' + utils.get_parameter_fname(column_and_deps=index)

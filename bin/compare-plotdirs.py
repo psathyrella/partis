@@ -24,7 +24,7 @@ def get_hists_from_dir(dirname, histname, string_to_ignore=None):
             varname = varname.replace(string_to_ignore, '')
         hists[varname] = Hist(fname=fname, title=histname)
     if len(hists) == 0:
-        raise Exception('no csvs in %s' % dirname)
+        print '    no csvs found in %s' % dirname
     return hists
 
 
