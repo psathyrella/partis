@@ -75,8 +75,12 @@ def getregions(locus):  # for clarity, don't use the <loci> dictionary directly 
 def has_d_gene(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
     return 'd' in loci[locus]
 
-def region_pairs():
-    return [{'left' : bound[0], 'right' : bound[1]} for bound in boundaries]
+def get_boundaries(locus):  # NOTE almost everything still uses the various static boundaries variables, rather than calling this. It may or may not be more sensible to switch to this eventually
+    rlist = getregions(locus)
+    return [rlist[i] + rlist[i+1] for i in range(len(rlist)-1)]
+
+def region_pairs(locus):
+    return [{'left' : bound[0], 'right' : bound[1]} for bound in get_boundaries(locus)]
 
 import seqfileopener
 import glutils
@@ -1346,7 +1350,6 @@ def add_linearham_info(sw_info, locus, line):
     """ compute the flexbounds/relpos values and add to <line> """
     # determine the germline regions
     gregions = getregions(locus)
-    gregion_pairs = [{'left' : bound[0], 'right' : bound[1]} for bound in zip(gregions, gregions[1:])]
 
     # initialize the flexbounds/relpos dicts
     line['flexbounds'] = {}
@@ -1420,7 +1423,7 @@ def add_linearham_info(sw_info, locus, line):
 
     # make sure there is no overlap between neighboring flexbounds
     # maybe widen the gap between neighboring flexbounds
-    for rpair in gregion_pairs:
+    for rpair in region_pairs(locus):
         left_region, right_region = rpair['left'] + '_r', rpair['right'] + '_l'
         leftleft_region, rightright_region = rpair['left'] + '_l', rpair['right'] + '_r'
 

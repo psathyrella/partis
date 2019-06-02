@@ -913,7 +913,7 @@ class Waterer(object):
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
-        for rpair in utils.region_pairs():
+        for rpair in utils.region_pairs(self.glfo['locus']):
             overlap_status = self.check_boundaries(rpair, qinfo, best)  #, debug=self.debug>1)  # I think all this overlap fixing only adjusts the bounds for the best match, but I guess that's ok? It's certainly been like that for ages
             if overlap_status == 'overlap':
                 overlap_indel_fail = self.shift_overlapping_boundaries(rpair, qinfo, best)  #, debug=self.debug>1)  # this is kind of a crappy way to return the information, but I can't think of anything better a.t.m.
@@ -949,7 +949,7 @@ class Waterer(object):
         self.remove_probably_spurious_deletions(qinfo, best)
 
         # check for suspiciously bad annotations
-        for rp in utils.region_pairs():
+        for rp in utils.region_pairs(self.glfo['locus']):
             insertion_length = qinfo['qrbounds'][best[rp['right']]][0] - qinfo['qrbounds'][best[rp['left']]][1]  # start of right match minus end of left one
             if insertion_length > self.absolute_max_insertion_length:
                 return dbgfcn('suspiciously long insertion')
