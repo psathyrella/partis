@@ -1345,14 +1345,14 @@ def re_sort_per_gene_support(line):
 def add_linearham_info(sw_info, locus, line):
     """ compute the flexbounds/relpos values and add to <line> """
     # determine the germline regions
-    regions = getregions(locus)
-    region_pairs = [{'left' : bound[0], 'right' : bound[1]} for bound in zip(regions, regions[1:])]
+    gregions = getregions(locus)
+    gregion_pairs = [{'left' : bound[0], 'right' : bound[1]} for bound in zip(gregions, gregions[1:])]
 
     # initialize the flexbounds/relpos dicts
     line['flexbounds'] = {}
     line['relpos'] = {}
 
-    for region in regions:
+    for region in gregions:
         left_region, right_region = region + '_l', region + '_r'
         line['flexbounds'][left_region] = {}
         line['flexbounds'][right_region] = {}
@@ -1366,7 +1366,7 @@ def add_linearham_info(sw_info, locus, line):
         query_name = min(dists_to_cons, key=dists_to_cons.get)
         swfo = sw_info[query_name]
 
-        for region in regions:
+        for region in gregions:
             left_region, right_region = region + '_l', region + '_r'
             line['flexbounds'][left_region] = dict(swfo['flexbounds'][left_region].items() + line['flexbounds'][left_region].items())
             line['flexbounds'][right_region] = dict(swfo['flexbounds'][right_region].items() + line['flexbounds'][right_region].items())
@@ -1383,7 +1383,7 @@ def add_linearham_info(sw_info, locus, line):
     def span(bound_list):
         return [min(bound_list), max(bound_list)]
 
-    for region in regions:
+    for region in gregions:
         left_region, right_region = region + '_l', region + '_r'
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
 
@@ -1420,7 +1420,7 @@ def add_linearham_info(sw_info, locus, line):
 
     # make sure there is no overlap between neighboring flexbounds
     # maybe widen the gap between neighboring flexbounds
-    for rpair in region_pairs:
+    for rpair in gregion_pairs:
         left_region, right_region = rpair['left'] + '_r', rpair['right'] + '_l'
         leftleft_region, rightright_region = rpair['left'] + '_l', rpair['right'] + '_r'
 
