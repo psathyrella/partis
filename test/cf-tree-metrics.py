@@ -18,15 +18,16 @@ def get_outfname(outdir):
     return '%s/vals.yaml' % outdir
 
 # ----------------------------------------------------------------------------------------
-def calc_max_lbi(args, print_results=False):
+def calc_lbi_bounds(args, print_results=False):
     print_results = True
+    btypes = ['min', 'max']
 
     if args.overwrite:
         raise Exception('not implemented')
 
     outdir = '%s/lb-tau-optimization/%s' % (args.base_outdir, args.label)
 
-    parsed_info = {}
+    parsed_info = {b : {} for b in btypes}
     for lbt in args.lb_tau_list:
 
         gen_list = args.n_generations_list
@@ -36,18 +37,16 @@ def calc_max_lbi(args, print_results=False):
         print '      n gen: %s' % ' '.join(str(n) for n in gen_list)
         for n_gen in gen_list:
 
-            # if ntl is not None:
-            #     this_outdir = '%s/ XXX %s/n-tau-%.2f-lbt-%.4f' % (args.base_outdir, args.label, ntl, lbt)
-            # elif n_gen is not None:
-            this_outdir = '%s/n_gen-%d-lbt-%.4f' % (outdir, n_gen, lbt)
+            this_outdir = '%s/n_gen-%d-lbt-%.4f' % (outdir, n_gen, lbt)  # if for some reason I want to specify --n-tau-lengths-list instead of --n-generations-list, this makes the output path structure still correspond to n generations, but that's ok since that's what the trees do
 
             if os.path.exists(get_outfname(this_outdir)):
                 if args.make_plots:
                     with open(get_outfname(this_outdir)) as outfile:
                         info = yaml.load(outfile, Loader=yaml.Loader)
-                    if lbt not in parsed_info:
-                        parsed_info[lbt] = {}
-                    parsed_info[lbt][n_gen] = info['max']['lbi']
+                    for btype in btypes:
+                        if lbt not in parsed_info[btype]:
+                            parsed_info[btype][lbt] = {}
+                        parsed_info[btype][lbt][n_gen] = info[btype]['lbi']
                 else:
                     print '         output exists, skipping: %s' % get_outfname(this_outdir)
                 continue
@@ -55,36 +54,41 @@ def calc_max_lbi(args, print_results=False):
             if not os.path.exists(this_outdir):
                 os.makedirs(this_outdir)
 
-            # lbvals = treeutils.get_min_lbi(args.seq_len, args. XXX lb_tau)
-            max_name, max_lbi, lbvals = treeutils.get_max_lbi(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lbi_n_offspring)
-            # maybe should write tree + all lb values to file here? although it's not really slow any more, so whatever
+            tmpvals = {}
+            min_name, min_lbi, min_lbvals = treeutils.get_min_lbi(args.seq_len, lbt, n_generations=n_gen)
+            tmpvals['min'] = {'name' : min_name, 'lbi' : min_lbi, 'vals' : min_lbvals}
+            max_name, max_lbi, max_lbvals = treeutils.get_max_lbi(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lbi_n_offspring)  # maybe should write tree + all lb values to file here? although it's not really slow any more, so whatever
+            tmpvals['max'] = {'name' : max_name, 'lbi' : max_lbi, 'vals' : min_lbvals}
 
             with open(get_outfname(this_outdir), 'w') as outfile:
-                yaml.dump({'max' : {'name' : max_name, 'lbi' : max_lbi}}, outfile)
+                yaml.dump(tmpvals, outfile)
 
             # comment this block to speed up really big trees
             plotdir = this_outdir + '/plots'
             utils.prep_dir(plotdir, wildlings='*.svg')
-            cmdfos = [plotting.get_lb_tree_cmd(lbvals['tree'], '%s/tree.svg' % plotdir, 'lbi', 'affinities', args.ete_path, args.workdir, metafo=lbvals, tree_style='circular')]
-            utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
+            for btype in btypes:
+                cmdfos = [plotting.get_lb_tree_cmd(tmpvals[btype]['vals']['tree'], '%s/%s-tree.svg' % (plotdir, btype), 'lbi', 'affinities', args.ete_path, args.workdir, metafo=tmpvals[btype]['vals'], tree_style='circular')]
+                utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
 
     if args.make_plots:
-        fig, ax = plotting.mpl_init()
-        for lbt in sorted(parsed_info, reverse=True):
-            n_gen_list, max_lbi_list = zip(*sorted(parsed_info[lbt].items(), key=operator.itemgetter(0)))
-            ax.plot(n_gen_list, max_lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-            if print_results:
-                print '  %.4f' % lbt
-                for ng, maxl in zip(n_gen_list, max_lbi_list):
-                    print '    %2d  %.4f' % (ng, maxl)
-        plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-max-lbi', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+        for btype in btypes:
+            fig, ax = plotting.mpl_init()
+            for lbt in sorted(parsed_info[btype], reverse=True):
+                n_gen_list, lbi_list = zip(*sorted(parsed_info[btype][lbt].items(), key=operator.itemgetter(0)))
+                ax.plot(n_gen_list, lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
+                if print_results:
+                    print '%s' % btype
+                    print '  %.4f' % lbt
+                    for ng, val in zip(n_gen_list, lbi_list):
+                        print '    %2d  %.4f' % (ng, val)
+            plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-lbi' % btype, xlabel='N generations', ylabel='%s LBI' % btype.capitalize(), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
 
-        # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
-        fig, ax = plotting.mpl_init()
-        for lbt in sorted(parsed_info, reverse=True):
-            n_gen_list, max_lbi_list = zip(*sorted(parsed_info[lbt].items(), key=operator.itemgetter(0)))
-            ax.plot(n_gen_list, max_lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-        plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-max-lbi-log', log='y', xlabel='N generations', ylabel='Max LBI', leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+            # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
+            fig, ax = plotting.mpl_init()
+            for lbt in sorted(parsed_info[btype], reverse=True):
+                n_gen_list, lbi_list = zip(*sorted(parsed_info[btype][lbt].items(), key=operator.itemgetter(0)))
+                ax.plot(n_gen_list, lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
+            plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-lbi-log' % btype, log='y', xlabel='N generations', ylabel='%s LBI' % btype.capitalize(), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
 
 # ----------------------------------------------------------------------------------------
 def get_outdir(varnames, vstr, svtype):
@@ -261,7 +265,7 @@ def partition(args):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['get-max-lbi', 'run-bcr-phylo', 'partition', 'plot'])
+parser.add_argument('action', choices=['get-lbi-bounds', 'run-bcr-phylo', 'partition', 'plot'])
 parser.add_argument('--carry-cap-list', default='250:1000:4000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='50,75,80:200,250')
 parser.add_argument('--obs-times-list', default='30,40,50:125,150')
@@ -310,8 +314,8 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 # ----------------------------------------------------------------------------------------
-if args.action == 'get-max-lbi':
-    calc_max_lbi(args)
+if args.action == 'get-lbi-bounds':
+    calc_lbi_bounds(args)
 elif args.action == 'run-bcr-phylo':
     run_bcr_phylo(args)
 elif args.action == 'partition':

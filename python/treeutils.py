@@ -504,25 +504,7 @@ def calculate_lb_values(dtree, lbi_tau, lbr_tau, annotation=None, input_metafo=N
     return lbvals
 
 # ----------------------------------------------------------------------------------------
-def get_min_lbi(seq_len, tau, n_tau_lengths=10):
-    dtree = dendropy.Tree()
-    n_generations = max(1, int(seq_len * tau * n_tau_lengths))
-    print '   %d generations = seq_len * tau * n_tau_lengths = %d * %.4f * %d = max(1, int(%.2f))' % (n_generations, seq_len, tau, n_tau_lengths, seq_len * tau * n_tau_lengths)
-
-    leaf_node = dtree.seed_node
-    for igen in range(n_generations):
-        leaf_node = leaf_node.new_child(edge_length=1./seq_len)
-
-    label_nodes(dtree)
-    lbvals = calculate_lb_values(dtree, tau, default_lbr_tau_factor * tau, only_calc_val='lbi')
-    print '  min of %d lbi values: %.4f' % (len(lbvals['lbi']), min(lbvals['lbi'].values()))
-
-    return lbvals
-
-# ----------------------------------------------------------------------------------------
-def get_max_lbi(seq_len, tau, n_tau_lengths=5, n_generations=None, n_offspring=2, debug=False):
-    start = time.time()
-
+def set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=False):
     if n_generations is None:
         assert n_tau_lengths is not None  # have to specify one or the other
         n_generations = max(1, int(seq_len * tau * n_tau_lengths))
@@ -531,6 +513,30 @@ def get_max_lbi(seq_len, tau, n_tau_lengths=5, n_generations=None, n_offspring=2
     else:
         if debug:
             print '   %d generations' % n_generations
+    return n_generations
+
+# ----------------------------------------------------------------------------------------
+def get_min_lbi(seq_len, tau, n_tau_lengths=10, n_generations=None, debug=False):
+    dtree = dendropy.Tree()
+    n_generations = set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=debug)
+
+    leaf_node = dtree.seed_node
+    for igen in range(n_generations):
+        leaf_node = leaf_node.new_child(edge_length=1./seq_len)
+
+    label_nodes(dtree)
+    lbvals = calculate_lb_values(dtree, tau, default_lbr_tau_factor * tau, only_calc_val='lbi')
+    min_name, min_val = min(lbvals['lbi'].items(), key=operator.itemgetter(1))
+    if debug:
+        print '  min of %d lbi values (%.1fs):  %s  %.4f' % (len(lbvals['lbi']), time.time() - start, min_name, min_val)
+
+    return min_name, min_val, lbvals
+
+# ----------------------------------------------------------------------------------------
+def get_max_lbi(seq_len, tau, n_tau_lengths=5, n_generations=None, n_offspring=2, debug=False):
+    start = time.time()
+
+    n_generations = set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=debug)
 
     dtree = dendropy.Tree()  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculate lb values)
     old_leaf_nodes = [dtree.seed_node]

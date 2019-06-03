@@ -2,7 +2,7 @@
 
 bin=./test/cf-tree-metrics.py
 
-# $bin get-max-lbi --label test-2d #--make-plots
+# $bin get-lbi-bounds --label test-2d #--make-plots
 # exit 0
 
 # $bin run-bcr-phylo --label xxx
