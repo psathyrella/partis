@@ -390,6 +390,12 @@ for region in regions:
 conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
+def get_per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand
+    if key not in linekeys['per_seq']:
+        raise Exception('key \'%s\' not in per-sequence keys' % key)
+    return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one
+
+# ----------------------------------------------------------------------------------------
 def synthesize_single_seq_line(line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     singlefo = {}
