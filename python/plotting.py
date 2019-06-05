@@ -69,6 +69,16 @@ def get_normalized_scalar_map(vals, cmap=None, remove_top_end=False):
     return scalarMap
 
 # ----------------------------------------------------------------------------------------
+def get_smap_color(smap, info, key=None, val=None):  # specify *either* <key> or <val> (don't need <info> if you're passing <val>)
+    if val is None:
+        assert key is not None
+        if key not in info or info[key] is None:
+            return getgrey()
+        val = info[key]
+    rgb_code = smap.to_rgba(val)[:3]
+    return rgb_to_hex(rgb_code)
+
+# ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
     """ NOTE <values> should be sorted """
     assert len(values) > 0
