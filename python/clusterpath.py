@@ -119,7 +119,7 @@ class ClusterPath(object):
             with open(fname, 'r') as infile:
                 reader = csv.DictReader(infile)
                 if 'partition' not in reader.fieldnames:
-                    raise Exception('\'partition\' not among headers in %s, maybe this isn\'t a partition file?' % fname)
+                    raise Exception('\'partition\' not among headers in %s, maybe this isn\'t a partition file? (if you\'re running \'view-output\' on a deprecated csv output file, you may need to run \'view-annotations\' instead, to tell it that this is an annotation file rather than a partition file)' % fname)
                 lines = [line for line in reader]  # not sure that I really need this step
             self.readlines(lines, process_csv=True)
         elif utils.getsuffix(fname) == '.yaml':

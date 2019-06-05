@@ -10,7 +10,7 @@ import numpy
 import math
 
 # ----------------------------------------------------------------------------------------
-def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.get_max_lbi()
+def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.calculate_max_lbi()
     return max(1, int(args.seq_len * tau * ntl))
 
 # ----------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ def calc_lbi_bounds(args, print_results=False):
     if args.overwrite:
         raise Exception('not implemented')
 
-    outdir = '%s/lb-tau-optimization/%s' % (args.base_outdir, args.label)
+    outdir = '%s/lb-tau-normalization/%s' % (args.base_outdir, args.label)
 
     parsed_info = {b : {} for b in btypes}
     for lbt in args.lb_tau_list:
@@ -33,8 +33,9 @@ def calc_lbi_bounds(args, print_results=False):
         gen_list = args.n_generations_list
         if gen_list is None:
             gen_list = [get_n_generations(ntl, lbt) for ntl in args.n_tau_lengths_list]
+        if args.lb_tau_list.index(lbt) == 0 or args.n_tau_lengths_list is not None:  # if --n-tau-lengths-list is set, they could be different for each tau
+            print '      n gen: %s' % ' '.join(str(n) for n in gen_list)
         print '   lb tau %.4f' % lbt
-        print '      n gen: %s' % ' '.join(str(n) for n in gen_list)
         for n_gen in gen_list:
 
             this_outdir = '%s/n_gen-%d-lbt-%.4f' % (outdir, n_gen, lbt)  # if for some reason I want to specify --n-tau-lengths-list instead of --n-generations-list, this makes the output path structure still correspond to n generations, but that's ok since that's what the trees do
@@ -55,9 +56,9 @@ def calc_lbi_bounds(args, print_results=False):
                 os.makedirs(this_outdir)
 
             tmpvals = {}
-            min_name, min_lbi, min_lbvals = treeutils.get_min_lbi(args.seq_len, lbt, n_generations=n_gen)
+            min_name, min_lbi, min_lbvals = treeutils.calculate_min_lbi(args.seq_len, lbt, n_generations=n_gen)
             tmpvals['min'] = {'name' : min_name, 'lbi' : min_lbi, 'vals' : min_lbvals}
-            max_name, max_lbi, max_lbvals = treeutils.get_max_lbi(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lbi_n_offspring)  # maybe should write tree + all lb values to file here? although it's not really slow any more, so whatever
+            max_name, max_lbi, max_lbvals = treeutils.calculate_max_lbi(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lbi_n_offspring)  # maybe should write tree + all lb values to file here? although it's not really slow any more, so whatever
             tmpvals['max'] = {'name' : max_name, 'lbi' : max_lbi, 'vals' : min_lbvals}
 
             with open(get_outfname(this_outdir), 'w') as outfile:
@@ -72,23 +73,29 @@ def calc_lbi_bounds(args, print_results=False):
 
     if args.make_plots:
         for btype in btypes:
+            if print_results:
+                print '%s:     tau    %s lbi' % (btype, btype)
             fig, ax = plotting.mpl_init()
+            seq_len_asymptote = None
             for lbt in sorted(parsed_info[btype], reverse=True):
                 n_gen_list, lbi_list = zip(*sorted(parsed_info[btype][lbt].items(), key=operator.itemgetter(0)))
+                if lbt == 1. / args.seq_len:  # add a horizontal line corresponding to the asymptote for tau = 1/seq_len
+                    seq_len_asymptote = lbi_list[-1]
+                    ax.plot(ax.get_xlim(), (seq_len_asymptote, seq_len_asymptote), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
                 ax.plot(n_gen_list, lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
                 if print_results:
-                    print '%s' % btype
-                    print '  %.4f' % lbt
-                    for ng, val in zip(n_gen_list, lbi_list):
-                        print '    %2d  %.4f' % (ng, val)
-            plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-lbi' % btype, xlabel='N generations', ylabel='%s LBI' % btype.capitalize(), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+                    print '      %7.4f    %6.4f' % (lbt, lbi_list[-1])
+            plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-lbi' % btype, xbounds=(min(n_gen_list), max(n_gen_list)),
+                                xlabel='N generations', ylabel='%s LBI' % btype.capitalize(), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.1, 0.5))
 
             # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
             fig, ax = plotting.mpl_init()
             for lbt in sorted(parsed_info[btype], reverse=True):
                 n_gen_list, lbi_list = zip(*sorted(parsed_info[btype][lbt].items(), key=operator.itemgetter(0)))
                 ax.plot(n_gen_list, lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-            plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-lbi-log' % btype, log='y', xlabel='N generations', ylabel='%s LBI' % btype.capitalize(), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67))
+            ax.plot(ax.get_xlim(), (seq_len_asymptote, seq_len_asymptote), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+            plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-lbi-log' % btype, log='y', xbounds=(min(n_gen_list), max(n_gen_list)), ybounds=(2*min(parsed_info[btype]), 2*ax.get_ylim()[1]),
+                                xlabel='N generations', ylabel='%s LBI' % btype.capitalize(), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.57))
 
 # ----------------------------------------------------------------------------------------
 def get_outdir(varnames, vstr, svtype):
@@ -271,7 +278,7 @@ parser.add_argument('--n-sim-seqs-per-gen-list', default='50,75,80:200,250')
 parser.add_argument('--obs-times-list', default='30,40,50:125,150')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.0025:0.003:0.005:0.008:0.012')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
-parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10', help='set either this or --n-tau-lengths-list')
+parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12:15:17', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
 parser.add_argument('--max-lbi-n-offspring', default=2, type=int, help='multifurcation number for max lbi calculation')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)

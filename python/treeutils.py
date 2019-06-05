@@ -25,6 +25,27 @@ default_lb_tau = 0.001
 default_lbr_tau_factor = 20
 
 # ----------------------------------------------------------------------------------------
+# NOTE the min lbi is just tau, but I still like doing it this way
+lb_bounds = {  # calculated to 17 generations, which is quite close to the asymptote
+    400 : {  # seq_len
+        0.0030: (0.0030, 0.0331),  # if tau is any bigger than this it doesn't really converge
+        0.0025: (0.0025, 0.0176),
+        0.0020: (0.0020, 0.0100),
+        0.0010: (0.0010, 0.0033),
+        0.0005: (0.0005, 0.0015),
+    }
+}
+
+# ----------------------------------------------------------------------------------------
+def get_normalized_lbi(lbval, tau, seq_len):
+    if seq_len not in lb_bounds:
+        raise Exception('seq len %d not in cached lb bound values (available: %s)' % (seq_len, lb_bounds.keys()))
+    if tau not in lb_bounds[seq_len]:
+        raise Exception('tau value %f not in cached lb bound values (available: %s)' % (tau, lb_bounds[seq_len].keys()))
+    lbmin, lbmax = lb_bounds[seq_len][tau]
+    return (lbval - lbmin) / (lbmax - lbmin)
+
+# ----------------------------------------------------------------------------------------
 def get_treestr(treefname):
     with open(treefname) as treefile:
         return '\n'.join(treefile.readlines())
@@ -516,7 +537,8 @@ def set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=False):
     return n_generations
 
 # ----------------------------------------------------------------------------------------
-def get_min_lbi(seq_len, tau, n_tau_lengths=10, n_generations=None, debug=False):
+# NOTE the min lbi is just tau, but I don't feel like deleting this fcn just to keep clear what the min means
+def calculate_min_lbi(seq_len, tau, n_tau_lengths=10, n_generations=None, debug=False):
     dtree = dendropy.Tree()
     n_generations = set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=debug)
 
@@ -533,7 +555,7 @@ def get_min_lbi(seq_len, tau, n_tau_lengths=10, n_generations=None, debug=False)
     return min_name, min_val, lbvals
 
 # ----------------------------------------------------------------------------------------
-def get_max_lbi(seq_len, tau, n_tau_lengths=5, n_generations=None, n_offspring=2, debug=False):
+def calculate_max_lbi(seq_len, tau, n_tau_lengths=5, n_generations=None, n_offspring=2, debug=False):
     start = time.time()
 
     n_generations = set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=debug)
@@ -875,8 +897,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
     fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
     # fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
     fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], debug=debug)
-    if ete_path is not None:
-        plotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
+    # if ete_path is not None:
+    #     plotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
     plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
     if true_lines_to_use is not None:
@@ -901,8 +923,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete
             assert len(lb_vs_shm_fnames) > 1
             fnames[-1] += lb_vs_shm_fnames[0]
             fnames += lb_vs_shm_fnames[1:]
-            if ete_path is not None:
-                plotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
+            # if ete_path is not None:
+            #     plotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in subdirs])
 
     print '    tree metric plotting time: %.1f sec' % (time.time() - start)
