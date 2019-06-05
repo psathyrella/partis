@@ -682,7 +682,7 @@ class Recombinator(object):
 
         utils.remove_all_implicit_info(line)
         for tkey in set(utils.linekeys['per_seq']) & set(line):
-            line[tkey] = [line[tkey][iseq] for iseq in range(len(line['unique_ids'])) if iseq in functional_iseqs]
+            line[tkey] = [line[tkey][iseq] for iseq in functional_iseqs]
         utils.add_implicit_info(self.glfo, line)
 
     # ----------------------------------------------------------------------------------------
