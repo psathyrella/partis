@@ -8,6 +8,8 @@ import utils
 def get_dummy_outfname(workdir):
     return '%s/XXX-dummy-simu.yaml' % workdir
 
+parameter_type_choices = ('sw', 'hmm', 'multi-hmm')
+
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
 def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
@@ -304,6 +306,8 @@ def process(args):
 
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')
+        if os.path.exists(args.parameter_dir) and len(set(os.listdir(args.parameter_dir)) - set(parameter_type_choices)) > 0:
+            raise Exception('unexpected parameter types (i.e. subdirs) in --parameter-dir \'%s\'. Allowed types: %s. Maybe you added the parameter type to the parameter dir path?' % (args.parameter_dir, ' '.join(parameter_type_choices))) #, '\n'.join(set(os.listdir(args.parameter_dir)) - set(parameter_type_choices))))
 
     if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
         args.default_initial_germline_dir += '/' + args.species
