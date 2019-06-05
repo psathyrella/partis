@@ -1842,7 +1842,7 @@ class PartitionDriver(object):
 
                 if self.args.linearham and self.current_action == 'annotate':
                     # add flexbounds/relpos to padded line
-                    status = utils.add_linearham_info(self.sw_info, self.glfo['locus'], padded_line)
+                    status = utils.add_linearham_info(self.sw_info, self.glfo['locus'], padded_line, vj_flexbounds_shift=10)
                     if status == 'nonsense':
                         hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                         continue
