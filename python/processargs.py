@@ -188,6 +188,14 @@ def process(args):
         if args.indel_frequency < 0. or args.indel_frequency > 1.:
             raise Exception('--indel-frequency must be in [0., 1.] (got %f)' % args.indel_frequency)
     args.n_indels_per_indeld_seq = utils.get_arg_list(args.n_indels_per_indeld_seq, intify=True)
+    if args.indel_location not in [None, 'v', 'cdr3']:
+        if int(args.indel_location) in range(500):
+            args.indel_location = int(args.indel_location)
+            if any(n > 1 for n in args.n_indels_per_indeld_seq):
+                print '  note: removing entries from --n-indels-per-indeld-seq (%s), since --indel-location was set to a single position.' % [n for n in args.n_indels_per_indeld_seq if n > 1]
+                args.n_indels_per_indeld_seq = [n for n in args.n_indels_per_indeld_seq if n <= 1]
+        else:
+            raise Exception('--indel-location \'%s\' neither one of None, \'v\' or \'cdr3\', nor an integer less than 500' % args.indel_location)
 
     if 'tr' in args.locus and args.mutation_multiplier is None:
         args.mutation_multiplier = 0.

@@ -91,8 +91,10 @@ def add_indels(n_indels, qrseq, glseq, mean_length, codon_positions, indel_locat
             return random.randint(5, codon_positions['v'])  # NOTE this isn't actually right, since the codon positions get modified as we add each indel... but it won't usually make a difference
         elif indel_location == 'cdr3':  # inside cdr3
             return random.randint(codon_positions['v'], codon_positions['j'])
-        else:
-            assert False
+        else:  # exact position
+            if indel_location not in range(len(qrseq)):
+                raise Exception('specified indel location %s not in range(len(%d))' % (indel_location, len(qrseq)))
+            return indel_location
     def getlen():
         length = numpy.random.geometric(1. / mean_length)
         if keep_in_frame:
