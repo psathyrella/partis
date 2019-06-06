@@ -189,7 +189,7 @@ def ambig_frac(seq):
 
 # ----------------------------------------------------------------------------------------
 def reverse_complement_warning():
-    return '%s maybe need to take reverse complement? (partis only searches in forward direction)' % color('red', 'note:')
+    return '%s maybe need to take reverse complement (partis only searches in forward direction) or set --locus (default is igh)' % color('red', 'note:')
 
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
