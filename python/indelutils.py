@@ -83,6 +83,28 @@ def get_qr_seqs_with_indels_reinstated(line, iseq):
     return qr_seqs
 
 # ----------------------------------------------------------------------------------------
+def get_iseqs_with_compatible_indels(line, ifo_to_match):
+    """ get list of sequence ids in line that have an indel matching ifo_to_match """
+    iseqs_to_keep = []
+    for iseq in range(len(line['unique_ids'])):
+        ifos = line['indelfos'][iseq]['indels']  # list of dicts for this seq
+        for ifo in ifos:
+            if ifo['type'] != ifo_to_match['type']:
+                 continue
+            if abs(ifo['pos'] - ifo_to_match['pos']) > 10:
+                 continue
+            if ifo['len'] !=  ifo_to_match['len']:
+                 continue
+            iseqs_to_keep.append(iseq)
+    return iseqs_to_keep
+
+# ----------------------------------------------------------------------------------------
+def restrict_to_compatible_indels(line, ifo_to_match, glfo):
+    """ edit line to only contain all sequences in line that have an indel matching ifo_to_match """
+    iseqs_to_keep = get_iseqs_with_compatible_indels(line, ifo_to_match)
+    return utils.restrict_to_iseqs(line, iseqs_to_keep, glfo)
+
+# ----------------------------------------------------------------------------------------
 def add_indels(n_indels, qrseq, glseq, mean_length, codon_positions, indel_location=None, indel_positions=None, keep_in_frame=False, dbg_pad=0, debug=False):
     def getpos():  # if <pos> is specified we use that, otherwise we use <indel_location> to decide the region of the sequence from which to choose a position
         if indel_location is None:  # uniform over entire sequence
@@ -389,7 +411,6 @@ def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this f
 
     if reset_indel_genes:  # for when we get a new annotation (after reversing the indel), and it's got different genes
         reset_indelfos_for_new_genes(line, debug=debug)
-
     check_indelfo_consistency(line, debug=debug)
 
 # ----------------------------------------------------------------------------------------
