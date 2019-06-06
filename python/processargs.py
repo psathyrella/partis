@@ -8,6 +8,8 @@ import utils
 def get_dummy_outfname(workdir):
     return '%s/XXX-dummy-simu.yaml' % workdir
 
+parameter_type_choices = ('sw', 'hmm', 'multi-hmm')
+
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
 def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
@@ -186,6 +188,14 @@ def process(args):
         if args.indel_frequency < 0. or args.indel_frequency > 1.:
             raise Exception('--indel-frequency must be in [0., 1.] (got %f)' % args.indel_frequency)
     args.n_indels_per_indeld_seq = utils.get_arg_list(args.n_indels_per_indeld_seq, intify=True)
+    if args.indel_location not in [None, 'v', 'cdr3']:
+        if int(args.indel_location) in range(500):
+            args.indel_location = int(args.indel_location)
+            if any(n > 1 for n in args.n_indels_per_indeld_seq):
+                print '  note: removing entries from --n-indels-per-indeld-seq (%s), since --indel-location was set to a single position.' % [n for n in args.n_indels_per_indeld_seq if n > 1]
+                args.n_indels_per_indeld_seq = [n for n in args.n_indels_per_indeld_seq if n <= 1]
+        else:
+            raise Exception('--indel-location \'%s\' neither one of None, \'v\' or \'cdr3\', nor an integer less than 500' % args.indel_location)
 
     if 'tr' in args.locus and args.mutation_multiplier is None:
         args.mutation_multiplier = 0.
@@ -304,6 +314,8 @@ def process(args):
 
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')
+        if os.path.exists(args.parameter_dir) and len(set(os.listdir(args.parameter_dir)) & set(parameter_type_choices)) == 0:
+            raise Exception('couldn\'t find any expected parameter types (i.e. subdirs) in --parameter-dir \'%s\'. Allowed types: %s, found: %s. Maybe you added the parameter type to the parameter dir path?' % (args.parameter_dir, ' '.join(parameter_type_choices), ' '.join(os.listdir(args.parameter_dir))))
 
     if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
         args.default_initial_germline_dir += '/' + args.species

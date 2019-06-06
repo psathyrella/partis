@@ -46,6 +46,19 @@ plot_ratios = {
 #     return hexstr
 
 # ----------------------------------------------------------------------------------------
+def getgrey(gtype='medium'):
+    if gtype == 'medium':
+        return '#929292'
+    elif gtype == 'light-medium':
+        return '#cdcdcd'
+    elif gtype == 'light':
+        return '#d3d3d3'
+    elif gtype == 'white':
+        return '#ffffff'
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
 def rgb_to_hex(rgb_tuple):
     assert len(rgb_tuple) == 3
     return '#%02x%02x%02x' %tuple(map(lambda x: int(x*255), rgb_tuple[:3]))
@@ -67,6 +80,16 @@ def get_normalized_scalar_map(vals, cmap=None, remove_top_end=False):
     cmap, norm = get_normalized_cmap_and_norm(vals, cmap=cmap, remove_top_end=remove_top_end)
     scalarMap = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
     return scalarMap
+
+# ----------------------------------------------------------------------------------------
+def get_smap_color(smap, info, key=None, val=None):  # specify *either* <key> or <val> (don't need <info> if you're passing <val>)
+    if val is None:
+        assert key is not None
+        if key not in info or info[key] is None:
+            return getgrey()
+        val = info[key]
+    rgb_code = smap.to_rgba(val)[:3]
+    return rgb_to_hex(rgb_code)
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):

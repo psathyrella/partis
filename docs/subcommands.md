@@ -239,7 +239,7 @@ There are a wide variety of options for manipulating how the characteristics of 
 | `--indel-frequency <f>`         | fraction of simulated sequences which will contain SHM indels (currently, insertions and deletions are generated with equal probability, although this would be easy to change)
 | `--n-indels-per-indeld-seq <l>` | once we've decided a sequence will have at least one indel, we choose the actual number of indels from this colon-separated list of integers
 | `--mean-indel-length <N>`       | mean length of each SHM insertion or deletion
-| `--indel-location <v,cdr3>`     | if not set (default), indels are placed uniformly over the whole sequence. If set to `v` or `cdr3` indels are restricted to that portion of the sequence.
+| `--indel-location <v,cdr3,<pos>>`| if not set (default), indels are placed uniformly over the whole sequence. If set to `v` or `cdr3` indels are restricted to that portion of the sequence. If set to a `<pos>`, all indels occur at that position in the sequence.
 
 **Scratch parameters:**
 

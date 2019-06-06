@@ -189,7 +189,7 @@ def ambig_frac(seq):
 
 # ----------------------------------------------------------------------------------------
 def reverse_complement_warning():
-    return '%s maybe need to take reverse complement? (partis only searches in forward direction)' % color('red', 'note:')
+    return '%s maybe need to take reverse complement (partis only searches in forward direction) or set --locus (default is igh)' % color('red', 'note:')
 
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
@@ -1352,16 +1352,13 @@ def re_sort_per_gene_support(line):
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
-def add_linearham_info(sw_info, locus, line):
+def add_linearham_info(sw_info, locus, line, **kwargs):
     """ compute the flexbounds/relpos values and add to <line> """
-    # determine the germline regions
-    gregions = getregions(locus)
-
     # initialize the flexbounds/relpos dicts
     line['flexbounds'] = {}
     line['relpos'] = {}
 
-    for region in gregions:
+    for region in getregions(locus):
         left_region, right_region = region + '_l', region + '_r'
         line['flexbounds'][left_region] = {}
         line['flexbounds'][right_region] = {}
@@ -1375,7 +1372,7 @@ def add_linearham_info(sw_info, locus, line):
         query_name = min(dists_to_cons, key=dists_to_cons.get)
         swfo = sw_info[query_name]
 
-        for region in gregions:
+        for region in getregions(locus):
             left_region, right_region = region + '_l', region + '_r'
             line['flexbounds'][left_region] = dict(swfo['flexbounds'][left_region].items() + line['flexbounds'][left_region].items())
             line['flexbounds'][right_region] = dict(swfo['flexbounds'][right_region].items() + line['flexbounds'][right_region].items())
@@ -1392,7 +1389,7 @@ def add_linearham_info(sw_info, locus, line):
     def span(bound_list):
         return [min(bound_list), max(bound_list)]
 
-    for region in gregions:
+    for region in getregions(locus):
         left_region, right_region = region + '_l', region + '_r'
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
 
@@ -1449,9 +1446,9 @@ def add_linearham_info(sw_info, locus, line):
             if left_germ_len < 1 or right_germ_len < 1:
                 return 'nonsense'
 
-        if rpair['left'] == 'v' and left_germ_len > 15:
-            line['flexbounds'][left_region][0] -= 15
-            line['flexbounds'][left_region][1] -= 15
+        if rpair['left'] == 'v' and left_germ_len > kwargs['vj_flexbounds_shift']:
+            line['flexbounds'][left_region][0] -= kwargs['vj_flexbounds_shift']
+            line['flexbounds'][left_region][1] -= kwargs['vj_flexbounds_shift']
 
         # the D gene match region is constrained to have a length of 1
         if rpair['left'] == 'd':
@@ -1461,9 +1458,9 @@ def add_linearham_info(sw_info, locus, line):
             line['flexbounds'][right_region][0] += (right_germ_len / 2)
             line['flexbounds'][right_region][1] += (right_germ_len / 2)
 
-        if rpair['right'] == 'j' and right_germ_len > 15:
-            line['flexbounds'][right_region][0] += 15
-            line['flexbounds'][right_region][1] += 15
+        if rpair['right'] == 'j' and right_germ_len > kwargs['vj_flexbounds_shift']:
+            line['flexbounds'][right_region][0] += kwargs['vj_flexbounds_shift']
+            line['flexbounds'][right_region][1] += kwargs['vj_flexbounds_shift']
 
     # align the V-entry/J-exit flexbounds to the possible sequence positions
     line['flexbounds']['v_l'][0] = 0
