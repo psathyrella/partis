@@ -46,6 +46,19 @@ plot_ratios = {
 #     return hexstr
 
 # ----------------------------------------------------------------------------------------
+def getgrey(gtype='medium'):
+    if gtype == 'medium':
+        return '#929292'
+    elif gtype == 'light-medium':
+        return '#cdcdcd'
+    elif gtype == 'light':
+        return '#d3d3d3'
+    elif gtype == 'white':
+        return '#ffffff'
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
 def rgb_to_hex(rgb_tuple):
     assert len(rgb_tuple) == 3
     return '#%02x%02x%02x' %tuple(map(lambda x: int(x*255), rgb_tuple[:3]))

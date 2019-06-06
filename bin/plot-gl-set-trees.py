@@ -19,19 +19,6 @@ except ImportError:
     raise Exception('couldn\'t find the ete3 module. Either:\n          - it isn\'t installed (use instructions at http://etetoolkit.org/download/) or\n          - $PATH needs modifying (typically with the command \'% export PATH=~/anaconda_ete/bin:$PATH\')')
 
 # ----------------------------------------------------------------------------------------
-def getgrey(gtype='medium'):
-    if gtype == 'medium':
-        return '#929292'
-    elif gtype == 'light-medium':
-        return '#cdcdcd'
-    elif gtype == 'light':
-        return '#d3d3d3'
-    elif gtype == 'white':
-        return '#ffffff'
-    else:
-        assert False
-
-# ----------------------------------------------------------------------------------------
 def pairkey(name1, name2):
     return '-&-'.join(sorted([name1, name2]))
 
@@ -46,7 +33,7 @@ scolors = {
     'partis' : '#94a3d1', #'#2455ed',  # blue
 }
 
-listcolors = [getgrey('medium') for _ in range(10)]
+listcolors = [plotting.getgrey('medium') for _ in range(10)]
 listfaces = [
     'red',
     'blue',
@@ -75,9 +62,9 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
     assert len(names) in [2, 3]
 
     if len(names) == 2:
-        scolors['all'] = getgrey('light')
+        scolors['all'] = plotting.getgrey('light')
     else:
-        scolors['all'] = getgrey('white')
+        scolors['all'] = plotting.getgrey('white')
 
     for name in names:
         if name not in scolors:
@@ -90,7 +77,7 @@ def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
             shade = 'white'
         else:
             shade = 'medium' if len(names) == 2 else 'light-medium'
-        scolors[pairkey(name1, name2)] = getgrey(shade)
+        scolors[pairkey(name1, name2)] = plotting.getgrey(shade)
 
 # ----------------------------------------------------------------------------------------
 def get_cmdfos(cmdstr, workdir, outfname):
@@ -509,6 +496,7 @@ sys.path.insert(1, args.partis_dir + '/python')
 try:
     import utils
     import glutils
+    import plotting
 except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)

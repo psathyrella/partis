@@ -21,19 +21,6 @@ except ImportError:
     raise Exception('couldn\'t find the ete3 module. Either:\n          - it isn\'t installed (use instructions at http://etetoolkit.org/download/) or\n          - $PATH needs modifying (typically with the command \'% export PATH=~/anaconda_ete/bin:$PATH\')')
 
 # ----------------------------------------------------------------------------------------
-def getgrey(gtype='medium'):
-    if gtype == 'medium':
-        return '#929292'
-    elif gtype == 'light-medium':
-        return '#cdcdcd'
-    elif gtype == 'light':
-        return '#d3d3d3'
-    elif gtype == 'white':
-        return '#ffffff'
-    else:
-        assert False
-
-# ----------------------------------------------------------------------------------------
 scolors = {
     'novel' : '#ffc300',  # 'Gold'
     'data' : 'LightSteelBlue',
@@ -45,7 +32,7 @@ scolors = {
     'lbi' : '#94a3d1',
 }
 
-listcolors = [getgrey('medium') for _ in range(10)]
+# listcolors = [plotting.getgrey('medium') for _ in range(10)]
 listfaces = [
     'red',
     'blue',
@@ -110,7 +97,7 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         tstyle.legend.add_face(ete3.TextFace('', fsize=fsize), column=start_column)
         if smap is None:
             sz = get_size(min_val, max_val, val)
-            rface = ete3.RectFace(sz, sz, bgcolor=getgrey(), fgcolor=None)
+            rface = ete3.RectFace(sz, sz, bgcolor=plotting.getgrey(), fgcolor=None)
         else:
             rface = ete3.RectFace(6, 6, bgcolor=plotting.get_smap_color(smap, info, key=key, val=val), fgcolor=None)
         if not no_opacity:
@@ -143,7 +130,7 @@ def set_meta_styles(args, etree, tstyle):
     for node in etree.traverse():
         node.img_style['size'] = 0
         rfsize = 0
-        bgcolor = getgrey()
+        bgcolor = plotting.getgrey()
         if args.lb_metric == 'lbi':
             if node.name not in lbfo:  # really shouldn't happen
                 print '  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name)
@@ -155,7 +142,7 @@ def set_meta_styles(args, etree, tstyle):
                 rfsize = 5
                 bgcolor = plotting.get_smap_color(lb_smap, lbfo, key=node.name)
         elif args.lb_metric == 'lbr':
-            node.img_style['vt_line_color'] = getgrey()  # if they're black, it's too hard to see the large changes in affinity, since they're very dark (at least with current color schemes)
+            node.img_style['vt_line_color'] = plotting.getgrey()  # if they're black, it's too hard to see the large changes in affinity, since they're very dark (at least with current color schemes)
             # rfsize = get_size(lb_min, lb_max, lbfo[node.name]) if node.name in lbfo else 1.5
             rfsize = 5 if node.name in lbfo else 1.5
             bgcolor = plotting.get_smap_color(lb_smap, lbfo, key=node.name)
@@ -169,7 +156,7 @@ def set_meta_styles(args, etree, tstyle):
                     node.img_style['hz_line_color'] = plotting.get_smap_color(delta_affy_decrease_smap, None, val=abs(node.affinity_change))
                     node.img_style['hz_line_width'] = 1.2
                 else:
-                    node.img_style['hz_line_color'] = getgrey()
+                    node.img_style['hz_line_color'] = plotting.getgrey()
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
