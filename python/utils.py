@@ -1587,6 +1587,17 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
                 assert ikey in new_keys  # only really checks the logic of the previous few lines
 
 # ----------------------------------------------------------------------------------------
+def restrict_to_iseqs(line, iseqs_to_keep, glfo):
+    """ rewrite annotation cluster line using only iseqs_to_keep subset. modifies line. """
+    if len(iseqs_to_keep) < 1:
+        return None
+    remove_all_implicit_info(line)
+    for tkey in set(linekeys['per_seq']) & set(line):
+        line[tkey] = [line[tkey][iseq] for iseq in iseqs_to_keep]
+    add_implicit_info(glfo, line)
+    return line
+
+# ----------------------------------------------------------------------------------------
 def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='    '):
     """ print the true events which contain the seqs in <line> """
     true_naive_seqs = []
