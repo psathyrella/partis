@@ -18,16 +18,18 @@ def get_outfname(outdir):
     return '%s/vals.yaml' % outdir
 
 # ----------------------------------------------------------------------------------------
-def calc_lbi_bounds(args, print_results=False):
+def calc_lb_bounds(args, print_results=False):
     print_results = True
-    btypes = ['min', 'max']
+    debug = False
+    tmpmetrics = treeutils.lb_metrics #['lbr'] #
+    btypes = ['min', 'max'] #['max'] #
 
     if args.overwrite:
         raise Exception('not implemented')
 
     outdir = '%s/lb-tau-normalization/%s' % (args.base_outdir, args.label)
 
-    parsed_info = {b : {} for b in btypes}
+    parsed_info = {m : {b : {} for b in btypes} for m in tmpmetrics}
     for lbt in args.lb_tau_list:
 
         gen_list = args.n_generations_list
@@ -44,10 +46,11 @@ def calc_lbi_bounds(args, print_results=False):
                 if args.make_plots:
                     with open(get_outfname(this_outdir)) as outfile:
                         info = yaml.load(outfile, Loader=yaml.Loader)
-                    for btype in btypes:
-                        if lbt not in parsed_info[btype]:
-                            parsed_info[btype][lbt] = {}
-                        parsed_info[btype][lbt][n_gen] = info[btype]['lbi']
+                    for metric in tmpmetrics:
+                        for btype in btypes:
+                            if lbt not in parsed_info[metric][btype]:
+                                parsed_info[metric][btype][lbt] = {}
+                            parsed_info[metric][btype][lbt][n_gen] = info[metric][btype][metric]  # it's weird to have metric as the key twice, but it actually makes sense since we're subverting the normal calculation infrastructure to only run one metric or the other at a time (i.e. the righthand key is pulling out the metric we want from the lb info that, in principle, usually has both; while the lefthand key is identifying a run during which we were only caring about that metric)
                 else:
                     print '         output exists, skipping: %s' % get_outfname(this_outdir)
                 continue
@@ -55,47 +58,54 @@ def calc_lbi_bounds(args, print_results=False):
             if not os.path.exists(this_outdir):
                 os.makedirs(this_outdir)
 
-            tmpvals = {}
-            min_name, min_lbi, min_lbvals = treeutils.calculate_min_lbi(args.seq_len, lbt, n_generations=n_gen)
-            tmpvals['min'] = {'name' : min_name, 'lbi' : min_lbi, 'vals' : min_lbvals}
-            max_name, max_lbi, max_lbvals = treeutils.calculate_max_lbi(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lbi_n_offspring)  # maybe should write tree + all lb values to file here? although it's not really slow any more, so whatever
-            tmpvals['max'] = {'name' : max_name, 'lbi' : max_lbi, 'vals' : min_lbvals}
+            lbvals = treeutils.calculate_lb_bounds(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lb_n_offspring, tmpmetrics=tmpmetrics, btypes=btypes, debug=debug)
 
             with open(get_outfname(this_outdir), 'w') as outfile:
-                yaml.dump(tmpvals, outfile)
+                yaml.dump(lbvals, outfile)
 
-            # comment this block to speed up really big trees
+            if n_gen > 5:
+                print '      skipping tree plots for n_gen > 5'
+                continue
+
+            # this is really slow on large trees
             plotdir = this_outdir + '/plots'
             utils.prep_dir(plotdir, wildlings='*.svg')
-            for btype in btypes:
-                cmdfos = [plotting.get_lb_tree_cmd(tmpvals[btype]['vals']['tree'], '%s/%s-tree.svg' % (plotdir, btype), 'lbi', 'affinities', args.ete_path, args.workdir, metafo=tmpvals[btype]['vals'], tree_style='circular')]
-                utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
+            for metric in tmpmetrics:
+                for btype in btypes:
+                    cmdfos = [plotting.get_lb_tree_cmd(lbvals[metric][btype]['vals']['tree'], '%s/%s-%s-tree.svg' % (plotdir, metric, btype), metric, 'affinities', args.ete_path, args.workdir, metafo=lbvals[metric][btype]['vals'], tree_style='circular')]
+                    utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
 
     if args.make_plots:
-        for btype in btypes:
-            if print_results:
-                print '%s:     tau    %s lbi' % (btype, btype)
-            fig, ax = plotting.mpl_init()
-            seq_len_asymptote = None
-            for lbt in sorted(parsed_info[btype], reverse=True):
-                n_gen_list, lbi_list = zip(*sorted(parsed_info[btype][lbt].items(), key=operator.itemgetter(0)))
-                if lbt == 1. / args.seq_len:  # add a horizontal line corresponding to the asymptote for tau = 1/seq_len
-                    seq_len_asymptote = lbi_list[-1]
-                    ax.plot(ax.get_xlim(), (seq_len_asymptote, seq_len_asymptote), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-                ax.plot(n_gen_list, lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
+        for metric in tmpmetrics:
+            for btype in btypes:
+                if metric == 'lbr' and btype == 'min':  # it's just zero, and confuses the log plots
+                    continue
+                if len(parsed_info[metric][btype]) == 0:
+                    print 'nothing to do'
+                    continue
                 if print_results:
-                    print '      %7.4f    %6.4f' % (lbt, lbi_list[-1])
-            plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-lbi' % btype, xbounds=(min(n_gen_list), max(n_gen_list)),
-                                xlabel='N generations', ylabel='%s LBI' % btype.capitalize(), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.1, 0.5))
+                    print '%s:     tau    %s %s' % (btype, btype, metric)
+                fig, ax = plotting.mpl_init()
+                seq_len_asymptote = None
+                for lbt in sorted(parsed_info[metric][btype], reverse=True):
+                    n_gen_list, lb_list = zip(*sorted(parsed_info[metric][btype][lbt].items(), key=operator.itemgetter(0)))
+                    if lbt == 1. / args.seq_len:  # add a horizontal line corresponding to the asymptote for tau = 1/seq_len
+                        seq_len_asymptote = lb_list[-1]
+                        ax.plot(ax.get_xlim(), (seq_len_asymptote, seq_len_asymptote), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+                    ax.plot(n_gen_list, lb_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
+                    if print_results:
+                        print '      %7.4f    %6.4f' % (lbt, lb_list[-1])
+                plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-%s' % (btype, metric), xbounds=(min(n_gen_list), max(n_gen_list)),
+                                    xlabel='N generations', ylabel='%s %s' % (btype.capitalize(), metric.upper()), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.1, 0.5))
 
-            # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
-            fig, ax = plotting.mpl_init()
-            for lbt in sorted(parsed_info[btype], reverse=True):
-                n_gen_list, lbi_list = zip(*sorted(parsed_info[btype][lbt].items(), key=operator.itemgetter(0)))
-                ax.plot(n_gen_list, lbi_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-            ax.plot(ax.get_xlim(), (seq_len_asymptote, seq_len_asymptote), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-            plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-lbi-log' % btype, log='y', xbounds=(min(n_gen_list), max(n_gen_list)), ybounds=(2*min(parsed_info[btype]), 2*ax.get_ylim()[1]),
-                                xlabel='N generations', ylabel='%s LBI' % btype.capitalize(), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.57))
+                # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
+                fig, ax = plotting.mpl_init()
+                for lbt in sorted(parsed_info[metric][btype], reverse=True):
+                    n_gen_list, lb_list = zip(*sorted(parsed_info[metric][btype][lbt].items(), key=operator.itemgetter(0)))
+                    ax.plot(n_gen_list, lb_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
+                ax.plot(ax.get_xlim(), (seq_len_asymptote, seq_len_asymptote), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+                plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-%s-log' % (btype, metric), log='y', xbounds=(min(n_gen_list), max(n_gen_list)), ybounds=(2*min(parsed_info[metric][btype]), 2*ax.get_ylim()[1]),
+                                    xlabel='N generations', ylabel='%s %s' % (btype.capitalize(), metric.upper()), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.57))
 
 # ----------------------------------------------------------------------------------------
 def get_outdir(varnames, vstr, svtype):
@@ -272,14 +282,14 @@ def partition(args):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['get-lbi-bounds', 'run-bcr-phylo', 'partition', 'plot'])
+parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'partition', 'plot'])
 parser.add_argument('--carry-cap-list', default='250:1000:4000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='50,75,80:200,250')
 parser.add_argument('--obs-times-list', default='30,40,50:125,150')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.0025:0.003:0.005:0.008:0.012')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12:15:17', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
-parser.add_argument('--max-lbi-n-offspring', default=2, type=int, help='multifurcation number for max lbi calculation')
+parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--n-procs', default=1, type=int)
@@ -321,8 +331,8 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 # ----------------------------------------------------------------------------------------
-if args.action == 'get-lbi-bounds':
-    calc_lbi_bounds(args)
+if args.action == 'get-lb-bounds':
+    calc_lb_bounds(args)
 elif args.action == 'run-bcr-phylo':
     run_bcr_phylo(args)
 elif args.action == 'partition':

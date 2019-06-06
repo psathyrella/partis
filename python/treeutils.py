@@ -1,3 +1,4 @@
+import __builtin__
 import operator
 import string
 import itertools
@@ -362,7 +363,7 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
         if add_dummy_leaves:  # not set up to do it this way round at the moment
             assert add_dummy_root
         input_dtree = dtree
-        dtree = get_tree_with_dummy_branches(dtree, 10*tau, add_dummy_leaves=add_dummy_leaves, debug=debug)  # replace <dtree> with a modified tree
+        dtree = get_tree_with_dummy_branches(dtree, 10*tau, add_dummy_leaves=add_dummy_leaves, debug=debug)  # replace <dtree> with a modified tree TODO move 10*tau to the fcn
 
     # calculate clock length (i.e. for each node, the distance to that node's parent)
     for node in dtree.postorder_node_iter():  # postorder vs preorder doesn't matter, but I have to choose one
@@ -451,19 +452,24 @@ def set_multiplicities(dtree, annotation, input_metafo, debug=False):
         node.multiplicity = get_multi(node.taxon.label)
 
 # ----------------------------------------------------------------------------------------
+def copy_multiplicity(oldnode, newnode):  # ick ick ick this is ugly, but I'm in the middle of something else and don't want to decide whether to always set multiplicities, or rearrange get_tree_with_dummy_branches() so it doesn't need them always set
+    if hasattr(oldnode, 'multiplicity'):
+        newnode.multiplicity = oldnode.multiplicity
+
+# ----------------------------------------------------------------------------------------
 def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=False, dummy_str='dummy', debug=False): # add long branches above root and below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
     # add parent above old root (i.e. root of new tree)
     tns = dendropy.TaxonNamespace()
     new_root_label = dummy_str + '-root'
     tns.add_taxon(dendropy.Taxon(new_root_label))
     new_root_node = dendropy.Node(taxon=tns.get_taxon(new_root_label))
-    new_root_node.multiplicity = old_dtree.seed_node.multiplicity
+    copy_multiplicity(new_root_node, old_dtree.seed_node)
     new_dtree = dendropy.Tree(taxon_namespace=tns, seed_node=new_root_node)
 
     # then add the entire old tree under this, node by node (I tried just adding the old tree root as a child of the new root, but some internal things got screwed up, e.g. update_bipartitions() was crashing (although it did partially work))
     tns.add_taxon(dendropy.Taxon(old_dtree.seed_node.taxon.label))
     tmpnode = new_root_node.new_child(taxon=tns.get_taxon(old_dtree.seed_node.taxon.label), edge_length=dummy_edge_length)
-    tmpnode.multiplicity = old_dtree.seed_node.multiplicity
+    copy_multiplicity(tmpnode, old_dtree.seed_node)
     for edge in new_root_node.child_edge_iter():
         edge.length = dummy_edge_length
     for old_node in old_dtree.preorder_node_iter():
@@ -471,7 +477,7 @@ def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=
         for edge in old_node.child_edge_iter():
             tns.add_taxon(dendropy.Taxon(edge.head_node.taxon.label))
             tmpnode = new_node.new_child(taxon=tns.get_taxon(edge.head_node.taxon.label), edge_length=edge.length)
-            tmpnode.multiplicity = old_node.multiplicity
+            copy_multiplicity(tmpnode, old_node)
 
     if add_dummy_leaves:
         # then add dummy child branches to each leaf
@@ -479,7 +485,7 @@ def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=
             new_label = '%s-%s' % (dummy_str, lnode.taxon.label)
             tns.add_taxon(dendropy.Taxon(new_label))
             new_child_node = lnode.new_child(taxon=tns.get_taxon(new_label), edge_length=dummy_edge_length)
-            new_child_node.multiplicity = lnode.multiplicity
+            copy_multiplicity(new_child_node, lnode)
 
     # new_dtree.update_bipartitions()  # not sure if I should do this?
 
@@ -537,46 +543,48 @@ def set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=False):
     return n_generations
 
 # ----------------------------------------------------------------------------------------
-# NOTE the min lbi is just tau, but I don't feel like deleting this fcn just to keep clear what the min means
-def calculate_min_lbi(seq_len, tau, n_tau_lengths=10, n_generations=None, debug=False):
-    dtree = dendropy.Tree()
-    n_generations = set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=debug)
+def get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=False):
+    dtree = dendropy.Tree()  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculate lb values)
+    if bound == 'min':
+        leaf_node = dtree.seed_node  # pretty similar to the dummy root stuff
+        for igen in range(n_generations):
+            leaf_node = leaf_node.new_child(edge_length=1./seq_len)
+    elif bound == 'max':
+        old_leaf_nodes = [l for l in dtree.leaf_node_iter()]
+        assert len(old_leaf_nodes) == 1
+        new_leaf_nodes = []
+        for igen in range(n_generations):
+            for ileaf in range(len(old_leaf_nodes)):
+                for ioff in range(n_offspring):
+                    new_leaf_nodes += [old_leaf_nodes[ileaf].new_child(edge_length=1./seq_len)]
+            old_leaf_nodes = new_leaf_nodes
+            new_leaf_nodes = []
+    else:
+        assert False
 
-    leaf_node = dtree.seed_node
-    for igen in range(n_generations):
-        leaf_node = leaf_node.new_child(edge_length=1./seq_len)
-
-    label_nodes(dtree)
-    lbvals = calculate_lb_values(dtree, tau, default_lbr_tau_factor * tau, only_calc_val='lbi')
-    min_name, min_val = min(lbvals['lbi'].items(), key=operator.itemgetter(1))
-    if debug:
-        print '  min of %d lbi values (%.1fs):  %s  %.4f' % (len(lbvals['lbi']), time.time() - start, min_name, min_val)
-
-    return min_name, min_val, lbvals
+    return dtree
 
 # ----------------------------------------------------------------------------------------
-def calculate_max_lbi(seq_len, tau, n_tau_lengths=5, n_generations=None, n_offspring=2, debug=False):
-    start = time.time()
-
+def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_offspring=2, tmpmetrics=None, btypes=None, debug=False):  # NOTE the min is just tau, but I don't feel like deleting this fcn just to keep clear what the min means
+    add_dummy_root = True  # TODO
+    info = {m : {} for m in lb_metrics}
     n_generations = set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=debug)
+    for metric in [m for m in lb_metrics if tmpmetrics is None or m in tmpmetrics]:
+        for bound in [b for b in ['min', 'max'] if btypes is None or b in btypes]:
+            if metric == 'lbr' and bound == 'max':  # TODO
+                assert add_dummy_root  # we absolutely definitely need the dummy root added, since otherwise the root node will always be the max since it's got nobody above it
+            start = time.time()
+            dtree = get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=debug)
+            label_nodes(dtree)
+            # TODO this is absurdly slow, maybe I can add the dummy root before labelling instead of letting this fcn do it? EDIT oh wait maybe this isn't taking that much time
+            lbvals = calculate_lb_values(dtree, tau, default_lbr_tau_factor * tau, only_calc_val=metric, add_dummy_root=add_dummy_root, debug=debug)
+            bfcn = __builtins__[bound]  # min() or max()
+            info[metric][bound] = {metric : bfcn(lbvals[metric].values()), 'vals' : lbvals}
+            if debug:
+                bname, bval = bfcn(lbvals[metric].items(), key=operator.itemgetter(1))
+                print '  %s of %d %s values (%.1fs): %s  %.4f' % (bound, len(lbvals[metric]), metric, time.time() - start, bname, bval)
 
-    dtree = dendropy.Tree()  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculate lb values)
-    old_leaf_nodes = [dtree.seed_node]
-    new_leaf_nodes = []
-    for igen in range(n_generations):
-        for ileaf in range(len(old_leaf_nodes)):
-            for ioff in range(n_offspring):
-                new_leaf_nodes += [old_leaf_nodes[ileaf].new_child(edge_length=1./seq_len)]
-        old_leaf_nodes = new_leaf_nodes
-        new_leaf_nodes = []
-
-    label_nodes(dtree)
-    lbvals = calculate_lb_values(dtree, tau, default_lbr_tau_factor * tau, only_calc_val='lbi')
-    max_name, max_val = max(lbvals['lbi'].items(), key=operator.itemgetter(1))
-    if debug:
-        print '  max of %d lbi values (%.1fs):  %s  %.4f' % (len(lbvals['lbi']), time.time() - start, max_name, max_val)
-
-    return max_name, max_val, lbvals
+    return info
 
 # ----------------------------------------------------------------------------------------
 lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called

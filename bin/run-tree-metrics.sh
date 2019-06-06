@@ -3,7 +3,7 @@
 bin=./test/cf-tree-metrics.py
 
 lbtl=0.0005:0.001:0.002:0.0025:0.003:0.004:0.005  # remove the larger ones since they diverge too much (but for tau optimization we do want them, since it extends the x range axis to the right)
-$bin get-lbi-bounds --label v1 --lb-tau-list $lbtl  #--make-plots
+$bin get-lb-bounds --label v2 --lb-tau-list $lbtl  #--make-plots
 exit 0
 
 # $bin run-bcr-phylo --label xxx
