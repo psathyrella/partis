@@ -84,7 +84,7 @@ def get_qr_seqs_with_indels_reinstated(line, iseq):
 
 # ----------------------------------------------------------------------------------------
 def get_iseqs_with_compatible_indels(line, ifo_to_match, max_separation=10):
-    """ get list of sequence ids in line that have an indel matching ifo_to_match """
+    """ get list of sequence indices in <line> that have an indel matching <ifo_to_match> """
     iseqs_to_keep = []
     for iseq in range(len(line['unique_ids'])):
         ifos = line['indelfos'][iseq]['indels']  # list of dicts for this seq

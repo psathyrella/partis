@@ -1585,7 +1585,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
 
 # ----------------------------------------------------------------------------------------
 def restrict_to_iseqs(line, iseqs_to_keep, glfo):
-    """ rewrite annotation cluster line using only iseqs_to_keep subset. modifies line. """
+    """ remove from <line> any sequences corresponding to indices not in <iseqs_to_keep>. modifies line. """
     if len(iseqs_to_keep) < 1:
         return None
     remove_all_implicit_info(line)
