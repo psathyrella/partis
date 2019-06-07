@@ -18,11 +18,13 @@ def get_outfname(outdir):
     return '%s/vals.yaml' % outdir
 
 # ----------------------------------------------------------------------------------------
-def calc_lb_bounds(args, print_results=False):
+def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
     print_results = True
     debug = False
-    tmpmetrics = treeutils.lb_metrics #['lbr'] #
-    btypes = ['min', 'max'] #['max'] #
+    tmpmetrics = treeutils.lb_metrics
+    btypes = ['min', 'max']
+    # tmpmetrics = ['lbr']
+    # btypes = ['max']
 
     if args.overwrite:
         raise Exception('not implemented')
@@ -55,16 +57,18 @@ def calc_lb_bounds(args, print_results=False):
                     print '         output exists, skipping: %s' % get_outfname(this_outdir)
                 continue
 
+            print '         running %d' % n_gen
+
             if not os.path.exists(this_outdir):
                 os.makedirs(this_outdir)
 
             lbvals = treeutils.calculate_lb_bounds(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lb_n_offspring, tmpmetrics=tmpmetrics, btypes=btypes, debug=debug)
 
             with open(get_outfname(this_outdir), 'w') as outfile:
-                yaml.dump(lbvals, outfile)
+                yamlfo = {m : {b : {k : v for k, v in lbvals[m][b].items() if k != 'vals'} for b in btypes} for m in tmpmetrics}  # writing these to yaml is really slow, and they're only used for plotting below
+                yaml.dump(yamlfo, outfile)
 
-            if n_gen > 5:
-                print '      skipping tree plots for n_gen > 5'
+            if n_gen > n_max_gen_to_plot:
                 continue
 
             # this is really slow on large trees

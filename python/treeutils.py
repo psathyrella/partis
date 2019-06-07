@@ -412,13 +412,8 @@ def set_lb_values(dtree, tau, use_multiplicities=False, normalize=False, add_dum
         for node in dtree.postorder_node_iter():
             node.lbi /= max_LBI
 
-    if add_dummy_root or add_dummy_leaves:  # get the lb values from the modified tree, and the swap back
-        for node in input_dtree.preorder_node_iter():
-            ntmp = dtree.find_node_with_taxon_label(node.taxon.label)
-            node.clock_length = ntmp.clock_length
-            node.lbi = ntmp.lbi
-            node.lbr = ntmp.lbr
-        dtree = input_dtree  # only actually affects the debug print below
+    if add_dummy_root or add_dummy_leaves:
+        dtree = input_dtree  # only actually affects the debug print below (note that now the dummy branch adding stuff is just pasting the old tree intact underneath a new root (instead of making a whole new tree), we can just swap the references like this)
 
     if debug:
         print '  calculated lb values with tau %.4f' % tau
@@ -458,26 +453,17 @@ def copy_multiplicity(oldnode, newnode):  # ick ick ick this is ugly, but I'm in
 
 # ----------------------------------------------------------------------------------------
 def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=False, dummy_str='dummy', debug=False): # add long branches above root and below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
-    # add parent above old root (i.e. root of new tree)
-    tns = dendropy.TaxonNamespace()
-    new_root_label = dummy_str + '-root'
-    tns.add_taxon(dendropy.Taxon(new_root_label))
-    new_root_node = dendropy.Node(taxon=tns.get_taxon(new_root_label))
-    copy_multiplicity(new_root_node, old_dtree.seed_node)
-    new_dtree = dendropy.Tree(taxon_namespace=tns, seed_node=new_root_node)
+    # make a new tree with just a root node, and the same taxon namespace
+    new_root_taxon = dendropy.Taxon(dummy_str + '-root')
+    old_dtree.taxon_namespace.add_taxon(new_root_taxon)
+    new_root_node = dendropy.Node(taxon=new_root_taxon)
+    copy_multiplicity(new_root_node, old_dtree.seed_node)  # this isn't really right, but whatever, we'll never use this node for anything
+    new_dtree = dendropy.Tree(seed_node=new_root_node, taxon_namespace=old_dtree.taxon_namespace)
 
-    # then add the entire old tree under this, node by node (I tried just adding the old tree root as a child of the new root, but some internal things got screwed up, e.g. update_bipartitions() was crashing (although it did partially work))
-    tns.add_taxon(dendropy.Taxon(old_dtree.seed_node.taxon.label))
-    tmpnode = new_root_node.new_child(taxon=tns.get_taxon(old_dtree.seed_node.taxon.label), edge_length=dummy_edge_length)
-    copy_multiplicity(tmpnode, old_dtree.seed_node)
+    # then add the entire old tree under this new tree
+    new_root_node.add_child(old_dtree.seed_node)
     for edge in new_root_node.child_edge_iter():
         edge.length = dummy_edge_length
-    for old_node in old_dtree.preorder_node_iter():
-        new_node = new_dtree.find_node_with_taxon_label(old_node.taxon.label)
-        for edge in old_node.child_edge_iter():
-            tns.add_taxon(dendropy.Taxon(edge.head_node.taxon.label))
-            tmpnode = new_node.new_child(taxon=tns.get_taxon(edge.head_node.taxon.label), edge_length=edge.length)
-            copy_multiplicity(tmpnode, old_node)
 
     if add_dummy_leaves:
         # then add dummy child branches to each leaf
@@ -487,7 +473,7 @@ def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=
             new_child_node = lnode.new_child(taxon=tns.get_taxon(new_label), edge_length=dummy_edge_length)
             copy_multiplicity(new_child_node, lnode)
 
-    # new_dtree.update_bipartitions()  # not sure if I should do this?
+    # new_dtree.update_bipartitions(suppress_unifurcations=False)  # not sure if I should do this? (suppress_unifurcations is because otherwise it removes the branch between the old and new root nodes)
 
     if debug:
         print '    added dummy branches to tree:'
