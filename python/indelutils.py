@@ -83,7 +83,7 @@ def get_qr_seqs_with_indels_reinstated(line, iseq):
     return qr_seqs
 
 # ----------------------------------------------------------------------------------------
-def get_iseqs_with_compatible_indels(line, ifo_to_match):
+def get_iseqs_with_compatible_indels(line, ifo_to_match, max_separation=10):
     """ get list of sequence ids in line that have an indel matching ifo_to_match """
     iseqs_to_keep = []
     for iseq in range(len(line['unique_ids'])):
@@ -91,7 +91,7 @@ def get_iseqs_with_compatible_indels(line, ifo_to_match):
         for ifo in ifos:
             if ifo['type'] != ifo_to_match['type']:
                  continue
-            if abs(ifo['pos'] - ifo_to_match['pos']) > 10:
+            if abs(ifo['pos'] - ifo_to_match['pos']) > max_separation:
                  continue
             if ifo['len'] !=  ifo_to_match['len']:
                  continue
