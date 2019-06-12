@@ -20,18 +20,11 @@ def get_outfname(outdir):
 # ----------------------------------------------------------------------------------------
 def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
     print_results = True
-    debug = False
-    tmpmetrics = treeutils.lb_metrics
     btypes = ['min', 'max']
-    # tmpmetrics = ['lbr']
-    # btypes = ['max']
-
-    if args.overwrite:
-        raise Exception('not implemented')
 
     outdir = '%s/lb-tau-normalization/%s' % (args.base_outdir, args.label)
 
-    parsed_info = {m : {b : {} for b in btypes} for m in tmpmetrics}
+    parsed_info = {m : {b : {} for b in btypes} for m in args.only_metrics}
     for lbt in args.lb_tau_list:
 
         gen_list = args.n_generations_list
@@ -44,17 +37,15 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
 
             this_outdir = '%s/n_gen-%d-lbt-%.4f' % (outdir, n_gen, lbt)  # if for some reason I want to specify --n-tau-lengths-list instead of --n-generations-list, this makes the output path structure still correspond to n generations, but that's ok since that's what the trees do
 
-            if os.path.exists(get_outfname(this_outdir)):
-                if args.make_plots:
-                    with open(get_outfname(this_outdir)) as outfile:
-                        info = yaml.load(outfile, Loader=yaml.Loader)
-                    for metric in tmpmetrics:
-                        for btype in btypes:
-                            if lbt not in parsed_info[metric][btype]:
-                                parsed_info[metric][btype][lbt] = {}
-                            parsed_info[metric][btype][lbt][n_gen] = info[metric][btype][metric]  # it's weird to have metric as the key twice, but it actually makes sense since we're subverting the normal calculation infrastructure to only run one metric or the other at a time (i.e. the righthand key is pulling out the metric we want from the lb info that, in principle, usually has both; while the lefthand key is identifying a run during which we were only caring about that metric)
-                else:
-                    print '         output exists, skipping: %s' % get_outfname(this_outdir)
+            if args.make_plots:  # just let it crash if you forgot to actually run it first
+                with open(get_outfname(this_outdir)) as outfile:
+                    info = yaml.load(outfile, Loader=yaml.Loader)
+                for metric in args.only_metrics:
+                    for btype in btypes:
+                        if lbt not in parsed_info[metric][btype]:
+                            parsed_info[metric][btype][lbt] = {}
+                        parsed_info[metric][btype][lbt][n_gen] = info[metric][btype][metric]  # it's weird to have metric as the key twice, but it actually makes sense since we're subverting the normal calculation infrastructure to only run one metric or the other at a time (i.e. the righthand key is pulling out the metric we want from the lb info that, in principle, usually has both; while the lefthand key is identifying a run during which we were only caring about that metric)
+            elif utils.output_exists(args, get_outfname(this_outdir)):
                 continue
 
             print '         running %d' % n_gen
@@ -62,10 +53,10 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
             if not os.path.exists(this_outdir):
                 os.makedirs(this_outdir)
 
-            lbvals = treeutils.calculate_lb_bounds(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lb_n_offspring, tmpmetrics=tmpmetrics, btypes=btypes, debug=debug)
+            lbvals = treeutils.calculate_lb_bounds(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lb_n_offspring, tmpmetrics=args.only_metrics, btypes=btypes, debug=args.debug)
 
             with open(get_outfname(this_outdir), 'w') as outfile:
-                yamlfo = {m : {b : {k : v for k, v in lbvals[m][b].items() if k != 'vals'} for b in btypes} for m in tmpmetrics}  # writing these to yaml is really slow, and they're only used for plotting below
+                yamlfo = {m : {b : {k : v for k, v in lbvals[m][b].items() if k != 'vals'} for b in btypes} for m in args.only_metrics}  # writing these to yaml is really slow, and they're only used for plotting below
                 yaml.dump(yamlfo, outfile)
 
             if n_gen > n_max_gen_to_plot:
@@ -74,13 +65,15 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
             # this is really slow on large trees
             plotdir = this_outdir + '/plots'
             utils.prep_dir(plotdir, wildlings='*.svg')
-            for metric in tmpmetrics:
+            for metric in args.only_metrics:
                 for btype in btypes:
+                    if lbvals[metric][btype]['vals'] is None:  # TODO figure out a cleaner way to do this
+                        continue
                     cmdfos = [plotting.get_lb_tree_cmd(lbvals[metric][btype]['vals']['tree'], '%s/%s-%s-tree.svg' % (plotdir, metric, btype), metric, 'affinities', args.ete_path, args.workdir, metafo=lbvals[metric][btype]['vals'], tree_style='circular')]
                     utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
 
     if args.make_plots:
-        for metric in tmpmetrics:
+        for metric in args.only_metrics:
             for btype in btypes:
                 if metric == 'lbr' and btype == 'min':  # it's just zero, and confuses the log plots
                     continue
@@ -297,11 +290,13 @@ parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurc
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--n-procs', default=1, type=int)
+parser.add_argument('--only-metrics', default='lbi:lbr', help='only used for lb bound calc a.t.m.')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
 parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
+parser.add_argument('--debug', action='store_true')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
@@ -328,6 +323,7 @@ args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
+args.only_metrics = utils.get_arg_list(args.only_metrics)
 if [args.n_tau_lengths_list, args.n_generations_list].count(None) != 1:
     raise Exception('have to set exactly one of --n-tau-lengths, --n-generations')
 
