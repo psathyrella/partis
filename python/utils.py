@@ -900,7 +900,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='',
                   print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False,
-                  only_print_seq=False, align=False, return_ref=False, amino_acid=False):  # NOTE if <return_ref> is set, the order isn't the same as the input sequence order
+                  only_print_seq=False, align=False, align_if_necessary=False, return_ref=False, amino_acid=False):  # NOTE if <return_ref> is set, the order isn't the same as the input sequence order
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
     # NOTE now I've got <return_ref>, I can probably remove a bunch of the label/whatever arguments and do all the damn formatting in the caller
@@ -910,7 +910,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         ref_seq = ref_seq[:min_len]
         seq = seq[:min_len]
 
-    if align:  #  and len(ref_seq) != len(seq):  # it would be nice to avoid aligning when we don't need to... but i'm not sure how to identify cases where multiple indels result in the same length
+    if align or (align_if_necessary and len(ref_seq) != len(seq)):  # it would be nice to avoid aligning when we don't need to... but i'm not sure how to identify cases where multiple indels result in the same length
         ref_seq, seq = align_seqs(ref_seq, seq)
 
     if len(ref_seq) != len(seq):
