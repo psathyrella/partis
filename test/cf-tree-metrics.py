@@ -57,7 +57,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
             if not os.path.exists(this_outdir):
                 os.makedirs(this_outdir)
 
-            lbvals = treeutils.calculate_lb_bounds(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lb_n_offspring, tmpmetrics=args.only_metrics, btypes=btypes, debug=args.debug)
+            lbvals = treeutils.calculate_lb_bounds(args.seq_len, lbt, n_generations=n_gen, n_offspring=args.max_lb_n_offspring, only_metrics=args.only_metrics, btypes=btypes, debug=args.debug)
 
             with open(get_outfname(this_outdir), 'w') as outfile:
                 yamlfo = {m : {b : {k : v for k, v in lbvals[m][b].items() if k != 'vals'} for b in btypes} for m in args.only_metrics}  # writing these to yaml is really slow, and they're only used for plotting below
@@ -71,7 +71,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
             utils.prep_dir(plotdir, wildlings='*.svg')
             for metric in args.only_metrics:
                 for btype in btypes:
-                    if lbvals[metric][btype]['vals'] is None:  # TODO figure out a cleaner way to do this
+                    if lbvals[metric][btype]['vals'] is None:
                         continue
                     cmdfos = [plotting.get_lb_tree_cmd(lbvals[metric][btype]['vals']['tree'], '%s/%s-%s-tree.svg' % (plotdir, metric, btype), metric, 'affinities', args.ete_path, args.workdir, metafo=lbvals[metric][btype]['vals'], tree_style='circular')]
                     utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
@@ -294,7 +294,7 @@ parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurc
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--n-procs', default=1, type=int)
-parser.add_argument('--only-metrics', default='lbi:lbr', help='only used for lb bound calc a.t.m.')
+parser.add_argument('--only-metrics', default='lbi', help='which (of lbi, lbr) metrics to do lb bound calculation (default is not to do lbr, since it\'s min is always zero, max seems to be unbounded, and it doesn\'t really make sense to normalize it, since it\'s already unitless)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')

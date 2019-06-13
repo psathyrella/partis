@@ -353,7 +353,7 @@ def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespa
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 # also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def set_lb_values(dtree, tau, add_dummy_root=True, only_calc_val=None, use_multiplicities=False, debug=False):  # NOTE default True for <add_dummy_root>
+def set_lb_values(dtree, tau, only_calc_val=None, use_multiplicities=False, debug=False):
     """
     traverses <dtree> in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI (and divides as LBR)
     """
@@ -364,9 +364,7 @@ def set_lb_values(dtree, tau, add_dummy_root=True, only_calc_val=None, use_multi
     if debug:
         print '  calculating %s with tau %.4f' % (' and '.join(metrics_to_calc), tau)
 
-    if add_dummy_root:
-        # TODO if this fcn is now just modifying the tree, then it doesn't really make sense to return it
-        dtree = get_tree_with_dummy_branches(dtree, 10*tau, debug=debug)  # replace <dtree> with a modified tree TODO move 10*tau to the fcn
+    dtree = get_tree_with_dummy_branches(dtree, tau, debug=debug)  # this returns a new dtree, but the old tree is a subtree of the new one (or at least its collection of nodes are), and these nodes get modified by the process (hence the reversal fcn below)
 
     # calculate clock length (i.e. for each node, the distance to that node's parent)
     for node in dtree.postorder_node_iter():  # postorder vs preorder doesn't matter, but I have to choose one
@@ -408,7 +406,7 @@ def set_lb_values(dtree, tau, add_dummy_root=True, only_calc_val=None, use_multi
         if node.down_polarizer > 0.:
             vals['lbr'] /= node.down_polarizer  # it might make more sense to not include the branch between <node> and its parent in either the numerator or denominator (here it's included in the denominator), but this way I don't have to change any of the calculations above
 
-        if add_dummy_root and dummy_str in node.taxon.label:
+        if dummy_str in node.taxon.label:
             continue
         for metric in metrics_to_calc:
             returnfo[metric][node.taxon.label] = float(vals[metric])
@@ -417,7 +415,7 @@ def set_lb_values(dtree, tau, add_dummy_root=True, only_calc_val=None, use_multi
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
         print ('   %' + max_width + 's %s%s      multi') % ('node', ''.join('     %s' % m for m in metrics_to_calc), 16*' ' if 'lbr' in metrics_to_calc else '')
         for node in dtree.preorder_node_iter():
-            if add_dummy_root and dummy_str in node.taxon.label:
+            if dummy_str in node.taxon.label:
                 continue
             multi_str = str(getmulti(node)) if use_multiplicities else ''
             lbstrs = ['%8.3f' % returnfo[m][node.taxon.label] for m in metrics_to_calc]
@@ -433,8 +431,7 @@ def set_lb_values(dtree, tau, add_dummy_root=True, only_calc_val=None, use_multi
         if hasattr(node, 'multiplicity'):
             delattr(node, 'multiplicity')
 
-    if add_dummy_root:
-        remove_dummy_branches(dtree)
+    remove_dummy_branches(dtree)
 
     return returnfo
 
@@ -462,13 +459,13 @@ def set_multiplicities(dtree, annotation, input_metafo, debug=False):
         node.multiplicity = get_multi(node.taxon.label)
 
 # ----------------------------------------------------------------------------------------
-def copy_multiplicity(oldnode, newnode):  # ick ick ick this is ugly, but I'm in the middle of something else and don't want to decide whether to always set multiplicities, or rearrange get_tree_with_dummy_branches() so it doesn't need them always set
-    if hasattr(oldnode, 'multiplicity'):
-        newnode.multiplicity = oldnode.multiplicity
+def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_leaves=False, debug=False): # add long branches above root and/or below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
+    def copy_multiplicity(oldnode, newnode):  # this is kind of ugly, but oh well
+        if hasattr(oldnode, 'multiplicity'):
+            newnode.multiplicity = oldnode.multiplicity
 
-# ----------------------------------------------------------------------------------------
-def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=False, debug=False): # add long branches above root and below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
-    # make a new tree with just a root node, and the same taxon namespace
+    dummy_edge_length = n_tau_lengths * tau
+
     new_root_taxon = dendropy.Taxon(dummy_str + '-root')
     old_dtree.taxon_namespace.add_taxon(new_root_taxon)
     new_root_node = dendropy.Node(taxon=new_root_taxon)
@@ -480,8 +477,7 @@ def get_tree_with_dummy_branches(old_dtree, dummy_edge_length, add_dummy_leaves=
     for edge in new_root_node.child_edge_iter():
         edge.length = dummy_edge_length
 
-    if add_dummy_leaves:
-        # then add dummy child branches to each leaf
+    if add_dummy_leaves:  # add dummy child branches to each leaf
         for lnode in new_dtree.leaf_node_iter():
             new_label = '%s-%s' % (dummy_str, lnode.taxon.label)
             tns.add_taxon(dendropy.Taxon(new_label))
@@ -580,12 +576,12 @@ def get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspri
     return dtree
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_offspring=2, tmpmetrics=None, btypes=None, debug=False):  # NOTE the min is just tau, but I don't feel like deleting this fcn just to keep clear what the min means
+def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_offspring=2, only_metrics=None, btypes=None, debug=False):  # NOTE the min is just tau, but I don't feel like deleting this fcn just to keep clear what the min means
     info = {m : {} for m in lb_metrics}
     n_generations = set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=debug)
-    for metric in [m for m in lb_metrics if tmpmetrics is None or m in tmpmetrics]:
+    for metric in [m for m in lb_metrics if only_metrics is None or m in only_metrics]:
         for bound in [b for b in ['min', 'max'] if btypes is None or b in btypes]:
-            if metric == 'lbr' and bound == 'min':  # TODO figure out a cleaner way to do this
+            if metric == 'lbr' and bound == 'min':  # lbr min is always zero (leaves)
                 info[metric][bound] = {metric : 0., 'vals' : None}
                 continue
             start = time.time()
