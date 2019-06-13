@@ -353,12 +353,12 @@ def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespa
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 # also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def set_lb_values(dtree, tau, only_calc_val=None, use_multiplicities=False, debug=False):
+def set_lb_values(dtree, tau, only_calc_val=None, multifo=None, debug=False):
     """
     traverses <dtree> in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI (and divides as LBR)
     """
     def getmulti(node):  # number of reads with the same sequence
-        return node.multiplicity if use_multiplicities else 1  # it's nice to just not set a multiplicity if we don't want to incorporate them, since then we absolutely know it'll crash if we accidentally try to access it
+        return multifo.get(node.taxon.label, 1) if multifo is not None else 1  # most all of them should be in there, but for instance I'm not adding the dummy branch nodes
 
     metrics_to_calc = lb_metrics.keys() if only_calc_val is None else [only_calc_val]
     if debug:
@@ -417,7 +417,7 @@ def set_lb_values(dtree, tau, only_calc_val=None, use_multiplicities=False, debu
         for node in dtree.preorder_node_iter():
             if dummy_str in node.taxon.label:
                 continue
-            multi_str = str(getmulti(node)) if use_multiplicities else ''
+            multi_str = str(getmulti(node)) if multifo is not None else ''
             lbstrs = ['%8.3f' % returnfo[m][node.taxon.label] for m in metrics_to_calc]
             if 'lbr' in metrics_to_calc:
                 lbstrs += [' = %-5.3f / %-5.3f' % (returnfo['lbr'][node.taxon.label] * node.down_polarizer, node.down_polarizer)]
@@ -428,8 +428,6 @@ def set_lb_values(dtree, tau, only_calc_val=None, use_multiplicities=False, debu
         delattr(node, 'clock_length')
         delattr(node, 'up_polarizer')
         delattr(node, 'down_polarizer')
-        if hasattr(node, 'multiplicity'):
-            delattr(node, 'multiplicity')
 
     remove_dummy_branches(dtree)
 
@@ -443,8 +441,7 @@ def set_multiplicities(dtree, annotation, input_metafo, debug=False):
                 return 1
             if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but even if not, if there's no duplicate info then assuming multiplicities of 1 should be fine (maybe should add duplicate info to simulation? it wouldn't really make sense though, since we don't collapse duplicates in simulation info)
                 return 1
-            iseq = annotation['unique_ids'].index(uid)
-            return len(annotation['duplicates'][iseq]) + 1
+            return len(utils.per_seq_val(annotation, 'duplicates', uid)) + 1
         elif annotation is None:
             if uid not in input_metafo:
                 return 1
@@ -455,21 +452,19 @@ def set_multiplicities(dtree, annotation, input_metafo, debug=False):
     if annotation is None and input_metafo is None:
         raise Exception('have to get the multiplicity info from somewhere')
 
+
+    multifo = {}
     for node in dtree.postorder_node_iter():
-        node.multiplicity = get_multi(node.taxon.label)
+        multifo[node.taxon.label] = get_multi(node.taxon.label)
+    return multifo
 
 # ----------------------------------------------------------------------------------------
 def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_leaves=False, debug=False): # add long branches above root and/or below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
-    def copy_multiplicity(oldnode, newnode):  # this is kind of ugly, but oh well
-        if hasattr(oldnode, 'multiplicity'):
-            newnode.multiplicity = oldnode.multiplicity
-
     dummy_edge_length = n_tau_lengths * tau
 
     new_root_taxon = dendropy.Taxon(dummy_str + '-root')
     old_dtree.taxon_namespace.add_taxon(new_root_taxon)
     new_root_node = dendropy.Node(taxon=new_root_taxon)
-    copy_multiplicity(new_root_node, old_dtree.seed_node)  # this isn't really right, but whatever, we'll never use this node for anything
     new_dtree = dendropy.Tree(seed_node=new_root_node, taxon_namespace=old_dtree.taxon_namespace)
 
     # then add the entire old tree under this new tree
@@ -482,7 +477,6 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
             new_label = '%s-%s' % (dummy_str, lnode.taxon.label)
             tns.add_taxon(dendropy.Taxon(new_label))
             new_child_node = lnode.new_child(taxon=tns.get_taxon(new_label), edge_length=dummy_edge_length)
-            copy_multiplicity(new_child_node, lnode)
 
     new_dtree.update_bipartitions(suppress_unifurcations=False)  # not sure if I need this? (suppress_unifurcations is because otherwise it removes the branch between the old and new root nodes)
 
@@ -526,17 +520,18 @@ def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, in
         print '   lbi/lbr%s:' % ('' if extra_str is None else ' for %s' % extra_str)
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
-    if use_multiplicities:  # it's kind of weird to, if we don't want to incorporate multiplicities,  both not set them *and* tell set_lb_values() not to use them, but I like the super explicitness of this setup, i.e. this makes it impossible to silently/accidentally pass in multiplicities.
-        set_multiplicities(dtree, annotation, input_metafo, debug=debug)
+    multifo = None
+    if use_multiplicities:
+        multifo = set_multiplicities(dtree, annotation, input_metafo, debug=debug)
 
     treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
     if tau is None:
         assert only_calc_val is None  # er, I think it wouldn't make sense to do this
-        lbvals = set_lb_values(dtree, default_lb_tau, only_calc_val='lbi', use_multiplicities=use_multiplicities, debug=debug)  # NOTE modifies <dtree> (but then hopefully/I think reverts it)
-        tmpvals = set_lb_values(dtree, default_lbr_tau_factor * default_lb_tau, only_calc_val='lbr', use_multiplicities=use_multiplicities, debug=debug)
+        lbvals = set_lb_values(dtree, default_lb_tau, only_calc_val='lbi', multifo=multifo, debug=debug)
+        tmpvals = set_lb_values(dtree, default_lbr_tau_factor * default_lb_tau, only_calc_val='lbr', multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
     else:
-        lbvals = set_lb_values(dtree, tau, only_calc_val=only_calc_val, use_multiplicities=use_multiplicities, debug=debug)  # NOTE modifies <dtree> (but then hopefully/I think reverts it)
+        lbvals = set_lb_values(dtree, tau, only_calc_val=only_calc_val, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
     return lbvals
