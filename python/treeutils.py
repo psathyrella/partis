@@ -375,7 +375,7 @@ def set_lb_values(dtree, tau, add_dummy_root=True, only_calc_val=None, use_multi
         for child in node.child_node_iter():
             child.clock_length = child.distance_from_root() - node.distance_from_root()
 
-    # node.lbi is the sum of <node.down_polarizer> (downward message from <node>'s parent) and its children's up_polarizers (upward messages)
+    # lbi is the sum of <node.down_polarizer> (downward message from <node>'s parent) and its children's up_polarizers (upward messages)
 
     # traverse the tree in postorder (children first) to calculate message to parents (i.e. node.up_polarizer)
     for node in dtree.postorder_node_iter():
@@ -399,36 +399,35 @@ def set_lb_values(dtree, tau, add_dummy_root=True, only_calc_val=None, use_multi
             child1.down_polarizer += getmulti(child1) * tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
 
     returnfo = {m : {} for m in metrics_to_calc}
-    # go over all nodes and calculate the LBI (can be done in any order)
+    # go over all nodes and calculate lb metrics (can be done in any order)
     for node in dtree.postorder_node_iter():
-        node.lbi = node.down_polarizer
-        node.lbr = 0.
+        vals = {'lbi' : node.down_polarizer, 'lbr' : 0.}
         for child in node.child_node_iter():
-            node.lbi += child.up_polarizer
-            node.lbr += child.up_polarizer
+            vals['lbi'] += child.up_polarizer
+            vals['lbr'] += child.up_polarizer
         if node.down_polarizer > 0.:
-            node.lbr /= node.down_polarizer  # it might make more sense to not include the branch between <node> and its parent in either the numerator or denominator (here it's included in the denominator), but this way I don't have to change any of the calculations above
+            vals['lbr'] /= node.down_polarizer  # it might make more sense to not include the branch between <node> and its parent in either the numerator or denominator (here it's included in the denominator), but this way I don't have to change any of the calculations above
 
         if add_dummy_root and dummy_str in node.taxon.label:
             continue
         for metric in metrics_to_calc:
-            returnfo[metric][node.taxon.label] = float(getattr(node, metric))
+            returnfo[metric][node.taxon.label] = float(vals[metric])
 
     if debug:
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
         print ('   %' + max_width + 's %s%s      multi') % ('node', ''.join('     %s' % m for m in metrics_to_calc), 16*' ' if 'lbr' in metrics_to_calc else '')
         for node in dtree.preorder_node_iter():
+            if add_dummy_root and dummy_str in node.taxon.label:
+                continue
             multi_str = str(getmulti(node)) if use_multiplicities else ''
-            lbstrs = ['%8.3f' % getattr(node, m) for m in metrics_to_calc]
+            lbstrs = ['%8.3f' % returnfo[m][node.taxon.label] for m in metrics_to_calc]
             if 'lbr' in metrics_to_calc:
-                lbstrs += [' = %-5.3f / %-5.3f' % (node.lbr * node.down_polarizer, node.down_polarizer)]
+                lbstrs += [' = %-5.3f / %-5.3f' % (returnfo['lbr'][node.taxon.label] * node.down_polarizer, node.down_polarizer)]
             print ('    %' + max_width + 's  %s    %3s') % (node.taxon.label, ''.join(lbstrs), multi_str)
 
     # this is maybe time consuming, but I want to leave the tree that was passed in as unmodified as I can (especially since a.t.m. I'm running this fcn twice for lbi/lbr)
     for node in dtree.postorder_node_iter():
         delattr(node, 'clock_length')
-        delattr(node, 'lbi')
-        delattr(node, 'lbr')
         delattr(node, 'up_polarizer')
         delattr(node, 'down_polarizer')
         if hasattr(node, 'multiplicity'):
@@ -506,12 +505,13 @@ def remove_dummy_branches(dtree, add_dummy_leaves=False):
     dtree.reroot_at_node(dtree.seed_node.child_nodes()[0])  # reroot at old root node
     dtree.prune_taxa_with_labels([dummy_str + '-root'])
     dtree.purge_taxon_namespace()  # I'm sure there's a good reason the previous line doesn't do this
-    # dtree.update_bipartitions()  # I can't see any reason I need this?
+    dtree.update_bipartitions()  # not sure if I need this
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau=None, annotation=None, input_metafo=None, use_multiplicities=False, naive_seq_name=None, extra_str=None, debug=False):
-    # NOTE if <tau> is set, we use that for both lbi and lbr, whereas if it's None we use the default values (at the top of this file), which are different for lbi and lbr (this approach will hopefully get simpler when I finish understanding the optimal tau values)
-    # NOTE it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but it makes sense for the dummy branch stuff to be there since it depends on the tau value
+def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, input_metafo=None, use_multiplicities=False, naive_seq_name=None, extra_str=None, debug=False):
+    # if <tau> is set, we use that for both lbi and lbr, whereas if it's None we use the default values (at the top of this file), which are *different* for lbi and lbr
+    #   - this will hopefully get simpler when I finish understanding the optimal tau values
+    # NOTE it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
 
     if use_multiplicities:
         print '  %s <use_multiplicities> is turned on in calculate_lb_values(), which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
@@ -534,13 +534,13 @@ def calculate_lb_values(dtree, tau=None, annotation=None, input_metafo=None, use
         set_multiplicities(dtree, annotation, input_metafo, debug=debug)
 
     treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
-    # TODO need to add only_calc/only_print stuff here
     if tau is None:
+        assert only_calc_val is None  # er, I think it wouldn't make sense to do this
         lbvals = set_lb_values(dtree, default_lb_tau, only_calc_val='lbi', use_multiplicities=use_multiplicities, debug=debug)  # NOTE modifies <dtree> (but then hopefully/I think reverts it)
         tmpvals = set_lb_values(dtree, default_lbr_tau_factor * default_lb_tau, only_calc_val='lbr', use_multiplicities=use_multiplicities, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
     else:
-        lbvals = set_lb_values(dtree, tau, use_multiplicities=use_multiplicities, debug=debug)  # NOTE modifies <dtree> (but then hopefully/I think reverts it)
+        lbvals = set_lb_values(dtree, tau, only_calc_val=only_calc_val, use_multiplicities=use_multiplicities, debug=debug)  # NOTE modifies <dtree> (but then hopefully/I think reverts it)
     lbvals['tree'] = treestr
 
     return lbvals
@@ -591,7 +591,7 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
             start = time.time()
             dtree = get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=debug)
             label_nodes(dtree)
-            lbvals = calculate_lb_values(dtree, tau=tau, debug=metric if debug else False)
+            lbvals = calculate_lb_values(dtree, tau=tau, only_calc_val=metric, debug=debug)
             bfcn = __builtins__[bound]  # min() or max()
             info[metric][bound] = {metric : bfcn(lbvals[metric].values()), 'vals' : lbvals}
             if debug:
