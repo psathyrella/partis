@@ -26,6 +26,9 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
 
     parsed_info = {m : {b : {} for b in btypes} for m in args.only_metrics}
     for lbt in args.lb_tau_list:
+        if lbt > 0.005:
+            print '    skipping large tau for lb bounds'
+            continue
 
         gen_list = args.n_generations_list
         if gen_list is None:
@@ -45,6 +48,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
                         if lbt not in parsed_info[metric][btype]:
                             parsed_info[metric][btype][lbt] = {}
                         parsed_info[metric][btype][lbt][n_gen] = info[metric][btype][metric]  # it's weird to have metric as the key twice, but it actually makes sense since we're subverting the normal calculation infrastructure to only run one metric or the other at a time (i.e. the righthand key is pulling out the metric we want from the lb info that, in principle, usually has both; while the lefthand key is identifying a run during which we were only caring about that metric)
+                continue
             elif utils.output_exists(args, get_outfname(this_outdir)):
                 continue
 
@@ -280,9 +284,9 @@ def partition(args):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'partition', 'plot'])
-parser.add_argument('--carry-cap-list', default='250:1000:4000')
-parser.add_argument('--n-sim-seqs-per-gen-list', default='50,75,80:200,250')
-parser.add_argument('--obs-times-list', default='30,40,50:125,150')
+parser.add_argument('--carry-cap-list', default='1000')
+parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
+parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.0025:0.003:0.005:0.008:0.012')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12:15:17', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
