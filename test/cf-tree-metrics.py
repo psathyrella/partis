@@ -270,7 +270,7 @@ def run_bcr_phylo(args):  # also caches parameters
 # ----------------------------------------------------------------------------------------
 def tmp_run(outfname, cmdstr):  # copied from datascripts/run.py, if I'm actually going to use this I should move them both to utils
     if args.n_max_procs is not None:
-        utils.limit_procs('bin/partis', args.n_max_procs)
+        utils.limit_procs('bin/partis', args.n_max_procs, sleep_time=1)
     if not os.path.exists(os.path.dirname(outfname)):
         os.makedirs(os.path.dirname(outfname))
     logfname, errfname = [utils.replace_suffix(outfname, '.' + tstr) for tstr in ['out', 'err']]
