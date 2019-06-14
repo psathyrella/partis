@@ -2708,6 +2708,15 @@ def auto_n_procs():  # for running on the local machine
     return n_procs
 
 # ----------------------------------------------------------------------------------------
+def limit_procs(n_max_procs=None, cmdstr='bin/partis', sleep_time=30, debug=False):  # <sleep_time> is seconds
+    def n_running_jobs():
+        return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | wc -l' % cmdstr, shell=True))
+    while n_running_jobs() >= n_max_procs:
+        if debug:
+            print '%d (>=%d) running jobs' % (n_running_jobs(), n_max_procs)  # kind of wasteful to call it again just to print (and it could get a different answer), but I don't want to make a separate variable just for dbg printing
+        time.sleep(sleep_time)
+
+# ----------------------------------------------------------------------------------------
 def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list of multiprocessing.Process objects
     if n_procs is None:
         n_procs = auto_n_procs()
