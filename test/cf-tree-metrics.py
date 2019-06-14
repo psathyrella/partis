@@ -18,6 +18,34 @@ def get_outfname(outdir):
     return '%s/vals.yaml' % outdir
 
 # ----------------------------------------------------------------------------------------
+def make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=False):
+    def make_plot(log, parsed_info):
+        fig, ax = plotting.mpl_init()
+        for lbt in sorted(parsed_info[metric][btype], reverse=True):
+            n_gen_list, lb_list = zip(*sorted(parsed_info[metric][btype][lbt].items(), key=operator.itemgetter(0)))
+            if lbt == 1. / args.seq_len:  # add a horizontal line corresponding to the asymptote for tau = 1/seq_len
+                ax.plot(ax.get_xlim(), (lb_list[-1], lb_list[-1]), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+            ax.plot(n_gen_list, lb_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
+            if print_results and log == '':
+                print '      %7.4f    %6.4f' % (lbt, lb_list[-1])
+        plotname = 'tau-vs-n-gen-vs-%s-%s' % (btype, metric)
+        if log == '':
+            ybounds = None
+            leg_loc = (0.1, 0.5)
+        else:
+            plotname += '-log'
+            ybounds = (2*min(parsed_info[metric][btype]), 2*ax.get_ylim()[1])
+            leg_loc = (0.04, 0.57)
+        plotting.mpl_finish(ax, outdir, plotname, log=log, xbounds=(min(n_gen_list), max(n_gen_list)), ybounds=ybounds,
+                            xlabel='N generations', ylabel='%s %s' % (btype.capitalize(), metric.upper()), leg_title='tau', leg_prop={'size' : 12}, leg_loc=leg_loc)
+
+    if print_results:
+        print '%s:     tau    %s %s' % (btype, btype, metric)
+
+    for log in ['', 'y']:
+        make_plot(log, parsed_info)
+
+# ----------------------------------------------------------------------------------------
 def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
     print_results = True
     btypes = ['min', 'max']
@@ -82,31 +110,9 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
                 if metric == 'lbr' and btype == 'min':  # it's just zero, and confuses the log plots
                     continue
                 if len(parsed_info[metric][btype]) == 0:
-                    print 'nothing to do'
+                    print 'nothing to do (<parsed_info> empty)'
                     continue
-                if print_results:
-                    print '%s:     tau    %s %s' % (btype, btype, metric)
-                fig, ax = plotting.mpl_init()
-                seq_len_asymptote = None
-                for lbt in sorted(parsed_info[metric][btype], reverse=True):
-                    n_gen_list, lb_list = zip(*sorted(parsed_info[metric][btype][lbt].items(), key=operator.itemgetter(0)))
-                    if lbt == 1. / args.seq_len:  # add a horizontal line corresponding to the asymptote for tau = 1/seq_len
-                        seq_len_asymptote = lb_list[-1]
-                        ax.plot(ax.get_xlim(), (seq_len_asymptote, seq_len_asymptote), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-                    ax.plot(n_gen_list, lb_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-                    if print_results:
-                        print '      %7.4f    %6.4f' % (lbt, lb_list[-1])
-                plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-%s' % (btype, metric), xbounds=(min(n_gen_list), max(n_gen_list)),
-                                    xlabel='N generations', ylabel='%s %s' % (btype.capitalize(), metric.upper()), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.1, 0.5))
-
-                # there's got to be a way to get a log plot without redoing everything, but I'm not sure what it is
-                fig, ax = plotting.mpl_init()
-                for lbt in sorted(parsed_info[metric][btype], reverse=True):
-                    n_gen_list, lb_list = zip(*sorted(parsed_info[metric][btype][lbt].items(), key=operator.itemgetter(0)))
-                    ax.plot(n_gen_list, lb_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
-                ax.plot(ax.get_xlim(), (seq_len_asymptote, seq_len_asymptote), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-                plotting.mpl_finish(ax, outdir, 'tau-vs-n-gen-vs-%s-%s-log' % (btype, metric), log='y', xbounds=(min(n_gen_list), max(n_gen_list)), ybounds=(2*min(parsed_info[metric][btype]), 2*ax.get_ylim()[1]),
-                                    xlabel='N generations', ylabel='%s %s' % (btype.capitalize(), metric.upper()), leg_title='tau', leg_prop={'size' : 12}, leg_loc=(0.04, 0.57))
+                make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=print_results)
 
 # ----------------------------------------------------------------------------------------
 def get_outdir(varnames, vstr, svtype):
