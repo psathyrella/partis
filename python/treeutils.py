@@ -896,7 +896,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
     return lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete_path=None, workdir=None, debug=False):
+def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=None, workdir=None, debug=False):
     import plotting
     start = time.time()
 
@@ -1003,7 +1003,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau=Non
 
     if base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, lb_tau, ete_path=ete_path, workdir=workdir, debug=debug)
+        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):

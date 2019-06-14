@@ -1573,8 +1573,8 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
             if debug:
                 print '   %5.0f    no vals' % percentile
             continue
-        lb_ptile_vals['lb_ptiles'].append(percentile)
-        lb_ptile_vals['mean_n_ancestors'].append(numpy.mean(corresponding_n_anc_vals))
+        lb_ptile_vals['lb_ptiles'].append(float(percentile))  # cast to float is so the yaml file written below isn't so damn ugly
+        lb_ptile_vals['mean_n_ancestors'].append(float(numpy.mean(corresponding_n_anc_vals)))
         if debug:
             print '   %5.0f   %5.2f   %8.4f' % (percentile, lb_ptile_val, lb_ptile_vals['mean_n_ancestors'][-1])
 
@@ -1590,8 +1590,8 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
             if debug:
                 print '   %5.0f   %5d    no vals' % (percentile, n_to_take)
             continue
-        perfect_ptile_vals['ptiles'].append(percentile)
-        perfect_ptile_vals['mean_n_ancestors'].append(numpy.mean(corresponding_n_anc_vals))
+        perfect_ptile_vals['ptiles'].append(float(percentile))
+        perfect_ptile_vals['mean_n_ancestors'].append(float(numpy.mean(corresponding_n_anc_vals)))
         if debug:
             print '   %5.0f   %5d   %8.4f' % (percentile, n_to_take, perfect_ptile_vals['mean_n_ancestors'][-1])
 
@@ -1604,6 +1604,9 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
     ymax = max([mean_n_anc] + lb_ptile_vals['mean_n_ancestors'] + perfect_ptile_vals['mean_n_ancestors'])
     mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean N ancestors since affinity increase')
     fnames.append('%s/%s.svg' % (plotdir, plotname))
+    with open('%s/%s.yaml' % (plotdir, plotname), 'w') as yfile:  # it would be nice to rewrite the above so that the stuff going into the yaml dict looked more like the analagous lines in the affy fcn
+        yamlfo = {'lb_ptiles' : lb_ptile_vals['lb_ptiles'], 'mean_n_ancestor_ptiles' : lb_ptile_vals['mean_n_ancestors'], 'perfect_vals' : perfect_ptile_vals['mean_n_ancestors']}
+        yaml.dump(yamlfo, yfile)
 
     return [fnames]
 

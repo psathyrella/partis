@@ -182,7 +182,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):  # have to go lower than 85. for small sample sizes
+def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # have to go lower than 85. for small sample sizes
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['partition'])
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
@@ -196,10 +196,14 @@ def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):  # have to 
         n_tot = args.carry_cap_list[0]
         obs_frac = n_obs / float(n_tot)
 
-        yfname = '%s/true-tree-metrics/lbi-vs-affinity-true-tree-ptiles%s.yaml' % (get_partition_plotdir(varnames, vstrs), '-relative' if use_relative_affy else '')
+        yfname = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (get_partition_plotdir(varnames, vstrs), metric,
+                                                                            'affinity' if metric == 'lbi' else 'n-ancestors',
+                                                                            '-relative' if use_relative_affy and metric == 'lbi' else '')
         with open(yfname) as yfile:
             info = yaml.load(yfile, Loader=yaml.Loader)
-        diff_to_perfect = numpy.mean([pafp - afp for lbp, afp, pafp in zip(info['lb_ptiles'], info['mean_affy_ptiles'], info['perfect_vals']) if lbp > min_ptile_to_plot])
+        # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
+        yval_key = 'mean_%s_ptiles' % ('affy' if metric == 'lbi' else 'n_ancestor')
+        diff_to_perfect = numpy.mean([abs(pafp - afp) for lbp, afp, pafp in zip(info['lb_ptiles'], info[yval_key], info['perfect_vals']) if lbp > min_ptile_to_plot])
         if math.isnan(diff_to_perfect):
             raise Exception('  empty value list above min ptile to plot of %f -- probably just reduce this value' % min_ptile_to_plot)
             # continue  # can't just continue, it crashes further down, which I think means things have to be the same length and you can't just skip
@@ -229,8 +233,8 @@ def make_plots(args, use_relative_affy=True, min_ptile_to_plot=85.):  # have to 
         lb_taus, diffs_to_perfect = zip(*plotvals[obs_frac])
         ax.plot(lb_taus, diffs_to_perfect, label='%.4f' % obs_frac, alpha=0.7, linewidth=4)
     ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-    plotting.mpl_finish(ax, get_plotdir(), 'affy-ptiles-obs-frac-vs-lb-tau', xlabel='tau', ylabel='mean difference to perfect for lbi ptiles in [%.0f, 100]' % min_ptile_to_plot,
-                        leg_title='fraction sampled', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
+    plotting.mpl_finish(ax, get_plotdir(), '%s-affy-ptiles-obs-frac-vs-lb-tau' % metric, xlabel='tau', ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if metric == 'lbi' else 'N ancestors', metric.upper(), min_ptile_to_plot),
+                        title=metric.upper(), leg_title='fraction sampled', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
                         xticks=lb_taus, xticklabels=[str(t) for t in lb_taus], xticklabelsize=16,
     )
 
@@ -270,13 +274,12 @@ def partition(args):
         print '   %s' % ' '.join(vstrs)
 
         partition_fname = get_partition_fname(varnames, vstrs)
-        if utils.output_exists(args, partition_fname, outlabel='partition', offset=8):
+        if not args.get_tree_metrics and utils.output_exists(args, partition_fname, outlabel='partition', offset=8):
             continue
 
-        action = 'partition'  # 'get-tree-metrics'  # maybe eventually make this a cmd line option, but this is fine for now
-        cmd = './bin/partis %s --is-simu --infname %s --parameter-dir %s --plotdir %s --outfname %s' % (action, get_bcr_phylo_outfname(varnames, vstrs), get_parameter_dir(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname)
-        if action == 'partition':
-            cmd += ' --n-final-clusters 1 --get-tree-metrics --n-procs %d' % args.n_procs
+        cmd = './bin/partis %s --is-simu --infname %s --plotdir %s --outfname %s' % ('partition' if not args.get_tree_metrics else 'get-tree-metrics', get_bcr_phylo_outfname(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname)
+        if not args.get_tree_metrics:
+            cmd += ' --parameter-dir %s --n-final-clusters 1 --get-tree-metrics --n-procs %d' % (get_parameter_dir(varnames, vstrs), args.n_procs)
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         cmdfos += [{
@@ -290,6 +293,7 @@ def partition(args):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'partition', 'plot'])
+parser.add_argument('--get-tree-metrics', action='store_true', help='run \'get-tree-metrics\' partis action on existing partition output, e.g. if you\'ve changed plotting or something and don\'t want to re-partition')
 parser.add_argument('--carry-cap-list', default='1000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
@@ -348,4 +352,5 @@ elif args.action == 'run-bcr-phylo':
 elif args.action == 'partition':
     partition(args)
 elif args.action == 'plot':
-    make_plots(args)
+    for metric in treeutils.lb_metrics:
+        make_plots(args, metric)
