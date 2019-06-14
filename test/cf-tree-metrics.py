@@ -274,7 +274,7 @@ def tmp_run(outfname, cmdstr):  # copied from datascripts/run.py, if I'm actuall
     if not os.path.exists(os.path.dirname(outfname)):
         os.makedirs(os.path.dirname(outfname))
     logfname, errfname = [utils.replace_suffix(outfname, '.' + tstr) for tstr in ['out', 'err']]
-    logfile, errfile = open(outfname, 'w'), open(errfname, 'w')
+    logfile, errfile = open(logfname, 'w'), open(errfname, 'w')
     logfile.write('%s %s\n' % (utils.color('red', 'run'), cmdstr))
     subprocess.Popen(cmdstr.split(), stdout=logfile, stderr=errfile)  # should this be using the fcns in utils? not sure
 
@@ -283,7 +283,7 @@ def partition(args):
     _, varnames, _, valstrs = get_var_info(args, args.scan_vars['partition'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
-    n_already_there = 0
+    n_already_there, n_started = 0, 0
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
@@ -299,14 +299,17 @@ def partition(args):
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         tmp_run(partition_fname, cmd)
+        n_started += 1
         # cmdfos += [{
         #     'cmd_str' : cmd,
         #     'outfname' : partition_fname,
         #     'logdir' : get_partition_outdir(varnames, vstrs),
         # }]
-        print '     %s %s' % (utils.color('red', 'run'), cmd)
+        # print '     %s %s' % (utils.color('red', 'run'), cmd)
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), partition_fname)
+    if n_started > 0:
+        print '      started %d jobs' % n_started
     # utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
 
 # ----------------------------------------------------------------------------------------
