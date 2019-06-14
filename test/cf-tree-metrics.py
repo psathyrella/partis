@@ -9,6 +9,7 @@ import colored_traceback.always
 import collections
 import numpy
 import math
+import subprocess
 
 # ----------------------------------------------------------------------------------------
 def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.calculate_max_lbi()
@@ -267,6 +268,17 @@ def run_bcr_phylo(args):  # also caches parameters
     utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
 
 # ----------------------------------------------------------------------------------------
+def tmp_run(outfname, cmdstr):  # copied from datascripts/run.py, if I'm actually going to use this I should move them both to utils
+    if args.n_max_procs is not None:
+        utils.limit_procs('bin/partis', args.n_max_procs)
+    if not os.path.exists(os.path.dirname(outfname)):
+        os.makedirs(os.path.dirname(outfname))
+    logfname, errfname = [utils.replace_suffix(outfname, '.' + tstr) for tstr in ['out', 'err']]
+    logfile, errfile = open(outfname, 'w'), open(errfname, 'w')
+    logfile.write('%s %s\n' % (utils.color('red', 'run'), cmdstr))
+    subprocess.Popen(cmdstr.split(), stdout=logfile, stderr=errfile)  # should this be using the fcns in utils? not sure
+
+# ----------------------------------------------------------------------------------------
 def partition(args):
     _, varnames, _, valstrs = get_var_info(args, args.scan_vars['partition'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
@@ -286,15 +298,16 @@ def partition(args):
             cmd += ' --parameter-dir %s --n-final-clusters 1 --get-tree-metrics' % (get_parameter_dir(varnames, vstrs)) #  --n-procs %d args.n_procs)
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
-        cmdfos += [{
-            'cmd_str' : cmd,
-            'outfname' : partition_fname,
-            'logdir' : get_partition_outdir(varnames, vstrs),
-        }]
+        tmp_run(partition_fname, cmd)
+        # cmdfos += [{
+        #     'cmd_str' : cmd,
+        #     'outfname' : partition_fname,
+        #     'logdir' : get_partition_outdir(varnames, vstrs),
+        # }]
         print '     %s %s' % (utils.color('red', 'run'), cmd)
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), partition_fname)
-    utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
+    # utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -308,7 +321,7 @@ parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12:15:17', h
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
-parser.add_argument('--n-procs', default=1, type=int)
+parser.add_argument('--n-max-procs', type=int)
 parser.add_argument('--only-metrics', default='lbi', help='which (of lbi, lbr) metrics to do lb bound calculation (default is not to do lbr, since it\'s min is always zero, max seems to be unbounded, and it doesn\'t really make sense to normalize it, since it\'s already unitless)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))

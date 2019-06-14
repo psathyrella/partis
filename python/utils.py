@@ -2708,9 +2708,11 @@ def auto_n_procs():  # for running on the local machine
     return n_procs
 
 # ----------------------------------------------------------------------------------------
-def limit_procs(n_max_procs=None, cmdstr='bin/partis', sleep_time=30, debug=False):  # <sleep_time> is seconds
+def limit_procs(cmdstr, n_max_procs=None, sleep_time=30, debug=False):  # <cmdstr> should be a fragment of the command that will show up in ps, e.g. 'bin/partis';  <sleep_time> is seconds
     def n_running_jobs():
         return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | wc -l' % cmdstr, shell=True))
+    if n_max_procs is None:
+        n_max_procs = auto_n_procs()
     while n_running_jobs() >= n_max_procs:
         if debug:
             print '%d (>=%d) running jobs' % (n_running_jobs(), n_max_procs)  # kind of wasteful to call it again just to print (and it could get a different answer), but I don't want to make a separate variable just for dbg printing
@@ -3829,6 +3831,10 @@ def getsuffix(fname):  # suffix, including the dot
     if len(os.path.splitext(fname)) != 2:
         raise Exception('couldn\'t split %s into two pieces using dot' % fname)
     return os.path.splitext(fname)[1]
+
+# ----------------------------------------------------------------------------------------
+def replace_suffix(fname, new_suffix):
+    return fname.replace(getsuffix(fname), new_suffix)
 
 # ----------------------------------------------------------------------------------------
 def insert_before_suffix(insert_str, fname):
