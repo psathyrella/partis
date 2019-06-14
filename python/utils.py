@@ -1354,14 +1354,13 @@ def re_sort_per_gene_support(line):
 # ----------------------------------------------------------------------------------------
 def add_linearham_info(sw_info, locus, line, **kwargs):
     """ compute the flexbounds/relpos values and add to <line> """
-    # initialize the flexbounds/relpos dicts
-    line['flexbounds'] = {}
-    line['relpos'] = {}
+    fbounds = {}  # initialize the flexbounds/relpos dicts
+    rpos = {}
 
     for region in getregions(locus):
         left_region, right_region = region + '_l', region + '_r'
-        line['flexbounds'][left_region] = {}
-        line['flexbounds'][right_region] = {}
+        fbounds[left_region] = {}
+        fbounds[right_region] = {}
 
     # rank the query sequences according to their consensus sequence distances
     cons_seq = ''.join([Counter(site_bases).most_common()[0][0] for site_bases in zip(*line['indel_reversed_seqs'])])
@@ -1374,9 +1373,9 @@ def add_linearham_info(sw_info, locus, line, **kwargs):
 
         for region in getregions(locus):
             left_region, right_region = region + '_l', region + '_r'
-            line['flexbounds'][left_region] = dict(swfo['flexbounds'][left_region].items() + line['flexbounds'][left_region].items())
-            line['flexbounds'][right_region] = dict(swfo['flexbounds'][right_region].items() + line['flexbounds'][right_region].items())
-        line['relpos'] = dict(swfo['relpos'].items() + line['relpos'].items())
+            fbounds[left_region] = dict(swfo['flexbounds'][left_region].items() + fbounds[left_region].items())
+            fbounds[right_region] = dict(swfo['flexbounds'][right_region].items() + fbounds[right_region].items())
+        rpos = dict(swfo['relpos'].items() + rpos.items())
 
         del dists_to_cons[query_name]
 
@@ -1394,35 +1393,35 @@ def add_linearham_info(sw_info, locus, line, **kwargs):
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
 
         # remove the gene matches with zero support
-        for k in line['flexbounds'][left_region].keys():
+        for k in fbounds[left_region].keys():
             support_check1 = (k not in per_gene_support)
             support_check2 = (math.fabs(per_gene_support[k] - 0.0) < eps) if not support_check1 else False
             if support_check1 or support_check2:
-                del line['flexbounds'][left_region][k]
-                del line['flexbounds'][right_region][k]
-                del line['relpos'][k]
+                del fbounds[left_region][k]
+                del fbounds[right_region][k]
+                del rpos[k]
                 if support_check2:
                     del per_gene_support[k]
 
         # compute the initial left/right flexbounds
-        left_flexbounds = span(line['flexbounds'][left_region].values())
-        right_flexbounds = span(line['flexbounds'][right_region].values())
+        left_flexbounds = span(fbounds[left_region].values())
+        right_flexbounds = span(fbounds[right_region].values())
         germ_len = right_flexbounds[0] - left_flexbounds[1]
 
         # make sure there is no overlap between the left/right flexbounds
         while germ_len < 1:
             k = min(per_gene_support, key=per_gene_support.get)
-            del line['flexbounds'][left_region][k]
-            del line['flexbounds'][right_region][k]
-            del line['relpos'][k]
+            del fbounds[left_region][k]
+            del fbounds[right_region][k]
+            del rpos[k]
             del per_gene_support[k]
 
-            left_flexbounds = span(line['flexbounds'][left_region].values())
-            right_flexbounds = span(line['flexbounds'][right_region].values())
+            left_flexbounds = span(fbounds[left_region].values())
+            right_flexbounds = span(fbounds[right_region].values())
             germ_len = right_flexbounds[0] - left_flexbounds[1]
 
-        line['flexbounds'][left_region] = left_flexbounds
-        line['flexbounds'][right_region] = right_flexbounds
+        fbounds[left_region] = left_flexbounds
+        fbounds[right_region] = right_flexbounds
 
     # make sure there is no overlap between neighboring flexbounds
     # maybe widen the gap between neighboring flexbounds
@@ -1430,45 +1429,48 @@ def add_linearham_info(sw_info, locus, line, **kwargs):
         left_region, right_region = rpair['left'] + '_r', rpair['right'] + '_l'
         leftleft_region, rightright_region = rpair['left'] + '_l', rpair['right'] + '_r'
 
-        left_germ_len = line['flexbounds'][left_region][0] - line['flexbounds'][leftleft_region][1]
-        junction_len = line['flexbounds'][right_region][1] - line['flexbounds'][left_region][0]
-        right_germ_len = line['flexbounds'][rightright_region][0] - line['flexbounds'][right_region][1]
+        left_germ_len = fbounds[left_region][0] - fbounds[leftleft_region][1]
+        junction_len = fbounds[right_region][1] - fbounds[left_region][0]
+        right_germ_len = fbounds[rightright_region][0] - fbounds[right_region][1]
 
         if junction_len < 1:
-            line['flexbounds'][left_region][0] = line['flexbounds'][right_region][0]
-            line['flexbounds'][right_region][1] = line['flexbounds'][left_region][1]
+            fbounds[left_region][0] = fbounds[right_region][0]
+            fbounds[right_region][1] = fbounds[left_region][1]
 
-            left_germ_len = line['flexbounds'][left_region][0] - line['flexbounds'][leftleft_region][1]
-            junction_len = line['flexbounds'][right_region][1] - line['flexbounds'][left_region][0]
-            right_germ_len = line['flexbounds'][rightright_region][0] - line['flexbounds'][right_region][1]
+            left_germ_len = fbounds[left_region][0] - fbounds[leftleft_region][1]
+            junction_len = fbounds[right_region][1] - fbounds[left_region][0]
+            right_germ_len = fbounds[rightright_region][0] - fbounds[right_region][1]
 
             # are the neighboring flexbounds even fixable?
             if left_germ_len < 1 or right_germ_len < 1:
                 return 'nonsense'
 
         if rpair['left'] == 'v' and left_germ_len > kwargs['vj_flexbounds_shift']:
-            line['flexbounds'][left_region][0] -= kwargs['vj_flexbounds_shift']
-            line['flexbounds'][left_region][1] -= kwargs['vj_flexbounds_shift']
+            fbounds[left_region][0] -= kwargs['vj_flexbounds_shift']
+            fbounds[left_region][1] -= kwargs['vj_flexbounds_shift']
 
         # the D gene match region is constrained to have a length of 1
         if rpair['left'] == 'd':
-            line['flexbounds'][left_region][0] -= (left_germ_len - 1)
-            line['flexbounds'][left_region][1] -= (left_germ_len - 1)
+            fbounds[left_region][0] -= (left_germ_len - 1)
+            fbounds[left_region][1] -= (left_germ_len - 1)
         if rpair['right'] == 'd':
-            line['flexbounds'][right_region][0] += (right_germ_len / 2)
-            line['flexbounds'][right_region][1] += (right_germ_len / 2)
+            fbounds[right_region][0] += (right_germ_len / 2)
+            fbounds[right_region][1] += (right_germ_len / 2)
 
         if rpair['right'] == 'j' and right_germ_len > kwargs['vj_flexbounds_shift']:
-            line['flexbounds'][right_region][0] += kwargs['vj_flexbounds_shift']
-            line['flexbounds'][right_region][1] += kwargs['vj_flexbounds_shift']
+            fbounds[right_region][0] += kwargs['vj_flexbounds_shift']
+            fbounds[right_region][1] += kwargs['vj_flexbounds_shift']
 
     # align the V-entry/J-exit flexbounds to the possible sequence positions
-    line['flexbounds']['v_l'][0] = 0
-    line['flexbounds']['j_r'][1] = len(line['indel_reversed_seqs'][0])  # remember indel-reversed sequences are all the same length
+    fbounds['v_l'][0] = 0
+    fbounds['j_r'][1] = len(line['indel_reversed_seqs'][0])  # remember indel-reversed sequences are all the same length
+
+    line['flexbounds'] = fbounds
+    line['relpos'] = rpos
 
     # are the V-entry/J-exit flexbounds valid?
     for region in ['v_l', 'j_r']:
-        bounds_len = line['flexbounds'][region][1] - line['flexbounds'][region][0]
+        bounds_len = fbounds[region][1] - fbounds[region][0]
         if bounds_len < 0:
             return 'nonsense'
 
