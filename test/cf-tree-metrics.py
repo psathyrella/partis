@@ -274,11 +274,11 @@ def partition(args):
         print '   %s' % ' '.join(vstrs)
 
         partition_fname = get_partition_fname(varnames, vstrs)
-        if not args.get_tree_metrics and utils.output_exists(args, partition_fname, outlabel='partition', offset=8):
+        if args.action == 'partition' and utils.output_exists(args, partition_fname, outlabel='partition', offset=8):
             continue
 
-        cmd = './bin/partis %s --is-simu --infname %s --plotdir %s --outfname %s' % ('partition' if not args.get_tree_metrics else 'get-tree-metrics', get_bcr_phylo_outfname(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname)
-        if not args.get_tree_metrics:
+        cmd = './bin/partis %s --is-simu --infname %s --plotdir %s --outfname %s' % (args.action, get_bcr_phylo_outfname(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname)
+        if args.action == 'partition':
             cmd += ' --parameter-dir %s --n-final-clusters 1 --get-tree-metrics --n-procs %d' % (get_parameter_dir(varnames, vstrs), args.n_procs)
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
@@ -292,8 +292,7 @@ def partition(args):
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'partition', 'plot'])
-parser.add_argument('--get-tree-metrics', action='store_true', help='run \'get-tree-metrics\' partis action on existing partition output, e.g. if you\'ve changed plotting or something and don\'t want to re-partition')
+parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'partition', 'get-tree-metrics', 'plot'])
 parser.add_argument('--carry-cap-list', default='1000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
@@ -349,7 +348,7 @@ if args.action == 'get-lb-bounds':
     calc_lb_bounds(args)
 elif args.action == 'run-bcr-phylo':
     run_bcr_phylo(args)
-elif args.action == 'partition':
+elif args.action in ['partition', 'get-tree-metrics']:
     partition(args)
 elif args.action == 'plot':
     for metric in treeutils.lb_metrics:
