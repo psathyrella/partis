@@ -498,7 +498,7 @@ def remove_dummy_branches(dtree, add_dummy_leaves=False):
     dtree.update_bipartitions()  # not sure if I need this
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, input_metafo=None, use_multiplicities=False, naive_seq_name=None, extra_str=None, debug=False):
+def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
     # if <tau> is set, we use that for both lbi and lbr, whereas if it's None we use the default values (at the top of this file), which are *different* for lbi and lbr
     #   - this will hopefully get simpler when I finish understanding the optimal tau values
     # NOTE it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
@@ -511,10 +511,6 @@ def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, in
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong), but no annotation was passed in')
         print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
         dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
-
-    if naive_seq_name is not None:  # not really sure if there's a reason to do this
-        raise Exception('think about this before turning it on again')
-        dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
 
     if debug:
         print '   lbi/lbr%s:' % ('' if extra_str is None else ' for %s' % extra_str)
@@ -992,7 +988,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau=Non
         treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
         tree_origin_counts[treefo['origin']]['count'] += 1
         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], tau=lb_tau, annotation=line, extra_str='inf tree', debug=debug)  # TODO
+        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], tau=lb_tau, annotation=line, extra_str='inf tree', debug=debug)
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
@@ -1002,7 +998,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau=Non
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_dtree, tau=lb_tau, annotation=true_line, extra_str='true tree', debug=debug)  # TODO
+            true_lb_info = calculate_lb_values(true_dtree, tau=lb_tau, annotation=true_line, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:
