@@ -20,6 +20,7 @@ import subprocess
 import operator
 import tempfile
 import yaml
+import json
 import colorsys
 import time
 import warnings
@@ -1441,7 +1442,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     fnames.append('%s/%s.svg' % (plotdir, plotname))
     with open('%s/%s.yaml' % (plotdir, plotname), 'w') as yfile:
         yamlfo = ptile_vals
-        yaml.dump(yamlfo, yfile)
+        json.dump(yamlfo, yfile)
 
     return [fnames]
 
@@ -1606,7 +1607,7 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
     fnames.append('%s/%s.svg' % (plotdir, plotname))
     with open('%s/%s.yaml' % (plotdir, plotname), 'w') as yfile:  # it would be nice to rewrite the above so that the stuff going into the yaml dict looked more like the analagous lines in the affy fcn
         yamlfo = {'lb_ptiles' : lb_ptile_vals['lb_ptiles'], 'mean_n_ancestor_ptiles' : lb_ptile_vals['mean_n_ancestors'], 'perfect_vals' : perfect_ptile_vals['mean_n_ancestors']}
-        yaml.dump(yamlfo, yfile)
+        json.dump(yamlfo, yfile)
 
     return [fnames]
 

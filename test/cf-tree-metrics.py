@@ -4,6 +4,7 @@ import operator
 import os
 import sys
 import yaml
+import json
 import colored_traceback.always
 import collections
 import numpy
@@ -200,7 +201,7 @@ def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # 
                                                                             'affinity' if metric == 'lbi' else 'n-ancestors',
                                                                             '-relative' if use_relative_affy and metric == 'lbi' else '')
         with open(yfname) as yfile:
-            info = yaml.load(yfile, Loader=yaml.Loader)
+            info = json.load(yfile)  # too slow with yaml
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
         yval_key = 'mean_%s_ptiles' % ('affy' if metric == 'lbi' else 'n_ancestor')
         diff_to_perfect = numpy.mean([abs(pafp - afp) for lbp, afp, pafp in zip(info['lb_ptiles'], info[yval_key], info['perfect_vals']) if lbp > min_ptile_to_plot])
@@ -251,8 +252,8 @@ def run_bcr_phylo(args):  # also caches parameters
         cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters --base-outdir %s %s' % (outdir, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
             cmd += ' --%s %s' % (vname, vstr)
-        if args.n_procs > 1:
-            cmd += ' --n-procs %d' % args.n_procs  # i think this only gets used for partitioning
+        # if args.n_procs > 1:  # commenting this n_procs usage, since everything is small enough that single runs should i think always be one proc
+        #     cmd += ' --n-procs %d' % args.n_procs  # i think this only gets used for partitioning
         if args.overwrite:
             cmd += ' --overwrite'
         # cmd += ' --debug 1'
@@ -270,16 +271,19 @@ def partition(args):
     _, varnames, _, valstrs = get_var_info(args, args.scan_vars['partition'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
-        print '   %s' % ' '.join(vstrs)
+        if args.debug:
+            print '   %s' % ' '.join(vstrs)
 
         partition_fname = get_partition_fname(varnames, vstrs)
-        if args.action == 'partition' and utils.output_exists(args, partition_fname, outlabel='partition', offset=8):
+        if args.action == 'partition' and utils.output_exists(args, partition_fname, outlabel='partition', offset=8, debug=args.debug):
+            n_already_there += 1
             continue
 
         cmd = './bin/partis %s --is-simu --infname %s --plotdir %s --outfname %s' % (args.action, get_bcr_phylo_outfname(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname)
         if args.action == 'partition':
-            cmd += ' --parameter-dir %s --n-final-clusters 1 --get-tree-metrics --n-procs %d' % (get_parameter_dir(varnames, vstrs), args.n_procs)
+            cmd += ' --parameter-dir %s --n-final-clusters 1 --get-tree-metrics' % (get_parameter_dir(varnames, vstrs)) #  --n-procs %d args.n_procs)
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         cmdfos += [{
@@ -288,6 +292,8 @@ def partition(args):
             'logdir' : get_partition_outdir(varnames, vstrs),
         }]
         print '     %s %s' % (utils.color('red', 'run'), cmd)
+    if n_already_there > 0:
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), partition_fname)
     utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
 
 # ----------------------------------------------------------------------------------------

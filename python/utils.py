@@ -3786,22 +3786,25 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
     return finfo
 
 # ----------------------------------------------------------------------------------------
-def output_exists(args, outfname, outlabel=None, offset=22):
+def output_exists(args, outfname, outlabel=None, offset=22, debug=True):
     outlabel = '' if outlabel is None else ('%s ' % outlabel)
     if os.path.exists(outfname):
         if os.stat(outfname).st_size == 0:
-            print '%sdeleting zero length %s' % (offset * ' ', outfname)
+            if debug:
+                print '%sdeleting zero length %s' % (offset * ' ', outfname)
             os.remove(outfname)
             return False
         elif args.overwrite:
-            print '%soverwriting %s%s' % (offset * ' ', outlabel, outfname)
+            if debug:
+                print '%soverwriting %s%s' % (offset * ' ', outlabel, outfname)
             if os.path.isdir(outfname):
                 raise Exception('output %s is a directory, rm it by hand' % outfname)
             else:
                 os.remove(outfname)
             return False
         else:
-            print '%s%soutput exists, skipping (%s)' % (offset * ' ', outlabel, outfname)
+            if debug:
+                print '%s%soutput exists, skipping (%s)' % (offset * ' ', outlabel, outfname)
             return True
     else:
         return False
