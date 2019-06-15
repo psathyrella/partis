@@ -10,6 +10,7 @@ import collections
 import numpy
 import math
 import subprocess
+import multiprocessing
 
 # ----------------------------------------------------------------------------------------
 def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.calculate_max_lbi()
@@ -390,5 +391,8 @@ elif args.action == 'run-bcr-phylo':
 elif args.action in ['partition', 'get-tree-metrics']:
     partition(args)
 elif args.action == 'plot':
-    for metric in treeutils.lb_metrics:
-        make_plots(args, metric)
+    procs = [multiprocessing.Process(target=make_plots, args=(args, metric))  # time is almost entirely due to file open + json.load
+             for metric in treeutils.lb_metrics]
+    utils.run_proc_functions(procs)
+    # for metric in treeutils.lb_metrics:
+    #     make_plots(args, metric)
