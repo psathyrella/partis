@@ -162,7 +162,8 @@ def getsargval(sv):  # ick this name sucks
     def dkey(sv):
         return sv.replace('-', '_') + '_list'
     if sv == 'seed':
-        return [args.random_seed + i for i in range(args.n_replicates)]
+        riter = range(args.n_replicates) if args.iseed is None else [args.iseed]
+        return [args.random_seed + i for i in riter]
     else:
         return args.__dict__[dkey(sv)]
 
@@ -170,12 +171,13 @@ def getsargval(sv):  # ick this name sucks
 def get_var_info(args, scan_vars):
     def handle_var(svar, val_lists, valstrs):
         convert_fcn = str if svar in ['carry-cap', 'seed', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
-        if len(getsargval(svar)) > 1:
+        sargv = getsargval(svar)
+        if len(sargv) > 1 or (svar == 'seed' and args.iseed is not None):  # if --iseed is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
             varnames.append(svar)
-            val_lists = [vlist + [sv] for vlist in val_lists for sv in getsargval(svar)]
-            valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in getsargval(svar)]
+            val_lists = [vlist + [sv] for vlist in val_lists for sv in sargv]
+            valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in sargv]
         else:
-            base_args.append('--%s %s' % (svar, convert_fcn(getsargval(svar)[0])))
+            base_args.append('--%s %s' % (svar, convert_fcn(sargv[0])))
         return val_lists, valstrs
 
     base_args = []
@@ -327,6 +329,7 @@ parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='s
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
+parser.add_argument('--iseed', type=int, help='if set, only run this replicate index')
 parser.add_argument('--n-max-procs', type=int)
 parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
