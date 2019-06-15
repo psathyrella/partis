@@ -36,7 +36,10 @@ def make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=
             leg_loc = (0.1, 0.5)
         else:
             plotname += '-log'
-            ybounds = (2*min(parsed_info[metric][btype]), 2*ax.get_ylim()[1])
+            if metric == 'lbi':
+                ybounds = (2*min(parsed_info[metric][btype]), 3*ax.get_ylim()[1])
+            else:
+                ybounds = None
             leg_loc = (0.04, 0.57)
         plotting.mpl_finish(ax, outdir, plotname, log=log, xbounds=(min(n_gen_list), max(n_gen_list)), ybounds=ybounds,
                             xlabel='N generations', ylabel='%s %s' % (btype.capitalize(), metric.upper()), leg_title='tau', leg_prop={'size' : 12}, leg_loc=leg_loc)
@@ -48,7 +51,7 @@ def make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=
         make_plot(log, parsed_info)
 
 # ----------------------------------------------------------------------------------------
-def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
+def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_results=False):
     print_results = True
     btypes = ['min', 'max']
 
@@ -56,8 +59,8 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, print_results=False):
 
     parsed_info = {m : {b : {} for b in btypes} for m in args.only_metrics}
     for lbt in args.lb_tau_list:
-        if lbt > 0.005:
-            print '    skipping large tau for lb bounds'
+        if lbt < lbt_bounds[0] or lbt > lbt_bounds[1]:
+            print '    skipping tau outside of bounds for bound plotting'
             continue
 
         gen_list = args.n_generations_list
@@ -318,14 +321,14 @@ parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'partit
 parser.add_argument('--carry-cap-list', default='1000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
-parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.0025:0.003:0.005:0.008:0.012')
+parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.0025:0.003:0.004:0.005:0.008:0.012')
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
-parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12:15:17', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
+parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--n-max-procs', type=int)
-parser.add_argument('--only-metrics', default='lbi', help='which (of lbi, lbr) metrics to do lb bound calculation (default is not to do lbr, since it\'s min is always zero, max seems to be unbounded, and it doesn\'t really make sense to normalize it, since it\'s already unitless)')
+parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
