@@ -193,6 +193,7 @@ def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # 
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['partition'])
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    missing_vstrs = []
     for vlists, vstrs in zip(val_lists, valstrs):
         n_per_gen = vlists[varnames.index('n-sim-seqs-per-gen')]
         assert len(n_per_gen) == 1
@@ -206,8 +207,12 @@ def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # 
         yfname = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (get_partition_plotdir(varnames, vstrs), metric,
                                                                             'affinity' if metric == 'lbi' else 'n-ancestors',
                                                                             '-relative' if use_relative_affy and metric == 'lbi' else '')
-        with open(yfname) as yfile:
-            info = json.load(yfile)  # too slow with yaml
+        try:
+            with open(yfname) as yfile:
+                info = json.load(yfile)  # too slow with yaml
+        except IOError:  # os.path.exists() is too slow with this many files
+            missing_vstrs.append(vstrs)
+            continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
         yval_key = 'mean_%s_ptiles' % ('affy' if metric == 'lbi' else 'n_ancestor')
         diff_to_perfect = numpy.mean([abs(pafp - afp) for lbp, afp, pafp in zip(info['lb_ptiles'], info[yval_key], info['perfect_vals']) if lbp > min_ptile_to_plot])
@@ -224,6 +229,12 @@ def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # 
             if obs_frac not in plotvals:
                 plotvals[obs_frac] = []
             plotvals[obs_frac].append((tau, diff_to_perfect))
+
+    if len(missing_vstrs) > 0:
+        print '  missing:  %s' % '   '.join(varnames)
+        for vstrs in missing_vstrs:
+            print '      %s' % '  '.join('%7s' % v for v in vstrs)
+        sys.exit()
 
     if args.n_replicates > 1:  # need to average over the replicates
         for obs_frac, ofvals in plotvals.items():
