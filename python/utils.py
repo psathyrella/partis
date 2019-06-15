@@ -2593,39 +2593,32 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
     return corelist
 
 # ----------------------------------------------------------------------------------------
-def prepare_cmds(cmdfos, batch_system=None, batch_options=None, batch_config_fname=None, debug=False):
-    # set cmdfo defaults
-    for iproc in range(len(cmdfos)):
-        if 'logdir' not in cmdfos[iproc]:  # if logdirs aren't specified, then log files go in the workdirs
-            cmdfos[iproc]['logdir'] = cmdfos[iproc]['workdir']
-        if 'dbgfo' not in cmdfos[iproc]:
-            cmdfos[iproc]['dbgfo'] = None
-        if 'env' not in cmdfos[iproc]:
-            cmdfos[iproc]['env'] = None
-
+def set_slurm_nodelist(cmdfos, batch_config_fname=None, debug=False):
     # get info about any existing slurm allocation
     corelist = None
-    if batch_system is not None and batch_system == 'slurm' and batch_config_fname is not None:
-        if not os.path.exists(batch_config_fname):
-            print '  %s specified --batch-config-fname %s doesn\'t exist' % (color('yellow', 'warning'), batch_config_fname)
-        else:
-            corelist = get_available_node_core_list(batch_config_fname)  # list of nodes within our current allocation (empty if there isn't one), with each node present once for each core that we've been allocated on that node
-            if corelist is not None and len(corelist) < len(cmdfos):
-                if 1.5 * len(corelist) < len(cmdfos):
-                    print '  %s many fewer cores %d than processes %d' % (color('yellow', 'warning'), len(corelist), len(cmdfos))
-                    print '      corelist: %s' % ' '.join(corelist)
-                while len(corelist) < len(cmdfos):
-                    corelist += sorted(set(corelist))  # add each node once each time through
+    n_procs = len(cmdfos)
+    if not os.path.exists(batch_config_fname):
+        print '  %s specified --batch-config-fname %s doesn\'t exist' % (color('yellow', 'warning'), batch_config_fname)
+    else:
+        corelist = get_available_node_core_list(batch_config_fname)  # list of nodes within our current allocation (empty if there isn't one), with each node present once for each core that we've been allocated on that node
+        if corelist is not None and len(corelist) < n_procs:
+            if 1.5 * len(corelist) < n_procs:
+                print '  %s many fewer cores %d than processes %d' % (color('yellow', 'warning'), len(corelist), n_procs)
+                print '      corelist: %s' % ' '.join(corelist)
+            while len(corelist) < n_procs:
+                corelist += sorted(set(corelist))  # add each node once each time through
 
-    if corelist is not None:
-        if debug:
-            print '    %d final cores for %d procs' % (len(corelist), len(cmdfos))
-            print '        iproc     node'
-            for iproc in range(len(cmdfos)):
-                print '          %-3d    %s' % (iproc, corelist[iproc])
-        assert len(corelist) >= len(cmdfos)
-        for iproc in range(len(cmdfos)):  # it's kind of weird to keep batch_system and batch_options as keyword args while putting nodelist into the cmdfos, but they're just different enough that it makes sense (we're only using nodelist if we're inside an existing slurm allocation)
-            cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
+    if corelist is None:
+        return
+
+    if debug:
+        print '    %d final cores for %d procs' % (len(corelist), n_procs)
+        print '        iproc     node'
+        for iproc in range(n_procs):
+            print '          %-3d    %s' % (iproc, corelist[iproc])
+    assert len(corelist) >= n_procs
+    for iproc in range(n_procs):  # it's kind of weird to keep batch_system and batch_options as keyword args while putting nodelist into the cmdfos, but they're just different enough that it makes sense (we're only using nodelist if we're inside an existing slurm allocation)
+        cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
 
 # ----------------------------------------------------------------------------------------
 def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return_out_err=False, debug=False):
@@ -2733,60 +2726,92 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
             break
 
 # ----------------------------------------------------------------------------------------
-def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
-    cmd_str = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
-    # print cmd_str
-    # sys.exit()
+def get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options):
+    prestr = ''
 
+    if batch_system == 'slurm':
+        prestr += 'srun --export=ALL --nodes 1 --ntasks 1'  # --exclude=data/gizmod.txt'  # --export=ALL seems to be necessary so XDG_RUNTIME_DIR gets passed to the nodes
+        if 'threads' in cmdfo:
+            prestr += ' --cpus-per-task %d' % cmdfo['threads']
+        if 'nodelist' in cmdfo:
+            prestr += ' --nodelist ' + ','.join(cmdfo['nodelist'])
+    elif batch_system == 'sge':
+        prestr += 'qsub -sync y -b y -V -o ' + fout + ' -e ' + ferr
+        fout = None
+        ferr = None
+    else:
+        assert False
+
+    if batch_options is not None:
+        prestr += ' ' + batch_options
+
+    return prestr, fout, ferr
+
+# ----------------------------------------------------------------------------------------
+def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
+    cstr = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     fout = cmdfo['logdir'] + '/out'
     ferr = cmdfo['logdir'] + '/err'
-    prefix = None
+
     if batch_system is not None:
-        if batch_system == 'slurm':
-            prefix = 'srun --export=ALL --nodes 1 --ntasks 1'  # --exclude=data/gizmod.txt'  # --export=ALL seems to be necessary so XDG_RUNTIME_DIR gets passed to the nodes
-            if 'threads' in cmdfo:
-                prefix += ' --cpus-per-task %d' % cmdfo['threads']
-            if 'nodelist' in cmdfo:
-                prefix += ' --nodelist ' + ','.join(cmdfo['nodelist'])
-        elif batch_system == 'sge':
-            prefix = 'qsub -sync y -b y -V -o ' + fout + ' -e ' + ferr
-            fout = None
-            ferr = None
-        else:
-            assert False
-        if batch_options is not None:
-            prefix += ' ' + batch_options
-    if prefix is not None:
-        cmd_str = prefix + ' ' + cmd_str
+        prestr, fout, ferr = get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options)
+        cstr = prestr + ' ' + cstr
 
     if not os.path.exists(cmdfo['logdir']):
         os.makedirs(cmdfo['logdir'])
 
-    # print cmd_str
-    proc = subprocess.Popen(cmd_str if shell else cmd_str.split(),
+    proc = subprocess.Popen(cstr if shell else cstr.split(),
                             stdout=None if fout is None else open(fout, 'w'),
                             stderr=None if ferr is None else open(ferr, 'w'),
-                            env=cmdfo['env'], shell=shell)
+                            env=cmdfo.get('env'), shell=shell)
     return proc
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None, clean_on_success=False, shell=False):  # set sleep to False if your commands are going to run really really really quickly
+# <cmdfos> list of dicts, each dict specifies how to run one process, entries:
+cmdfo_required_keys = [
+    'cmd_str',  #  actual command to run
+    'outfname',  # output file resulting from 'cmd_str'. Used to determine if command completed successfully
+    'workdir',  # either this or 'logdir' must be set. If <clean_on_success> is set, this directory is removed when finished. Also serves as default for 'logdir'. (ok this is kind of messy, this probably used to be used for more things)
+]
+cmdfo_defaults = {  # None means by default it's absent
+    'logdir' : 'workdir',  # where to write stdout/stderr (written as the files 'out' and 'err'). If not set, they go in 'workdir' (I don't like this default, but there's way too much code that depends on it to change it now)
+    'dbgfo' : None,  # dict to store info from bcrham stdout about how many viterbi/forward/etc. calculations it performed
+    'env' : None,  # if set, passed to the env= keyword arg in Popen
+    'nodelist' : None,  # list of slurm nodes to allow; do not use, only set automatically
+    'threads' : None,  # slurm cpus per task
+}
+
+# ----------------------------------------------------------------------------------------
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False,  # set sleep to False if your commands are going to run really really really quickly
+             n_max_tries=None, clean_on_success=False, shell=False):
     if n_max_tries is None:
         n_max_tries = 1 if batch_system is None else 3
-    prepare_cmds(cmdfos, batch_system=batch_system, batch_options=batch_options, batch_config_fname=batch_config_fname)
-    procs, n_tries_list = [], []
     per_proc_sleep_time = 0.01 / max(1, len(cmdfos))
+
+    # check cmdfos and set defaults
+    if len(set(cmdfo_required_keys) - set(cmdfos[0])) > 0:
+        raise Exception('missing required keys in cmdfos: %s' % ' '.join(set(cmdfo_required_keys) - set(cmdfos[0])))
+    for iproc in range(len(cmdfos)):  # ok this is way overcomplicated now that I'm no longer adding None ones by default, oh well
+        for ckey, dval in cmdfo_defaults.items():
+            if ckey not in cmdfos[iproc] and dval is not None:
+                cmdfos[iproc][ckey] = cmdfos[iproc][dval] if dval in cmdfos[iproc] else None  # first bit is only used for using workdir as the logdir default a.t.m.
+
+    if batch_system == 'slurm' and batch_config_fname is not None:
+        set_slurm_nodelist(cmdfos, batch_config_fname)
+
+    procs, n_tries_list = [], []
     for iproc in range(len(cmdfos)):
-        procs.append(run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell))
+        procs += [run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)]
         n_tries_list.append(1)
         if sleep:
             time.sleep(per_proc_sleep_time)
+
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries_list, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc]['dbgfo'], batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, shell=shell)
+                finish_process(iproc, procs, n_tries_list, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, shell=shell)
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
