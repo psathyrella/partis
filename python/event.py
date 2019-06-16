@@ -140,6 +140,7 @@ class RecombinationEvent(object):
         self.set_ids(line, irandom=irandom)
         treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']))  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
         line['tree'] = self.tree.as_string(schema='newick')
+        line['duplicates'] = [[] for _ in range(len(line['input_seqs']))]
 
         utils.add_implicit_info(self.glfo, line)
 
