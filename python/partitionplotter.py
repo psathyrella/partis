@@ -440,7 +440,7 @@ class PartitionPlotter(object):
                 cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
             if title is not None:
                 cmdstr += ' --title=%s' % title.replace(' ', '@')
-            return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : '%s/%s.svg' % (plotdir, get_fname(iclust)), 'infname' : tmpfname}
+            return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : '%s/%s.svg' % (plotdir, get_fname(iclust)), 'workfnames' : [tmpfname]}
 
         # ----------------------------------------------------------------------------------------
         subd, plotdir = self.init_subd('mds', base_plotdir)

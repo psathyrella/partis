@@ -2775,6 +2775,7 @@ cmdfo_required_keys = [
 ]
 cmdfo_defaults = {  # None means by default it's absent
     'logdir' : 'workdir',  # where to write stdout/stderr (written as the files 'out' and 'err'). If not set, they go in 'workdir' (I don't like this default, but there's way too much code that depends on it to change it now)
+    'workfnames' : None,  # if <clean_on_success> is set, this list of files is deleted before removing 'workdir' upon successful completion
     'dbgfo' : None,  # dict to store info from bcrham stdout about how many viterbi/forward/etc. calculations it performed
     'env' : None,  # if set, passed to the env= keyword arg in Popen
     'nodelist' : None,  # list of slurm nodes to allow; do not use, only set automatically
@@ -2782,8 +2783,9 @@ cmdfo_defaults = {  # None means by default it's absent
 }
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False,  # set sleep to False if your commands are going to run really really really quickly
-             n_max_tries=None, clean_on_success=False, shell=False):
+def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None, clean_on_success=False, shell=False):
+    # set sleep to False if your commands are going to run really really really quickly
+    # unlike everywhere else, <debug> is not a boolean, and is either None (swallow out, print err)), 'print' (print out and err), or 'write' (write out and err to file called 'log' in logdir)
     if n_max_tries is None:
         n_max_tries = 1 if batch_system is None else 3
     per_proc_sleep_time = 0.01 / max(1, len(cmdfos))
@@ -2791,6 +2793,8 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
     # check cmdfos and set defaults
     if len(set(cmdfo_required_keys) - set(cmdfos[0])) > 0:
         raise Exception('missing required keys in cmdfos: %s' % ' '.join(set(cmdfo_required_keys) - set(cmdfos[0])))
+    if len(set(cmdfos[0]) - set(cmdfo_required_keys) - set(cmdfo_defaults)) > 0:
+        raise Exception('unexpected key in cmdfos: %s' % ' '.join(set(cmdfos[0]) - set(cmdfo_required_keys) - set(cmdfo_defaults)))
     for iproc in range(len(cmdfos)):  # ok this is way overcomplicated now that I'm no longer adding None ones by default, oh well
         for ckey, dval in cmdfo_defaults.items():
             if ckey not in cmdfos[iproc] and dval is not None:
@@ -2811,7 +2815,10 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                finish_process(iproc, procs, n_tries_list, cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, batch_options=batch_options, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, shell=shell)
+                status = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success)
+                if status == 'restart':
+                    procs[iproc] = run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)
+                    n_tries_list[iproc] += 1
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
@@ -2852,31 +2859,32 @@ def get_slurm_node(errfname):
 
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tries_list, cmdfo, n_max_tries, dbgfo=None, batch_system=None, batch_options=None, debug=None, ignore_stderr=False, clean_on_success=False, shell=False):
+def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_system=None, debug=None, ignore_stderr=False, clean_on_success=False):
     procs[iproc].communicate()
+
+    # success
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
-            print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit...' % iproc
+            print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit...' % iproc  # give a networked file system some time to catch up
             time.sleep(0.5)
         if os.path.exists(cmdfo['outfname']):
-            process_out_err(extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, logdir=cmdfo['logdir'], cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)
+            process_out_err(cmdfo['logdir'], extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)
             procs[iproc] = None  # job succeeded
             if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
-                if 'infname' in cmdfo and os.path.exists(cmdfo['infname']):
-                    os.remove(cmdfo['infname'])
-                if 'metafname' in cmdfo and os.path.exists(cmdfo['metafname']):
-                    os.remove(cmdfo['metafname'])
+                if cmdfo.get('workfnames') is not None:
+                    for fn in [f for f in cmdfo['workfnames'] if os.path.exists(f)]:
+                        os.remove(fn)
                 if os.path.isdir(cmdfo['workdir']):
                     os.rmdir(cmdfo['workdir'])
             return
 
     # handle failure
-    print '    proc %d try %d' % (iproc, n_tries_list[iproc]),
+    print '    proc %d try %d' % (iproc, n_tried),
     if procs[iproc].returncode == 0 and not os.path.exists(cmdfo['outfname']):  # don't really need both the clauses
         print 'succeded but output is missing'
     else:
         print 'failed with exit code %d (output %s)' % (procs[iproc].returncode, ('exists: %s' % cmdfo['outfname']) if os.path.exists(cmdfo['outfname']) else 'is missing')
-    if batch_system is not None and batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
+    if batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
         if 'nodelist' in cmdfo:  # if we're doing everything from within an existing slurm allocation
             nodelist = cmdfo['nodelist']
         else:  # if, on the other hand, each process made its own allocation on the fly
@@ -2897,6 +2905,7 @@ def finish_process(iproc, procs, n_tries_list, cmdfo, n_max_tries, dbgfo=None, b
     # ----------------------------------------------------------------------------------------
     def logfname(ltype):
         return cmdfo['logdir'] + '/' + ltype
+
     # ----------------------------------------------------------------------------------------
     def getlogstrs(logtypes=None):  # not actually using stdout at all, but maybe I should?
         if logtypes is None:
@@ -2908,64 +2917,71 @@ def finish_process(iproc, procs, n_tries_list, cmdfo, n_max_tries, dbgfo=None, b
                 returnstr += [pad_lines(subprocess.check_output(['cat', logfname(ltype)]), padwidth=12)]
         return '\n'.join(returnstr)
 
-    if n_tries_list[iproc] < n_max_tries:
+    if n_tried < n_max_tries:
         print getlogstrs(['err'])
         print '    restarting proc %d' % iproc
-        procs[iproc] = run_cmd(cmdfo, batch_system=batch_system, batch_options=batch_options, shell=shell)
-        n_tries_list[iproc] += 1
+        return 'restart'
     else:
-        if n_tries_list[iproc] > 1:
-            failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n  %s\n' % (n_tries_list[iproc], n_max_tries, cmdfo['cmd_str'])
+        if n_tried > 1:
+            failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n  %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
         else:
             failstr = 'subprocess failed with command:\n  %s\n' % cmdfo['cmd_str']
         failstr += getlogstrs(['err'])
         raise Exception(failstr)
 
+    return 'ok'
+
 # ----------------------------------------------------------------------------------------
-def process_out_err(extra_str='', dbgfo=None, logdir=None, cmd_str=None, debug=None, ignore_stderr=False):
-    """ NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big """
-    out, err = '', ''
-    if logdir is not None:
-        def read_and_delete_file(fname):
-            fstr = ''
-            if os.stat(fname).st_size > 0:
-                ftmp = open(fname)
-                fstr = ''.join(ftmp.readlines())
-                ftmp.close()
-            os.remove(fname)
-            return fstr
-        out = read_and_delete_file(logdir + '/out')
-        err = read_and_delete_file(logdir + '/err')
+def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, ignore_stderr=False):
+    # NOTE something in this chain seems to block or truncate or some such nonsense if you make it too big
+    err_strs_to_ignore = [
+        'stty: standard input: Inappropriate ioctl for device',
+        'queued and waiting for resources',
+        'has been allocated resources',
+        'srun: Required node not available (down, drained or reserved)',
+        'GSL_RNG_TYPE=',
+        'GSL_RNG_SEED=',
+        '[ig_align] Read',
+        '[ig_align] Aligned',
+    ]
+    def read_and_delete_file(fname):
+        fstr = ''
+        if os.stat(fname).st_size > 0:
+            ftmp = open(fname)
+            fstr = ''.join(ftmp.readlines())
+            ftmp.close()
+        os.remove(fname)
+        return fstr
+    def skip_err_line(line):
+        if len(line.strip()) == 0:
+            return True
+        for tstr in err_strs_to_ignore:
+            if tstr in line:
+                return True
+        return False
 
-    for line in out.split('\n'):  # temporarily (maybe) print debug info realted to --n-final-clusters/force merging
-        if 'force' in line:
-            print '    %s %s' % (color('yellow', 'force info:'), line)
+    logstrs = {tstr : read_and_delete_file(logdir + '/' + tstr) for tstr in ['out', 'err']}
 
-    err_str = ''
-    for line in err.split('\n'):
-        if 'stty: standard input: Inappropriate ioctl for device' in line:
+    err_str = []
+    for line in logstrs['err'].split('\n'):
+        if skip_err_line(line):
             continue
-        if 'srun: job' in line and 'queued and waiting for resources' in line:
-            continue
-        if 'srun: job' in line and 'has been allocated resources' in line:
-            continue
-        if 'srun: Required node not available (down, drained or reserved)' in line:
-            continue
-        if 'GSL_RNG_TYPE=' in line or 'GSL_RNG_SEED=' in line:
-            continue
-        if '[ig_align] Read' in line or '[ig_align] Aligned' in line:
-            continue
-        if len(line.strip()) > 0:
-            err_str += line + '\n'
+        err_str += [line]
+    err_str = '\n'.join(err_str)
+
+    if 'bcrham' in cmd_str:
+        for line in logstrs['out'].split('\n'):  # temporarily (maybe) print debug info related to --n-final-clusters/force merging
+            if 'force' in line:
+                print '    %s %s' % (color('yellow', 'force info:'), line)
 
     if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
         for header, variables in bcrham_dbgstrs['partition'].items():  # 'partition' is all of them, 'annotate' is a subset
             dbgfo[header] = {var : None for var in variables}
-            theselines = [ln for ln in out.split('\n') if header + ':' in ln]
+            theselines = [ln for ln in logstrs['out'].split('\n') if header + ':' in ln]
             if len(theselines) == 0:
                 continue
             if len(theselines) > 1:
-                raise Exception('too many lines with dbgfo for \'%s\' in:\nstdout:\n%s\nstderr:\n%s' % (header, out, err))
+                raise Exception('too many lines with dbgfo for \'%s\' in:\nstdout:\n%s\nstderr:\n%s' % (header, logstrs['out'], logstrs['err']))
             words = theselines[0].split()
             for var in variables:  # convention: value corresponding to the string <var> is the word immediately vollowing <var>
                 if var in words:
@@ -2974,20 +2990,19 @@ def process_out_err(extra_str='', dbgfo=None, logdir=None, cmd_str=None, debug=N
                     dbgfo[header][var] = float(words[words.index(var) + 1])
 
     if debug is None:
-        if not ignore_stderr and err_str != '':
+        if not ignore_stderr and len(err_str) > 0:
             print err_str
-    elif err_str + out != '':
+    elif len(err_str) + len(logstrs['out']) > 0:
         if debug == 'print':
             if extra_str != '':
                 print '      --> proc %s' % extra_str
-            print err_str + out
+            print err_str + logstrs['out']
         elif debug == 'write':
             logfile = logdir + '/log'
-            # print 'writing dbg to %s' % logfile
             with open(logfile, 'w') as dbgfile:
                 if cmd_str is not None:
                     dbgfile.write('%s %s\n' % (color('red', 'run'), cmd_str))  # NOTE duplicates code in datascripts/run.py
-                dbgfile.write(err_str + out)
+                dbgfile.write(err_str + logstrs['out'])
         else:
             assert False
 

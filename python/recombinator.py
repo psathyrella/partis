@@ -473,12 +473,12 @@ class Recombinator(object):
         os.makedirs(workdir)
         treefname = workdir + '/tree.tre'
         reco_seq_fname = workdir + '/start-seq.txt'
-        leaf_seq_fname = workdir + '/leaf-seqs.fa'
+        leaf_seq_fname = '%s/%s-leaf-seqs.fa' % (self.workdir, utils.get_region(gene))
         # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen; see https://github.com/BioPP/bppsuite/issues/3)
         chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
-        other_files = [reco_seq_fname, treefname]
+        workfnames = [reco_seq_fname, treefname]
         self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
 
         if self.args.per_base_mutation:
@@ -500,7 +500,7 @@ class Recombinator(object):
             assert not self.args.mutate_from_scratch  # TODO
             assert not self.args.flat_mute_freq  # TODO
             paramfname = workdir + '/cfg.bpp'
-            other_files.append(paramfname)
+            workfnames.append(paramfname)
             plines = ['alphabet = DNA']
             plines += ['number_of_sites = %d' % len(seq)]
             plines += ['input.tree1 = user(file=%s)' % treefname]
@@ -558,7 +558,7 @@ class Recombinator(object):
                 pvpairs = [p + '=' + v for p, v in self.mute_models[utils.get_region(gene)]['gtr'].items()]
                 command += ' model=GTR(' + ','.join(pvpairs) + ')'
 
-        return {'cmd_str' : command, 'outfname' : leaf_seq_fname, 'workdir' : workdir, 'other-files' : other_files, 'env' : env}
+        return {'cmd_str' : command, 'outfname' : leaf_seq_fname, 'workdir' : workdir, 'workfnames' : workfnames, 'env' : env}
 
     # ----------------------------------------------------------------------------------------
     def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
@@ -573,9 +573,6 @@ class Recombinator(object):
             raise Exception('leaf name %s not as expected in bppseqgen output %s' % (ke, cmdfo['outfname']))
         assert n_leaf_nodes == len(names_seqs)
         os.remove(cmdfo['outfname'])
-        for otherfname in cmdfo['other-files']:
-            os.remove(otherfname)
-        os.rmdir(cmdfo['workdir'])
         return zip(*names_seqs)
 
     # ----------------------------------------------------------------------------------------
@@ -643,7 +640,7 @@ class Recombinator(object):
             cmdfos.append(self.prepare_bppseqgen(simstr, scaled_trees[region], n_leaves, reco_event.genes[region], reco_event, seed=irandom))
             regional_naive_seqs[region] = simstr
 
-        utils.run_cmds([cfo for cfo in cmdfos if cfo is not None], sleep=False)  # shenanigan is to handle zero-length regional seqs
+        utils.run_cmds([cfo for cfo in cmdfos if cfo is not None], sleep=False, clean_on_success=True)  # None shenanigan is to handle zero-length regional seqs
 
         mseqs = {}
         for ireg in range(len(utils.regions)):  # NOTE kind of sketchy just using index in <utils.regions> (although it just depends on the loop immediately above a.t.m.)

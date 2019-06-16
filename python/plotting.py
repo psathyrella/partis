@@ -1643,7 +1643,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --tree-style %s' % tree_style
     cmdstr, _ = utils.run_ete_script(cmdstr, ete_path, return_for_cmdfos=True, tmpdir=subworkdir)
 
-    return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'infname' : treefname, 'metafname' : metafname}
+    return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False, tree_style=None):
