@@ -281,7 +281,6 @@ def run_bcr_phylo(args):  # also caches parameters
             'logdir' : outdir,
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
         }]
-        print '     %s %s' % (utils.color('red', 'run'), cmd)
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_parameter_dir(varnames, vstrs))
     if len(cmdfos) > 0:
