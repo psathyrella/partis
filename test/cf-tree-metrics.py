@@ -262,16 +262,16 @@ def run_bcr_phylo(args):  # also caches parameters
     base_args, varnames, _, valstrs = get_var_info(args, args.scan_vars['simu'])
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         print '   %s' % ' '.join(vstrs)
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
         if utils.output_exists(args, get_parameter_dir(varnames, vstrs) + '/hmm/hmms', offset=8):
+            n_already_there += 1
             continue
         cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters --base-outdir %s %s' % (outdir, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
             cmd += ' --%s %s' % (vname, vstr)
-        # if args.n_procs > 1:  # commenting this n_procs usage, since everything is small enough that single runs should i think always be one proc
-        #     cmd += ' --n-procs %d' % args.n_procs  # i think this only gets used for partitioning
         if args.overwrite:
             cmd += ' --overwrite'
         # cmd += ' --debug 1'
@@ -282,25 +282,18 @@ def run_bcr_phylo(args):  # also caches parameters
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
         }]
         print '     %s %s' % (utils.color('red', 'run'), cmd)
-    utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
-
-# ----------------------------------------------------------------------------------------
-def tmp_run(outfname, cmdstr):  # copied from datascripts/run.py, if I'm actually going to use this I should move them both to utils
-    if args.n_max_procs is not None:
-        utils.limit_procs('bin/partis', args.n_max_procs, sleep_time=1)
-    if not os.path.exists(os.path.dirname(outfname)):
-        os.makedirs(os.path.dirname(outfname))
-    logfname, errfname = [utils.replace_suffix(outfname, '.' + tstr) for tstr in ['out', 'err']]
-    logfile, errfile = open(logfname, 'w'), open(errfname, 'w')
-    logfile.write('%s %s\n' % (utils.color('red', 'run'), cmdstr))
-    subprocess.Popen(cmdstr.split(), stdout=logfile, stderr=errfile)  # should this be using the fcns in utils? not sure
+    if n_already_there > 0:
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_parameter_dir(varnames, vstrs))
+    if len(cmdfos) > 0:
+        print '      starting %d jobs' % len(cmdfos)
+    utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
 
 # ----------------------------------------------------------------------------------------
 def partition(args):
     _, varnames, _, valstrs = get_var_info(args, args.scan_vars['partition'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
-    n_already_there, n_started = 0, 0
+    n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
@@ -312,22 +305,19 @@ def partition(args):
 
         cmd = './bin/partis %s --is-simu --infname %s --plotdir %s --outfname %s' % (args.action, get_bcr_phylo_outfname(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname)
         if args.action == 'partition':
-            cmd += ' --parameter-dir %s --n-final-clusters 1 --get-tree-metrics' % (get_parameter_dir(varnames, vstrs)) #  --n-procs %d args.n_procs)
+            cmd += ' --parameter-dir %s --n-final-clusters 1 --get-tree-metrics' % (get_parameter_dir(varnames, vstrs))
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
-        tmp_run(partition_fname, cmd)
-        n_started += 1
-        # cmdfos += [{
-        #     'cmd_str' : cmd,
-        #     'outfname' : partition_fname,
-        #     'logdir' : get_partition_outdir(varnames, vstrs),
-        # }]
-        # print '     %s %s' % (utils.color('red', 'run'), cmd)
+        cmdfos += [{
+            'cmd_str' : cmd,
+            'outfname' : partition_fname,
+            'workdir' : get_partition_outdir(varnames, vstrs),
+        }]
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), partition_fname)
-    if n_started > 0:
-        print '      started %d jobs' % n_started
-    # utils.run_cmds(cmdfos, debug='write', batch_system='slurm' if args.slurm else None)
+    if len(cmdfos) > 0:
+        print '      starting %d jobs' % len(cmdfos)
+        utils.run_cmds(cmdfos, debug='write:partition.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)

@@ -2701,15 +2701,19 @@ def auto_n_procs():  # for running on the local machine
     return n_procs
 
 # ----------------------------------------------------------------------------------------
-def limit_procs(cmdstr, n_max_procs=None, sleep_time=30, debug=False):  # <cmdstr> should be a fragment of the command that will show up in ps, e.g. 'bin/partis';  <sleep_time> is seconds
+def limit_procs(cmdstr, n_max_procs=None, sleep_time=1, debug=False):  # <sleep_time> is seconds
     def n_running_jobs():
         return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | wc -l' % cmdstr, shell=True))
+    if cmdstr is None:
+        raise Exception('<cmdstr> should be a (string) fragment of the command that will show up in ps, e.g. \'bin/partis\'')
     if n_max_procs is None:
         n_max_procs = auto_n_procs()
-    while n_running_jobs() >= n_max_procs:
+    n_jobs = n_running_jobs()
+    while n_jobs >= n_max_procs:
         if debug:
-            print '%d (>=%d) running jobs' % (n_running_jobs(), n_max_procs)  # kind of wasteful to call it again just to print (and it could get a different answer), but I don't want to make a separate variable just for dbg printing
+            print '%d (>=%d) running jobs' % (n_jobs, n_max_procs)
         time.sleep(sleep_time)
+        n_jobs = n_running_jobs()
 
 # ----------------------------------------------------------------------------------------
 def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list of multiprocessing.Process objects
@@ -2783,9 +2787,14 @@ cmdfo_defaults = {  # None means by default it's absent
 }
 
 # ----------------------------------------------------------------------------------------
-def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_config_fname=None, debug=None, ignore_stderr=False, n_max_tries=None, clean_on_success=False, shell=False):
-    # set sleep to False if your commands are going to run really really really quickly
-    # unlike everywhere else, <debug> is not a boolean, and is either None (swallow out, print err)), 'print' (print out and err), or 'write' (write out and err to file called 'log' in logdir)
+# notes:
+#  - set sleep to False if your commands are going to run really really really quickly
+#  - unlike everywhere else, <debug> is not a boolean, and is either None (swallow out, print err)), 'print' (print out and err), 'write' (write out and err to file called 'log' in logdir), or 'write:<log file name>' (same as 'write', but you set your own base name)
+#  - <proc_limit_str> must be set if <n_max_procs> is set
+def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batch_system=None, batch_options=None, batch_config_fname=None,
+             debug=None, ignore_stderr=False, sleep=True, n_max_procs=None, proc_limit_str=None):
+    if len(cmdfos) == 0:
+        raise Exception('zero length cmdfos')
     if n_max_tries is None:
         n_max_tries = 1 if batch_system is None else 3
     per_proc_sleep_time = 0.01 / max(1, len(cmdfos))
@@ -2809,6 +2818,8 @@ def run_cmds(cmdfos, sleep=True, batch_system=None, batch_options=None, batch_co
         n_tries_list.append(1)
         if sleep:
             time.sleep(per_proc_sleep_time)
+        if n_max_procs is not None:
+            limit_procs(proc_limit_str, n_max_procs, debug=True)
 
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
@@ -2970,7 +2981,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
     err_str = '\n'.join(err_str)
 
     if 'bcrham' in cmd_str:
-        for line in logstrs['out'].split('\n'):  # temporarily (maybe) print debug info related to --n-final-clusters/force merging
+        for line in logstrs['out'].split('\n'):  # print debug info related to --n-final-clusters/--min-largest-cluster-size force merging
             if 'force' in line:
                 print '    %s %s' % (color('yellow', 'force info:'), line)
 
@@ -2997,8 +3008,12 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
             if extra_str != '':
                 print '      --> proc %s' % extra_str
             print err_str + logstrs['out']
-        elif debug == 'write':
-            logfile = logdir + '/log'
+        elif 'write' in debug:
+            if debug == 'write':
+                logfile = logdir + '/log'
+            else:
+                assert debug[:6] == 'write:'
+                logfile = logdir + '/' + debug.replace('write:', '')
             with open(logfile, 'w') as dbgfile:
                 if cmd_str is not None:
                     dbgfile.write('%s %s\n' % (color('red', 'run'), cmd_str))  # NOTE duplicates code in datascripts/run.py
