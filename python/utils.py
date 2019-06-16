@@ -2819,7 +2819,7 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
         if sleep:
             time.sleep(per_proc_sleep_time)
         if n_max_procs is not None:
-            limit_procs(proc_limit_str, n_max_procs, debug=True)
+            limit_procs(proc_limit_str, n_max_procs)
 
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
