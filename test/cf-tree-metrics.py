@@ -264,7 +264,6 @@ def run_bcr_phylo(args):  # also caches parameters
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
-        print '   %s' % ' '.join(vstrs)
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
         if utils.output_exists(args, get_parameter_dir(varnames, vstrs) + '/hmm/hmms', offset=8):
             n_already_there += 1
