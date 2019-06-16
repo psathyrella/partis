@@ -307,7 +307,7 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors', 'tree-info', 'alternative-annotations'] + [r + '_per_gene_support' for r in regions]
-linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights', 'duplicates']
+linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights']
 linekeys['simu'] = ['reco_id', 'affinities', 'relative_affinities', 'lambdas', 'tree', 'target_seqs', 'nearest_target_indices']
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
@@ -336,7 +336,7 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'full_coding_naive_seq',
     'full_coding_input_seqs',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
-sw_cache_headers = [h for h in annotation_headers if h not in [r + '_per_gene_support' for r in regions]] + ['k_v', 'k_d', 'padlefts', 'padrights', 'all_matches', 'mut_freqs']
+sw_cache_headers = [h for h in annotation_headers if '_per_gene_support' not in h] + linekeys['sw']
 linearham_headers = ['flexbounds', 'relpos']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting (in packages/ham/src/glomerator.cc, ReadCacheFile() and WriteCacheFile())
 bcrham_dbgstrs = {
