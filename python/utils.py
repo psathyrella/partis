@@ -330,7 +330,7 @@ annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cd
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns + input_metafile_keys.values() \
-                     + ['codon_positions', 'tree-info', 'alternative-annotations', 'all_matches'] \
+                     + ['codon_positions', 'tree-info', 'alternative-annotations', 'all_matches']
 simulation_headers = linekeys['simu'] + [h for h in annotation_headers if h not in linekeys['hmm']]
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',
