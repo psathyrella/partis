@@ -45,11 +45,6 @@ class PartitionDriver(object):
 
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
-        if (self.args.parameter_dir is not None and self.input_info is not None) or self.args.sw_cachefname is not None:
-            if self.args.sw_cachefname is None:
-                self.sw_cache_path = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys()))))  # remain suffix-agnostic
-            else:
-                self.sw_cache_path = utils.getprefix(self.args.sw_cachefname)
 
         self.vs_info, self.sw_info = None, None
         self.duplicates = {}
@@ -92,6 +87,21 @@ class PartitionDriver(object):
             'get-linearham-info'           : self.read_existing_output,
             'view-alternative-annotations'  : self.view_alternative_annotations,
         }
+
+    # ----------------------------------------------------------------------------------------
+    def sw_cache_path(self, find_any=False):
+        if self.args.sw_cachefname is not None:
+            return utils.getprefix(self.args.sw_cachefname)
+        elif None not in [self.args.parameter_dir, self.input_info]:
+            if find_any:
+                fnames = glob.glob(self.args.parameter_dir + '/sw-cache-*')  # remain suffix-agnostic
+                if len(fnames) == 0:
+                    raise Exception('couldn\'t find any sw cache files in %s, despite setting <find_any>' % self.args.parameter_dir)
+                return utils.getprefix(fnames[0])
+            else:
+                return self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys()))))  # remain suffix-agnostic
+        else:
+            return None
 
     # ----------------------------------------------------------------------------------------
     def get_cpath_progress_fname(self, istep):
@@ -189,12 +199,13 @@ class PartitionDriver(object):
                           plot_annotation_performance=self.args.plot_annotation_performance,
                           duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs, vs_info=self.vs_info)
 
-        cachefname = self.sw_cache_path + ('.yaml' if self.args.sw_cachefname is None else utils.getsuffix(self.args.sw_cachefname))  # use yaml, unless csv was explicitly set on the command line
+        cache_path = self.sw_cache_path(find_any=require_cachefile)
+        cachefname = cache_path + ('.yaml' if self.args.sw_cachefname is None else utils.getsuffix(self.args.sw_cachefname))  # use yaml, unless csv was explicitly set on the command line
         if look_for_cachefile or require_cachefile:
-            if os.path.exists(self.sw_cache_path + '.csv'):  # ...but if there's already an old csv, use that
-                cachefname = self.sw_cache_path + '.csv'
+            if os.path.exists(cache_path + '.csv'):  # ...but if there's already an old csv, use that
+                cachefname = cache_path + '.csv'
         else:  # i.e. if we're not explicitly told to look for it (and it exists) then it should be out of date
-            waterer.clean_cache(self.sw_cache_path)  # hm, should this be <cachefname> instead of <self.sw_cache_path>? i mean they're the same, but still
+            waterer.clean_cache(cache_path)  # hm, should this be <cachefname> instead of <cache_path>? i mean they're the same, but still
         if (look_for_cachefile or require_cachefile) and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
         else:
@@ -440,9 +451,9 @@ class PartitionDriver(object):
         annotations = self.parse_existing_annotations(annotation_lines, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
 
         if tmpact == 'get-linearham-info':
-            self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotations.values() for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok
+            self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotations.values() for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok (note that the order won't be the same as it would've been before)
             self.run_waterer(require_cachefile=True)
-            utils.get_linearham_info(self.sw_info, annotations.values(), linearham_infname=self.args.linearham_infname)
+            self.write_output(annotations.values(), set(), cpath=cpath, outfname=self.args.linearham_infname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
         if tmpact == 'get-tree-metrics':
             self.calculate_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
@@ -1975,7 +1986,10 @@ class PartitionDriver(object):
             outfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_output(self, annotation_list, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False):
+    def write_output(self, annotation_list, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False, outfname=None):
+        if outfname is None:
+            outfname = self.args.outfname
+
         if write_sw:
             assert annotation_list is None
             annotation_list = [self.sw_info[q] for q in self.input_info if q in self.sw_info['queries']]
@@ -1985,14 +1999,14 @@ class PartitionDriver(object):
             failed_queries = [{'unique_ids' : [uid], 'invalid' : True, 'input_seqs' : self.input_info[uid]['seqs']} for uid in self.sw_info['failed-queries'] | hmm_failures]  # <uid> *needs* to be single-sequence (but there shouldn't really be any way for it to not be)
 
         if self.args.presto_output:
-            presto_annotation_fname = self.args.outfname
+            presto_annotation_fname = outfname
             if cpath is not None:  # note that if we're partitioning, we get here with <self.current_action> set to 'annotate'
-                presto_annotation_fname = utils.getprefix(self.args.outfname) + '.tsv'
-                cpath.write_presto_partitions(self.args.outfname, self.input_info)
+                presto_annotation_fname = utils.getprefix(outfname) + '.tsv'
+                cpath.write_presto_partitions(outfname, self.input_info)
             utils.write_presto_annotations(presto_annotation_fname, annotation_list, failed_queries=failed_queries)
             return
         elif self.args.airr_output:
-            utils.write_airr_output(self.args.outfname, annotation_list, cpath=cpath, failed_queries=failed_queries)
+            utils.write_airr_output(outfname, annotation_list, cpath=cpath, failed_queries=failed_queries)
             return
 
         partition_lines = None
@@ -2001,15 +2015,15 @@ class PartitionDriver(object):
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
-            utils.get_linearham_info(self.sw_info, annotation_list)
+            utils.add_linearham_info(self.sw_info, annotation_list)
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
-        if utils.getsuffix(self.args.outfname) == '.csv':
+        if utils.getsuffix(outfname) == '.csv':
             if cpath is not None:
-                cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)  # don't need to pass in reco_info/true_partition since we passed them when we got the partition lines
-            annotation_fname = self.args.outfname if cpath is None else self.args.cluster_annotation_fname
+                cpath.write(outfname, self.args.is_data, partition_lines=partition_lines)  # don't need to pass in reco_info/true_partition since we passed them when we got the partition lines
+            annotation_fname = outfname if cpath is None else self.args.cluster_annotation_fname
             utils.write_annotations(annotation_fname, self.glfo, annotation_list, headers, failed_queries=failed_queries)
-        elif utils.getsuffix(self.args.outfname) == '.yaml':
-            utils.write_annotations(self.args.outfname, self.glfo, annotation_list, headers, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=self.args.write_full_yaml_output)
+        elif utils.getsuffix(outfname) == '.yaml':
+            utils.write_annotations(outfname, self.glfo, annotation_list, headers, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=self.args.write_full_yaml_output)
         else:
-            raise Exception('unhandled annotation file suffix %s' % self.args.outfname)
+            raise Exception('unhandled annotation file suffix %s' % outfname)

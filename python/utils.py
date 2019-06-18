@@ -1354,22 +1354,10 @@ def re_sort_per_gene_support(line):
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
-def get_linearham_info(sw_info, annotation_list, linearham_infname=None, debug=False):  # if <linearham_infname> is set, write flexbounds and relpos to that file; otherwise add them to each annotation
-    print '  %s linearham input for %d clusters%s' % ('getting' if linearham_infname is None else 'writing', len(annotation_list), '' if linearham_infname is None else (' to %s' % linearham_infname))
-    lhinfo = []
-    for line in sorted(annotation_list, key=lambda l: len(l['unique_ids']), reverse=True):
-        lfo = get_linearham_bounds(sw_info, line, debug=debug)  # note that we don't skip ones that fail, since we don't want to just silently ignore some of the input sequences -- skipping should happen elsewhere where it can be more explicit
-        if linearham_infname is None:
-            line['linearham-info'] = lfo
-        else:
-            lfo.update({'unique_ids' : line['unique_ids']})
-            lhinfo.append(lfo)
-
-    if linearham_infname is not None:
-        if not os.path.exists(os.path.dirname(linearham_infname)):
-            os.makedirs(os.path.dirname(linearham_infname))
-        with open(linearham_infname, 'w') as yfile:
-            json.dump(lhinfo, yfile)
+def add_linearham_info(sw_info, annotation_list, debug=False):
+    print '    adding linearham info for %d clusters' % len(annotation_list)
+    for line in annotation_list:
+        line['linearham-info'] = get_linearham_bounds(sw_info, line, debug=debug)  # note that we don't skip ones that fail, since we don't want to just silently ignore some of the input sequences -- skipping should happen elsewhere where it can be more explicit
 
 # ----------------------------------------------------------------------------------------
 def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
