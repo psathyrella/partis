@@ -45,7 +45,7 @@ class PartitionDriver(object):
 
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
-        if args.infname is not None:
+        if (self.args.parameter_dir is not None and self.input_info is not None) or self.args.sw_cachefname is not None:
             if self.args.sw_cachefname is None:
                 self.sw_cache_path = self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys()))))  # remain suffix-agnostic
             else:
@@ -89,7 +89,7 @@ class PartitionDriver(object):
             'view-partitions'              : self.read_existing_output,
             'plot-partitions'              : self.read_existing_output,
             'get-tree-metrics'             : self.read_existing_output,
-            'prep-linearham'               : self.read_existing_output,
+            'get-linearham-info'           : self.read_existing_output,
             'view-alternative-annotations'  : self.view_alternative_annotations,
         }
 
@@ -104,6 +104,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self, actions):
+        self.all_actions = actions
         for tmpaction in actions:
             self.current_action = tmpaction  # NOTE gets changed on the fly below, I think just in self.get_cluster_annotations() (which is kind of hackey, but I can't figure out a way to improve on it that wouldn't involve wasting a foolish amount of time rewriting things. Bottom line is that the control flow for different actions is really complicated, and that complexity is going to show up somewhere)
             self.action_fcns[tmpaction]()
@@ -173,7 +174,7 @@ class PartitionDriver(object):
                 raise Exception('--persistent-cachefname %s has unexpected header list %s' % (self.args.persistent_cachefname, reader.fieldnames))
 
     # ----------------------------------------------------------------------------------------
-    def run_waterer(self, count_parameters=False, write_parameters=False, write_cachefile=False, look_for_cachefile=False, dbg_str=''):
+    def run_waterer(self, count_parameters=False, write_parameters=False, write_cachefile=False, look_for_cachefile=False, require_cachefile=False, dbg_str=''):
         print 'smith-waterman%s' % (('  (%s)' % dbg_str) if dbg_str != '' else '')
         sys.stdout.flush()
 
@@ -189,14 +190,16 @@ class PartitionDriver(object):
                           duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs, vs_info=self.vs_info)
 
         cachefname = self.sw_cache_path + ('.yaml' if self.args.sw_cachefname is None else utils.getsuffix(self.args.sw_cachefname))  # use yaml, unless csv was explicitly set on the command line
-        if look_for_cachefile:
+        if look_for_cachefile or require_cachefile:
             if os.path.exists(self.sw_cache_path + '.csv'):  # ...but if there's already an old csv, use that
                 cachefname = self.sw_cache_path + '.csv'
         else:  # i.e. if we're not explicitly told to look for it (and it exists) then it should be out of date
             waterer.clean_cache(self.sw_cache_path)  # hm, should this be <cachefname> instead of <self.sw_cache_path>? i mean they're the same, but still
-        if look_for_cachefile and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
+        if (look_for_cachefile or require_cachefile) and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
             waterer.read_cachefile(cachefname)
         else:
+            if require_cachefile:
+                raise Exception('sw cache file %s not found' % cachefname)
             if look_for_cachefile:
                 print '    couldn\'t find sw cache file %s, so running sw%s' % (cachefname, ' (this is probably because --seed-seq/--seed-unique-id is set to a sequence that wasn\'t in the input file on which we cached parameters [if it\'s inconvenient to put your seed sequences in your input file, you can avoid this by putting them instead in separate file and set --queries-to-include-fname])' if self.args.seed_unique_id is not None else '')
             waterer.run(cachefname if write_cachefile else None)
@@ -275,7 +278,7 @@ class PartitionDriver(object):
         print 'hmm'
         sys.stdout.flush()
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
-        if self.args.outfname is not None:
+        if self.args.outfname is not None and self.current_action == self.all_actions[-1]:
             self.write_output(annotations.values(), hmm_failures)
         self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
 
@@ -436,8 +439,10 @@ class PartitionDriver(object):
 
         annotations = self.parse_existing_annotations(annotation_lines, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
 
-        if tmpact == 'prep-linearham':
-            utils.write_linearham_inputs(self.glfo['locus'], annotations.values(), self.args.linearham_input_dir)
+        if tmpact == 'get-linearham-info':
+            self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotations.values() for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok
+            self.run_waterer(require_cachefile=True)
+            utils.get_linearham_info(self.sw_info, annotations.values(), linearham_infname=self.args.linearham_infname)
 
         if tmpact == 'get-tree-metrics':
             self.calculate_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
@@ -1994,6 +1999,9 @@ class PartitionDriver(object):
         if cpath is not None:
             true_partition = utils.get_true_partition(self.reco_info) if not self.args.is_data else None
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
+
+        if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
+            utils.get_linearham_info(self.sw_info, annotation_list)
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
         if utils.getsuffix(self.args.outfname) == '.csv':

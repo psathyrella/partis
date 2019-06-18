@@ -333,9 +333,11 @@ def process(args):
         args.allele_cluster = False
         args.dont_find_new_alleles = True
 
-    if args.infname is None and args.action not in ['simulate', 'view-output', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-tree-metrics', 'prep-linearham']:
+    if args.infname is None and args.action not in ['simulate', 'view-output', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-tree-metrics', 'get-linearham-info']:
         raise Exception('--infname is required for action \'%s\'' % args.action)
 
-    if args.action == 'prep-linearham':
-        if args.linearham_input_dir is None:  # for some reason making the option required doesn't work
-            raise Exception('have to specify --linearham-input-dir')
+    if args.action == 'get-linearham-info':
+        if args.linearham_infname is None:  # for some reason setting required=True isn't working
+            raise Exception('have to specify --linearham-infname')
+        if args.sw_cachefname is None:
+            raise Exception('have to specify --sw-cachefname, since we need sw info to calculate linearham inputs (the default location is in --parameter-dir)')

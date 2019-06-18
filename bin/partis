@@ -350,7 +350,7 @@ subconfig = collections.OrderedDict((
     ('view-alternative-annotations' , {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs in a previous partition step so that this information was saved.'}),
     ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
     ('get-tree-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate tree-based selection metrics on existing output.'}),
-    ('prep-linearham'   , {'func' : run_partitiondriver, 'help' : 'Write input files for linearham, using a previous partis output file as input.'}),
+    ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham, using a previous partis output file as input.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -359,9 +359,7 @@ subconfig = collections.OrderedDict((
 ))
 
 def runs_on_existing_output(actionstr):
-    if actionstr in ['get-tree-metrics', 'prep-linearham']:
-        return True
-    return actionstr.split('-')[0] in ['view', 'plot']
+    return actionstr.split('-')[0] in ['view', 'plot', 'get']
 
 subargs = {subname : [] for subname in subconfig}
 
@@ -439,7 +437,7 @@ subargs['view-alternative-annotations'].append({'name' : '--print-all-annotation
 subargs['view-alternative-annotations'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['view-output'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 
-subargs['prep-linearham'].append({'name' : '--linearham-input-dir', 'required' : True, 'kwargs' : {'help' : 'directory to which to write linearham input files'}})
+subargs['get-linearham-info'].append({'name' : '--linearham-infname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 
 def get_arg_names(actions):  # return set of all arg names (in the form they appear in args.__dict__) for the specified actions
     if actions == 'all':

@@ -301,6 +301,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_gl_seq' for r in regions] + \
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
+# note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches'] + \
                       [r + '_qr_seqs' for r in regions] + \
@@ -330,12 +331,13 @@ annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cd
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns + input_metafile_keys.values() \
-                     + ['codon_positions', 'tree-info', 'alternative-annotations', 'all_matches']
+                     + ['codon_positions', 'tree-info', 'alternative-annotations']
 simulation_headers = linekeys['simu'] + [h for h in annotation_headers if h not in linekeys['hmm']]
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',
     'full_coding_naive_seq',
     'full_coding_input_seqs',
+    'linearham-info',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 sw_cache_headers = [h for h in annotation_headers if h not in linekeys['hmm']] + linekeys['sw']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting (in packages/ham/src/glomerator.cc, ReadCacheFile() and WriteCacheFile())
@@ -1352,30 +1354,25 @@ def re_sort_per_gene_support(line):
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
-def write_linearham_inputs(locus, annotation_list, base_outdir, naive_seq_name='naive', debug=False):
-    if debug:
-        print '  writing linearham input for %d clusters to %s' % (len(annotation_list), base_outdir)
-    for iclust, line in enumerate(sorted(annotation_list, key=lambda l: len(l['unique_ids']), reverse=True)):
+def get_linearham_info(sw_info, annotation_list, linearham_infname=None, debug=False):  # if <linearham_infname> is set, write flexbounds and relpos to that file; otherwise add them to each annotation
+    print '  %s linearham input for %d clusters%s' % ('getting' if linearham_infname is None else 'writing', len(annotation_list), '' if linearham_infname is None else (' to %s' % linearham_infname))
+    lhinfo = []
+    for line in sorted(annotation_list, key=lambda l: len(l['unique_ids']), reverse=True):
+        lfo = get_linearham_bounds(sw_info, line, debug=debug)  # note that we don't skip ones that fail, since we don't want to just silently ignore some of the input sequences -- skipping should happen elsewhere where it can be more explicit
+        if linearham_infname is None:
+            line['linearham-info'] = lfo
+        else:
+            lfo.update({'unique_ids' : line['unique_ids']})
+            lhinfo.append(lfo)
 
-        lhinfo = get_linearham_info(line)
-        if lhinfo is None:
-            if debug:
-                print '  couldn\'t add linearham info for %s' % ' '.join(line['unique_ids'])
-            continue
-
-        outdir = '%s/iclust-%d' % (base_outdir, iclust)
-        prep_dir(outdir, wildlings=['*.fasta', '*.json'])
-
-        with open('%s/linearham-info.json' % outdir, 'w') as lhfile:
-            json.dump(lhinfo, lhfile)
-
-        with open('%s/input_seqs.fasta' % outdir, 'w') as fastafile:
-            fastafile.write('>%s\n%s\n' % (naive_seq_name, line['naive_seq']))
-            for uid, seq in zip(line['unique_ids'], line['seqs']):
-                fastafile.write('>%s\n%s\n' % (uid, seq))
+    if linearham_infname is not None:
+        if not os.path.exists(os.path.dirname(linearham_infname)):
+            os.makedirs(os.path.dirname(linearham_infname))
+        with open(linearham_infname, 'w') as yfile:
+            json.dump(lhinfo, yfile)
 
 # ----------------------------------------------------------------------------------------
-def get_linearham_info(line, vj_flexbounds_shift=10):
+def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     """ compute the flexbounds/relpos values and return in a dict """
     def get_swfo(uid):
         def getmatches(matchfo):  # get list of gene matches sorted by decreasing score
@@ -1383,7 +1380,7 @@ def get_linearham_info(line, vj_flexbounds_shift=10):
             return genes
         swfo = {'flexbounds' : {}, 'relpos' : {}}
         for region in getregions(get_locus(line['v_gene'])):
-            matchfo = per_seq_val(line, 'all_matches', uid)[region]
+            matchfo = sw_info[uid]['all_matches'][0][region]
             sortmatches = getmatches(matchfo)
             bounds_l, bounds_r = zip(*[matchfo[g]['qrbounds'] for g in sortmatches])  # left- (and right-) bounds for each gene
             swfo['flexbounds'][region + '_l'] = dict(zip(sortmatches, bounds_l))
@@ -1391,9 +1388,6 @@ def get_linearham_info(line, vj_flexbounds_shift=10):
             for gene, gfo in matchfo.items():
                 swfo['relpos'][gene] = gfo['qrbounds'][0] - gfo['glbounds'][0]  # position in the query sequence of the start of each uneroded germline match
         return swfo
-
-    if 'all_matches' not in line:
-        raise Exception('annotation doesn\'t have information on all smith-waterman matches, it\'s probably old and needs to be rerun')
 
     fbounds = {}  # initialize the flexbounds/relpos dicts
     rpos = {}
@@ -1484,7 +1478,9 @@ def get_linearham_info(line, vj_flexbounds_shift=10):
 
             # are the neighboring flexbounds even fixable?
             if left_germ_len < 1 or right_germ_len < 1:
-                return None
+                if debug:
+                    print '    failed adding linearham info: left_germ_len or right_germ_len less than 1'
+                return {'flexbounds' : None, 'relpos' : None}
 
         if rpair['left'] == 'v' and left_germ_len > vj_flexbounds_shift:
             fbounds[left_region][0] -= vj_flexbounds_shift
@@ -1510,9 +1506,11 @@ def get_linearham_info(line, vj_flexbounds_shift=10):
     for region in ['v_l', 'j_r']:
         bounds_len = fbounds[region][1] - fbounds[region][0]
         if bounds_len < 0:
-            return None
+            if debug:
+                print '    failed adding linearham info: bounds_len less than zero'
+            return {'flexbounds' : None, 'relpos' : None}
 
-    return {'unique_ids' : line['unique_ids'], 'flexbounds' : fbounds, 'relpos' : rpos}
+    return {'flexbounds' : fbounds, 'relpos' : rpos}
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
