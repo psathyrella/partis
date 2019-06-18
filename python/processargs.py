@@ -337,8 +337,8 @@ def process(args):
         raise Exception('--infname is required for action \'%s\'' % args.action)
 
     if args.action == 'get-linearham-info':
-        if args.linearham_infname is None:  # for some reason setting required=True isn't working
-            raise Exception('have to specify --linearham-infname')
+        if args.linearham_info_fname is None:  # for some reason setting required=True isn't working
+            raise Exception('have to specify --linearham-info-fname')
         if args.sw_cachefname is None and args.parameter_dir is None:
             raise Exception('have to specify --sw-cachefname or --parameter-dir, since we need sw info to calculate linearham inputs')
         if args.extra_annotation_columns is None or 'linearham-info' not in args.extra_annotation_columns:

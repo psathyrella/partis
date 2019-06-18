@@ -453,7 +453,7 @@ class PartitionDriver(object):
         if tmpact == 'get-linearham-info':
             self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotations.values() for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok (note that the order won't be the same as it would've been before)
             self.run_waterer(require_cachefile=True)
-            self.write_output(annotations.values(), set(), cpath=cpath, outfname=self.args.linearham_infname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
+            self.write_output(annotations.values(), set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
         if tmpact == 'get-tree-metrics':
             self.calculate_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
