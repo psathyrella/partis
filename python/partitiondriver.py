@@ -89,6 +89,7 @@ class PartitionDriver(object):
             'view-partitions'              : self.read_existing_output,
             'plot-partitions'              : self.read_existing_output,
             'get-tree-metrics'             : self.read_existing_output,
+            'prep-linearham'               : self.read_existing_output,
             'view-alternative-annotations'  : self.view_alternative_annotations,
         }
 
@@ -434,6 +435,9 @@ class PartitionDriver(object):
             raise Exception('unhandled annotation file suffix %s' % outfname)
 
         annotations = self.parse_existing_annotations(annotation_lines, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
+
+        if tmpact == 'prep-linearham':
+            utils.write_linearham_inputs(self.glfo['locus'], annotations.values(), self.args.linearham_input_dir)
 
         if tmpact == 'get-tree-metrics':
             self.calculate_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
@@ -1550,7 +1554,7 @@ class PartitionDriver(object):
 
             genes_to_use = set()  # genes from this query that'll get ORd into the ones from the previous queries
             for region in utils.regions:
-                regmatches = set(swfo['all_matches'][region])  # the best <n_max_per_region> matches for this query, ordered by sw match quality (well, ordered before we call set())
+                regmatches = set(swfo['all_matches'][0][region])  # the best <n_max_per_region> matches for this query (note: no longer ordered by score)
                 genes_to_use |= regmatches & available_genes
 
             # OR this query's genes into the ones from previous queries
@@ -1789,6 +1793,16 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None, print_annotations=False):
         """ Read bcrham annotation output """
+        def check_invalid(line, hmm_failures):
+            if line['invalid']:
+                counts['n_invalid_events'] += 1
+                if self.args.debug:
+                    print '      %s line invalid' % uidstr
+                    utils.print_reco_event(line, extra_str='    ', label='invalid:')
+                hmm_failures |= set(line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
+                return True
+            return False
+
         print '    read output'
         sys.stdout.flush()
 
@@ -1796,8 +1810,7 @@ class PartitionDriver(object):
         true_pcounter = ParameterCounter(self.simglfo, self.args) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter('hmm') if self.args.plot_annotation_performance else None
 
-        n_lines_read, n_seqs_processed, n_events_processed, n_invalid_events = 0, 0, 0, 0
-        at_least_one_mult_hmm_line = False
+        counts = {n : 0 for n in ['n_lines_read', 'n_seqs_processed', 'n_events_processed', 'n_invalid_events']}
         eroded_annotations, padded_annotations = OrderedDict(), OrderedDict()
         hmm_failures = set()  # hm, does this duplicate info I'm already keeping track of in one of these other variables?
         errorfo = {}
@@ -1806,7 +1819,7 @@ class PartitionDriver(object):
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
 
                 utils.process_input_line(padded_line)
-                n_lines_read += 1
+                counts['n_lines_read'] += 1
 
                 failed = self.check_did_bcrham_fail(padded_line, errorfo)
                 if failed:
@@ -1818,6 +1831,7 @@ class PartitionDriver(object):
 
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
                 padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <padded_line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
+                padded_line['all_matches'] = [self.sw_info[uid]['all_matches'][0] for uid in uids]
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
                 for lkey in [lk for lk in utils.input_metafile_keys.values() if lk in self.sw_info[uids[0]]]:  # if it's in one, it should be in all of them
                     padded_line[lkey] = [self.sw_info[uid][lkey][0] for uid in uids]
@@ -1840,40 +1854,26 @@ class PartitionDriver(object):
 
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
 
-                if self.args.linearham and self.current_action == 'annotate':
-                    # add flexbounds/relpos to padded line
-                    status = utils.add_linearham_info(self.sw_info, self.glfo['locus'], padded_line, vj_flexbounds_shift=10)
-                    if status == 'nonsense':
-                        hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
-                        continue
-
-                if padded_line['invalid']:
-                    n_invalid_events += 1
-                    if self.args.debug:
-                        print '      %s padded line invalid' % uidstr
-                        utils.print_reco_event(padded_line, extra_str='    ', label='invalid:')
-                    hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
+                if check_invalid(padded_line, hmm_failures):
                     continue
 
                 if uidstr in padded_annotations:  # this shouldn't happen, but it's more an indicator that something else has gone wrong than that in and of itself it's catastrophic
                     print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
-                if len(uids) > 1 or (self.args.linearham and self.current_action == 'annotate'):  # if there's more than one sequence (or we're in linearham mode), we need to use the padded line
-                    at_least_one_mult_hmm_line = True
-                    line_to_use = padded_line
-                else:  # otherwise, the eroded line is kind of simpler to look at
+                line_to_use = padded_line
+                if self.args.mimic_data_read_length:  # used to do this by default as long as there weren't any multi-hmm lines, but now I've decided it's an unnecessary complication
+                    if len(uids) > 1:
+                        print '  %s can\'t mimic data read length on multi-hmm annotations, since we need the padding to make lengths compatible (at least, I think it will crash just below here if you try)' % utils.color('red', 'error')
                     # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions
                     eroded_line = utils.reset_effective_erosions_and_effective_insertions(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs)  #, padfo=self.sw_info)
-                    if eroded_line['invalid']:  # not really sure why the eroded line is sometimes invalid when the padded line is not, but it's very rare and I don't really care, either
-                        n_invalid_events += 1
-                        hmm_failures |= set(eroded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
+                    if check_invalid(eroded_line, hmm_failures):
                         continue
                     line_to_use = eroded_line
                     eroded_annotations[uidstr] = eroded_line  # these only get used if there aren't any multi-seq lines, so it's ok that they don't all get added if there is a multi seq line
 
-                n_events_processed += 1
-                n_seqs_processed += len(uids)
+                counts['n_events_processed'] += 1
+                counts['n_seqs_processed'] += len(uids)
 
                 if pcounter is not None:
                     pcounter.increment(line_to_use)
@@ -1911,9 +1911,9 @@ class PartitionDriver(object):
         if perfplotter is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        print '        processed %d hmm output lines with %d sequences in %d events  (%d failures)' % (n_lines_read, n_seqs_processed, n_events_processed, len(hmm_failures))
-        if n_invalid_events > 0:
-            print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), n_invalid_events)
+        print '        processed %d hmm output lines with %d sequences in %d events  (%d failures)' % (counts['n_lines_read'], counts['n_seqs_processed'], counts['n_events_processed'], len(hmm_failures))
+        if counts['n_invalid_events'] > 0:
+            print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), counts['n_invalid_events'])
         for ecode in errorfo:
             if ecode == 'no_path':
                 print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
@@ -1924,7 +1924,7 @@ class PartitionDriver(object):
             else:
                 print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
-        annotations_to_use = padded_annotations if at_least_one_mult_hmm_line else eroded_annotations  # if every query is a single-sequence query, then the output will be less confusing to people if the N padding isn't there. But you kinda need the padding in order to make the multi-seq stuff work
+        annotations_to_use = eroded_annotations if self.args.mimic_data_read_length else padded_annotations
         seqfileopener.add_input_metafo(self.input_info, annotations_to_use.values())
         if print_annotations:
             self.print_results(None, annotations_to_use)
@@ -1996,9 +1996,6 @@ class PartitionDriver(object):
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
-        if self.args.linearham and self.current_action == 'annotate':
-            headers = utils.add_lists(headers, utils.linearham_headers)
-            utils.write_linearham_seqs(self.args.outfname, annotation_list)
         if utils.getsuffix(self.args.outfname) == '.csv':
             if cpath is not None:
                 cpath.write(self.args.outfname, self.args.is_data, partition_lines=partition_lines)  # don't need to pass in reco_info/true_partition since we passed them when we got the partition lines

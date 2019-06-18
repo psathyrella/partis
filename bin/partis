@@ -280,6 +280,7 @@ parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='s
 parent_parser.add_argument('--n-simultaneous-seqs', type=int, help='Number of simultaneous sequences on which to run the multi-HMM (e.g. 2 for a pair hmm)')
 parent_parser.add_argument('--all-seqs-simultaneous', action='store_true', help='Run all input sequences simultaneously, i.e. equivalent to setting --n-simultaneous-seqs to the number of input sequences.')
 parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true', help='Run true clonal sequences together simultaneously with the multi-HMM.')
+parent_parser.add_argument('--mimic-data-read-length', action='store_true', help='In simulation, trim V 5\' and D 3\' to mimic read lengths seen in data (must also be set when caching parameters)')
 
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
 parent_parser.add_argument('--name-column', help='column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\')')
@@ -291,7 +292,6 @@ parent_parser.add_argument('--presto-output', action='store_true', help='Write o
 parent_parser.add_argument('--airr-output', action='store_true', help='Write output file(s) in AIRR-C format (thus --outfname must have suffix .tsv).')
 parent_parser.add_argument('--airr-input', action='store_true', help='Read --infname in airr format. Equivalent to setting \'--seq-column sequence --name-column sequence_id\'.')
 parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the (fairly minimal) set of information written by default to annotation output files (choose from: %s' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
-parent_parser.add_argument('--linearham', action='store_true', help='write Smith-Waterman flexbounds/relpos values in linearham format to output file')
 parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.<suffix>)')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, a default location is used (and printed to std out). If it does not exist, we infer parameters before proceeding to the desired action.')
 parent_parser.add_argument('--parameter-type', default='hmm', choices=processargs.parameter_type_choices, help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you should almost certainly use the hmm ones, but sw is occasionally useful for debugging)')
@@ -350,6 +350,7 @@ subconfig = collections.OrderedDict((
     ('view-alternative-annotations' , {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs in a previous partition step so that this information was saved.'}),
     ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
     ('get-tree-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate tree-based selection metrics on existing output.'}),
+    ('prep-linearham'   , {'func' : run_partitiondriver, 'help' : 'Write input files for linearham, using a previous partis output file as input.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -358,7 +359,7 @@ subconfig = collections.OrderedDict((
 ))
 
 def runs_on_existing_output(actionstr):
-    if actionstr == 'get-tree-metrics':
+    if actionstr in ['get-tree-metrics', 'prep-linearham']:
         return True
     return actionstr.split('-')[0] in ['view', 'plot']
 
@@ -397,7 +398,6 @@ subargs['partition'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action'
 # ----------------------------------------------------------------------------------------
 # basic simulation:
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
-subargs['simulate'].append({'name' : '--mimic-data-read-length', 'kwargs' : {'action' : 'store_true', 'help' : 'trim V 5\' and D 3\' to mimic read lengths seen in data'}})
 subargs['simulate'].append({'name' : '--n-sim-events', 'kwargs' : {'type' : int, 'default' : 1, 'help' : 'Number of rearrangement events to simulate'}})
 subargs['simulate'].append({'name' : '--n-trees', 'kwargs' : {'type' : int, 'help' : 'Number of phylogenetic trees from which to choose during simulation (we pre-generate this many trees before starting a simulation run, then for each rearrangement event choose one at random -- so this should be at least of order the number of simulated events, so your clonal families don\'t all have the same tree).'}})
 subargs['simulate'].append({'name' : '--n-leaves', 'kwargs' : {'type' : float, 'default' : 5., 'help' : 'Parameter determining the distribution from which the number of leaves per tree is drawn (--n-leaf-distribution). For \'geometric\' and \'box\', this is the mean; while for \'zipf\' it is the exponent, i.e. *not* the mean -- see docs for numpy.random.zipf for details.'}})
@@ -438,6 +438,8 @@ subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 's
 subargs['view-alternative-annotations'].append({'name' : '--print-all-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to printing each alternative naive seq and gene call, with information on which clusters support its correctness, also print the annotations for all of these clusters below each naive sequence and gene call.'}})
 subargs['view-alternative-annotations'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['view-output'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+
+subargs['prep-linearham'].append({'name' : '--linearham-input-dir', 'required' : True, 'kwargs' : {'help' : 'directory to which to write linearham input files'}})
 
 def get_arg_names(actions):  # return set of all arg names (in the form they appear in args.__dict__) for the specified actions
     if actions == 'all':

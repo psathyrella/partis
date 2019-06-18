@@ -302,7 +302,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'relative_affinities', 'lambdas', 'nearest_target_indices'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -329,15 +329,15 @@ special_indel_columns_for_output = ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seq
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
-                     + functional_columns + ['codon_positions'] + ['tree-info', 'alternative-annotations'] + input_metafile_keys.values()
+                     + functional_columns + input_metafile_keys.values() \
+                     + ['codon_positions', 'tree-info', 'alternative-annotations', 'all_matches'] \
 simulation_headers = linekeys['simu'] + [h for h in annotation_headers if h not in linekeys['hmm']]
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',
     'full_coding_naive_seq',
     'full_coding_input_seqs',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
-sw_cache_headers = [h for h in annotation_headers if '_per_gene_support' not in h] + linekeys['sw']
-linearham_headers = ['flexbounds', 'relpos']
+sw_cache_headers = [h for h in annotation_headers if h not in linekeys['hmm']] + linekeys['sw']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting (in packages/ham/src/glomerator.cc, ReadCacheFile() and WriteCacheFile())
 bcrham_dbgstrs = {
     'partition' : {  # corresponds to stdout from glomerator.cc
@@ -371,7 +371,7 @@ io_column_configs = {
     'bools' : functional_columns + ['has_shm_indels', 'invalid'],
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches', 'alternative-annotations'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
     'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions],
-    'lists' : [k for k in linekeys['per_seq'] if k != 'indelfos'],  # indelfos is a list, but we can't just split it by colons since it has colons within the dict string (note that some are in both 'lists' and 'lists-of-lists', e.g. 'duplicates')
+    'lists' : [k for k in linekeys['per_seq'] if k not in ['indelfos', 'all_matches']],  # indelfos and all_matches are lists, but we can't just split them by colons since they have colons within the dict string (note that some are in both 'lists' and 'lists-of-lists', e.g. 'duplicates')
 }
 
 # NOTE these are all *input* conversion functions (for ouput we mostly just call str())
@@ -1352,26 +1352,67 @@ def re_sort_per_gene_support(line):
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
-def add_linearham_info(sw_info, locus, line, **kwargs):
-    """ compute the flexbounds/relpos values and add to <line> """
+def write_linearham_inputs(locus, annotation_list, base_outdir, naive_seq_name='naive', debug=False):
+    if debug:
+        print '  writing linearham input for %d clusters to %s' % (len(annotation_list), base_outdir)
+    for iclust, line in enumerate(sorted(annotation_list, key=lambda l: len(l['unique_ids']), reverse=True)):
+
+        lhinfo = get_linearham_info(line)
+        if lhinfo is None:
+            if debug:
+                print '  couldn\'t add linearham info for %s' % ' '.join(line['unique_ids'])
+            continue
+
+        outdir = '%s/iclust-%d' % (base_outdir, iclust)
+        prep_dir(outdir, wildlings=['*.fasta', '*.json'])
+
+        with open('%s/linearham-info.json' % outdir, 'w') as lhfile:
+            json.dump(lhinfo, lhfile)
+
+        with open('%s/input_seqs.fasta' % outdir, 'w') as fastafile:
+            fastafile.write('>%s\n%s\n' % (naive_seq_name, line['naive_seq']))
+            for uid, seq in zip(line['unique_ids'], line['seqs']):
+                fastafile.write('>%s\n%s\n' % (uid, seq))
+
+# ----------------------------------------------------------------------------------------
+def get_linearham_info(line, vj_flexbounds_shift=10):
+    """ compute the flexbounds/relpos values and return in a dict """
+    def get_swfo(uid):
+        def getmatches(matchfo):  # get list of gene matches sorted by decreasing score
+            genes, gfos = zip(*sorted(matchfo.items(), key=lambda x: x[1]['score'], reverse=True))
+            return genes
+        swfo = {'flexbounds' : {}, 'relpos' : {}}
+        for region in getregions(get_locus(line['v_gene'])):
+            matchfo = per_seq_val(line, 'all_matches', uid)[region]
+            sortmatches = getmatches(matchfo)
+            bounds_l, bounds_r = zip(*[matchfo[g]['qrbounds'] for g in sortmatches])  # left- (and right-) bounds for each gene
+            swfo['flexbounds'][region + '_l'] = dict(zip(sortmatches, bounds_l))
+            swfo['flexbounds'][region + '_r'] = dict(zip(sortmatches, bounds_r))
+            for gene, gfo in matchfo.items():
+                swfo['relpos'][gene] = gfo['qrbounds'][0] - gfo['glbounds'][0]  # position in the query sequence of the start of each uneroded germline match
+        return swfo
+
+    if 'all_matches' not in line:
+        raise Exception('annotation doesn\'t have information on all smith-waterman matches, it\'s probably old and needs to be rerun')
+
     fbounds = {}  # initialize the flexbounds/relpos dicts
     rpos = {}
 
-    for region in getregions(locus):
+    for region in getregions(get_locus(line['v_gene'])):
         left_region, right_region = region + '_l', region + '_r'
         fbounds[left_region] = {}
         fbounds[right_region] = {}
 
     # rank the query sequences according to their consensus sequence distances
-    cons_seq = ''.join([Counter(site_bases).most_common()[0][0] for site_bases in zip(*line['indel_reversed_seqs'])])
-    dists_to_cons = {line['unique_ids'][i] : hamming_distance(cons_seq, line['indel_reversed_seqs'][i]) for i in range(len(line['unique_ids']))}
+    cons_seq = ''.join([Counter(site_bases).most_common()[0][0] for site_bases in zip(*line['seqs'])])
+    dists_to_cons = {line['unique_ids'][i] : hamming_distance(cons_seq, line['seqs'][i]) for i in range(len(line['unique_ids']))}
 
     # loop over the ranked query sequences and update the flexbounds/relpos dicts
     while len(dists_to_cons) > 0:
         query_name = min(dists_to_cons, key=dists_to_cons.get)
-        swfo = sw_info[query_name]
+        swfo = get_swfo(query_name)
 
-        for region in getregions(locus):
+        for region in getregions(get_locus(line['v_gene'])):
             left_region, right_region = region + '_l', region + '_r'
             fbounds[left_region] = dict(swfo['flexbounds'][left_region].items() + fbounds[left_region].items())
             fbounds[right_region] = dict(swfo['flexbounds'][right_region].items() + fbounds[right_region].items())
@@ -1388,7 +1429,7 @@ def add_linearham_info(sw_info, locus, line, **kwargs):
     def span(bound_list):
         return [min(bound_list), max(bound_list)]
 
-    for region in getregions(locus):
+    for region in getregions(get_locus(line['v_gene'])):
         left_region, right_region = region + '_l', region + '_r'
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
 
@@ -1425,7 +1466,7 @@ def add_linearham_info(sw_info, locus, line, **kwargs):
 
     # make sure there is no overlap between neighboring flexbounds
     # maybe widen the gap between neighboring flexbounds
-    for rpair in region_pairs(locus):
+    for rpair in region_pairs(get_locus(line['v_gene'])):
         left_region, right_region = rpair['left'] + '_r', rpair['right'] + '_l'
         leftleft_region, rightright_region = rpair['left'] + '_l', rpair['right'] + '_r'
 
@@ -1443,11 +1484,11 @@ def add_linearham_info(sw_info, locus, line, **kwargs):
 
             # are the neighboring flexbounds even fixable?
             if left_germ_len < 1 or right_germ_len < 1:
-                return 'nonsense'
+                return None
 
-        if rpair['left'] == 'v' and left_germ_len > kwargs['vj_flexbounds_shift']:
-            fbounds[left_region][0] -= kwargs['vj_flexbounds_shift']
-            fbounds[left_region][1] -= kwargs['vj_flexbounds_shift']
+        if rpair['left'] == 'v' and left_germ_len > vj_flexbounds_shift:
+            fbounds[left_region][0] -= vj_flexbounds_shift
+            fbounds[left_region][1] -= vj_flexbounds_shift
 
         # the D gene match region is constrained to have a length of 1
         if rpair['left'] == 'd':
@@ -1457,24 +1498,21 @@ def add_linearham_info(sw_info, locus, line, **kwargs):
             fbounds[right_region][0] += (right_germ_len / 2)
             fbounds[right_region][1] += (right_germ_len / 2)
 
-        if rpair['right'] == 'j' and right_germ_len > kwargs['vj_flexbounds_shift']:
-            fbounds[right_region][0] += kwargs['vj_flexbounds_shift']
-            fbounds[right_region][1] += kwargs['vj_flexbounds_shift']
+        if rpair['right'] == 'j' and right_germ_len > vj_flexbounds_shift:
+            fbounds[right_region][0] += vj_flexbounds_shift
+            fbounds[right_region][1] += vj_flexbounds_shift
 
     # align the V-entry/J-exit flexbounds to the possible sequence positions
     fbounds['v_l'][0] = 0
-    fbounds['j_r'][1] = len(line['indel_reversed_seqs'][0])  # remember indel-reversed sequences are all the same length
-
-    line['flexbounds'] = fbounds
-    line['relpos'] = rpos
+    fbounds['j_r'][1] = len(line['seqs'][0])  # remember indel-reversed sequences are all the same length
 
     # are the V-entry/J-exit flexbounds valid?
     for region in ['v_l', 'j_r']:
         bounds_len = fbounds[region][1] - fbounds[region][0]
         if bounds_len < 0:
-            return 'nonsense'
+            return None
 
-    return 'ok'
+    return {'unique_ids' : line['unique_ids'], 'flexbounds' : fbounds, 'relpos' : rpos}
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
@@ -4231,19 +4269,6 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
             imax = ipos
 
     return imax, max_abs_diff  # <imax> is break point
-
-# ----------------------------------------------------------------------------------------
-def write_linearham_seqs(outfname, annotation_list):
-    """ write the indel-reversed cluster sequences to fasta files """
-    outdir_prefix = os.path.dirname(os.path.abspath(outfname))
-    for i, annotation in enumerate(annotation_list):
-        outdir = outdir_prefix + '/cluster' + str(i)
-        if not os.path.exists(outdir):
-            os.makedirs(outdir)
-        with open(outdir + '/input_seqs.fasta', 'w') as fastafile:
-            fastafile.write('>naive' + '\n' + annotation['naive_seq'] + '\n')
-            for j in range(len(annotation['unique_ids'])):
-                fastafile.write('>' + annotation['unique_ids'][j] + '\n' + annotation['indel_reversed_seqs'][j] + '\n')
 
 # ----------------------------------------------------------------------------------------
 def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False):

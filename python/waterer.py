@@ -175,11 +175,8 @@ class Waterer(object):
             glutils.write_glfo(cachebase + '-glfo', self.glfo)
 
         # NOTE do _not_ add extra headers here since if they're in the sw cache file I'd have to deal with removing them when I read it
-        # NOTE does *not* write failed queries also
-        headers = utils.sw_cache_headers
-        if self.args.linearham:
-            headers = utils.add_lists(headers, utils.linearham_headers)
-        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], headers, use_pyyaml=self.args.write_full_yaml_output)
+        # NOTE does *not* write failed queries
+        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], utils.sw_cache_headers, use_pyyaml=self.args.write_full_yaml_output)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):
@@ -801,51 +798,48 @@ class Waterer(object):
         qname = qinfo['name']
         assert qname not in self.info
 
-        infoline = {}
-        infoline['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
-        infoline['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
-        infoline['input_seqs'] = [self.input_info[qname]['seqs'][0], ]
+        line = {}
+        line['unique_ids'] = [qname, ]  # redundant, but used somewhere down the line
+        line['seqs'] = [qinfo['seq'], ]  # NOTE this is the seq output by vdjalign, i.e. if we reversed any indels it is the reversed sequence, also NOTE many, many things depend on this list being of length one
+        line['input_seqs'] = [self.input_info[qname]['seqs'][0], ]
+
+        for region in utils.regions:
+            line[region + '_gene'] = best[region]
 
         # erosion, insertion, mutation info for best match
-        infoline['v_5p_del'] = qinfo['glbounds'][best['v']][0]
-        infoline['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
-        infoline['d_5p_del'] = qinfo['glbounds'][best['d']][0]
-        infoline['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
-        infoline['j_5p_del'] = qinfo['glbounds'][best['j']][0]
-        infoline['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
+        line['v_5p_del'] = qinfo['glbounds'][best['v']][0]
+        line['v_3p_del'] = len(self.glfo['seqs']['v'][best['v']]) - qinfo['glbounds'][best['v']][1]  # len(germline v) - gl_match_end
+        line['d_5p_del'] = qinfo['glbounds'][best['d']][0]
+        line['d_3p_del'] = len(self.glfo['seqs']['d'][best['d']]) - qinfo['glbounds'][best['d']][1]
+        line['j_5p_del'] = qinfo['glbounds'][best['j']][0]
+        line['j_3p_del'] = len(self.glfo['seqs']['j'][best['j']]) - qinfo['glbounds'][best['j']][1]
 
-        infoline['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
-        infoline['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
-        infoline['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
-        infoline['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
+        line['fv_insertion'] = qinfo['seq'][ : qinfo['qrbounds'][best['v']][0]]
+        line['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
+        line['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
+        line['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
 
         if qname in self.info['indels']:  # NOTE at this piont indel info isn't updated for any change in the genes (the indelfo gets updated during utils.add_implicit_info())
-            infoline['indelfos'] = [self.info['indels'][qname]]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
+            line['indelfos'] = [self.info['indels'][qname]]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
         else:
-            infoline['indelfos'] = [indelutils.get_empty_indel()]
+            line['indelfos'] = [indelutils.get_empty_indel()]
 
-        infoline['duplicates'] = [self.duplicates.get(qname, []), ]  # note that <self.duplicates> doesn't handle simultaneous seqs, i.e. it's for just a single sequence
+        line['duplicates'] = [self.duplicates.get(qname, []), ]  # note that <self.duplicates> doesn't handle simultaneous seqs, i.e. it's for just a single sequence
 
-        infoline['all_matches'] = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}  # get lists with no scores, just the names (still ordered by match quality, though)
+        matchfo = {}
         for region in utils.regions:
-            infoline[region + '_gene'] = best[region]
+            matchfo[region] = {  # NOTE could use an ordered dict, but json.dump() then writes it as a regular dict, so it's no longer ordered if read from sw cache file, so it's better to just have it alwyas be unsorted to avoid confusion
+                gene : {'score' : score, 'glbounds' : qinfo['glbounds'][gene], 'qrbounds' : qinfo['qrbounds'][gene]} for score, gene in qinfo['matches'][region]
+            }
+        line['all_matches'] = [matchfo]
 
-        if self.args.linearham:
-            sortmatches = {r : [g for _, g in qinfo['matches'][r]] for r in utils.regions}
-            infoline['flexbounds'] = {}
-            for region in utils.getregions(self.glfo['locus']):
-                bounds_l, bounds_r = zip(*[qinfo['qrbounds'][g] for g in sortmatches[region]])  # left- (and right-) bounds for each gene
-                infoline['flexbounds'][region + '_l'] = dict(zip(sortmatches[region], bounds_l))
-                infoline['flexbounds'][region + '_r'] = dict(zip(sortmatches[region], bounds_r))
-            infoline['relpos'] = {gene: qinfo['qrbounds'][gene][0] - glbound[0] for gene, glbound in qinfo['glbounds'].iteritems() if utils.get_region(gene) in utils.getregions(self.glfo['locus'])}  # position in the query sequence of the start of each uneroded germline match
+        line['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
+        line['codon_positions'] = codon_positions
 
-        infoline['cdr3_length'] = codon_positions['j'] - codon_positions['v'] + 3
-        infoline['codon_positions'] = codon_positions
+        line['padlefts'] = ['']
+        line['padrights'] = ['']
 
-        infoline['padlefts'] = ['']
-        infoline['padrights'] = ['']
-
-        return infoline
+        return line
 
     # ----------------------------------------------------------------------------------------
     def check_simulation_kbounds(self, line, true_line):
@@ -861,24 +855,24 @@ class Waterer(object):
                 print_kbound_warning()
 
     # ----------------------------------------------------------------------------------------
-    def add_to_info(self, infoline):
-        assert len(infoline['unique_ids'])
-        qname = infoline['unique_ids'][0]
+    def add_to_info(self, line):
+        assert len(line['unique_ids'])
+        qname = line['unique_ids'][0]
 
         self.info['passed-queries'].add(qname)
-        self.info[qname] = infoline
+        self.info[qname] = line
 
         # add this query's matches into the overall gene match sets
         for region in utils.regions:
             self.info['all_best_matches'].add(self.info[qname][region + '_gene'])
-            self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][region])  # NOTE there's an 'all_matches' in this query's info, and also in <self.info>
+            self.info['all_matches'][region] |= set(self.info[qname]['all_matches'][0][region])  # NOTE there's an 'all_matches' in this query's info, and also in <self.info>
 
         # everything this is flagging seems to be cases where the insertion (or the overlapping germline region) is the same as the germline base, i.e. the kbound getter is working
         # if not self.args.is_data:
         #     self.check_simulation_kbounds(self.info[qname], self.reco_info[qname])
 
         if self.debug:
-            inf_label = ' ' + utils.kbound_str({r : infoline['k_' + r] for r in ['v', 'd']})
+            inf_label = ' ' + utils.kbound_str({r : line['k_' + r] for r in ['v', 'd']})
             if not self.args.is_data:
                 inf_label = 'inf: ' + inf_label
                 utils.print_reco_event(self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
@@ -968,34 +962,34 @@ class Waterer(object):
             return dbgfcn('negative cdr3 length %d' % cdr3_length)
 
         # convert to regular format used elsewhere, and add implicit info
-        infoline = self.convert_qinfo(qinfo, best, codon_positions)
+        line = self.convert_qinfo(qinfo, best, codon_positions)
         try:
-            utils.add_implicit_info(self.glfo, infoline, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
+            utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            print utils.pad_lines(''.join(lines))
+            elines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print utils.pad_lines(''.join(elines))
             print '      rerun: implicit info adding failed for %s (see above), rerunning' % qname  # shouldn't be able to happen, so print even if debug isn't set
             return dbgfcn('see above')
 
         # deal with unproductive rearrangements
-        if not utils.is_functional(infoline, iseq=0):
+        if not utils.is_functional(line, iseq=0):
             if self.args.skip_unproductive:
                 if self.debug:
-                    print '      skipping unproductive (%s)' % utils.is_functional_dbg_str(infoline, iseq=0)
+                    print '      skipping unproductive (%s)' % utils.is_functional_dbg_str(line, iseq=0)
                 self.skipped_unproductive_queries.add(qname)
                 self.remaining_queries.remove(qname)
                 return
             else:
                 pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
 
-        kbounds = self.get_kbounds(infoline, qinfo, best)  # gets the boundaries of the non-best matches from <qinfo>
+        kbounds = self.get_kbounds(line, qinfo, best)  # gets the boundaries of the non-best matches from <qinfo>
         if kbounds is None:
             return dbgfcn('nonsense kbounds')
-        infoline['k_v'] = kbounds['v']
-        infoline['k_d'] = kbounds['d']
+        line['k_v'] = kbounds['v']
+        line['k_d'] = kbounds['d']
 
-        self.add_to_info(infoline)
+        self.add_to_info(line)
 
     # ----------------------------------------------------------------------------------------
     def get_kbounds(self, line, qinfo, best, debug=False):
@@ -1160,7 +1154,7 @@ class Waterer(object):
         return kbounds
 
     # ----------------------------------------------------------------------------------------
-    def remove_framework_insertions(self, debug=False):
+    def remove_framework_insertions(self, debug=False):  # note that we modify non-implicit info here because it's faster than removing and re-adding it (although it makes this fcn more complicated)
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
@@ -1191,12 +1185,9 @@ class Waterer(object):
             for region in utils.regions:
                 swfo['regional_bounds'][region] = tuple([rb - fv_len for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
 
-            if self.args.linearham:
-                for k1 in swfo['flexbounds'].iterkeys():
-                    for k2 in swfo['flexbounds'][k1].iterkeys():
-                        swfo['flexbounds'][k1][k2] -= fv_len  # the bounds need to be adjusted for V 5' framework insertions
-                for k in swfo['relpos'].iterkeys():
-                    swfo['relpos'][k] -= fv_len  # the relpos needs to be adjusted for V 5' framework insertions
+            for region in utils.regions:
+                for gene, gfo in swfo['all_matches'][0][region].items():
+                    gfo['qrbounds'] = tuple(b - fv_len for b in gfo['qrbounds'])
 
             if debug:
                 print '    after %s' % swfo['seqs'][0]
@@ -1383,12 +1374,9 @@ class Waterer(object):
             for region in utils.regions:
                 swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
 
-            if self.args.linearham:
-                for k1 in swfo['flexbounds'].iterkeys():
-                    for k2 in swfo['flexbounds'][k1].iterkeys():
-                        swfo['flexbounds'][k1][k2] += padleft  # the bounds need to be adjusted for V 5' padding
-                for k in swfo['relpos'].iterkeys():
-                    swfo['relpos'][k] += padleft  # the relpos needs to be adjusted for V 5' padding
+            for region in utils.regions:
+                for gene, gfo in swfo['all_matches'][0][region].items():
+                    gfo['qrbounds'] = tuple(b + padleft for b in gfo['qrbounds'])
 
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
