@@ -1988,7 +1988,7 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
             if debug:
                 print '      not enough counts in %s' % (list_type + 's')
 
-    raise Exception('couldn\'t find genes for %s in %s' % (gene_name, param_dir))
+    raise Exception('couldn\'t find enough counts among genes for %s in %s (found %d, needed %d -- to decrease this minimum set --min-observations-per-gene, although note that you\'re probably getting this exception because you have too few events to have very informative distributions)' % (gene_name, param_dir, total_counts, min_counts))
 
     # print '    \nWARNING return default gene %s \'cause I couldn\'t find anything remotely resembling %s' % (color_gene(hackey_default_gene_versions[region]), color_gene(gene_name))
     # return hackey_default_gene_versions[region]
