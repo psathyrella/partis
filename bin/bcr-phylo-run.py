@@ -102,6 +102,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
         mline['unique_ids'] = [sfo['name']]
         mline['seqs'] = [sfo['seq']]  # it's really important to set both the seqs (since they're both already in there from the naive line)
         mline['input_seqs'] = [sfo['seq']]  # it's really important to set both the seqs (since they're both already in there from the naive line)
+        mline['duplicates'] = [[]]
         reco_info[sfo['name']] = mline
         utils.add_implicit_info(glfo, mline)
     final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in seqfos], reco_info)
