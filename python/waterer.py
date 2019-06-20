@@ -152,6 +152,8 @@ class Waterer(object):
             if uid not in self.input_info:
                 continue
             utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
+            if isinstance(line['all_matches'], dict):  # it used to be per-family, but then I realized it should be per-sequence, so any old cache files lying around have it as per-family
+                line['all_matches'] = [line['all_matches']]
             if indelutils.has_indels(line['indelfos'][0]):
                 self.info['indels'][uid] = line['indelfos'][0]
             self.add_to_info(line)
@@ -1186,6 +1188,8 @@ class Waterer(object):
                 swfo['regional_bounds'][region] = tuple([rb - fv_len for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
 
             for region in utils.regions:
+                if isinstance(swfo['all_matches'][0][region], list):  # if we just read an old sw cache file, it'll be a list of genes sorted by score, rather than a dict keyed by gene that includes scores and bounds, so there's no bounds to adjust
+                    continue
                 for gene, gfo in swfo['all_matches'][0][region].items():
                     gfo['qrbounds'] = tuple(b - fv_len for b in gfo['qrbounds'])
 
@@ -1375,6 +1379,8 @@ class Waterer(object):
                 swfo['regional_bounds'][region] = tuple([rb + padleft for rb in swfo['regional_bounds'][region]])  # I kind of want to just use a list now, but a.t.m. don't much feel like changing it everywhere else
 
             for region in utils.regions:
+                if isinstance(swfo['all_matches'][0][region], list):  # if we just read an old sw cache file, it'll be a list of genes sorted by score, rather than a dict keyed by gene that includes scores and bounds, so there's no bounds to adjust
+                    continue
                 for gene, gfo in swfo['all_matches'][0][region].items():
                     gfo['qrbounds'] = tuple(b + padleft for b in gfo['qrbounds'])
 

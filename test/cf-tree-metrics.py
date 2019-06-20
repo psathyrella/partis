@@ -265,7 +265,7 @@ def run_bcr_phylo(args):  # also caches parameters
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
-        if utils.output_exists(args, get_parameter_dir(varnames, vstrs) + '/hmm/hmms', offset=8):
+        if utils.output_exists(args, get_parameter_dir(varnames, vstrs) + '/hmm/hmms', offset=8, debug=args.debug):
             n_already_there += 1
             continue
         cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters --base-outdir %s %s' % (outdir, ' '.join(base_args))

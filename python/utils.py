@@ -1369,6 +1369,8 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
         swfo = {'flexbounds' : {}, 'relpos' : {}}
         for region in getregions(get_locus(line['v_gene'])):
             matchfo = sw_info[uid]['all_matches'][0][region]
+            if isinstance(matchfo, list):
+                raise Exception('\'all_matches\' key in sw info doesn\'t have qr/gl bound information, so can\'t add linearham info (it\'s probably an old sw cache file from before we started storing this info -- re-cache-parameters to rewrite it)')
             sortmatches = getmatches(matchfo)
             bounds_l, bounds_r = zip(*[matchfo[g]['qrbounds'] for g in sortmatches])  # left- (and right-) bounds for each gene
             swfo['flexbounds'][region + '_l'] = dict(zip(sortmatches, bounds_l))

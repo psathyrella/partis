@@ -94,7 +94,7 @@ class PartitionDriver(object):
             return utils.getprefix(self.args.sw_cachefname)
         elif None not in [self.args.parameter_dir, self.input_info]:
             if find_any:
-                fnames = glob.glob(self.args.parameter_dir + '/sw-cache-*')  # remain suffix-agnostic
+                fnames = glob.glob(self.args.parameter_dir + '/sw-cache*')  # remain suffix-agnostic
                 if len(fnames) == 0:
                     raise Exception('couldn\'t find any sw cache files in %s, despite setting <find_any>' % self.args.parameter_dir)
                 return utils.getprefix(fnames[0])
@@ -1570,7 +1570,7 @@ class PartitionDriver(object):
 
             genes_to_use = set()  # genes from this query that'll get ORd into the ones from the previous queries
             for region in utils.regions:
-                regmatches = set(swfo['all_matches'][0][region])  # the best <n_max_per_region> matches for this query (note: no longer ordered by score)
+                regmatches = set(swfo['all_matches'][0][region])  # the best <n_max_per_region> matches for this query (note: currently not sorted by score, since now it's a dict keyed by gene that includes the score; *but* when reading old sw cache files it's a list, and it *is* sorted by score. Neither of which matters right here since we're just making a set from all of them, but still)
                 genes_to_use |= regmatches & available_genes
 
             # OR this query's genes into the ones from previous queries
