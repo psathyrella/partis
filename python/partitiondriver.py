@@ -1847,7 +1847,6 @@ class PartitionDriver(object):
 
                 padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
                 padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <padded_line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
-                padded_line['all_matches'] = [self.sw_info[uid]['all_matches'][0] for uid in uids]
                 padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
                 for lkey in [lk for lk in utils.input_metafile_keys.values() if lk in self.sw_info[uids[0]]]:  # if it's in one, it should be in all of them
                     padded_line[lkey] = [self.sw_info[uid][lkey][0] for uid in uids]
