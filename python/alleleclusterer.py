@@ -77,7 +77,7 @@ class AlleleClusterer(object):
         full_length_queries = [q for q in swfo['queries'] if swfo[q]['v_5p_del'] == 0 and swfo[q]['j_3p_del'] == 0]
         print '   removing %d/%d sequences with v_5p or j_3p deletions' % (len(swfo['queries']) - len(full_length_queries), len(swfo['queries']))
         if len(full_length_queries) == 0:
-            return None, None, None
+            return None, None
 
         # then cluster by full-length (v+d+j) naive sequence
         clusters = utils.collapse_naive_seqs(swfo, queries=full_length_queries)
