@@ -364,6 +364,7 @@ def set_lb_values(dtree, tau, only_calc_val=None, multifo=None, debug=False):
     if debug:
         print '  calculating %s with tau %.4f' % (' and '.join(metrics_to_calc), tau)
 
+    initial_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
     dtree = get_tree_with_dummy_branches(dtree, tau, debug=debug)  # this returns a new dtree, but the old tree is a subtree of the new one (or at least its collection of nodes are), and these nodes get modified by the process (hence the reversal fcn below)
 
     # calculate clock length (i.e. for each node, the distance to that node's parent)
@@ -429,7 +430,7 @@ def set_lb_values(dtree, tau, only_calc_val=None, multifo=None, debug=False):
         delattr(node, 'up_polarizer')
         delattr(node, 'down_polarizer')
 
-    remove_dummy_branches(dtree)
+    remove_dummy_branches(dtree, initial_labels)
 
     return returnfo
 
@@ -460,6 +461,10 @@ def set_multiplicities(dtree, annotation, input_metafo, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_leaves=False, debug=False): # add long branches above root and/or below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
+    zero_length_edges = [e for e in old_dtree.preorder_edge_iter() if e.length == 0]
+    if len(zero_length_edges) > 0:  # rerooting to remove dummy branches screws up the tree in some cases with zero length branches (see comment in that fcn)
+        old_dtree = copy.deepcopy(old_dtree)  # could maybe do this by default, but it'll probably be really slow on large trees (at least iterating through the trees is; although I suppose maybe deepcopy is smater than that)
+        print '    %s found %d zero length branches in tree, so deep copying before adding dummy branches (this is probably ok ish, but in general it\'s a bad idea to have zero length branches in your trees)' % (utils.color('yellow', 'warning'), len(zero_length_edges))
     dummy_edge_length = n_tau_lengths * tau
 
     new_root_taxon = dendropy.Taxon(dummy_str + '-root')
@@ -487,15 +492,28 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
     return new_dtree
 
 # ----------------------------------------------------------------------------------------
-def remove_dummy_branches(dtree, add_dummy_leaves=False):
+def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=False):
     if add_dummy_leaves:
         raise Exception('not implemented (shouldn\'t be too hard, but a.t.m. I don\'t think I\'ll need it)')
 
     assert len(dtree.seed_node.child_nodes()) == 1
-    dtree.reroot_at_node(dtree.seed_node.child_nodes()[0])  # reroot at old root node
+    new_root_node = dtree.seed_node.child_nodes()[0]
+    if debug:
+        print '  rerooting at %s' % new_root_node.taxon.label
+        print '            current children: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
+    # NOTE if the new root has a child separated by a zero-length edge, this reroot call for some reason deletes that child from the tree (both with and without suppress_unifurcations set). After messing around a bunch to try to fix it, the message I'm taking is just that zero length branches (and unifurcations) are a bad idea and I should just forbid them
+    dtree.reroot_at_node(new_root_node)  #, suppress_unifurcations=False)  # reroot at old root node (not sure if I should suppress_unifurcations?)
+    if debug:
+        print '       children after reroot: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
     dtree.prune_taxa_with_labels([dummy_str + '-root'])
     dtree.purge_taxon_namespace()  # I'm sure there's a good reason the previous line doesn't do this
     dtree.update_bipartitions()  # not sure if I need this
+    if debug:
+        print '        children after purge: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
+
+    final_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
+    if initial_labels != final_labels:
+        print '    %s nodes after dummy branch addition and removal not the same as before:\n      missing: %s\n        extra: %s' % (utils.color('red', 'error'), ' '.join(initial_labels - final_labels), ' '.join(final_labels - initial_labels))
 
 # ----------------------------------------------------------------------------------------
 def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
