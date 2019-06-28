@@ -238,7 +238,7 @@ class ClusterPath(object):
                 mark = mark[:-2] + '* '
             if mark.count(' ') < len(mark):
                 mark = utils.color('yellow', mark)
-            right_extrastr = '' if self.n_seqs() < 400 else mark  # if line is going to be really long, put the yellow stuff also on the right side
+            right_extrastr = '' if self.n_seqs() < 200 else mark  # if line is going to be really long, put the yellow stuff also on the right side
             self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices, print_cluster_indices=print_cluster_indices, right_extrastr=right_extrastr)
 
     # ----------------------------------------------------------------------------------------
