@@ -924,16 +924,17 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
 # ----------------------------------------------------------------------------------------
 def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=None, workdir=None, debug=False):
     import plotting
+    import lbplotting
     start = time.time()
 
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
     subdirs = [m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']] + ['trees']
     utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html', '*.yaml'], subdirs=subdirs)
-    fnames = plotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
-    # fnames += plotting.plot_lb_distributions(inf_plotdir, lines_to_use)
-    fnames += plotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], debug=debug)
+    fnames = lbplotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
+    # fnames += lbplotting.plot_lb_distributions(inf_plotdir, lines_to_use)
+    fnames += lbplotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], debug=debug)
     # if ete_path is not None:
-    #     plotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
+    #     lbplotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
     plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
     if true_lines_to_use is not None:
@@ -947,19 +948,19 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
             for lb_metric, lb_label in lb_metrics.items():
                 if lb_metric == 'lbi':
                     for affy_key in affy_keys[lb_metric]:
-                        fnames += plotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True, affy_key=affy_key, debug=debug)
+                        fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True, affy_key=affy_key, debug=debug)
                 elif lb_metric == 'lbr':
-                    fnames[0] += plotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=debug)[0]
-                # fnames[-1] += plotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
+                    fnames[0] += lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=debug)[0]
+                # fnames[-1] += lbplotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
-                fnames[-1] += plotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)
-            lb_vs_shm_fnames = plotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
+                fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)
+            lb_vs_shm_fnames = lbplotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
             assert len(lb_vs_shm_fnames) > 1
             fnames[-1] += lb_vs_shm_fnames[0]
             fnames += lb_vs_shm_fnames[1:]
             # if ete_path is not None:
-            #     plotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
+            #     lbplotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in subdirs])
 
     print '    tree metric plotting time: %.1f sec' % (time.time() - start)
@@ -1090,5 +1091,6 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     os.rmdir(workdir)
 
     if plotdir is not None:
+        import lbplotting
         import plotting
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
