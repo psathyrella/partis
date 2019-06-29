@@ -168,9 +168,9 @@ def simulate():
     print '  writing annotations to %s' % simfname()
     utils.write_annotations(simfname(), glfo, mutated_events, utils.simulation_headers)
 
-    import plotting
+    import lbplotting
     for outdir, event in zip(outdirs, mutated_events):
-        plotting.plot_bcr_phylo_simulation(outdir, event, args.extrastr, args.metric_for_target_distance)
+        lbplotting.plot_bcr_phylo_simulation(outdir, event, args.extrastr, args.metric_for_target_distance)
     # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
 
 # ----------------------------------------------------------------------------------------

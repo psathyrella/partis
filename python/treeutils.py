@@ -950,7 +950,10 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
                     for affy_key in affy_keys[lb_metric]:
                         fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True, affy_key=affy_key, debug=debug)
                 elif lb_metric == 'lbr':
-                    fnames[0] += lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=debug)[0]
+                    ftmps = lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, debug=debug)[0]
+                    assert len(ftmps) == 4  # arg ugh ick
+                    fnames[0] += ftmps[:2]
+                    fnames[1] += ftmps[2:]
                 # fnames[-1] += lbplotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label)[0]
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
@@ -1091,6 +1094,5 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     os.rmdir(workdir)
 
     if plotdir is not None:
-        import lbplotting
         import plotting
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)

@@ -139,7 +139,7 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr, metric_for_target_distanc
     plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target sequence' % metric_for_target_distance)
     plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
 
-    make_html(outdir + '/plots')
+    plotting.make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
 def get_tree_from_line(line, is_simu):
@@ -213,7 +213,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, n_per_row=4):
             plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y' if lb_metric == 'lbr' else '', ylabel='counts', title='%s  (size %d%s)' % (lb_metric.upper(), len(line['tree-info']['lb'][lb_metric]), leafskipstr))
             if iclust < n_per_row:  # i.e. only put one row's worth in the html
                 fnames[-1].append('%s/%s.svg' % (plotdir, plotname))
-            make_html(plotdir)
+            plotting.make_html(plotdir)
 
     return fnames
 
@@ -344,7 +344,10 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # perfect vals
     ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
     # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
-    plotting.mpl_finish(ax, plotdir, ptile_plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean percentile of resulting %saffinities' % affy_key_str.replace('-', ''))
+    plotting.mpl_finish(ax, plotdir, ptile_plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75),
+                        title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
+                        xlabel='%s threshold (percentile)' % lb_metric.upper(),
+                        ylabel='mean percentile of\nresulting %s' % ' '.join([affy_key_str.replace('-', ''), 'affinities']))
     fnames.append('%s/%s.svg' % (plotdir, ptile_plotname))
     dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, ptile_plotname), ptile_vals)
 
@@ -434,7 +437,10 @@ def make_ancestral_ptile_plot(plotvals, vstr, vstr_label, lb_metric, ptile_range
     ax.plot(lb_ptile_vals['lb_ptiles'], lb_ptile_vals['mean_%s' % vstr], linewidth=3, alpha=0.7)
     ax.plot(ax.get_xlim(), (mean_n_anc, mean_n_anc), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
     ax.plot(perfect_ptile_vals['ptiles'], perfect_ptile_vals['mean_%s' % vstr], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
-    plotting.mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean %s since affinity increase' % vstr_label)
+    plotting.mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05),
+                        title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
+                        xlabel='%s threshold (percentile)' % lb_metric.upper(),
+                        ylabel='mean %s\nsince affinity increase' % vstr_label)
 
     # it would be nice to rewrite the above so that the stuff going into the yaml dict looked more like the analagous lines in the affy fcn
     dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, plotname), {'lb_ptiles' : lb_ptile_vals['lb_ptiles'], 'mean_%s_ptiles' % vstr : lb_ptile_vals['mean_%s' % vstr], 'perfect_vals' : perfect_ptile_vals['mean_%s' % vstr]})
