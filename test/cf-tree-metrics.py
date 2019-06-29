@@ -215,7 +215,7 @@ def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # 
             missing_vstrs['missing'].append(vstrs)
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
-        yval_key = 'mean_%s_ptiles' % ('affy' if metric == 'lbi' else 'n_ancestor')
+        yval_key = 'mean_%s_ptiles' % ('affy' if metric == 'lbi' else 'n-ancestor')
         diff_vals = [abs(pafp - afp) for lbp, afp, pafp in zip(info['lb_ptiles'], info[yval_key], info['perfect_vals']) if lbp > min_ptile_to_plot]
         if len(diff_vals) == 0:
             missing_vstrs['empty'].append(vstrs)  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>

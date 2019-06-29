@@ -1480,69 +1480,130 @@ def plot_lb_vs_delta_affinity(plotdir, true_lines, lb_metric, lb_label, debug=Fa
     return [fnames]
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), debug=False):
-    # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
-    # NOTE because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
+def make_ancestral_ptile_plot(plotvals, vstr, vstr_label, lb_metric, ptile_range_tuple, plotdir, plot_str, debug=False):
     def dump_plot_info_to_yaml(fname, yamlfo):
         with open(fname, 'w') as yfile:
             json.dump(yamlfo, yfile)
 
-    fnames = []
+    plotname = '%s-vs-%s-%s-tree-ptiles' % (lb_metric, vstr, plot_str)
+    if len(plotvals[vstr]) == 0:
+        print '    no %s vals' % vstr
+        dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, plotname), {'lb_ptiles' : [], 'mean_%s_ptiles' % vstr : [], 'perfect_vals' : []})
+        return plotname
 
+    # plot potential lb cut thresholds with percentiles
+    if debug:
+        print '    ptile   %s     mean %s' % (lb_metric, vstr_label)
+    lb_ptile_vals = {'lb_ptiles' : [], 'mean_%s' % vstr: []}
+    lbvals = plotvals[lb_metric]
+    n_anc_vals = plotvals[vstr]  # leaving this as <n_anc_vals>, but it can now also be branch length
+    for percentile in numpy.arange(*ptile_range_tuple):
+        lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
+        corresponding_n_anc_vals = [n_anc for lb, n_anc in zip(lbvals, n_anc_vals) if lb >= lb_ptile_val]  # n-anc vals corresponding to lb greater than <lb_ptile_val> (i.e. the n-anc vals that you'd get if you took all the lb values greater than that)
+        if len(corresponding_n_anc_vals) == 0:
+            if debug:
+                print '   %5.0f    no vals' % percentile
+            continue
+        lb_ptile_vals['lb_ptiles'].append(float(percentile))  # cast to float is so the yaml file written below isn't so damn ugly
+        lb_ptile_vals['mean_%s' % vstr].append(float(numpy.mean(corresponding_n_anc_vals)))
+        if debug:
+            print '   %5.0f   %5.2f   %8.4f' % (percentile, lb_ptile_val, lb_ptile_vals['mean_%s' % vstr][-1])
+
+    # make the "perfect" line
+    if debug:
+        print '  perfect:'
+        print '    ptile  n_taken   %s     mean %s' % ('affy', vstr_label)
+    perfect_ptile_vals = {'ptiles' : [], 'mean_%s' % vstr: []}
+    sorted_n_anc_vals = sorted(plotvals[vstr])
+    for percentile in numpy.arange(*ptile_range_tuple):
+        n_to_take = int((1. - percentile / 100) * len(sorted_n_anc_vals))
+        corresponding_n_anc_vals = sorted_n_anc_vals[:n_to_take]
+        if len(corresponding_n_anc_vals) == 0:
+            if debug:
+                print '   %5.0f   %5d   no vals' % (percentile, n_to_take)
+            continue
+        perfect_ptile_vals['ptiles'].append(float(percentile))
+        perfect_ptile_vals['mean_%s' % vstr].append(float(numpy.mean(corresponding_n_anc_vals)))
+        if debug:
+            print '   %5.0f   %5d  %8.4f' % (percentile, n_to_take, perfect_ptile_vals['mean_%s' % vstr][-1])
+
+    fig, ax = mpl_init()
+    mean_n_anc = numpy.mean(n_anc_vals)
+    ymax = max([mean_n_anc] + lb_ptile_vals['mean_%s' % vstr] + perfect_ptile_vals['mean_%s' % vstr])
+    ax.plot(lb_ptile_vals['lb_ptiles'], lb_ptile_vals['mean_%s' % vstr], linewidth=3, alpha=0.7)
+    ax.plot(ax.get_xlim(), (mean_n_anc, mean_n_anc), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
+    ax.plot(perfect_ptile_vals['ptiles'], perfect_ptile_vals['mean_%s' % vstr], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
+    mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean %s since affinity increase' % vstr_label)
+
+    # it would be nice to rewrite the above so that the stuff going into the yaml dict looked more like the analagous lines in the affy fcn
+    dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, plotname), {'lb_ptiles' : lb_ptile_vals['lb_ptiles'], 'mean_%s_ptiles' % vstr : lb_ptile_vals['mean_%s' % vstr], 'perfect_vals' : perfect_ptile_vals['mean_%s' % vstr]})
+
+    return plotname
+
+# ----------------------------------------------------------------------------------------
+def add_n_ancestor_vals(node, dtree, line, plotvals, affinity_changes, lb_metric, min_affinity_change=1e-6, n_max_steps=15, debug=False):
+    # find number of steps/ancestors to the nearest ancestor with lower affinity than <node>'s
+    #   - also finds the corresponding distance, which is to the lower end of the branch containing the corresponding affinity-increasing mutation
+    #   - this is chosen so that <n_steps> and <branch_len> are both 0 for the node at the bottom of a branch on which affinity increases, and are *not* the distance *to* the lower-affinity node
+    #   - because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
+    #   - <min_affinity_change> is just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd) (note that at least for now, and with default settings, the affinity changes should all be pretty similar, and not small)
+    this_affinity = utils.per_seq_val(line, 'affinities', node.taxon.label)
+    if debug:
+        print '     %12s %12s %8s %9.4f' % (node.taxon.label, '', '', this_affinity)
+
+    ancestor_node = node
+    chosen_ancestor_affinity = None
+    n_steps, branch_len  = 0, 0.
+    while n_steps < n_max_steps:  # note that if we can't find an ancestor with worse affinity, we don't plot the node
+        if ancestor_node is dtree.seed_node:
+            break
+        ancestor_distance = ancestor_node.edge_length  # distance from current <ancestor_node> to its parent (who in the next line becomes <ancestor_node>)
+        ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
+        ancestor_uid = ancestor_node.taxon.label
+        if ancestor_uid not in line['unique_ids']:
+            print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, node.taxon.label)
+            break
+        ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
+        if this_affinity - ancestor_affinity > min_affinity_change:  # if we found an ancestor with lower affinity, we're done
+            chosen_ancestor_affinity = ancestor_affinity
+            affinity_changes.append(this_affinity - ancestor_affinity)
+            break
+        if debug:
+            print '     %12s %12s %8.4f %9.4f%s' % ('', ancestor_uid, branch_len, ancestor_affinity, utils.color('green', ' x') if ancestor_node is dtree.seed_node else '')
+        n_steps += 1
+        branch_len += ancestor_distance
+
+    if chosen_ancestor_affinity is None:  # couldn't find ancestor with lower affinity
+        return
+
+    plotvals['n-ancestor'].append(n_steps)
+    plotvals['branch-length'].append(branch_len)
+    plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
+    # plotvals['uids'].append(node.taxon.label)
+
+    if debug:
+        print '     %12s %12s %8.4f %9.4f  %s%-9.4f' % ('', ancestor_uid, branch_len, chosen_ancestor_affinity, utils.color('red', '+'), this_affinity - chosen_ancestor_affinity)
+
+# ----------------------------------------------------------------------------------------
+def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), debug=False):
+    # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
+
+    vstr_list = ['n-ancestor', 'branch-length']
     # first plot lb metric vs number of ancestors since last affinity increase (all clusters)
     if debug:
         print '  finding N ancestors since last affinity increase'
-        print '         node        ancestors   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
-    n_ancestor_vals = {val_type : [] for val_type in [lb_metric, 'n-ancestors']}  # , 'uids']}
-    # TMP_plotvals = {x : {'leaf' : [], 'internal' : []} for x in [lb_metric, 'n-ancestors']}  # TODO all this commented stuff is for splitting apart leaf and internal plots. If I end up wanting to do that again, I should combine it with plot_lb_vs_shm().
+        print '         node        ancestors  distance   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
+    plotvals = {val_type : [] for val_type in [lb_metric] + vstr_list}  # , 'uids']}
     for line in true_lines:
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
         affinity_changes = []
-        for this_uid, this_affinity in zip(line['unique_ids'], line['affinities']):
-            node = dtree.find_node_with_taxon_label(this_uid)
+        for uid in line['unique_ids']:
+            node = dtree.find_node_with_taxon_label(uid)
             if node is dtree.seed_node:  # root doesn't have any ancestors
                 continue
-            if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][this_uid] == 0:  # lbr equals 0 should really be treated as None/missing
+            if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][uid] == 0:  # lbr equals 0 should really be treated as None/missing
                 continue
-
-            if debug:
-                print '     %12s %12s %9.4f' % (this_uid, '', this_affinity)
-            min_affinity_change = 1e-6  # just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd) (note that at least for now, the affinity changes should all be pretty similar, and not small)
-            n_max_steps = 15
-            ancestor_node = node
-            ancestor_affinity = None
-            n_steps = 0
-            while True:  # NOTE if we can't find an ancestor with worse affinity, we don't plot the node
-                if ancestor_node is dtree.seed_node:
-                    break
-                ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
-                ancestor_uid = ancestor_node.taxon.label
-                if ancestor_uid not in line['unique_ids']:
-                    print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, this_uid)
-                    break
-                iancestor = line['unique_ids'].index(ancestor_uid)
-                if this_affinity - line['affinities'][iancestor] > min_affinity_change:  # if we found an ancestor with lower affinity, we're done
-                    ancestor_affinity = line['affinities'][iancestor]
-                    affinity_changes.append(this_affinity - line['affinities'][iancestor])
-                    break
-                if debug:
-                    print '     %12s %12s %9.4f%s' % ('', ancestor_uid, line['affinities'][iancestor], utils.color('green', ' x') if ancestor_node is dtree.seed_node else '')
-                n_steps += 1
-                if n_steps >= n_max_steps:
-                    break
-            if ancestor_affinity is None:
-                # print '    couldn\'t find ancestor with lower affinity for %s within %d steps' % (this_uid, n_max_steps)
-                continue
-
-            if debug:
-                print '     %12s %12s %9.4f  %s%-9.4f' % ('', ancestor_uid, ancestor_affinity, utils.color('red', '+'), this_affinity - ancestor_affinity)
-
-            n_ancestor_vals['n-ancestors'].append(n_steps)
-            n_ancestor_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][this_uid])
-            # n_ancestor_vals['uids'].append(this_uid)
-            # tkey = 'leaf' if node.is_leaf() else 'internal'
-            # TMP_plotvals['n-ancestors'][tkey].append(n_steps)
-            # TMP_plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][this_uid])
+            add_n_ancestor_vals(node, dtree, line, plotvals, affinity_changes, lb_metric, debug=debug)
 
         # make sure affinity changes are all roughly the same size
         affinity_changes = sorted(affinity_changes)
@@ -1556,67 +1617,16 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
         if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:
             print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
 
-    scatter_plotname = '%s-vs-n-ancestors-%s-tree' % (lb_metric, plot_str)  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
-    ptile_plotname = '%s-vs-n-ancestors-%s-tree-ptiles' % (lb_metric, plot_str)
+    fnames = []
+    for vstr in vstr_list:
+        vstr_label = vstr.replace('-', ' ').replace('n ', 'N ')
 
-    # fig, ax = mpl_init()
-    # for tkey, color in zip(TMP_plotvals['n-ancestors'], (None, 'darkgreen')):
-    #     ax.scatter(TMP_plotvals['n-ancestors'][tkey], TMP_plotvals[lb_metric][tkey], label=tkey, alpha=0.4, color=color)
-    # mpl_finish(ax, plotdir, scatter_plotname, title='%s on true tree' % lb_metric.upper(), xlabel='N ancestors since affinity increase', ylabel=lb_label)
-    plot_2d_scatter(scatter_plotname, plotdir, n_ancestor_vals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar='n-ancestors', xlabel='N ancestors since affinity increase', log='y' if lb_metric == 'lbr' else '')
-    fnames.append('%s/%s.svg' % (plotdir, scatter_plotname))
+        scatter_plotname = '%s-vs-%s-%s-tree' % (lb_metric, vstr, plot_str)  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
+        plot_2d_scatter(scatter_plotname, plotdir, plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=vstr, xlabel='%s since affinity increase' % vstr_label, log='y' if lb_metric == 'lbr' else '')
+        fnames.append('%s/%s.svg' % (plotdir, scatter_plotname))
 
-    if len(n_ancestor_vals['n-ancestors']) == 0:
-        print '    no n-ancestor vals'
-        dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, ptile_plotname), {'lb_ptiles' : [], 'mean_n_ancestor_ptiles' : [], 'perfect_vals' : []})
-        return [fnames]
-
-    # then plot potential lb cut thresholds with percentiles
-    if debug:
-        print '    ptile   %s     mean N ancestors' % lb_metric
-    lb_ptile_vals = {'lb_ptiles' : [], 'mean_n_ancestors' : []}
-    lbvals = n_ancestor_vals[lb_metric]
-    n_anc_vals = n_ancestor_vals['n-ancestors']
-    for percentile in numpy.arange(*ptile_range_tuple):
-        lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
-        corresponding_n_anc_vals = [n_anc for lb, n_anc in zip(lbvals, n_anc_vals) if lb >= lb_ptile_val]  # n-anc vals corresponding to lb greater than <lb_ptile_val> (i.e. the n-anc vals that you'd get if you took all the lb values greater than that)
-        if len(corresponding_n_anc_vals) == 0:
-            if debug:
-                print '   %5.0f    no vals' % percentile
-            continue
-        lb_ptile_vals['lb_ptiles'].append(float(percentile))  # cast to float is so the yaml file written below isn't so damn ugly
-        lb_ptile_vals['mean_n_ancestors'].append(float(numpy.mean(corresponding_n_anc_vals)))
-        if debug:
-            print '   %5.0f   %5.2f   %8.4f' % (percentile, lb_ptile_val, lb_ptile_vals['mean_n_ancestors'][-1])
-
-    # then make the "perfect" line
-    if debug:
-        print '    ptile  n_taken   %s     mean N ancestors' % 'affy'
-    perfect_ptile_vals = {'ptiles' : [], 'mean_n_ancestors' : []}
-    sorted_n_anc_vals = sorted(n_ancestor_vals['n-ancestors'])
-    for percentile in numpy.arange(*ptile_range_tuple):
-        n_to_take = int((1. - percentile / 100) * len(sorted_n_anc_vals))
-        corresponding_n_anc_vals = sorted_n_anc_vals[:n_to_take]
-        if len(corresponding_n_anc_vals) == 0:
-            if debug:
-                print '   %5.0f   %5d    no vals' % (percentile, n_to_take)
-            continue
-        perfect_ptile_vals['ptiles'].append(float(percentile))
-        perfect_ptile_vals['mean_n_ancestors'].append(float(numpy.mean(corresponding_n_anc_vals)))
-        if debug:
-            print '   %5.0f   %5d   %8.4f' % (percentile, n_to_take, perfect_ptile_vals['mean_n_ancestors'][-1])
-
-    fig, ax = mpl_init()
-    ax.plot(lb_ptile_vals['lb_ptiles'], lb_ptile_vals['mean_n_ancestors'], linewidth=3, alpha=0.7)
-    mean_n_anc = numpy.mean(n_anc_vals)
-    ax.plot(ax.get_xlim(), (mean_n_anc, mean_n_anc), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
-    ax.plot(perfect_ptile_vals['ptiles'], perfect_ptile_vals['mean_n_ancestors'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
-    ymax = max([mean_n_anc] + lb_ptile_vals['mean_n_ancestors'] + perfect_ptile_vals['mean_n_ancestors'])
-    mpl_finish(ax, plotdir, ptile_plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05), title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s threshold (percentile)' % lb_metric.upper(), ylabel='mean N ancestors since affinity increase')
-    fnames.append('%s/%s.svg' % (plotdir, ptile_plotname))
-
-    # it would be nice to rewrite the above so that the stuff going into the yaml dict looked more like the analagous lines in the affy fcn
-    dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, ptile_plotname), {'lb_ptiles' : lb_ptile_vals['lb_ptiles'], 'mean_n_ancestor_ptiles' : lb_ptile_vals['mean_n_ancestors'], 'perfect_vals' : perfect_ptile_vals['mean_n_ancestors']})
+        pname = make_ancestral_ptile_plot(plotvals, vstr, vstr_label, lb_metric, ptile_range_tuple, plotdir, plot_str, debug=debug)
+        fnames.append('%s/%s.svg' % (plotdir, pname))
 
     return [fnames]
 
