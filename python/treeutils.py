@@ -135,7 +135,7 @@ def collapse_nodes(dtree, keep_name, remove_name, debug=False):  # collapse edge
         raise Exception('see above')
 
     if child_node.is_leaf():
-        dtree.prune_taxa([child_node.taxon])
+        dtree.prune_taxa([child_node.taxon], suppress_unifurcations=False)
         if debug:
             print '       pruned leaf node %s' % (('%s (renamed parent to %s)' % (remove_name, keep_name)) if swapped else remove_name)
     else:
@@ -483,6 +483,13 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
             tns.add_taxon(dendropy.Taxon(new_label))
             new_child_node = lnode.new_child(taxon=tns.get_taxon(new_label), edge_length=dummy_edge_length)
 
+    zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0]
+    if len(zero_len_edge_nodes) > 0:
+        print '    %s found %d zero length edges in tree, which means lb ratio will mis-categorize branches' % (utils.color('red', 'warning'), len(zero_len_edge_nodes))
+        # for node in zero_len_edge_nodes:  # we don't really want to modify the tree this drastically here (and a.t.m. this causes a crash later on), but I'm leaving it as a placeholder for how to remove zero length edges
+        #     collapse_nodes(new_dtree, node.taxon.label, node.parent_node.taxon.label)  # keep the child, since it can be a leaf
+        # print utils.pad_lines(get_ascii_tree(dendro_tree=new_dtree))
+
     new_dtree.update_bipartitions(suppress_unifurcations=False)  # not sure if I need this? (suppress_unifurcations is because otherwise it removes the branch between the old and new root nodes)
 
     if debug:
@@ -496,7 +503,8 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
     if add_dummy_leaves:
         raise Exception('not implemented (shouldn\'t be too hard, but a.t.m. I don\'t think I\'ll need it)')
 
-    assert len(dtree.seed_node.child_nodes()) == 1
+    if len(dtree.seed_node.child_nodes()) != 1:
+        print '  %s root node has more than one child when removing dummy branches: %s' % (utils.color('yellow', 'warning'), ' '.join([n.taxon.label for n in dtree.seed_node.child_nodes()]))
     new_root_node = dtree.seed_node.child_nodes()[0]
     if debug:
         print '  rerooting at %s' % new_root_node.taxon.label
