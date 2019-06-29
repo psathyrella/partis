@@ -933,8 +933,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     fnames = lbplotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
     # fnames += lbplotting.plot_lb_distributions(inf_plotdir, lines_to_use)
     fnames += lbplotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], debug=debug)
-    # if ete_path is not None:
-    #     lbplotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
+    if ete_path is not None:
+        lbplotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
     plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
     if true_lines_to_use is not None:
@@ -962,8 +962,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
             assert len(lb_vs_shm_fnames) > 1
             fnames[-1] += lb_vs_shm_fnames[0]
             fnames += lb_vs_shm_fnames[1:]
-            # if ete_path is not None:
-            #     lbplotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
+            if ete_path is not None:
+                lbplotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in subdirs])
 
     print '    tree metric plotting time: %.1f sec' % (time.time() - start)
