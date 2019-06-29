@@ -8,6 +8,7 @@ import yaml
 import json
 import time
 import warnings
+import collections
 
 import utils
 from hist import Hist
@@ -245,11 +246,11 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 
     xmin, xmax = min(getall(xvar)), max(getall(xvar))
     ymin, ymax = min(getall(yvar)), max(getall(yvar))
-    xbounds = xmin - 0.01 * (xmax - xmin), 1.05 * xmax
+    xbounds = xmin - 0.02 * (xmax - xmin), xmax + 0.02 * (xmax - xmin)
     if 'y' in log:
-        ybounds = 0.95 * ymin, 1.05 * ymax
+        ybounds = 0.75 * ymin, 1.3 * ymax
     else:
-        ybounds = ymin - 0.01 * (ymax - ymin), 1.05 * ymax
+        ybounds = ymin - 0.03 * (ymax - ymin), ymax + 0.08 * (ymax - ymin)
     plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc)
     return '%s/%s.svg' % (plotdir, plotname)
 
@@ -344,7 +345,7 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clust
     ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # perfect vals
     ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
     # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
-    plotting.mpl_finish(ax, plotdir, ptile_plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.035, 0.75),
+    plotting.mpl_finish(ax, plotdir, ptile_plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
                         title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
                         xlabel='%s threshold (percentile)' % lb_metric.upper(),
                         ylabel='mean percentile of\nresulting %s' % ' '.join([affy_key_str.replace('-', ''), 'affinities']))
@@ -437,7 +438,7 @@ def make_ancestral_ptile_plot(plotvals, vstr, vstr_label, lb_metric, ptile_range
     ax.plot(lb_ptile_vals['lb_ptiles'], lb_ptile_vals['mean_%s' % vstr], linewidth=3, alpha=0.7)
     ax.plot(ax.get_xlim(), (mean_n_anc, mean_n_anc), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
     ax.plot(perfect_ptile_vals['ptiles'], perfect_ptile_vals['mean_%s' % vstr], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
-    plotting.mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(0, 1.1 * ymax), leg_loc=(0.035, 0.05),
+    plotting.mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(-0.02*ymax, 1.1*ymax), leg_loc=(0.5, 0.6),
                         title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
                         xlabel='%s threshold (percentile)' % lb_metric.upper(),
                         ylabel='mean %s\nsince affinity increase' % vstr_label)
@@ -495,12 +496,12 @@ def add_n_ancestor_vals(node, dtree, line, plotvals, affinity_changes, lb_metric
 def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), debug=False):
     # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
 
-    vstr_list = ['n-ancestor', 'branch-length']
+    vstr_list = collections.OrderedDict([('n-ancestor', 'N ancestors'), ('branch-length', 'branch length')])
     # first plot lb metric vs number of ancestors since last affinity increase (all clusters)
     if debug:
         print '  finding N ancestors since last affinity increase'
         print '         node        ancestors  distance   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
-    plotvals = {val_type : [] for val_type in [lb_metric] + vstr_list}  # , 'uids']}
+    plotvals = {val_type : [] for val_type in [lb_metric] + vstr_list.keys()}  # , 'uids']}
     for line in true_lines:
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
         affinity_changes = []
@@ -525,9 +526,8 @@ def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label
             print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
 
     fnames = []
-    for vstr in vstr_list:
-        vstr_label = vstr.replace('-', ' ').replace('n ', 'N ')
-
+    for vstr, vstr_label in vstr_list.items():
+        # vstr_label = vstr.replace('-', ' ').replace('n ', 'N ')
         scatter_plotname = '%s-vs-%s-%s-tree' % (lb_metric, vstr, plot_str)  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
         plot_2d_scatter(scatter_plotname, plotdir, plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=vstr, xlabel='%s since affinity increase' % vstr_label, log='y' if lb_metric == 'lbr' else '')
         fnames.append('%s/%s.svg' % (plotdir, scatter_plotname))
