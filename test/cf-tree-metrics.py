@@ -13,6 +13,9 @@ import subprocess
 import multiprocessing
 
 # ----------------------------------------------------------------------------------------
+lb_metric_axis_stuff = [('lbi', 'affinity'), ('lbr', 'n-ancestor'), ('lbr', 'branch-length')]
+
+# ----------------------------------------------------------------------------------------
 def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.calculate_max_lbi()
     return max(1, int(args.seq_len * tau * ntl))
 
@@ -125,7 +128,7 @@ def get_outdir(varnames, vstr, svtype):
     assert len(varnames) == len(vstr)
     outdir = [args.base_outdir, args.label]
     for vn, vstr in zip(varnames, vstr):
-        if vn not in args.scan_vars[svtype]:  # e.g. lb tau, which is only for partitioning
+        if vn not in args.scan_vars[svtype]:  # e.g. lb tau, which is only for lb calculation
             continue
         outdir.append('%s-%s' % (vn, vstr))
     return '/'.join(outdir)
@@ -135,7 +138,7 @@ def get_bcr_phylo_outdir(varnames, vstr):
     return get_outdir(varnames, vstr, 'simu') + '/bcr-phylo'
 
 # ----------------------------------------------------------------------------------------
-def get_bcr_phylo_outfname(varnames, vstr):
+def get_simfname(varnames, vstr):
     return '%s/selection/simu/mutated-simu.yaml' % get_bcr_phylo_outdir(varnames, vstr)
 
 # ----------------------------------------------------------------------------------------
@@ -143,19 +146,24 @@ def get_parameter_dir(varnames, vstr):
     return '%s/selection/partis/params' % get_bcr_phylo_outdir(varnames, vstr)
 
 # ----------------------------------------------------------------------------------------
-def get_partition_outdir(varnames, vstr):
-    return get_outdir(varnames, vstr, 'partition') + '/partis'
+def get_tree_metric_outdir(varnames, vstr):
+    return get_outdir(varnames, vstr, 'get-tree-metrics') + '/partis'
 
 # ----------------------------------------------------------------------------------------
-def get_partition_fname(varnames, vstr):
-    return '%s/partitions.yaml' % get_partition_outdir(varnames, vstr)
+def get_partition_fname(varnames, vstr, action):  # if action is 'run-bcr-phylo', we want the original partition output file, but if it's 'get-tree-metrics', we want the copied one, that had tree metrics added to it (and which is in the e.g. tau subdir)
+    outdir = '%s/selection/partis' % (get_bcr_phylo_outdir(varnames, vstr)) if action == 'run-bcr-phylo' else get_tree_metric_outdir(varnames, vstr)
+    return '%s/partition.yaml' % outdir
 
 # ----------------------------------------------------------------------------------------
-def get_partition_plotdir(varnames, vstr):
-    return get_partition_outdir(varnames, vstr) + '/plots'
+def get_tree_metric_plotdir(varnames, vstr):
+    return get_tree_metric_outdir(varnames, vstr) + '/plots'
 
 # ----------------------------------------------------------------------------------------
-def get_plotdir():
+def get_tree_metric_fname(varnames, vstr, metric='lbi', x_axis_label='affinity', use_relative_affy=True):  # we set all the defaults just so when we're checking for output before running, we can easily get one of the file names
+    return '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (get_tree_metric_plotdir(varnames, vstr), metric, x_axis_label, '-relative' if use_relative_affy and metric == 'lbi' else '')
+
+# ----------------------------------------------------------------------------------------
+def get_comparison_plotdir():
     return '%s/%s/plots' % (args.base_outdir, args.label)
 
 # ----------------------------------------------------------------------------------------
@@ -190,8 +198,8 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # have to go lower than 85. for small sample sizes
-    _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['partition'])
+def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go lower than 85. for small sample sizes
+    _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     missing_vstrs = {'missing' : [], 'empty' : []}
@@ -205,9 +213,7 @@ def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # 
         n_tot = args.carry_cap_list[0]
         obs_frac = n_obs / float(n_tot)
 
-        yfname = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (get_partition_plotdir(varnames, vstrs), metric,
-                                                                            'affinity' if metric == 'lbi' else 'n-ancestors',
-                                                                            '-relative' if use_relative_affy and metric == 'lbi' else '')
+        yfname = get_tree_metric_fname(varnames, vstrs, metric, x_axis_label)  # why is this vstrs rather than vstr?
         try:
             with open(yfname) as yfile:
                 info = json.load(yfile)  # too slow with yaml
@@ -215,7 +221,7 @@ def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # 
             missing_vstrs['missing'].append(vstrs)
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
-        yval_key = 'mean_%s_ptiles' % ('affy' if metric == 'lbi' else 'n-ancestor')
+        yval_key = 'mean_%s_ptiles' % ('affy' if x_axis_label == 'affinity' else x_axis_label)  # arg, would've been nice if that was different
         diff_vals = [abs(pafp - afp) for lbp, afp, pafp in zip(info['lb_ptiles'], info[yval_key], info['perfect_vals']) if lbp > min_ptile_to_plot]
         if len(diff_vals) == 0:
             missing_vstrs['empty'].append(vstrs)  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
@@ -254,7 +260,7 @@ def make_plots(args, metric, use_relative_affy=True, min_ptile_to_plot=75.):  # 
         lb_taus, diffs_to_perfect = zip(*plotvals[obs_frac])
         ax.plot(lb_taus, diffs_to_perfect, label='%.4f' % obs_frac, alpha=0.7, linewidth=4)
     ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-    plotting.mpl_finish(ax, get_plotdir(), '%s-affy-ptiles-obs-frac-vs-lb-tau' % metric, xlabel='tau', ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if metric == 'lbi' else 'N ancestors', metric.upper(), min_ptile_to_plot),
+    plotting.mpl_finish(ax, get_comparison_plotdir(), '%s-affy-ptiles-obs-frac-vs-lb-tau' % metric, xlabel='tau', ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if metric == 'lbi' else 'N ancestors', metric.upper(), min_ptile_to_plot),
                         title=metric.upper(), leg_title='fraction sampled', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
                         xticks=lb_taus, xticklabels=[str(t) for t in lb_taus], xticklabelsize=16,
     )
@@ -267,10 +273,10 @@ def run_bcr_phylo(args):  # also caches parameters
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
-        if utils.output_exists(args, get_parameter_dir(varnames, vstrs) + '/hmm/hmms', offset=8, debug=args.debug):
+        if utils.output_exists(args, get_partition_fname(varnames, vstrs, args.action), offset=8, debug=args.debug):
             n_already_there += 1
             continue
-        cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters --base-outdir %s %s' % (outdir, ' '.join(base_args))
+        cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters:partition --dont-get-tree-metrics --base-outdir %s %s' % (outdir, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
             cmd += ' --%s %s' % (vname, vstr)
         if args.overwrite:
@@ -278,19 +284,19 @@ def run_bcr_phylo(args):  # also caches parameters
         # cmd += ' --debug 1'
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : get_bcr_phylo_outfname(varnames, vstrs),
+            'outfname' : get_partition_fname(varnames, vstrs, args.action),
             'logdir' : outdir,
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
         }]
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_parameter_dir(varnames, vstrs))
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, args.action))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
     utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
 
 # ----------------------------------------------------------------------------------------
-def partition(args):
-    _, varnames, _, valstrs = get_var_info(args, args.scan_vars['partition'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
+def get_tree_metrics(args):
+    _, varnames, _, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
     print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     n_already_there = 0
@@ -298,30 +304,30 @@ def partition(args):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        partition_fname = get_partition_fname(varnames, vstrs)
-        if args.action == 'partition' and utils.output_exists(args, partition_fname, outlabel='partition', offset=8, debug=args.debug):
+        if utils.output_exists(args, get_tree_metric_fname(varnames, vstrs), outlabel='get-tree-metrics', offset=8, debug=args.debug):
             n_already_there += 1
             continue
 
-        cmd = './bin/partis %s --is-simu --infname %s --plotdir %s --outfname %s' % (args.action, get_bcr_phylo_outfname(varnames, vstrs), get_partition_plotdir(varnames, vstrs), partition_fname)
-        if args.action == 'partition':
-            cmd += ' --parameter-dir %s --n-final-clusters 1 --get-tree-metrics' % (get_parameter_dir(varnames, vstrs))
+        if not os.path.isdir(get_tree_metric_outdir(varnames, vstrs)):
+            os.makedirs(get_tree_metric_outdir(varnames, vstrs))
+        subprocess.check_call(['cp', '-v', get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), get_partition_fname(varnames, vstrs, args.action)])
+        cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, args.action))
         cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : partition_fname,
-            'workdir' : get_partition_outdir(varnames, vstrs),
+            'outfname' : get_tree_metric_fname(varnames, vstrs),
+            'workdir' : get_tree_metric_outdir(varnames, vstrs),
         }]
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), partition_fname)
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_tree_metric_fname(varnames, vstrs))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         utils.run_cmds(cmdfos, debug='write:partition.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'partition', 'get-tree-metrics', 'plot'])
+parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'get-tree-metrics', 'plot'])
 parser.add_argument('--carry-cap-list', default='1000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
@@ -348,7 +354,7 @@ args = parser.parse_args()
 
 args.scan_vars = {
     'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed'],
-    'partition' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'lb-tau'],
+    'get-tree-metrics' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'lb-tau'],
 }
 
 sys.path.insert(1, args.partis_dir + '/python')
@@ -378,11 +384,11 @@ if args.action == 'get-lb-bounds':
     calc_lb_bounds(args)
 elif args.action == 'run-bcr-phylo':
     run_bcr_phylo(args)
-elif args.action in ['partition', 'get-tree-metrics']:
-    partition(args)
+elif args.action == 'get-tree-metrics':
+    get_tree_metrics(args)
 elif args.action == 'plot':
-    procs = [multiprocessing.Process(target=make_plots, args=(args, metric))  # time is almost entirely due to file open + json.load
-             for metric in treeutils.lb_metrics]
+    procs = [multiprocessing.Process(target=make_plots, args=(args, metric, x_axis_label))  # time is almost entirely due to file open + json.load
+             for metric, x_axis_label in lb_metric_axis_stuff]
     utils.run_proc_functions(procs)
     # for metric in treeutils.lb_metrics:
     #     make_plots(args, metric)

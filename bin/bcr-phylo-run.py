@@ -184,7 +184,10 @@ def cache_parameters():
 def partition():
     if utils.output_exists(args, partition_fname(), outlabel='partition', offset=4):
         return
-    cmd = './bin/partis partition --n-final-clusters 1 --write-additional-cluster-annotations 0:5 --is-simu --get-tree-metrics --infname %s --parameter-dir %s --plotdir %s --n-procs %d --outfname %s --seed %d' % (simfname(), param_dir(), infdir() + '/plots', args.n_procs, partition_fname(), args.seed)
+    cmd = './bin/partis partition --n-final-clusters 1 --is-simu --infname %s --parameter-dir %s --n-procs %d --outfname %s --seed %d' % (simfname(), param_dir(), args.n_procs, partition_fname(), args.seed)
+    #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
+    if not args.dont_get_tree_metrics:
+        cmd += ' --get-tree-metrics --plotdir %s' % (infdir() + '/plots')
     if args.lb_tau is not None:
         cmd += ' --lb-tau %f' % args.lb_tau
     utils.simplerun(cmd, debug=True) #, dryrun=True)
@@ -203,6 +206,7 @@ parser.add_argument('--base-outdir', default='%s/partis/bcr-phylo/test' % os.get
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--dont-get-tree-metrics', action='store_true', help='Partition without getting tree metrics, presumably because you want to run them yourself later')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--n-procs', type=int, default=1)
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
