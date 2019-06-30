@@ -177,6 +177,14 @@ def getsargval(sv):  # ick this name sucks
         return args.__dict__[dkey(sv)]
 
 # ----------------------------------------------------------------------------------------
+def get_vlval(vlists, varnames, vname):  # ok this name also sucks, but they're doing complicated things while also needing really short names...
+    if vname in varnames:
+        return vlists[varnames.index(vname)]
+    else:
+        assert len(getsargval(vname))  # um, I think?
+        return getsargval(vname)[0]
+
+# ----------------------------------------------------------------------------------------
 def get_var_info(args, scan_vars):
     def handle_var(svar, val_lists, valstrs):
         convert_fcn = str if svar in ['carry-cap', 'seed', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
@@ -199,13 +207,6 @@ def get_var_info(args, scan_vars):
 
 # ----------------------------------------------------------------------------------------
 def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go lower than 85. for small sample sizes
-    def get_vlval(vlists, varnames, vname):
-        if vname in varnames:
-            return vlists[varnames.index(vname)]
-        else:
-            assert len(getsargval(vname))  # um, I think?
-            return getsargval(vname)[0]
-
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
@@ -319,9 +320,9 @@ def get_tree_metrics(args):
 
         if not os.path.isdir(get_tree_metric_outdir(varnames, vstrs)):
             os.makedirs(get_tree_metric_outdir(varnames, vstrs))
-        subprocess.check_call(['cp', '-v', get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), get_partition_fname(varnames, vstrs, args.action)])
+        subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), get_partition_fname(varnames, vstrs, args.action)])
         cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, args.action))
-        cmd += ' --lb-tau %s' % vstrs[varnames.index('lb-tau')]
+        cmd += ' --lb-tau %s' % get_vlval(vstrs, varnames, 'lb-tau')
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         cmdfos += [{
             'cmd_str' : cmd,
