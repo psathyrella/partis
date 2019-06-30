@@ -199,12 +199,19 @@ def get_var_info(args, scan_vars):
 
 # ----------------------------------------------------------------------------------------
 def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go lower than 85. for small sample sizes
+    def get_vlval(vlists, varnames, vname):
+        if vname in varnames:
+            return vlists[varnames.index(vname)]
+        else:
+            assert len(getsargval(vname))  # um, I think?
+            return getsargval(vname)[0]
+
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     missing_vstrs = {'missing' : [], 'empty' : []}
     for vlists, vstrs in zip(val_lists, valstrs):
-        n_per_gen = vlists[varnames.index('n-sim-seqs-per-gen')]
+        n_per_gen = get_vlval(vlists, varnames, 'n-sim-seqs-per-gen')
         assert len(n_per_gen) == 1
         n_per_gen = n_per_gen[0]
         assert len(args.obs_times_list) == 1
@@ -228,7 +235,7 @@ def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go
             continue
         diff_to_perfect = numpy.mean(diff_vals)
 
-        tau = vlists[varnames.index('lb-tau')]
+        tau = get_vlval(vlists, varnames, 'lb-tau')
         if args.n_replicates > 1:  # need to average over the replicates
             if obs_frac not in plotvals:
                 plotvals[obs_frac] = {i : [] for i in getsargval('seed')}
@@ -256,13 +263,15 @@ def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go
             plotvals[obs_frac] = mean_vals
 
     fig, ax = plotting.mpl_init()
+    lb_taus, xticklabels = None, None
     for obs_frac in plotvals:
         lb_taus, diffs_to_perfect = zip(*plotvals[obs_frac])
+        xticklabels = [str(t) for t in lb_taus]
         ax.plot(lb_taus, diffs_to_perfect, label='%.4f' % obs_frac, alpha=0.7, linewidth=4)
     ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     plotting.mpl_finish(ax, get_comparison_plotdir(), '%s-affy-ptiles-obs-frac-vs-lb-tau' % metric, xlabel='tau', ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if metric == 'lbi' else 'N ancestors', metric.upper(), min_ptile_to_plot),
                         title=metric.upper(), leg_title='fraction sampled', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
-                        xticks=lb_taus, xticklabels=[str(t) for t in lb_taus], xticklabelsize=16,
+                        xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
     )
 
 # ----------------------------------------------------------------------------------------
@@ -390,5 +399,5 @@ elif args.action == 'plot':
     procs = [multiprocessing.Process(target=make_plots, args=(args, metric, x_axis_label))  # time is almost entirely due to file open + json.load
              for metric, x_axis_label in lb_metric_axis_stuff]
     utils.run_proc_functions(procs)
-    # for metric in treeutils.lb_metrics:
-    #     make_plots(args, metric)
+    # for metric, x_axis_label in lb_metric_axis_stuff:
+    #     make_plots(args, metric, x_axis_label)
