@@ -388,6 +388,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def print_results(self, cpath, annotations):
         seed_uid = self.args.seed_unique_id
+        true_partition = None
         if cpath is not None:
             # it's expected that sometimes you'll write a seed partition cpath, but then when you read the file you don't bother to seed the seed id on the command line. The reverse, however, shouldn't happen
             if seed_uid is not None and cpath.seed_unique_id != seed_uid:
@@ -396,8 +397,9 @@ class PartitionDriver(object):
             print utils.color('green', 'partitions:')
             cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices, calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'), print_cluster_indices=True)
             if not self.args.is_data and self.reco_info is not None:  # if we're reading existing output, it's pretty common to not have the reco info even when it's simulation, since you have to also pass in the simulation input file on the command line
+                true_partition = utils.get_true_partition(self.reco_info)
                 true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-                true_cp.add_partition(utils.get_true_partition(self.reco_info), -1., 1)
+                true_cp.add_partition(true_partition, -1., 1)
                 print 'true:'
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
@@ -413,7 +415,7 @@ class PartitionDriver(object):
                     continue
                 label, post_label = [], []
                 if self.args.infname is not None and self.reco_info is not None:
-                    utils.print_true_events(self.simglfo, self.reco_info, line, extra_str='  ')
+                    utils.print_true_events(self.simglfo, self.reco_info, line, full_true_partition=true_partition, extra_str='  ')
                     label += ['inferred:']
                 if cpath is not None and cpath.i_best is not None:  # maybe I could do the iparts stuff even if i_best isn't set, but whatever, I think it's only really not set if the cpath is null anyway
                     iparts = cpath.find_iparts_for_cluster(line['unique_ids'])
@@ -793,6 +795,8 @@ class PartitionDriver(object):
             if self.args.calculate_alternative_annotations:  # add every cluster from the entire clustering history NOTE stuff that's in self.hmm_cachefname (which we used to use for this), but not in the cpath progress files: translated clusters, clusters that we calculated but didn't merge (maybe? not sure)
                 cluster_set |= set([(uid,) for cluster in cpath.partitions[cpath.i_best] for uid in cluster])  # add the singletons separately, since we don't write a singleton partition before collapsing naive sequences before the first clustering step
                 cluster_set |= set([tuple(cluster) for partition in cpath.partitions for cluster in partition])  # kind of wasteful to re-add clusters from the best partition here, but oh well
+            if self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None:  # add the clusters from the last partition
+                cluster_set |= set([tuple(c) for c in cpath.partitions[len(cpath.partitions) - 1]])
             print '    added %d clusters (in addition to the %d from the best partition) before running cluster annotations' % (len(cluster_set) - len(clusters_to_annotate), len(clusters_to_annotate))
             if self.args.debug:
                 print '       %s these additional clusters will also be printed below, since --debug is greater than 0' % utils.color('yellow', 'note:')
@@ -809,7 +813,7 @@ class PartitionDriver(object):
 
         # ----------------------------------------------------------------------------------------
         clusters_to_annotate = cpath.partitions[cpath.i_best]
-        if self.args.write_additional_cluster_annotations is not None or self.args.calculate_alternative_annotations:
+        if self.args.write_additional_cluster_annotations is not None or self.args.calculate_alternative_annotations or self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None:  # arg, should rewrite this fcn so a) we always run it but b) any new clusters get or'd with the existing ones at end of fcn, and only if there are some new clusters. But I don't want to test it right now, so leaving as is
             clusters_to_annotate = add_additional_clusters(clusters_to_annotate)
             extra_dbg_str += ' (including additional clusters)'
 

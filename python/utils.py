@@ -398,6 +398,10 @@ def per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresp
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
 
 # ----------------------------------------------------------------------------------------
+def uids_and_dups(line):
+    return line['unique_ids'] + [u for dlist in line['duplicates'] for u in dlist]
+
+# ----------------------------------------------------------------------------------------
 def synthesize_single_seq_line(line, iseq):
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     singlefo = {}
@@ -1623,12 +1627,20 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo):
     return line
 
 # ----------------------------------------------------------------------------------------
-def print_true_events(glfo, reco_info, line, print_naive_seqs=False, extra_str='    '):
+def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_partition=None, extra_str='    '):
     """ print the true events which contain the seqs in <line> """
     true_naive_seqs = []
-    for uids in get_true_partition(reco_info, ids=line['unique_ids']):  # make a multi-seq line that has all the seqs from this clonal family
+    true_partition_of_line_uids = get_true_partition(reco_info, ids=line['unique_ids'])  # *not* in general the same clusters as in the complete true partition, since <line['unique_ids']> may not contain all uids from all clusters from which it contains representatives
+    if full_true_partition is None:
+        full_true_partition = get_true_partition(reco_info)
+    for uids in true_partition_of_line_uids:  # make a multi-seq line that has all the seqs from this clonal family
+        full_true_clusters = [c for c in full_true_partition if len(set(c) & set(uids_and_dups(line))) > 0]
+        assert len(full_true_clusters) == 1
+        missing_uids = set(full_true_clusters[0]) - set(uids_and_dups(line))
+        missing_str = '' if len(missing_uids) == 0 else '   missing %d/%d sequences from actual true cluster (but includes %d duplicates not shown below)' % (len(missing_uids), len(full_true_clusters[0]), len(uids_and_dups(line)) - len(uids))
+
         multiline = synthesize_multi_seq_line_from_reco_info(uids, reco_info)
-        print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:'))
+        print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:') + missing_str)
         true_naive_seqs.append(multiline['naive_seq'])
 
     if print_naive_seqs:
@@ -3130,10 +3142,9 @@ def split_clusters_by_cdr3(partition, sw_info, warn=False):
 
 # ----------------------------------------------------------------------------------------
 def get_true_partition(reco_info, ids=None):
-    """
-    Group queries into their true clonal families.
-    If <ids> is specified, only do those, otherwise do all of the ones in <reco_info>.
-    """
+    # Two modes:
+    #  - if <ids> is None, it returns the actual, complete, true partition.
+    #  - if <ids> is set, it groups them into the clusters dictated by the true partition in/implied by <reco_info> NOTE these are not, in general, complete clusters
     if ids is None:
         ids = reco_info.keys()
     def keyfunc(q):
