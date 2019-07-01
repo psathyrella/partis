@@ -365,7 +365,7 @@ def set_lb_values(dtree, tau, only_calc_val=None, multifo=None, debug=False):
         print '  calculating %s with tau %.4f' % (' and '.join(metrics_to_calc), tau)
 
     initial_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
-    dtree = get_tree_with_dummy_branches(dtree, tau, debug=debug)  # this returns a new dtree, but the old tree is a subtree of the new one (or at least its collection of nodes are), and these nodes get modified by the process (hence the reversal fcn below)
+    dtree = get_tree_with_dummy_branches(dtree, tau)  # this returns a new dtree, but the old tree is a subtree of the new one (or at least its collection of nodes are), and these nodes get modified by the process (hence the reversal fcn below)
 
     # calculate clock length (i.e. for each node, the distance to that node's parent)
     for node in dtree.postorder_node_iter():  # postorder vs preorder doesn't matter, but I have to choose one
@@ -409,6 +409,8 @@ def set_lb_values(dtree, tau, only_calc_val=None, multifo=None, debug=False):
 
         if dummy_str in node.taxon.label:
             continue
+        if node is dtree.seed_node or node.parent_node is dtree.seed_node:  # second clause is only because of dummy root addition (well, and if we are adding dummy root the first clause doesn't do anything)
+            vals['lbr'] = 0.
         for metric in metrics_to_calc:
             returnfo[metric][node.taxon.label] = float(vals[metric])
 
@@ -464,7 +466,7 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
     zero_length_edges = [e for e in old_dtree.preorder_edge_iter() if e.length == 0]
     if len(zero_length_edges) > 0:  # rerooting to remove dummy branches screws up the tree in some cases with zero length branches (see comment in that fcn)
         old_dtree = copy.deepcopy(old_dtree)  # could maybe do this by default, but it'll probably be really slow on large trees (at least iterating through the trees is; although I suppose maybe deepcopy is smater than that)
-        print '    %s found %d zero length branches in tree, so deep copying before adding dummy branches (this is probably ok ish, but in general it\'s a bad idea to have zero length branches in your trees)' % (utils.color('yellow', 'warning'), len(zero_length_edges))
+        print '    %s found %d zero length branches in tree, so deep copying before adding dummy branches (this is probably ok ish, but in general it\'s a bad idea to have zero length branches in your trees): %s' % (utils.color('yellow', 'warning'), len(zero_length_edges), ' '.join([e.head_node.taxon.label for e in zero_length_edges]))
     dummy_edge_length = n_tau_lengths * tau
 
     new_root_taxon = dendropy.Taxon(dummy_str + '-root')
@@ -485,7 +487,7 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
 
     zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0]
     if len(zero_len_edge_nodes) > 0:
-        print '    %s found %d zero length edges in tree, which means lb ratio will mis-categorize branches' % (utils.color('red', 'warning'), len(zero_len_edge_nodes))
+        print '    %s found %d zero length edges in tree, which means lb ratio will mis-categorize branches: %s' % (utils.color('red', 'warning'), len(zero_len_edge_nodes), ' '.join([n.taxon.label for n in zero_len_edge_nodes]))
         # for node in zero_len_edge_nodes:  # we don't really want to modify the tree this drastically here (and a.t.m. this causes a crash later on), but I'm leaving it as a placeholder for how to remove zero length edges
         #     collapse_nodes(new_dtree, node.taxon.label, node.parent_node.taxon.label)  # keep the child, since it can be a leaf
         # print utils.pad_lines(get_ascii_tree(dendro_tree=new_dtree))
@@ -530,7 +532,7 @@ def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, in
     # NOTE it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
 
     if use_multiplicities:
-        print '  %s <use_multiplicities> is turned on in calculate_lb_values(), which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
+        print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
 
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
@@ -899,15 +901,15 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
             true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
             max_in_common, ustr_to_use = None, None  # look for the inferred cluster that has the most uids in common with this true cluster
             for ustr in annotations:  # order will be different in reco info and inferred clusters
-                # NOTE if I added in the duplicate uids from the inferred cluster, these would usually/always have perfect overlap
-                n_in_common = len(set(ustr.split(':')) & set(cluster))  # can't just look for the actual cluster since we collapse duplicates, but bcr-phylo doesn't (but maybe I should throw them out when parsing bcr-phylo output)
+                n_in_common = len(set(utils.uids_and_dups(annotations[ustr])) & set(cluster))  # can't just look for the actual cluster since we collapse duplicates, but bcr-phylo doesn't (but maybe I should throw them out when parsing bcr-phylo output)
                 if max_in_common is None or n_in_common > max_in_common:
                     ustr_to_use = ustr
                     max_in_common = n_in_common
             if max_in_common is None:
                 raise Exception('cluster \'%s\' not found in inferred annotations (probably because use_true_clusters was set)' % ':'.join(cluster))
             if max_in_common < len(cluster):
-                print '    note: couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d)' % (max_in_common, len(cluster))
+                print '    note: couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d, which includes %d duplicates)' % (max_in_common, len(cluster), len([u for dlist in annotations[ustr_to_use]['duplicates'] for u in dlist]))
+                # print '        missing: %s' % ' '.join(set(cluster) - set(utils.uids_and_dups(annotations[ustr_to_use])))
             lines_to_use.append(annotations[ustr_to_use])
     else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
         if cpath is not None:  # restrict it to clusters in the best partition (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
@@ -1012,9 +1014,10 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau=Non
     for line in lines_to_use:
         if debug:
             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
-        if 'tree-info' in line:
+        if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
+            if debug:
+                print '       %s overwriting tree metric info that was already in <line>' % utils.color('yellow', 'warning')
             n_already_there += 1
-            continue
         treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
         tree_origin_counts[treefo['origin']]['count'] += 1
         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
@@ -1022,7 +1025,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau=Non
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
-        print '      skipped %d / %d that already had tree info' % (n_already_there, len(lines_to_use))
+        print '    %s overwriting %d / %d that already had tree info' % (utils.color('yellow', 'warning'), n_already_there, len(lines_to_use))
 
     # calculate lb values for true lines/trees
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values

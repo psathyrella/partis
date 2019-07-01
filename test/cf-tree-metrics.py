@@ -302,7 +302,7 @@ def run_bcr_phylo(args):  # also caches parameters
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, args.action))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
-    utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
+        utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metrics(args):
@@ -333,7 +333,7 @@ def get_tree_metrics(args):
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_tree_metric_fname(varnames, vstrs))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
-        utils.run_cmds(cmdfos, debug='write:partition.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
+        utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
