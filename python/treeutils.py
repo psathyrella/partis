@@ -40,7 +40,9 @@ lb_bounds = {  # calculated to 17 generations, which is quite close to the asymp
 }
 
 # ----------------------------------------------------------------------------------------
-def get_normalized_lbi(lbval, tau, seq_len):
+def normalize_lb_val(metric, lbval, tau, seq_len=400):
+    if metric == 'lbr':
+        return lbval
     if seq_len not in lb_bounds:
         raise Exception('seq len %d not in cached lb bound values (available: %s)' % (seq_len, lb_bounds.keys()))
     if tau not in lb_bounds[seq_len]:
@@ -412,11 +414,11 @@ def set_lb_values(dtree, tau, only_calc_val=None, multifo=None, debug=False):
         if node is dtree.seed_node or node.parent_node is dtree.seed_node:  # second clause is only because of dummy root addition (well, and if we are adding dummy root the first clause doesn't do anything)
             vals['lbr'] = 0.
         for metric in metrics_to_calc:
-            returnfo[metric][node.taxon.label] = float(vals[metric])
+            returnfo[metric][node.taxon.label] = normalize_lb_val(metric, float(vals[metric]), tau)
 
     if debug:
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
-        print ('   %' + max_width + 's %s%s      multi') % ('node', ''.join('     %s' % m for m in metrics_to_calc), 16*' ' if 'lbr' in metrics_to_calc else '')
+        print ('   %'+max_width+'s %s%s      multi') % ('node', ''.join('     %s' % m for m in metrics_to_calc), 16*' ' if 'lbr' in metrics_to_calc else '')
         for node in dtree.preorder_node_iter():
             if dummy_str in node.taxon.label:
                 continue
