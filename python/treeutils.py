@@ -463,10 +463,12 @@ def set_multiplicities(dtree, annotation, input_metafo, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_leaves=False, debug=False): # add long branches above root and/or below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
-    zero_length_edges = [e for e in old_dtree.preorder_edge_iter() if e.length == 0]
-    if len(zero_length_edges) > 0:  # rerooting to remove dummy branches screws up the tree in some cases with zero length branches (see comment in that fcn)
-        old_dtree = copy.deepcopy(old_dtree)  # could maybe do this by default, but it'll probably be really slow on large trees (at least iterating through the trees is; although I suppose maybe deepcopy is smater than that)
-        print '    %s found %d zero length branches in tree, so deep copying before adding dummy branches (this is probably ok ish, but in general it\'s a bad idea to have zero length branches in your trees): %s' % (utils.color('yellow', 'warning'), len(zero_length_edges), ' '.join([e.head_node.taxon.label for e in zero_length_edges]))
+    # commenting this since I'm pretty sure I've fixed it, but not removing it since if a similar problem surfaces with dummy branch addition, deep copying is an easy way out
+    # zero_length_edges = [e for e in old_dtree.preorder_edge_iter() if e.length == 0 and not e.head_node.is_leaf()]
+    # if len(zero_length_edges) > 0:  # rerooting to remove dummy branches screws up the tree in some cases with zero length branches (see comment in that fcn)
+    #     old_dtree = copy.deepcopy(old_dtree)  # could maybe do this by default, but it'll probably be really slow on large trees (at least iterating through the trees is; although I suppose maybe deepcopy is smater than that)
+    #     print '    %s found %d zero length branches in tree, so deep copying before adding dummy branches (this is probably ok ish, but in general it\'s a bad idea to have zero length branches in your trees): %s' % (utils.color('yellow', 'warning'), len(zero_length_edges), ' '.join([e.head_node.taxon.label for e in zero_length_edges]))
+
     dummy_edge_length = n_tau_lengths * tau
 
     new_root_taxon = dendropy.Taxon(dummy_str + '-root')
@@ -485,7 +487,7 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
             tns.add_taxon(dendropy.Taxon(new_label))
             new_child_node = lnode.new_child(taxon=tns.get_taxon(new_label), edge_length=dummy_edge_length)
 
-    zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0]
+    zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0 and not e.head_node.is_leaf()]  # zero len edges above leaves are fine, since leaves don't count for lbr
     if len(zero_len_edge_nodes) > 0:
         print '    %s found %d zero length edges in tree, which means lb ratio will mis-categorize branches: %s' % (utils.color('red', 'warning'), len(zero_len_edge_nodes), ' '.join([n.taxon.label for n in zero_len_edge_nodes]))
         # for node in zero_len_edge_nodes:  # we don't really want to modify the tree this drastically here (and a.t.m. this causes a crash later on), but I'm leaving it as a placeholder for how to remove zero length edges
@@ -522,7 +524,7 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
         print '        children after purge: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
 
     final_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
-    if initial_labels != final_labels:
+    if initial_labels != final_labels:  # this was only happening with a zero-length node hanging off root (see above), which probably won't happen any more since I'm now removing zero length (non-leaf) branches in bcr-phylo simulator.py
         print '    %s nodes after dummy branch addition and removal not the same as before:\n      missing: %s\n        extra: %s' % (utils.color('red', 'error'), ' '.join(initial_labels - final_labels), ' '.join(final_labels - initial_labels))
 
 # ----------------------------------------------------------------------------------------
@@ -551,6 +553,7 @@ def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, in
     treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
     if tau is None:
         assert only_calc_val is None  # er, I think it wouldn't make sense to do this
+        print '    note: calculating both lb metrics with automatic tau values of %.4f (lbi) and %.4f (lbr)' % (default_lb_tau, default_lbr_tau_factor * default_lb_tau)
         lbvals = set_lb_values(dtree, default_lb_tau, only_calc_val='lbi', multifo=multifo, debug=debug)
         tmpvals = set_lb_values(dtree, default_lbr_tau_factor * default_lb_tau, only_calc_val='lbr', multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
