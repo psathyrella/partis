@@ -70,6 +70,7 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
             print '     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace])
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True)
+    dtree.reroot_at_node(dtree.seed_node, suppress_unifurcations=False)  # make sure the tree is rooted, to avoid node's disappearing in remove_dummy_branches() (I'm not sure this is the best way to do it, but I think it's ok)
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
 
     # # uncomment for more verbosity:
@@ -489,7 +490,7 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
 
     zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0 and not e.head_node.is_leaf()]  # zero len edges above leaves are fine, since leaves don't count for lbr
     if len(zero_len_edge_nodes) > 0:
-        print '    %s found %d zero length edges in tree, which means lb ratio will mis-categorize branches: %s' % (utils.color('red', 'warning'), len(zero_len_edge_nodes), ' '.join([n.taxon.label for n in zero_len_edge_nodes]))
+        print '    %s found %d zero length edges in tree, which means lb ratio may mis-categorize branches: %s' % (utils.color('red', 'warning'), len(zero_len_edge_nodes), ' '.join([n.taxon.label for n in zero_len_edge_nodes]))
         # for node in zero_len_edge_nodes:  # we don't really want to modify the tree this drastically here (and a.t.m. this causes a crash later on), but I'm leaving it as a placeholder for how to remove zero length edges
         #     collapse_nodes(new_dtree, node.taxon.label, node.parent_node.taxon.label)  # keep the child, since it can be a leaf
         # print utils.pad_lines(get_ascii_tree(dendro_tree=new_dtree))
@@ -509,12 +510,14 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
 
     if len(dtree.seed_node.child_nodes()) != 1:
         print '  %s root node has more than one child when removing dummy branches: %s' % (utils.color('yellow', 'warning'), ' '.join([n.taxon.label for n in dtree.seed_node.child_nodes()]))
+    dtree.reroot_at_node(dtree.seed_node, suppress_unifurcations=False)  # make sure it's rooted, to avoid unifurcations getting suppressed (even with the arg set to false)
     new_root_node = dtree.seed_node.child_nodes()[0]
     if debug:
         print '  rerooting at %s' % new_root_node.taxon.label
         print '            current children: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
     # NOTE if the new root has a child separated by a zero-length edge, this reroot call for some reason deletes that child from the tree (both with and without suppress_unifurcations set). After messing around a bunch to try to fix it, the message I'm taking is just that zero length branches (and unifurcations) are a bad idea and I should just forbid them
     # UPDATE I think I was just missing the suppress_unifurcations=False in update_bipartitions(), but leaving these comments here in case there was another problem
+    # UPDATE UPDATE actually the reroot still seems to eat a node sometimes if the tree is unrooted (so adding the extra reroot above)
     dtree.reroot_at_node(new_root_node, suppress_unifurcations=False)  # reroot at old root node
     if debug:
         print '       children after reroot: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
