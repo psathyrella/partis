@@ -533,11 +533,10 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau=None, only_calc_metric=None, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
-    # if <only_calc_metric> is None, we use <tau>/<default_lb_tau> and <default_lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
-    #   - whereas if <only_calc_metric> is set, we use <tau> (which must be set) and calculate only the given metric
-    #   - this will hopefully get simpler when I finish understanding the optimal tau values
-    # NOTE it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
+def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
+    # if <only_calc_metric> is None, we use <tau> and <lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
+    #   - whereas if <only_calc_metric> is set, we use <tau> to calculate only the given metric
+    # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
 
     if use_multiplicities:
         print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
@@ -558,19 +557,13 @@ def calculate_lb_values(dtree, tau=None, only_calc_metric=None, annotation=None,
 
     treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
     if only_calc_metric is None:
-        if tau is None:
-            tau_to_use = default_lb_tau
-            tmpstr = ' default tau for both lbi (%.4f) and lbr (%.4f * %d = %.4f)'
-        else:
-            tau_to_use = tau
-            tmpstr = ' user value of tau for lbi (%.4f) and default factor to get tau for lbr (%.4f * %d = %.4f)'
-        print ('    note: calculating lb metrics with'+tmpstr) % (tau_to_use, tau_to_use, default_lbr_tau_factor, tau_to_use*default_lbr_tau_factor)
-        lbvals = set_lb_values(dtree, tau_to_use, only_calc_metric='lbi', multifo=multifo, debug=debug)
-        tmpvals = set_lb_values(dtree, tau_to_use*default_lbr_tau_factor, only_calc_metric='lbr', multifo=multifo, debug=debug)
+        assert lbr_tau_factor is not None  # has to be set if we're calculating both metrics
+        print '    calculating lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
+        lbvals = set_lb_values(dtree, tau, only_calc_metric='lbi', multifo=multifo, debug=debug)
+        tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, only_calc_metric='lbr', multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
     else:
-        assert tau is not None
-        print '    note: calculating %s only with user value of tau (%.4f)' % (only_calc_metric, tau)
+        print '    calculating %s with tau %.4f' % (only_calc_metric, tau)
         lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
@@ -622,7 +615,7 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
             start = time.time()
             dtree = get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=debug)
             label_nodes(dtree)
-            lbvals = calculate_lb_values(dtree, tau=tau, only_calc_metric=metric, debug=debug)
+            lbvals = calculate_lb_values(dtree, tau, only_calc_metric=metric, debug=debug)
             bfcn = __builtins__[bound]  # min() or max()
             info[metric][bound] = {metric : bfcn(lbvals[metric].values()), 'vals' : lbvals}
             if debug:
@@ -1011,7 +1004,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
     return {'tree' : dtree, 'origin' : origin}
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
+def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, debug=False):
     print 'getting tree metrics'
     if reco_info is not None:
@@ -1037,7 +1030,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau=Non
         treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
         tree_origin_counts[treefo['origin']]['count'] += 1
         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], tau=lb_tau, annotation=line, extra_str='inf tree', debug=debug)
+        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, extra_str='inf tree', debug=debug)
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
@@ -1047,7 +1040,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau=Non
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_dtree, tau=lb_tau, annotation=true_line, extra_str='true tree', debug=debug)
+            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:

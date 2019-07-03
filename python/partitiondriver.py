@@ -305,15 +305,15 @@ class PartitionDriver(object):
         print 'hmm'
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
         if self.args.get_tree_metrics:
-            self.calculate_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:
             self.write_output(annotations.values(), hmm_failures)
 
     # ----------------------------------------------------------------------------------------
-    def calculate_tree_metrics(self, annotations, cpath=None):
+    def calc_tree_metrics(self, annotations, cpath=None):
         if self.current_action == 'get-tree-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-tree-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
             seqfileopener.read_input_metafo(self.args.input_metafname, annotations.values(), debug=True)
-        treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, lb_tau=self.args.lb_tau, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
+        treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
@@ -458,7 +458,7 @@ class PartitionDriver(object):
             self.write_output(annotations.values(), set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
         if tmpact == 'get-tree-metrics':
-            self.calculate_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
             print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
             self.write_output(annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
@@ -829,7 +829,7 @@ class PartitionDriver(object):
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         best_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
         if self.args.get_tree_metrics:
-            self.calculate_tree_metrics(best_annotations, cpath=cpath)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(best_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
         if self.args.calculate_alternative_annotations:
             clusters_in_partitions = set([':'.join(c) for partition in cpath.partitions for c in partition])

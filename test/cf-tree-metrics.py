@@ -322,7 +322,7 @@ def get_tree_metrics(args):
             os.makedirs(get_tree_metric_outdir(varnames, vstrs))
         subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), get_partition_fname(varnames, vstrs, args.action)])
         cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, args.action))
-        cmd += ' --lb-tau %s' % get_vlval(vstrs, varnames, 'lb-tau')
+        cmd += ' --lb-tau %s --lbr-tau-factor 1' % get_vlval(vstrs, varnames, 'lb-tau')
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         cmdfos += [{
             'cmd_str' : cmd,
