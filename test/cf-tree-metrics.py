@@ -110,7 +110,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
                 for btype in btypes:
                     if lbvals[metric][btype]['vals'] is None:
                         continue
-                    cmdfos = [plotting.get_lb_tree_cmd(lbvals[metric][btype]['vals']['tree'], '%s/%s-%s-tree.svg' % (plotdir, metric, btype), metric, 'affinities', args.ete_path, args.workdir, metafo=lbvals[metric][btype]['vals'], tree_style='circular')]
+                    cmdfos = [lbplotting.get_lb_tree_cmd(lbvals[metric][btype]['vals']['tree'], '%s/%s-%s-tree.svg' % (plotdir, metric, btype), metric, 'affinities', args.ete_path, args.workdir, metafo=lbvals[metric][btype]['vals'], tree_style='circular')]
                     utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
 
     if args.make_plots:
@@ -347,7 +347,7 @@ parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='s
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
-parser.add_argument('--iseed', type=int, help='if set, only run this replicate index')
+parser.add_argument('--iseed', type=int, help='if set, only run this replicate index (i.e. this corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int)
 parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
@@ -372,6 +372,7 @@ try:
     import utils
     import treeutils
     import plotting
+    import lbplotting
 except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
@@ -385,6 +386,9 @@ args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=Tru
 args.only_metrics = utils.get_arg_list(args.only_metrics)
 if [args.n_tau_lengths_list, args.n_generations_list].count(None) != 1:
     raise Exception('have to set exactly one of --n-tau-lengths, --n-generations')
+import random
+random.seed(args.random_seed)  # somehow this is necessary to get the same results, even though I'm not using the module anywhere directly
+numpy.random.seed(args.random_seed)
 
 if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))

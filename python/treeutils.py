@@ -22,7 +22,7 @@ import utils
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'local branching ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
 affy_keys = {'lbi' : ['affinities', 'relative_affinities'], 'lbr' : ['affinities']}
-default_lb_tau = 0.001
+default_lb_tau = 0.0025
 default_lbr_tau_factor = 20
 
 dummy_str = 'x-dummy-x'
@@ -111,6 +111,10 @@ def get_leaf_depths(tree, treetype='dendropy'):  # NOTE structure of dictionary 
 # ----------------------------------------------------------------------------------------
 def get_n_leaves(tree):
     return len(tree.leaf_nodes())
+
+# ----------------------------------------------------------------------------------------
+def get_n_nodes(tree):
+    return len(list(tree.preorder_node_iter()))
 
 # ----------------------------------------------------------------------------------------
 def collapse_nodes(dtree, keep_name, remove_name, debug=False):  # collapse edge between <keep_name> and <remove_name>, leaving remaining node with name <keep_name>
@@ -265,35 +269,29 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
         dendro_tree = get_dendro_tree(treestr=treestr, schema=schema)
     if get_mean_leaf_height(dendro_tree) == 0.:  # we really want the max height, but since we only care whether it's zero or not this is the same
         return '%szero height' % extra_str
-    elif get_n_leaves(dendro_tree) > 1:  # if more than one leaf
-        start_char, end_char = '', ''
-        def compose_fcn(x):
-            if x.taxon is not None:  # if there's a taxon defined, use its label
-                lb = x.taxon.label
-            elif x.label is not None:  # use node label
-                lb = x.label
-            else:
-                lb = 'o'
-            return '%s%s%s' % (start_char, lb, end_char)
-        dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)
-        special_chars = [c for c in reversed(string.punctuation) if c not in set(dendro_str)]  # find some special characters that we can use to identify the start and end of each label (could also use non-printable special characters, but it shouldn't be necessary)
-        if len(special_chars) >= 2:  # can't color them directly, since dendropy counts the color characters as printable
-            start_char, end_char = special_chars[:2]  # NOTE the colors get screwed up when dendropy overlaps labels (or sometimes just straight up strips stuff), which it does when it runs out of space
-            dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)  # call again after modiying compose fcn (kind of wasteful to call it twice, but it shouldn't make a difference)
-            dendro_str = dendro_str.replace(start_char, utils.Colors['blue']).replace(end_char, utils.Colors['end'] + '  ')
-        else:
-            print '  %s can\'t color tree, no available special characters in get_ascii_tree()' % utils.color('red', 'note:')
-        return_lines = [('%s%s' % (extra_str, line)) for line in dendro_str.split('\n')]
-        return '\n'.join(return_lines)
+    # elif: get_n_nodes(dendro_tree) > 1:  # not sure if I really need this if any more (it used to be for one-leaf trees (and then for one-node trees), but the following code (that used to be indented) seems to be working fine on one-leaf, one-node, and lots-of-node trees a.t.m.)
 
-        # Phylo = import_bio_phylo()
-        # tmpf = StringIO()
-        # if treestr is None:
-        #     treestr = dendro_tree.as_string(schema=schema)
-        # Phylo.draw_ascii(get_bio_tree(treestr=treestr, schema=schema), file=tmpf, column_width=width)  # this is pretty ugly, but the dendropy ascii printer just puts all the leaves at the same depth
-        # return '\n'.join(['%s%s' % (extra_str, line) for line in tmpf.getvalue().split('\n')])
+    start_char, end_char = '', ''
+    def compose_fcn(x):
+        if x.taxon is not None:  # if there's a taxon defined, use its label
+            lb = x.taxon.label
+        elif x.label is not None:  # use node label
+            lb = x.label
+        else:
+            lb = 'o'
+        return '%s%s%s' % (start_char, lb, end_char)
+    dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)
+    special_chars = [c for c in reversed(string.punctuation) if c not in set(dendro_str)]  # find some special characters that we can use to identify the start and end of each label (could also use non-printable special characters, but it shouldn't be necessary)
+    if len(special_chars) >= 2:  # can't color them directly, since dendropy counts the color characters as printable
+        start_char, end_char = special_chars[:2]  # NOTE the colors get screwed up when dendropy overlaps labels (or sometimes just straight up strips stuff), which it does when it runs out of space
+        dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)  # call again after modiying compose fcn (kind of wasteful to call it twice, but it shouldn't make a difference)
+        dendro_str = dendro_str.replace(start_char, utils.Colors['blue']).replace(end_char, utils.Colors['end'] + '  ')
     else:
-        return '%sone leaf' % extra_str
+        print '  %s can\'t color tree, no available special characters in get_ascii_tree()' % utils.color('red', 'note:')
+    if get_n_nodes(dendro_tree) == 1:
+        extra_str += ' (one node)'
+    return_lines = [('%s%s' % (extra_str, line)) for line in dendro_str.split('\n')]
+    return '\n'.join(return_lines)
 
 # ----------------------------------------------------------------------------------------
 def rescale_tree(new_mean_height, dtree=None, treestr=None, debug=False):
@@ -355,16 +353,16 @@ def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespa
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 # also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def set_lb_values(dtree, tau, only_calc_val=None, multifo=None, debug=False):
+def set_lb_values(dtree, tau, only_calc_metric=None, multifo=None, debug=False):
     """
     traverses <dtree> in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI (and divides as LBR)
     """
     def getmulti(node):  # number of reads with the same sequence
         return multifo.get(node.taxon.label, 1) if multifo is not None else 1  # most all of them should be in there, but for instance I'm not adding the dummy branch nodes
 
-    metrics_to_calc = lb_metrics.keys() if only_calc_val is None else [only_calc_val]
+    metrics_to_calc = lb_metrics.keys() if only_calc_metric is None else [only_calc_metric]
     if debug:
-        print '  calculating %s with tau %.4f' % (' and '.join(metrics_to_calc), tau)
+        print '    setting %s values with tau %.4f' % (' and '.join(metrics_to_calc), tau)
 
     initial_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
     dtree = get_tree_with_dummy_branches(dtree, tau)  # this returns a new dtree, but the old tree is a subtree of the new one (or at least its collection of nodes are), and these nodes get modified by the process (hence the reversal fcn below)
@@ -516,22 +514,28 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
         print '  rerooting at %s' % new_root_node.taxon.label
         print '            current children: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
     # NOTE if the new root has a child separated by a zero-length edge, this reroot call for some reason deletes that child from the tree (both with and without suppress_unifurcations set). After messing around a bunch to try to fix it, the message I'm taking is just that zero length branches (and unifurcations) are a bad idea and I should just forbid them
-    dtree.reroot_at_node(new_root_node)  #, suppress_unifurcations=False)  # reroot at old root node (not sure if I should suppress_unifurcations?)
+    # UPDATE I think I was just missing the suppress_unifurcations=False in update_bipartitions(), but leaving these comments here in case there was another problem
+    dtree.reroot_at_node(new_root_node, suppress_unifurcations=False)  # reroot at old root node
     if debug:
         print '       children after reroot: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
-    dtree.prune_taxa_with_labels([dummy_str + '-root'])
+    dtree.prune_taxa_with_labels([dummy_str + '-root'], suppress_unifurcations=False)
     dtree.purge_taxon_namespace()  # I'm sure there's a good reason the previous line doesn't do this
-    dtree.update_bipartitions()  # not sure if I need this
+    dtree.update_bipartitions(suppress_unifurcations=False)
     if debug:
         print '        children after purge: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
 
     final_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
     if initial_labels != final_labels:  # this was only happening with a zero-length node hanging off root (see above), which probably won't happen any more since I'm now removing zero length (non-leaf) branches in bcr-phylo simulator.py
-        print '    %s nodes after dummy branch addition and removal not the same as before:\n      missing: %s\n        extra: %s' % (utils.color('red', 'error'), ' '.join(initial_labels - final_labels), ' '.join(final_labels - initial_labels))
+        print '    %s nodes after dummy branch addition and removal not the same as before:' % utils.color('red', 'error')
+        print '       missing: %s' % ' '.join(initial_labels - final_labels)
+        print '       extra:   %s' % ' '.join(final_labels - initial_labels)
+        print '       tree:'
+        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
-    # if <tau> is set, we use that for both lbi and lbr, whereas if it's None we use the default values (at the top of this file), which are *different* for lbi and lbr
+def calculate_lb_values(dtree, tau=None, only_calc_metric=None, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
+    # if <only_calc_metric> is None, we use <tau>/<default_lb_tau> and <default_lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
+    #   - whereas if <only_calc_metric> is set, we use <tau> (which must be set) and calculate only the given metric
     #   - this will hopefully get simpler when I finish understanding the optimal tau values
     # NOTE it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
 
@@ -545,7 +549,7 @@ def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, in
         dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
 
     if debug:
-        print '   lbi/lbr%s:' % ('' if extra_str is None else ' for %s' % extra_str)
+        print '   calculating %s%s with tree:' % (' and '.join(lb_metrics if only_calc_metric is None else [only_calc_metric]), '' if extra_str is None else ' for %s' % extra_str)
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
     multifo = None
@@ -553,14 +557,21 @@ def calculate_lb_values(dtree, tau=None, only_calc_val=None, annotation=None, in
         multifo = set_multiplicities(dtree, annotation, input_metafo, debug=debug)
 
     treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
-    if tau is None:
-        assert only_calc_val is None  # er, I think it wouldn't make sense to do this
-        print '    note: calculating both lb metrics with automatic tau values of %.4f (lbi) and %.4f (lbr)' % (default_lb_tau, default_lbr_tau_factor * default_lb_tau)
-        lbvals = set_lb_values(dtree, default_lb_tau, only_calc_val='lbi', multifo=multifo, debug=debug)
-        tmpvals = set_lb_values(dtree, default_lbr_tau_factor * default_lb_tau, only_calc_val='lbr', multifo=multifo, debug=debug)
+    if only_calc_metric is None:
+        if tau is None:
+            tau_to_use = default_lb_tau
+            tmpstr = ' default tau for both lbi (%.4f) and lbr (%.4f * %d = %.4f)'
+        else:
+            tau_to_use = tau
+            tmpstr = ' user value of tau for lbi (%.4f) and default factor to get tau for lbr (%.4f * %d = %.4f)'
+        print ('    note: calculating lb metrics with'+tmpstr) % (tau_to_use, tau_to_use, default_lbr_tau_factor, tau_to_use*default_lbr_tau_factor)
+        lbvals = set_lb_values(dtree, tau_to_use, only_calc_metric='lbi', multifo=multifo, debug=debug)
+        tmpvals = set_lb_values(dtree, tau_to_use*default_lbr_tau_factor, only_calc_metric='lbr', multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
     else:
-        lbvals = set_lb_values(dtree, tau, only_calc_val=only_calc_val, multifo=multifo, debug=debug)
+        assert tau is not None
+        print '    note: calculating %s only with user value of tau (%.4f)' % (only_calc_metric, tau)
+        lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
     return lbvals
@@ -611,7 +622,7 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
             start = time.time()
             dtree = get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=debug)
             label_nodes(dtree)
-            lbvals = calculate_lb_values(dtree, tau=tau, only_calc_val=metric, debug=debug)
+            lbvals = calculate_lb_values(dtree, tau=tau, only_calc_metric=metric, debug=debug)
             bfcn = __builtins__[bound]  # min() or max()
             info[metric][bound] = {metric : bfcn(lbvals[metric].values()), 'vals' : lbvals}
             if debug:
