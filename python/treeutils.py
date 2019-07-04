@@ -1053,7 +1053,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
     # calculate lb values for true lines/trees
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
-            true_dtree = get_dendro_tree(treestr=true_line['tree'], debug=True)
+            true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
