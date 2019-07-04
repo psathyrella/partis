@@ -16,6 +16,9 @@ import treeutils
 import plotting
 
 # ----------------------------------------------------------------------------------------
+lb_metric_axis_stuff = [('lbi', 'affinity', 'affinity'), ('lbr', 'n-ancestor', 'N ancestors'), ('lbr', 'branch-length', 'branch length')]
+
+# ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=7, title='', xlabel=''):
     import joypy
     # ----------------------------------------------------------------------------------------
@@ -498,7 +501,7 @@ def add_n_ancestor_vals(node, dtree, line, plotvals, affinity_changes, lb_metric
 def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), only_csv=False, debug=False):
     # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
 
-    vstr_list = collections.OrderedDict([('n-ancestor', 'N ancestors'), ('branch-length', 'branch length')])
+    vstr_list = collections.OrderedDict([(xstr, xlabel) for metric, xstr, xlabel in lb_metric_axis_stuff if metric == 'lbr'])
     # first plot lb metric vs number of ancestors since last affinity increase (all clusters)
     if debug:
         print '  finding N ancestors since last affinity increase'

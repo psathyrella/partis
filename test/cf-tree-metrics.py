@@ -13,9 +13,6 @@ import subprocess
 import multiprocessing
 
 # ----------------------------------------------------------------------------------------
-lb_metric_axis_stuff = [('lbi', 'affinity'), ('lbr', 'n-ancestor'), ('lbr', 'branch-length')]
-
-# ----------------------------------------------------------------------------------------
 def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.calculate_max_lbi()
     return max(1, int(args.seq_len * tau * ntl))
 
@@ -206,7 +203,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go lower than 85. for small sample sizes
+def make_plots(args, metric, xstr, xlabel, min_ptile_to_plot=75.):  # have to go lower than 85. for small sample sizes
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
@@ -221,7 +218,7 @@ def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go
         n_tot = args.carry_cap_list[0]
         obs_frac = n_obs / float(n_tot)
 
-        yfname = get_tree_metric_fname(varnames, vstrs, metric, x_axis_label)  # why is this vstrs rather than vstr?
+        yfname = get_tree_metric_fname(varnames, vstrs, metric, xstr)  # why is this vstrs rather than vstr?
         try:
             with open(yfname) as yfile:
                 info = json.load(yfile)  # too slow with yaml
@@ -229,7 +226,7 @@ def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go
             missing_vstrs['missing'].append(vstrs)
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
-        yval_key = 'mean_%s_ptiles' % ('affy' if x_axis_label == 'affinity' else x_axis_label)  # arg, would've been nice if that was different
+        yval_key = 'mean_%s_ptiles' % ('affy' if xstr == 'affinity' else xstr)  # arg, would've been nice if that was different
         diff_vals = [abs(pafp - afp) for lbp, afp, pafp in zip(info['lb_ptiles'], info[yval_key], info['perfect_vals']) if lbp > min_ptile_to_plot]
         if len(diff_vals) == 0:
             missing_vstrs['empty'].append(vstrs)  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
@@ -270,7 +267,10 @@ def make_plots(args, metric, x_axis_label, min_ptile_to_plot=75.):  # have to go
         xticklabels = [str(t) for t in lb_taus]
         ax.plot(lb_taus, diffs_to_perfect, label='%.4f' % obs_frac, alpha=0.7, linewidth=4)
     ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-    plotting.mpl_finish(ax, get_comparison_plotdir(), '%s-affy-ptiles-obs-frac-vs-lb-tau' % metric, xlabel='tau', ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if metric == 'lbi' else 'N ancestors', metric.upper(), min_ptile_to_plot),
+    plotting.mpl_finish(ax, get_comparison_plotdir(),
+                        '%s-%s-ptiles-obs-frac-vs-lb-tau' % (xstr, metric),
+                        xlabel='tau',
+                        ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if xlabel == 'affinity' else xlabel, metric.upper(), min_ptile_to_plot),
                         title=metric.upper(), leg_title='fraction sampled', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
                         xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
     )
@@ -407,8 +407,9 @@ elif args.action == 'run-bcr-phylo':
 elif args.action == 'get-tree-metrics':
     get_tree_metrics(args)
 elif args.action == 'plot':
-    procs = [multiprocessing.Process(target=make_plots, args=(args, metric, x_axis_label))  # time is almost entirely due to file open + json.load
-             for metric, x_axis_label in lb_metric_axis_stuff]
+    utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
+    procs = [multiprocessing.Process(target=make_plots, args=(args, metric, xstr, xlabel))  # time is almost entirely due to file open + json.load
+             for metric, xstr, xlabel in lbplotting.lb_metric_axis_stuff]
     utils.run_proc_functions(procs)
-    # for metric, x_axis_label in lb_metric_axis_stuff:
-    #     make_plots(args, metric, x_axis_label)
+    # for metric, xstr, xlabel in lbplotting.lb_metric_axis_stuff:
+    #     make_plots(args, metric, xstr, xlabel)
