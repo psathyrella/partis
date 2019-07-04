@@ -354,7 +354,7 @@ def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespa
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 # also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def set_lb_values(dtree, tau, only_calc_metric=None, multifo=None, debug=False):
+def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multifo=None, debug=False):
     """
     traverses <dtree> in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI (and divides as LBR)
     """
@@ -413,7 +413,7 @@ def set_lb_values(dtree, tau, only_calc_metric=None, multifo=None, debug=False):
         if node is dtree.seed_node or node.parent_node is dtree.seed_node:  # second clause is only because of dummy root addition (well, and if we are adding dummy root the first clause doesn't do anything)
             vals['lbr'] = 0.
         for metric in metrics_to_calc:
-            returnfo[metric][node.taxon.label] = normalize_lb_val(metric, float(vals[metric]), tau)
+            returnfo[metric][node.taxon.label] = float(vals[metric]) if dont_normalize else normalize_lb_val(metric, float(vals[metric]), tau)
 
     if debug:
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
@@ -536,7 +536,7 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
+def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
     # if <only_calc_metric> is None, we use <tau> and <lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
     #   - whereas if <only_calc_metric> is set, we use <tau> to calculate only the given metric
     # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
@@ -562,12 +562,12 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     if only_calc_metric is None:
         assert lbr_tau_factor is not None  # has to be set if we're calculating both metrics
         print '    calculating lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
-        lbvals = set_lb_values(dtree, tau, only_calc_metric='lbi', multifo=multifo, debug=debug)
-        tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, only_calc_metric='lbr', multifo=multifo, debug=debug)
+        lbvals = set_lb_values(dtree, tau, only_calc_metric='lbi', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
+        tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, only_calc_metric='lbr', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
     else:
         print '    calculating %s with tau %.4f' % (only_calc_metric, tau)
-        lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, multifo=multifo, debug=debug)
+        lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
     return lbvals
@@ -618,7 +618,7 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
             start = time.time()
             dtree = get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=debug)
             label_nodes(dtree)
-            lbvals = calculate_lb_values(dtree, tau, only_calc_metric=metric, debug=debug)
+            lbvals = calculate_lb_values(dtree, tau, only_calc_metric=metric, dont_normalize=True, debug=debug)
             bfcn = __builtins__[bound]  # min() or max()
             info[metric][bound] = {metric : bfcn(lbvals[metric].values()), 'vals' : lbvals}
             if debug:
