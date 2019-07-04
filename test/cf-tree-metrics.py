@@ -283,7 +283,7 @@ def run_bcr_phylo(args):  # also caches parameters
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
-        if utils.output_exists(args, get_partition_fname(varnames, vstrs, args.action), offset=8, debug=args.debug):
+        if utils.output_exists(args, get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), offset=8, debug=args.debug):
             n_already_there += 1
             continue
         cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters:partition --dont-get-tree-metrics --base-outdir %s %s' % (outdir, ' '.join(base_args))
@@ -296,12 +296,12 @@ def run_bcr_phylo(args):  # also caches parameters
         # cmd += ' --debug 1'
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : get_partition_fname(varnames, vstrs, args.action),
+            'outfname' : get_partition_fname(varnames, vstrs, 'run-bcr-phylo'),
             'logdir' : outdir,
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
         }]
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, args.action))
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, 'run-bcr-phylo'))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
@@ -322,8 +322,8 @@ def get_tree_metrics(args):
 
         if not os.path.isdir(get_tree_metric_outdir(varnames, vstrs)):
             os.makedirs(get_tree_metric_outdir(varnames, vstrs))
-        subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), get_partition_fname(varnames, vstrs, args.action)])
-        cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, args.action))
+        subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
+        cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
         cmd += ' --lb-tau %s --lbr-tau-factor 1' % get_vlval(vstrs, varnames, 'lb-tau')
         cmd += ' --dont-normalize-lbi'
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
@@ -341,8 +341,9 @@ def get_tree_metrics(args):
         utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
 
 # ----------------------------------------------------------------------------------------
+all_actions = ['get-lb-bounds', 'run-bcr-phylo', 'get-tree-metrics', 'plot']
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['get-lb-bounds', 'run-bcr-phylo', 'get-tree-metrics', 'plot'])
+parser.add_argument('--actions', default=':'.join(a for a in all_actions if a != 'get-lb-bounds'))
 parser.add_argument('--carry-cap-list', default='1000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
@@ -353,7 +354,7 @@ parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurc
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseed', type=int, help='if set, only run this replicate index (i.e. this corresponds to the increment *above* the random seed)')
-parser.add_argument('--n-max-procs', type=int)
+parser.add_argument('--n-max-procs', type=int)  # NOTE that with slurm this thinks there's twice as many jobs as there are
 parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
@@ -383,6 +384,7 @@ except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 
+args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 args.carry_cap_list = utils.get_arg_list(args.carry_cap_list, intify=True)
 args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, list_of_lists=True, intify=True)
 args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True)
@@ -400,16 +402,17 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 # ----------------------------------------------------------------------------------------
-if args.action == 'get-lb-bounds':
-    calc_lb_bounds(args)
-elif args.action == 'run-bcr-phylo':
-    run_bcr_phylo(args)
-elif args.action == 'get-tree-metrics':
-    get_tree_metrics(args)
-elif args.action == 'plot':
-    utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
-    procs = [multiprocessing.Process(target=make_plots, args=(args, metric, xstr, xlabel))  # time is almost entirely due to file open + json.load
-             for metric, xstr, xlabel in lbplotting.lb_metric_axis_stuff]
-    utils.run_proc_functions(procs)
-    # for metric, xstr, xlabel in lbplotting.lb_metric_axis_stuff:
-    #     make_plots(args, metric, xstr, xlabel)
+for action in args.actions:
+    if action == 'get-lb-bounds':
+        calc_lb_bounds(args)
+    elif action == 'run-bcr-phylo':
+        run_bcr_phylo(args)
+    elif action == 'get-tree-metrics':
+        get_tree_metrics(args)
+    elif action == 'plot':
+        utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
+        procs = [multiprocessing.Process(target=make_plots, args=(args, metric, xstr, xlabel))  # time is almost entirely due to file open + json.load
+                 for metric, xstr, xlabel in lbplotting.lb_metric_axis_stuff]
+        utils.run_proc_functions(procs)
+        # for metric, xstr, xlabel in lbplotting.lb_metric_axis_stuff:
+        #     make_plots(args, metric, xstr, xlabel)

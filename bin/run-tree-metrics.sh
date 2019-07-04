@@ -10,7 +10,5 @@ testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times
 # $bin get-lb-bounds --label $testlabel $testargs --make-plots
 # exit 0
 
-for action in run-bcr-phylo get-tree-metrics plot; do
-    # echo $bin $action --label $label --n-replicates 3 $common
-    echo $bin $action --label $testlabel $testargs
-done
+echo $bin --label $testlabel $testargs
+echo $bin --label $label --n-replicates 3 $common --only-csv-plots
