@@ -168,10 +168,11 @@ def simulate():
     print '  writing annotations to %s' % simfname()
     utils.write_annotations(simfname(), glfo, mutated_events, utils.simulation_headers)
 
-    import lbplotting
-    for outdir, event in zip(outdirs, mutated_events):
-        lbplotting.plot_bcr_phylo_simulation(outdir, event, args.extrastr, args.metric_for_target_distance)
-    # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
+    if not args.only_csv_plots:
+        import lbplotting
+        for outdir, event in zip(outdirs, mutated_events):
+            lbplotting.plot_bcr_phylo_simulation(outdir, event, args.extrastr, args.metric_for_target_distance)
+        # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
 
 # ----------------------------------------------------------------------------------------
 def cache_parameters():
@@ -206,6 +207,7 @@ parser.add_argument('--base-outdir', default='%s/partis/bcr-phylo/test' % os.get
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
 parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--dont-get-tree-metrics', action='store_true', help='Partition without getting tree metrics, presumably because you want to run them yourself later')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--n-procs', type=int, default=1)

@@ -305,7 +305,7 @@ parent_parser.add_argument('--workdir', help='Temporary working directory (defau
 parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (by default this is not set, and consequently no plots are written')
 parent_parser.add_argument('--plot-performance', action='store_true', help='renamed to --plot-annotation-performance')
 parent_parser.add_argument('--plot-annotation-performance', action='store_true', help='Write out plots comparing true and inferred annotation accuracy distributions')
-parent_parser.add_argument('--only-csv-plots', action='store_true', help='only write csv plots (svg writing is pretty slow, and it\'s frequently better to make comparison plots from csvs with ./bin/compare-plotdirs.py anyway)')
+parent_parser.add_argument('--only-csv-plots', action='store_true', help='skip writing actual image files, which can quite be slow, and only write the csv/yaml summaries (where implemented)')
 parent_parser.add_argument('--make-per-gene-plots', action='store_true', help='in addition to plots aggregating over genes, write plots displaying info for each gene of, e.g., per position shm rate, deletion frequencies')
 parent_parser.add_argument('--make-per-gene-per-base-plots', action='store_true', help='in addition to the plots made by --make-per-gene-plots, also make the per-gene, per-base plots (i.e. showing A->T vs A->G (this is quite slow, like a few seconds per gene plot).')
 parent_parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)

@@ -291,6 +291,8 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --%s %s' % (vname, vstr)
         if args.overwrite:
             cmd += ' --overwrite'
+        if args.only_csv_plots:
+            cmd += ' --only-csv-plots'
         # cmd += ' --debug 1'
         cmdfos += [{
             'cmd_str' : cmd,
@@ -325,6 +327,8 @@ def get_tree_metrics(args):
         cmd += ' --lb-tau %s --lbr-tau-factor 1' % get_vlval(vstrs, varnames, 'lb-tau')
         cmd += ' --dont-normalize-lbi'
         cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
+        if args.only_csv_plots:
+            cmd += ' --only-csv-plots'
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : get_tree_metric_fname(varnames, vstrs),
@@ -355,6 +359,7 @@ parser.add_argument('--random-seed', default=0, type=int, help='note that if --n
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
 parser.add_argument('--make-plots', action='store_true')
+parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--slurm', action='store_true')
