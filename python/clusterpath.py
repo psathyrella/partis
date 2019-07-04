@@ -414,7 +414,7 @@ class ClusterPath(object):
         tns = dendropy.TaxonNamespace([root_label])
         root_node = dendropy.Node(taxon=tns.get_taxon(root_label))
         root_node.uids = uid_set  # each node keeps track of the uids of its children
-        dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
+        dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node, is_rooted=True)
         if debug:
             print '    starting tree with %d leaves' % len(uid_set)
         for ipart in reversed(range(len(partitions) - 1)):  # dendropy seems to only have fcns to build a tree from the root downward, so we loop starting with the last partition (- 1 is because the last partition is guaranteed to be just one cluster)

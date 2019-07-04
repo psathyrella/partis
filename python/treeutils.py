@@ -69,8 +69,7 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
         if taxon_namespace is not None:
             print '     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace])
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
-    dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True)
-    dtree.reroot_at_node(dtree.seed_node, suppress_unifurcations=False)  # make sure the tree is rooted, to avoid node's disappearing in remove_dummy_branches() (I'm not sure this is the best way to do it, but I think it's ok)
+    dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True, rooting='force-rooted')  # make sure the tree is rooted, to avoid nodes disappearing in remove_dummy_branches() (and proably other places as well)
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
 
     # # uncomment for more verbosity:
@@ -348,7 +347,6 @@ def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespa
     if debug:
         print '      converting FastTree newick string to dendro tree'
     dtree = get_dendro_tree(treestr=treestr, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)
-    dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), update_bipartitions=True)
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -475,7 +473,7 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
     new_root_taxon = dendropy.Taxon(dummy_str + '-root')
     old_dtree.taxon_namespace.add_taxon(new_root_taxon)
     new_root_node = dendropy.Node(taxon=new_root_taxon)
-    new_dtree = dendropy.Tree(seed_node=new_root_node, taxon_namespace=old_dtree.taxon_namespace)
+    new_dtree = dendropy.Tree(seed_node=new_root_node, taxon_namespace=old_dtree.taxon_namespace, is_rooted=True)
 
     # then add the entire old tree under this new tree
     new_root_node.add_child(old_dtree.seed_node)
@@ -510,14 +508,15 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
 
     if len(dtree.seed_node.child_nodes()) != 1:
         print '  %s root node has more than one child when removing dummy branches: %s' % (utils.color('yellow', 'warning'), ' '.join([n.taxon.label for n in dtree.seed_node.child_nodes()]))
-    dtree.reroot_at_node(dtree.seed_node, suppress_unifurcations=False)  # make sure it's rooted, to avoid unifurcations getting suppressed (even with the arg set to false)
     new_root_node = dtree.seed_node.child_nodes()[0]
     if debug:
         print '  rerooting at %s' % new_root_node.taxon.label
         print '            current children: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
     # NOTE if the new root has a child separated by a zero-length edge, this reroot call for some reason deletes that child from the tree (both with and without suppress_unifurcations set). After messing around a bunch to try to fix it, the message I'm taking is just that zero length branches (and unifurcations) are a bad idea and I should just forbid them
     # UPDATE I think I was just missing the suppress_unifurcations=False in update_bipartitions(), but leaving these comments here in case there was another problem
-    # UPDATE UPDATE actually the reroot still seems to eat a node sometimes if the tree is unrooted (so adding the extra reroot above)
+    # UPDATE actually the reroot still seems to eat a node sometimes if the tree is unrooted (so adding the extra reroot above)
+    # UPDATE this is more or less expectd, from dendropy's perspective; see https://github.com/jeetsukumaran/DendroPy/issues/118
+    assert dtree.is_rooted  # make sure it's rooted, to avoid unifurcations getting suppressed (even with the arg set to false)
     dtree.reroot_at_node(new_root_node, suppress_unifurcations=False)  # reroot at old root node
     if debug:
         print '       children after reroot: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
@@ -587,7 +586,7 @@ def set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=False):
-    dtree = dendropy.Tree()  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculate lb values)
+    dtree = dendropy.Tree(is_rooted=True)  # note that using a taxon namespace while you build the tree is *much* slower than labeling it afterward (and we do need labels when we calculate lb values)
     if bound == 'min':
         leaf_node = dtree.seed_node  # pretty similar to the dummy root stuff
         for igen in range(n_generations):
@@ -650,7 +649,7 @@ def build_lonr_tree(edgefos, debug=False):
         print '      chose \'%s\' as root node' % root_label
     tns = dendropy.TaxonNamespace(all_nodes)
     root_node = dendropy.Node(taxon=tns.get_taxon(root_label))  # NOTE this sets node.label and node.taxon.label to the same thing, which may or may not be what we want  # label=root_label,    (if you start setting the node labels again, you also have to translate them below)
-    dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node)
+    dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node, is_rooted=True)
     remaining_nodes = copy.deepcopy(all_nodes) - set([root_label])  # a.t.m. I'm not actually using <all_nodes> after this, but I still want to keep them separate in case I start using it
 
     weight_or_distance_key = 'distance'  # maybe should I be using the 'weight' column? I think they're just proportional though so I guess it shouldn't matter (same thing in the line below) # 
@@ -1008,6 +1007,12 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
     return {'tree' : dtree, 'origin' : origin}
 
 # ----------------------------------------------------------------------------------------
+def check_lb_values(line, lbvals):
+    for metric in [m for m in lbvals if m in lb_metrics]:
+        if len(set(line['unique_ids']) - set(lbvals[metric])) > 0:  # we expect to get extra ones, for inferred ancestral nodes for which we don't have sequences
+            raise Exception('uids in annotation not the same as lb info keys\n    missing: %s\n    extra: %s' % (' '.join(set(line['unique_ids']) - set(lbvals[metric])), ' '.join(set(lbvals[metric]) - set(line['unique_ids']))))
+
+# ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, debug=False):
     print 'getting tree metrics'
@@ -1035,6 +1040,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         tree_origin_counts[treefo['origin']]['count'] += 1
         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
         line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', debug=debug)
+        check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
@@ -1043,9 +1049,10 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
     # calculate lb values for true lines/trees
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
-            true_dtree = get_dendro_tree(treestr=true_line['tree'])
+            true_dtree = get_dendro_tree(treestr=true_line['tree'], debug=True)
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
+            check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
 
     if base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
