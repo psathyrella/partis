@@ -559,14 +559,15 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
         multifo = set_multiplicities(dtree, annotation, input_metafo, debug=debug)
 
     treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
+    normstr = 'unnormalized' if dont_normalize else 'normalized'
     if only_calc_metric is None:
         assert lbr_tau_factor is not None  # has to be set if we're calculating both metrics
-        print '    calculating lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
+        print '    calculating %s lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (normstr, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
         lbvals = set_lb_values(dtree, tau, only_calc_metric='lbi', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, only_calc_metric='lbr', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
     else:
-        print '    calculating %s with tau %.4f' % (only_calc_metric, tau)
+        print '    calculating %s %s with tau %.4f' % (normstr, only_calc_metric, tau)
         lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
@@ -1008,7 +1009,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
 
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           ete_path=None, workdir=None, debug=False):
+                           ete_path=None, workdir=None, dont_normalize_lbi=False, debug=False):
     print 'getting tree metrics'
     if reco_info is not None:
         for tmpline in reco_info.values():
@@ -1033,7 +1034,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
         tree_origin_counts[treefo['origin']]['count'] += 1
         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, extra_str='inf tree', debug=debug)
+        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', debug=debug)
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
@@ -1043,7 +1044,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         for true_line in true_lines_to_use:
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, extra_str='true tree', debug=debug)
+            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
 
     if base_plotdir is not None:
