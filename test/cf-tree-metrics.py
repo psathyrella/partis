@@ -253,7 +253,9 @@ def make_plots(args, metric, xstr, xlabel, min_ptile_to_plot=75.):  # have to go
     if args.n_replicates > 1:  # need to average over the replicates
         for obs_frac, ofvals in plotvals.items():
             mean_vals = []
-            for ipair in range(len(ofvals[0])):  # note that 0 is a dict key, not an index
+            ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should correspond to 'missing')
+            assert len(set([len(ofvals[i]) for i in ofvals])) == 1
+            for ipair in range(len(ofvals[0])):  # note that 0 is a dict key (i.e. the zeroth replicate), not an index
                 tau = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
                 assert len(set(tau)) == 1  # all of 'em better have the same tau
                 tau = tau[0]
