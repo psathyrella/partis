@@ -147,8 +147,8 @@ def get_tree_metric_outdir(varnames, vstr):
     return get_outdir(varnames, vstr, 'get-tree-metrics') + '/partis'
 
 # ----------------------------------------------------------------------------------------
-def get_partition_fname(varnames, vstr, action):  # if action is 'run-bcr-phylo', we want the original partition output file, but if it's 'get-tree-metrics', we want the copied one, that had tree metrics added to it (and which is in the e.g. tau subdir)
-    outdir = '%s/selection/partis' % (get_bcr_phylo_outdir(varnames, vstr)) if action == 'run-bcr-phylo' else get_tree_metric_outdir(varnames, vstr)
+def get_partition_fname(varnames, vstr, action):  # if action is 'bcr-phylo', we want the original partition output file, but if it's 'get-tree-metrics', we want the copied one, that had tree metrics added to it (and which is in the e.g. tau subdir)
+    outdir = '%s/selection/partis' % (get_bcr_phylo_outdir(varnames, vstr)) if action == 'bcr-phylo' else get_tree_metric_outdir(varnames, vstr)
     return '%s/partition.yaml' % outdir
 
 # ----------------------------------------------------------------------------------------
@@ -283,7 +283,7 @@ def run_bcr_phylo(args):  # also caches parameters
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
-        if utils.output_exists(args, get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), offset=8, debug=args.debug):
+        if utils.output_exists(args, get_partition_fname(varnames, vstrs, 'bcr-phylo'), offset=8, debug=args.debug):
             n_already_there += 1
             continue
         cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters:partition --dont-get-tree-metrics --base-outdir %s %s' % (outdir, ' '.join(base_args))
@@ -296,12 +296,12 @@ def run_bcr_phylo(args):  # also caches parameters
         # cmd += ' --debug 1'
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : get_partition_fname(varnames, vstrs, 'run-bcr-phylo'),
+            'outfname' : get_partition_fname(varnames, vstrs, 'bcr-phylo'),
             'logdir' : outdir,
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
         }]
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, 'run-bcr-phylo'))
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, 'bcr-phylo'))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
@@ -322,7 +322,7 @@ def get_tree_metrics(args):
 
         if not os.path.isdir(get_tree_metric_outdir(varnames, vstrs)):
             os.makedirs(get_tree_metric_outdir(varnames, vstrs))
-        subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'run-bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
+        subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
         cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
         cmd += ' --lb-tau %s --lbr-tau-factor 1' % get_vlval(vstrs, varnames, 'lb-tau')
         cmd += ' --dont-normalize-lbi'
@@ -341,7 +341,7 @@ def get_tree_metrics(args):
         utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
 
 # ----------------------------------------------------------------------------------------
-all_actions = ['get-lb-bounds', 'run-bcr-phylo', 'get-tree-metrics', 'plot']
+all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot']
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--actions', default=':'.join(a for a in all_actions if a != 'get-lb-bounds'))
 parser.add_argument('--carry-cap-list', default='1000')
@@ -405,7 +405,7 @@ if args.workdir is None:
 for action in args.actions:
     if action == 'get-lb-bounds':
         calc_lb_bounds(args)
-    elif action == 'run-bcr-phylo':
+    elif action == 'bcr-phylo':
         run_bcr_phylo(args)
     elif action == 'get-tree-metrics':
         get_tree_metrics(args)
