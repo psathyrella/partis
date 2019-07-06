@@ -43,7 +43,7 @@ def rearrange():
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
-def run_bcr_phylo(naive_line, outdir, ievent):
+def run_bcr_phylo(naive_line, outdir, ievent, n_total_events):
     if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
         return
 
@@ -80,6 +80,8 @@ def run_bcr_phylo(naive_line, outdir, ievent):
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     cmd += ' --random_seed %d' % (args.seed + ievent)
     cmd += ' --naive_seq %s' % naive_line['naive_seq']
+    if n_total_events > 1:  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
+        cmd += ' --uid_str_len 7'
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -158,7 +160,7 @@ def simulate():
     for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
         if args.n_sim_events > 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
-        run_bcr_phylo(naive_line, outdir, ievent)
+        run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list))
 
     if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
         return
