@@ -74,7 +74,7 @@ def run_bcr_phylo(naive_line, outdir, ievent):
         assert False
 
     cmd += ' --debug %d' % args.debug
-    cmd += ' --n_tries 3'
+    cmd += ' --n_tries 10'
     cmd += ' --no_context'
     cmd += ' --no_plot'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
@@ -156,6 +156,8 @@ def simulate():
     outdirs = ['%s/event-%d' % (simdir(), i) for i in range(len(naive_event_list))]
 
     for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
+        if args.n_sim_events > 1:
+            print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
         run_bcr_phylo(naive_line, outdir, ievent)
 
     if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
