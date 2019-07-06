@@ -910,6 +910,8 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
         print '    using %d true clusters to calculate inferred tree metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True)))
         lines_to_use, true_lines_to_use = [], []
         for cluster in true_partition:
+            if debug:
+                print '     looking for cluster with size %d' % len(cluster)
             true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
             max_in_common, ustr_to_use = None, None  # look for the inferred cluster that has the most uids in common with this true cluster
             for ustr in annotations:  # order will be different in reco info and inferred clusters
@@ -919,6 +921,8 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
                     max_in_common = n_in_common
             if max_in_common is None:
                 raise Exception('cluster \'%s\' not found in inferred annotations (probably because use_true_clusters was set)' % ':'.join(cluster))
+            if debug:
+                print '       chose cluster with %d in common' % max_in_common
             if max_in_common < len(cluster):
                 print '    note: couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d, which includes %d duplicates)' % (max_in_common, len(cluster), len([u for dlist in annotations[ustr_to_use]['duplicates'] for u in dlist]))
                 # print '        missing: %s' % ' '.join(set(cluster) - set(utils.uids_and_dups(annotations[ustr_to_use])))

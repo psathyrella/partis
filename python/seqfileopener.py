@@ -195,7 +195,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             while new_uid in input_info:
                 new_uid = uid + '-' + str(iid)
                 iid += 1
-            print '  %s uid %s already read from input file %s, so replacing with new uid %s' % (utils.color('yellow', 'warning'), uid, infname, new_uid)
+            print '  %s uid %s already read from input file %s, so replacing with new uid %s' % (utils.color('yellow', 'warning'), uid, infname, new_uid)  # if you decide you want to change it also in <reco_info>, don't forget to also modify the tree (and maybe other stuff, hence why I don't want to do it)
             uid = new_uid
         inseq = line['input_seqs'][0]
 
@@ -226,6 +226,8 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             if 'v_gene' not in line:
                 raise Exception('simulation info not found in %s' % infname)
             reco_info[uid] = copy.deepcopy(line)
+            if uid != line['unique_ids'][0]:
+                print '     note: chosen uid %s (probably changed above) doesn\'t match simulation info uid %s (so simulation info will be internally consistent, but the key indexing that info in <reco_info> is different, since it corresponds to the newly chosen uid above)' % (uid, line['unique_ids'][0])
             if simglfo is not None:
                 utils.add_implicit_info(simglfo, reco_info[uid])
             for line_key in utils.input_metafile_keys.values():
