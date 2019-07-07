@@ -398,6 +398,10 @@ def per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresp
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
 
 # ----------------------------------------------------------------------------------------
+def n_dups(line):  # number of duplicate sequences summed over all iseqs (note: duplicates do not include the actual uids/sequences in the annotation)
+    return len([u for dlist in line['duplicates'] for u in dlist])
+
+# ----------------------------------------------------------------------------------------
 def uids_and_dups(line):
     return line['unique_ids'] + [u for dlist in line['duplicates'] for u in dlist]
 

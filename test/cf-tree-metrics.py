@@ -212,7 +212,7 @@ def make_plots(args, metric, xstr, xlabel, min_ptile_to_plot=75.):  # have to go
         n_per_gen = get_vlval(vlists, varnames, 'n-sim-seqs-per-gen')
         assert len(n_per_gen) == 1
         n_per_gen = n_per_gen[0]
-        assert len(args.obs_times_list) == 1
+        assert len(args.obs_times_list) == 1  # would just need to add up the n_gen for each
         n_obs = n_per_gen * len(args.obs_times_list[0])
         assert len(args.carry_cap_list) == 1
         n_tot = args.carry_cap_list[0]

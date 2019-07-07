@@ -535,10 +535,11 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, debug=False):
+def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, iclust=None, debug=False):
     # if <only_calc_metric> is None, we use <tau> and <lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
     #   - whereas if <only_calc_metric> is set, we use <tau> to calculate only the given metric
     # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
+    # <iclust> is just to give a little more granularity in dbg
 
     if use_multiplicities:
         print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
@@ -561,12 +562,14 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     normstr = 'unnormalized' if dont_normalize else 'normalized'
     if only_calc_metric is None:
         assert lbr_tau_factor is not None  # has to be set if we're calculating both metrics
-        print '    calculating %s lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (normstr, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
+        if iclust is None or iclust == 0:
+            print '    calculating %s lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (normstr, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
         lbvals = set_lb_values(dtree, tau, only_calc_metric='lbi', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, only_calc_metric='lbr', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
     else:
-        print '    calculating %s %s with tau %.4f' % (normstr, only_calc_metric, tau)
+        if iclust is None or iclust == 0:
+            print '    calculating %s %s with tau %.4f' % (normstr, only_calc_metric, tau)
         lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
@@ -908,24 +911,30 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
         assert reco_info is not None
         true_partition = utils.get_true_partition(reco_info)
         print '    using %d true clusters to calculate inferred tree metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True)))
+        if debug:
+            print '      choosing    N        N       N         frac       (N chosen)'
+            print '       from     true  & chosen = in common  in common   (w/out duplicates)'
         lines_to_use, true_lines_to_use = [], []
+        chosen_ustrs = set()  # now that we're using the fraction instead of the raw total, we mostly shouldn't get multiple true clusters corresponding to the same inferred cluster, but maybe it'll still happen occasionally
         for cluster in true_partition:
-            if debug:
-                print '     looking for cluster with size %d' % len(cluster)
             true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
-            max_in_common, ustr_to_use = None, None  # look for the inferred cluster that has the most uids in common with this true cluster
-            for ustr in annotations:  # order will be different in reco info and inferred clusters
+            n_max_in_common, max_frac_in_common, ustr_to_use = None, None, None  # look for the inferred cluster that has the most uids in common with this true cluster
+            for ustr in set(annotations) - chosen_ustrs:  # order will be different in reco info and inferred clusters
                 n_in_common = len(set(utils.uids_and_dups(annotations[ustr])) & set(cluster))  # can't just look for the actual cluster since we collapse duplicates, but bcr-phylo doesn't (but maybe I should throw them out when parsing bcr-phylo output)
-                if max_in_common is None or n_in_common > max_in_common:
+                frac_in_common = n_in_common**2 / float(len(utils.uids_and_dups(annotations[ustr])) * len(cluster))  # and have to use frac instead of total to guard against inferred clusters that include several true clusters (reminder: these inferred clusters may have been run with --n-final-clusters 1 or something similar)
+                if max_frac_in_common is None or frac_in_common > max_frac_in_common:
                     ustr_to_use = ustr
-                    max_in_common = n_in_common
-            if max_in_common is None:
+                    n_max_in_common = n_in_common
+                    max_frac_in_common = frac_in_common
+            if max_frac_in_common is None:
                 raise Exception('cluster \'%s\' not found in inferred annotations (probably because use_true_clusters was set)' % ':'.join(cluster))
             if debug:
-                print '       chose cluster with %d in common' % max_in_common
-            if max_in_common < len(cluster):
-                print '    note: couldn\'t find an inferred cluster that shared all sequences with true cluster (best was %d/%d, which includes %d duplicates)' % (max_in_common, len(cluster), len([u for dlist in annotations[ustr_to_use]['duplicates'] for u in dlist]))
-                # print '        missing: %s' % ' '.join(set(cluster) - set(utils.uids_and_dups(annotations[ustr_to_use])))
+                print '      %4d     %4d     %4d     %4d        %4.2f        (%d)' % (len(set(annotations) - chosen_ustrs), len(cluster), len(utils.uids_and_dups(annotations[ustr_to_use])), n_max_in_common, max_frac_in_common, len(annotations[ustr_to_use]['unique_ids']))
+            if max_frac_in_common < 1:
+                print '            note: couldn\'t find an inferred cluster that corresponded exactly to the true cluster (best was %d & %d = %d (frac %.2f), where the inferred includes %d duplicates)' % (len(utils.uids_and_dups(annotations[ustr_to_use])), len(cluster), n_max_in_common, max_frac_in_common, utils.n_dups(annotations[ustr_to_use]))
+            if ustr_to_use in chosen_ustrs:
+                raise Exception('chose the same inferred cluster to correspond to two different true clusters')
+            chosen_ustrs.add(ustr_to_use)
             lines_to_use.append(annotations[ustr_to_use])
     else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
         if cpath is not None:  # restrict it to clusters in the best partition (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
@@ -1028,7 +1037,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
 
-    lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debug=debug)
+    lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters)
 
     # get tree and calculate metrics for inferred lines
     n_skipped = len([l for l in lines_to_use if len(l['unique_ids']) < min_tree_metric_cluster_size])
@@ -1037,7 +1046,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
     print '    calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
     print '      skipping %d smaller than %d' % (n_skipped, min_tree_metric_cluster_size)
-    for line in lines_to_use:
+    for iclust, line in enumerate(lines_to_use):
         if debug:
             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
         if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
@@ -1047,7 +1056,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
         tree_origin_counts[treefo['origin']]['count'] += 1
         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', debug=debug)
+        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
         check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
@@ -1056,9 +1065,9 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
 
     # calculate lb values for true lines/trees
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
-        for true_line in true_lines_to_use:
+        for iclust, true_line in enumerate(true_lines_to_use):
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', debug=debug)
+            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
 
