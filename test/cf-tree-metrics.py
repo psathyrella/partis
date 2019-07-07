@@ -203,20 +203,29 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, xstr, xlabel, min_ptile_to_plot=75.):  # have to go lower than 85. for small sample sizes
+def make_plots(args, metric, xstr, xlabel, min_ptile_to_plot=75., debug=False):  # have to go lower than 85. for small sample sizes
+    debug = True
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    if debug:
+        print '   obs times    N/gen        carry cap       fraction sampled'
     missing_vstrs = {'missing' : [], 'empty' : []}
     for vlists, vstrs in zip(val_lists, valstrs):
-        n_per_gen = get_vlval(vlists, varnames, 'n-sim-seqs-per-gen')
-        assert len(n_per_gen) == 1
-        n_per_gen = n_per_gen[0]
-        assert len(args.obs_times_list) == 1  # would just need to add up the n_gen for each
-        n_obs = n_per_gen * len(args.obs_times_list[0])
-        assert len(args.carry_cap_list) == 1
-        n_tot = args.carry_cap_list[0]
-        obs_frac = n_obs / float(n_tot)
+        obs_times = get_vlval(vlists, varnames, 'obs-times')
+        n_per_gen_vals = get_vlval(vlists, varnames, 'n-sim-seqs-per-gen')
+        if len(obs_times) == len(n_per_gen_vals):  # note that this duplicates logic in bcr-phylo simulator.py
+            n_sampled = sum(n_per_gen_vals)
+        elif len(n_per_gen_vals) == 1:
+            n_sampled = len(obs_times) * n_per_gen_vals[0]
+        else:
+            assert False
+        n_total = get_vlval(vlists, varnames, 'carry-cap')  # note that this is of course the number alive at a given time, and very different from the total number that ever lived
+        obs_frac = n_sampled / float(n_total)
+        if debug:
+            print '    %-12s %-12s   %-5d     %8s / %-4d = %.3f' % (' '.join(str(o) for o in obs_times), ' '.join(str(n) for n in n_per_gen_vals), n_total,
+                                                                         ('(%s)' % ' + '.join(str(n) for n in n_per_gen_vals)) if len(obs_times) == len(n_per_gen_vals) else ('%d * %d' % (len(obs_times), n_per_gen_vals[0])),
+                                                                         n_total, n_sampled / float(n_total))
 
         yfname = get_tree_metric_fname(varnames, vstrs, metric, xstr)  # why is this vstrs rather than vstr?
         try:
