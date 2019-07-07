@@ -79,9 +79,9 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events):
     cmd += ' --no_plot'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     cmd += ' --random_seed %d' % (args.seed + ievent)
-    cmd += ' --naive_seq %s' % naive_line['naive_seq']
     if n_total_events > 1:  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
         cmd += ' --uid_str_len 7'
+    cmd += ' --naive_seq %s' % naive_line['naive_seq']
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)

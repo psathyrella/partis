@@ -194,7 +194,7 @@ def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, lo
         cmdstr += ' --use-cache'
     if args.only_print:
         cmdstr += ' --only-print'
-    utils.run_ete_script(cmdstr, args.ete_path, debug=args.dryrun, dryrun=args.dryrun)
+    utils.run_ete_script(cmdstr, args.ete_path, debug=args.dryrun, dryrun=args.dryrun, extra_str='        ')
 
 # ----------------------------------------------------------------------------------------
 def print_gls_gen_summary_table(args, region, baseoutdir):
