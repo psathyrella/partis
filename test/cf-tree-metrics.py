@@ -204,6 +204,11 @@ def get_var_info(args, scan_vars):
 
 # ----------------------------------------------------------------------------------------
 def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_plot=75., debug=False):
+    vlabels = {
+        'obs_frac' : 'fraction sampled',
+        'n-sim-seqs-per-gen' : 'N/gen',
+        'obs-times' : 't obs',
+    }
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames):
         obs_times = get_vlval(vlists, varnames, 'obs-times')
@@ -216,18 +221,12 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             assert False
         n_total = get_vlval(vlists, varnames, 'carry-cap')  # note that this is of course the number alive at a given time, and very different from the total number that ever lived
         obs_frac = n_sampled / float(n_total)
-        if debug:
-            print '    %-12s %-12s   %-5d     %8s / %-4d = %.3f' % (' '.join(str(o) for o in obs_times), ' '.join(str(n) for n in n_per_gen_vals), n_total,
-                                                                         ('(%s)' % ' + '.join(str(n) for n in n_per_gen_vals)) if len(obs_times) == len(n_per_gen_vals) else ('%d * %d' % (len(obs_times), n_per_gen_vals[0])),
-                                                                         n_total, n_sampled / float(n_total))
-        return obs_frac
+        dbgstr = '    %-12s %-12s   %-5d     %8s / %-4d = %.3f' % (' '.join(str(o) for o in obs_times), ' '.join(str(n) for n in n_per_gen_vals), n_total,
+                                                                   ('(%s)' % ' + '.join(str(n) for n in n_per_gen_vals)) if len(obs_times) == len(n_per_gen_vals) else ('%d * %d' % (len(obs_times), n_per_gen_vals[0])),
+                                                                   n_total, n_sampled / float(n_total))
+        return obs_frac, dbgstr
     # ----------------------------------------------------------------------------------------
     def pvkeystr(vlists, varnames, obs_frac):
-        vlabels = {
-            'obs_frac' : 'fraction sampled',
-            'n-sim-seqs-per-gen' : 'N per gen',
-            'obs-times' : 'obs times',
-        }
         def valstr(vname):
             vval = obs_frac if vname == 'obs_frac' else get_vlval(vlists, varnames, vname)
             if vname == 'obs_frac':
@@ -245,6 +244,11 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         pvkey = ', '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
         pvlabel = ', '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey, pvlabel
+    # ----------------------------------------------------------------------------------------
+    def get_varname_str():
+        return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
+    def get_varval_str(vstrs):
+        return ''.join('%10s' % v for v in vstrs)
 
     # ----------------------------------------------------------------------------------------
     debug = True
@@ -252,10 +256,13 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
     plotvals = collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     if debug:
-        print '   obs times    N/gen        carry cap       fraction sampled'
+        print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
     missing_vstrs = {'missing' : [], 'empty' : []}
+    pvlabel = '?'  # arg ick ugh
     for vlists, vstrs in zip(val_lists, valstrs):
-        obs_frac = get_obs_frac(vlists, varnames)
+        obs_frac, dbgstr = get_obs_frac(vlists, varnames)
+        if debug:
+            print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
         yfname = get_tree_metric_fname(varnames, vstrs, metric, ptilestr)  # why is this called vstrs rather than vstr?
         try:
             with open(yfname) as yfile:
@@ -287,26 +294,29 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         if len(vstrs_list) == 0:
             continue
         print '  %s:' % mkey
-        print '     %s' % ''.join('%8s' % v for v in varnames)
+        print '     %s' % get_varname_str()
         for vstrs in vstrs_list:
-            print '      %s' % ''.join('%8s' % v for v in vstrs)
+            print '      %s' % get_varval_str(vstrs)
 
     if args.n_replicates > 1:  # need to average over the replicates
         if debug:
             print '  averaging replicates:'
-            print '    pvkey   N used  N expected'
+            tmplen = str(max(len(pvkey) for pvkey in plotvals))
+            print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
         for pvkey, ofvals in plotvals.items():
             mean_vals = []
             ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should correspond to 'missing')
             assert len(set([len(ofvals[i]) for i in ofvals])) == 1
-            if debug:
-                print '%7s    %4d   %4d' % (pvkey, len(ofvals[0]), args.n_replicates)
+            n_used = []  # just for dbg
             for ipair in range(len(ofvals[0])):  # note that 0 is a dict key (i.e. the zeroth replicate), not an index NOTE if the zeroth one is ever empty this will probably break
                 tau = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
                 assert len(set(tau)) == 1  # all of 'em better have the same tau
                 tau = tau[0]
                 mean_vals.append((tau, numpy.mean([ofvals[i][ipair][1] for i in ofvals])))
+                n_used.append(len([ofvals[i][ipair][1] for i in ofvals]))
             plotvals[pvkey] = mean_vals
+            if debug:
+                print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), args.n_replicates, '' if n_used[0] == args.n_replicates else utils.color('red', ' <--'))
 
     fig, ax = plotting.mpl_init()
     lb_taus, xticklabels = None, None
