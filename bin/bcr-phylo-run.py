@@ -189,7 +189,7 @@ def cache_parameters():
 def partition():
     if utils.output_exists(args, partition_fname(), outlabel='partition', offset=4):
         return
-    cmd = './bin/partis partition --n-final-clusters 1 --is-simu --infname %s --parameter-dir %s --n-procs %d --outfname %s --seed %d' % (simfname(), param_dir(), args.n_procs, partition_fname(), args.seed)
+    cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --infname %s --parameter-dir %s --n-procs %d --outfname %s --seed %d' % (simfname(), param_dir(), args.n_procs, partition_fname(), args.seed)
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
     if not args.dont_get_tree_metrics:
         cmd += ' --get-tree-metrics --plotdir %s' % (infdir() + '/plots')

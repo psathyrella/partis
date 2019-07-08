@@ -298,7 +298,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         for vstrs in vstrs_list:
             print '      %s' % get_varval_str(vstrs)
 
-    if args.n_replicates > 1:  # need to average over the replicates
+    if args.n_replicates > 1 and len(plotvals) > 0:  # need to average over the replicates
         if debug:
             print '  averaging replicates:'
             tmplen = str(max(len(pvkey) for pvkey in plotvals))

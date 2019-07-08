@@ -492,7 +492,11 @@ class PartitionDriver(object):
             print 'caching all %d naive sequences' % len(self.sw_info['queries'])  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
-        if self.args.naive_vsearch or self.args.naive_swarm:
+        if self.args.simultaneous_true_clonal_seqs:
+            print '    using true clusters instead of partitioning'
+            true_partition = [[uid for uid in cluster if uid in self.sw_info] for cluster in utils.get_true_partition(self.reco_info)]  # mostly just to remove duplicates, although I think there might be other reasons why a uid would be missing
+            cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=true_partition)
+        elif self.args.naive_vsearch or self.args.naive_swarm:
             cpath = self.cluster_with_naive_vsearch_or_swarm(parameter_dir=self.sub_param_dir)
         else:
             cpath = self.cluster_with_bcrham()
@@ -1669,8 +1673,7 @@ class PartitionDriver(object):
         else:
             qlist = self.sw_info['queries']  # shorthand
 
-            if self.args.simultaneous_true_clonal_seqs:
-                assert self.args.n_simultaneous_seqs is None and not self.args.is_data  # are both already checked in ./bin/partis
+            if self.args.simultaneous_true_clonal_seqs:  # NOTE this arg can now also be set when partitioning, but it's dealt with elsewhere
                 nsets = utils.get_true_partition(self.reco_info, ids=qlist)
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)  # arg, have to split some clusters apart by cdr3, for rare cases where we call an shm indel in j within the cdr3
             elif self.args.all_seqs_simultaneous:  # everybody together

@@ -929,7 +929,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
             if max_frac_in_common is None:
                 raise Exception('cluster \'%s\' not found in inferred annotations (probably because use_true_clusters was set)' % ':'.join(cluster))
             if max_frac_in_common < min_overlap_fraction:
-                raise Exception('cluster with most overlap fraction to \'%s\' only had %.3f' % (':'.join(cluster), max_frac_in_common))
+                raise Exception('overlap fraction %.3f too small: for true cluster (size %d), highest was for inferred cluster with size %d (%d including duplicates). Maybe need to set --simultaneous-true-clonal-seqs.' % (max_frac_in_common, len(cluster), len(annotations[ustr_to_use]['unique_ids']), len(utils.uids_and_dups(annotations[ustr_to_use]))))
             if debug:
                 print '      %4d     %4d     %4d     %4d        %4.2f        (%d)' % (len(set(annotations) - chosen_ustrs), len(cluster), len(utils.uids_and_dups(annotations[ustr_to_use])), n_max_in_common, max_frac_in_common, len(annotations[ustr_to_use]['unique_ids']))
             if max_frac_in_common < 1:
@@ -1036,6 +1036,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, debug=False):
     print 'getting tree metrics'
     if reco_info is not None:
+        if not use_true_clusters:
+            print '    note: getting tree metrics on simulation without setting <use_true_clusters> (i.e. probably without setting --simultaneous-true-clonal-seqs)'
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
 
