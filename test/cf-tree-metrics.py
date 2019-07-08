@@ -203,15 +203,9 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, xstr, xlabel, min_ptile_to_plot=75., debug=False):  # have to go lower than 85. for small sample sizes
-    debug = True
-    _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
-    plotvals = collections.OrderedDict()
-    print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
-    if debug:
-        print '   obs times    N/gen        carry cap       fraction sampled'
-    missing_vstrs = {'missing' : [], 'empty' : []}
-    for vlists, vstrs in zip(val_lists, valstrs):
+def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_plot=75., debug=False):
+    # ----------------------------------------------------------------------------------------
+    def get_obs_frac(vlists, varnames):
         obs_times = get_vlval(vlists, varnames, 'obs-times')
         n_per_gen_vals = get_vlval(vlists, varnames, 'n-sim-seqs-per-gen')
         if len(obs_times) == len(n_per_gen_vals):  # note that this duplicates logic in bcr-phylo simulator.py
@@ -226,8 +220,43 @@ def make_plots(args, metric, xstr, xlabel, min_ptile_to_plot=75., debug=False): 
             print '    %-12s %-12s   %-5d     %8s / %-4d = %.3f' % (' '.join(str(o) for o in obs_times), ' '.join(str(n) for n in n_per_gen_vals), n_total,
                                                                          ('(%s)' % ' + '.join(str(n) for n in n_per_gen_vals)) if len(obs_times) == len(n_per_gen_vals) else ('%d * %d' % (len(obs_times), n_per_gen_vals[0])),
                                                                          n_total, n_sampled / float(n_total))
+        return obs_frac
+    # ----------------------------------------------------------------------------------------
+    def pvkeystr(vlists, varnames, obs_frac):
+        vlabels = {
+            'obs_frac' : 'fraction sampled',
+            'n-sim-seqs-per-gen' : 'N per gen',
+            'obs-times' : 'obs times',
+        }
+        def valstr(vname):
+            vval = obs_frac if vname == 'obs_frac' else get_vlval(vlists, varnames, vname)
+            if vname == 'obs_frac':
+                return '%.4f' % obs_frac
+            else:
+                def strfcn(x):
+                    return str(x)  # TODO
+                if isinstance(vval, list):
+                    return ', '.join(strfcn(v) for v in vval)
+                else:
+                    return strfcn(vval)
+        pvnames = sorted(set(varnames) - set(['seed', xvar]))
+        if pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
+            pvnames = ['obs_frac']
+        pvkey = ', '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
+        pvlabel = ', '.join(vlabels.get(vn, vn) for vn in pvnames)
+        return pvkey, pvlabel
 
-        yfname = get_tree_metric_fname(varnames, vstrs, metric, xstr)  # why is this vstrs rather than vstr?
+    # ----------------------------------------------------------------------------------------
+    debug = True
+    _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
+    plotvals = collections.OrderedDict()
+    print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    if debug:
+        print '   obs times    N/gen        carry cap       fraction sampled'
+    missing_vstrs = {'missing' : [], 'empty' : []}
+    for vlists, vstrs in zip(val_lists, valstrs):
+        obs_frac = get_obs_frac(vlists, varnames)
+        yfname = get_tree_metric_fname(varnames, vstrs, metric, ptilestr)  # why is this called vstrs rather than vstr?
         try:
             with open(yfname) as yfile:
                 info = json.load(yfile)  # too slow with yaml
@@ -235,54 +264,62 @@ def make_plots(args, metric, xstr, xlabel, min_ptile_to_plot=75., debug=False): 
             missing_vstrs['missing'].append(vstrs)
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
-        yval_key = 'mean_%s_ptiles' % ('affy' if xstr == 'affinity' else xstr)  # arg, would've been nice if that was different
+        yval_key = 'mean_%s_ptiles' % ('affy' if ptilestr == 'affinity' else ptilestr)  # arg, would've been nice if that was different
         diff_vals = [abs(pafp - afp) for lbp, afp, pafp in zip(info['lb_ptiles'], info[yval_key], info['perfect_vals']) if lbp > min_ptile_to_plot]
         if len(diff_vals) == 0:
             missing_vstrs['empty'].append(vstrs)  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
             continue
         diff_to_perfect = numpy.mean(diff_vals)
 
-        tau = get_vlval(vlists, varnames, 'lb-tau')
+        tau = get_vlval(vlists, varnames, xvar)
+        pvkey, pvlabel = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
         if args.n_replicates > 1:  # need to average over the replicates
-            if obs_frac not in plotvals:
-                plotvals[obs_frac] = {i : [] for i in getsargval('seed')}
-            plotvals[obs_frac][vlists[varnames.index('seed')]].append((tau, diff_to_perfect))
+            if pvkey not in plotvals:
+                plotvals[pvkey] = {i : [] for i in getsargval('seed')}
+            plotvals[pvkey][vlists[varnames.index('seed')]].append((tau, diff_to_perfect))
         else:
-            if obs_frac not in plotvals:
-                plotvals[obs_frac] = []
-            plotvals[obs_frac].append((tau, diff_to_perfect))
+            if pvkey not in plotvals:
+                plotvals[pvkey] = []
+            plotvals[pvkey].append((tau, diff_to_perfect))
 
+    # print info about missing and empty results
     for mkey, vstrs_list in missing_vstrs.items():
         if len(vstrs_list) == 0:
             continue
-        print '  %s:  %s' % (mkey, '   '.join(varnames))
+        print '  %s:' % mkey
+        print '     %s' % ''.join('%8s' % v for v in varnames)
         for vstrs in vstrs_list:
-            print '      %s' % '  '.join('%7s' % v for v in vstrs)
+            print '      %s' % ''.join('%8s' % v for v in vstrs)
 
     if args.n_replicates > 1:  # need to average over the replicates
-        for obs_frac, ofvals in plotvals.items():
+        if debug:
+            print '  averaging replicates:'
+            print '    pvkey   N used  N expected'
+        for pvkey, ofvals in plotvals.items():
             mean_vals = []
             ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should correspond to 'missing')
             assert len(set([len(ofvals[i]) for i in ofvals])) == 1
-            for ipair in range(len(ofvals[0])):  # note that 0 is a dict key (i.e. the zeroth replicate), not an index
+            if debug:
+                print '%7s    %4d   %4d' % (pvkey, len(ofvals[0]), args.n_replicates)
+            for ipair in range(len(ofvals[0])):  # note that 0 is a dict key (i.e. the zeroth replicate), not an index NOTE if the zeroth one is ever empty this will probably break
                 tau = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
                 assert len(set(tau)) == 1  # all of 'em better have the same tau
                 tau = tau[0]
                 mean_vals.append((tau, numpy.mean([ofvals[i][ipair][1] for i in ofvals])))
-            plotvals[obs_frac] = mean_vals
+            plotvals[pvkey] = mean_vals
 
     fig, ax = plotting.mpl_init()
     lb_taus, xticklabels = None, None
-    for obs_frac in plotvals:
-        lb_taus, diffs_to_perfect = zip(*plotvals[obs_frac])
+    for pvkey in plotvals:
+        lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
         xticklabels = [str(t) for t in lb_taus]
-        ax.plot(lb_taus, diffs_to_perfect, label='%.4f' % obs_frac, alpha=0.7, linewidth=4)
+        ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
     ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     plotting.mpl_finish(ax, get_comparison_plotdir(),
-                        '%s-%s-ptiles-obs-frac-vs-lb-tau' % (xstr, metric),
-                        xlabel='tau',
-                        ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if xlabel == 'affinity' else xlabel, metric.upper(), min_ptile_to_plot),
-                        title=metric.upper(), leg_title='fraction sampled', leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
+                        '%s-%s-ptiles-obs-frac-vs-lb-tau' % (ptilestr, metric),
+                        xlabel=xvar.replace('-', ' '),
+                        ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
+                        title=metric.upper(), leg_title=pvlabel, leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
                         xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
     )
 
@@ -425,8 +462,9 @@ for action in args.actions:
         get_tree_metrics(args)
     elif action == 'plot':
         utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
-        procs = [multiprocessing.Process(target=make_plots, args=(args, metric, xstr, xlabel))  # time is almost entirely due to file open + json.load
-                 for metric, xstr, xlabel in lbplotting.lb_metric_axis_stuff]
+        procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel))  # time is almost entirely due to file open + json.load
+                 for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff]
         utils.run_proc_functions(procs)
-        # for metric, xstr, xlabel in lbplotting.lb_metric_axis_stuff:
-        #     make_plots(args, metric, xstr, xlabel)
+        # for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff:
+        #     make_plots(args, metric, ptilestr, ptilelabel)
+        #     break
