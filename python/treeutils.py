@@ -904,7 +904,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debug=False):
+def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_overlap_fraction=0.5, debug=False):
     # collect inferred and true events
     lines_to_use, true_lines_to_use = None, None
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
@@ -928,6 +928,8 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, debu
                     max_frac_in_common = frac_in_common
             if max_frac_in_common is None:
                 raise Exception('cluster \'%s\' not found in inferred annotations (probably because use_true_clusters was set)' % ':'.join(cluster))
+            if max_frac_in_common < min_overlap_fraction:
+                raise Exception('cluster with most overlap fraction to \'%s\' only had %.3f' % (':'.join(cluster), max_frac_in_common))
             if debug:
                 print '      %4d     %4d     %4d     %4d        %4.2f        (%d)' % (len(set(annotations) - chosen_ustrs), len(cluster), len(utils.uids_and_dups(annotations[ustr_to_use])), n_max_in_common, max_frac_in_common, len(annotations[ustr_to_use]['unique_ids']))
             if max_frac_in_common < 1:
