@@ -337,7 +337,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
 def run_bcr_phylo(args):  # also caches parameters
     base_args, varnames, _, valstrs = get_var_info(args, args.scan_vars['simu'])
     cmdfos = []
-    print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    print '  bcr-phylo: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
@@ -370,7 +370,7 @@ def run_bcr_phylo(args):  # also caches parameters
 def get_tree_metrics(args):
     _, varnames, _, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
-    print '  running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    print '  get-tree-metrics: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:

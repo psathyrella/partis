@@ -956,11 +956,12 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     import lbplotting
     start = time.time()
 
+    # first make inferred plots
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
     subdirs = [m + tstr for m in lb_metrics for tstr in ['-vs-affinity', '-vs-shm']] + ['trees']
     utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html', '*.yaml'], subdirs=subdirs)
     ftmps = lbplotting.plot_lb_vs_affinity('inferred', inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, debug=debug)
-    if not only_csv:
+    if not only_csv:  # all the various scatter plots are really slow
         fnames = lbplotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
         # fnames += lbplotting.plot_lb_distributions(inf_plotdir, lines_to_use)
         fnames += ftmps
@@ -968,6 +969,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         if ete_path is not None:
             lbplotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
 
+    # then make true plots
     if true_lines_to_use is not None:
         if 'affinities' not in true_lines_to_use[0] or all(affy is None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             # print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
@@ -976,18 +978,16 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.yaml'], subdirs=subdirs)
         fnames = []
-        for lb_metric, lb_label in lb_metrics.items():
-            if lb_metric == 'lbi':
-                for affy_key in affy_keys[lb_metric]:
-                    fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, lb_metric, lb_label, all_clusters_together=True, is_simu=True, affy_key=affy_key, only_csv=only_csv, debug=debug)
-            elif lb_metric == 'lbr':
-                ftmps = lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label, only_csv=only_csv, debug=debug)[0]
-                if not only_csv:
-                    assert len(ftmps) == 4  # arg ugh ick
-                    fnames[0] += ftmps[:2]
-                    fnames[1] += ftmps[2:]
-            # fnames[-1] += lbplotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label XXX only_csv)[0]
+        mtmp = 'lbi'
+        for affy_key in affy_keys[mtmp]:
+            fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, mtmp, lb_metrics[mtmp], all_clusters_together=True, is_simu=True, affy_key=affy_key, only_csv=only_csv, debug=debug)
+        mtmp = 'lbr'
+        ftmps = lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, mtmp, lb_metrics[mtmp], only_csv=only_csv, debug=debug)
+        # fnames[-1] += lbplotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label XXX only_csv)[0]
         if not only_csv:
+            assert len(ftmps[0]) == 4  # arg ugh ick
+            fnames[0] += ftmps[0][:2]  # each of the vs_affinity and vs_ancestral_[yadd] fcns return one line of plots, but we instead want the two lbi plots (and the two lbr plots) lined up vertically
+            fnames[1] += ftmps[0][2:]
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
                 fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir, true_lines_to_use, lines_to_use, lb_metric, lb_label)
