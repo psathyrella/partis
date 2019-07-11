@@ -258,103 +258,102 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, all_clusters_together=False, ptile_range_tuple=(50., 100., 1.), is_simu=False, n_per_row=4, affy_key='affinities', only_csv=False, debug=False):
-    def dump_plot_info_to_yaml(fname, yamlfo):
-        with open(fname, 'w') as yfile:
-            json.dump(yamlfo, yfile)
-
-    fnames = []
-    affy_key_str = '-relative' if 'relative' in affy_key else ''
-
-    # first plot lb metric vs affinity scatter (all clusters)
-    lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
-    uid_vals = []  # keep a separate one for the worst correlation printing
-    for iclust, line in enumerate(lines):
-        iclust_lb_vs_affinity_vals = {val_type : [] for val_type in [lb_metric, 'affinity' , 'uids']}
-        # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
+def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, make_all_cluster_plot=False, ptile_range_tuple=(50., 100., 1.), is_simu=False, n_per_row=4, affy_key='affinities', only_csv=False, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def get_plotvals(iclust, line):
+        plotvals = {vt : [] for vt in vtypes + ['uids']}
+        # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))  # keeping this here to remind myself how to get the tree if I need it
         if affy_key not in line:
-            continue
+            return plotvals
         for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None]:
-            # node = dtree.find_node_with_taxon_label(uid)
-            iclust_lb_vs_affinity_vals['affinity'].append(affy)
-            iclust_lb_vs_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+            plotvals['affinity'].append(affy)
+            plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
             if not is_simu:
-                iclust_lb_vs_affinity_vals['uids'].append(uid)
-            uid_vals.append(uid)
-        if not all_clusters_together and len(iclust_lb_vs_affinity_vals['affinity']) > 0 and not only_csv:
-            fn = plot_2d_scatter('iclust-%d%s' % (iclust, affy_key_str),
-                                 '%s/%s-vs-affinity' % (plotdir, lb_metric),
-                                 iclust_lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))  # NOTE duplication below
-            if iclust < n_per_row:
-                fnames.append(fn)
-        for vtype in [vt for vt in lb_vs_affinity_vals if vt != 'uids']:
-            lb_vs_affinity_vals[vtype] += iclust_lb_vs_affinity_vals[vtype]
-    if all_clusters_together and not only_csv:
-        scatter_plotname = '%s-vs-affinity-%s-tree%s' % (lb_metric, plot_str, affy_key_str)
-        # lb_vs_affinity_vals['uids'] = uid_vals
-        plot_2d_scatter(scatter_plotname,
-                        plotdir,
-                        lb_vs_affinity_vals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))  # NOTE duplication above
-        fnames.append('%s/%s.svg' % (plotdir, scatter_plotname))
-
-    ptile_plotname = '%s-vs-affinity-%s-tree-ptiles%s' % (lb_metric, plot_str, affy_key_str)
-    ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
-    if len(lb_vs_affinity_vals[lb_metric]) == 0:
-        # print '  no affinity values when trying to make lb vs affinity plots'
-        dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, ptile_plotname), ptile_vals)
-        return [fnames]
-
-    # # NOTE doesn't actually work -- would I think maybe need to fit for a line and measure deviation from that line?
-    # # find the nodes with the worst correlation
-    # if lb_metric == 'lbi':
-    #     lb_affy_ratios = [(uid, lbval / affy) for lbval, affy in zip(lb_vs_affinity_vals[lb_metric], lb_vs_affinity_vals['affinity'])]
-    #     print 'x', sorted(lb_affy_ratios, key=operator.itemgetter(1), reverse=True)
-
-    # then plot potential lb cut thresholds with percentiles
-    if debug:
-        print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
-    lbvals = lb_vs_affinity_vals[lb_metric]  # should really use these shorthands for the previous plot as well
-    affyvals = lb_vs_affinity_vals['affinity']
-    sorted_affyvals = sorted(affyvals, reverse=True)
-    for percentile in numpy.arange(*ptile_range_tuple):
-        lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
-        corresponding_affinities = [affy for lb, affy in zip(lbvals, affyvals) if lb > lb_ptile_val]  # affinities corresponding to lb greater than <lb_ptile_val> (i.e. the affinities that you'd get if you took all the lb values greater than that)
-        corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow
-        if len(corr_affy_ptiles) == 0:
-            if debug:
-                print '   %5.0f    no vals' % percentile
-            continue
-        ptile_vals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
-        ptile_vals['mean_affy_ptiles'].append(float(numpy.mean(corr_affy_ptiles)))
+                plotvals['uids'].append(uid)
+        return plotvals
+    # ----------------------------------------------------------------------------------------
+    def make_scatter_plot(plotvals, plotname, iclust=None):
+        fn = plot_2d_scatter(plotname, '%s/%s-vs-affinity' % (plotdir, lb_metric), plotvals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))
+        if iclust is None or iclust < n_per_row:
+            fnames.append(fn)
+    # ----------------------------------------------------------------------------------------
+    def get_ptile_vals(plotvals):
+        ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
+        if len(plotvals[lb_metric]) == 0:
+            # print '  no affinity values when trying to make lb vs affinity plots'
+            return ptile_vals
         if debug:
-            print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1])
+            print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
+        lbvals = plotvals[lb_metric]  # should really use these shorthands for the previous plot as well
+        affyvals = plotvals['affinity']
+        sorted_affyvals = sorted(affyvals, reverse=True)
+        for percentile in numpy.arange(*ptile_range_tuple):
+            lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
+            corresponding_affinities = [affy for lb, affy in zip(lbvals, affyvals) if lb > lb_ptile_val]  # affinities corresponding to lb greater than <lb_ptile_val> (i.e. the affinities that you'd get if you took all the lb values greater than that)
+            corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow
+            if len(corr_affy_ptiles) == 0:
+                if debug:
+                    print '   %5.0f    no vals' % percentile
+                continue
+            ptile_vals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
+            ptile_vals['mean_affy_ptiles'].append(float(numpy.mean(corr_affy_ptiles)))
+            if debug:
+                print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1])
 
-        # make a "perfect" line from actual affinities, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
-        n_to_take = int((1. - percentile / 100) * len(sorted_affyvals))
-        corresponding_perfect_affy_vals = sorted_affyvals[:n_to_take]
-        corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy) for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow
-        ptile_vals['perfect_vals'].append(float(numpy.mean(corr_perfect_affy_ptiles)) if len(corr_perfect_affy_ptiles) > 0 else 100)  # not really sure just using 100 is right, but I'm pretty sure it doesn't matter (and it gets rid of a stupid numpy warning)
+            # make a "perfect" line from actual affinities, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
+            n_to_take = int((1. - percentile / 100) * len(sorted_affyvals))
+            corresponding_perfect_affy_vals = sorted_affyvals[:n_to_take]
+            corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy) for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow
+            ptile_vals['perfect_vals'].append(float(numpy.mean(corr_perfect_affy_ptiles)) if len(corr_perfect_affy_ptiles) > 0 else 100)  # not really sure just using 100 is right, but I'm pretty sure it doesn't matter (and it gets rid of a stupid numpy warning)
 
-        # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
-        # shuffled_lb_vals = copy.deepcopy(lbvals)
-        # random.shuffle(shuffled_lb_vals)
-        # NON_corresponding_affinities = [affy for lb, affy in zip(shuffled_lb_vals, affyvals) if lb > lb_ptile_val]
-        # NON_corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in NON_corresponding_affinities]
-        # ptile_vals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
-
-    if not only_csv:
+            # old way of adding a 'no correlation' line:
+            # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
+            # shuffled_lb_vals = copy.deepcopy(lbvals)
+            # random.shuffle(shuffled_lb_vals)
+            # NON_corresponding_affinities = [affy for lb, affy in zip(shuffled_lb_vals, affyvals) if lb > lb_ptile_val]
+            # NON_corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in NON_corresponding_affinities]
+            # ptile_vals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
+        return ptile_vals
+    # ----------------------------------------------------------------------------------------
+    def make_ptile_plot(ptile_vals, plotname):
         fig, ax = plotting.mpl_init()
         ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
         # ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # straight line
         ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # perfect vals
         ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
         # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
-        plotting.mpl_finish(ax, plotdir, ptile_plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
+        plotting.mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
                             title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
                             xlabel='%s threshold (percentile)' % lb_metric.upper(),
                             ylabel='mean percentile of\nresulting %s' % ' '.join([affy_key_str.replace('-', ''), 'affinities']))
-        fnames.append('%s/%s.svg' % (plotdir, ptile_plotname))
+        fnames.append('%s/%s.svg' % (plotdir, plotname))
+    # ----------------------------------------------------------------------------------------
+    def dump_plot_info_to_yaml(fname, yamlfo):
+        with open(fname, 'w') as yfile:
+            json.dump(yamlfo, yfile)
+
+    # ----------------------------------------------------------------------------------------
+    fnames = []
+    affy_key_str = '-relative' if 'relative' in affy_key else ''
+    vtypes = [lb_metric, 'affinity']
+
+    # first plot lb metric vs affinity scatter (all clusters)
+    all_plotvals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
+    for iclust, line in enumerate(lines):
+        iclust_plotvals = get_plotvals(iclust, line)
+        if not make_all_cluster_plot and len(iclust_plotvals['affinity']) > 0 and not only_csv:
+            make_scatter_plot(iclust_plotvals, 'iclust-%d%s' % (iclust, affy_key_str), iclust=iclust)
+        for vtype in vtypes:
+            all_plotvals[vtype] += iclust_plotvals[vtype]
+    if make_all_cluster_plot and not only_csv:
+        make_scatter_plot(all_plotvals, '%s-vs-affinity-%s-tree%s' % (lb_metric, plot_str, affy_key_str))
+
+    # then plot potential lb cut thresholds with percentiles
+    ptile_vals = get_ptile_vals(all_plotvals)
+    ptile_plotname = '%s-vs-affinity-%s-tree-ptiles%s' % (lb_metric, plot_str, affy_key_str)
     dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, ptile_plotname), ptile_vals)
+    if not only_csv and len(all_plotvals[lb_metric]) > 0:
+        make_ptile_plot(ptile_vals, ptile_plotname)
 
     return [fnames]
 

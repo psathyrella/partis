@@ -978,11 +978,9 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.yaml'], subdirs=subdirs)
         fnames = []
-        mtmp = 'lbi'
-        for affy_key in affy_keys[mtmp]:
-            fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, mtmp, lb_metrics[mtmp], all_clusters_together=True, is_simu=True, affy_key=affy_key, only_csv=only_csv, debug=debug)
-        mtmp = 'lbr'
-        ftmps = lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, mtmp, lb_metrics[mtmp], only_csv=only_csv, debug=debug)
+        for affy_key in affy_keys['lbi']:
+            fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir, true_lines_to_use, 'lbi', lb_metrics['lbi'], make_all_cluster_plot=True, is_simu=True, affy_key=affy_key, only_csv=only_csv, debug=debug)
+        ftmps = lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir, true_lines_to_use, 'lbr', lb_metrics['lbr'], only_csv=only_csv, debug=debug)
         # fnames[-1] += lbplotting.plot_lb_vs_delta_affinity(true_plotdir, true_lines_to_use, lb_metric, lb_label XXX only_csv)[0]
         if not only_csv:
             assert len(ftmps[0]) == 4  # arg ugh ick
