@@ -952,7 +952,6 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=None, workdir=None, only_csv=False, debug=False):
-
     import plotting
     import lbplotting
     start = time.time()
@@ -960,13 +959,13 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     # first make inferred plots
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
     utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
-    ftmps = lbplotting.plot_lb_vs_affinity('inferred', inf_plotdir + '/lbi', lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, debug=debug)
+    ftmps = lbplotting.plot_lb_vs_affinity('inferred', inf_plotdir + '/lbi', lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, is_true_line=False, debug=debug)
     if not only_csv:  # all the various scatter plots are really slow
-        fnames = lbplotting.plot_lb_vs_shm(inf_plotdir, lines_to_use)
+        fnames = lbplotting.plot_lb_vs_shm(inf_plotdir, lines_to_use, is_true_line=False)
         # fnames += lbplotting.plot_lb_distributions(XXX inf_plotdir, lines_to_use)
         fnames += ftmps
         if ete_path is not None:
-            lbplotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_simu=False)
+            lbplotting.plot_lb_trees(inf_plotdir, lines_to_use, ete_path, workdir, is_true_line=False)
         subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
         plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
@@ -980,7 +979,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
         fnames = []
         for affy_key in affy_keys['lbi']:
-            fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_simu=True, affy_key=affy_key, only_csv=only_csv, debug=debug)
+            fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, affy_key=affy_key, only_csv=only_csv, debug=debug)
         ftmps = lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], only_csv=only_csv, debug=debug)
         if not only_csv:
             assert len(ftmps[0]) == 4  # arg ugh ick
@@ -989,12 +988,12 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
                 fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, lines_to_use, lb_metric, lb_label)
-            lb_vs_shm_fnames = lbplotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_simu=True)
+            lb_vs_shm_fnames = lbplotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, is_true_line=True)
             assert len(lb_vs_shm_fnames) > 1
             fnames[-1] += lb_vs_shm_fnames[0]
             fnames += lb_vs_shm_fnames[1:]
             if ete_path is not None:
-                lbplotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_simu=True)
+                lbplotting.plot_lb_trees(true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
             subdirs = [d for d in os.listdir(true_plotdir) if os.path.isdir(true_plotdir + '/' + d)]
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in subdirs])
 

@@ -152,16 +152,16 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr, metric_for_target_distanc
     plotting.make_html(outdir + '/plots')
 
 # ----------------------------------------------------------------------------------------
-def get_tree_from_line(line, is_simu):
-    if is_simu:
+def get_tree_from_line(line, is_true_line):
+    if is_true_line:
         return line['tree']
     if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
         return None
     return line['tree-info']['lb']['tree']
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <is_simu> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
-    sorted_lines = sorted([l for l in lines_to_use if get_tree_from_line(l, is_simu) is not None], key=lambda l: len(l['unique_ids']), reverse=True)
+def plot_lb_vs_shm(baseplotdir, lines_to_use, is_true_line=False, add_uids=False, n_per_row=4):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+    sorted_lines = sorted([l for l in lines_to_use if get_tree_from_line(l, is_true_line) is not None], key=lambda l: len(l['unique_ids']), reverse=True)
     fnames = [[]]
 
     # note: all clusters together
@@ -170,10 +170,10 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
         plotdir = '%s/%s/%s-vs-shm' % (baseplotdir, lb_metric, lb_metric)
         utils.prep_dir(plotdir, wildlings='*.svg')
         plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric]}
-        basetitle = '%s %s vs SHM' % ('true' if is_simu else 'inferred', lb_metric.upper())
+        basetitle = '%s %s vs SHM' % ('true' if is_true_line else 'inferred', lb_metric.upper())
         for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
             iclust_plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric, 'uids']}
-            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))
+            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))
             n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
             max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
             for node in dtree.preorder_node_iter():
@@ -185,7 +185,7 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
                 iclust_plotvals['shm'][tkey].append(n_muted)
                 iclust_plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
                 affyval = line['affinities'][iseq] if 'affinities' in line and iseq is not None else None
-                if not is_simu:
+                if add_uids:
                     iclust_plotvals['uids'][tkey].append(node.taxon.label if affyval is not None else None)
             title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(line['tree-info']['lb'][lb_metric]))
             fn = plot_2d_scatter('%s-vs-shm-iclust-%d' % (lb_metric, iclust), plotdir, iclust_plotvals, lb_metric, lb_label, title, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
@@ -264,17 +264,17 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_simu=False, n_per_row=4, affy_key='affinities', only_csv=False, debug=False):
+def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, add_uids=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
-        # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))  # keeping this here to remind myself how to get the tree if I need it
+        # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))  # keeping this here to remind myself how to get the tree if I need it
         if affy_key not in line:
             return plotvals
         for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None]:
             plotvals['affinity'].append(affy)
             plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
-            if not is_simu:
+            if add_uids:
                 plotvals['uids'].append(uid)
         return plotvals
     # ----------------------------------------------------------------------------------------
@@ -301,7 +301,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
             ptile_vals['mean_affy_ptiles'].append(float(numpy.mean(corr_affy_ptiles)))
 
             # make a "perfect" line using the actual affinities, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
-            n_to_take = len(corresponding_affinities)  # ok, I think this makes more sense than what I was doing before (previous lines)
+            n_to_take = len(corresponding_affinities)  # this used to be (in general) different than the number we took above, hence the weirdness/duplication (could probably clean up at this point)
             corresponding_perfect_affy_vals = sorted_affyvals[:n_to_take]
             corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy) for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow
             ptile_vals['perfect_vals'].append(float(numpy.mean(corr_perfect_affy_ptiles)))
@@ -382,6 +382,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), min_affinity_change=1e-6, n_max_steps=15, only_csv=False, n_per_row=4, debug=False):
     # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
+    # NOTE now that I've done a huge refactor, this fcn is very similar to plot_lb_vs_affinity(), so they could be eventually combined to clean up quite a bit
     # ----------------------------------------------------------------------------------------
     def check_affinity_changes(affinity_changes):
         affinity_changes = sorted(affinity_changes)
@@ -476,7 +477,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
             ptile_vals[xkey].append(float(numpy.mean(corresponding_xvals)))
 
             # values for perfect line
-            n_to_take = len(corresponding_xvals)
+            n_to_take = len(corresponding_xvals)  # this used to be (in general) different than the number we took above, hence the weirdness/duplication (could probably clean up at this point)
             perfect_xvals = sorted_xvals[:n_to_take]
             ptile_vals['perfect_vals'].append(float(numpy.mean(perfect_xvals)))
 
@@ -578,7 +579,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(baseplotdir, lines, ete_path, base_workdir, is_simu=False, tree_style=None):
+def plot_lb_trees(baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None):
     workdir = '%s/ete3-plots' % base_workdir
     plotdir = baseplotdir + '/trees'
     utils.prep_dir(plotdir, wildlings='*.svg')
@@ -588,7 +589,7 @@ def plot_lb_trees(baseplotdir, lines, ete_path, base_workdir, is_simu=False, tre
     cmdfos = []
     for lb_metric, lb_label in treeutils.lb_metrics.items():
         for iclust, line in enumerate(lines):  # note that <min_tree_metric_cluster_size> was already applied in treeutils
-            treestr = get_tree_from_line(line, is_simu)
+            treestr = get_tree_from_line(line, is_true_line)
             for affy_key in treeutils.affy_keys[lb_metric]:
                 metafo = copy.deepcopy(line['tree-info']['lb'])
                 if affy_key in line:  # either 'affinities' or 'relative_affinities'
