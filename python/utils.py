@@ -2208,7 +2208,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
 
     if subdirs is not None:  # clean out the subdirs first
         for subdir in subdirs:
-            prep_dir(dirname + '/' + subdir, wildlings=wildlings)
+            prep_dir(dirname + '/' + subdir, wildlings=wildlings, allow_other_files=allow_other_files)
             if rm_subdirs:
                 os.rmdir(dirname + '/' + subdir)
 

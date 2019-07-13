@@ -156,8 +156,13 @@ def get_tree_metric_plotdir(varnames, vstr):
     return get_tree_metric_outdir(varnames, vstr) + '/plots'
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_fname(varnames, vstr, metric='lbi', x_axis_label='affinity', use_relative_affy=True):  # we set all the defaults just so when we're checking for output before running, we can easily get one of the file names
-    return '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (get_tree_metric_plotdir(varnames, vstr), metric, x_axis_label, '-relative' if use_relative_affy and metric == 'lbi' else '')
+def get_tree_metric_fname(varnames, vstr, metric='lbi', x_axis_label='affinity', use_relative_affy=True, iclust=None):  # we set all the defaults just so when we're checking for output before running, we can easily get one of the file names
+    old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (get_tree_metric_plotdir(varnames, vstr), metric, x_axis_label, '-relative' if use_relative_affy and metric == 'lbi' else '')
+    if os.path.exists(old_path):
+        print 'exists', old_path
+        return old_path
+    vs_str = '%s-vs%s-%s' % (metric, '-relative' if use_relative_affy and metric == 'lbi' else '', x_axis_label)
+    return '%s/true-tree-metrics/%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (get_tree_metric_plotdir(varnames, vstr), metric, vs_str, vs_str)
 
 # ----------------------------------------------------------------------------------------
 def get_comparison_plotdir():

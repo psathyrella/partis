@@ -9,6 +9,7 @@ import json
 import time
 import warnings
 import collections
+import itertools
 
 import utils
 from hist import Hist
@@ -16,7 +17,12 @@ import treeutils
 import plotting
 
 # ----------------------------------------------------------------------------------------
-lb_metric_axis_stuff = [('lbi', 'affinity', 'affinity'), ('lbr', 'n-ancestor', 'N ancestors'), ('lbr', 'branch-length', 'branch length')]
+# this name is terrible, but it's complicated and I can't think of a better one
+lb_metric_axis_stuff = [  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
+    ('lbi', 'affinity', 'affinity'),
+    ('lbr', 'n-ancestor', 'N ancestors'),
+    ('lbr', 'branch-length', 'branch length')
+]
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=7, title='', xlabel=''):
@@ -161,6 +167,8 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
     # note: all clusters together
     subfnames = {lb_metric : [] for lb_metric in treeutils.lb_metrics}
     for lb_metric, lb_label in treeutils.lb_metrics.items():
+        plotdir = '%s/%s/%s-vs-shm' % (baseplotdir, lb_metric, lb_metric)
+        utils.prep_dir(plotdir, wildlings='*.svg')
         plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric]}
         basetitle = '%s %s vs SHM' % ('true' if is_simu else 'inferred', lb_metric.upper())
         for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
@@ -179,17 +187,15 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_simu=False, n_per_row=4):  # <i
                 affyval = line['affinities'][iseq] if 'affinities' in line and iseq is not None else None
                 if not is_simu:
                     iclust_plotvals['uids'][tkey].append(node.taxon.label if affyval is not None else None)
-            plotname = '%s-vs-shm-iclust-%d' % (lb_metric, iclust)
             title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(line['tree-info']['lb'][lb_metric]))
-            fn = plot_2d_scatter(plotname, '%s/%s-vs-shm' % (baseplotdir, lb_metric), iclust_plotvals, lb_metric, lb_label, title, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
+            fn = plot_2d_scatter('%s-vs-shm-iclust-%d' % (lb_metric, iclust), plotdir, iclust_plotvals, lb_metric, lb_label, title, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
             if iclust < n_per_row:  # i.e. only put one row's worth in the html
                 subfnames[lb_metric].append(fn)
             for vtype in [vt for vt in plotvals if vt != 'uids']:
                 for ltype in plotvals[vtype]:
                     plotvals[vtype][ltype] += iclust_plotvals[vtype][ltype]
-        plotname = '%s-vs-shm' % lb_metric
-        plot_2d_scatter(plotname, baseplotdir, plotvals, lb_metric, lb_label, '%s (all clusters)' % basetitle, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
-        fnames[-1].append('%s/%s.svg' % (baseplotdir, plotname))
+        fn = plot_2d_scatter('%s-vs-shm-all-clusters' % lb_metric, plotdir, plotvals, lb_metric, lb_label, '%s (all clusters)' % basetitle, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
+        fnames[-1].append(fn)
     fnames += [subfnames[lbm] for lbm in treeutils.lb_metrics]
 
     return fnames
@@ -258,9 +264,9 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, make_all_cluster_plot=False, ptile_range_tuple=(50., 100., 1.), is_simu=False, n_per_row=4, affy_key='affinities', only_csv=False, debug=False):
+def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_simu=False, n_per_row=4, affy_key='affinities', only_csv=False, debug=False):
     # ----------------------------------------------------------------------------------------
-    def get_plotvals(iclust, line):
+    def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
         # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_simu))  # keeping this here to remind myself how to get the tree if I need it
         if affy_key not in line:
@@ -272,18 +278,14 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, make_all_
                 plotvals['uids'].append(uid)
         return plotvals
     # ----------------------------------------------------------------------------------------
-    def make_scatter_plot(plotvals, plotname, iclust=None):
-        fn = plot_2d_scatter(plotname, '%s/%s-vs-affinity' % (plotdir, lb_metric), plotvals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))
-        if iclust is None or iclust < n_per_row:
-            fnames.append(fn)
-    # ----------------------------------------------------------------------------------------
     def get_ptile_vals(plotvals):
         ptile_vals = {'lb_ptiles' : [], 'mean_affy_ptiles' : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
         if len(plotvals[lb_metric]) == 0:
             # print '  no affinity values when trying to make lb vs affinity plots'
             return ptile_vals
         if debug:
-            print '    ptile   %s     mean affy    mean affy ptile' % lb_metric
+            print '            %3s         N     mean    mean       |  perfect   perfect' % lb_metric
+            print '    ptile  threshold  taken   %saffy    affy ptile |  N taken  mean ptile'  % ('' if affy_key_str == '' else 'r-')
         lbvals = plotvals[lb_metric]  # should really use these shorthands for the previous plot as well
         affyvals = plotvals['affinity']
         sorted_affyvals = sorted(affyvals, reverse=True)
@@ -297,14 +299,15 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, make_all_
                 continue
             ptile_vals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
             ptile_vals['mean_affy_ptiles'].append(float(numpy.mean(corr_affy_ptiles)))
-            if debug:
-                print '   %5.0f   %5.2f   %8.4f     %5.0f' % (percentile, lb_ptile_val, numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1])
 
-            # make a "perfect" line from actual affinities, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
-            n_to_take = int((1. - percentile / 100) * len(sorted_affyvals))
+            # make a "perfect" line using the actual affinities, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
+            n_to_take = len(corresponding_affinities)  # ok, I think this makes more sense than what I was doing before (previous lines)
             corresponding_perfect_affy_vals = sorted_affyvals[:n_to_take]
             corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy) for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow
-            ptile_vals['perfect_vals'].append(float(numpy.mean(corr_perfect_affy_ptiles)) if len(corr_perfect_affy_ptiles) > 0 else 100)  # not really sure just using 100 is right, but I'm pretty sure it doesn't matter (and it gets rid of a stupid numpy warning)
+            ptile_vals['perfect_vals'].append(float(numpy.mean(corr_perfect_affy_ptiles)))
+
+            if debug:
+                print '   %5.0f   %5.2f     %4d  %8.4f  %5.0f       | %4d    %5.0f' % (percentile, lb_ptile_val, len(corresponding_affinities), numpy.mean(corresponding_affinities), ptile_vals['mean_affy_ptiles'][-1], n_to_take, ptile_vals['perfect_vals'][-1])
 
             # old way of adding a 'no correlation' line:
             # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
@@ -315,229 +318,228 @@ def plot_lb_vs_affinity(plot_str, plotdir, lines, lb_metric, lb_label, make_all_
             # ptile_vals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
         return ptile_vals
     # ----------------------------------------------------------------------------------------
-    def make_ptile_plot(ptile_vals, plotname):
+    def getplotdir(extrastr=''):
+        return '%s/%s-vs%s-affinity%s' % (baseplotdir, lb_metric, affy_key_str, extrastr)
+    # ----------------------------------------------------------------------------------------
+    def icstr(iclust):
+        return '-all-clusters' if iclust is None else '-iclust-%d' % iclust
+    # ----------------------------------------------------------------------------------------
+    def make_scatter_plot(plotvals, iclust=None):
+        plotname = '%s-vs%s-affinity-%s-tree%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
+        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))
+        if iclust is None: # or iclust < n_per_row:
+            fnames.append(fn)
+    # ----------------------------------------------------------------------------------------
+    def ptile_plotname(iclust):
+        return '%s-vs%s-affinity-%s-tree-ptiles%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
+
+    # ----------------------------------------------------------------------------------------
+    def make_ptile_plot(ptile_vals, iclust=None):
         fig, ax = plotting.mpl_init()
         ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
         # ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # straight line
         ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # perfect vals
         ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
         # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
-        plotting.mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
-                            title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
-                            xlabel='%s threshold (percentile)' % lb_metric.upper(),
-                            ylabel='mean percentile of\nresulting %s' % ' '.join([affy_key_str.replace('-', ''), 'affinities']))
-        fnames.append('%s/%s.svg' % (plotdir, plotname))
-    # ----------------------------------------------------------------------------------------
-    def dump_plot_info_to_yaml(fname, yamlfo):
-        with open(fname, 'w') as yfile:
-            json.dump(yamlfo, yfile)
+        fn = plotting.mpl_finish(ax, getplotdir('-ptiles'), ptile_plotname(iclust), xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
+                                 title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
+                                 xlabel='%s threshold (percentile)' % lb_metric.upper(),
+                                 ylabel='mean percentile of\nresulting %s' % ' '.join([affy_key_str.replace('-', ''), 'affinities']))
+        if iclust is None:
+            fnames.append(fn)
 
     # ----------------------------------------------------------------------------------------
     fnames = []
     affy_key_str = '-relative' if 'relative' in affy_key else ''
     vtypes = [lb_metric, 'affinity']
+    for estr in ['', '-ptiles']:
+        utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 
     # first plot lb metric vs affinity scatter (all clusters)
-    all_plotvals = {val_type : [] for val_type in [lb_metric, 'affinity']}  # , 'uids']}  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
+    all_plotvals = {val_type : [] for val_type in [lb_metric, 'affinity', 'uids']}  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
+    per_clust_ptile_vals = {}
     for iclust, line in enumerate(lines):
-        iclust_plotvals = get_plotvals(iclust, line)
-        if not make_all_cluster_plot and len(iclust_plotvals['affinity']) > 0 and not only_csv:
-            make_scatter_plot(iclust_plotvals, 'iclust-%d%s' % (iclust, affy_key_str), iclust=iclust)
-        for vtype in vtypes:
+        iclust_plotvals = get_plotvals(line)
+        for vtype in all_plotvals:
             all_plotvals[vtype] += iclust_plotvals[vtype]
-    if make_all_cluster_plot and not only_csv:
-        make_scatter_plot(all_plotvals, '%s-vs-affinity-%s-tree%s' % (lb_metric, plot_str, affy_key_str))
+        iclust_ptile_vals = get_ptile_vals(iclust_plotvals)
+        per_clust_ptile_vals['iclust-%d'%iclust] = iclust_ptile_vals
+        if not only_csv and len(iclust_plotvals['affinity']) > 0:
+            make_scatter_plot(iclust_plotvals, iclust=iclust)
+            make_ptile_plot(iclust_ptile_vals, iclust=iclust)
+    if not only_csv:
+        make_scatter_plot(all_plotvals)
 
     # then plot potential lb cut thresholds with percentiles
-    ptile_vals = get_ptile_vals(all_plotvals)
-    ptile_plotname = '%s-vs-affinity-%s-tree-ptiles%s' % (lb_metric, plot_str, affy_key_str)
-    dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, ptile_plotname), ptile_vals)
+    all_ptile_vals = get_ptile_vals(all_plotvals)  # "averaged" might be a better name than "all", but that's longer
+    with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname(None)), 'w') as yfile:
+        json.dump({k : v for k, v in all_ptile_vals.items() + per_clust_ptile_vals.items()}, yfile)
     if not only_csv and len(all_plotvals[lb_metric]) > 0:
-        make_ptile_plot(ptile_vals, ptile_plotname)
+        make_ptile_plot(all_ptile_vals)
 
     return [fnames]
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_delta_affinity(plotdir, true_lines, lb_metric, lb_label, debug=False):
-    fnames = []
-
-    delta_affinity_vals = {val_type : [] for val_type in [lb_metric, 'delta-affinity']}
-    for line in true_lines:
-        dtree = treeutils.get_dendro_tree(treestr=line['tree'])
-        for uid, affinity in zip(line['unique_ids'], line['affinities']):
-            node = dtree.find_node_with_taxon_label(uid)
-            if node is dtree.seed_node:  # root won't have a parent
-                continue
-            parent_uid = node.parent_node.taxon.label
-            if parent_uid not in line['unique_ids']:
-                print '    %s parent %s of %s not in true line' % (utils.color('yellow', 'warning'), parent_uid, uid)
-                continue
-            iparent = line['unique_ids'].index(parent_uid)
-            parent_affinity = line['affinities'][iparent]
-            delta_affinity_vals['delta-affinity'].append(affinity - parent_affinity)
-            delta_affinity_vals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
-    fig, ax = plotting.mpl_init()
-    ax.scatter(delta_affinity_vals['delta-affinity'], delta_affinity_vals[lb_metric], alpha=0.4)
-    sorted_xvals = sorted(delta_affinity_vals['delta-affinity'])  # not sure why, but ax.scatter() is screwing up the x bounds
-    xmin, xmax = sorted_xvals[0], sorted_xvals[-1]
-    # ax.hexbin(delta_affinity_vals['delta-affinity'], delta_affinity_vals[lb_metric], gridsize=15, cmap=plt.cm.Blues)
-    plotname = '%s-vs-delta-affinity' % lb_metric
-    plotting.mpl_finish(ax, plotdir, plotname, title='%s (true tree)' % lb_metric.upper(), xlabel='affinity change (from parent)', ylabel=lb_label, xbounds=(1.05 * xmin, 1.05 * xmax))  # NOTE factor on <xmin> is only right if xmin is negative, but it should always be
-    fnames.append('%s/%s.svg' % (plotdir, plotname))
-
-    return [fnames]
-
-# ----------------------------------------------------------------------------------------
-def make_ancestral_ptile_plot(plotvals, vstr, vstr_label, lb_metric, ptile_range_tuple, plotdir, plot_str, only_csv=False, debug=False):
-    def dump_plot_info_to_yaml(fname, yamlfo):
-        with open(fname, 'w') as yfile:
-            json.dump(yamlfo, yfile)
-
-    plotname = '%s-vs-%s-%s-tree-ptiles' % (lb_metric, vstr, plot_str)
-    if len(plotvals[vstr]) == 0:
-        print '    no %s vals' % vstr
-        dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, plotname), {'lb_ptiles' : [], 'mean_%s_ptiles' % vstr : [], 'perfect_vals' : []})
-        return plotname
-
-    # plot potential lb cut thresholds with percentiles
-    if debug:
-        print '    ptile   %s     mean %s' % (lb_metric, vstr_label)
-    lb_ptile_vals = {'lb_ptiles' : [], 'mean_%s' % vstr: []}
-    lbvals = plotvals[lb_metric]
-    n_anc_vals = plotvals[vstr]  # leaving this as <n_anc_vals>, but it can now also be branch length
-    for percentile in numpy.arange(*ptile_range_tuple):
-        lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
-        corresponding_n_anc_vals = [n_anc for lb, n_anc in zip(lbvals, n_anc_vals) if lb >= lb_ptile_val]  # n-anc vals corresponding to lb greater than <lb_ptile_val> (i.e. the n-anc vals that you'd get if you took all the lb values greater than that)
-        if len(corresponding_n_anc_vals) == 0:
-            if debug:
-                print '   %5.0f    no vals' % percentile
-            continue
-        lb_ptile_vals['lb_ptiles'].append(float(percentile))  # cast to float is so the yaml file written below isn't so damn ugly
-        lb_ptile_vals['mean_%s' % vstr].append(float(numpy.mean(corresponding_n_anc_vals)))
-        if debug:
-            print '   %5.0f   %5.2f   %8.4f' % (percentile, lb_ptile_val, lb_ptile_vals['mean_%s' % vstr][-1])
-
-    # make the "perfect" line
-    if debug:
-        print '  perfect:'
-        print '    ptile  n_taken   %s     mean %s' % ('affy', vstr_label)
-    perfect_ptile_vals = {'ptiles' : [], 'mean_%s' % vstr: []}
-    sorted_n_anc_vals = sorted(plotvals[vstr])
-    for percentile in numpy.arange(*ptile_range_tuple):
-        n_to_take = int((1. - percentile / 100) * len(sorted_n_anc_vals))
-        corresponding_n_anc_vals = sorted_n_anc_vals[:n_to_take]
-        if len(corresponding_n_anc_vals) == 0:
-            if debug:
-                print '   %5.0f   %5d   no vals' % (percentile, n_to_take)
-            continue
-        perfect_ptile_vals['ptiles'].append(float(percentile))
-        perfect_ptile_vals['mean_%s' % vstr].append(float(numpy.mean(corresponding_n_anc_vals)))
-        if debug:
-            print '   %5.0f   %5d  %8.4f' % (percentile, n_to_take, perfect_ptile_vals['mean_%s' % vstr][-1])
-
-    if not only_csv:
-        fig, ax = plotting.mpl_init()
-        mean_n_anc = numpy.mean(n_anc_vals)
-        ymax = max([mean_n_anc] + lb_ptile_vals['mean_%s' % vstr] + perfect_ptile_vals['mean_%s' % vstr])
-        ax.plot(lb_ptile_vals['lb_ptiles'], lb_ptile_vals['mean_%s' % vstr], linewidth=3, alpha=0.7)
-        ax.plot(ax.get_xlim(), (mean_n_anc, mean_n_anc), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
-        ax.plot(perfect_ptile_vals['ptiles'], perfect_ptile_vals['mean_%s' % vstr], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
-        plotting.mpl_finish(ax, plotdir, plotname, xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(-0.02*ymax, 1.1*ymax), leg_loc=(0.5, 0.6),
-                            title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
-                            xlabel='%s threshold (percentile)' % lb_metric.upper(),
-                            ylabel='mean %s\nsince affinity increase' % vstr_label)
-
-    # it would be nice to rewrite the above so that the stuff going into the yaml dict looked more like the analagous lines in the affy fcn
-    dump_plot_info_to_yaml('%s/%s.yaml' % (plotdir, plotname), {'lb_ptiles' : lb_ptile_vals['lb_ptiles'], 'mean_%s_ptiles' % vstr : lb_ptile_vals['mean_%s' % vstr], 'perfect_vals' : perfect_ptile_vals['mean_%s' % vstr]})
-
-    return plotname
-
-# ----------------------------------------------------------------------------------------
-def add_n_ancestor_vals(node, dtree, line, plotvals, affinity_changes, lb_metric, min_affinity_change=1e-6, n_max_steps=15, debug=False):
-    # find number of steps/ancestors to the nearest ancestor with lower affinity than <node>'s
-    #   - also finds the corresponding distance, which is to the lower end of the branch containing the corresponding affinity-increasing mutation
-    #   - this is chosen so that <n_steps> and <branch_len> are both 0 for the node at the bottom of a branch on which affinity increases, and are *not* the distance *to* the lower-affinity node
-    #   - because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
-    #   - <min_affinity_change> is just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd) (note that at least for now, and with default settings, the affinity changes should all be pretty similar, and not small)
-    this_affinity = utils.per_seq_val(line, 'affinities', node.taxon.label)
-    if debug:
-        print '     %12s %12s %8s %9.4f' % (node.taxon.label, '', '', this_affinity)
-
-    ancestor_node = node
-    chosen_ancestor_affinity = None
-    n_steps, branch_len  = 0, 0.
-    while n_steps < n_max_steps:  # note that if we can't find an ancestor with worse affinity, we don't plot the node
-        if ancestor_node is dtree.seed_node:
-            break
-        ancestor_distance = ancestor_node.edge_length  # distance from current <ancestor_node> to its parent (who in the next line becomes <ancestor_node>)
-        ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
-        ancestor_uid = ancestor_node.taxon.label
-        if ancestor_uid not in line['unique_ids']:
-            print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, node.taxon.label)
-            break
-        ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
-        if this_affinity - ancestor_affinity > min_affinity_change:  # if we found an ancestor with lower affinity, we're done
-            chosen_ancestor_affinity = ancestor_affinity
-            affinity_changes.append(this_affinity - ancestor_affinity)
-            break
-        if debug:
-            print '     %12s %12s %8.4f %9.4f%s' % ('', ancestor_uid, branch_len, ancestor_affinity, utils.color('green', ' x') if ancestor_node is dtree.seed_node else '')
-        n_steps += 1
-        branch_len += ancestor_distance
-
-    if chosen_ancestor_affinity is None:  # couldn't find ancestor with lower affinity
-        return
-
-    plotvals['n-ancestor'].append(n_steps)
-    plotvals['branch-length'].append(branch_len)
-    plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
-    # plotvals['uids'].append(node.taxon.label)
-
-    if debug:
-        print '     %12s %12s %8.4f %9.4f  %s%-9.4f' % ('', ancestor_uid, branch_len, chosen_ancestor_affinity, utils.color('red', '+'), this_affinity - chosen_ancestor_affinity)
-
-# ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(plotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), only_csv=False, debug=False):
+def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), min_affinity_change=1e-6, n_max_steps=15, only_csv=False, n_per_row=4, debug=False):
     # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
-
-    vstr_list = collections.OrderedDict([(xstr, xlabel) for metric, xstr, xlabel in lb_metric_axis_stuff if metric == 'lbr'])
-    # first plot lb metric vs number of ancestors since last affinity increase (all clusters)
-    if debug:
-        print '  finding N ancestors since last affinity increase'
-        print '         node        ancestors  distance   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
-    plotvals = {val_type : [] for val_type in [lb_metric] + vstr_list.keys()}  # , 'uids']}
-    for line in true_lines:
+    # ----------------------------------------------------------------------------------------
+    def check_affinity_changes(affinity_changes):
+        affinity_changes = sorted(affinity_changes)
+        if debug:
+            print '    chosen affinity changes: %s' % ' '.join(['%.4f' % a for a in affinity_changes])
+        if len(affinity_changes) == 0:
+            return
+        if len([a for a in affinity_changes if a < 0.]):
+            print '  %s negative affinity changes in %s' % (utils.color('red', 'error'), ' '.join(['%.4f' % a for a in affinity_changes]))
+        max_diff = affinity_changes[-1] - affinity_changes[0]
+        if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:
+            print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
+    # ----------------------------------------------------------------------------------------
+    def get_n_ancestor_vals(node, dtree, line, affinity_changes):
+        # find number of steps/ancestors to the nearest ancestor with lower affinity than <node>'s
+        #   - also finds the corresponding distance, which is to the lower end of the branch containing the corresponding affinity-increasing mutation
+        #   - this is chosen so that <n_steps> and <branch_len> are both 0 for the node at the bottom of a branch on which affinity increases, and are *not* the distance *to* the lower-affinity node
+        #   - because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
+        #   - <min_affinity_change> is just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd) (note that at least for now, and with default settings, the affinity changes should all be pretty similar, and not small)
+        this_affinity = utils.per_seq_val(line, 'affinities', node.taxon.label)
+        if debug:
+            print '     %12s %12s %8s %9.4f' % (node.taxon.label, '', '', this_affinity)
+    
+        ancestor_node = node
+        chosen_ancestor_affinity = None
+        n_steps, branch_len  = 0, 0.
+        while n_steps < n_max_steps:  # note that if we can't find an ancestor with worse affinity, we don't plot the node
+            if ancestor_node is dtree.seed_node:
+                break
+            ancestor_distance = ancestor_node.edge_length  # distance from current <ancestor_node> to its parent (who in the next line becomes <ancestor_node>)
+            ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
+            ancestor_uid = ancestor_node.taxon.label
+            if ancestor_uid not in line['unique_ids']:
+                print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, node.taxon.label)
+                break
+            ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
+            if this_affinity - ancestor_affinity > min_affinity_change:  # if we found an ancestor with lower affinity, we're done
+                chosen_ancestor_affinity = ancestor_affinity
+                affinity_changes.append(this_affinity - ancestor_affinity)
+                break
+            if debug:
+                print '     %12s %12s %8.4f %9.4f%s' % ('', ancestor_uid, branch_len, ancestor_affinity, utils.color('green', ' x') if ancestor_node is dtree.seed_node else '')
+            n_steps += 1
+            branch_len += ancestor_distance
+    
+        if chosen_ancestor_affinity is None:  # couldn't find ancestor with lower affinity
+            return None, None
+        if debug:
+            print '     %12s %12s %8.4f %9.4f  %s%-9.4f' % ('', ancestor_uid, branch_len, chosen_ancestor_affinity, utils.color('red', '+'), this_affinity - chosen_ancestor_affinity)
+        return n_steps, branch_len
+    # ----------------------------------------------------------------------------------------
+    def get_plotvals(line, xvar):
+        plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
         affinity_changes = []
         for uid in line['unique_ids']:
             node = dtree.find_node_with_taxon_label(uid)
             if node is dtree.seed_node:  # root doesn't have any ancestors
                 continue
-            if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][uid] == 0:  # lbr equals 0 should really be treated as None/missing
+            lbval = line['tree-info']['lb'][lb_metric][uid]
+            if lb_metric == 'lbr' and lbval == 0:  # lbr equals 0 should really be treated as None/missing
                 continue
-            add_n_ancestor_vals(node, dtree, line, plotvals, affinity_changes, lb_metric, debug=debug)
+            n_steps, branch_len = get_n_ancestor_vals(node, dtree, line, affinity_changes)  # also adds to <affinity_changes>
+            if n_steps is None:
+                continue
+            plotvals[xvar].append(n_steps if xvar == 'n-ancestor' else branch_len)
+            plotvals[lb_metric].append(lbval)
+            # plotvals['uids'].append(uid)
+        check_affinity_changes(affinity_changes)
+        return plotvals
 
-        # make sure affinity changes are all roughly the same size
-        affinity_changes = sorted(affinity_changes)
+    # ----------------------------------------------------------------------------------------
+    def get_ptile_vals(plotvals, xvar, xlabel):
+        # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot. On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
+        xkey = 'mean_%s_ptiles' % xvar
+        ptile_vals = {'lb_ptiles' : [], xkey : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
+        if len(plotvals[xvar]) == 0:
+            return ptile_vals
+        # plot potential lb cut thresholds with percentiles
         if debug:
-            print '    chosen affinity changes: %s' % ' '.join(['%.4f' % a for a in affinity_changes])
-        if len(affinity_changes) == 0:
-            continue
-        if len([a for a in affinity_changes if a < 0.]):
-            print '  %s negative affinity changes in %s' % (utils.color('red', 'error'), ' '.join(['%.4f' % a for a in affinity_changes]))
-        max_diff = affinity_changes[-1] - affinity_changes[0]
-        if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:
-            print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
+            print '             %s       N      mean        |  perfect   perfect' % lb_metric
+            print '    ptile  threshold  taken  %-13s|  N taken   mean %-13s' % (xlabel, xlabel)
+        sorted_xvals = sorted(plotvals[xvar])
+        for percentile in numpy.arange(*ptile_range_tuple):
+            lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
+            corresponding_xvals = [n_anc for lb, n_anc in zip(plotvals[lb_metric], plotvals[xvar]) if lb >= lb_ptile_val]  # n-anc vals corresponding to lb greater than <lb_ptile_val> (i.e. the n-anc vals that you'd get if you took all the lb values greater than that)
+            if len(corresponding_xvals) == 0:  # calling it n_anc even though it can now also be branch length
+                if debug:
+                    print '   %5.0f    no vals' % percentile
+                continue
+            ptile_vals['lb_ptiles'].append(float(percentile))  # cast to float is so the yaml file written below isn't so damn ugly
+            ptile_vals[xkey].append(float(numpy.mean(corresponding_xvals)))
 
+            # values for perfect line
+            n_to_take = len(corresponding_xvals)
+            perfect_xvals = sorted_xvals[:n_to_take]
+            ptile_vals['perfect_vals'].append(float(numpy.mean(perfect_xvals)))
+
+            if debug:
+                print '   %5.0f    %5.2f    %4d   %6.2f        | %4d      %-8s' % (percentile, lb_ptile_val, len(corresponding_xvals), ptile_vals[xkey][-1], n_to_take, ('%8.2f' if xvar == 'n-ancestor' else '%8.6f') % ptile_vals['perfect_vals'][-1])
+        return ptile_vals
+    # ----------------------------------------------------------------------------------------
+    def getplotdir(xvar, extrastr=''):
+        return '%s/%s-vs-%s%s' % (baseplotdir, lb_metric, xvar, extrastr)
+    # ----------------------------------------------------------------------------------------
+    def icstr(iclust):
+        return '-all-clusters' if iclust is None else '-iclust-%d' % iclust
+    # ----------------------------------------------------------------------------------------
+    def make_scatter_plot(plotvals, xvar, iclust=None):
+        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, plot_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if lb_metric == 'lbr' else '')
+        if iclust is None: # or iclust < n_per_row:
+            fnames.append(fn)
+    # ----------------------------------------------------------------------------------------
+    def ptile_plotname(xvar, iclust):
+        return '%s-vs-%s-%s-tree-ptiles%s' % (lb_metric, xvar, plot_str, icstr(iclust))
+    # ----------------------------------------------------------------------------------------
+    def make_ptile_plot(plotvals, ptile_vals, xvar, xlabel, iclust=None):
+        fig, ax = plotting.mpl_init()
+        xmean = numpy.mean(plotvals[xvar])  # NOTE this is mean of "xvar", which is the x axis on the scatter plot, but here it's the y axis on the ptile plot
+        xkey = 'mean_%s_ptiles' % xvar
+        ymax = max([xmean] + ptile_vals[xkey] + ptile_vals['perfect_vals'])
+        ax.plot(ptile_vals['lb_ptiles'], ptile_vals[xkey], linewidth=3, alpha=0.7)
+        ax.plot(ax.get_xlim(), (xmean, xmean), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
+        ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
+        fn = plotting.mpl_finish(ax, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(-0.02*ymax, 1.1*ymax), leg_loc=(0.5, 0.6),
+                                 title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
+                                 xlabel='%s threshold (percentile)' % lb_metric.upper(),
+                                 ylabel='mean %s\nsince affinity increase' % xlabel)
+        if iclust is None:
+            fnames.append(fn)
+
+    # ----------------------------------------------------------------------------------------
     fnames = []
-    for vstr, vstr_label in vstr_list.items():
+    xvar_list = collections.OrderedDict([(xvar, xlabel) for metric, xvar, xlabel in lb_metric_axis_stuff if metric == 'lbr'])
+    for xvar, estr in itertools.product(xvar_list, ['', '-ptiles']):
+        utils.prep_dir(getplotdir(xvar, extrastr=estr), wildlings=['*.svg', '*.yaml'])
+    if debug:
+        print '  finding N ancestors since last affinity increase'
+        print '         node        ancestors  distance   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
+    for xvar, xlabel in xvar_list.items():
+        all_plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
+        per_clust_ptile_vals = {}
+        for iclust, line in enumerate(true_lines):
+            iclust_plotvals = get_plotvals(line, xvar)
+            for vtype in all_plotvals:
+                all_plotvals[vtype] += iclust_plotvals[vtype]
+            iclust_ptile_vals = get_ptile_vals(iclust_plotvals, xvar, xlabel)
+            per_clust_ptile_vals['iclust-%d'%iclust] = iclust_ptile_vals
+            if not only_csv and len(iclust_plotvals[xvar]) > 0:
+                make_scatter_plot(iclust_plotvals, xvar, iclust=iclust)
+                make_ptile_plot(iclust_plotvals, iclust_ptile_vals, xvar, xlabel, iclust=iclust)
         if not only_csv:
-            scatter_plotname = '%s-vs-%s-%s-tree' % (lb_metric, vstr, plot_str)  # 'nearest ancestor with lower affinity' would in some ways be a better xlabel, since it clarifies the note at the top of the loop, but it's also less clear in other ways
-            plot_2d_scatter(scatter_plotname, plotdir, plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=vstr, xlabel='%s since affinity increase' % vstr_label, log='y' if lb_metric == 'lbr' else '')
-            fnames.append('%s/%s.svg' % (plotdir, scatter_plotname))
-
-        pname = make_ancestral_ptile_plot(plotvals, vstr, vstr_label, lb_metric, ptile_range_tuple, plotdir, plot_str, only_csv=only_csv, debug=debug)
-        fnames.append('%s/%s.svg' % (plotdir, pname))
+            make_scatter_plot(all_plotvals, xvar)
+        all_ptile_vals = get_ptile_vals(all_plotvals, xvar, xlabel)  # "averaged" might be a better name than "all", but that's longer
+        with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
+            json.dump({k : v for k, v in all_ptile_vals.items() + per_clust_ptile_vals.items()}, yfile)
+        if not only_csv and len(all_plotvals[lb_metric]) > 0:
+            make_ptile_plot(all_plotvals, all_ptile_vals, xvar, xlabel)
 
     return [fnames]
 
@@ -548,8 +550,8 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label
     common_uids = set(plotvals['true']) & set(plotvals['inf'])  # there should/may be a bunch of internal nodes in the simulation lines but not in the inferred lines, but otherwise they should have the same uids
     plotvals = {val_type : [plotvals[val_type][uid] for uid in common_uids] for val_type in plotvals}
     plotname = '%s-true-vs-inferred' % lb_metric
-    plot_2d_scatter(plotname, plotdir, plotvals, 'inf', '%s on inferred tree' % lb_metric.upper(), 'true vs inferred %s' % lb_metric.upper(), xvar='true', xlabel='%s on true tree' % lb_metric.upper())
-    return ['%s/%s.svg' % (plotdir, plotname)]
+    fn = plot_2d_scatter(plotname, plotdir, plotvals, 'inf', '%s on inferred tree' % lb_metric.upper(), 'true vs inferred %s' % lb_metric.upper(), xvar='true', xlabel='%s on true tree' % lb_metric.upper())
+    return [fn]
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None):
@@ -576,8 +578,11 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False, tree_style=None):
+def plot_lb_trees(baseplotdir, lines, ete_path, base_workdir, is_simu=False, tree_style=None):
     workdir = '%s/ete3-plots' % base_workdir
+    plotdir = baseplotdir + '/trees'
+    utils.prep_dir(plotdir, wildlings='*.svg')
+
     if not os.path.exists(workdir):
         os.makedirs(workdir)
     cmdfos = []
@@ -588,7 +593,7 @@ def plot_lb_trees(plotdir, lines, ete_path, base_workdir, is_simu=False, tree_st
                 metafo = copy.deepcopy(line['tree-info']['lb'])
                 if affy_key in line:  # either 'affinities' or 'relative_affinities'
                     metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
-                outfname = '%s/trees/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
+                outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
                 cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style)]
 
     start = time.time()
