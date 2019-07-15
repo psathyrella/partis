@@ -156,7 +156,8 @@ def get_tree_metric_plotdir(varnames, vstr):
     return get_tree_metric_outdir(varnames, vstr) + '/plots'
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_fname(varnames, vstr, metric='lbi', x_axis_label='affinity', use_relative_affy=True, iclust=None):  # we set all the defaults just so when we're checking for output before running, we can easily get one of the file names
+def get_tree_metric_fname(varnames, vstr, metric='lbi', x_axis_label='affinity', use_relative_affy=True):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (which is all we need here)
+    # note that we set all the defaults just so when we're checking for output before running, we can easily get one of the file names
     old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (get_tree_metric_plotdir(varnames, vstr), metric, x_axis_label, '-relative' if use_relative_affy and metric == 'lbi' else '')
     if os.path.exists(old_path):
         print 'exists', old_path
@@ -250,6 +251,37 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         pvlabel = ', '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey, pvlabel
     # ----------------------------------------------------------------------------------------
+    def get_diff_vals(yamlfo, iclust=None):
+        ytmpfo = yamlfo
+        if iclust is not None:
+            if 'iclust-%d' % iclust not in yamlfo:
+                print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')
+            ytmpfo = yamlfo['iclust-%d' % iclust]
+        return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
+    # ----------------------------------------------------------------------------------------
+    def add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=None):
+        diff_vals = get_diff_vals(yamlfo, iclust=iclust)
+        if len(diff_vals) == 0:
+            missing_vstrs['empty'].append(vstrs)  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
+            return
+        diff_to_perfect = numpy.mean(diff_vals)
+        tau = get_vlval(vlists, varnames, xvar)
+        pvkey, pvlabel = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
+        if args.n_replicates > 1:  # need to average over the replicates/clusters (NOTE I'm not really sure this will work if there's only one replicate but more than one event per proc)
+            if args.n_sim_events_per_proc is not None:
+                if pvkey not in plotvals:
+                    plotvals[pvkey] = {('%d-%d' % (i, j)) : [] for i in getsargval('seed') for j in range(args.n_sim_events_per_proc)}
+                ikey = '%d-%d' % (vlists[varnames.index('seed')], iclust)
+                plotvals[pvkey][ikey].append((tau, diff_to_perfect))  # TODO arg, is this key wrong?
+            else:
+                if pvkey not in plotvals:
+                    plotvals[pvkey] = {i : [] for i in getsargval('seed')}
+                plotvals[pvkey][vlists[varnames.index('seed')]].append((tau, diff_to_perfect))  # TODO arg, is this key wrong?
+        else:
+            if pvkey not in plotvals:
+                plotvals[pvkey] = []
+            plotvals[pvkey].append((tau, diff_to_perfect))
+    # ----------------------------------------------------------------------------------------
     def get_varname_str():
         return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
     def get_varval_str(vstrs):
@@ -271,28 +303,21 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         yfname = get_tree_metric_fname(varnames, vstrs, metric, ptilestr)  # why is this called vstrs rather than vstr?
         try:
             with open(yfname) as yfile:
-                info = json.load(yfile)  # too slow with yaml
+                yamlfo = json.load(yfile)  # too slow with yaml
         except IOError:  # os.path.exists() is too slow with this many files
             missing_vstrs['missing'].append(vstrs)
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
         yval_key = 'mean_%s_ptiles' % ('affy' if ptilestr == 'affinity' else ptilestr)  # arg, would've been nice if that was different
-        diff_vals = [abs(pafp - afp) for lbp, afp, pafp in zip(info['lb_ptiles'], info[yval_key], info['perfect_vals']) if lbp > min_ptile_to_plot]
-        if len(diff_vals) == 0:
-            missing_vstrs['empty'].append(vstrs)  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
-            continue
-        diff_to_perfect = numpy.mean(diff_vals)
-
-        tau = get_vlval(vlists, varnames, xvar)
-        pvkey, pvlabel = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
-        if args.n_replicates > 1:  # need to average over the replicates
-            if pvkey not in plotvals:
-                plotvals[pvkey] = {i : [] for i in getsargval('seed')}
-            plotvals[pvkey][vlists[varnames.index('seed')]].append((tau, diff_to_perfect))
+        if args.n_sim_events_per_proc is not None:
+            iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
+            missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
+            if len(missing_iclusts) > 0:
+                print '  %s missing %d iclusts (i = %s) from file' % (utils.color('red', 'error'), len(missing_iclusts), ' '.join(str(i) for i in missing_iclusts))
+            for iclust in iclusts_in_file:
+                add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
         else:
-            if pvkey not in plotvals:
-                plotvals[pvkey] = []
-            plotvals[pvkey].append((tau, diff_to_perfect))
+            add_plot_vals(yamlfo, vlists, varnames, obs_frac)
 
     # print info about missing and empty results
     for mkey, vstrs_list in missing_vstrs.items():
@@ -303,9 +328,13 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         for vstrs in vstrs_list:
             print '      %s' % get_varval_str(vstrs)
 
-    if args.n_replicates > 1 and len(plotvals) > 0:  # need to average over the replicates
+    # average over the replicates/clusters
+    if (args.n_replicates > 1 or args.n_sim_events_per_proc is not None) and len(plotvals) > 0:
         if debug:
-            print '  averaging replicates:'
+            print '  averaging over %d replicates' % args.n_replicates,
+            if args.n_sim_events_per_proc is not None:
+                print 'times %d clusters per proc:' % args.n_sim_events_per_proc,
+            print ''
             tmplen = str(max(len(pvkey) for pvkey in plotvals))
             print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
         for pvkey, ofvals in plotvals.items():
@@ -313,7 +342,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should correspond to 'missing')
             assert len(set([len(ofvals[i]) for i in ofvals])) == 1
             n_used = []  # just for dbg
-            for ipair in range(len(ofvals[0])):  # note that 0 is a dict key (i.e. the zeroth replicate), not an index NOTE if the zeroth one is ever empty this will probably break
+            for ipair in range(len(ofvals.values()[0])):  # NOTE if this first one is ever empty this will probably break
                 tau = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
                 assert len(set(tau)) == 1  # all of 'em better have the same tau
                 tau = tau[0]
@@ -321,7 +350,10 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
                 n_used.append(len([ofvals[i][ipair][1] for i in ofvals]))
             plotvals[pvkey] = mean_vals
             if debug:
-                print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), args.n_replicates, '' if n_used[0] == args.n_replicates else utils.color('red', ' <--'))
+                n_expected = args.n_replicates
+                if args.n_sim_events_per_proc is not None:
+                    n_expected *= args.n_sim_events_per_proc
+                print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
 
     fig, ax = plotting.mpl_init()
     lb_taus, xticklabels = None, None
