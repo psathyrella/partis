@@ -290,7 +290,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
     # ----------------------------------------------------------------------------------------
     debug = True
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
-    plotvals = collections.OrderedDict()
+    plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     if debug:
         print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
@@ -338,7 +338,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             tmplen = str(max(len(pvkey) for pvkey in plotvals))
             print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
         for pvkey, ofvals in plotvals.items():
-            mean_vals = []
+            mean_vals, err_vals = [], []
             ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should correspond to 'missing')
             assert len(set([len(ofvals[i]) for i in ofvals])) == 1
             n_used = []  # just for dbg
@@ -346,9 +346,12 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
                 tau = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
                 assert len(set(tau)) == 1  # all of 'em better have the same tau
                 tau = tau[0]
-                mean_vals.append((tau, numpy.mean([ofvals[i][ipair][1] for i in ofvals])))
+                ltmp = [ofvals[i][ipair][1] for i in ofvals]
+                mean_vals.append((tau, numpy.mean(ltmp)))
+                err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))
                 n_used.append(len([ofvals[i][ipair][1] for i in ofvals]))
             plotvals[pvkey] = mean_vals
+            errvals[pvkey] = err_vals
             if debug:
                 n_expected = args.n_replicates
                 if args.n_sim_events_per_proc is not None:
@@ -360,7 +363,12 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
     for pvkey in plotvals:
         lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
         xticklabels = [str(t) for t in lb_taus]
-        ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
+        markersize = None if len(lb_taus) > 1 else 15
+        if pvkey in errvals:
+            _, yerrs = zip(*errvals[pvkey])  # first item would just be the same as <lb_taus>
+            ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, alpha=0.7, markersize=markersize, linewidth=2, marker='.')  #, title='position ' + str(position))
+        else:
+            ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
     ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     plotting.mpl_finish(ax, get_comparison_plotdir(),
                         '%s-%s-ptiles-obs-frac-vs-lb-tau' % (ptilestr, metric),
