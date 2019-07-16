@@ -1670,6 +1670,8 @@ class PartitionDriver(object):
 
         if partition is not None:
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
+            if self.args.simultaneous_true_clonal_seqs:  # a.t.m. this (different cdr3 lengths in a cluster throwing an exception in combine_queries()) has only happened once, when --simultaneous-true-clonal-seqs was set, so this hack is probably ok (splitting them here could probably cause problems down the line, since the clusters in the partition will I think be out of sync with the annotations)
+                nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)
         else:
             qlist = self.sw_info['queries']  # shorthand
 
