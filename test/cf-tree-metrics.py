@@ -363,7 +363,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
     for pvkey in plotvals:
         lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
         xticklabels = [str(t) for t in lb_taus]
-        markersize = None if len(lb_taus) > 1 else 15
+        markersize = 1 if len(lb_taus) > 1 else 15
         if pvkey in errvals:
             _, yerrs = zip(*errvals[pvkey])  # first item would just be the same as <lb_taus>
             ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, alpha=0.7, markersize=markersize, linewidth=2, marker='.')  #, title='position ' + str(position))
