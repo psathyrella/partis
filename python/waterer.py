@@ -152,8 +152,6 @@ class Waterer(object):
             if uid not in self.input_info:
                 continue
             utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
-            if isinstance(line['all_matches'], dict):  # it used to be per-family, but then I realized it should be per-sequence, so any old cache files lying around have it as per-family
-                line['all_matches'] = [line['all_matches']]
             if indelutils.has_indels(line['indelfos'][0]):
                 self.info['indels'][uid] = line['indelfos'][0]
             self.add_to_info(line)

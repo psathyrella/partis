@@ -2275,6 +2275,9 @@ def process_input_line(info, skip_literal_eval=False):
 
     # NOTE indels get fixed up (espeicially/only for old-style files) in add_implicit_info(), since we want to use the implicit info to do it
 
+    if 'all_matches' in info and isinstance(info['all_matches'], dict):  # it used to be per-family, but then I realized it should be per-sequence, so any old cache files lying around have it as per-family
+        info['all_matches'] = [info['all_matches']]
+
     # make sure everybody's the same lengths
     for key in [k for k in info if k in io_column_configs['lists']]:
         if len(info[key]) != len(info['unique_ids']):
