@@ -236,13 +236,23 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
         delstrs['v_5p'] = '.%d.' % len(delstrs['v_5p'])
 
     # if there isn't enough space for dots in the vj line, we add some dashes to everybody so things fit (rare in heavy chain rearrangements, but pretty common in light chain)
+    # UPDATE turning this off, now since I'm so frequently looking at multiple annotations on top of each other, it's more important to have them really line up vertically
     d_plus_inserts_length = len(line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'])
+    vj_delstr = ''
     if line['v_3p_del'] + line['j_5p_del'] > d_plus_inserts_length:  # if dots for v and j interior deletions will be longer than <d_plus_inserts_length>
-        delstrs['v_3p'] = '.%d.' % line['v_3p_del']
-        delstrs['j_5p'] = '.%d.' % line['j_5p_del']
-        gapstr = '-' * (len(delstrs['v_3p'] + delstrs['j_5p']) - d_plus_inserts_length)
-        gap_insert_point = len(line['fv_insertion'] + delstrs['v_5p'] + line['v_gl_seq'])  # it doesn't really matter exactly where we put the blue dashes, as long as it's the same place in all four lines, but this is a good spot
-        extra_space_because_of_fixed_nospace = max(0, d_plus_inserts_length - len(delstrs['v_3p'] + delstrs['j_5p']))  # if shortening the <delstrs> already over-compensated for the lack of space (i.e., if the number of dashes necessary is zero), then we need to add some dots to the vj line below
+        vj_del_strs = [('%s %d' % (d, line[d + '_del'])) for d in ['v_3p', 'j_5p'] if line[d + '_del'] > 0]
+        vj_delstr = '  %s: %s' % (utils.color('blue', 'del'), ', '.join(vj_del_strs))
+        delstrs['v_3p'] = ' ' * d_plus_inserts_length
+        delstrs['j_5p'] = ''
+        gapstr = ''
+        gap_insert_point = None
+        extra_space_because_of_fixed_nospace = 0
+        # old way, adding blue dashes:
+        # delstrs['v_3p'] = '.%d.' % line['v_3p_del']
+        # delstrs['j_5p'] = '.%d.' % line['j_5p_del']
+        # gapstr = '-' * (len(delstrs['v_3p'] + delstrs['j_5p']) - d_plus_inserts_length)
+        # gap_insert_point = len(line['fv_insertion'] + delstrs['v_5p'] + line['v_gl_seq'])  # it doesn't really matter exactly where we put the blue dashes, as long as it's the same place in all four lines, but this is a good spot
+        # extra_space_because_of_fixed_nospace = max(0, d_plus_inserts_length - len(delstrs['v_3p'] + delstrs['j_5p']))  # if shortening the <delstrs> already over-compensated for the lack of space (i.e., if the number of dashes necessary is zero), then we need to add some dots to the vj line below
     else:
         gapstr = ''
         gap_insert_point = None
@@ -283,7 +293,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
 
     suffixes = ['insert%s\n'       % ('s' if utils.has_d_gene(utils.get_locus(line['v_gene'])) else ''),
                 '%s\n'             % (utils.color_gene(line['d_gene'])),
-                '%s %s\n'          % (utils.color_gene(line['v_gene']), utils.color_gene(line['j_gene'])),
+                '%s %s%s\n'        % (utils.color_gene(line['v_gene']), utils.color_gene(line['j_gene']), vj_delstr),
                 '%s   %4.2f mut  %s\n' % (get_uid_str(line, iseq, seed_uid, duplicated_uids=duplicated_uids), line['mut_freqs'][iseq], utils.color('red', utils.is_functional_dbg_str(line, iseq)))]
     outstrs = ['%s%s   %s' % (extra_str, ostr, suf) for ostr, suf in zip(outstrs, suffixes)]
 
