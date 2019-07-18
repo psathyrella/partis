@@ -456,6 +456,13 @@ class PartitionDriver(object):
         if tmpact == 'get-linearham-info':
             self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotations.values() for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok (note that the order won't be the same as it would've been before)
             self.run_waterer(require_cachefile=True)
+            uids_missing_sw_info = [u for l in annotations.values() for u in l['unique_ids'] if u not in self.sw_info]  # make sure <annotations> and <self.sw_info> have the same uids (they can get out of sync because we're re-running sw here with potentially different options (or versions) to whatever command was run to make <annotations>, e.g. if --is-simu was turned on duplicates won't have been removed before)
+            dup_dict = {d : u for u in self.sw_info['queries'] for d in self.sw_info[u]['duplicates'][0]}
+            for uid in uids_missing_sw_info:  # NOTE <self.sw_info> is somewhat inconsistent after we do this, but this code should only get run when we're just adding linearham info so idgaf
+                if uid in dup_dict:
+                    self.sw_info[uid] = self.sw_info[dup_dict[uid]]  # it would be proper to fix the duplicates in here, and probably some other things
+                else:
+                    raise Exception('no sw info for query %s' % uid)  # I can't really do anything else, it makes no sense to go remove it from <annotations> when the underlying problem is (probably) that sw info was just run with different options
             self.write_output(annotations.values(), set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
         if tmpact == 'get-tree-metrics':
