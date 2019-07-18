@@ -104,7 +104,7 @@ class PartitionPlotter(object):
             clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= self.size_vs_shm_min_cluster_size]
             skipped_small_clusters = True
         if len(clusters_to_use) == 0:
-            print '  %s no clusters to plot' % utils.color('yellow', 'warning')
+            print '  %s no clusters to plot for hexbin size vs shm' % utils.color('yellow', 'warning')
             return
         xvals, yvals = zip(*[[numpy.mean(getnmutelist(cluster)), len(cluster)] for cluster in clusters_to_use])
         if log_cluster_size:
