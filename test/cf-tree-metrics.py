@@ -397,7 +397,7 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --overwrite'
         if args.only_csv_plots:
             cmd += ' --only-csv-plots'
-        # cmd += ' --debug 1'
+        # cmd += ' --debug 2'
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : get_partition_fname(varnames, vstrs, 'bcr-phylo'),
