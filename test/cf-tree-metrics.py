@@ -215,6 +215,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         'n-sim-seqs-per-gen' : 'N/gen',
         'obs-times' : 't obs',
     }
+    pvlabel = ['?']  # arg, this is ugly (but it does work...)
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames):
         obs_times = get_vlval(vlists, varnames, 'obs-times')
@@ -248,8 +249,8 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         if pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
             pvnames = ['obs_frac']
         pvkey = ', '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
-        pvlabel = ', '.join(vlabels.get(vn, vn) for vn in pvnames)
-        return pvkey, pvlabel
+        pvlabel[0] = ', '.join(vlabels.get(vn, vn) for vn in pvnames)
+        return pvkey
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(yamlfo, iclust=None):
         ytmpfo = yamlfo
@@ -266,7 +267,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             return
         diff_to_perfect = numpy.mean(diff_vals)
         tau = get_vlval(vlists, varnames, xvar)
-        pvkey, pvlabel = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
+        pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
         if args.n_replicates > 1:  # need to average over the replicates/clusters (NOTE I'm not really sure this will work if there's only one replicate but more than one event per proc)
             if args.n_sim_events_per_proc is not None:
                 if pvkey not in plotvals:
@@ -288,14 +289,12 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         return ''.join('%10s' % v for v in vstrs)
 
     # ----------------------------------------------------------------------------------------
-    debug = True
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     if debug:
         print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
     missing_vstrs = {'missing' : [], 'empty' : []}
-    pvlabel = '?'  # arg ick ugh
     for vlists, vstrs in zip(val_lists, valstrs):
         obs_frac, dbgstr = get_obs_frac(vlists, varnames)
         if debug:
@@ -366,7 +365,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         markersize = 1 if len(lb_taus) > 1 else 15
         if pvkey in errvals:
             _, yerrs = zip(*errvals[pvkey])  # first item would just be the same as <lb_taus>
-            ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, alpha=0.7, markersize=markersize, linewidth=2, marker='.')  #, title='position ' + str(position))
+            ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=pvkey, alpha=0.7, linewidth=4, markersize=markersize, marker='.')  #, title='position ' + str(position))
         else:
             ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
     ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
@@ -374,7 +373,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
                         '%s-%s-ptiles-obs-frac-vs-lb-tau' % (ptilestr, metric),
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
-                        title=metric.upper(), leg_title=pvlabel, leg_prop={'size' : 12}, leg_loc=(0.04, 0.67),
+                        title=metric.upper(), leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
                         xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
     )
 
