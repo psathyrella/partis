@@ -487,7 +487,7 @@ class PartitionDriver(object):
             self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile, count_parameters=self.args.count_parameters)  # run smith-waterman
         if len(self.sw_info['queries']) == 0:
             if self.args.outfname is not None:
-                ClusterPath().write(self.args.outfname, False)
+                self.write_output([], set())
             return
         if self.args.only_smith_waterman:
             return
