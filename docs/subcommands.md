@@ -24,7 +24,7 @@ The other option is to specify the full path with each call `/path/to/<partis_di
 
 ### annotate
 
-In order to find the most likely annotation (VDJ assignment, deletion boundaries, etc.) for each sequence, run
+In order to find the most likely annotation (VDJ assignment, deletion boundaries, etc.) for each single sequence, run
 
 ```
 partis annotate --infname test/example.fa --outfname _output/example.yaml
@@ -34,7 +34,7 @@ For information on parsing the output file, see [here](#output-formats.md).
 
 ### partition
 
-In order to cluster sequences into clonal families, run
+In order to cluster sequences into clonal families and annotate each family, run
 
 ```
 partis partition --infname test/example.fa --outfname _output/example.yaml
