@@ -1424,7 +1424,6 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     for region in getregions(get_locus(line['v_gene'])):
         left_region, right_region = region + '_l', region + '_r'
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
-
         # remove the gene matches with zero support
         for k in fbounds[left_region].keys():
             support_check1 = (k not in per_gene_support)
@@ -1620,7 +1619,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
                 assert ikey in new_keys  # only really checks the logic of the previous few lines
 
 # ----------------------------------------------------------------------------------------
-def restrict_to_iseqs(line, iseqs_to_keep, glfo):
+def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):
     """ remove from <line> any sequences corresponding to indices not in <iseqs_to_keep>. modifies line. """
     if len(iseqs_to_keep) < 1:
         return None
@@ -1628,6 +1627,11 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo):
     for tkey in set(linekeys['per_seq']) & set(line):
         line[tkey] = [line[tkey][iseq] for iseq in iseqs_to_keep]
     add_implicit_info(glfo, line)
+    if line.get('linearham-info') is not None:
+        if sw_info is not None:
+            add_linearham_info(sw_info, [line])
+        else:
+            print '% restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None) needs sw_info to re-add existing \'linearham-info\' key to an annotation' % color('yellow', 'warning')
     return line
 
 # ----------------------------------------------------------------------------------------
@@ -2277,7 +2281,6 @@ def process_input_line(info, skip_literal_eval=False):
 
     if 'all_matches' in info and isinstance(info['all_matches'], dict):  # it used to be per-family, but then I realized it should be per-sequence, so any old cache files lying around have it as per-family
         info['all_matches'] = [info['all_matches']]
-
     # make sure everybody's the same lengths
     for key in [k for k in info if k in io_column_configs['lists']]:
         if len(info[key]) != len(info['unique_ids']):
