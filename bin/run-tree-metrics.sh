@@ -10,5 +10,8 @@ testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times
 # $bin get-lb-bounds --label $testlabel $testargs --make-plots
 # exit 0
 
-echo $bin --label $testlabel $testargs --only-csv-plots
-echo $bin --label $label --n-replicates 3 $common --only-csv-plots
+# echo $bin --label $testlabel $testargs --only-csv-plots
+# echo $bin --label $label --n-replicates 3 --only-csv-plots
+
+label=vary-carry-cap-v0
+echo $bin --label $label --n-replicates 3 --n-sim-events-per-proc 10 --only-csv-plots --carry-cap-list 100:250:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75 

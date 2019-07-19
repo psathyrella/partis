@@ -452,15 +452,11 @@ parser.add_argument('--carry-cap-list', default='1000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
 parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearrangement events to simulate in each process (default is set in bin/bcr-phylo-run.py)')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
-parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.0025:0.003:0.004:0.005:0.008:0.012')
-parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
-parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
-parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
+parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseed', type=int, help='if set, only run this replicate index (i.e. this corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int)  # NOTE that with slurm this thinks there's twice as many jobs as there are
-parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
@@ -472,6 +468,11 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
+# specific to get-lb-bounds:
+parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')
+parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
+parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
+parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
 args = parser.parse_args()
 
 args.scan_vars = {
