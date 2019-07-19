@@ -1363,9 +1363,17 @@ def re_sort_per_gene_support(line):
 
 # ----------------------------------------------------------------------------------------
 def add_linearham_info(sw_info, annotation_list, debug=False):
-    print '    adding linearham info for %d clusters' % len(annotation_list)
+    n_already_there = 0
     for line in annotation_list:
+        if 'linearham-info' in line:
+            if debug:
+                print '       %s overwriting linearham info that was already in <line>' % color('yellow', 'warning')
+            n_already_there += 1
         line['linearham-info'] = get_linearham_bounds(sw_info, line, debug=debug)  # note that we don't skip ones that fail, since we don't want to just silently ignore some of the input sequences -- skipping should happen elsewhere where it can be more explicit
+    if n_already_there > 0:
+        print '    %s overwriting %d / %d that already had linearham info' % (color('yellow', 'warning'), n_already_there, len(annotation_list))
+    if len(annotation_list) > n_already_there:
+        print '    adding new linearham info for %d clusters' % (len(annotation_list) - n_already_there)
 
 # ----------------------------------------------------------------------------------------
 def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
