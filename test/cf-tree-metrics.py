@@ -214,6 +214,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         'obs_frac' : 'fraction sampled',
         'n-sim-seqs-per-gen' : 'N/gen',
         'obs-times' : 't obs',
+        'carry-cap' : 'carry cap',
     }
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     # ----------------------------------------------------------------------------------------

@@ -604,6 +604,34 @@ airr_headers = OrderedDict([  # enforce this ordering so the output files are ea
     ('duplicate_count', None),
 ])
 
+linearham_headers = OrderedDict((
+    ('Iteration', None),
+    ('RBLogLikelihood', None),
+    ('Prior', None),
+    ('alpha', None),
+    ('er[1]', None), ('er[2]', None), ('er[3]', None), ('er[4]', None), ('er[5]', None), ('er[6]', None),
+    ('pi[1]', None), ('pi[2]', None), ('pi[3]', None), ('pi[4]', None),
+    ('tree', None),
+    ('sr[1]', None), ('sr[2]', None), ('sr[3]', None), ('sr[4]', None),
+    ('LHLogLikelihood', None),
+    ('LogWeight', None),
+    ('NaiveSequence', 'naive_seq'),
+    ('VGene', 'v_gene'),
+    ('V5pDel', 'v_5p_del'),
+    ('V3pDel', 'v_3p_del'),
+    ('VFwkInsertion', 'fv_insertion'),
+    ('VDInsertion', 'vd_insertion'),
+    ('DGene', 'd_gene'),
+    ('D5pDel', 'd_5p_del'),
+    ('D3pDel', 'd_3p_del'),
+    ('DJInsertion', 'dj_insertion'),
+    ('JGene', 'j_gene'),
+    ('J5pDel', 'j_5p_del'),
+    ('J3pDel', 'j_3p_del'),
+    ('JFwkInsertion', 'jf_insertion'),
+))
+
+
 # ----------------------------------------------------------------------------------------
 def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
     """ convert <line> to presto csv format """
@@ -733,6 +761,24 @@ def write_airr_output(outfname, annotation_list, cpath, failed_queries, debug=Fa
             for failfo in failed_queries:
                 assert len(failfo['unique_ids']) == 1
                 writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
+
+# ----------------------------------------------------------------------------------------
+def get_linearham_line(lh_line, seqfos, glfo, debug=False):
+    line = {}
+    for lhk in lh_line:  # [k for k in lh_line if k in linearham_headers and linearham_headers[k] is not None]:  # limit to the ones with a direct partis correspondence
+        if lhk not in linearham_headers or linearham_headers[lhk] is None:
+            continue
+        line[linearham_headers[lhk]] = lh_line[lhk]
+    process_input_line(line)
+    line['unique_ids'] = [sfo['name'] for sfo in seqfos]
+    # TODO input or indel_reversed seqs?
+    line['seqs'] = [sfo['seq'] for sfo in seqfos]
+    line['input_seqs'] = [sfo['seq'] for sfo in seqfos]
+    line['indelfos'] = [indelutils.get_empty_indel() for _ in seqfos]
+    # line['dj_insertion'] = 'GGGGGGGGGGGGGGGGGGGGG'  # TODO
+    add_implicit_info(glfo, line, check_line_keys=True)  # TODO remove check_line_keys
+
+    return line
 
 # ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
@@ -1373,7 +1419,7 @@ def add_linearham_info(sw_info, annotation_list, debug=False):
     if n_already_there > 0:
         print '    %s overwriting %d / %d that already had linearham info' % (color('yellow', 'warning'), n_already_there, len(annotation_list))
     if len(annotation_list) > n_already_there:
-        print '    adding new linearham info for %d clusters' % (len(annotation_list) - n_already_there)
+        print '    added new linearham info for %d clusters' % (len(annotation_list) - n_already_there)
 
 # ----------------------------------------------------------------------------------------
 def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
