@@ -771,7 +771,8 @@ def get_linearham_line(lh_line, seqfos, glfo, debug=False):
         line[linearham_headers[lhk]] = lh_line[lhk]
     process_input_line(line)
     line['unique_ids'] = [sfo['name'] for sfo in seqfos]
-    # TODO input or indel_reversed seqs?
+    # TODO it's indel reversed seqs
+    # TODO just start using the partis output file that lh uses as input to get this stuff, we'll need to get the indel info from there anyway
     line['seqs'] = [sfo['seq'] for sfo in seqfos]
     line['input_seqs'] = [sfo['seq'] for sfo in seqfos]
     line['indelfos'] = [indelutils.get_empty_indel() for _ in seqfos]
