@@ -31,6 +31,7 @@ class PartitionPlotter(object):
         self.n_plots_per_row = 4
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
+        self.mds_max_cluster_size = 50000  # it's way tf too slow
         self.laplacian_spectra_min_clusters_size = 4
         self.max_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
 
@@ -285,8 +286,11 @@ class PartitionPlotter(object):
             fnames[-1].append(fname)
 
     # ----------------------------------------------------------------------------------------
-    def plot_this_cluster(self, sorted_clusters, iclust):
+    def plot_this_cluster(self, sorted_clusters, iclust, plottype=None):
         if len(sorted_clusters[iclust]) == 1:
+            return False
+        if plottype == 'mds' and len(sorted_clusters[iclust]) > self.mds_max_cluster_size:
+            print '     skipping mds plots for cluster with size %d > %d' % (len(sorted_clusters[iclust]), self.mds_max_cluster_size)
             return False
         if iclust < self.n_biggest_to_plot:
             return True
@@ -454,7 +458,7 @@ class PartitionPlotter(object):
         fnames = [[]]
         cmdfos = []
         for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust):
+            if not self.plot_this_cluster(sorted_clusters, iclust, plottype='mds'):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
 
