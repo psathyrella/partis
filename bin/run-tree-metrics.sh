@@ -14,6 +14,8 @@ testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times
 # echo $bin --label $label --n-replicates 3 --only-csv-plots
 
 # label=vary-carry-cap-v0
-# echo $bin --label $label --n-replicates 3 --n-sim-events-per-proc 10 --only-csv-plots --carry-cap-list 500:750:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75 
+# echo $bin --label $label --n-replicates 10 --n-sim-events-per-proc 10 --only-csv-plots --carry-cap-list 500:750:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75
 label=vary-obs-times-v0
-echo $bin --label $label --n-replicates 3 --n-sim-events-per-proc 10 --only-csv-plots --carry-cap-list 1000 --obs-times-list 100:200:300:100,150:200,250:100,200,300 --n-sim-seqs-per-gen-list 100:100:100:50:50:33 --zip-vars obs-times:n-sim-seqs-per-gen
+echo $bin --label $label --n-replicates 10 --n-sim-events-per-proc 10 --only-csv-plots --carry-cap-list 1000 --obs-times-list 100:200:300:100,150:200,250:100,200,300 --n-sim-seqs-per-gen-list 100:100:100:50:50:33 --zip-vars obs-times:n-sim-seqs-per-gen
+# label=vary-obs-times-v1
+# echo $bin --label $label --n-replicates 10 --n-sim-events-per-proc 10 --only-csv-plots --carry-cap-list 1000 --obs-times-list 300:100,200,300:200,250,300 --n-sim-seqs-per-gen-list 100:33:33 --zip-vars obs-times:n-sim-seqs-per-gen

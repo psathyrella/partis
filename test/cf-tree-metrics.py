@@ -216,11 +216,14 @@ def get_var_info(args, scan_vars):
         zval_lists, zvalstrs = [], []  # new ones, only containing zipped values
         for vlist, vstrlist in zip(val_lists, valstrs):
             zvals = tuple([get_vlval(vlist, varnames, zv) for zv in args.zip_vars])  # values for this combo of the vars we want to zip
-            if zvals in ok_zipvals:
+            if zvals in ok_zipvals and vlist not in zval_lists:  # second clause is to avoid duplicates (duh), which we get because when we're zipping vars we have to allow duplicate vals in each zip'd vars arg list, and then (above) we make combos including all those duplicate combos
                 zval_lists.append(vlist)
                 zvalstrs.append(vstrlist)
         val_lists = zval_lists
         valstrs = zvalstrs
+
+    if any(valstrs.count(vstrs) > 1 for vstrs in valstrs):
+        raise Exception('duplicate combinations for %s' % ' '.join(':'.join(vstr) for vstr in valstrs if valstrs.count(vstr) > 1))
 
     return base_args, varnames, val_lists, valstrs
 
@@ -265,8 +268,8 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         pvnames = sorted(set(varnames) - set(['seed', xvar]))
         if pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
             pvnames = ['obs_frac']
-        pvkey = ', '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
-        pvlabel[0] = ', '.join(vlabels.get(vn, vn) for vn in pvnames)
+        pvkey = '; '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
+        pvlabel[0] = '; '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(yamlfo, iclust=None):
@@ -308,7 +311,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
     # ----------------------------------------------------------------------------------------
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
-    print '  plotting %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    print '  plotting %d combinations of:   %s' % (len(valstrs), '   '.join(varnames))
     if debug:
         print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
     missing_vstrs = {'missing' : [], 'empty' : []}
@@ -330,6 +333,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
             if len(missing_iclusts) > 0:
                 print '  %s missing %d iclusts (i = %s) from file' % (utils.color('red', 'error'), len(missing_iclusts), ' '.join(str(i) for i in missing_iclusts))
+            assert iclusts_in_file == list(range(args.n_sim_events_per_proc))
             for iclust in iclusts_in_file:
                 add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
         else:
@@ -378,6 +382,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
     lb_taus, xticklabels = None, None
     for pvkey in plotvals:
         lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
+        assert lb_taus == tuple(sorted(lb_taus))  # only happened once, before I had the duplicate checks and things, but still seems like a good idea
         xticklabels = [str(t) for t in lb_taus]
         markersize = 1 if len(lb_taus) > 1 else 15
         if pvkey in errvals:
@@ -517,11 +522,11 @@ except ImportError as e:
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
-args.carry_cap_list = utils.get_arg_list(args.carry_cap_list, intify=True)
-args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, list_of_lists=True, intify=True)
-args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True)
-args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True)
 args.zip_vars = utils.get_arg_list(args.zip_vars)
+args.carry_cap_list = utils.get_arg_list(args.carry_cap_list, intify=True, forbid_duplicates='carry-cap' not in args.zip_vars)  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()
+args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, list_of_lists=True, intify=True, forbid_duplicates='n-sim-seqs-per-gen' not in args.zip_vars)
+args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True, forbid_duplicates='obs-times' not in args.zip_vars)
+args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
 args.only_metrics = utils.get_arg_list(args.only_metrics)
