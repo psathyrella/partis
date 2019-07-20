@@ -181,6 +181,7 @@ def getsargval(sv):  # ick this name sucks
 
 # ----------------------------------------------------------------------------------------
 def get_vlval(vlists, varnames, vname):  # ok this name also sucks, but they're doing complicated things while also needing really short names...
+    # NOTE I think <vlist> would be more appropriate than <vlists>
     if vname in varnames:
         return vlists[varnames.index(vname)]
     else:
@@ -205,6 +206,21 @@ def get_var_info(args, scan_vars):
     val_lists, valstrs = [[]], [[]]
     for svar in scan_vars:
         val_lists, valstrs = handle_var(svar, val_lists, valstrs)
+
+    if args.zip_vars is not None:
+        if args.debug:
+            print '    zipping values for %s' % ' '.join(args.zip_vars)
+        assert len(args.zip_vars) == 2  # nothing wrong with more, but I don't feel like testing it right now
+        assert len(getsargval(args.zip_vars[0])) == len(getsargval(args.zip_vars[1]))  # doesn't make sense unless you provide a corresponding value for each
+        ok_zipvals = zip(getsargval(args.zip_vars[0]), getsargval(args.zip_vars[1]))
+        zval_lists, zvalstrs = [], []  # new ones, only containing zipped values
+        for vlist, vstrlist in zip(val_lists, valstrs):
+            zvals = tuple([get_vlval(vlist, varnames, zv) for zv in args.zip_vars])  # values for this combo of the vars we want to zip
+            if zvals in ok_zipvals:
+                zval_lists.append(vlist)
+                zvalstrs.append(vstrlist)
+        val_lists = zval_lists
+        valstrs = zvalstrs
 
     return base_args, varnames, val_lists, valstrs
 
@@ -383,8 +399,12 @@ def run_bcr_phylo(args):  # also caches parameters
     base_args, varnames, _, valstrs = get_var_info(args, args.scan_vars['simu'])
     cmdfos = []
     print '  bcr-phylo: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    if args.debug:
+        print '   %s' % ' '.join(varnames)
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
+        if args.debug:
+            print '   %s' % ' '.join(vstrs)
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
         if utils.output_exists(args, get_partition_fname(varnames, vstrs, 'bcr-phylo'), offset=8, debug=args.debug):
             n_already_there += 1
@@ -409,7 +429,8 @@ def run_bcr_phylo(args):  # also caches parameters
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, 'bcr-phylo'))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
-        utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
+        if not args.dry:
+            utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metrics(args):
@@ -425,9 +446,10 @@ def get_tree_metrics(args):
             n_already_there += 1
             continue
 
-        if not os.path.isdir(get_tree_metric_outdir(varnames, vstrs)):
-            os.makedirs(get_tree_metric_outdir(varnames, vstrs))
-        subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
+        if not args.dry:
+            if not os.path.isdir(get_tree_metric_outdir(varnames, vstrs)):
+                os.makedirs(get_tree_metric_outdir(varnames, vstrs))
+            subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
         cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
         cmd += ' --lb-tau %s --lbr-tau-factor 1' % get_vlval(vstrs, varnames, 'lb-tau')
         cmd += ' --dont-normalize-lbi'
@@ -443,7 +465,8 @@ def get_tree_metrics(args):
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_tree_metric_fname(varnames, vstrs))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
-        utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
+        if not args.dry:
+            utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
 
 # ----------------------------------------------------------------------------------------
 all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot']
@@ -454,6 +477,7 @@ parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200',
 parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearrangement events to simulate in each process (default is set in bin/bcr-phylo-run.py)')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
+parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseed', type=int, help='if set, only run this replicate index (i.e. this corresponds to the increment *above* the random seed)')
@@ -465,6 +489,7 @@ parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--debug', action='store_true')
+parser.add_argument('--dry', action='store_true')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
@@ -496,6 +521,7 @@ args.carry_cap_list = utils.get_arg_list(args.carry_cap_list, intify=True)
 args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, list_of_lists=True, intify=True)
 args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True)
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True)
+args.zip_vars = utils.get_arg_list(args.zip_vars)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
 args.only_metrics = utils.get_arg_list(args.only_metrics)
@@ -516,7 +542,7 @@ for action in args.actions:
         run_bcr_phylo(args)
     elif action == 'get-tree-metrics':
         get_tree_metrics(args)
-    elif action == 'plot':
+    elif action == 'plot' and not args.dry:
         utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
         procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel))  # time is almost entirely due to file open + json.load
                  for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff]
