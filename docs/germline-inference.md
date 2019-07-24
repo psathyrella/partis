@@ -4,7 +4,7 @@ We unfortunately do not yet have a way to report simple confidence estimates for
 There is, however, a wealth of information that can be used to get a good sense of this confidence, and here we describe how to interpret it.
 The following probably will not make much sense without some familiarity with the corresponding paper:
 
-  * [Germline inference](https://arxiv.org/abs/1711.05843) Ralph, DK, & Matsen IV, FA (accepted at PLOS Computational Biology) _Per-sample immunoglobulin germline inference \[...\]_
+  * [Germline inference](https://doi.org/10.1371/journal.pcbi.1007133) Ralph, DK, & Matsen IV, FA (2019). _Per-sample immunoglobulin germline inference \[...\]_ PLOS Computational Biology, 15(7), e1007133.
 
 First off, you should run with a few extra arguments that tell partis to output more information than it does by default.
 Set `--plotdir <dir>` to write the mutation accumulation fit plots to disk, as well as `--debug-allele-finding` to print extra info to std out.
