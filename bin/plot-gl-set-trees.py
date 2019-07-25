@@ -33,7 +33,6 @@ scolors = {
     'partis' : '#94a3d1', #'#2455ed',  # blue
 }
 
-listcolors = [plotting.getgrey('medium') for _ in range(10)]
 listfaces = [
     'red',
     'blue',
@@ -48,6 +47,7 @@ simu_colors = OrderedDict((
 
 # ----------------------------------------------------------------------------------------
 def set_colors(gl_sets, ref_label=None, mix_primary_colors=False):
+    listcolors = [plotting.getgrey('medium') for _ in range(10)]
     if ref_label is not None:  # simulation
         for status, color in simu_colors.items():
             scolors[status] = color
