@@ -221,7 +221,7 @@ parser.add_argument('--n-sim-events', type=int, default=1, help='number of simul
 parser.add_argument('--obs-times', default='100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
-parser.add_argument('--metric-for-target-distance', default='aa', choices=['aa', 'nuc', 'aa-sim'], help='see bcr-phylo docs')
+parser.add_argument('--metric-for-target-distance', default='aa', choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'], help='see bcr-phylo docs')
 parser.add_argument('--target-count', type=int, default=1, help='Number of target sequences to generate.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
