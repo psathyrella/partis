@@ -982,9 +982,11 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
             fnames += lbplotting.plot_lb_vs_affinity('true', true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, affy_key=affy_key, only_csv=only_csv, debug=debug)
         ftmps = lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], only_csv=only_csv, debug=debug)
         if not only_csv:
-            assert len(ftmps[0]) == 4  # arg ugh ick
-            fnames[0] += ftmps[0][:2]  # each of the vs_affinity and vs_ancestral_[yadd] fcns return one line of plots, but we instead want the two lbi plots (and the two lbr plots) lined up vertically
-            fnames[1] += ftmps[0][2:]
+            if len(ftmps[0]) == 4:  # probably just because there weren't enough sequences to make some of the plots
+                fnames[0] += ftmps[0][:2]  # each of the vs_affinity and vs_ancestral_[yadd] fcns return one line of plots, but we instead want the two lbi plots (and the two lbr plots) lined up vertically
+                fnames[1] += ftmps[0][2:]
+            else:
+                print '    file name list not length 4: %d' % len(ftmps[0])
             fnames.append([])
             for lb_metric, lb_label in lb_metrics.items():
                 fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, lines_to_use, lb_metric, lb_label)

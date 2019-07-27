@@ -63,6 +63,9 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
 def get_normalized_cmap_and_norm(vals, cmap=None, remove_top_end=False):
     if cmap is None:
         cmap = plt.cm.Blues  # 'Blues'
+    if len(vals) == 0:
+        print '  %s zero values passed to get_normalized_cmap_and_norm' % utils.color('yellow', 'warning')
+        vals = [0.]
     sorted_vals = sorted(vals)
     vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
     vmax = sorted_vals[-1]
