@@ -61,11 +61,11 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
             for ibin in range(len(bin_edges) - 1):  # nphist indexing, not Hist indexing
                 lo_edge = bin_edges[ibin]
                 hi_edge = bin_edges[ibin + 1]
+                xmin = lo_edge if xmin is None else min(xmin, lo_edge)
+                xmax = hi_edge if xmax is None else max(xmax, hi_edge)
                 bin_center = (hi_edge + lo_edge) / 2.
                 for _ in range(bin_contents[ibin]):
                     hist.fill(bin_center)
-                    xmin = lo_edge if xmin is None else min(xmin, lo_edge)
-                    xmax = hi_edge if xmax is None else max(xmax, hi_edge)
             hists.append(hist)
             labels.append('%d (%.1f)' % (obs_time, hist.get_mean()))
 
@@ -75,6 +75,9 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
 
     # ----------------------------------------------------------------------------------------
     all_hists, all_labels, xmin, xmax = get_hists(histfname)
+    if sum(h.integral(include_overflows=True) for h in all_hists) == 0:
+        print '  %s no/empty hists in %s' % (utils.color('yellow', 'warning'), histfname)
+        return
     jpdata = []
     for hist in all_hists:
         jpdata.append([x for x, y in zip(hist.get_bin_centers(), hist.bin_contents) for _ in range(int(y)) if x > xmin and x < xmax])  # NOTE this is repeating the 'for _ in range()' in the fcn above, but that's because I used to be actually using the Hist()s, and maybe I will again
