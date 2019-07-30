@@ -191,7 +191,7 @@ def get_vlval(vlists, varnames, vname):  # ok this name also sucks, but they're 
 # ----------------------------------------------------------------------------------------
 def get_var_info(args, scan_vars):
     def handle_var(svar, val_lists, valstrs):
-        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
+        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'selection-strength', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
         sargv = getsargval(svar)
         if len(sargv) > 1 or (svar == 'seed' and args.iseed is not None):  # if --iseed is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
             varnames.append(svar)
@@ -483,6 +483,7 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
+parser.add_argument('--selection-strength-list', default='1.0')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
@@ -508,8 +509,8 @@ parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lb
 args = parser.parse_args()
 
 args.scan_vars = {
-    'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance'],
-    'get-tree-metrics' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'lb-tau'],
+    'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength'],
+    'get-tree-metrics' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'lb-tau'],
 }
 
 sys.path.insert(1, args.partis_dir + '/python')
@@ -529,6 +530,7 @@ args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, 
 args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'obs-times' not in args.zip_vars)
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
 args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target_distance_list, forbid_duplicates=True, choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'])
+args.selection_strength_list = utils.get_arg_list(args.selection_strength_list, floatify=True, forbid_duplicates=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
 args.only_metrics = utils.get_arg_list(args.only_metrics)

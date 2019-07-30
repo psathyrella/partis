@@ -58,6 +58,7 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events):
         cmd += ' --selection'
         cmd += ' --lambda %f' % args.branching_parameter
         cmd += ' --lambda0 %f' % args.base_mutation_rate
+        cmd += ' --selection_strength %f' % args.selection_strength
         cmd += ' --obs_times %s' % ' '.join(['%d' % t for t in args.obs_times])
         cmd += ' --n_to_sample %s' % ' '.join('%d' % n for n in args.n_sim_seqs_per_generation)
         cmd += ' --metric_for_target_dist %s' % args.metric_for_target_distance
@@ -225,6 +226,7 @@ parser.add_argument('--metric-for-target-distance', default='aa', choices=['aa',
 parser.add_argument('--target-count', type=int, default=1, help='Number of target sequences to generate.')
 parser.add_argument('--branching-parameter', type=float, default=2., help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
+parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--lb-tau', type=float, help='')
 
 args = parser.parse_args()
