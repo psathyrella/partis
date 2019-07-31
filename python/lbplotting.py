@@ -163,9 +163,11 @@ def get_tree_from_line(line, is_true_line):
     return line['tree-info']['lb']['tree']
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_shm(baseplotdir, lines_to_use, is_true_line=False, add_uids=False, n_per_row=4):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+def plot_lb_vs_shm(baseplotdir, lines_to_use, fnames=None, is_true_line=False, add_uids=False, n_per_row=4):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+    if fnames is None:
+        fnames = []
+    fnames.append([])
     sorted_lines = sorted([l for l in lines_to_use if get_tree_from_line(l, is_true_line) is not None], key=lambda l: len(l['unique_ids']), reverse=True)
-    fnames = [[]]
 
     # note: all clusters together
     subfnames = {lb_metric : [] for lb_metric in treeutils.lb_metrics}
@@ -199,36 +201,48 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, is_true_line=False, add_uids=False
                     plotvals[vtype][ltype] += iclust_plotvals[vtype][ltype]
         fn = plot_2d_scatter('%s-vs-shm-all-clusters' % lb_metric, plotdir, plotvals, lb_metric, lb_label, '%s (all clusters)' % basetitle, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
         fnames[-1].append(fn)
-    fnames += [subfnames[lbm] for lbm in treeutils.lb_metrics]
 
-    return fnames
+    # TODO can't be bothered figuring out how to get these to work with the distributions (below) a.t.m.
+    # fnames.append([fn for lbm in treeutils.lb_metrics for fn in subfnames[lbm]])
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_distributions(baseplotdir, lines_to_use, n_per_row=4):
+def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n_per_row=4):
+    def make_hist(plotvals, n_skipped, iclust=None):
+        hist = Hist(30, 0., max(plotvals), value_list=plotvals)
+        fig, ax = plotting.mpl_init()
+        hist.mpl_plot(ax) #, square_bins=True, errors=False)
+        # ax.text(0.45 * ax.get_xlim()[1], 0.85 * ax.get_ylim()[1], 'size %d' % len(line['unique_ids']), fontsize=17, color='red', fontweight='bold')  # omfg this is impossible to get in the right place
+        plotname = '%s-%s' % (lb_metric, str(iclust) if iclust is not None else 'all-clusters')
+        leafskipstr = ', skipped %d leaves' % n_skipped if n_skipped > 0 else ''  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
+        fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y' if lb_metric == 'lbr' else '', ylabel='counts', title='%s %s  (size %d%s)' % (plot_str, lb_metric.upper(), len(line['tree-info']['lb'][lb_metric]), leafskipstr))
+        if iclust is None:
+            fnames[-1].append(fn)
+        elif iclust < n_per_row:  # i.e. only put one row's worth in the html
+            tmpfnames.append(fn)
+
     sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
-    fnames = []
-
-    for lb_metric, lb_label in treeutils.lb_metrics.items():
-        plotdir = baseplotdir + '/' + lb_metric
-        utils.prep_dir(plotdir, wildlings=['*.svg'])
+    if fnames is None:  # no real effect (except not crashing) since we're not returning it any more
+        fnames = []
+    if len(fnames) < 1:  # shouldn't really happen
         fnames.append([])
-        for iclust, line in enumerate(sorted_lines):
-            plotvals = line['tree-info']['lb'][lb_metric].values()
-            leafskipstr = ''
-            if lb_metric == 'lbr':
-                plotvals = [v for v in plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable
-                leafskipstr = ', skipped %d leaves' % len([v for v in line['tree-info']['lb'][lb_metric].values() if v == 0.])  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
-            hist = Hist(30, 0., max(plotvals), value_list=plotvals)
-            fig, ax = plotting.mpl_init()
-            hist.mpl_plot(ax) #, square_bins=True, errors=False)
-            # ax.text(0.45 * ax.get_xlim()[1], 0.85 * ax.get_ylim()[1], 'size %d' % len(line['unique_ids']), fontsize=17, color='red', fontweight='bold')  # omfg this is impossible to get in the right place
-            plotname = '%s-%d' % (lb_metric, iclust)
-            plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y' if lb_metric == 'lbr' else '', ylabel='counts', title='%s  (size %d%s)' % (lb_metric.upper(), len(line['tree-info']['lb'][lb_metric]), leafskipstr))
-            if iclust < n_per_row:  # i.e. only put one row's worth in the html
-                fnames[-1].append('%s/%s.svg' % (plotdir, plotname))
-            plotting.make_html(plotdir)
+    tmpfnames = []
 
-    return fnames
+    plotvals = []
+    n_skipped_leaves = 0
+    for lb_metric, lb_label in treeutils.lb_metrics.items():
+        plotdir = '%s/%s/distributions' % (baseplotdir, lb_metric)
+        utils.prep_dir(plotdir, wildlings=['*.svg'])
+        for iclust, line in enumerate(sorted_lines):
+            iclust_plotvals = line['tree-info']['lb'][lb_metric].values()
+            if lb_metric == 'lbr':
+                iclust_plotvals = [v for v in iclust_plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable
+            make_hist(iclust_plotvals, len(line['tree-info']['lb'][lb_metric]) - len(iclust_plotvals), iclust=iclust)
+            plotvals += iclust_plotvals
+            n_skipped_leaves += len(line['tree-info']['lb'][lb_metric]) - len(iclust_plotvals)
+        make_hist(plotvals, n_skipped_leaves)
+
+    # TODO can't be bothered to get this to work with the _vs_shm (above) a.t.m.
+    # fnames.append(tmpfnames)
 
 # ----------------------------------------------------------------------------------------
 def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log='', leg_loc=None):
@@ -267,7 +281,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return '%s/%s.svg' % (plotdir, plotname)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, add_uids=False, debug=False):
+def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
@@ -331,7 +345,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
         plotname = '%s-vs%s-affinity-%s-tree%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
         fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))
         if iclust is None: # or iclust < n_per_row:
-            fnames.append(fn)
+            fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(iclust):
         return '%s-vs%s-affinity-%s-tree-ptiles%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
@@ -349,10 +363,12 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
                                  xlabel='%s threshold (percentile)' % lb_metric.upper(),
                                  ylabel='mean percentile of\nresulting %s' % ' '.join([affy_key_str.replace('-', ''), 'affinities']))
         if iclust is None:
-            fnames.append(fn)
+            fnames[-1].append(fn)
 
     # ----------------------------------------------------------------------------------------
-    fnames = []
+    if fnames is None:  # not much point since we're not returning it any more
+        fnames = []
+    fnames.append([])
     affy_key_str = '-relative' if 'relative' in affy_key else ''
     vtypes = [lb_metric, 'affinity']
     for estr in ['', '-ptiles']:
@@ -380,10 +396,8 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
     if not only_csv and len(all_plotvals[lb_metric]) > 0:
         make_ptile_plot(all_ptile_vals)
 
-    return [fnames]
-
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), min_affinity_change=1e-6, n_max_steps=15, only_csv=False, n_per_row=4, debug=False):
+def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), min_affinity_change=1e-6, n_max_steps=15, only_csv=False, fnames=None, n_per_row=4, debug=False):
     # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # NOTE now that I've done a huge refactor, this fcn is very similar to plot_lb_vs_affinity(), so they could be eventually combined to clean up quite a bit
     # ----------------------------------------------------------------------------------------
@@ -497,7 +511,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
     def make_scatter_plot(plotvals, xvar, iclust=None):
         fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, plot_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if lb_metric == 'lbr' else '')
         if iclust is None: # or iclust < n_per_row:
-            fnames.append(fn)
+            tmpfnames.append(fn)
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(xvar, iclust):
         return '%s-vs-%s-%s-tree-ptiles%s' % (lb_metric, xvar, plot_str, icstr(iclust))
@@ -515,10 +529,10 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
                                  xlabel='%s threshold (percentile)' % lb_metric.upper(),
                                  ylabel='mean %s\nsince affinity increase' % xlabel)
         if iclust is None:
-            fnames.append(fn)
+            tmpfnames.append(fn)
 
     # ----------------------------------------------------------------------------------------
-    fnames = []
+    tmpfnames = []
     xvar_list = collections.OrderedDict([(xvar, xlabel) for metric, xvar, xlabel in lb_metric_axis_stuff if metric == 'lbr'])
     for xvar, estr in itertools.product(xvar_list, ['', '-ptiles']):
         utils.prep_dir(getplotdir(xvar, extrastr=estr), wildlings=['*.svg', '*.yaml'])
@@ -545,7 +559,14 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
         if not only_csv and len(all_plotvals[lb_metric]) > 0:
             make_ptile_plot(all_plotvals, all_ptile_vals, xvar, xlabel)
 
-    return [fnames]
+    if fnames is None:  # no real effect (except not crashing) since we're not returning it any more
+        fnames = []
+    if len(fnames) > 1 and len(tmpfnames) == 4:
+        fnames[0] += tmpfnames[:2]  # each of the vs_affinity and vs_ancestral_[yadd] fcns return one line of plots, but we instead want the two lbi plots (and the two lbr plots) lined up vertically
+        fnames[1] += tmpfnames[2:]
+    else:  # probably just because there weren't enough sequences to make some of the plots (or there's no affinity info)
+        # print '    file name lists not length 1, 4 : %d, %d' % (len(fnames), len(tmpfnames))
+        fnames.append(tmpfnames)
 
 # ----------------------------------------------------------------------------------------
 def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label, debug=False):

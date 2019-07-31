@@ -921,6 +921,13 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
 
 # ----------------------------------------------------------------------------------------
 def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None, extra_links=None):
+    if fnames is not None:  # make sure it's formatted properly
+        for rowfnames in fnames:
+            if not isinstance(rowfnames, list):
+                raise Exception('each entry in fnames should be a list of strings, but got a %s: %s' % (type(rowfnames), rowfnames))
+            for fn in rowfnames:
+                if not isinstance(fn, (str, unicode)):
+                    raise Exception('each entry in each row should be a string (file name), but got a %s: %s' % (type(fn), fn))
     if plotdir[-1] == '/':  # remove trailings slash, if present
         plotdir = plotdir[:-1]
     if not os.path.exists(plotdir):
