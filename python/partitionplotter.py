@@ -92,7 +92,7 @@ class PartitionPlotter(object):
     #     self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
 
     # ----------------------------------------------------------------------------------------
-    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
+    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, repfrac_ylabel=True, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
         import matplotlib.pyplot as plt
         def getnmutelist(cluster):
             return annotations[':'.join(cluster)]['n_mutations']
@@ -117,25 +117,25 @@ class PartitionPlotter(object):
         ymin, ymax = yvals[-1], yvals[0]
         ymin = 1  # make it 1, even if we aren't plotting small clusters, to make it more obvious that we skipped them
         yticks = [ymax + itick * (ymin - ymax) / float(nticks - 1) for itick in range(nticks)]
-        if log_cluster_size:
-            yticklabels = [math.exp(yt) for yt in yticks]
-            yticklabels = [('%.0f' % yt) if yt > 5 else ('%.1f' % yt) for yt in yticklabels]
+        if repfrac_ylabel:
+            ytlfcn = lambda yt: self.get_repfracstr(yt, repertoire_size)
         else:
-            yticklabels = [int(yt) for yt in yticks]
+            ytlfcn = lambda yt: ('%.0f' % yt) if yt > 5 else ('%.1f' % yt)
+        yticklabels = [ytlfcn(math.exp(yt) if log_cluster_size else yt) for yt in yticks]
 
         if self.args.queries_to_include is not None:  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
             for cluster in sorted_clusters:  # NOTE just added <clusters_to_use>, and I'm not sure if I should use <sorted_clusters> or <clusters_to_use> here, but I think it's ok how it is
                 queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
-                if len(queries_to_include_in_this_cluster) == 0:
+                if len(queries_to_include_in_this_cluster) < self.size_vs_shm_min_cluster_size:
                     continue
                 xval = numpy.mean(getnmutelist(cluster))
                 yval = len(cluster)
                 if log_cluster_size:
                     yval = math.log(yval)
-                ax.plot([xval], [yval], color='red', marker='.', markersize=10)
-                ax.text(xval, yval, ' '.join(queries_to_include_in_this_cluster), color='red', fontsize=8)
+                ax.plot([xval], [yval], color='red', marker='.', markersize=15)
+                ax.text(xval + 0.1, yval + 0.1, ' '.join(queries_to_include_in_this_cluster), color='red', fontsize=8)
 
-        ylabel = 'clonal family size'
+        ylabel = 'fraction of repertoire' if repfrac_ylabel else 'clonal family size'
         if log_cluster_size:
             ylabel += ' (log)'
             plotname += '-log'
