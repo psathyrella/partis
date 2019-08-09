@@ -126,7 +126,9 @@ class PartitionPlotter(object):
         if self.args.queries_to_include is not None:  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
             for cluster in sorted_clusters:  # NOTE just added <clusters_to_use>, and I'm not sure if I should use <sorted_clusters> or <clusters_to_use> here, but I think it's ok how it is
                 queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
-                if len(queries_to_include_in_this_cluster) < self.size_vs_shm_min_cluster_size:
+                if len(queries_to_include_in_this_cluster) == 0:
+                    continue
+                if len(cluster) < self.size_vs_shm_min_cluster_size:
                     continue
                 xval = numpy.mean(getnmutelist(cluster))
                 yval = len(cluster)
