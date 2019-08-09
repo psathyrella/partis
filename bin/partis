@@ -283,7 +283,7 @@ parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true
 parent_parser.add_argument('--mimic-data-read-length', action='store_true', help='In simulation, trim V 5\' and D 3\' to mimic read lengths seen in data (must also be set when caching parameters)')
 
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
-parent_parser.add_argument('--name-column', help='column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\')')
+parent_parser.add_argument('--name-column', help='column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\'). If set to \'fasta-info-index-N\' for an integer N, it will take the Nth (zero-indexed) value from a fasta files uid line.')
 parent_parser.add_argument('--seq-column', help='column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')')
 parent_parser.add_argument('--input-metafname', help='yaml file with meta information for the sequences in --infname (and --queries-to-include-fname), keyed by sequence id. Currently accepted keys/columns are \'timepoint\', \'affinity\', and \'multiplicity\'.')
 parent_parser.add_argument('--outfname', help='output file name')
