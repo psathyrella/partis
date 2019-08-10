@@ -383,22 +383,28 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     # make tree for the single cluster in the last partition of <partitions> (which is in general *not* the last partition in self.partitions, since the calling function stops at self.i_best)
-    def make_single_tree(self, partitions, annotations, uid_set, get_fasttrees=False, n_max_cons_seqs=10, debug=False):
+    def make_single_tree(self, partitions, annotations, uid_set, naive_seq_name, get_fasttrees=False, n_max_cons_seqs=10, debug=False):
         # NOTE don't call this externally -- if you want a single tree, call make_trees() with <i_only_cluster> set
         def getline(uidstr, uid_set=None):
-            if uidstr in annotations:  # if we have this exact annotation
+            if uidstr == naive_seq_name:
+                assert False  # shouldn't actually happen (I think)
+            elif uidstr in annotations:  # if we have this exact annotation
                 return annotations[uidstr]
             else:
                 if uid_set is None:
                     uid_set = set(uidstr.split(':'))  # should only get called if it's a singleton
                 # note that for internal nodes in a fasttree-derived subtree, the uids will be out of order compared the the annotation keys
                 for line in annotations.values():  # we may actually have the annotation for every subcluster (e.g. if --calculate-alternative-annotations was set), but in case we don't, this is fine
+                    # print uid_set, len(uid_set & set(line['unique_ids']))
                     if len(uid_set & set(line['unique_ids'])) > 0:  # just take the first one with any overlap. Yeah, it's not necessarily the best, but its naive sequence probably isn't that different, and for just getting the fasttree it reeeeeeaaaallly doesn't matter
                         return line
-            raise Exception('couldn\'t find uid %s in annotations' % uid)
+            raise Exception('couldn\'t find uid %s in annotations' % uidstr)
         def getseq(uid):
-            line = getline(uid)
-            return line['seqs'][line['unique_ids'].index(uid)]
+            if uid == naive_seq_name:
+                sorted_lines = sorted([l for l in annotations.values()], key=lambda l: len(l['unique_ids']), reverse=True)  # since we're making a tree, all the annotations are by definition clonal, so it doesn't really matter, but may as well get the naive sequence from the largest one
+                return sorted_lines[0]['naive_seq']
+            else:
+                return utils.per_seq_val(getline(uid), 'seqs', uid)
         def lget(uid_list):
             return ':'.join(uid_list)
 
@@ -536,7 +542,7 @@ class ClusterPath(object):
         return new_partitions
 
     # ----------------------------------------------------------------------------------------
-    def make_trees(self, annotations, i_only_cluster=None, get_fasttrees=False, debug=False):  # makes a tree for each cluster in the most likely (not final) partition
+    def make_trees(self, annotations, i_only_cluster=None, get_fasttrees=False, naive_seq_name='XnaiveX', debug=False):  # makes a tree for each cluster in the most likely (not final) partition
         # i_only_cluster: only make the tree corresponding to the <i_only_cluster>th cluster in the best partition
         if self.i_best is None:
             return
@@ -557,9 +563,12 @@ class ClusterPath(object):
             final_cluster = partitions[self.i_best][i_cluster]
             uid_set = set(final_cluster)  # usually the set() isn't doing anything, but sometimes I think we have uids duplicated between clusters, e.g. I think when seed partitioning (or even within a cluster, because order matters within a cluster because of bcrham caching)
             sub_partitions = [[] for _ in range(self.i_best + 1)]  # new list of partitions, but only including clusters that overlap with <final_cluster>
+            sub_annotations = {}
             for ipart in range(self.i_best + 1):
                 for tmpclust in partitions[ipart]:
                     if len(set(tmpclust) & uid_set) == 0:
                         continue
                     sub_partitions[ipart].append(tmpclust)  # note that many of these adjacent sub-partitions can be identical, if the merges happened between clusters that correspond to a different final cluster
-            self.trees[i_cluster] = self.make_single_tree(sub_partitions, annotations, uid_set, get_fasttrees=get_fasttrees, debug=debug)
+                    if ':'.join(tmpclust) in annotations:
+                        sub_annotations[':'.join(tmpclust)] = annotations[':'.join(tmpclust)]
+            self.trees[i_cluster] = self.make_single_tree(sub_partitions, sub_annotations, uid_set, naive_seq_name, get_fasttrees=get_fasttrees, debug=debug)
