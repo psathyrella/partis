@@ -319,7 +319,7 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=F
     taxon_namespace = dendropy.TaxonNamespace()  # in order to compare two trees with the metrics below, the trees have to have the same taxon namespace
     in_dtree = get_dendro_tree(treestr=in_treestr, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
     seqfos = [{'name' : 't%d' % (iseq + 1), 'seq' : seq} for iseq, seq in enumerate(leafseqs)]
-    out_dtree = get_fasttree_tree(seqfos, naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
+    out_dtree = get_fasttree_tree(seqfos, naive_seq=naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
     in_height = get_mean_leaf_height(tree=in_dtree)
     out_height = get_mean_leaf_height(tree=out_dtree)
     base_width = 100
@@ -334,11 +334,12 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=F
     print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
 # ----------------------------------------------------------------------------------------
-def get_fasttree_tree(seqfos, naive_seq, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):
+def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):
     if debug:
         print '    running FastTree on %d sequences plus a naive' % len(seqfos)
     with tempfile.NamedTemporaryFile() as tmpfile:
-        tmpfile.write('>%s\n%s\n' % (naive_seq_name, naive_seq))
+        if naive_seq is not None:
+            tmpfile.write('>%s\n%s\n' % (naive_seq_name, naive_seq))
         for sfo in seqfos:
             tmpfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))  # NOTE the order of the leaves/names is checked when reading bppseqgen output
         tmpfile.flush()  # BEWARE if you forget this you are fucked
@@ -1012,7 +1013,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
         origin = 'cpath'
     else:
         seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
-        dtree = get_fasttree_tree(seqfos, line['naive_seq'], debug=debug)
+        dtree = get_fasttree_tree(seqfos, naive_seq=line['naive_seq'], debug=debug)
         origin = 'fasttree'
 
     return {'tree' : dtree, 'origin' : origin}

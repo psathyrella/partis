@@ -443,7 +443,7 @@ class ClusterPath(object):
                 continue
             if get_fasttrees and len(lnode.uids) > 2:
                 seqfos = [{'name' : uid, 'seq' : getseq(uid)} for uid in lnode.taxon.label.split(':')]  # may as well add them in the right order, although I don't think it matters
-                subtree = treeutils.get_fasttree_tree(seqfos, getline(lnode.taxon.label, uid_set=lnode.uids)['naive_seq'], suppress_internal_node_taxa=True)  # note that the fasttree distances get ignored below (no idea if they'd be better than what we set down there, but they probably wouldn't be consistent, so I'd rather ignore them)
+                subtree = treeutils.get_fasttree_tree(seqfos, suppress_internal_node_taxa=True)  # note that the fasttree distances get ignored below (no idea if they'd be better than what we set down there, but they probably wouldn't be consistent, so I'd rather ignore them)
                 for tmpnode in subtree.postorder_node_iter():
                     if tmpnode.is_leaf():
                         tmpnode.uids = set([tmpnode.taxon.label])

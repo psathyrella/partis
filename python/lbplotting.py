@@ -254,7 +254,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 
     if len(getall(xvar)) == 0:
         # print '    no %s vs affy info' % yvar
-        return
+        return '%s/%s.svg' % (plotdir, plotname)
     fig, ax = plotting.mpl_init()
     # cmap, norm = get_normalized_cmap_and_norm()
     # ax.hexbin(plotvals[xvar], plotvals[yvar], gridsize=15, cmap=plt.cm.Blues)
@@ -277,8 +277,8 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         ybounds = 0.75 * ymin, 1.3 * ymax
     else:
         ybounds = ymin - 0.03 * (ymax - ymin), ymax + 0.08 * (ymax - ymin)
-    plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc)
-    return '%s/%s.svg' % (plotdir, plotname)
+    fn = plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc)
+    return fn
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, debug=False):
@@ -622,7 +622,7 @@ def plot_lb_trees(baseplotdir, lines, ete_path, base_workdir, is_true_line=False
                 cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style)]
 
     start = time.time()
-    utils.run_cmds(cmdfos, clean_on_success=True, shell=True) #, debug='print')
+    utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=10, proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
     print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
 
     os.rmdir(workdir)
