@@ -208,6 +208,8 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, fnames=None, is_true_line=False, a
 # ----------------------------------------------------------------------------------------
 def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n_per_row=4):
     def make_hist(plotvals, n_skipped, iclust=None):
+        if len(plotvals) == 0:
+            return
         hist = Hist(30, 0., max(plotvals), value_list=plotvals)
         fig, ax = plotting.mpl_init()
         hist.mpl_plot(ax) #, square_bins=True, errors=False)
