@@ -25,4 +25,4 @@ common="--only-csv-plots --slurm --n-sim-events-per-proc 10"
 # label=vary-metric-v0
 # echo $bin --label $label --n-replicates 30 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --metric-for-target-distance-list nuc:aa:aa-sim-ascii:aa-sim-blosum
 label=vary-selection-strength-v0
-echo $bin --label $label --n-replicates 30 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --selection-strength-list 0.0:0.1:0.4:0.7:0.8:0.9:1.0
+echo $bin --label $label --n-replicates 30 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --selection-strength-list 0.1:0.4:0.7:0.8:0.9:1.0
