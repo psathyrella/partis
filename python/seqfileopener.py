@@ -142,7 +142,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         seqfile = open(infname)  # closes on function exit. no, this isn't the best way to do this
         reader = csv.DictReader(seqfile, delimiter=delimit_info[suffix])
     elif suffix in ['.fa', '.fasta', '.fastx']:
-        add_info = args.name_column is not None and 'fasta-info-index' in args.name_column
+        add_info = args is not None and args.name_column is not None and 'fasta-info-index' in args.name_column
         reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=add_info, sanitize=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
                                   queries=(args.queries if (args is not None and not args.abbreviate) else None))  # NOTE also can't filter on args.queries here if we're also translating
     elif suffix == '.yaml':
