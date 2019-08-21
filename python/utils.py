@@ -770,7 +770,7 @@ def write_airr_output(outfname, annotation_list, cpath, failed_queries, debug=Fa
                 writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
-def add_linearham_annotations_to_line(line, lh_line, glfo, debug=False):
+def add_linearham_annotations_to_line(line, lh_line, glfo, logprob=None, debug=False):
     """ update (overwrite) <line> using corresponding keys from <lh_line> (see linearham_headers). Modifies line. """
     for lhk in set(lh_line):  
         if lhk not in linearham_headers or linearham_headers[lhk] is None: # limit to the ones with a direct partis correspondence
@@ -782,6 +782,7 @@ def add_linearham_annotations_to_line(line, lh_line, glfo, debug=False):
     remove_all_implicit_info(line)
     line.update(lh_line)
     add_implicit_info(glfo, line, check_line_keys=True)  # TODO remove check_line_keys
+    line['logprob'] = logprob
     return line
 
 # ----------------------------------------------------------------------------------------
