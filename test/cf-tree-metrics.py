@@ -283,7 +283,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
     def add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=None):
         diff_vals = get_diff_vals(yamlfo, iclust=iclust)
         if len(diff_vals) == 0:
-            missing_vstrs['empty'].append(vstrs)  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
+            missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
             return
         diff_to_perfect = numpy.mean(diff_vals)
         tau = get_vlval(vlists, varnames, xvar)
@@ -324,7 +324,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             with open(yfname) as yfile:
                 yamlfo = json.load(yfile)  # too slow with yaml
         except IOError:  # os.path.exists() is too slow with this many files
-            missing_vstrs['missing'].append(vstrs)
+            missing_vstrs['missing'].append((None, vstrs))
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
         yval_key = 'mean_%s_ptiles' % ('affy' if ptilestr == 'affinity' else ptilestr)  # arg, would've been nice if that was different
@@ -340,13 +340,13 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             add_plot_vals(yamlfo, vlists, varnames, obs_frac)
 
     # print info about missing and empty results
-    for mkey, vstrs_list in missing_vstrs.items():
+    for mkey, vstrs_list in missing_vstrs.items():  # ok now it's iclust and vstrs list, but what tf am I going to name that
         if len(vstrs_list) == 0:
             continue
         print '  %s:' % mkey
-        print '     %s' % get_varname_str()
-        for vstrs in vstrs_list:
-            print '      %s  %s' % (get_varval_str(vstrs), get_tree_metric_fname(varnames, vstrs, metric, ptilestr))
+        print '     %s   iclust' % get_varname_str()
+        for iclust, vstrs in vstrs_list:
+            print '      %s    %2d    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, ptilestr))
 
     # average over the replicates/clusters
     if (args.n_replicates > 1 or args.n_sim_events_per_proc is not None) and len(plotvals) > 0:
@@ -559,4 +559,4 @@ for action in args.actions:
         utils.run_proc_functions(procs)
         # for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff:
         #     make_plots(args, metric, ptilestr, ptilelabel)
-        #     break
+        #     # break
