@@ -346,7 +346,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
         print '  %s:' % mkey
         print '     %s' % get_varname_str()
         for vstrs in vstrs_list:
-            print '      %s' % get_varval_str(vstrs)
+            print '      %s  %s' % (get_varval_str(vstrs), get_tree_metric_fname(varnames, vstrs, metric, ptilestr))
 
     # average over the replicates/clusters
     if (args.n_replicates > 1 or args.n_sim_events_per_proc is not None) and len(plotvals) > 0:

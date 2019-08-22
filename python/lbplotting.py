@@ -406,10 +406,12 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
     def check_affinity_changes(affinity_changes):
         affinity_changes = sorted(affinity_changes)
         if debug:
-            print '    chosen affinity changes: %s' % ' '.join(['%.4f' % a for a in affinity_changes])
+            print '    checking affinity changes for negative values and unexpected variation: %s' % ' '.join(['%.4f' % a for a in affinity_changes])  # well, the variation isn't really unexpected, but it's worth keeping in mind
         if len(affinity_changes) == 0:
+            if debug:
+                print '      %s empty affinity changes list' % utils.color('yellow', 'note')
             return
-        if len([a for a in affinity_changes if a < 0.]):
+        if any(a < 0. for a in affinity_changes):
             print '  %s negative affinity changes in %s' % (utils.color('red', 'error'), ' '.join(['%.4f' % a for a in affinity_changes]))
         max_diff = affinity_changes[-1] - affinity_changes[0]
         if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:
@@ -474,7 +476,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
         return plotvals
 
     # ----------------------------------------------------------------------------------------
-    def get_ptile_vals(plotvals, xvar, xlabel):
+    def get_ptile_vals(plotvals, xvar, xlabel, dbgstr=None):
         # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot. On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
         xkey = 'mean_%s_ptiles' % xvar
         ptile_vals = {'lb_ptiles' : [], xkey : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
@@ -482,15 +484,16 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
             return ptile_vals
         # plot potential lb cut thresholds with percentiles
         if debug:
-            print '             %s       N      mean        |  perfect   perfect' % lb_metric
-            print '    ptile  threshold  taken  %-13s|  N taken   mean %-13s' % (xlabel, xlabel)
+            print '    getting ptile vals%s' % ('' if dbgstr is None else (' for %s' % utils.color('blue', dbgstr)))
+            print '               %s       N      mean        |  perfect   perfect' % lb_metric
+            print '      ptile  threshold  taken  %-13s|  N taken   mean %-13s' % (xlabel, xlabel)
         sorted_xvals = sorted(plotvals[xvar])
         for percentile in numpy.arange(*ptile_range_tuple):
             lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
             corresponding_xvals = [n_anc for lb, n_anc in zip(plotvals[lb_metric], plotvals[xvar]) if lb >= lb_ptile_val]  # n-anc vals corresponding to lb greater than <lb_ptile_val> (i.e. the n-anc vals that you'd get if you took all the lb values greater than that)
             if len(corresponding_xvals) == 0:  # calling it n_anc even though it can now also be branch length
                 if debug:
-                    print '   %5.0f    no vals' % percentile
+                    print '     %5.0f    no vals' % percentile
                 continue
             ptile_vals['lb_ptiles'].append(float(percentile))  # cast to float is so the yaml file written below isn't so damn ugly
             ptile_vals[xkey].append(float(numpy.mean(corresponding_xvals)))
@@ -501,7 +504,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
             ptile_vals['perfect_vals'].append(float(numpy.mean(perfect_xvals)))
 
             if debug:
-                print '   %5.0f    %5.2f    %4d   %6.2f        | %4d      %-8s' % (percentile, lb_ptile_val, len(corresponding_xvals), ptile_vals[xkey][-1], n_to_take, ('%8.2f' if xvar == 'n-ancestor' else '%8.6f') % ptile_vals['perfect_vals'][-1])
+                print '     %5.0f    %5.2f    %4d   %6.2f        | %4d      %-8s' % (percentile, lb_ptile_val, len(corresponding_xvals), ptile_vals[xkey][-1], n_to_take, ('%8.2f' if xvar == 'n-ancestor' else '%8.6f') % ptile_vals['perfect_vals'][-1])
         return ptile_vals
     # ----------------------------------------------------------------------------------------
     def getplotdir(xvar, extrastr=''):
@@ -539,23 +542,27 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
     for xvar, estr in itertools.product(xvar_list, ['', '-ptiles']):
         utils.prep_dir(getplotdir(xvar, extrastr=estr), wildlings=['*.svg', '*.yaml'])
     if debug:
-        print '  finding N ancestors since last affinity increase'
-        print '         node        ancestors  distance   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
+        print 'finding ancestors with most recent affinity increases'
     for xvar, xlabel in xvar_list.items():
         all_plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
         per_clust_ptile_vals = {}
         for iclust, line in enumerate(true_lines):
+            if debug:
+                if iclust == 0:
+                    print ' %s' % utils.color('green', xvar)
+                print '  %s' % utils.color('blue', 'iclust %d' % iclust)
+                print '         node        ancestors  distance   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
             iclust_plotvals = get_plotvals(line, xvar)
             for vtype in all_plotvals:
                 all_plotvals[vtype] += iclust_plotvals[vtype]
-            iclust_ptile_vals = get_ptile_vals(iclust_plotvals, xvar, xlabel)
+            iclust_ptile_vals = get_ptile_vals(iclust_plotvals, xvar, xlabel, dbgstr='iclust %d'%iclust)
             per_clust_ptile_vals['iclust-%d'%iclust] = iclust_ptile_vals
             if not only_csv and len(iclust_plotvals[xvar]) > 0:
                 make_scatter_plot(iclust_plotvals, xvar, iclust=iclust)
                 make_ptile_plot(iclust_plotvals, iclust_ptile_vals, xvar, xlabel, iclust=iclust)
         if not only_csv:
             make_scatter_plot(all_plotvals, xvar)
-        all_ptile_vals = get_ptile_vals(all_plotvals, xvar, xlabel)  # "averaged" might be a better name than "all", but that's longer
+        all_ptile_vals = get_ptile_vals(all_plotvals, xvar, xlabel, dbgstr='all clusters')  # "averaged" might be a better name than "all", but that's longer
         with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
             json.dump({k : v for k, v in all_ptile_vals.items() + per_clust_ptile_vals.items()}, yfile)
         if not only_csv and len(all_plotvals[lb_metric]) > 0:
