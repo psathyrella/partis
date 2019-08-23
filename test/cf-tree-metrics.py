@@ -363,9 +363,9 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
             assert len(set([len(ofvals[i]) for i in ofvals])) == 1
             n_used = []  # just for dbg
             for ipair in range(len(ofvals.values()[0])):  # NOTE if this first one is ever empty this will probably break
-                tau = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
-                assert len(set(tau)) == 1  # all of 'em better have the same tau
-                tau = tau[0]
+                all_taus = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
+                assert all_taus.count(all_taus[0]) == len(all_taus)  # all of 'em better have the same tau (can't use a set since when it's not actually tau, it can be a list)
+                tau = all_taus[0]
                 ltmp = [ofvals[i][ipair][1] for i in ofvals]
                 mean_vals.append((tau, numpy.mean(ltmp)))
                 err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))
