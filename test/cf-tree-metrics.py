@@ -228,7 +228,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_plot=75., debug=False):
+def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
     vlabels = {
         'obs_frac' : 'fraction sampled',
         'n-sim-seqs-per-gen' : 'N/gen',
@@ -390,7 +390,8 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=pvkey, alpha=0.7, linewidth=4, markersize=markersize, marker='.')  #, title='position ' + str(position))
         else:
             ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
-    ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+    if xvar == 'lb-tau':
+        ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     plotting.mpl_finish(ax, get_comparison_plotdir(),
                         '%s-%s-ptiles-obs-frac-vs-lb-tau' % (ptilestr, metric),
                         xlabel=xvar.replace('-', ' '),
@@ -493,13 +494,13 @@ parser.add_argument('--n-max-procs', type=int)  # NOTE that with slurm this thin
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
-parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
+parser.add_argument('--final-plot-xvar', default='lb-tau')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
 # specific to get-lb-bounds:
@@ -507,6 +508,7 @@ parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generat
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
+parser.add_argument('--make-plots', action='store_true')
 args = parser.parse_args()
 
 args.scan_vars = {
@@ -554,9 +556,9 @@ for action in args.actions:
         get_tree_metrics(args)
     elif action == 'plot' and not args.dry:
         utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
-        procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel))  # time is almost entirely due to file open + json.load
+        procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel, args.final_plot_xvar))  # time is almost entirely due to file open + json.load
                  for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff]
         utils.run_proc_functions(procs)
         # for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff:
-        #     make_plots(args, metric, ptilestr, ptilelabel)
-        #     # break
+        #     make_plots(args, metric, ptilestr, ptilelabel, args.final_plot_xvar)
+        #     break
