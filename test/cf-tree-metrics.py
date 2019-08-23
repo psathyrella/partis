@@ -346,7 +346,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         print '  %s:' % mkey
         print '     %s   iclust' % get_varname_str()
         for iclust, vstrs in vstrs_list:
-            print '      %s    %2d    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, ptilestr))
+            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, ptilestr))
 
     # average over the replicates/clusters
     if (args.n_replicates > 1 or args.n_sim_events_per_proc is not None) and len(plotvals) > 0:
