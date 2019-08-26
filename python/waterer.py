@@ -674,7 +674,6 @@ class Waterer(object):
         l_gene = best[l_reg]
         r_gene = best[r_reg]
         qrb, glb = [qinfo[t+'bounds'] for t in ('qr', 'gl')]
-
         # ----------------------------------------------------------------------------------------
         def dbg_print(l_length, r_length, l_portion, r_portion):
             lb = qrb[l_gene]  # shorthands
@@ -685,7 +684,17 @@ class Waterer(object):
             l_offset = min(rb[0] + r_portion, lb[0])
             print '                                    %s%s' % ((lb[0] - l_offset) * ' ', l_gene_seq)
             print '                                    %s%s' % ((rb[0] + r_portion - l_offset) * ' ', r_gene_seq)
-
+        # ----------------------------------------------------------------------------------------
+        def shift_bounds(l_portion, r_portion):  # shift match boundaries of best left gene <l_gene> and best right gene <r_gene> according to <l_portion> and <r_portion>, then also shift other/non-best gene boundaries
+            for gtmp in qrb:
+                for bdict in (qrb, glb):
+                    istart, istop = bdict[gtmp]
+                    if utils.get_region(gtmp) == l_reg:
+                        bdict[gtmp] = (istart, max(istart, istop - l_portion))  # max() is only necessary for non-best genes
+                    elif utils.get_region(gtmp) == r_reg:
+                        bdict[gtmp] = (min(istop, istart + r_portion), istop)  # min() is only necessary for non-best genes
+                    else:
+                        continue
         # ----------------------------------------------------------------------------------------
         def check_indel_interference(l_length, r_length, l_portion, r_portion):
             if l_reg in qinfo['new_indels'] and l_portion > 0:
@@ -698,6 +707,7 @@ class Waterer(object):
                     return True
             return False
 
+        # ----------------------------------------------------------------------------------------
         overlap, available_space = self.get_overlap_and_available_space(rpair, best, qrb)
 
         if overlap <= 0:  # nothing to do, they're already consistent
@@ -744,10 +754,7 @@ class Waterer(object):
         if debug:
             print '      %s apportioned %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion)
         assert l_portion + r_portion == overlap
-        qrb[l_gene] = (qrb[l_gene][0], qrb[l_gene][1] - l_portion)
-        glb[l_gene] = (glb[l_gene][0], glb[l_gene][1] - l_portion)
-        qrb[r_gene] = (qrb[r_gene][0] + r_portion, qrb[r_gene][1])
-        glb[r_gene] = (glb[r_gene][0] + r_portion, glb[r_gene][1])
+        shift_bounds(l_portion, r_portion)
         if l_reg in qinfo['new_indels'] and l_portion > 0:  # it would be nice to check indel consistency after doing this, but my indel consistency checkers seem to only operate on <line>s, and I don't have one of those yet
             ifo = qinfo['new_indels'][l_reg]
             ifo['qr_gap_seq'] = ifo['qr_gap_seq'][ : -l_portion]  # this should really check that l_portion is shorter than the qr gap seq... but it _should_ be impossible
@@ -909,7 +916,7 @@ class Waterer(object):
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
-        # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
+        # s-w allows d and j matches to overlap, so we need to apportion the disputed bases UPDATE ok it turns out ig-sw only allowed overlaps because it had a bug, and the bug is fixed (https://github.com/psathyrella/partis/commit/471e5eac6d2b0fbdbb2b6024c81af14cdc3d9399), so maybe this stuff will never get used now.
         for rpair in utils.region_pairs(self.glfo['locus']):
             overlap_status = self.check_boundaries(rpair, qinfo, best)  #, debug=self.debug>1)  # I think all this overlap fixing only adjusts the bounds for the best match, but I guess that's ok? It's certainly been like that for ages
             if overlap_status == 'overlap':
