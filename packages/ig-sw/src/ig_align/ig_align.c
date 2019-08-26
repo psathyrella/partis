@@ -303,10 +303,8 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
       }
       drop_low_scores(&result, init_count, conf->max_drop);
 
-      /* Truncate */
-      const int alen =
-          kv_A(result, init_count).loc.qe - kv_A(result, init_count).loc.qb;
-      read_len_trunc = read_len_trunc - alen;  // NOTE this is only correct if the first (i.e. j) match extends all the way to the right side of the query/read sequence
+      // truncate read/query sequence by adjusting the length that we pass to the aligner (i.e. we first do j, then effectively remove the j portion of the read by decreasing <read_len_trunc>)
+      read_len_trunc = kv_A(result, init_count).loc.qb - qend;
       free(qry);
       qry = NULL;
     }
