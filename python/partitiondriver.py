@@ -310,10 +310,10 @@ class PartitionDriver(object):
             self.write_output(annotations.values(), hmm_failures)
 
     # ----------------------------------------------------------------------------------------
-    def calc_tree_metrics(self, annotations, cpath=None):
+    def calc_tree_metrics(self, annotation_dict, cpath=None):
         if self.current_action == 'get-tree-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-tree-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
-            seqfileopener.read_input_metafo(self.args.input_metafname, annotations.values(), debug=True)
-        treeutils.calculate_tree_metrics(annotations, self.args.min_tree_metric_cluster_size, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
+            seqfileopener.read_input_metafo(self.args.input_metafname, annotation_dict.values(), debug=True)
+        treeutils.calculate_tree_metrics(annotation_dict, self.args.min_tree_metric_cluster_size, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir, dont_normalize_lbi=self.args.dont_normalize_lbi,
                                          only_csv=self.args.only_csv_plots, debug=self.args.debug)
 
@@ -321,7 +321,6 @@ class PartitionDriver(object):
     def parse_existing_annotations(self, annotation_lines, ignore_args_dot_queries=False, process_csv=False):
         n_queries_read = 0
         failed_query_strs = set()
-        annotations = OrderedDict()
         for line in annotation_lines:
             if process_csv:
                 utils.process_input_line(line)
@@ -335,7 +334,6 @@ class PartitionDriver(object):
             if self.args.reco_ids is not None and line['reco_id'] not in self.args.reco_ids:
                 continue
             utils.add_implicit_info(self.glfo, line)
-            annotations[uidstr] = line
 
             n_queries_read += 1
             if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
@@ -343,8 +341,6 @@ class PartitionDriver(object):
 
         if len(failed_query_strs) > 0:
             print '\n%d failed queries' % len(failed_query_strs)
-
-        return annotations
 
     # ----------------------------------------------------------------------------------------
     def view_alternative_annotations(self):
@@ -387,7 +383,7 @@ class PartitionDriver(object):
         self.write_output(cluster_annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
     # ----------------------------------------------------------------------------------------
-    def print_results(self, cpath, annotations):
+    def print_results(self, cpath, annotation_lines):
         seed_uid = self.args.seed_unique_id
         true_partition = None
         if cpath is not None:
@@ -404,9 +400,9 @@ class PartitionDriver(object):
                 print 'true:'
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
-        if len(annotations) > 0:
+        if len(annotation_lines) > 0:
             print utils.color('green', 'annotations:')
-            sorted_annotations = sorted(annotations.values(), key=lambda l: len(l['unique_ids']), reverse=True)
+            sorted_annotations = sorted(annotation_lines, key=lambda l: len(l['unique_ids']), reverse=True)
             if self.args.cluster_indices is not None:
                 sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
             for line in sorted_annotations:
@@ -426,6 +422,8 @@ class PartitionDriver(object):
                         post_label += [', %s' % utils.color('yellow', 'best')]
                     if seed_uid is not None and seed_uid in line['unique_ids']:
                         post_label += [', %s' % utils.color('red', 'seed')]
+                    if self.args.duplicate_resolution_key is not None:
+                        post_label += ['   %s: %s' % (self.args.duplicate_resolution_key, line[self.args.duplicate_resolution_key])]
                 utils.print_reco_event(line, extra_str='  ', label=''.join(label), post_label=''.join(post_label), seed_uid=seed_uid)
 
     # ----------------------------------------------------------------------------------------
@@ -451,33 +449,34 @@ class PartitionDriver(object):
         else:
             raise Exception('unhandled annotation file suffix %s' % outfname)
 
-        annotations = self.parse_existing_annotations(annotation_lines, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
+        self.parse_existing_annotations(annotation_lines, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
+        annotation_dict = utils.get_annotation_dict(annotation_lines, duplicate_resolution_key=self.args.duplicate_resolution_key)
 
         if tmpact == 'get-linearham-info':
-            self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotations.values() for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok (note that the order won't be the same as it would've been before)
+            self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotation_lines for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok (note that the order won't be the same as it would've been before)
             self.run_waterer(require_cachefile=True)
-            uids_missing_sw_info = [u for l in annotations.values() for u in l['unique_ids'] if u not in self.sw_info]  # make sure <annotations> and <self.sw_info> have the same uids (they can get out of sync because we're re-running sw here with potentially different options (or versions) to whatever command was run to make <annotations>, e.g. if --is-simu was turned on duplicates won't have been removed before)
+            uids_missing_sw_info = [u for l in annotation_lines for u in l['unique_ids'] if u not in self.sw_info]  # make sure <annotation_lines> and <self.sw_info> have the same uids (they can get out of sync because we're re-running sw here with potentially different options (or versions) to whatever command was run to make <annotation_lines>, e.g. if --is-simu was turned on duplicates won't have been removed before)
             dup_dict = {d : u for u in self.sw_info['queries'] for d in self.sw_info[u]['duplicates'][0]}
             for uid in uids_missing_sw_info:  # NOTE <self.sw_info> is somewhat inconsistent after we do this, but this code should only get run when we're just adding linearham info so idgaf
                 if uid in dup_dict:
                     self.sw_info[uid] = self.sw_info[dup_dict[uid]]  # it would be proper to fix the duplicates in here, and probably some other things
                 else:
-                    raise Exception('no sw info for query %s' % uid)  # I can't really do anything else, it makes no sense to go remove it from <annotations> when the underlying problem is (probably) that sw info was just run with different options
-            self.write_output(annotations.values(), set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
+                    raise Exception('no sw info for query %s' % uid)  # I can't really do anything else, it makes no sense to go remove it from <annotation_lines> when the underlying problem is (probably) that sw info was just run with different options
+            self.write_output(annotation_lines, set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_lines>
 
         if tmpact == 'get-tree-metrics':
-            self.calc_tree_metrics(annotations, cpath=cpath)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(annotation_dict, cpath=cpath)  # adds tree metrics to <annotations>
             print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
-            self.write_output(annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
+            self.write_output(annotation_lines, set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_lines>
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotations, reco_info=self.reco_info, cpath=cpath)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotation_dict, reco_info=self.reco_info, cpath=cpath)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
-            self.print_results(cpath, annotations)
+            self.print_results(cpath, annotation_lines)
 
-        return annotations, cpath
+        return annotation_dict, cpath
 
     # ----------------------------------------------------------------------------------------
     def partition(self):
