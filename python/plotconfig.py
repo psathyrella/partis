@@ -114,7 +114,8 @@ for name, bounds in true_vs_inferred_hard_bounds.items():
 
 default_hard_bounds = {
     # 'hamming_to_true_naive' : (-0.5, 19.5),
-    'hamming_to_true_naive' : (-0.5, 10),
+    'hamming_to_true_naive' : (-0.5, 25),
+    'cdr3_hamming_to_true_naive' : (-0.5, 25),
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
     'j_hamming_to_true_naive' : (-0.5, 12.5),

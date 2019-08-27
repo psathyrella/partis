@@ -399,6 +399,22 @@ for region in regions:
 conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
+def get_annotation_dict(annotation_list, duplicate_resolution_key=None):
+    annotation_dict = OrderedDict()
+    for line in annotation_list:
+        uidstr = ':'.join(line['unique_ids'])
+        if uidstr in annotation_dict or duplicate_resolution_key is not None:  # if <duplicate_resolution_key> was specified, but it wasn't specified properly (e.g. if it's not sufficient to resolve duplicates), then <uidstr> won't be in <annotation_dict>
+            if duplicate_resolution_key is None:
+                raise Exception('multiple annotations for the same cluster, but no duplication resolution key was specified: %s' % uidstr)
+            else:
+                uidstr = '%s-%s' % (uidstr, line[duplicate_resolution_key])
+                if uidstr in annotation_dict:
+                    raise Exception('duplicate key even after adding duplicate resolution key: \'%s\'' % uidstr)
+        assert uidstr not in annotation_dict
+        annotation_dict[uidstr] = line
+    return annotation_dict
+
+# ----------------------------------------------------------------------------------------
 def per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand
     if key not in linekeys['per_seq']:
         raise Exception('key \'%s\' not in per-sequence keys' % key)

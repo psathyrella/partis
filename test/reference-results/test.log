@@ -7,37 +7,37 @@ smith-waterman  (new-allele fitting)
   vsearch: 1264 / 1412 v annotations (148 failed) with 61 v genes in 0.2 sec
   removing old sw cache test/new-results/test/parameters/data/sw-cache.yaml
     running 10 procs for 1412 seqs
-    running 13 procs for 71 seqs
-      info for 1370 / 1412 = 0.970   (42 failed)
+    running 13 procs for 72 seqs
+      info for 1369 / 1412 = 0.970   (43 failed)
       kept 437 (0.309) unproductive
-      removed 23 / 1370 = 0.02 duplicate sequences after trimming framework insertions (leaving 1347)
-    water time: 2.5  (ig-sw 0.1  processing 0.1)
+      removed 23 / 1369 = 0.02 duplicate sequences after trimming framework insertions (leaving 1346)
+    water time: 2.8  (ig-sw 0.1  processing 0.2)
   no queries for allele finding
 smith-waterman  (writing parameters)
   vsearch: 1264 / 1412 v annotations (148 failed) with 61 v genes in 0.2 sec
-    running 10 procs for 1370 seqs
+    running 10 procs for 1369 seqs
     running 13 procs for 29 seqs
-      info for 1393 / 1412 = 0.987   (42 failed)
+      info for 1392 / 1412 = 0.986   (43 failed)
       kept 437 (0.309) unproductive
-      removed 23 / 1370 = 0.02 duplicate sequences after trimming framework insertions (leaving 1347)
+      removed 23 / 1369 = 0.02 duplicate sequences after trimming framework insertions (leaving 1346)
         writing sw results to test/new-results/test/parameters/data/sw-cache.yaml
-    writing parameters to test/new-results/test/parameters/data/sw (6.3 sec)
-    water time: 10.3  (ig-sw 7.8  processing 0.2)
+    writing parameters to test/new-results/test/parameters/data/sw (4.5 sec)
+    water time: 8.6  (ig-sw 5.9  processing 0.2)
   writing hmms (0.6 sec)
 hmm
     skipping matches from 4 genes without enough counts: [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m
     prepare_for_hmm: (0.1 sec)
     running 10 procs
-                    calcd:         vtb 1347        fwd    0
-             min-max time:  6.1 - 13.6 sec
+                    calcd:         vtb 1346        fwd    0
+             min-max time:  5.9 - 13.5 sec
     read output
-    writing parameters to test/new-results/test/parameters/data/hmm (4.7 sec)
-        processed 1347 hmm output lines with 1344 sequences in 1344 events  (3 failures)
-            [91mwarning[0m skipped 3 invalid events
-         infra time: 6.5
-      hmm step time: 20.2
-  writing hmms (1.2 sec)
-      total time: 35.7
+    writing parameters to test/new-results/test/parameters/data/hmm (4.2 sec)
+        processed 1346 hmm output lines with 1342 sequences in 1342 events  (4 failures)
+            [91mwarning[0m skipped 4 invalid events
+         infra time: 6.0
+      hmm step time: 19.6
+  writing hmms (1.1 sec)
+      total time: 33.5
 [92msimulate[0m                         ./bin/partis simulate --parameter-dir test/new-results/test/parameters/data --n-sim-events 500 --n-trees 500 --n-leaves 5 --seed 1 --n-procs 10 --outfname test/new-results/test/simu.yaml --indel-frequency 0.01 --indel-location v
 simulating
    read 500 events from 10 csv files
@@ -45,98 +45,208 @@ simulating
 [92mcache-parameters-simu[0m            ./bin/partis cache-parameters --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --is-simu --seed 1 --n-procs 10
   note: running on a lot of sequences (2547) without setting --outfname. Which is ok, but there will be no persistent record of the results (except the parameter directory).
 caching parameters
-  vsearch: 2433 / 2547 v annotations (114 failed) with 92 v genes in 0.2 sec
-    keeping 46 / 204 v genes
-    [91mmissing[0m 11 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-45[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69-2[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-NL1[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-4[0m[93m07[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-31[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m10[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-59[0m[93m02[0m 33
+  vsearch: 2415 / 2547 v annotations (132 failed) with 100 v genes in 0.2 sec
+    keeping 48 / 204 v genes
+    [91mmissing[0m 9 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-45[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-58[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-72[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m 2  [95mh[0m[91mv[0m[95m3[0m[95m-NL1[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-4[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-4[0m[93m07[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m10[0m 0
 smith-waterman  (new-allele fitting)
-  vsearch: 2431 / 2547 v annotations (116 failed) with 46 v genes in 0.5 sec
+  vsearch: 2419 / 2547 v annotations (128 failed) with 48 v genes in 0.5 sec
   removing old sw cache test/new-results/test/parameters/simu/sw-cache.yaml
     running 10 procs for 2547 seqs
-    running 13 procs for 15 seqs
+    running 12 procs for 9 seqs
       info for 2547 / 2547 = 1.000   (0 failed)
-      kept 1471 (0.578) unproductive
-    water time: 5.7  (ig-sw 0.1  processing 0.1)
+      kept 1503 (0.590) unproductive
+    water time: 5.4  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 2431 / 2547 v annotations (116 failed) with 46 v genes in 0.5 sec
+  vsearch: 2419 / 2547 v annotations (128 failed) with 48 v genes in 0.5 sec
     running 10 procs for 2547 seqs
-    running 13 procs for 15 seqs
+    running 12 procs for 9 seqs
       info for 2547 / 2547 = 1.000   (0 failed)
-      kept 1471 (0.578) unproductive
+      kept 1503 (0.590) unproductive
         writing sw results to test/new-results/test/parameters/simu/sw-cache.yaml
-    writing parameters to test/new-results/test/parameters/simu/sw (4.9 sec)
-    water time: 13.5  (ig-sw 7.7  processing 0.2)
+    writing parameters to test/new-results/test/parameters/simu/sw (4.7 sec)
+    water time: 12.9  (ig-sw 7.3  processing 0.2)
   writing hmms (0.9 sec)
 hmm
     skipping matches from 3 genes without enough counts: [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m
     prepare_for_hmm: (0.3 sec)
     running 10 procs
                     calcd:         vtb 2547        fwd    0
-             min-max time:  6.2 - 6.7 sec
+             min-max time:  6.5 - 7.1 sec
     read output
-    writing parameters to test/new-results/test/parameters/simu/hmm (4.8 sec)
-    writing parameters to test/new-results/test/parameters/simu/true (4.4 sec)
+    writing parameters to test/new-results/test/parameters/simu/hmm (4.3 sec)
+    writing parameters to test/new-results/test/parameters/simu/true (4.1 sec)
         processed 2547 hmm output lines with 2547 sequences in 2547 events  (0 failures)
-         infra time: 15.2
-      hmm step time: 22.1
-  writing hmms (0.9 sec)
-      total time: 47.4
+         infra time: 14.1
+      hmm step time: 21.5
+  writing hmms (2.0 sec)
+      total time: 46.4
 [92mannotate-new-simu[0m                ./bin/partis annotate --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results/annotate-new-simu-annotation-performance --only-csv-plots --seed 1 --n-procs 10 --outfname test/new-results/annotate-new-simu.yaml
 annotating
 smith-waterman
-  vsearch: 2431 / 2547 v annotations (116 failed) with 46 v genes in 0.4 sec
+  vsearch: 2419 / 2547 v annotations (128 failed) with 48 v genes in 0.5 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
       info for 2547 / 2547 = 1.000   (0 failed, 0 duplicates)
-      kept 1471 (0.578) unproductive
+      kept 1503 (0.590) unproductive
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 31 queries with different true and inferred net shm indel lengths: -5651847160665664401 -5439269371937960587 -1671855173954335224 8954205596662700877 8035292104897566831 -6980816598168328992 -1944317774027608021 -8367653297265321903 -8293382619417154339 8432857210250136546 5799285248059412632 2068880357636149462 -2371885096165935033 1956948816140811658 7954543083237881632 7422004274478422216 -4705474587037986920 8275139848541491025 -989204982925865978 8637175181917571230 -7415776837269631489 -1655690294066692408 -5666140250886008893 7646408670496224120 3907228710595224434 -513524172495743856 4275748943507448387 -7817117079272132355 -3036310640334905899 -5311463564242888055 8783820690509299823
-(0.3 sec)
-        water time: 3.8
+    [93mwarning[0m skipped annotation performance evaluation on 10 queries with different true and inferred net shm indel lengths: 8858007876108559862 -8422669614222910264 -4520529708975379827 6098581623567302747 3011282458653663231 2997262141955110229 6274806041962231712 4759436519434666931 9038431688682593161 8209677760763226322
+(0.2 sec)
+        water time: 3.4
 hmm
     prepare_for_hmm: (0.3 sec)
     running 10 procs
                     calcd:         vtb 2547        fwd    0
-             min-max time:  5.8 - 6.6 sec
+             min-max time:  6.8 - 7.1 sec
     read output
-  plotting performance (0.3 sec)
+  plotting performance (0.2 sec)
         processed 2547 hmm output lines with 2547 sequences in 2547 events  (0 failures)
-         infra time: 3.5
-      hmm step time: 10.3
-      total time: 16.1
+         infra time: 3.4
+      hmm step time: 10.7
+      total time: 16.2
 [92mmulti-annotate-new-simu[0m          ./bin/partis annotate --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir test/new-results/multi-annotate-new-simu-annotation-performance --only-csv-plots --seed 1 --n-procs 10 --outfname test/new-results/multi-annotate-new-simu.yaml
 annotating
 smith-waterman
-  vsearch: 2431 / 2547 v annotations (116 failed) with 46 v genes in 0.5 sec
+  vsearch: 2419 / 2547 v annotations (128 failed) with 48 v genes in 0.5 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
       info for 2547 / 2547 = 1.000   (0 failed, 0 duplicates)
-      kept 1471 (0.578) unproductive
+      kept 1503 (0.590) unproductive
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+true                                                                                                                                                                                                                                                                                                         CGCCTATGACACCC           CACTACGTTGAAGGAGGCGT                                               inserts
+                                                                                                                                                                                                                                                                                                                   ........CAGTGGCTGGT..                                                                 [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGAC.                                        ....CTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGT[91mT[0mC[91mC[0mG[91mT[0mT[91mA[0m[91mA[0mT[91mC[0m[91mC[0mA[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0m[91mC[0m[91mC[0m[91mA[0mG[91mG[0mTTGG[91mC[0mCCA[91mA[0mCCTGG[91mA[0mG[91mC[0m[91mT[0mT[91mT[0mC[91mT[0mTGA[91mC[0m[91mT[0mCTCTC[91mA[0mT[91mT[0mTGCA[91mA[0m[91mT[0mCTCT[91mA[0m[91mA[0mG[91mG[0mTCA[91mT[0mCTTC[91mG[0mGT[91mC[0m[91mC[0mCT[91mT[0mT[91mT[0m[91mG[0mTAT[91mA[0m[91mT[0mACT[91mT[0mG[91mA[0mTC[91mT[0m[91mA[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0mGC[91mC[0mTC[91mT[0m[91mC[0m[91mA[0mGAAA[91mC[0m[91mT[0m[91mA[0m[91mG[0mTGGA[91mA[0m[91mC[0m[91mT[0m[91mA[0m[91mA[0mTTGGC[91mT[0m[91mC[0mTATTAG[91mG[0mAGCAA[91mC[0mG[91mA[0mT[91mT[0mA[91mG[0m[91mG[0mG[91mC[0mTACG[91mT[0mGACA[91mA[0m[91mT[0mATATGC[91mA[0m[91mT[0mC[91mC[0m[91mA[0m[91mT[0m[91mC[0m[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mCAGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGATG[91mC[0mTTCAAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0mCG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGA[91mG[0m[91mG[0m[91mG[0mCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mT[91mA[0mTATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0mACTA[91mA[0mACCGCCT[91mT[0m[91mC[0mGA[91mT[0m[91mT[0m[91mA[0mCCCAG[91mA[0mG[91mA[0mC[91mC[0mGG[91mC[0mC[91mC[0mCT[91mG[0mCGTT[91mA[0mAA[91mA[0m[91mA[0mAGGCG[91mC[0mC[91mC[0mTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.35 mut  [91mout of frame cdr3, stop codon[0m
+inf                                                                                                                                                                                                                                                                                                         CCGC          CCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCC                                             inserts
+                                                                                                                                                                                                                                                                                                   .............CTACGATTAC                                                                               [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
+      GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAA..                                        ......TTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG   [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m
+GAGGTT[91mC[0m[91mC[0mG[91mT[0mT[91mA[0m[91mA[0m[91mT[0m[91mC[0mC[91mA[0m[91mA[0mT[91mA[0m[91mC[0m[91mA[0m[91mC[0mG[91mA[0mC[91mC[0m[91mA[0mGG[91mT[0m[91mT[0m[91mG[0mG[91mC[0mC[91mC[0m[91mA[0m[91mA[0m[91mC[0m[91mC[0m[91mT[0m[91mG[0m[91mG[0m[91mA[0m[91mG[0mCT[91mT[0m[91mT[0m[91mC[0m[91mT[0m[91mT[0mG[91mA[0mC[91mT[0mCT[91mC[0m[91mT[0m[91mC[0mA[91mT[0mT[91mT[0m[91mG[0mC[91mA[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0mC[91mT[0m[91mA[0m[91mA[0m[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTTC[91mG[0m[91mG[0m[91mT[0m[91mC[0m[91mC[0m[91mC[0m[91mT[0m[91mT[0m[91mT[0m[91mT[0mG[91mT[0m[91mA[0m[91mT[0m[91mA[0m[91mT[0m[91mA[0mC[91mT[0mTGA[91mT[0mCT[91mA[0mG[91mT[0m[91mC[0mC[91mG[0m[91mC[0mC[91mT[0m[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mG[0m[91mA[0m[91mA[0mA[91mC[0m[91mT[0m[91mA[0m[91mG[0m[91mT[0mGG[91mA[0m[91mA[0mCT[91mA[0m[91mA[0m[91mT[0m[91mT[0m[91mG[0mG[91mC[0m[91mT[0m[91mC[0m[91mT[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0m[91mG[0mA[91mG[0m[91mC[0m[91mA[0mA[91mC[0m[91mG[0m[91mA[0m[91mT[0m[91mT[0m[91mA[0m[91mG[0mGG[91mC[0m[91mT[0m[91mA[0m[91mC[0m[91mG[0m[91mT[0m[91mG[0mACA[91mA[0m[91mT[0m[91mA[0mTATGCA[91mT[0m[91mC[0mC[91mA[0m[91mT[0mC[91mC[0m[91mG[0m[91mT[0mA[91mG[0m[91mC[0mG[91mA[0mC[91mA[0mGG[91mG[0mT[91mT[0mA[91mG[0mCATCTCCAGAGAT[91mG[0m[91mC[0mTTC[91mA[0mAA[91mC[0mA[91mG[0m[91mT[0mA[91mT[0mG[91mT[0m[91mC[0mG[91mC[0m[91mC[0mTCTGCAAATGAA[91mT[0mAGCC[91mC[0mGAG[91mG[0mGCCGAGGAC[91mT[0mC[91mC[0mGCC[91mA[0mTATATT[91mG[0mC[7mT[0m[7mG[0m[7mT[0m[91mA[0mC[91mT[0mAAACCGCCT[91mT[0mCGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTG[91mT[0mCT[91mT[0m[91mT[0m[7mT[0m[7mG[0m[7mG[0mGGCCAGGGA[91mC[0m[91mT[0mCCTGGTC[91mC[0mC[91mT[0mG[91mC[0mC[91mA[0mCCTC[91mG[0mG   -2785704967550393422   0.46 mut  [91mout of frame cdr3, stop codon[0m
+[93mwarning[0m different length true and inferred naive seqs for -2785704967550393422 (see above)
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTCCAGCCTGGGGGGTCCCTGAAACTCTCCTGTGCAGCCTCTGGGTTCACCTTCAGTGGCTCTGCTATGCACTGGGTCCGCCAGGCTTCCGGGAAAGGGCTGGAGTGGGTTGGCCGTATTAGAAGCAAAGCTAACAGTTACGCGACAGCATATGCTGCGTCGGTGAAAGGCAGGTTCACCATCTCCAGAGATGATTCAAAGAACACGGCGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACGGCCGTGTATTACTGTACTAGACCGCCTATGACACCCCAGTGGCTGGTCACTACGTTGAAGGAGGCGTCTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GAGGTGCAGCTGTTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTTAGCAGCTATGCCATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCAGTTATTTATAGCGGTGGTAGTAGCACATACTATGCAGACTCCGTGAAGGGCCGGTTCACCATCTCCAGAGATAATTCCAAGAACACGCTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCCGTATATTACTGTGCGAAACCGCCTACGATTACCCAGAGACCGGCCCCTGCGTTAAAAAAGGCGCCCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 31 queries with different true and inferred net shm indel lengths: -5651847160665664401 -5439269371937960587 -1671855173954335224 8954205596662700877 8035292104897566831 -6980816598168328992 -1944317774027608021 -8367653297265321903 -8293382619417154339 8432857210250136546 5799285248059412632 2068880357636149462 -2371885096165935033 1956948816140811658 7954543083237881632 7422004274478422216 -4705474587037986920 8275139848541491025 -989204982925865978 8637175181917571230 -7415776837269631489 -1655690294066692408 -5666140250886008893 7646408670496224120 3907228710595224434 -513524172495743856 4275748943507448387 -7817117079272132355 -3036310640334905899 -5311463564242888055 8783820690509299823
-(0.3 sec)
+    [93mwarning[0m skipped annotation performance evaluation on 10 queries with different true and inferred net shm indel lengths: 8858007876108559862 -8422669614222910264 -4520529708975379827 6098581623567302747 3011282458653663231 2997262141955110229 6274806041962231712 4759436519434666931 9038431688682593161 8209677760763226322
+(0.2 sec)
         water time: 3.1
 hmm
-  [93mwarning[0m split apart 9 clusters that contained multiple cdr3 lengths (total clusters: 483 --> 492)
+  [93mwarning[0m split apart 3 clusters that contained multiple cdr3 lengths (total clusters: 488 --> 491)
     prepare_for_hmm: (0.2 sec)
     running 10 procs
-                    calcd:         vtb  492        fwd    0
-             min-max time:  3.3 - 5.4 sec
+                    calcd:         vtb  491        fwd    0
+             min-max time:  4.1 - 5.7 sec
     read output
-  plotting performance (0.3 sec)
-        processed 492 hmm output lines with 2547 sequences in 492 events  (0 failures)
-         infra time: 2.8
-      hmm step time: 8.3
-      total time: 13.3
+  plotting performance (0.2 sec)
+        processed 491 hmm output lines with 2547 sequences in 491 events  (0 failures)
+         infra time: 2.7
+      hmm step time: 8.6
+      total time: 13.4
 [92mpartition-new-simu[0m               ./bin/partis partition --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --plotdir test/new-results/partition-new-simu-annotation-performance --only-csv-plots --seed 1 --n-procs 10 --outfname test/new-results/partition-new-simu.yaml
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
 smith-waterman
-  vsearch: 475 / 500 v annotations (25 failed) with 28 v genes in 0.1 sec
+  vsearch: 481 / 500 v annotations (19 failed) with 35 v genes in 0.1 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
       info for 500 / 500 = 1.000   (0 failed, 0 duplicates)
-      kept 287 (0.574) unproductive
+      kept 273 (0.546) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 2 queries with different true and inferred net shm indel lengths: -5651847160665664401 -5439269371937960587
-(0.3 sec)
-        water time: 1.6
+    [93mwarning[0m skipped annotation performance evaluation on 2 queries with different true and inferred net shm indel lengths: 8858007876108559862 -8422669614222910264
+(0.2 sec)
+        water time: 1.2
 hmm
 caching all 500 naive sequences
     prepare_for_hmm: (0.1 sec)
@@ -144,147 +254,149 @@ caching all 500 naive sequences
                 no/empty cache file
                     calcd:         vtb 500        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  2.2 - 2.7 sec
-      hmm step time: 2.9
-   collapsed 500 queries into 314 clusters with identical naive seqs (0.0 sec)
-314 clusters with 10 procs
+             min-max time:  2.5 - 2.8 sec
+      hmm step time: 3.0
+   collapsed 500 queries into 323 clusters with identical naive seqs (0.0 sec)
+323 clusters with 10 procs
     prepare_for_hmm: (0.1 sec)
-       naive hfrac bounds: 0.015 0.105   (0.103 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.103   (0.099 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
     running 10 procs
           read from cache:  naive-seqs 500   logprobs   0
-                    calcd:         vtb 131        fwd 182
-                   merged:       hfrac  38     lratio  24
-             min-max time:  1.3 - 3.2 sec
+                    calcd:         vtb 132        fwd 211
+                   merged:       hfrac  36     lratio  28
+             min-max time:  1.7 - 4.9 sec
          infra time: 0.2
-      hmm step time: 3.5
-252 clusters with 7 procs
+      hmm step time: 5.2
+259 clusters with 7 procs
     prepare_for_hmm: (0.1 sec)
     running 7 procs
-          read from cache:  naive-seqs 632   logprobs 182
-                    calcd:         vtb  39        fwd 107
-                   merged:       hfrac  20     lratio  15
-             min-max time:  1.2 - 2.9 sec
+          read from cache:  naive-seqs 632   logprobs 211
+                    calcd:         vtb  48        fwd  82
+                   merged:       hfrac  27     lratio  13
+             min-max time:  1.6 - 3.7 sec
          infra time: 0.1
-      hmm step time: 3.1
-217 clusters with 5 procs
+      hmm step time: 3.9
+219 clusters with 5 procs
     prepare_for_hmm: (0.1 sec)
     running 5 procs
-          read from cache:  naive-seqs 672   logprobs 289
-                    calcd:         vtb  34        fwd  93
-                   merged:       hfrac  20     lratio  11
-             min-max time:  1.6 - 3.1 sec
+          read from cache:  naive-seqs 680   logprobs 293
+                    calcd:         vtb  31        fwd  72
+                   merged:       hfrac  22     lratio  10
+             min-max time:  2.3 - 3.9 sec
          infra time: 0.1
-      hmm step time: 3.3
-186 clusters with 3 procs
+      hmm step time: 4.0
+187 clusters with 3 procs
     prepare_for_hmm: (0.1 sec)
     running 3 procs
-          read from cache:  naive-seqs 706   logprobs 382
-                    calcd:         vtb  35        fwd  95
-                   merged:       hfrac  24     lratio  10
-             min-max time:  3.3 - 5.2 sec
+          read from cache:  naive-seqs 713   logprobs 365
+                    calcd:         vtb  31        fwd  69
+                   merged:       hfrac  21     lratio   9
+             min-max time:  3.7 - 6.2 sec
          infra time: 0.1
-      hmm step time: 5.4
-152 clusters with 2 procs
+      hmm step time: 6.3
+157 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
-          read from cache:  naive-seqs 742   logprobs 477
-                    calcd:         vtb  25        fwd  77
-                   merged:       hfrac  17     lratio   8
-             min-max time:  4.5 - 6.7 sec
-      hmm step time: 6.9
+          read from cache:  naive-seqs 745   logprobs 434
+                    calcd:         vtb  29        fwd  59
+                   merged:       hfrac  23     lratio   7
+             min-max time:  4.9 - 8.9 sec
+      hmm step time: 9.1
 127 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
-          read from cache:  naive-seqs 769   logprobs 554
-                    calcd:         vtb  11        fwd  47
-                   merged:       hfrac   9     lratio   2
-             min-max time:  2.9 - 5.4 sec
-      hmm step time: 5.5
-116 clusters with 2 procs
+          read from cache:  naive-seqs 776   logprobs 493
+                    calcd:         vtb   7        fwd  34
+                   merged:       hfrac   7     lratio   2
+             min-max time:  3.5 - 4.9 sec
+      hmm step time: 5.1
+118 clusters with 2 procs
     prepare_for_hmm: (0.0 sec)
     running 2 procs
-          read from cache:  naive-seqs 781   logprobs 601
-                    calcd:         vtb   3        fwd  15
-                   merged:       hfrac   1     lratio   2
-             min-max time:  1.7 - 2.8 sec
-      hmm step time: 2.9
-113 clusters with 2 procs
-    prepare_for_hmm: (0.0 sec)
-    running 2 procs
-          read from cache:  naive-seqs 784   logprobs 616
-                    calcd:         vtb   3        fwd   8
+          read from cache:  naive-seqs 785   logprobs 527
+                    calcd:         vtb   3        fwd  22
                    merged:       hfrac   3     lratio   0
-             min-max time:  1.6 - 1.7 sec
-      hmm step time: 1.8
-110 clusters with 1 proc
+             min-max time:  1.2 - 4.4 sec
+      hmm step time: 4.5
+115 clusters with 2 procs
+    prepare_for_hmm: (0.0 sec)
+    running 2 procs
+          read from cache:  naive-seqs 788   logprobs 549
+                    calcd:         vtb   5        fwd  14
+                   merged:       hfrac   5     lratio   1
+             min-max time:  1.4 - 6.9 sec
+      hmm step time: 7.0
+109 clusters with 1 proc
     prepare_for_hmm: (0.0 sec)
     running 1 proc
-          read from cache:  naive-seqs 787   logprobs 624
-                    calcd:         vtb   1        fwd  58
-                   merged:       hfrac   1     lratio   1
-                     time:  6.1 sec
-      hmm step time: 6.2
+          read from cache:  naive-seqs 795   logprobs 563
+                    calcd:         vtb   2        fwd  68
+                   merged:       hfrac   2     lratio   0
+                     time:  7.5 sec
+      hmm step time: 7.7
   [93mnote[0m not merging entire cpath history
-      loop time: 38.7
+      loop time: 52.9
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 10 procs
-                    calcd:         vtb 108        fwd   0
-             min-max time:  1.0 - 1.8 sec
-      hmm step time: 1.9
+                    calcd:         vtb 107        fwd   0
+             min-max time:  1.0 - 2.0 sec
+      hmm step time: 2.1
     read output
-  plotting performance (0.3 sec)
-        processed 108 hmm output lines with 500 sequences in 108 events  (0 failures)
+  plotting performance (0.2 sec)
+        processed 107 hmm output lines with 500 sequences in 107 events  (0 failures)
   --only-csv-plots not implemented for partition plots, so skipping
-      total time: 46.5
+      total time: 60.4
 [92mseed-partition-new-simu[0m          ./bin/partis partition --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --n-max-queries 500 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed-unique-id 4924829740908498546 --seed 1 --n-procs 10 --outfname test/new-results/seed-partition-new-simu.yaml
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
 smith-waterman
-  vsearch: 475 / 500 v annotations (25 failed) with 28 v genes in 0.1 sec
+  vsearch: 481 / 500 v annotations (19 failed) with 35 v genes in 0.1 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
       info for 500 / 500 = 1.000   (0 failed, 0 duplicates)
-      kept 287 (0.574) unproductive
-      removed 474 / 500 = 0.95 sequences with cdr3 length different from seed sequence (leaving 26)
+      kept 273 (0.546) unproductive
+      removed 466 / 500 = 0.93 sequences with cdr3 length different from seed sequence (leaving 34)
         water time: 0.3
 hmm
-   collapsed 26 queries into 17 clusters with identical naive seqs (0.0 sec)
-17 clusters with 10 procs
+   collapsed 34 queries into 25 clusters with identical naive seqs (0.0 sec)
+25 clusters with 10 procs
     prepare_for_hmm: (0.0 sec)
-       naive hfrac bounds: 0.015 0.105   (0.103 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+       naive hfrac bounds: 0.015 0.103   (0.099 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
     running 10 procs
-          read from cache:  naive-seqs 789   logprobs 682
-                    calcd:         vtb  13        fwd   5
-                   merged:       hfrac   2     lratio   0
-             min-max time:  0.1 - 0.4 sec
-      hmm step time: 0.5
-24 clusters with 7 procs
+          read from cache:  naive-seqs 797   logprobs 631
+                    calcd:         vtb  11        fwd   6
+                   merged:       hfrac   1     lratio   0
+             min-max time:  0.2 - 0.3 sec
+      hmm step time: 0.4
+33 clusters with 7 procs
     prepare_for_hmm: (0.0 sec)
     running 7 procs
-          read from cache:  naive-seqs 793   logprobs 687
-                    calcd:         vtb   0        fwd   2
+          read from cache:  naive-seqs 799   logprobs 635
+                    calcd:         vtb   0        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  0.0 - 0.3 sec
-      hmm step time: 0.4
-21 clusters with 5 procs
+             min-max time:  0.0 - 0.0 sec
+    nothing to merge into /tmp/dralph/hmms/508494/hmm_cached_info.csv
+      hmm step time: 0.1
+30 clusters with 5 procs
     prepare_for_hmm: (0.0 sec)
     running 5 procs
-          read from cache:  naive-seqs 793   logprobs 689
-                    calcd:         vtb   0        fwd   2
+          read from cache:  naive-seqs 799   logprobs 635
+                    calcd:         vtb   0        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  0.0 - 0.3 sec
-      hmm step time: 0.4
-      removed 18 sequences in unseeded clusters, split 5 seeded clusters into 8 singletons, and merged these into 3 clusters with identical naive seqs
-        new n_procs 1 (initial seqs/proc: 2.60   new seqs/proc: 3.00
-3 clusters with 1 proc
+             min-max time:  0.0 - 0.0 sec
+    nothing to merge into /tmp/dralph/hmms/508494/hmm_cached_info.csv
+      hmm step time: 0.1
+      removed 26 sequences in unseeded clusters, split 5 seeded clusters into 8 singletons, and merged these into 2 clusters with identical naive seqs
+        new n_procs 1 (initial seqs/proc: 3.40   new seqs/proc: 2.00
+2 clusters with 1 proc
     prepare_for_hmm: (0.0 sec)
     running 1 proc
-          read from cache:  naive-seqs 793   logprobs 691
-                    calcd:         vtb   4        fwd   5
-                   merged:       hfrac   2     lratio   0
+          read from cache:  naive-seqs 799   logprobs 635
+                    calcd:         vtb   3        fwd   3
+                   merged:       hfrac   1     lratio   0
                      time:  0.3 sec
       hmm step time: 0.3
-      loop time: 1.6
+      loop time: 0.9
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 1 proc
@@ -293,28 +405,28 @@ getting annotations for final partition
       hmm step time: 0.2
     read output
         processed 1 hmm output lines with 8 sequences in 1 events  (0 failures)
-      total time: 2.5
+      total time: 1.9
 [92mvsearch-partition-new-simu[0m       ./bin/partis partition --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --naive-vsearch --n-max-queries 500 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed 1 --n-procs 10 --outfname test/new-results/vsearch-partition-new-simu.yaml
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
 smith-waterman
-  vsearch: 475 / 500 v annotations (25 failed) with 28 v genes in 0.2 sec
+  vsearch: 481 / 500 v annotations (19 failed) with 35 v genes in 0.2 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
       info for 500 / 500 = 1.000   (0 failed, 0 duplicates)
-      kept 287 (0.574) unproductive
+      kept 273 (0.546) unproductive
         water time: 0.3
 hmm
-       naive hfrac bounds: 0.031 0.031   (0.103 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
-        collapsed 500 sequences into 314 unique naive sequences
-    using hfrac bound for vsearch 0.031
+       naive hfrac bounds: 0.030 0.030   (0.099 mean mutation in parameter dir test/new-results/test/parameters/simu/hmm)
+        collapsed 500 sequences into 323 unique naive sequences
+    using hfrac bound for vsearch 0.030
     running vsearch 22 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . 
-      vsearch time: 1.1
+      vsearch time: 1.2
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
     running 10 procs
-                    calcd:         vtb 128        fwd   0
-             min-max time:  1.2 - 1.8 sec
+                    calcd:         vtb 130        fwd   0
+             min-max time:  1.3 - 1.9 sec
       hmm step time: 2.0
     read output
-        processed 128 hmm output lines with 500 sequences in 128 events  (0 failures)
-      total time: 4.0
+        processed 130 hmm output lines with 500 sequences in 130 events  (0 failures)
+      total time: 4.1

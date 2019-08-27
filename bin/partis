@@ -438,6 +438,7 @@ subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 's
 subargs['view-alternative-annotations'].append({'name' : '--print-all-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to printing each alternative naive seq and gene call, with information on which clusters support its correctness, also print the annotations for all of these clusters below each naive sequence and gene call.'}})
 subargs['view-alternative-annotations'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['view-output'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+subargs['view-output'].append({'name' : '--duplicate-resolution-key', 'kwargs' : {'help' : 'When reading output files with more than one annotation for each cluster (a.t.m., this means linearham output files), this specifies the key in the annotation to use to further distinguish each annotation for each cluster (by adding it to the uidstr). A good choice is \'logprob\'.'}})
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 

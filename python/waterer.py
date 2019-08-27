@@ -614,7 +614,7 @@ class Waterer(object):
         overlap, available_space = self.get_overlap_and_available_space(rpair, best, qinfo['qrbounds'])
 
         if debug:
-            lb = qinfo['qrbounds'][l_gene]
+            lb = qinfo['qrbounds'][l_gene]  # shorthands
             rb = qinfo['qrbounds'][r_gene]
             print '   %schecking %s/%s boundary overlap status' % ('recursively ' if recursed else '', l_reg, r_reg)
             print '       %s %s' % (' ', qinfo['seq'])
@@ -633,20 +633,21 @@ class Waterer(object):
 
         if not recursed and status == 'nonsense' and l_reg == 'd':  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
             assert l_reg == 'd' and r_reg == 'j'
+            qrb, glb = [qinfo[t+'bounds'] for t in ('qr', 'gl')]  # shorthands
             if debug:
                 print '  %s: synthesizing d match' % qinfo['name']
-                if qinfo['qrbounds'][r_gene][0] > qinfo['qrbounds'][l_gene][0]:  # in most (maybe all) cases we get here, it's because the d match is to the right of the j match
+                if qrb[r_gene][0] > qrb[l_gene][0]:  # in most (maybe all) cases we get here, it's because the d match is to the right of the j match
                     print '   huh, i should only get here if the start of the r_gene (j) is to the *left* of the start of the l_gene (d) [i.e. they\'re on the wrong side of each other], but here it looks like the opposite is true. Not really sure it\'s a problem, but it\'s probably worth looking in to'
-            v_end = qinfo['qrbounds'][best['v']][1]
-            lpos = v_end + (qinfo['qrbounds'][r_gene][0] - v_end) / 2  # halfway between end of v and start of j
-            qinfo['qrbounds'][l_gene] = (lpos, lpos + 1)  # swap whatever crummy nonsense d match we have now for a one-base match to the left of the j match (since unlike d, the j match is probably decent)
+            v_end = qrb[best['v']][1]
+            lpos = v_end + (qrb[r_gene][0] - v_end) / 2  # halfway between end of v and start of j
+            qrb[l_gene] = (lpos, lpos + 1)  # swap whatever crummy nonsense d match we have now for a one-base match to the left of the j match (since unlike d, the j match is probably decent)
             d_midpoint = len(self.glfo['seqs'][l_reg][l_gene]) / 2
-            qinfo['glbounds'][l_gene] = (d_midpoint, d_midpoint + 1)
+            glb[l_gene] = (d_midpoint, d_midpoint + 1)
             if l_reg in qinfo['new_indels']:  # d is not one base long, so it can't very well have an indel (also, we just moved it to a completely different location)
                 del qinfo['new_indels'][l_reg]
-            if qinfo['qrbounds'][l_gene][1] > qinfo['qrbounds'][r_gene][0]:  # don't need to do anything to the j unless there was no space between the v and j (jeez this probably never happens any more -- it's here because I used to put the synthetic d base at the first position of the j match)
-                qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + 1, qinfo['qrbounds'][r_gene][1])  # this'll give a zero-length match if the match was originally length 1, but that should just result in nonsense bounds below I think, so it should be ok
-                qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + 1, qinfo['glbounds'][r_gene][1])
+            if qrb[l_gene][1] > qrb[r_gene][0]:  # if left side of j needs adjusting (won't need to do this unless there was no space between the v and j, and this probably never happens any more -- it's here because I used to put the synthetic d base at the first position of the j match)
+                qrb[r_gene] = (qrb[r_gene][0] + 1, qrb[r_gene][1])  # this'll give a zero-length match if the match was originally length 1, but that should just result in nonsense bounds below I think, so it should be ok
+                glb[r_gene] = (glb[r_gene][0] + 1, glb[r_gene][1])
                 if r_reg in qinfo['new_indels']:  # start of j match moves one base to right, so have to adjust its indelfo
                     ifo = qinfo['new_indels'][r_reg]
                     ifo['qr_gap_seq'] = ifo['qr_gap_seq'][1 : ]
@@ -672,16 +673,28 @@ class Waterer(object):
         r_reg = rpair['right']
         l_gene = best[l_reg]
         r_gene = best[r_reg]
-
+        qrb, glb = [qinfo[t+'bounds'] for t in ('qr', 'gl')]
         # ----------------------------------------------------------------------------------------
         def dbg_print(l_length, r_length, l_portion, r_portion):
+            lb = qrb[l_gene]  # shorthands
+            rb = qrb[r_gene]
             print '      %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion)
-            l_gene_seq = qinfo['seq'][qinfo['qrbounds'][l_gene][0] : qinfo['qrbounds'][l_gene][1] - l_portion]
-            r_gene_seq = qinfo['seq'][qinfo['qrbounds'][r_gene][0] + r_portion : qinfo['qrbounds'][r_gene][1]]
-            l_offset = min(qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][l_gene][0])
-            print '                                    %s%s' % ((qinfo['qrbounds'][l_gene][0] - l_offset) * ' ', l_gene_seq)
-            print '                                    %s%s' % ((qinfo['qrbounds'][r_gene][0] + r_portion - l_offset) * ' ', r_gene_seq)
-
+            l_gene_seq = qinfo['seq'][lb[0] : lb[1] - l_portion]
+            r_gene_seq = qinfo['seq'][rb[0] + r_portion : rb[1]]
+            l_offset = min(rb[0] + r_portion, lb[0])
+            print '                                    %s%s' % ((lb[0] - l_offset) * ' ', l_gene_seq)
+            print '                                    %s%s' % ((rb[0] + r_portion - l_offset) * ' ', r_gene_seq)
+        # ----------------------------------------------------------------------------------------
+        def shift_bounds(l_portion, r_portion):  # shift match boundaries of best left gene <l_gene> and best right gene <r_gene> according to <l_portion> and <r_portion>, then also shift other/non-best gene boundaries
+            for gtmp in qrb:
+                for bdict in (qrb, glb):
+                    istart, istop = bdict[gtmp]
+                    if utils.get_region(gtmp) == l_reg:
+                        bdict[gtmp] = (istart, max(istart, istop - l_portion))  # max() is only necessary for non-best genes
+                    elif utils.get_region(gtmp) == r_reg:
+                        bdict[gtmp] = (min(istop, istart + r_portion), istop)  # min() is only necessary for non-best genes
+                    else:
+                        continue
         # ----------------------------------------------------------------------------------------
         def check_indel_interference(l_length, r_length, l_portion, r_portion):
             if l_reg in qinfo['new_indels'] and l_portion > 0:
@@ -694,7 +707,8 @@ class Waterer(object):
                     return True
             return False
 
-        overlap, available_space = self.get_overlap_and_available_space(rpair, best, qinfo['qrbounds'])
+        # ----------------------------------------------------------------------------------------
+        overlap, available_space = self.get_overlap_and_available_space(rpair, best, qrb)
 
         if overlap <= 0:  # nothing to do, they're already consistent
             print 'shouldn\'t get here any more if there\'s no overlap'
@@ -704,17 +718,17 @@ class Waterer(object):
             raise Exception('overlap %d bigger than available space %d between %s and %s for %s' % (overlap, available_space, l_reg, r_reg, qinfo['name']))
 
         if debug:
-            print '   fixing %s%s overlap:  %d-%d overlaps with %d-%d by %d' % (l_reg, r_reg, qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][l_gene][1], qinfo['qrbounds'][r_gene][0], qinfo['qrbounds'][r_gene][1], overlap)
+            print '   fixing %s%s overlap:  %d-%d overlaps with %d-%d by %d' % (l_reg, r_reg, qrb[l_gene][0], qrb[l_gene][1], qrb[r_gene][0], qrb[r_gene][1], overlap)
 
-        l_length = qinfo['qrbounds'][l_gene][1] - qinfo['qrbounds'][l_gene][0]  # initial length of lefthand gene match
-        r_length = qinfo['qrbounds'][r_gene][1] - qinfo['qrbounds'][r_gene][0]  # and same for the righthand one
+        l_length = qrb[l_gene][1] - qrb[l_gene][0]  # initial length of lefthand gene match
+        r_length = qrb[r_gene][1] - qrb[r_gene][0]  # and same for the righthand one
         l_portion, r_portion = 0, 0  # portion of the initial overlap that we give to each side
         if debug:
             print '        lengths        portions     '
             dbg_print(l_length, r_length, l_portion, r_portion)
         while l_portion + r_portion < overlap:
             if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
-                raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (qinfo['name'], qinfo['qrbounds'][l_gene], qinfo['qrbounds'][r_gene]))
+                raise Exception('both lengths went to one without resolving overlap for %s: %s %s' % (qinfo['name'], qrb[l_gene], qrb[r_gene]))
             elif l_length > 1 and r_length > 1:  # if both have length left, alternate back and forth
                 if (l_portion + r_portion) % 2 == 0:
                     l_portion += 1  # give one base to the left
@@ -740,10 +754,7 @@ class Waterer(object):
         if debug:
             print '      %s apportioned %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion)
         assert l_portion + r_portion == overlap
-        qinfo['qrbounds'][l_gene] = (qinfo['qrbounds'][l_gene][0], qinfo['qrbounds'][l_gene][1] - l_portion)
-        qinfo['glbounds'][l_gene] = (qinfo['glbounds'][l_gene][0], qinfo['glbounds'][l_gene][1] - l_portion)
-        qinfo['qrbounds'][r_gene] = (qinfo['qrbounds'][r_gene][0] + r_portion, qinfo['qrbounds'][r_gene][1])
-        qinfo['glbounds'][r_gene] = (qinfo['glbounds'][r_gene][0] + r_portion, qinfo['glbounds'][r_gene][1])
+        shift_bounds(l_portion, r_portion)
         if l_reg in qinfo['new_indels'] and l_portion > 0:  # it would be nice to check indel consistency after doing this, but my indel consistency checkers seem to only operate on <line>s, and I don't have one of those yet
             ifo = qinfo['new_indels'][l_reg]
             ifo['qr_gap_seq'] = ifo['qr_gap_seq'][ : -l_portion]  # this should really check that l_portion is shorter than the qr gap seq... but it _should_ be impossible
@@ -905,7 +916,7 @@ class Waterer(object):
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
-        # s-w allows d and j matches to overlap, so we need to apportion the disputed bases
+        # s-w allows d and j matches to overlap, so we need to apportion the disputed bases UPDATE ok it turns out ig-sw only allowed overlaps because it had a bug, and the bug is fixed (https://github.com/psathyrella/partis/commit/471e5eac6d2b0fbdbb2b6024c81af14cdc3d9399), so maybe this stuff will never get used now.
         for rpair in utils.region_pairs(self.glfo['locus']):
             overlap_status = self.check_boundaries(rpair, qinfo, best)  #, debug=self.debug>1)  # I think all this overlap fixing only adjusts the bounds for the best match, but I guess that's ok? It's certainly been like that for ages
             if overlap_status == 'overlap':

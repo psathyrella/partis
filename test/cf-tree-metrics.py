@@ -228,7 +228,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_plot=75., debug=False):
+def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
     vlabels = {
         'obs_frac' : 'fraction sampled',
         'n-sim-seqs-per-gen' : 'N/gen',
@@ -266,8 +266,8 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
                 else:
                     return strfcn(vval)
         pvnames = sorted(set(varnames) - set(['seed', xvar]))
-        if pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
-            pvnames = ['obs_frac']
+        if args.legend_var is not None:  # pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
+            pvnames = [args.legend_var]  # ['obs_frac']
         pvkey = '; '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
         pvlabel[0] = '; '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey
@@ -283,10 +283,10 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
     def add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=None):
         diff_vals = get_diff_vals(yamlfo, iclust=iclust)
         if len(diff_vals) == 0:
-            missing_vstrs['empty'].append(vstrs)  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
+            missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
             return
         diff_to_perfect = numpy.mean(diff_vals)
-        tau = get_vlval(vlists, varnames, xvar)
+        tau = get_vlval(vlists, varnames, xvar)  # not necessarily tau anymore
         pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
         if args.n_replicates > 1:  # need to average over the replicates/clusters (NOTE I'm not really sure this will work if there's only one replicate but more than one event per proc)
             if args.n_sim_events_per_proc is not None:
@@ -324,7 +324,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             with open(yfname) as yfile:
                 yamlfo = json.load(yfile)  # too slow with yaml
         except IOError:  # os.path.exists() is too slow with this many files
-            missing_vstrs['missing'].append(vstrs)
+            missing_vstrs['missing'].append((None, vstrs))
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
         yval_key = 'mean_%s_ptiles' % ('affy' if ptilestr == 'affinity' else ptilestr)  # arg, would've been nice if that was different
@@ -340,13 +340,13 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             add_plot_vals(yamlfo, vlists, varnames, obs_frac)
 
     # print info about missing and empty results
-    for mkey, vstrs_list in missing_vstrs.items():
+    for mkey, vstrs_list in missing_vstrs.items():  # ok now it's iclust and vstrs list, but what tf am I going to name that
         if len(vstrs_list) == 0:
             continue
         print '  %s:' % mkey
-        print '     %s' % get_varname_str()
-        for vstrs in vstrs_list:
-            print '      %s' % get_varval_str(vstrs)
+        print '     %s   iclust' % get_varname_str()
+        for iclust, vstrs in vstrs_list:
+            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, ptilestr))
 
     # average over the replicates/clusters
     if (args.n_replicates > 1 or args.n_sim_events_per_proc is not None) and len(plotvals) > 0:
@@ -359,17 +359,20 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
         for pvkey, ofvals in plotvals.items():
             mean_vals, err_vals = [], []
-            ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should correspond to 'missing')
-            assert len(set([len(ofvals[i]) for i in ofvals])) == 1
+            ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
             n_used = []  # just for dbg
-            for ipair in range(len(ofvals.values()[0])):  # NOTE if this first one is ever empty this will probably break
-                tau = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
-                assert len(set(tau)) == 1  # all of 'em better have the same tau
-                tau = tau[0]
-                ltmp = [ofvals[i][ipair][1] for i in ofvals]
+            tmpvaldict = collections.OrderedDict()  # rearrange them into a dict keyed by the appropriate tau/xval
+            for ikey in ofvals:  # <ikey> is an amalgamation of iseed and icluster, e.g. '20-0'
+                for pairvals in ofvals[ikey]:
+                    tau, tval = pairvals
+                    tkey = tuple(tau) if isinstance(tau, list) else tau  # if it's actually tau, it will be a single value, but if xvar is set to, say, n-sim-seqs-per-gen then it will be a list
+                    if tkey not in tmpvaldict:
+                        tmpvaldict[tkey] = []
+                    tmpvaldict[tkey].append(tval)
+            for tau, ltmp in tmpvaldict.items():  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
                 mean_vals.append((tau, numpy.mean(ltmp)))
                 err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))
-                n_used.append(len([ofvals[i][ipair][1] for i in ofvals]))
+                n_used.append(len(ltmp))
             plotvals[pvkey] = mean_vals
             errvals[pvkey] = err_vals
             if debug:
@@ -390,13 +393,17 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar='lb-tau', min_ptile_to_p
             ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=pvkey, alpha=0.7, linewidth=4, markersize=markersize, marker='.')  #, title='position ' + str(position))
         else:
             ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
-    ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+    log = ''
+    if xvar == 'lb-tau':
+        ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+    if xvar == 'carry-cap':
+        log = 'x'
     plotting.mpl_finish(ax, get_comparison_plotdir(),
                         '%s-%s-ptiles-obs-frac-vs-lb-tau' % (ptilestr, metric),
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
                         title=metric.upper(), leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
-                        xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
+                        xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16, log=log,
     )
 
 # ----------------------------------------------------------------------------------------
@@ -493,13 +500,14 @@ parser.add_argument('--n-max-procs', type=int)  # NOTE that with slurm this thin
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
-parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
+parser.add_argument('--final-plot-xvar', default='lb-tau')
+parser.add_argument('--legend-var')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
 # specific to get-lb-bounds:
@@ -507,6 +515,7 @@ parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generat
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
+parser.add_argument('--make-plots', action='store_true')
 args = parser.parse_args()
 
 args.scan_vars = {
@@ -554,9 +563,9 @@ for action in args.actions:
         get_tree_metrics(args)
     elif action == 'plot' and not args.dry:
         utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
-        procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel))  # time is almost entirely due to file open + json.load
+        procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel, args.final_plot_xvar))  # time is almost entirely due to file open + json.load
                  for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff]
         utils.run_proc_functions(procs)
         # for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff:
-        #     make_plots(args, metric, ptilestr, ptilelabel)
+        #     make_plots(args, metric, ptilestr, ptilelabel, args.final_plot_xvar)
         #     break

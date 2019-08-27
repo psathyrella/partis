@@ -235,12 +235,12 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
   kv_init(result);
   kv_resize(aln_t, result, kv_size(targets));
 
-  uint8_t *read_num = calloc(read_len, sizeof(uint8_t));
+  uint8_t *read_num = calloc(read_len, sizeof(uint8_t));  // vector of integers encoding the read sequence (i.e. one integer for each character in the read)
 
   for (int k = 0; k < read_len; ++k)
     read_num[k] = conf->table[(int)read->seq.s[k]];
 
-  // Align to each target
+  // first align entire read against first batch of targets (i.e. the v genes)
   kswq_t *qry = NULL;
   int min_score = -1000;
   int max_score = 0;
@@ -274,13 +274,14 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
   drop_low_scores(&result, 0, conf->max_drop);
 
   // Extra references - qe points to the exact end of the sequence
-  int qend = kv_A(result, 0).loc.qe + 1;
+  int qend = kv_A(result, 0).loc.qe + 1;  // + 1 converts to python slice conventions
   int read_len_trunc = read_len - qend;
-  uint8_t *read_num_trunc = read_num + qend;
+  uint8_t *read_num_trunc = read_num + qend;  // truncate the encoded read sequence by incremeting the start position (well, pointer to)
 
   free(qry);
   qry = NULL;
 
+  // then align any part of the read that remains after truncation against any targets in <extra_targets> (i.e., presumably, first against j [after which we truncate the j match] and then against d)
   if (read_len_trunc > 2) {
     for (size_t i = 0; i < n_extra_targets; i++) {
       const size_t idx = n_extra_targets - i - 1;
@@ -302,10 +303,8 @@ static aln_v align_read(const kseq_t *read, const kseq_v targets,
       }
       drop_low_scores(&result, init_count, conf->max_drop);
 
-      /* Truncate */
-      const int alen =
-          kv_A(result, init_count).loc.qe - kv_A(result, init_count).loc.qb;
-      read_len_trunc = read_len_trunc - alen;
+      // truncate read/query sequence by adjusting the length that we pass to the aligner (i.e. we first do j, then effectively remove the j portion of the read by decreasing <read_len_trunc>)
+      read_len_trunc = kv_A(result, init_count).loc.qb - qend;
       free(qry);
       qry = NULL;
     }

@@ -489,7 +489,7 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
 
     zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0 and not e.head_node.is_leaf()]  # zero len edges above leaves are fine, since leaves don't count for lbr
     if len(zero_len_edge_nodes) > 0:
-        print '    %s found %d zero length edges in tree, which means lb ratio may mis-categorize branches: %s' % (utils.color('red', 'warning'), len(zero_len_edge_nodes), ' '.join([n.taxon.label for n in zero_len_edge_nodes]))
+        print '    %s found %d zero length internal edges in tree, which means lb ratio may mis-categorize branches: %s' % (utils.color('red', 'warning'), len(zero_len_edge_nodes), ' '.join([n.taxon.label for n in zero_len_edge_nodes]))
         # for node in zero_len_edge_nodes:  # we don't really want to modify the tree this drastically here (and a.t.m. this causes a crash later on), but I'm leaving it as a placeholder for how to remove zero length edges
         #     collapse_nodes(new_dtree, node.taxon.label, node.parent_node.taxon.label)  # keep the child, since it can be a leaf
         # print utils.pad_lines(get_ascii_tree(dendro_tree=new_dtree))
@@ -545,6 +545,11 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     if use_multiplicities:
         print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
 
+    if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
+        tmp_depth = numpy.mean(get_leaf_depths(dtree).values())
+        tmp_shm = numpy.mean(annotation['mut_freqs'])
+        if abs(tmp_depth - tmp_shm) / tmp_depth > 0.5:  # 0.5 is entirely arbitrary, but in a couple test trees the difference seems to be less than that. Note that I don't know *why* the darn things are so different.
+            print '  %s mean leaf depth in tree %.4f differs from mean mut freq %.4f by %.0f%% (more than 50%%)' % (utils.color('yellow', 'warning'), tmp_depth, tmp_shm, 100 * abs(tmp_depth - tmp_shm) / tmp_depth)
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong), but no annotation was passed in')
