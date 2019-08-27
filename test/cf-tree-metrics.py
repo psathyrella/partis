@@ -266,8 +266,8 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
                 else:
                     return strfcn(vval)
         pvnames = sorted(set(varnames) - set(['seed', xvar]))
-        if pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
-            pvnames = ['obs_frac']
+        if args.legend_var is not None:  # pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
+            pvnames = args.legend_var  # ['obs_frac']
         pvkey = '; '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
         pvlabel[0] = '; '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey
@@ -390,14 +390,17 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
             ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=pvkey, alpha=0.7, linewidth=4, markersize=markersize, marker='.')  #, title='position ' + str(position))
         else:
             ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
+    log = ''
     if xvar == 'lb-tau':
         ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+    if xvar == 'carry-cap':
+        log = 'x'
     plotting.mpl_finish(ax, get_comparison_plotdir(),
                         '%s-%s-ptiles-obs-frac-vs-lb-tau' % (ptilestr, metric),
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
                         title=metric.upper(), leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
-                        xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
+                        xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16, log=log,
     )
 
 # ----------------------------------------------------------------------------------------
@@ -501,6 +504,7 @@ parser.add_argument('--dry', action='store_true')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--final-plot-xvar', default='lb-tau')
+parser.add_argument('--legend-var')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
 # specific to get-lb-bounds:
