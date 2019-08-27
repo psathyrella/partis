@@ -28,6 +28,6 @@ common="--only-csv-plots --slurm --n-sim-events-per-proc 10"
 # label=vary-selection-strength-v0
 # echo $bin --label $label --n-replicates 30 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --selection-strength-list 0.1:0.4:0.7:0.8:0.9:1.0
 # label=carry-cap-vs-n-obs-v0
-# echo $bin --label $label --n-replicates 30 $common --carry-cap-list 260:260:500:500:700:700:1500:1500:3000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 13:26:25:50:35:70:75:150:150:300 --lb-tau-list 0.0025 --zip-vars carry-cap:n-sim-seqs-per-gen --final-plot-xvar carry-cap
+# echo $bin --label $label --n-replicates 30 $common --carry-cap-list 260:260:500:500:700:700:1500:1500:3000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 13:26:25:50:35:70:75:150:150:300 --lb-tau-list 0.0025 --zip-vars carry-cap:n-sim-seqs-per-gen --final-plot-xvar carry-cap --legend-var obs_frac
 label=carry-cap-vs-n-obs-v1
 echo $bin --label $label --n-replicates 30 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:30:75:150:500 --lb-tau-list 0.0025 --final-plot-xvar carry-cap

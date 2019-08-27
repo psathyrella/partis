@@ -267,7 +267,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
                     return strfcn(vval)
         pvnames = sorted(set(varnames) - set(['seed', xvar]))
         if args.legend_var is not None:  # pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
-            pvnames = args.legend_var  # ['obs_frac']
+            pvnames = [args.legend_var]  # ['obs_frac']
         pvkey = '; '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
         pvlabel[0] = '; '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey
@@ -286,7 +286,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
             missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
             return
         diff_to_perfect = numpy.mean(diff_vals)
-        tau = get_vlval(vlists, varnames, xvar)
+        tau = get_vlval(vlists, varnames, xvar)  # not necessarily tau anymore
         pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
         if args.n_replicates > 1:  # need to average over the replicates/clusters (NOTE I'm not really sure this will work if there's only one replicate but more than one event per proc)
             if args.n_sim_events_per_proc is not None:
@@ -359,17 +359,20 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
             print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
         for pvkey, ofvals in plotvals.items():
             mean_vals, err_vals = [], []
-            ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should correspond to 'missing')
-            assert len(set([len(ofvals[i]) for i in ofvals])) == 1
+            ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
             n_used = []  # just for dbg
-            for ipair in range(len(ofvals.values()[0])):  # NOTE if this first one is ever empty this will probably break
-                all_taus = [ofvals[i][ipair][0] for i in ofvals]  # ick, now I wish I hadn't done it as a 2-tuple
-                assert all_taus.count(all_taus[0]) == len(all_taus)  # all of 'em better have the same tau (can't use a set since when it's not actually tau, it can be a list)
-                tau = all_taus[0]
-                ltmp = [ofvals[i][ipair][1] for i in ofvals]
+            tmpvaldict = collections.OrderedDict()  # rearrange them into a dict keyed by the appropriate tau/xval
+            for ikey in ofvals:  # <ikey> is an amalgamation of iseed and icluster, e.g. '20-0'
+                for pairvals in ofvals[ikey]:
+                    tau, tval = pairvals
+                    tkey = tuple(tau) if isinstance(tau, list) else tau  # if it's actually tau, it will be a single value, but if xvar is set to, say, n-sim-seqs-per-gen then it will be a list
+                    if tkey not in tmpvaldict:
+                        tmpvaldict[tkey] = []
+                    tmpvaldict[tkey].append(tval)
+            for tau, ltmp in tmpvaldict.items():  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
                 mean_vals.append((tau, numpy.mean(ltmp)))
                 err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))
-                n_used.append(len([ofvals[i][ipair][1] for i in ofvals]))
+                n_used.append(len(ltmp))
             plotvals[pvkey] = mean_vals
             errvals[pvkey] = err_vals
             if debug:
