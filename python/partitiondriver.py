@@ -420,10 +420,10 @@ class PartitionDriver(object):
                     post_label += ['   partition%s: %s' % (utils.plural(len(iparts)), ipartstr)]
                     if cpath.i_best in iparts:
                         post_label += [', %s' % utils.color('yellow', 'best')]
-                    if seed_uid is not None and seed_uid in line['unique_ids']:
-                        post_label += [', %s' % utils.color('red', 'seed')]
-                    if self.args.extra_print_key is not None:
-                        post_label += ['   %s: %s' % (self.args.extra_print_key, line[self.args.extra_print_key])]
+                if seed_uid is not None and seed_uid in line['unique_ids']:
+                    post_label += [', %s' % utils.color('red', 'seed')]
+                if self.args.extra_print_key is not None:
+                    post_label += ['   %s: %s' % (self.args.extra_print_key, line[self.args.extra_print_key])]
                 utils.print_reco_event(line, extra_str='  ', label=''.join(label), post_label=''.join(post_label), seed_uid=seed_uid)
 
     # ----------------------------------------------------------------------------------------
