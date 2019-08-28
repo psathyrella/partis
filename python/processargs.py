@@ -215,7 +215,7 @@ def process(args):
         if utils.getsuffix(args.outfname) not in ['.csv', '.yaml']:
             raise Exception('unhandled --outfname suffix %s' % utils.getsuffix(args.outfname))
         if utils.getsuffix(args.outfname) != '.yaml':
-            print '  %s --outfname uses deprecated file format %s. This will still work fine, but the new default .yaml format is much cleaner, and includes annotations, partitions, and germline info in the same file.' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
+            print '  %s --outfname uses deprecated file format %s. This will still mostly work ok, but the new default .yaml format doesn\'t have to do all the string conversions by hand (so is less buggy), and includes annotations, partitions, and germline info in the same file (so you don\'t get crashes or inconsistent results if you don\'t keep track of what germline info goes with what output file).' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
         if args.action in ['view-annotations', 'view-partitions'] and utils.getsuffix(args.outfname) == '.yaml':
             raise Exception('have to use \'view-output\' action to view .yaml output files')
 
