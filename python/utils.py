@@ -379,8 +379,8 @@ io_column_configs = {
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns + ['has_shm_indels', 'invalid'],
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches', 'alternative-annotations'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
-    'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions],
-    'lists' : [k for k in linekeys['per_seq'] if k not in ['indelfos', 'all_matches']],  # indelfos and all_matches are lists, but we can't just split them by colons since they have colons within the dict string (note that some are in both 'lists' and 'lists-of-lists', e.g. 'duplicates')
+    'lists-of-lists' : ['duplicates'] + [r + '_per_gene_support' for r in regions],  # NOTE that some keys are in both 'lists' and 'lists-of-lists', e.g. 'duplicates'. This is now okish, since the ordering in the if/else statements is now the same in both get_line_for_output() and process_input_line(), but it didn't used to be so there's probably files lying around that have it screwed up). It would be nice to not have it this way, but (especially for backwards compatibility) it's probably best not to mess with it.
+    'lists' : [k for k in linekeys['per_seq'] if k not in ['indelfos', 'all_matches']],  # indelfos and all_matches are lists, but we can't just split them by colons since they have colons within the dict string
 }
 
 # NOTE these are all *input* conversion functions (for ouput we mostly just call str())
@@ -405,7 +405,8 @@ def get_annotation_dict(annotation_list, duplicate_resolution_key=None):
         uidstr = ':'.join(line['unique_ids'])
         if uidstr in annotation_dict or duplicate_resolution_key is not None:  # if <duplicate_resolution_key> was specified, but it wasn't specified properly (e.g. if it's not sufficient to resolve duplicates), then <uidstr> won't be in <annotation_dict>
             if duplicate_resolution_key is None:
-                raise Exception('multiple annotations for the same cluster, but no duplication resolution key was specified: %s' % uidstr)
+                print '  %s multiple annotations for the same cluster, but no duplication resolution key was specified, so returning None for annotation dict (which is fine, as long as you\'re not then trying to use it)' % color('yellow', 'warning')
+                return None
             else:
                 uidstr = '%s-%s' % (uidstr, line[duplicate_resolution_key])
                 if uidstr in annotation_dict:
@@ -2362,6 +2363,9 @@ def process_input_line(info, skip_literal_eval=False):
         info['all_matches'] = [info['all_matches']]
     # make sure everybody's the same lengths
     for key in [k for k in info if k in io_column_configs['lists']]:
+        if key == 'duplicates' and len(info[key]) != len(info['unique_ids']) and len(info[key]) == 1:  # fix problem caused by 'duplicates' being in both 'lists' and 'lists-of-lists', combined with get_line_for_output() and this fcn having the if/else blocks in opposite order (fixed now, but some files are probably lying around with the whacked out formatting)
+            info[key] = info[key][0]
+            info[key] = [ast.literal_eval(v) for v in info[key]]  # specifically, in get_line_for_output() 'lists' was first in the if/else block, so the list of duplicates for each sequence was str() converted rather than being converted to colon/semicolon separated string
         if len(info[key]) != len(info['unique_ids']):
             raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
 
@@ -2445,14 +2449,14 @@ def get_line_for_output(headers, info, glfo=None):
         if key in io_column_configs['floats']:
             str_fcn = repr  # keeps it from losing precision (we only care because we want it to match expectation if we read it back in)
 
-        if key in io_column_configs['lists']:
-            outfo[key] = ':'.join([str_fcn(v) for v in outfo[key]])
-        elif key in io_column_configs['lists-of-lists']:
+        if key in io_column_configs['lists-of-lists']:
             if '_per_gene_support' in key:
                 outfo[key] = outfo[key].items()
             for isl in range(len(outfo[key])):
                 outfo[key][isl] = ':'.join([str_fcn(s) for s in outfo[key][isl]])
             outfo[key] = ';'.join(outfo[key])
+        elif key in io_column_configs['lists']:
+            outfo[key] = ':'.join([str_fcn(v) for v in outfo[key]])
         else:
             outfo[key] = str_fcn(outfo[key])
 
