@@ -803,7 +803,7 @@ def update_line(line, updates, glfo, debug=False):
     """ update <line> using <updates> dict. Modifies line. """
     remove_all_implicit_info(line)
     line.update(updates)
-    add_implicit_info(glfo, line, check_line_keys=True)  # TODO remove check_line_keys (set to debug?)
+    add_implicit_info(glfo, line, check_line_keys=debug)
     return line
 
 # ----------------------------------------------------------------------------------------
