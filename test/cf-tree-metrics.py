@@ -431,6 +431,8 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --%s %s' % (vname, vstr)
         if args.n_sim_events_per_proc is not None:
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
+        if args.dont_observe_common_ancestors:
+            cmd += ' --dont-observe-common-ancestors'
         if args.overwrite:
             cmd += ' --overwrite'
         if args.only_csv_plots:
@@ -497,6 +499,7 @@ parser.add_argument('--obs-times-list', default='125,150', help='colon-separated
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
 parser.add_argument('--selection-strength-list', default='1.0')
+parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)

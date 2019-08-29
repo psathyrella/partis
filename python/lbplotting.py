@@ -91,24 +91,28 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_kd_vals(plotdir, event):
-    n_muts, kd_changes = [], []
+    kd_changes = []
     dtree = treeutils.get_dendro_tree(treestr=event['tree'])
     for node in dtree.preorder_internal_node_iter():
+        if node.taxon.label not in event['unique_ids']:
+            continue
+        inode = event['unique_ids'].index(node.taxon.label)
+        node_affinity = event['affinities'][inode]
         for child in node.child_nodes():
-            inode = event['unique_ids'].index(node.taxon.label)
+            if child.taxon.label not in event['unique_ids']:
+                continue
             ichild = event['unique_ids'].index(child.taxon.label)
-            node_affinity = event['affinities'][inode]
             child_affinity = event['affinities'][ichild]
-            n_muts.append(utils.hamming_distance(event['input_seqs'][inode], event['input_seqs'][ichild]))
             kd_changes.append(1./child_affinity - 1./node_affinity)
 
-    hist = Hist(30, min(kd_changes), max(kd_changes))
-    for val in kd_changes:
-        hist.fill(val)
-    fig, ax = plotting.mpl_init()
-    hist.mpl_plot(ax, square_bins=True, errors=False)  #remove_empty_bins=True)
-    plotname = 'kd-changes'
-    plotting.mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches', log='y') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    if len(kd_changes) > 0:
+        hist = Hist(30, min(kd_changes), max(kd_changes))
+        for val in kd_changes:
+            hist.fill(val)
+        fig, ax = plotting.mpl_init()
+        hist.mpl_plot(ax, square_bins=True, errors=False)  #remove_empty_bins=True)
+        plotname = 'kd-changes'
+        plotting.mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches', log='y') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
     plotvals = {'shm' : [], 'kd_vals' : []}
     for iseq, uid in enumerate(event['unique_ids']):
@@ -604,7 +608,8 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     cmdstr += ' --lb-metric %s' % lb_metric
     cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
     # cmdstr += ' --lb-tau %f' % lb_tau
-    cmdstr += ' --log-lbr'
+    if lb_metric == 'lbr':
+        cmdstr += ' --log-lbr'
     if tree_style is not None:
         cmdstr += ' --tree-style %s' % tree_style
     cmdstr, _ = utils.run_ete_script(cmdstr, ete_path, return_for_cmdfos=True, tmpdir=subworkdir, extra_str='        ')

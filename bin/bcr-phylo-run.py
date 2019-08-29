@@ -65,7 +65,8 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events):
         cmd += ' --target_dist %d' % args.target_distance
         cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % args.carry_cap
-        cmd += ' --observe_common_ancestors'
+        if not args.dont_observe_common_ancestors:
+            cmd += ' --observe_common_ancestors'
 
         # cmd += ' --n_target_clusters 1'
         # cmd += ' --target_cluster_distance 1'
@@ -228,6 +229,7 @@ parser.add_argument('--branching-parameter', type=float, default=2., help='see b
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--lb-tau', type=float, help='')
+parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 
 args = parser.parse_args()
 
