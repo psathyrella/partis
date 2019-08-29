@@ -549,7 +549,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
         tmp_depth = numpy.mean(get_leaf_depths(dtree).values())
         tmp_shm = numpy.mean(annotation['mut_freqs'])
         if abs(tmp_depth - tmp_shm) / tmp_depth > 0.5:  # 0.5 is entirely arbitrary, but in a couple test trees the difference seems to be less than that. Note that I don't know *why* the darn things are so different.
-            print '  %s mean leaf depth in tree %.4f differs from mean mut freq %.4f by %.0f%% (more than 50%%)' % (utils.color('yellow', 'warning'), tmp_depth, tmp_shm, 100 * abs(tmp_depth - tmp_shm) / tmp_depth)
+            print '  %s mean leaf depth in %s tree %.4f differs from mean mut freq %.4f by %.0f%% (more than 50%%)' % (utils.color('yellow', 'warning'), extra_str, tmp_depth, tmp_shm, 100 * abs(tmp_depth - tmp_shm) / tmp_depth)
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong), but no annotation was passed in')

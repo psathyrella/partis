@@ -349,7 +349,8 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
     # ----------------------------------------------------------------------------------------
     def make_scatter_plot(plotvals, iclust=None):
         plotname = '%s-vs%s-affinity-%s-tree%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
-        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, lb_label, '%s (%s tree)' % (lb_metric.upper(), plot_str), xlabel='%s affinity' % affy_key_str.replace('-', ''))
+        title = '%s on %s tree%s' % (lb_metric.upper(), plot_str, ' (%d families together)'%len(lines) if iclust is None else '')
+        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, lb_label, title, xlabel='%s affinity' % affy_key_str.replace('-', ''))
         if iclust is None: # or iclust < n_per_row:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
@@ -364,6 +365,8 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
         ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # perfect vals
         ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
         # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
+        if len(lines) > 1 and iclust is None:
+            ax.text(0.6 * ax.get_xlim()[1], 0.95 * ax.get_ylim()[1], 'choosing among %d families' % len(lines), fontsize=17, fontweight='bold')  # , color='red'
         fn = plotting.mpl_finish(ax, getplotdir('-ptiles'), ptile_plotname(iclust), xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
                                  title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
                                  xlabel='%s threshold (percentile)' % lb_metric.upper(),
