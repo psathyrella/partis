@@ -281,27 +281,32 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
     # ----------------------------------------------------------------------------------------
     def add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=None):
+        def getikey():
+            if args.n_replicates == 1 and args.n_sim_events_per_proc is None:
+                ikey = None
+                def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
+            elif args.n_replicates == 1:  # but more than one event per proc
+                ikey = iclust
+                def initfcn(): return {i : [] for i in range(args.n_sim_events_per_proc)}
+            elif args.n_sim_events_per_proc is None:  # but more than one replicate/seed
+                ikey = vlists[varnames.index('seed')]
+                def initfcn(): return {i : [] for i in getsargval('seed')}
+            else:  # both of 'em non-trivial
+                ikey = '%d-%d' % (vlists[varnames.index('seed')], iclust)
+                def initfcn(): return {('%d-%d' % (i, j)) : [] for i in getsargval('seed') for j in range(args.n_sim_events_per_proc)}
+            return ikey, initfcn
+
         diff_vals = get_diff_vals(yamlfo, iclust=iclust)
         if len(diff_vals) == 0:
             missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
             return
         diff_to_perfect = numpy.mean(diff_vals)
         tau = get_vlval(vlists, varnames, xvar)  # not necessarily tau anymore
+        ikey, initfcn = getikey()
         pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
-        if args.n_replicates > 1:  # need to average over the replicates/clusters (NOTE I'm not really sure this will work if there's only one replicate but more than one event per proc)
-            if args.n_sim_events_per_proc is not None:
-                if pvkey not in plotvals:
-                    plotvals[pvkey] = {('%d-%d' % (i, j)) : [] for i in getsargval('seed') for j in range(args.n_sim_events_per_proc)}
-                ikey = '%d-%d' % (vlists[varnames.index('seed')], iclust)
-                plotvals[pvkey][ikey].append((tau, diff_to_perfect))  # TODO arg, is this key wrong?
-            else:
-                if pvkey not in plotvals:
-                    plotvals[pvkey] = {i : [] for i in getsargval('seed')}
-                plotvals[pvkey][vlists[varnames.index('seed')]].append((tau, diff_to_perfect))  # TODO arg, is this key wrong?
-        else:
-            if pvkey not in plotvals:
-                plotvals[pvkey] = []
-            plotvals[pvkey].append((tau, diff_to_perfect))
+        if pvkey not in plotvals:
+            plotvals[pvkey] = initfcn()
+        plotvals[pvkey][ikey].append((tau, diff_to_perfect))
     # ----------------------------------------------------------------------------------------
     def get_varname_str():
         return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
