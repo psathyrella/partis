@@ -137,9 +137,10 @@ def set_meta_styles(args, etree, tstyle):
             if node.name not in lbfo:  # really shouldn't happen
                 print '  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name)
                 continue
-            if affyfo is not None and node.name in affyfo:
+            if affyfo is not None:
                 rfsize = get_size(lb_min, lb_max, lbfo[node.name])
-                bgcolor = plotting.get_smap_color(affy_smap, affyfo, key=node.name)
+                if node.name in affyfo:
+                    bgcolor = plotting.get_smap_color(affy_smap, affyfo, key=node.name)
             else:
                 rfsize = 5
                 bgcolor = plotting.get_smap_color(lb_smap, lbfo, key=node.name)
