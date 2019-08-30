@@ -788,23 +788,14 @@ def write_airr_output(outfname, annotation_list, cpath, failed_queries, debug=Fa
 
 # ----------------------------------------------------------------------------------------
 def process_input_linearham_line(lh_line):
-    """ convert <lh_line> (see linearham_headers). Modifies line. """
-    for lhk in set(lh_line):  
+    """ convert <lh_line> (see linearham_headers). Modifies <lh_line>. """
+    for lhk in set(lh_line): # set() used because keys are removed from the dict while iterating
         if lhk not in linearham_headers or linearham_headers[lhk] is None: # limit to the ones with a direct partis correspondence
             del lh_line[lhk] #remove keys not in linearham_headers
             continue
         lh_line[linearham_headers[lhk]] = lh_line[lhk]
         del lh_line[lhk] #remove lh_line keys once corresponding linearham_headers key added
     process_input_line(lh_line)
-    return lh_line
-
-# ----------------------------------------------------------------------------------------
-def update_line(line, updates, glfo, debug=False):
-    """ update <line> using <updates> dict. Modifies line. """
-    remove_all_implicit_info(line)
-    line.update(updates)
-    add_implicit_info(glfo, line, check_line_keys=debug)
-    return line
 
 # ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
