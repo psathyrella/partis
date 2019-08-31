@@ -314,12 +314,21 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_
 linekeys['hmm'] = ['logprob', 'errors', 'tree-info', 'alternative-annotations'] + [r + '_per_gene_support' for r in regions]
 linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights']
 linekeys['simu'] = ['reco_id', 'affinities', 'relative_affinities', 'lambdas', 'tree', 'target_seqs', 'nearest_target_indices']
-all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # keys that are added by add_implicit_info()
 implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs'] + \
                         [r + '_gl_seq' for r in regions] + \
                         ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
+
+extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
+    'cdr3_seqs',
+    'full_coding_naive_seq',
+    'full_coding_input_seqs',
+    'linearham-info',
+] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
+
+linekeys['extra'] = extra_annotation_headers
+all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 input_metafile_keys = {  # map between the key we want the user to put in the meta file, and the key we use in the regular <line> dicts (basically just pluralizing)
     'affinity' : 'affinities',  # should maybe add all of these to <annotation_headers>?
@@ -337,12 +346,6 @@ annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cd
                      + functional_columns + input_metafile_keys.values() \
                      + ['codon_positions', 'tree-info', 'alternative-annotations']
 simulation_headers = linekeys['simu'] + [h for h in annotation_headers if h not in linekeys['hmm']]
-extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
-    'cdr3_seqs',
-    'full_coding_naive_seq',
-    'full_coding_input_seqs',
-    'linearham-info',
-] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 sw_cache_headers = [h for h in annotation_headers if h not in linekeys['hmm']] + linekeys['sw']
 partition_cachefile_headers = ('unique_ids', 'logprob', 'naive_seq', 'naive_hfrac', 'errors')  # these have to match whatever bcrham is expecting (in packages/ham/src/glomerator.cc, ReadCacheFile() and WriteCacheFile())
 bcrham_dbgstrs = {
@@ -784,23 +787,15 @@ def write_airr_output(outfname, annotation_list, cpath, failed_queries, debug=Fa
                 writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
-def get_linearham_line(lh_line, seqfos, glfo, debug=False):
-    line = {}
-    for lhk in lh_line:  # [k for k in lh_line if k in linearham_headers and linearham_headers[k] is not None]:  # limit to the ones with a direct partis correspondence
-        if lhk not in linearham_headers or linearham_headers[lhk] is None:
+def process_input_linearham_line(lh_line):
+    """ convert <lh_line> (see linearham_headers). Modifies <lh_line>. """
+    for lhk in set(lh_line): # set() used because keys are removed from the dict while iterating
+        if lhk not in linearham_headers or linearham_headers[lhk] is None: # limit to the ones with a direct partis correspondence
+            del lh_line[lhk] #remove keys not in linearham_headers
             continue
-        line[linearham_headers[lhk]] = lh_line[lhk]
-    process_input_line(line)
-    line['unique_ids'] = [sfo['name'] for sfo in seqfos]
-    # TODO it's indel reversed seqs
-    # TODO just start using the partis output file that lh uses as input to get this stuff, we'll need to get the indel info from there anyway
-    line['seqs'] = [sfo['seq'] for sfo in seqfos]
-    line['input_seqs'] = [sfo['seq'] for sfo in seqfos]
-    line['indelfos'] = [indelutils.get_empty_indel() for _ in seqfos]
-    # line['dj_insertion'] = 'GGGGGGGGGGGGGGGGGGGGG'  # TODO
-    add_implicit_info(glfo, line, check_line_keys=True)  # TODO remove check_line_keys
-
-    return line
+        lh_line[linearham_headers[lhk]] = lh_line[lhk]
+        del lh_line[lhk] #remove lh_line keys once corresponding linearham_headers key added
+    process_input_line(lh_line)
 
 # ----------------------------------------------------------------------------------------
 def get_parameter_fname(column=None, deps=None, column_and_deps=None):
