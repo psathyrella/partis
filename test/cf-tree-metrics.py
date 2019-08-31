@@ -498,6 +498,7 @@ def get_tree_metrics(args):
 all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot']
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--actions', default=':'.join(a for a in all_actions if a != 'get-lb-bounds'))
+parser.add_argument('--test', action='store_true')
 parser.add_argument('--carry-cap-list', default='1000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
 parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearrangement events to simulate in each process (default is set in bin/bcr-phylo-run.py)')
@@ -578,9 +579,11 @@ for action in args.actions:
         get_tree_metrics(args)
     elif action == 'plot' and not args.dry:
         utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
-        procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel, args.final_plot_xvar))  # time is almost entirely due to file open + json.load
-                 for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff]
-        utils.run_proc_functions(procs)
-        # for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff:
-        #     make_plots(args, metric, ptilestr, ptilelabel, args.final_plot_xvar)
-        #     break
+        if args.test:
+            for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff:
+                make_plots(args, metric, ptilestr, ptilelabel, args.final_plot_xvar)
+                break
+        else:
+            procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel, args.final_plot_xvar))  # time is almost entirely due to file open + json.load
+                     for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff]
+            utils.run_proc_functions(procs)
