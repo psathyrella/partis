@@ -348,6 +348,7 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
     if debug:
         print '      converting FastTree newick string to dendro tree'
     dtree = get_dendro_tree(treestr=treestr, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)
+    dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name))
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -536,6 +537,50 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
 # ----------------------------------------------------------------------------------------
+# check whether 1) node depth and 2) node pairwise distances are super different when calculated with tree vs sequences (not really sure why it's so different sometimes, best guess is fasttree sucks, partly because it doesn't put the root node anywhere near the root of the tree)
+def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, debug=False):
+    common_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label in annotation['unique_ids']]
+    tdepths, mfreqs, fracs = {}, {}, {}
+    for node in common_nodes:
+        tdepth = node.distance_from_root()
+        mfreq = utils.per_seq_val(annotation, 'mut_freqs', node.taxon.label)
+        frac_diff = abs(tdepth - mfreq) / tdepth
+        if frac_diff > max_frac_diff:
+            key = node.taxon.label
+            tdepths[key] = tdepth
+            mfreqs[key] = mfreq
+            fracs[key] = frac_diff
+    if len(fracs) > 0:
+        print '  %s tree depth and mfreq differ by more than %.0f%% for %d/%d nodes' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), len(common_nodes))
+        if debug:
+            print '    tree depth   mfreq    frac diff'
+            for key, frac in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
+                print '      %.4f    %.4f     %.4f     %s' % (tdepths[key], mfreqs[key], frac, key)
+
+    dmatrix = dtree.phylogenetic_distance_matrix()
+    tdists, mdists, fracs = {}, {}, {}
+    for n1, n2 in itertools.combinations(common_nodes, 2):
+        tdist = dmatrix.distance(n1.taxon, n2.taxon)
+        mdist = utils.hamming_fraction(utils.per_seq_val(annotation, 'seqs', n1.taxon.label), utils.per_seq_val(annotation, 'seqs', n2.taxon.label))
+        frac_diff = abs(tdist - mdist) / tdist
+        if frac_diff > max_frac_diff:
+            key = (n1.taxon.label, n2.taxon.label)
+            tdists[key] = tdist
+            mdists[key] = mdist
+            fracs[key] = frac_diff
+    if len(fracs) > 0:
+        print '  %s pairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1))
+        if debug:
+            print '          pairwise'
+            print '     tree dist  seq dist  frac diff'
+            for key, frac_diff in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
+                print '      %.4f     %.4f    %.4f    %s  %s' % (tdists[key], mdists[key], frac_diff, key[0], key[1])
+
+    if debug:
+        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
+        utils.print_reco_event(annotation)
+
+# ----------------------------------------------------------------------------------------
 def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, iclust=None, debug=False):
     # if <only_calc_metric> is None, we use <tau> and <lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
     #   - whereas if <only_calc_metric> is set, we use <tau> to calculate only the given metric
@@ -546,10 +591,8 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
         print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
 
     if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
-        tmp_depth = numpy.mean(get_leaf_depths(dtree).values())
-        tmp_shm = numpy.mean(annotation['mut_freqs'])
-        if abs(tmp_depth - tmp_shm) / tmp_depth > 0.5:  # 0.5 is entirely arbitrary, but in a couple test trees the difference seems to be less than that. Note that I don't know *why* the darn things are so different.
-            print '  %s mean leaf depth in %s tree %.4f differs from mean mut freq %.4f by %.0f%% (more than 50%%)' % (utils.color('yellow', 'warning'), extra_str, tmp_depth, tmp_shm, 100 * abs(tmp_depth - tmp_shm) / tmp_depth)
+        compare_tree_distance_to_shm(dtree, annotation)
+
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong), but no annotation was passed in')
