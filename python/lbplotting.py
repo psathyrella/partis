@@ -251,7 +251,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n
     # fnames.append(tmpfnames)
 
 # ----------------------------------------------------------------------------------------
-def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log='', leg_loc=None):
+def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log='', leg_loc=None, warn_text=None):
     def getall(k):
         if 'leaf' in plotvals[xvar]:
             return [v for tk in plotvals[k] for v in plotvals[k][tk]]
@@ -276,6 +276,8 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
             ax.plot([xval], [yval], color='red', marker='.', markersize=10)
             ax.text(xval, yval, uid, color='red', fontsize=8)
 
+    if warn_text is not None:
+        ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], warn_text, fontsize=30, fontweight='bold', color='red')
     xmin, xmax = min(getall(xvar)), max(getall(xvar))
     ymin, ymax = min(getall(yvar)), max(getall(yvar))
     xbounds = xmin - 0.02 * (xmax - xmin), xmax + 0.02 * (xmax - xmin)
@@ -350,7 +352,10 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
     def make_scatter_plot(plotvals, iclust=None):
         plotname = '%s-vs%s-affinity-%s-tree%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
         title = '%s on %s tree%s' % (lb_metric.upper(), plot_str, ' (%d families together)'%len(lines) if iclust is None else '')
-        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, lb_label, title, xlabel='%s affinity' % affy_key_str.replace('-', ''))
+        warn_text = None
+        if len(lines) > 1 and iclust is None and 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
+            warn_text = 'wrong/misleading'
+        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, lb_label, title, xlabel='%s affinity' % affy_key_str.replace('-', ''), warn_text=warn_text)
         if iclust is None: # or iclust < n_per_row:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
@@ -367,6 +372,8 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
         # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
         if len(lines) > 1 and iclust is None:
             ax.text(0.6 * ax.get_xlim()[1], 0.95 * ax.get_ylim()[1], 'choosing among %d families' % len(lines), fontsize=17, fontweight='bold')  # , color='red'
+            if 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
+                ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], 'wrong/misleading', fontsize=30, fontweight='bold', color='red')
         fn = plotting.mpl_finish(ax, getplotdir('-ptiles'), ptile_plotname(iclust), xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
                                  title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
                                  xlabel='%s threshold (percentile)' % lb_metric.upper(),
