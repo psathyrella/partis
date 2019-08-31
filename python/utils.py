@@ -818,7 +818,7 @@ def get_parameter_fname(column=None, deps=None, column_and_deps=None):
     return outfname
 
 # ----------------------------------------------------------------------------------------
-def from_same_event(reco_info, query_names):
+def from_same_event(reco_info, query_names):  # putting are_clonal in a comment, since that's what I always seem to search for when I'm trying to remember where this fcn is
     if len(query_names) > 1:
         # reco_id = reco_info[query_names[0]]['reco_id']  # the first one's reco id
         # for iq in range(1, len(query_names)):  # then loop through the rest of 'em to see if they're all the same
