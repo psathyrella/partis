@@ -324,7 +324,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         obs_frac, dbgstr = get_obs_frac(vlists, varnames)
         if debug:
             print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
-        yfname = get_tree_metric_fname(varnames, vstrs, metric, ptilestr)  # why is this called vstrs rather than vstr?
+        yfname = get_tree_metric_fname(varnames, vstrs, metric, ptilestr, use_relative_affy=args.use_relative_affy)  # why is this called vstrs rather than vstr?
         try:
             with open(yfname) as yfile:
                 yamlfo = json.load(yfile)  # too slow with yaml
@@ -514,6 +514,7 @@ parser.add_argument('--n-max-procs', type=int)  # NOTE that with slurm this thin
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
+parser.add_argument('--use-relative-affy', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--debug', action='store_true')
