@@ -544,7 +544,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, debug=Fal
     for node in common_nodes:
         tdepth = node.distance_from_root()
         mfreq = utils.per_seq_val(annotation, 'mut_freqs', node.taxon.label)
-        frac_diff = abs(tdepth - mfreq) / tdepth
+        frac_diff = abs(tdepth - mfreq) / tdepth if tdepth > 0 else 0
         if frac_diff > max_frac_diff:
             key = node.taxon.label
             tdepths[key] = tdepth
@@ -562,7 +562,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, debug=Fal
     for n1, n2 in itertools.combinations(common_nodes, 2):
         tdist = dmatrix.distance(n1.taxon, n2.taxon)
         mdist = utils.hamming_fraction(utils.per_seq_val(annotation, 'seqs', n1.taxon.label), utils.per_seq_val(annotation, 'seqs', n2.taxon.label))
-        frac_diff = abs(tdist - mdist) / tdist
+        frac_diff = abs(tdist - mdist) / tdist if tdist > 0 else 0
         if frac_diff > max_frac_diff:
             key = (n1.taxon.label, n2.taxon.label)
             tdists[key] = tdist
