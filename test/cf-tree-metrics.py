@@ -345,13 +345,19 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
             add_plot_vals(yamlfo, vlists, varnames, obs_frac)
 
     # print info about missing and empty results
+    n_printed, n_max_print = 0, 5
     for mkey, vstrs_list in missing_vstrs.items():  # ok now it's iclust and vstrs list, but what tf am I going to name that
         if len(vstrs_list) == 0:
             continue
-        print '  %s:' % mkey
+        print '  %s: %d families' % (mkey, len(vstrs_list))
         print '     %s   iclust' % get_varname_str()
         for iclust, vstrs in vstrs_list:
             print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, ptilestr))
+            n_printed += 1
+            if n_printed >= n_max_print:
+                print '             [...]'
+                print '      skipping %d more lines' % (len(vstrs_list) - n_max_print)
+                break
 
     # average over the replicates/clusters
     if (args.n_replicates > 1 or args.n_sim_events_per_proc is not None) and len(plotvals) > 0:
