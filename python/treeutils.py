@@ -538,7 +538,7 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
 
 # ----------------------------------------------------------------------------------------
 # check whether 1) node depth and 2) node pairwise distances are super different when calculated with tree vs sequences (not really sure why it's so different sometimes, best guess is fasttree sucks, partly because it doesn't put the root node anywhere near the root of the tree)
-def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, debug=False):
+def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, extra_str=None, debug=False):
     common_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label in annotation['unique_ids']]
     tdepths, mfreqs, fracs = {}, {}, {}
     for node in common_nodes:
@@ -551,7 +551,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, debug=Fal
             mfreqs[key] = mfreq
             fracs[key] = frac_diff
     if len(fracs) > 0:
-        print '  %s tree depth and mfreq differ by more than %.0f%% for %d/%d nodes' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), len(common_nodes))
+        print '  %s tree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
         if debug:
             print '    tree depth   mfreq    frac diff'
             for key, frac in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
@@ -569,7 +569,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, debug=Fal
             mdists[key] = mdist
             fracs[key] = frac_diff
     if len(fracs) > 0:
-        print '  %s pairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1))
+        print '  %s pairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
         if debug:
             print '          pairwise'
             print '     tree dist  seq dist  frac diff'
@@ -591,7 +591,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
         print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
 
     if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
-        compare_tree_distance_to_shm(dtree, annotation)
+        compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
 
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
