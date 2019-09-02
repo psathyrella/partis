@@ -189,6 +189,8 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, fnames=None, is_true_line=False, a
                 if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][node.taxon.label] == 0:  # lbr equals 0 should really be treated as None/missing
                     continue
                 iseq = line['unique_ids'].index(node.taxon.label) if node.taxon.label in line['unique_ids'] else None
+                if node.taxon.label not in line['unique_ids']:  # TODO not really sure whether I want to skip them or not (it's nice to have the visual confirmation that I'm not observing any internal nodes, but then again it's also nice to see where the internal nodes fall in the plot)
+                    continue
                 n_muted = line['n_mutations'][iseq] if node.taxon.label in line['unique_ids'] else node.distance_from_root() * n_max_mutes / float(max_depth)
                 tkey = 'leaf' if node.is_leaf() else 'internal'
                 iclust_plotvals['shm'][tkey].append(n_muted)

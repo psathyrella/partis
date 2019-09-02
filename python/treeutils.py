@@ -348,7 +348,7 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
     if debug:
         print '      converting FastTree newick string to dendro tree'
     dtree = get_dendro_tree(treestr=treestr, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)
-    dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name))
+    dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), suppress_unifurcations=False, update_bipartitions=True)
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -558,8 +558,9 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, extra_str
                 print '      %.4f    %.4f     %.4f     %s' % (tdepths[key], mfreqs[key], frac, key)
 
     dmatrix = dtree.phylogenetic_distance_matrix()
+    dmx_taxa = set(dmatrix.taxon_iter())  # phylogenetic_distance_matrix() seems to only return values for leaves, which maybe I'm supposed to expect?
     tdists, mdists, fracs = {}, {}, {}
-    for n1, n2 in itertools.combinations(common_nodes, 2):
+    for n1, n2 in itertools.combinations([n for n in common_nodes if n.taxon in dmx_taxa], 2):
         tdist = dmatrix.distance(n1.taxon, n2.taxon)
         mdist = utils.hamming_fraction(utils.per_seq_val(annotation, 'seqs', n1.taxon.label), utils.per_seq_val(annotation, 'seqs', n2.taxon.label))
         frac_diff = abs(tdist - mdist) / tdist if tdist > 0 else 0
@@ -1085,12 +1086,13 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
     lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters)
 
     # get tree and calculate metrics for inferred lines
-    n_skipped = len([l for l in lines_to_use if len(l['unique_ids']) < min_tree_metric_cluster_size])
-    n_already_there = 0
+    n_before = len(lines_to_use)
     lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+    n_after = len(lines_to_use)  # after removing the small ones
     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-    print '    calculating tree metrics for %d cluster%s with size%s: %s' % (len(lines_to_use), utils.plural(len(lines_to_use)), utils.plural(len(lines_to_use)), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
-    print '      skipping %d smaller than %d' % (n_skipped, min_tree_metric_cluster_size)
+    print '    calculating tree metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+    print '      skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
+    n_already_there = 0
     for iclust, line in enumerate(lines_to_use):
         if debug:
             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
@@ -1106,10 +1108,15 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
 
     print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
-        print '    %s overwriting %d / %d that already had tree info' % (utils.color('yellow', 'warning'), n_already_there, len(lines_to_use))
+        print '    %s overwriting %d / %d that already had tree info' % (utils.color('yellow', 'warning'), n_already_there, n_after)
 
     # calculate lb values for true lines/trees
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
+        n_true_before = len(true_lines_to_use)
+        true_lines_to_use = sorted([l for l in true_lines_to_use if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+        n_true_after = len(true_lines_to_use)
+        print '      also doing %d true cluster%s with size%s: %s' % (n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
+        print '        skipping %d smaller than %d' % (n_true_before - n_true_after, min_tree_metric_cluster_size)
         for iclust, true_line in enumerate(true_lines_to_use):
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
@@ -1119,6 +1126,35 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
     if base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
+
+# ----------------------------------------------------------------------------------------
+def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, workdir=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
+    # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
+    n_before = len(true_lines)
+    true_lines = sorted([l for l in true_lines if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+    n_after = len(true_lines)
+    print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines))
+    print '        skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
+    for iclust, true_line in enumerate(true_lines):
+        if metric_method == 'shm':
+            metric_info = {u : utils.per_seq_val(true_line, 'mut_freqs', u) for u in true_line['unique_ids']}
+            assert 'tree-info' not in true_line  # could handle it, but don't feel like thinking about it a.t.m.
+            true_line['tree-info'] = {'lb' : {metric_method : metric_info}}
+        else:
+            assert False
+
+    if base_plotdir is not None:
+        assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
+        import plotting
+        import lbplotting
+        if 'affinities' not in true_lines[0] or all(affy is None for affy in true_lines[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
+            return
+        true_plotdir = base_plotdir + '/true-tree-metrics'
+        utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
+        fnames = []
+        lbplotting.plot_lb_vs_affinity('true', true_plotdir+'/'+metric_method, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames, debug=debug)
+        if not only_csv:
+            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in [metric_method]])
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):

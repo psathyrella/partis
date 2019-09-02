@@ -143,27 +143,44 @@ def get_parameter_dir(varnames, vstr):
     return '%s/selection/partis/params' % get_bcr_phylo_outdir(varnames, vstr)
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_outdir(varnames, vstr):
-    return get_outdir(varnames, vstr, 'get-tree-metrics') + '/partis'
+def get_tree_metric_outdir(varnames, vstr, metric_method=None):  # metric_method is only set if it's neither lbi nor lbr
+    return get_outdir(varnames, vstr, 'get-tree-metrics') + '/' + ('partis' if metric_method is None else metric_method)
 
 # ----------------------------------------------------------------------------------------
-def get_partition_fname(varnames, vstr, action):  # if action is 'bcr-phylo', we want the original partition output file, but if it's 'get-tree-metrics', we want the copied one, that had tree metrics added to it (and which is in the e.g. tau subdir)
-    outdir = '%s/selection/partis' % (get_bcr_phylo_outdir(varnames, vstr)) if action == 'bcr-phylo' else get_tree_metric_outdir(varnames, vstr)
+def get_partition_fname(varnames, vstr, action, metric_method=None):  # if action is 'bcr-phylo', we want the original partition output file, but if it's 'get-tree-metrics', we want the copied one, that had tree metrics added to it (and which is in the e.g. tau subdir)
+    if action == 'bcr-phylo' or metric_method is not None:  # for non-lb metrics (i.e. if metric_method is set) we won't modify the partition file, so can just read the one in the bcr-phylo dir
+        outdir = '%s/selection/partis' % get_bcr_phylo_outdir(varnames, vstr)
+    else:
+        outdir = get_tree_metric_outdir(varnames, vstr)
     return '%s/partition.yaml' % outdir
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_plotdir(varnames, vstr):
-    return get_tree_metric_outdir(varnames, vstr) + '/plots'
+def get_tree_metric_plotdir(varnames, vstr, metric_method=None):
+    return get_tree_metric_outdir(varnames, vstr, metric_method=metric_method) + '/plots'
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_fname(varnames, vstr, metric='lbi', x_axis_label='affinity', use_relative_affy=True):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (which is all we need here)
-    # note that we set all the defaults just so when we're checking for output before running, we can easily get one of the file names
-    old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (get_tree_metric_plotdir(varnames, vstr), metric, x_axis_label, '-relative' if use_relative_affy and metric == 'lbi' else '')
-    if os.path.exists(old_path):
-        print 'exists', old_path
-        return old_path
-    vs_str = '%s-vs%s-%s' % (metric, '-relative' if use_relative_affy and metric == 'lbi' else '', x_axis_label)
-    return '%s/true-tree-metrics/%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (get_tree_metric_plotdir(varnames, vstr), metric, vs_str, vs_str)
+def rel_affy_str(use_relative_affy, metric):
+    return '-relative' if use_relative_affy and metric == 'lbi' else ''
+
+# ----------------------------------------------------------------------------------------
+def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relative_affy=False):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
+    if metric in ['lbi', 'lbr']:  # NOTE using <metric> and <metric_method> for slightly different but overlapping things: former is the actual metric name, whereas setting the latter says we want a non-lb metric (necessary because by default we want to calculate lbi and lbr, but also be able treat lbi and lbr separately when plotting)
+        plotdir = get_tree_metric_plotdir(varnames, vstr)
+        old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (plotdir, metric, x_axis_label, rel_affy_str(use_relative_affy, metric))  # just for backwards compatibility, could probably remove at some point (note: not updating this when I'm adding non-lb metrics like shm)
+        if os.path.exists(old_path):
+            print 'exists', old_path
+            return old_path
+    else:
+        plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric)
+    vs_str = '%s-vs%s-%s' % (metric, rel_affy_str(use_relative_affy, metric), x_axis_label)
+    return '%s/true-tree-metrics/%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (plotdir, metric, vs_str, vs_str)
+
+# ----------------------------------------------------------------------------------------
+def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
+    if metric_method is None:
+        return [get_tree_metric_fname(varnames, vstr, mtmp, x_axis_label=xatmp, use_relative_affy=use_relative_affy) for mtmp, xatmp, _ in lbplotting.lb_metric_axis_stuff for use_relative_affy in ([True, False] if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
+    else:
+        return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False)]  # TODO not sure it's really best to hard code this, but maybe it is
 
 # ----------------------------------------------------------------------------------------
 def get_comparison_plotdir():
@@ -316,7 +333,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
     # ----------------------------------------------------------------------------------------
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
-    print '  plotting %d combinations of:   %s' % (len(valstrs), '   '.join(varnames))
+    print '  plotting %d combinations of:   %s    to %s' % (len(valstrs), '   '.join(varnames), get_comparison_plotdir())
     if debug:
         print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
     missing_vstrs = {'missing' : [], 'empty' : []}
@@ -324,7 +341,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         obs_frac, dbgstr = get_obs_frac(vlists, varnames)
         if debug:
             print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
-        yfname = get_tree_metric_fname(varnames, vstrs, metric, ptilestr, use_relative_affy=args.use_relative_affy)  # why is this called vstrs rather than vstr?
+        yfname = get_tree_metric_fname(varnames, vstrs, metric, x_axis_label=ptilestr, use_relative_affy=args.use_relative_affy)  # why is this called vstrs rather than vstr?
         try:
             with open(yfname) as yfile:
                 yamlfo = json.load(yfile)  # too slow with yaml
@@ -352,7 +369,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         print '  %s: %d families' % (mkey, len(vstrs_list))
         print '     %s   iclust' % get_varname_str()
         for iclust, vstrs in vstrs_list:
-            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, ptilestr))
+            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, x_axis_label=ptilestr, use_relative_affy=args.use_relative_affy))
             n_printed += 1
             if n_printed >= n_max_print:
                 print '             [...]'
@@ -461,34 +478,46 @@ def run_bcr_phylo(args):  # also caches parameters
 def get_tree_metrics(args):
     _, varnames, _, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
-    print '  get-tree-metrics: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    print '  get-tree-metrics (%s): running %d combinations of: %s' % (args.metric_method, len(valstrs), ' '.join(varnames))
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        if utils.output_exists(args, get_tree_metric_fname(varnames, vstrs), outlabel='get-tree-metrics', offset=8, debug=args.debug):
+        if utils.all_outputs_exist(args, get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method), outlabel='get-tree-metrics', offset=8, debug=args.debug):
             n_already_there += 1
             continue
 
         if not args.dry:
-            if not os.path.isdir(get_tree_metric_outdir(varnames, vstrs)):
-                os.makedirs(get_tree_metric_outdir(varnames, vstrs))
-            subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
-        cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
-        cmd += ' --lb-tau %s' % get_vlval(vstrs, varnames, 'lb-tau')
-        if len(args.lb_tau_list) > 1:
-            cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
-        cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
-        if args.only_csv_plots:
-            cmd += ' --only-csv-plots'
-        cmdfos += [{
-            'cmd_str' : cmd,
-            'outfname' : get_tree_metric_fname(varnames, vstrs),
-            'workdir' : get_tree_metric_outdir(varnames, vstrs),
-        }]
+            tmpoutdir = get_tree_metric_outdir(varnames, vstrs, metric_method=args.metric_method)
+            if not os.path.isdir(tmpoutdir):
+                os.makedirs(tmpoutdir)
+
+        if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
+            if not args.dry:
+                subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
+            cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
+            cmd += ' --lb-tau %s' % get_vlval(vstrs, varnames, 'lb-tau')
+            if len(args.lb_tau_list) > 1:
+                cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
+            cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
+            if args.only_csv_plots:
+                cmd += ' --only-csv-plots'
+            cmdfos += [{
+                'cmd_str' : cmd,
+                'outfname' : get_tree_metric_fname(varnames, vstrs, 'lbi', x_axis_label='affinity'),  #  it would be better if this checked for all the files, not just the lbi + raw affinity one
+                'workdir' : get_tree_metric_outdir(varnames, vstrs),
+            }]
+        else:  # non-lb metrics, i.e. trying to predict with shm, etc.
+            if args.dry:
+                continue
+            _, true_lines, _ = utils.read_output(get_simfname(varnames, vstrs))
+            treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, args.min_tree_metric_cluster_size,
+                                                    base_plotdir=get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
+                                                    only_csv=args.only_csv_plots)  # ete_path=args.ete_path,
+
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_tree_metric_fname(varnames, vstrs))
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_tree_metric_fname(varnames, vstrs, 'lbi', x_axis_label='affinity'))
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         if not args.dry:
@@ -505,6 +534,7 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
+parser.add_argument('--metric-method', choices=['shm'], help='method/metric to compare to/correlate with affinity (if not set, run partis to get lb metrics)')
 parser.add_argument('--selection-strength-list', default='1.0')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
@@ -516,6 +546,7 @@ parser.add_argument('--random-seed', default=0, type=int, help='note that if --n
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
 parser.add_argument('--use-relative-affy', action='store_true')
+parser.add_argument('--min-tree-metric-cluster-size', type=int, default=10, help='WARNING default also set in bin/partis')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--debug', action='store_true')
@@ -579,10 +610,12 @@ for action in args.actions:
         get_tree_metrics(args)
     elif action == 'plot' and not args.dry:
         utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
-        if args.test:
+        if args.metric_method is not None:
+            make_plots(args, args.metric_method, 'affinity', 'affinity', args.final_plot_xvar, debug=True)
+        elif args.test:
             for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff:
                 make_plots(args, metric, ptilestr, ptilelabel, args.final_plot_xvar)
-                break
+                # break
         else:
             procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel, args.final_plot_xvar))  # time is almost entirely due to file open + json.load
                      for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff]

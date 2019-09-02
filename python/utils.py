@@ -4000,6 +4000,11 @@ def output_exists(args, outfname, outlabel=None, offset=22, debug=True):
         return False
 
 # ----------------------------------------------------------------------------------------
+def all_outputs_exist(args, outfnames, outlabel=None, offset=None, debug=True):
+    o_exist_list = [output_exists(args, ofn, outlabel=outlabel, offset=offset, debug=debug) for ofn in outfnames]
+    return o_exist_list.count(True) == len(o_exist_list)
+
+# ----------------------------------------------------------------------------------------
 def getprefix(fname):  # basename before the dot
     if len(os.path.splitext(fname)) != 2:
         raise Exception('couldn\'t split %s into two pieces using dot' % fname)
