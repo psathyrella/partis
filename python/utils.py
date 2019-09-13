@@ -327,6 +327,8 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'linearham-info',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 
+null_linearham_info = {'flexbounds' : None, 'relpos' : None}
+
 linekeys['extra'] = extra_annotation_headers
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
@@ -1425,12 +1427,16 @@ def re_sort_per_gene_support(line):
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
-def add_linearham_info(sw_info, annotation_list, debug=False):
+def add_linearham_info(sw_info, annotation_list, min_cluster_size=None, debug=False):
     n_already_there = 0
     for line in annotation_list:
+        if min_cluster_size is not None and len(line['unique_ids']) < min_cluster_size:
+            print '       %s adding null linearham info to line: %s, because cluster is less than the passed <min_cluster_size> value of %d' % (color('yellow', 'warning'), ':'.join(line['unique_ids']), min_cluster_size)
+            line['linearham-info'] = null_linearham_info
+            continue
         if 'linearham-info' in line:
             if debug:
-                print '       %s overwriting linearham info that was already in <line>' % color('yellow', 'warning')
+                print '       %s overwriting linearham info that was already in line: %s' % (color('yellow', 'warning'), ':'.join(line['unique_ids']))
             n_already_there += 1
         line['linearham-info'] = get_linearham_bounds(sw_info, line, debug=debug)  # note that we don't skip ones that fail, since we don't want to just silently ignore some of the input sequences -- skipping should happen elsewhere where it can be more explicit
     if n_already_there > 0:
@@ -1489,6 +1495,13 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     # 4) if possible, widen the gap between neighboring flexbounds
     # 5) align the V-entry/J-exit flexbounds to the sequence bounds
 
+    def are_fbounds_empty(fbounds, region, gene_removed, reason_removed):
+        left_region, right_region = region + '_l', region + '_r'
+        if len(fbounds[left_region].values()) == 0 or len(fbounds[right_region].values()) == 0:
+            print '{}: removed all genes from flexbounds for region {}: {}. The last gene removed was {}. It was removed because {}. Returning null linearham info'.format(color('yellow', 'warning'), region, fbounds, gene_removed, reason_removed)
+            return True
+        return False
+
     def span(bound_list):
         return [min(bound_list), max(bound_list)]
 
@@ -1505,12 +1518,13 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
                 del rpos[k]
                 if support_check2:
                     del per_gene_support[k]
+            if are_fbounds_empty(fbounds, region, k, '{} was not in per_gene_support or had too low support'.format(k)):
+                return null_linearham_info
 
         # compute the initial left/right flexbounds
         left_flexbounds = span(fbounds[left_region].values())
         right_flexbounds = span(fbounds[right_region].values())
         germ_len = right_flexbounds[0] - left_flexbounds[1]
-
         # make sure there is no overlap between the left/right flexbounds
         while germ_len < 1:
             k = min(per_gene_support, key=per_gene_support.get)
@@ -1518,11 +1532,12 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
             del fbounds[right_region][k]
             del rpos[k]
             del per_gene_support[k]
-
+            # check removing all items from fbounds 
+            if are_fbounds_empty(fbounds, region, k, 'right flexbounds was less than left for {}'.format(region)):
+                return null_linearham_info
             left_flexbounds = span(fbounds[left_region].values())
             right_flexbounds = span(fbounds[right_region].values())
             germ_len = right_flexbounds[0] - left_flexbounds[1]
-
         fbounds[left_region] = left_flexbounds
         fbounds[right_region] = right_flexbounds
 
@@ -1537,6 +1552,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
         right_germ_len = fbounds[rightright_region][0] - fbounds[right_region][1]
 
         if junction_len < 1:
+            print 'SW OVERLAP ACROSS REGIONS / NEIGHBORING FBOUNDS'
             fbounds[left_region][0] = fbounds[right_region][0]
             fbounds[right_region][1] = fbounds[left_region][1]
 
@@ -1546,9 +1562,8 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
 
             # are the neighboring flexbounds even fixable?
             if left_germ_len < 1 or right_germ_len < 1:
-                if debug:
-                    print '    failed adding linearham info: left_germ_len or right_germ_len less than 1'
-                return {'flexbounds' : None, 'relpos' : None}
+                print '    failed adding linearham info for line %s due to overlapping neighboring fbounds between %s and %s' % (':'.join(line['unique_ids']), left_region, right_region)
+                return null_linearham_info
 
         if rpair['left'] == 'v' and left_germ_len > vj_flexbounds_shift:
             fbounds[left_region][0] -= vj_flexbounds_shift
@@ -1574,9 +1589,8 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     for region in ['v_l', 'j_r']:
         bounds_len = fbounds[region][1] - fbounds[region][0]
         if bounds_len < 0:
-            if debug:
-                print '    failed adding linearham info: bounds_len less than zero'
-            return {'flexbounds' : None, 'relpos' : None}
+            print '    failed adding linearham info for line: %s . fbounds is negative length for region %s' % (':'.join(line['unique_ids']), region)
+            return null_linearham_info
 
     return {'flexbounds' : fbounds, 'relpos' : rpos}
 
