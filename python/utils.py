@@ -102,7 +102,7 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_lists=False, choices=None, forbid_duplicates=False):  # make lists from args that are passed as strings of colon-separated values
+def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_lists=False, key_val_pairs=False, choices=None, forbid_duplicates=False):  # make lists from args that are passed as strings of colon-separated values
     if arg is None:
         return None
 
@@ -113,9 +113,10 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_li
         convert_fcn = float
 
     arglist = arg.strip().split(':')  # to allow ids with minus signs, you can add a space (if you don't use --name=val), which you then have to strip() off
-    if list_of_lists:
+    if list_of_lists or key_val_pairs:
         arglist = [substr.split(',') for substr in arglist]
-        arglist = [[convert_fcn(p) for p in sublist] for sublist in arglist]
+        if list_of_lists:
+            arglist = [[convert_fcn(p) for p in sublist] for sublist in arglist]
     else:
         arglist = [convert_fcn(x) for x in arglist]
 
@@ -124,7 +125,10 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_li
             if arglist[ia] in translation:
                 arglist[ia] = translation[arglist[ia]]
 
-    if choices is not None:
+    if key_val_pairs:
+        arglist = {k : convert_fcn(v) for k, v in arglist}
+
+    if choices is not None:  # note that if <key_val_pairs> is set, this (and <forbid_duplicates) is just checking the keys, not the vals
         for arg in arglist:
             if arg not in choices:
                 raise Exception('unexpected argument \'%s\' (choices: %s)' % (str(arg), [str(c) for c in choices]))
