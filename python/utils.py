@@ -1506,6 +1506,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
         return [min(bound_list), max(bound_list)]
 
     for region in getregions(get_locus(line['v_gene'])):
+        # EH: remember when reading this that left_region and right_region are not one of (v,d,j) as variables named like *region* often are in partis. Here they have _l or _r on the end so they are a particlar end of a region
         left_region, right_region = region + '_l', region + '_r'
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
         # remove the gene matches with zero support
@@ -1516,6 +1517,8 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
                 del fbounds[left_region][k]
                 del fbounds[right_region][k]
                 del rpos[k]
+                if debug:
+                    print 'removing %s from fbounds (and per_gene_support if it was there to begin with) for region %s because it was not in per_gene_support or had too low support.' % (k, region)
                 if support_check2:
                     del per_gene_support[k]
             if are_fbounds_empty(fbounds, region, k, '{} was not in per_gene_support or had too low support'.format(k)):
@@ -1532,6 +1535,8 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
             del fbounds[right_region][k]
             del rpos[k]
             del per_gene_support[k]
+            if debug:
+                print 'removing %s from fbounds and perg_gene_support to resolve a supposed overlap berween left and right flexbounds for region %s' % (k, region)
             # check removing all items from fbounds 
             if are_fbounds_empty(fbounds, region, k, 'right flexbounds was less than left for {}'.format(region)):
                 return null_linearham_info
@@ -1544,6 +1549,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     # make sure there is no overlap between neighboring flexbounds
     # maybe widen the gap between neighboring flexbounds
     for rpair in region_pairs(get_locus(line['v_gene'])):
+        # EH: remember when reading this that left_region and right_region are not one of (v,d,j) as variables named like *region* often are in partis. Here they have _l or _r on the end so they are a particlar end of a region
         left_region, right_region = rpair['left'] + '_r', rpair['right'] + '_l'
         leftleft_region, rightright_region = rpair['left'] + '_l', rpair['right'] + '_r'
 
@@ -1552,7 +1558,18 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
         right_germ_len = fbounds[rightright_region][0] - fbounds[right_region][1]
 
         if junction_len < 1:
-            print 'SW OVERLAP ACROSS REGIONS / NEIGHBORING FBOUNDS'
+            if debug:
+                print '''
+                          Overlap resolution code running in partis utils.get_linearham_bounds.
+                          Post Duncan's fix to ig-sw (see *), we really should not have a true overlap of neighboring matches.
+                          So ideally this code would not ever get triggered. However, this code does get triggered if there
+                          are adjacent matches which share regional bounds, which is possible because partis uses python slice
+                          conventions for regional bounds (so this is not a "real" overlap).
+                          E.g. if fbounds[left_region] = [x,x] and fbounds[right_region] = [x,x] as well,
+                          this code gets executed despite this not being a true overlap.
+                          However in such a case this code does nothing so we are not changing it for fear of messing up the logic here.
+                          *: https://github.com/psathyrella/partis/commit/471e5eac6d2b0fbdbb2b6024c81af14cdc3d9399
+                      '''
             fbounds[left_region][0] = fbounds[right_region][0]
             fbounds[right_region][1] = fbounds[left_region][1]
 
@@ -1565,19 +1582,28 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
                 print '    failed adding linearham info for line %s due to overlapping neighboring fbounds between %s and %s' % (':'.join(line['unique_ids']), left_region, right_region)
                 return null_linearham_info
 
+        # EH: This section corresponds to step #4 in the comment earlier in this fcn. Note that both the lower and upper bounds are shifted away from their neighboring gene in all cases here. This might seem odd, since performing such a shift on just one bound might help account for more uncertainty at the junction of each pair of genes, but shifting both bounds in the same direction wouldn't appear to have that effect. However, because linearham only cares about the bound furthest from the neighboring gene when considering a junction between two genes, the end result of shifting both bounds in this logic here is the same as if we had just shifted one bound in each gene (linearham's bound of interest for the gene) and the desired effect of the shift is achieved, i.e. that we just allow for some extra flexibility/uncertainty in these junction regions.
         if rpair['left'] == 'v' and left_germ_len > vj_flexbounds_shift:
+            if debug:
+                print 'shifting lower and uppper fbounds for %s by %d' % (left_region, vj_flexbounds_shift)
             fbounds[left_region][0] -= vj_flexbounds_shift
             fbounds[left_region][1] -= vj_flexbounds_shift
 
         # the D gene match region is constrained to have a length of 1
         if rpair['left'] == 'd':
+            if debug:
+                print 'shifting lower and uppper fbounds for %s by %d' % (left_region, left_germ_len - 1)
             fbounds[left_region][0] -= (left_germ_len - 1)
             fbounds[left_region][1] -= (left_germ_len - 1)
         if rpair['right'] == 'd':
+            if debug:
+                print 'shifting lower and uppper fbounds for %s by %d' % (right_region, right_germ_len / 2)
             fbounds[right_region][0] += (right_germ_len / 2)
             fbounds[right_region][1] += (right_germ_len / 2)
 
         if rpair['right'] == 'j' and right_germ_len > vj_flexbounds_shift:
+            if debug:
+                print 'shifting lower and uppper fbounds for %s by %d' % (right_region, vj_flexbounds_shift)
             fbounds[right_region][0] += vj_flexbounds_shift
             fbounds[right_region][1] += vj_flexbounds_shift
 
