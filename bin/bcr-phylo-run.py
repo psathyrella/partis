@@ -43,6 +43,26 @@ def rearrange():
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
+def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command line arg that is allowed to (but may not at the moment) be drawn from a variable distribution (note we have to pass in <pval> for args that are lists)
+    if args.parameter_variances is None or parg not in args.parameter_variances:  # default: just use the single, fixed value from the command line
+        return pval
+    def sfcn(x):  # just for dbg/exceptions
+        return str(int(x)) if parg != 'selection-strength' else ('%.2f' % x)
+    pmean = pval
+    pvar = args.parameter_variances[parg]
+    pmin, pmax = pmean - 0.5 * pvar, pmean + 0.5 * pvar
+    if pmin < 0:
+        raise Exception('min parameter value for %s less than 0 (from mean %s and half width %s)' % (parg, sfcn(pmean), sfcn(pvar)))
+    if parg == 'selection-strength' and pmax > 1:
+        raise Exception('max parameter value for %s greater than 1 (from mean %s and half width %s)' % (parg, sfcn(pmean), sfcn(pvar)))
+    return_val = numpy.random.uniform(pmin, pmax)
+    if parg != 'selection-strength':
+        return_val = int(return_val)
+    if debug:
+        print '  %7s   %6s %6s  %s' % (sfcn(return_val), sfcn(pmean), sfcn(pvar), parg)
+    return return_val
+
+# ----------------------------------------------------------------------------------------
 def run_bcr_phylo(naive_line, outdir, ievent, n_total_events):
     if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
         return
@@ -58,13 +78,13 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events):
         cmd += ' --selection'
         cmd += ' --lambda %f' % args.branching_parameter
         cmd += ' --lambda0 %f' % args.base_mutation_rate
-        cmd += ' --selection_strength %f' % args.selection_strength
-        cmd += ' --obs_times %s' % ' '.join(['%d' % t for t in args.obs_times])
-        cmd += ' --n_to_sample %s' % ' '.join('%d' % n for n in args.n_sim_seqs_per_generation)
+        cmd += ' --selection_strength %f' % get_vpar_val('selection-strength', args.selection_strength)
+        cmd += ' --obs_times %s' % ' '.join(['%d' % get_vpar_val('obs-times', t) for t in args.obs_times])
+        cmd += ' --n_to_sample %s' % ' '.join('%d' % get_vpar_val('n-sim-seqs-per-generation', n) for n in args.n_sim_seqs_per_generation)
         cmd += ' --metric_for_target_dist %s' % args.metric_for_target_distance
         cmd += ' --target_dist %d' % args.target_distance
         cmd += ' --target_count %d' % args.target_count
-        cmd += ' --carry_cap %d' % args.carry_cap
+        cmd += ' --carry_cap %d' % get_vpar_val('carry-cap', args.carry_cap)
         if not args.dont_observe_common_ancestors:
             cmd += ' --observe_common_ancestors'
 
@@ -230,12 +250,14 @@ parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
+parser.add_argument('--parameter-variances', help='if set, the specified parameters are drawn from a uniform distribution of the specified (half-)width (with mean from the regular argument) for each family, rather than having the same value for all families. Format example: n-sim-seqs-per-generation,10:carry-cap,150')
 
 args = parser.parse_args()
 
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
 args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generation, intify=True)
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
+args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, floatify=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
 
 # ----------------------------------------------------------------------------------------
 if 'simu' in args.actions:

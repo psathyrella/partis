@@ -32,5 +32,7 @@ common="--only-csv-plots --slurm --n-sim-events-per-proc 10"
 # label=carry-cap-vs-n-obs-v1
 # echo $bin --label $label --n-replicates 30 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:30:75:150:500 --lb-tau-list 0.0025 --final-plot-xvar carry-cap
 # TODO everything before here was using relative affinity, but now I've added --use-relative-affy, for which the default is False. So either add the arg to the previous commands, or decide you'd rather have it turned off for them
-label=carry-cap-vs-n-obs-only-leaves-v0
-echo $bin --label $label --n-replicates 30 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:75:500 --lb-tau-list 0.0025 --dont-observe-common-ancestors --final-plot-xvar carry-cap
+# label=carry-cap-vs-n-obs-only-leaves-v0
+# echo $bin --label $label --n-replicates 30 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:75:500 --lb-tau-list 0.0025 --dont-observe-common-ancestors --final-plot-xvar carry-cap
+# TODO need to add one with --metric-method shm
+
