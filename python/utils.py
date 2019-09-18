@@ -331,8 +331,6 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'linearham-info',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 
-null_linearham_info = {'flexbounds' : None, 'relpos' : None}
-
 linekeys['extra'] = extra_annotation_headers
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
@@ -1431,12 +1429,16 @@ def re_sort_per_gene_support(line):
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
+def get_null_linearham_info():
+    return {'flexbounds' : None, 'relpos' : None}
+
+# ----------------------------------------------------------------------------------------
 def add_linearham_info(sw_info, annotation_list, min_cluster_size=None, debug=False):
     n_already_there = 0
     for line in annotation_list:
         if min_cluster_size is not None and len(line['unique_ids']) < min_cluster_size:
             print '       %s adding null linearham info to line: %s, because cluster is less than the passed <min_cluster_size> value of %d' % (color('yellow', 'warning'), ':'.join(line['unique_ids']), min_cluster_size)
-            line['linearham-info'] = null_linearham_info
+            line['linearham-info'] = get_null_linearham_info()
             continue
         if 'linearham-info' in line:
             if debug:
@@ -1526,7 +1528,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
                 if support_check2:
                     del per_gene_support[k]
             if are_fbounds_empty(fbounds, region, k, '{} was not in per_gene_support or had too low support'.format(k)):
-                return null_linearham_info
+                return get_null_linearham_info()
 
         # compute the initial left/right flexbounds
         left_flexbounds = span(fbounds[left_region].values())
@@ -1543,7 +1545,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
                 print 'removing %s from fbounds and perg_gene_support to resolve a supposed overlap berween left and right flexbounds for region %s' % (k, region)
             # check removing all items from fbounds 
             if are_fbounds_empty(fbounds, region, k, 'right flexbounds was less than left for {}'.format(region)):
-                return null_linearham_info
+                return get_null_linearham_info()
             left_flexbounds = span(fbounds[left_region].values())
             right_flexbounds = span(fbounds[right_region].values())
             germ_len = right_flexbounds[0] - left_flexbounds[1]
@@ -1584,7 +1586,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
             # are the neighboring flexbounds even fixable?
             if left_germ_len < 1 or right_germ_len < 1:
                 print '    failed adding linearham info for line %s due to overlapping neighboring fbounds between %s and %s' % (':'.join(line['unique_ids']), left_region, right_region)
-                return null_linearham_info
+                return get_null_linearham_info()
 
         # EH: This section corresponds to step #4 in the comment earlier in this fcn. Note that both the lower and upper bounds are shifted away from their neighboring gene in all cases here. This might seem odd, since performing such a shift on just one bound might help account for more uncertainty at the junction of each pair of genes, but shifting both bounds in the same direction wouldn't appear to have that effect. However, because linearham only cares about the bound furthest from the neighboring gene when considering a junction between two genes, the end result of shifting both bounds in this logic here is the same as if we had just shifted one bound in each gene (linearham's bound of interest for the gene) and the desired effect of the shift is achieved, i.e. that we just allow for some extra flexibility/uncertainty in these junction regions.
         if rpair['left'] == 'v' and left_germ_len > vj_flexbounds_shift:
@@ -1620,7 +1622,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
         bounds_len = fbounds[region][1] - fbounds[region][0]
         if bounds_len < 0:
             print '    failed adding linearham info for line: %s . fbounds is negative length for region %s' % (':'.join(line['unique_ids']), region)
-            return null_linearham_info
+            return get_null_linearham_info()
 
     return {'flexbounds' : fbounds, 'relpos' : rpos}
 
