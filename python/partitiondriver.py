@@ -2018,7 +2018,7 @@ class PartitionDriver(object):
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
-            utils.add_linearham_info(self.sw_info, annotation_list)
+            utils.add_linearham_info(self.sw_info, annotation_list, self.args.min_tree_metric_cluster_size)
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
         if utils.getsuffix(outfname) == '.csv':
