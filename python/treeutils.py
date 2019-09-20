@@ -348,7 +348,8 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
     if debug:
         print '      converting FastTree newick string to dendro tree'
     dtree = get_dendro_tree(treestr=treestr, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)
-    dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), suppress_unifurcations=False, update_bipartitions=True)
+    if dtree.find_node_with_taxon_label(naive_seq_name) is not None:
+        dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), suppress_unifurcations=False, update_bipartitions=True)
     return dtree
 
 # ----------------------------------------------------------------------------------------
@@ -989,10 +990,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
             chosen_ustrs.add(ustr_to_use)
             lines_to_use.append(annotations[ustr_to_use])
     else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
-        if cpath is not None:  # restrict it to clusters in the best partition (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
-            lines_to_use = [annotations[':'.join(c)] for c in cpath.partitions[cpath.i_best]]
-        else:
-            lines_to_use = annotations.values()
+        lines_to_use = annotations.values()  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
         if reco_info is not None:
             for line in lines_to_use:
                 true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
@@ -1054,9 +1052,9 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
         dtree = get_dendro_tree(treestr=lonr_info['tree'])
         # line['tree-info']['lonr'] = lonr_info
         origin = 'lonr'
-    elif cpath is not None and not use_true_clusters:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work
+    elif cpath is not None and not use_true_clusters and line['unique_ids'] in cpath.partitions[cpath.i_best]:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work NOTE now that I've added the direct check if the unique ids are in the best partition, i can probably remove the use_true_clusters check, but I don't want to mess with it a.t.m.
         assert annotations is not None
-        i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])  # if this fails, the cpath and lines_to_use are out of sync (which I think shouldn't happen?)
+        i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])
         cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True, debug=False)
         dtree = cpath.trees[i_only_cluster]  # as we go through the loop, the <cpath> is presumably filling all of these in
         origin = 'cpath'

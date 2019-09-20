@@ -310,7 +310,9 @@ class PartitionDriver(object):
             self.write_output(annotations.values(), hmm_failures)
 
     # ----------------------------------------------------------------------------------------
-    def calc_tree_metrics(self, annotation_list, annotation_dict, cpath=None):
+    def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
+        if annotation_list is None:
+            annotation_list = annotation_dict.values()
         if self.current_action == 'get-tree-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-tree-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
             seqfileopener.read_input_metafo(self.args.input_metafname, annotation_list, debug=True)
         treeutils.calculate_tree_metrics(annotation_dict, self.args.min_tree_metric_cluster_size, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
@@ -466,7 +468,7 @@ class PartitionDriver(object):
             self.write_output(annotation_list, set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'get-tree-metrics':
-            self.calc_tree_metrics(annotation_list, annotation_dict, cpath=cpath)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list, cpath=cpath)  # adds tree metrics to <annotations>
             print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
             self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
