@@ -348,8 +348,9 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
     if debug:
         print '      converting FastTree newick string to dendro tree'
     dtree = get_dendro_tree(treestr=treestr, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)
-    if dtree.find_node_with_taxon_label(naive_seq_name) is not None:
-        dtree.reroot_at_node(dtree.find_node_with_taxon_label(naive_seq_name), suppress_unifurcations=False, update_bipartitions=True)
+    naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
+    if naive_node is not None:
+        dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
     return dtree
 
 # ----------------------------------------------------------------------------------------
