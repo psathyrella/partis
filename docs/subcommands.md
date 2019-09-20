@@ -70,6 +70,7 @@ If this is run in the context of partitioning (so there's a clustering path avai
 It is then refined by replacing any subtrees stemming from large multifurcations with a subtree inferred using FastTree (for instance, the first clustering step is to merge all sequences with similar inferred naive sequences, which results in such subtrees).
 If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
 If you'd like a more accurate tree, you can infer it separately using your program of choice, and specify it as input to `get-tree-metrics` using `--treefname`.
+If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](http://www.olmstedviz.org/).
 
 ##### ignore smaller clusters
 
