@@ -62,6 +62,15 @@ Because these optimizations (like any purely distance-based approach) know nothi
 This is nevertheless a thoroughly reasonably way to get a rough idea of the lineage structure of your sample.
 After running vsearch clustering, you can always pass families of interest (e.g. with `--seed-unique-id`) to the more accurate clustering method.
 
+##### `--get-tree-metrics` (and `get-tree-metrics` action)
+
+Construct a phylogenetic tree and use it to calculate tree-based selection metrics (e.g. local branching index) for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc.
+Since we want this to be fast enough to run on all the families in a large repertoire, this uses a fairly heuristic approach to calculating trees.
+If this is run in the context of partitioning (so there's a clustering path available from hierarchical agglomeration), then that clustering path is used as the starting point for the tree.
+It is then refined by replacing any subtrees stemming from large multifurcations with a subtree inferred using FastTree (for instance, the first clustering step is to merge all sequences with similar inferred naive sequences, which results in such subtrees).
+If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
+If you'd like a more accurate tree, you can infer it separately using your program of choice, and specify it as input to `get-tree-metrics` using `--treefname`.
+
 ##### ignore smaller clusters
 
 If you're mostly interested in larger clonal families, you can tell it to cluster as normal for several partitition steps, then discard smaller families (for a description of partition steps, see the paper). Any large families will have accumulated appreciable size within the first few partition steps, and since most real repertoires are dominated by smaller clusters, this will dramatically decrease the remaining sample size. This is turned on by setting `--small-clusters-to-ignore <sizes>`, where `<sizes>` is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or an inclusive range of sizes (e.g. `1-10`). The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters <n>` (default 3).
