@@ -250,7 +250,7 @@ parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
-parser.add_argument('--parameter-variances', help='if set, the specified parameters are drawn from a uniform distribution of the specified (half-)width (with mean from the regular argument) for each family, rather than having the same value for all families. Format example: n-sim-seqs-per-generation,10:carry-cap,150')
+parser.add_argument('--parameter-variances', help='if set, the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family, rather than having the same value for all families. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75')
 
 args = parser.parse_args()
 

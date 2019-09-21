@@ -452,6 +452,8 @@ def run_bcr_phylo(args):  # also caches parameters
         cmd = './bin/bcr-phylo-run.py --actions simu:cache-parameters:partition --dont-get-tree-metrics --base-outdir %s %s' % (outdir, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
             cmd += ' --%s %s' % (vname, vstr)
+        if args.parameter_variances is not None:
+            cmd += ' --parameter-variances %s' % args.parameter_variances  # we don't parse through this at all here, which means it's the same for all combos of variables (which I think makes sense -- we probably don't even really want to vary most variables if this is set)
         if args.n_sim_events_per_proc is not None:
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
         if args.dont_observe_common_ancestors:
@@ -536,6 +538,7 @@ parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.0
 parser.add_argument('--metric-for-target-distance-list', default='aa')
 parser.add_argument('--metric-method', choices=['shm'], help='method/metric to compare to/correlate with affinity (if not set, run partis to get lb metrics)')
 parser.add_argument('--selection-strength-list', default='1.0')
+parser.add_argument('--parameter-variances', help='see bcr-phylo-run.py help')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--seq-len', default=400, type=int)
