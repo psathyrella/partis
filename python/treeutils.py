@@ -541,7 +541,7 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
 
 # ----------------------------------------------------------------------------------------
 # check whether 1) node depth and 2) node pairwise distances are super different when calculated with tree vs sequences (not really sure why it's so different sometimes, best guess is fasttree sucks, partly because it doesn't put the root node anywhere near the root of the tree)
-def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, extra_str=None, debug=False):
+def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, min_warn_frac=0.25, extra_str=None, debug=False):
     common_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label in annotation['unique_ids']]
     tdepths, mfreqs, fracs = {}, {}, {}
     for node in common_nodes:
@@ -553,16 +553,18 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, extra_str
             tdepths[key] = tdepth
             mfreqs[key] = mfreq
             fracs[key] = frac_diff
-    if len(fracs) > 0:
-        print '        %s tree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
-        if debug:
+    if debug or len(fracs) > 0:
+        warnstr = utils.color('yellow', 'warning ') if len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
+        if debug or warnstr != '':
+            print '        %stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % (warnstr, 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
+        if debug and len(fracs) > 0:
             print '    tree depth   mfreq    frac diff'
             for key, frac in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
                 print '      %.4f    %.4f     %.4f     %s' % (tdepths[key], mfreqs[key], frac, key)
 
     dmatrix = dtree.phylogenetic_distance_matrix()
     dmx_taxa = set(dmatrix.taxon_iter())  # phylogenetic_distance_matrix() seems to only return values for leaves, which maybe I'm supposed to expect?
-    tdists, mdists, fracs = {}, {}, {}
+    tdists, mdists, fracs = {}, {}, {}  # NOTE reusing these names is kind of dangerous
     for n1, n2 in itertools.combinations([n for n in common_nodes if n.taxon in dmx_taxa], 2):
         tdist = dmatrix.distance(n1.taxon, n2.taxon)
         mdist = utils.hamming_fraction(utils.per_seq_val(annotation, 'seqs', n1.taxon.label), utils.per_seq_val(annotation, 'seqs', n2.taxon.label))
@@ -572,9 +574,11 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, extra_str
             tdists[key] = tdist
             mdists[key] = mdist
             fracs[key] = frac_diff
-    if len(fracs) > 0:
-        print '        %s pairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
-        if debug:
+    if debug or len(fracs) > 0:
+        warnstr = utils.color('yellow', 'warning ') if len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
+        if debug or warnstr != '':
+            print '        %spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % (warnstr, 100*max_frac_diff, len(fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
+        if debug and len(fracs) > 0:
             print '          pairwise'
             print '     tree dist  seq dist  frac diff'
             for key, frac_diff in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
