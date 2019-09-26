@@ -239,7 +239,7 @@ def translate_labels(dendro_tree, translation_pairs, debug=False):
 def get_mean_leaf_height(tree=None, treestr=None):
     assert tree is None or treestr is None
     if tree is None:
-        tree = get_dendro_tree(treestr=treestr, schema='newick')  # if we're calling it with a treestr rather than a tree, it's all from old code that only uses newick
+        tree = get_dendro_tree(treestr=treestr, schema='newick')
     heights = get_leaf_depths(tree).values()
     return sum(heights) / len(heights)
 
@@ -295,8 +295,9 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
 
 # ----------------------------------------------------------------------------------------
 def rescale_tree(new_mean_height, dtree=None, treestr=None, debug=False):
-    # TODO switch calls of this to dendro's scale_edges()
-    """ rescale the branch lengths in dtree/treestr by <factor> """
+    # NOTE if you pass in <dtree>, it gets modified, but if you pass in <treestr> you get back a new dtree (which is kind of a dumb way to set this up, but I don't want to change it now. Although I guess it returns None if you pass <dtree>, so you shouldn't get in too much trouble)
+    # TODO (maybe) switch calls of this to dendro's scale_edges() (but note you'd then have to get the mean depth beforehand, since that just multiplies by factor, whereas this rescales to get a particular new height)
+    """ rescale the branch lengths in dtree/treestr by a factor such that the new mean height is <new_mean_height> """
     if dtree is None:
         dtree = get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
     mean_height = get_mean_leaf_height(tree=dtree)
@@ -553,7 +554,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, extra_str
             mfreqs[key] = mfreq
             fracs[key] = frac_diff
     if len(fracs) > 0:
-        print '  %s tree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
+        print '        %s tree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
         if debug:
             print '    tree depth   mfreq    frac diff'
             for key, frac in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
@@ -572,7 +573,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, extra_str
             mdists[key] = mdist
             fracs[key] = frac_diff
     if len(fracs) > 0:
-        print '  %s pairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
+        print '        %s pairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % (utils.color('yellow', 'warning'), 100*max_frac_diff, len(fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
         if debug:
             print '          pairwise'
             print '     tree dist  seq dist  frac diff'
@@ -615,7 +616,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     if only_calc_metric is None:
         assert lbr_tau_factor is not None  # has to be set if we're calculating both metrics
         if iclust is None or iclust == 0:
-            print '    calculating %s lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (normstr, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
+            print '    calculating %s lb metrics%s with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (normstr, '' if extra_str is None else ' for %s' % extra_str, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
         lbvals = set_lb_values(dtree, tau, only_calc_metric='lbi', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, only_calc_metric='lbr', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
@@ -1105,7 +1106,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
         check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
 
-    print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
+    print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_already_there > 0:
         print '    %s overwriting %d / %d that already had tree info' % (utils.color('yellow', 'warning'), n_already_there, n_after)
 
@@ -1114,8 +1115,8 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         n_true_before = len(true_lines_to_use)
         true_lines_to_use = sorted([l for l in true_lines_to_use if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_true_after = len(true_lines_to_use)
-        print '      also doing %d true cluster%s with size%s: %s' % (n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
-        print '        skipping %d smaller than %d' % (n_true_before - n_true_after, min_tree_metric_cluster_size)
+        print '    also doing %d true cluster%s with size%s: %s' % (n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
+        print '      skipping %d smaller than %d' % (n_true_before - n_true_after, min_tree_metric_cluster_size)
         for iclust, true_line in enumerate(true_lines_to_use):
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)

@@ -611,26 +611,30 @@ class Recombinator(object):
         treefostr = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]  # per-region mutation info is tacked on after the tree... sigh. kind of hackey but works ok.
         assert treefostr.count(';') == 1
         isplit = treefostr.find(';') + 1
-        chosen_tree = treefostr[:isplit]  # includes semi-colon
-        reco_event.set_tree(chosen_tree)  # leaf names are still just like t<n>
+        chosen_treestr = treefostr[:isplit]  # includes semi-colon
+        reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
+        if self.args.mutation_multiplier is not None:
+            reco_event.tree.scale_edges(self.args.mutation_multiplier)
         mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
-        mean_total_height = treeutils.get_mean_leaf_height(treestr=chosen_tree)
-        regional_heights = {}  # per-region height, including <self.args.mutation_multiplier>
+        mean_total_height = treeutils.get_mean_leaf_height(tree=reco_event.tree)
+        regional_heights = {}  # per-region height
         for tmpstr in mutefo:
             region, ratio = tmpstr.split(':')
             assert region in utils.regions
-            ratio = float(ratio)
-            if self.args.mutation_multiplier is not None:  # multiply the branch lengths by some factor
-                ratio *= self.args.mutation_multiplier
-            regional_heights[region] = mean_total_height * ratio
+            regional_heights[region] = mean_total_height * float(ratio)
 
-        scaled_trees = {r : treeutils.rescale_tree(regional_heights[r], treestr=chosen_tree) for r in utils.regions}
+        scaled_trees = {r : copy.deepcopy(reco_event.tree) for r in utils.regions}
+        for treg in utils.regions:
+            treeutils.rescale_tree(regional_heights[treg], dtree=scaled_trees[treg])
+            for node in scaled_trees[treg].preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
+                node.taxon = None
+        scaled_trees = {r : t.as_string(schema='newick').strip() for r, t in scaled_trees.items()}
 
         if self.args.debug:
-            print '  chose tree with total height %f' % treeutils.get_mean_leaf_height(treestr=chosen_tree)
+            print '  chose tree with total height %f%s' % (mean_total_height, (' (includes factor %.2f from --mutation-multiplier)' % self.args.mutation_multiplier) if self.args.mutation_multiplier is not None else '')
             print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treeutils.get_mean_leaf_height(treestr=scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
 
-        n_leaves = treeutils.get_n_leaves(treeutils.get_dendro_tree(treestr=chosen_tree, schema='newick'))
+        n_leaves = treeutils.get_n_leaves(reco_event.tree)
         cmdfos = []
         regional_naive_seqs = {}  # only used for tree checking
         for region in utils.regions:
@@ -663,7 +667,7 @@ class Recombinator(object):
 
         self.add_shm_indels(reco_event)
         reco_event.setline(irandom)  # set the line here because we use it when checking tree simulation, and want to make sure the uids are always set at the same point in the workflow
-        # self.check_tree_simulation(mean_total_height, regional_heights, chosen_tree, scaled_trees, regional_naive_seqs, mseqs, reco_event)
+        # self.check_tree_simulation(mean_total_height, regional_heights, reco_event.tree.as_string(schema='newick'), scaled_trees, regional_naive_seqs, mseqs, reco_event)
         # self.print_validation_values()
 
         if self.args.debug:
@@ -695,8 +699,6 @@ class Recombinator(object):
             mean_observed[rname] /= float(len(reco_event.final_seqs))
             if rname == 'all':
                 input_height = mean_total_height
-                if self.args.mutation_multiplier is not None:  # multiply the branch lengths by some factor
-                    input_height *= self.args.mutation_multiplier
             else:
                 input_height = regional_heights[rname]
             self.validation_values['heights'][rname]['in'].append(input_height)
