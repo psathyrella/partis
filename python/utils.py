@@ -102,13 +102,21 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_lists=False, key_val_pairs=False, choices=None, forbid_duplicates=False):  # make lists from args that are passed as strings of colon-separated values
+def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, translation=None, list_of_lists=False, key_val_pairs=False, choices=None, forbid_duplicates=False):  # make lists from args that are passed as strings of colon-separated values
     if arg is None:
         return None
 
     convert_fcn = pass_fcn
     if intify:
         convert_fcn = int
+    elif intify_with_ranges:  # allow both plain integers and ranges (specied with a dash), e.g. 0:3-6:50 --> 0:3:4:5:50
+        def iwr_fcn(vstr):
+            if '-' in vstr:
+                istart, istop = [int(v) for v in vstr.split('-')]
+                return list(range(istart, istop))  # isn't really right, since we still need to flatten this sublist
+            else:
+                return [int(vstr)]  # make single values list of length one for easier flattening below
+        convert_fcn = iwr_fcn
     elif floatify:
         convert_fcn = float
 
@@ -119,6 +127,9 @@ def get_arg_list(arg, intify=False, floatify=False, translation=None, list_of_li
             arglist = [[convert_fcn(p) for p in sublist] for sublist in arglist]
     else:
         arglist = [convert_fcn(x) for x in arglist]
+
+    if intify_with_ranges:
+        arglist = [v for vl in arglist for v in vl]
 
     if translation is not None:
         for ia in range(len(arglist)):

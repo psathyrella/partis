@@ -104,7 +104,7 @@ def process(args):
         raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
     args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
 
-    args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify=True)
+    args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)
 
     args.allowed_cdr3_lengths = utils.get_arg_list(args.allowed_cdr3_lengths, intify=True)
 
