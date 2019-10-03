@@ -412,6 +412,8 @@ class PartitionDriver(object):
                     continue
                 if (self.args.only_print_seed_clusters or self.args.seed_unique_id is not None) and seed_uid not in line['unique_ids']:  # we only use the seed id from the command line here, so you can print all the clusters even if you ran seed partitioning UPDATE wait did I change my mind? need to check
                     continue
+                if self.args.only_print_queries_to_include_clusters and len(set(self.args.queries_to_include) & set(line['unique_ids'])) == 0:  # will barf if you don't tell us what queries to include, but then that's your fault isn't it
+                    continue
                 label, post_label = [], []
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.simglfo, self.reco_info, line, full_true_partition=true_partition, extra_str='  ')
@@ -422,11 +424,16 @@ class PartitionDriver(object):
                     post_label += ['   partition%s: %s' % (utils.plural(len(iparts)), ipartstr)]
                     if cpath.i_best in iparts:
                         post_label += [', %s' % utils.color('yellow', 'best')]
+                queries_to_emphasize = []
                 if seed_uid is not None and seed_uid in line['unique_ids']:
                     post_label += [', %s' % utils.color('red', 'seed')]
+                    queries_to_emphasize += [seed_uid]
+                if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(line['unique_ids'])) > 0:  # will barf if you don't tell us what queries to include, but then that's your fault isn't it
+                    post_label += [', %s' % utils.color('red', 'queries-to-include')]
+                    queries_to_emphasize += self.args.queries_to_include
                 if self.args.extra_print_key is not None:
                     post_label += ['   %s: %s' % (self.args.extra_print_key, line[self.args.extra_print_key])]
-                utils.print_reco_event(line, extra_str='  ', label=''.join(label), post_label=''.join(post_label), seed_uid=seed_uid)
+                utils.print_reco_event(line, extra_str='  ', label=''.join(label), post_label=''.join(post_label), queries_to_emphasize=queries_to_emphasize)
 
     # ----------------------------------------------------------------------------------------
     def read_existing_output(self, outfname=None, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):
