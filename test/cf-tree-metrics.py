@@ -246,6 +246,10 @@ def get_var_info(args, scan_vars):
 
 # ----------------------------------------------------------------------------------------
 def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
+    if metric == 'lbr' and args.dont_observe_common_ancestors:
+        print '  skipping lbr when only observing leaves'
+        return
+    treat_clusters_together = args.n_sim_events_per_proc is None or args.choose_among_families  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc
     vlabels = {
         'obs_frac' : 'fraction sampled',
         'n-sim-seqs-per-gen' : 'N/gen',
@@ -299,13 +303,13 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
     # ----------------------------------------------------------------------------------------
     def add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=None):
         def getikey():
-            if args.n_replicates == 1 and args.n_sim_events_per_proc is None:
+            if args.n_replicates == 1 and treat_clusters_together:
                 ikey = None
                 def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
             elif args.n_replicates == 1:  # but more than one event per proc
                 ikey = iclust
                 def initfcn(): return {i : [] for i in range(args.n_sim_events_per_proc)}
-            elif args.n_sim_events_per_proc is None:  # but more than one replicate/seed
+            elif treat_clusters_together:  # but more than one replicate/seed
                 ikey = vlists[varnames.index('seed')]
                 def initfcn(): return {i : [] for i in getsargval('seed')}
             else:  # both of 'em non-trivial
@@ -333,7 +337,9 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
     # ----------------------------------------------------------------------------------------
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
-    print '  plotting %d combinations of:   %s    to %s' % (len(valstrs), '   '.join(varnames), get_comparison_plotdir())
+    print '  plotting %d combinations of %d variable%s (%s) with %d families per combination (%s)' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames),
+                                                                                                   1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc,
+                                                                                                   'choosing cells from all families in a combination together' if treat_clusters_together else 'choosing separately from each family')
     if debug:
         print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
     missing_vstrs = {'missing' : [], 'empty' : []}
@@ -350,7 +356,9 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
         yval_key = 'mean_%s_ptiles' % ('affy' if ptilestr == 'affinity' else ptilestr)  # arg, would've been nice if that was different
-        if args.n_sim_events_per_proc is not None:
+        if treat_clusters_together:
+            add_plot_vals(yamlfo, vlists, varnames, obs_frac)
+        else:
             iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
             missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
             if len(missing_iclusts) > 0:
@@ -358,8 +366,6 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
             assert iclusts_in_file == list(range(args.n_sim_events_per_proc))
             for iclust in iclusts_in_file:
                 add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
-        else:
-            add_plot_vals(yamlfo, vlists, varnames, obs_frac)
 
     # print info about missing and empty results
     n_printed, n_max_print = 0, 5
@@ -377,11 +383,14 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
                 break
 
     # average over the replicates/clusters
-    if (args.n_replicates > 1 or args.n_sim_events_per_proc is not None) and len(plotvals) > 0:
+    if (args.n_replicates > 1 or not treat_clusters_together) and len(plotvals) > 0:
         if debug:
             print '  averaging over %d replicates' % args.n_replicates,
             if args.n_sim_events_per_proc is not None:
-                print 'times %d clusters per proc:' % args.n_sim_events_per_proc,
+                if treat_clusters_together:
+                    print '(treating %d clusters per proc together)' % args.n_sim_events_per_proc,
+                else:
+                    print 'times %d clusters per proc:' % args.n_sim_events_per_proc,
             print ''
             tmplen = str(max(len(pvkey) for pvkey in plotvals))
             print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
@@ -405,7 +414,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
             errvals[pvkey] = err_vals
             if debug:
                 n_expected = args.n_replicates
-                if args.n_sim_events_per_proc is not None:
+                if not treat_clusters_together:
                     n_expected *= args.n_sim_events_per_proc
                 print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
 
@@ -433,6 +442,8 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
                         title=metric.upper(), leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
                         xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16, log=log,
     )
+
+    print '  wrote plots to %s' % get_comparison_plotdir()
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(args):  # also caches parameters
@@ -557,6 +568,7 @@ parser.add_argument('--dry', action='store_true')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--final-plot-xvar', default='lb-tau')
+parser.add_argument('--choose-among-families', action='store_true', help='when making plots (\'plot\' action), instead of the default of treating each cluster within each process/job separately (i.e. choosing cells only within each cluster), treat each process/job as a whole (i.e. choose among all families in a process/job). Note that this means you can\'t separately adjust the number of families per job, and the number of families among which we choose cells.')
 parser.add_argument('--legend-var')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
@@ -565,7 +577,7 @@ parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generat
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
-parser.add_argument('--make-plots', action='store_true')
+parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
 args.scan_vars = {
@@ -596,6 +608,9 @@ args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=Tru
 args.only_metrics = utils.get_arg_list(args.only_metrics)
 if [args.n_tau_lengths_list, args.n_generations_list].count(None) != 1:
     raise Exception('have to set exactly one of --n-tau-lengths, --n-generations')
+if args.choose_among_families and args.n_sim_events_per_proc is None:
+    raise Exception('only makes sense to set --choose-among-families if you\'ve also set --n-sim-events-per-proc (since the whole point is you\'re choosing among more than one family)')
+
 import random
 random.seed(args.random_seed)  # somehow this is necessary to get the same results, even though I'm not using the module anywhere directly
 numpy.random.seed(args.random_seed)

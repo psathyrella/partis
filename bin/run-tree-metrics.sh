@@ -36,4 +36,4 @@ common="--only-csv-plots --slurm --n-sim-events-per-proc 10"
 # echo $bin --label $label --n-replicates 30 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:75:500 --lb-tau-list 0.0025 --dont-observe-common-ancestors --final-plot-xvar carry-cap
 # TODO need to add one with --metric-method shm
 label=choose-among-families-v0
-echo $bin --label $label --n-replicates 30 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --lb-tau-list 0.0025 --dont-observe-common-ancestors --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200
+echo $bin --label $label --n-replicates 30 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --lb-tau-list 0.0025 --dont-observe-common-ancestors --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200 --choose-among-families
