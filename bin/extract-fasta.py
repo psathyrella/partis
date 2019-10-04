@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-import csv
-import os
 import sys
+import csv
+csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
+import os
 import argparse
 import colored_traceback.always
 
