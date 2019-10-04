@@ -561,7 +561,8 @@ parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.geten
 parser.add_argument('--label', default='test')
 parser.add_argument('--use-relative-affy', action='store_true')
 parser.add_argument('--min-tree-metric-cluster-size', type=int, default=10, help='WARNING default also set in bin/partis')
-parser.add_argument('--only-csv-plots', action='store_true')
+parser.add_argument('--only-csv-plots', action='store_true', help='only write csv/yaml versions of plots (for future parsing), and not the actual svg files (which is slow)')
+parser.add_argument('--no-tree-plots', action='store_true', help='don\'t make any of the tree plots, which are slow (this just sets --ete-path to None)')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry', action='store_true')
@@ -610,6 +611,8 @@ if [args.n_tau_lengths_list, args.n_generations_list].count(None) != 1:
     raise Exception('have to set exactly one of --n-tau-lengths, --n-generations')
 if args.choose_among_families and args.n_sim_events_per_proc is None:
     raise Exception('only makes sense to set --choose-among-families if you\'ve also set --n-sim-events-per-proc (since the whole point is you\'re choosing among more than one family)')
+if args.no_tree_plots:
+    args.ete_path = None
 
 import random
 random.seed(args.random_seed)  # somehow this is necessary to get the same results, even though I'm not using the module anywhere directly
