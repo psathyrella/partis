@@ -30,13 +30,16 @@ parser.add_argument('--partition-index', type=int, help='if set, use the partiti
 parser.add_argument('--seed-unique-id', help='if set, take sequences only from the cluster containing this seed sequence, rather than the default of taking all sequences from all clusters')
 parser.add_argument('--cluster-index', type=int, help='if set, take sequences only from the cluster at this index in the partition, rather than the default of taking all sequences from all clusters')
 parser.add_argument('--indel-reversed-seqs', action='store_true', help='if set, take sequences that have had any shm indels "reversed" (i.e. insertions are reversed, and deletions are replaced with the germline bases) rather than the default of using sequences from the original input file. Indel-reversed sequences can be convenient because they are by definition the same length as and aligned to the naive sequence.')
-parser.add_argument('--glfo-dir', default=partis_dir + '/data/germlines/human', help='Directory with germline info. Only necessary for old-style csv output files.')
+parser.add_argument('--glfo-dir', help='Directory with germline info. Only necessary for old-style csv output files. Equivalent to a parameter dir with \'/hmm/germline-sets\' appended.')
 parser.add_argument('--locus', default='igh', help='only used for old-style csv output files')
 args = parser.parse_args()
 
 glfo = None
 if utils.getsuffix(args.input_file) == '.csv':
-    print '  reading deprecated csv format, so need to read germline info from somewhere else, using --glfo-dir %s, hopefully it works (you can set it to the proper thing with --glfo-dir)' % args.glfo_dir
+    default_glfo_dir = partis_dir + '/data/germlines/human'
+    if args.glfo_dir is None:
+        print '  note: reading deprecated csv format, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir
+        args.glfo_dir = default_glfo_dir
     glfo = glutils.read_glfo(args.glfo_dir, locus=args.locus)
 
 glfo, annotation_list, cpath = utils.read_output(args.input_file, glfo=glfo)
