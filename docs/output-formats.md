@@ -1,6 +1,7 @@
 ### output file formatting
 
   * [output file overview](#output-file-overview)
+  * [extracting fasta files](#extracting-fasta-files)
   * [description of keys](#description-of-keys)
   * [output file example](#output-file-example)
 
@@ -27,6 +28,11 @@ The yaml output file contains four top-level headers:
 |  germline-info |  germline sequence, names, and conserved codon positions
 |  events        |  list of annotations for each rearrangement event (i.e. group of clonally-related sequences)
 |  partitions    |  list of partitions, including the most likely partition (only set if running the partition action)
+
+#### extracting fasta files
+
+In order to quickly extra fasta sequence files from partis output files, you can use `bin/extract-fasta.py`.
+See `./bin/extract-fasta.py --help` for details.
 
 #### description of keys
 
