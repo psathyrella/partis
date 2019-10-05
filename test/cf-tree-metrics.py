@@ -247,7 +247,7 @@ def get_var_info(args, scan_vars):
 # ----------------------------------------------------------------------------------------
 def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
-        print '  skipping lbr when only observing leaves'
+        print '    skipping lbr when only observing leaves'
         return
     treat_clusters_together = args.n_sim_events_per_proc is None or args.choose_among_families  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc
     vlabels = {

@@ -21,7 +21,8 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
 import utils
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'local branching ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
-affy_keys = {'lbi' : ['affinities', 'relative_affinities'], 'lbr' : ['affinities']}
+affy_keys = {'lbi' : ['affinities'], #, 'relative_affinities'],  # uncomment the relative one to get a separate set of values/plots for affinity relative to the cells alive at the same time as each cell (when sampling ancestors, this lets you isolate the effects of selection at each time point)
+             'lbr' : ['affinities']}
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 20
 

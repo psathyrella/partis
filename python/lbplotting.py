@@ -348,16 +348,26 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
     def getplotdir(extrastr=''):
         return '%s/%s-vs%s-affinity%s' % (baseplotdir, lb_metric, affy_key_str, extrastr)
     # ----------------------------------------------------------------------------------------
-    def icstr(iclust):
+    def icstr(iclust, plotstr=None):
+        if plotstr is not None:
+            return plotstr
         return '-all-clusters' if iclust is None else '-iclust-%d' % iclust
     # ----------------------------------------------------------------------------------------
-    def make_scatter_plot(plotvals, iclust=None):
-        plotname = '%s-vs%s-affinity-%s-tree%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
-        title = '%s on %s tree%s' % (lb_metric.upper(), plot_str, ' (%d families together)'%len(lines) if iclust is None else '')
+    def make_scatter_plot(plotvals, iclust=None, plotstr=None):
+        plotname = '%s-vs%s-affinity-%s-tree%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust, plotstr=plotstr))
+        title = '%s on %s tree' % (lb_metric.upper(), plot_str)
+        xlabel, ylabel = '%s affinity' % affy_key_str.replace('-', ''), lb_label
+        if iclust is None:
+            if plotstr is not None and 'average' in plotstr:
+                title += ' (per family)'
+                ylabel = 'max %s' % ylabel
+                xlabel = 'average %s' % xlabel
+            else:
+                title += ' (%d families together)' % len(lines) if iclust is None else ''
         warn_text = None
         if len(lines) > 1 and iclust is None and 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
             warn_text = 'wrong/misleading'
-        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, lb_label, title, xlabel='%s affinity' % affy_key_str.replace('-', ''), warn_text=warn_text)
+        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, ylabel, title, xlabel=xlabel, warn_text=warn_text)
         if iclust is None: # or iclust < n_per_row:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
@@ -388,17 +398,22 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
         fnames = []
     fnames.append([])
     affy_key_str = '-relative' if 'relative' in affy_key else ''
-    vtypes = [lb_metric, 'affinity']
+    vtypes = [lb_metric, 'affinity']  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
+    if add_uids:
+        vtypes.append('uids')
     for estr in ['', '-ptiles']:
         utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 
     # first plot lb metric vs affinity scatter (all clusters)
-    all_plotvals = {val_type : [] for val_type in [lb_metric, 'affinity', 'uids']}  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
-    per_clust_ptile_vals = {}
+    all_plotvals = {val_type : [] for val_type in vtypes}  # every cell from every cluster plotted together;
+    cluster_average_plotvals = copy.deepcopy(all_plotvals)  # each cluster plotted as one point using the average over its cells (for affinity) or max (for lbi, atm). The point is each family is one point
+    per_clust_ptile_vals = {}  # percentile values corresponding to choosing cells only within each cluster (as opposed to among all clusters together)
     for iclust, line in enumerate(lines):
         iclust_plotvals = get_plotvals(line)
-        for vtype in all_plotvals:
-            all_plotvals[vtype] += iclust_plotvals[vtype]
+        for vt in all_plotvals:
+            all_plotvals[vt] += iclust_plotvals[vt]
+            cluster_summary_fcn = numpy.mean if 'affinity' in vt else max  # this is somewhat arbitrary, but I think the mean for affinity, but max for lb metrics, make the most sense NOTE have to change the labels in make_scatter_plot() if you change this
+            cluster_average_plotvals[vt].append(cluster_summary_fcn(iclust_plotvals[vt]))
         iclust_ptile_vals = get_ptile_vals(iclust_plotvals)
         per_clust_ptile_vals['iclust-%d'%iclust] = iclust_ptile_vals
         if not only_csv and len(iclust_plotvals['affinity']) > 0:
@@ -406,6 +421,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
             make_ptile_plot(iclust_ptile_vals, iclust=iclust)
     if not only_csv:
         make_scatter_plot(all_plotvals)
+        make_scatter_plot(cluster_average_plotvals, plotstr='-cluster-average')
 
     # then plot potential lb cut thresholds with percentiles
     all_ptile_vals = get_ptile_vals(all_plotvals)  # "averaged" might be a better name than "all", but that's longer
