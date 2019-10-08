@@ -152,7 +152,6 @@ def plot_bcr_phylo_simulation(outdir, event, extrastr, metric_for_target_distanc
     plot_bcr_phylo_kd_vals(outdir + '/plots', event)
     plot_bcr_phylo_target_attraction(outdir + '/plots', event)
 
-    # TODO better legends
     plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='%s distance to nearest target sequence' % metric_for_target_distance)
     plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target sequence' % metric_for_target_distance)
     plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')

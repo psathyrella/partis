@@ -295,7 +295,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         return pvkey
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(yamlfo, iclust=None):
-        if 'correlations' in yamlfo:  # new-style files
+        if 'percentiles' in yamlfo:  # new-style files
             ytmpfo = yamlfo['percentiles']
         else:  # old-style files
             ytmpfo = yamlfo
