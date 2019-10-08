@@ -178,7 +178,8 @@ def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relativ
 # ----------------------------------------------------------------------------------------
 def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
     if metric_method is None:
-        return [get_tree_metric_fname(varnames, vstr, mtmp, x_axis_label=xatmp, use_relative_affy=use_relative_affy) for mtmp, xatmp, _ in lbplotting.lb_metric_axis_stuff for use_relative_affy in ([True, False] if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
+        ura_vals = [False] #, True]  # this is hackey, but maybe I want to start looking at relative affy again
+        return [get_tree_metric_fname(varnames, vstr, mtmp, x_axis_label=xatmp, use_relative_affy=use_relative_affy) for mtmp, xatmp, _ in lbplotting.lb_metric_axis_stuff for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
     else:
         return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False)]  # TODO not sure it's really best to hard code this, but maybe it is
 
@@ -294,10 +295,13 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         return pvkey
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(yamlfo, iclust=None):
-        ytmpfo = yamlfo
+        if 'correlations' in yamlfo:  # new-style files
+            ytmpfo = yamlfo['percentiles']
+        else:  # old-style files
+            ytmpfo = yamlfo
+            if iclust is not None and 'iclust-%d' % iclust not in yamlfo:  # even older-style files
+                print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')  # I think it's just going to crash a couple lines later anyway
         if iclust is not None:
-            if 'iclust-%d' % iclust not in yamlfo:
-                print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')
             ytmpfo = yamlfo['iclust-%d' % iclust]
         return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
     # ----------------------------------------------------------------------------------------
@@ -327,7 +331,8 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
         if pvkey not in plotvals:
             plotvals[pvkey] = initfcn()
-        plotvals[pvkey][ikey].append((tau, diff_to_perfect))
+        plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
+        plotlist.append((tau, diff_to_perfect))
     # ----------------------------------------------------------------------------------------
     def get_varname_str():
         return ''.join('%10s' % vlabels.get(v, v) for v in varnames)

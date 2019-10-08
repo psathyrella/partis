@@ -343,3 +343,6 @@ def process(args):
             raise Exception('have to specify --sw-cachefname or --parameter-dir, since we need sw info to calculate linearham inputs')
         if args.extra_annotation_columns is None or 'linearham-info' not in args.extra_annotation_columns:
             args.extra_annotation_columns = utils.add_lists(args.extra_annotation_columns, ['linearham-info'])
+
+    if args.ete_path is not None and args.ete_path == 'None':  # it's nice to be able to unset this from the command line (so we don't make the slow tree plots)
+        args.ete_path = None
