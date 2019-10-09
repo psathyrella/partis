@@ -235,19 +235,20 @@ def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n
         fnames.append([])
     tmpfnames = []
 
-    plotvals = []
-    n_skipped_leaves = 0
     for lb_metric, lb_label in treeutils.lb_metrics.items():
+        plotvals = []
+        n_total_skipped_leaves = 0
         plotdir = '%s/%s/distributions' % (baseplotdir, lb_metric)
         utils.prep_dir(plotdir, wildlings=['*.svg'])
         for iclust, line in enumerate(sorted_lines):
             iclust_plotvals = line['tree-info']['lb'][lb_metric].values()
+            cluster_size = len(iclust_plotvals)  # i.e. including leaves
             if lb_metric == 'lbr':
                 iclust_plotvals = [v for v in iclust_plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable
-            make_hist(iclust_plotvals, len(line['tree-info']['lb'][lb_metric]), len(line['tree-info']['lb'][lb_metric]) - len(iclust_plotvals), iclust=iclust)
+            make_hist(iclust_plotvals, cluster_size, cluster_size - len(iclust_plotvals), iclust=iclust)
             plotvals += iclust_plotvals
-            n_skipped_leaves += len(line['tree-info']['lb'][lb_metric]) - len(iclust_plotvals)
-        make_hist(plotvals, len(plotvals) + n_skipped_leaves, n_skipped_leaves)
+            n_total_skipped_leaves += cluster_size - len(iclust_plotvals)
+        make_hist(plotvals, len(plotvals) + n_total_skipped_leaves, n_total_skipped_leaves)
 
     # TODO can't be bothered to get this to work with the _vs_shm (above) a.t.m.
     # fnames.append(tmpfnames)
