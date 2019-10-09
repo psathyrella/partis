@@ -67,10 +67,9 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
                 for _ in range(bin_contents[ibin]):
                     hist.fill(bin_center)
             hists.append(hist)
-            labels.append('%d (%.1f)' % (obs_time, hist.get_mean()))
+            labels.append('%d (%.0f, %.1f)' % (obs_time, hist.integral(include_overflows=True), hist.get_mean()))
 
-        # hists = [Hist(1, xmin, xmax) if h is None else h for h in hists]  # replace the None values with empty hists
-        hists, labels = zip(*[(h, l) for h, l in zip(hists, labels) if h is not None])
+        hists, labels = zip(*[(h, l) for h, l in zip(hists, labels) if h is not None])  # remove None time points
         return hists, labels, xmin, xmax
 
     # ----------------------------------------------------------------------------------------
@@ -82,12 +81,14 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     for hist in all_hists:
         jpdata.append([x for x, y in zip(hist.get_bin_centers(), hist.bin_contents) for _ in range(int(y)) if x > xmin and x < xmax])  # NOTE this is repeating the 'for _ in range()' in the fcn above, but that's because I used to be actually using the Hist()s, and maybe I will again
 
-    fig, ax = plotting.mpl_init()
+    pre_fig, pre_ax = plotting.mpl_init()  # not sure to what extent these really get used after joypy is done with things
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')  # i don't know why it has to warn me that it's clearing the fig/ax I'm passing in, and I don't know how else to stop it
-        fig, axes = joypy.joyplot(jpdata, labels=all_labels, fade=True, hist=True, overlap=0.5, ax=ax, x_range=(xmin, xmax), bins=int(xmax - xmin))
+        fig, axes = joypy.joyplot(jpdata, labels=all_labels, fade=True, hist=True, overlap=0.5, ax=pre_ax, x_range=(xmin, xmax), bins=int(xmax - xmin), xlabelsize=15, ylabelsize=15)
+    fig.text(0.01, 0.9, 'generation', fontsize=15)
+    fig.text(0.01, 0.85, '(N cells, mean)', fontsize=15)
     # NOTE do *not* set your own x ticks/labels in the next line, since they'll be in the wrong place (i.e. not the same as where joypy puts them)
-    plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel='generation', leg_loc=(0.7, 0.45)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    plotting.mpl_finish(pre_ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel='generation') #, leg_loc=(0.7, 0.45)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_kd_vals(plotdir, event):
@@ -374,7 +375,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
             warn_text = 'wrong/misleading'
         fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, ylabel, title, xlabel=xlabel, warn_text=warn_text)
         if iclust is None: # or iclust < n_per_row:
-            fnames[-1].append(fn)
+            fnames[-2 if vspstuff is not None else -1].append(fn)
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(iclust):
         return '%s-vs%s-affinity-%s-tree-ptiles%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
@@ -407,7 +408,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
     # ----------------------------------------------------------------------------------------
     if fnames is None:  # not much point since we're not returning it any more
         fnames = []
-    fnames.append([])
+    fnames += [[], []]
     affy_key_str = '-relative' if 'relative' in affy_key else ''
     vtypes = ['affinity', lb_metric]  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
     summary_fcns = {'mean' : numpy.mean, 'max' : max}  # ways in which we summarize the affinity or lb value for all cells in a family
@@ -572,7 +573,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
     def make_scatter_plot(plotvals, xvar, iclust=None):
         fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, plot_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if lb_metric == 'lbr' else '')
         if iclust is None: # or iclust < n_per_row:
-            tmpfnames.append(fn)
+            fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(xvar, iclust):
         return '%s-vs-%s-%s-tree-ptiles%s' % (lb_metric, xvar, plot_str, icstr(iclust))
@@ -590,10 +591,12 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
                                  xlabel='%s threshold (percentile)' % lb_metric.upper(),
                                  ylabel='mean %s\nsince affinity increase' % xlabel)
         if iclust is None:
-            tmpfnames.append(fn)
+            fnames[-1].append(fn)
 
     # ----------------------------------------------------------------------------------------
-    tmpfnames = []
+    if fnames is None:  # no real effect (except not crashing) since we're not returning it any more
+        fnames = []
+    fnames += [[]]
     xvar_list = collections.OrderedDict([(xvar, xlabel) for metric, xvar, xlabel in lb_metric_axis_stuff if metric == 'lbr'])
     for xvar, estr in itertools.product(xvar_list, ['', '-ptiles']):
         utils.prep_dir(getplotdir(xvar, extrastr=estr), wildlings=['*.svg', '*.yaml'])
@@ -623,15 +626,6 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
             json.dump({'percentiles' : {k : v for k, v in all_ptile_vals.items() + per_clust_ptile_vals.items()}}, yfile)  # not adding the new correlation keys atm (like in the lb vs affinity fcn)
         if not only_csv and len(all_plotvals[lb_metric]) > 0:
             make_ptile_plot(all_plotvals, all_ptile_vals, xvar, xlabel)
-
-    if fnames is None:  # no real effect (except not crashing) since we're not returning it any more
-        fnames = []
-    if len(fnames) > 1 and len(tmpfnames) == 4:
-        fnames[0] += tmpfnames[:2]  # each of the vs_affinity and vs_ancestral_[yadd] fcns return one line of plots, but we instead want the two lbi plots (and the two lbr plots) lined up vertically
-        fnames[1] += tmpfnames[2:]
-    else:  # probably just because there weren't enough sequences to make some of the plots (or there's no affinity info)
-        # print '    file name lists not length 1, 4 : %d, %d' % (len(fnames), len(tmpfnames))
-        fnames.append(tmpfnames)
 
 # ----------------------------------------------------------------------------------------
 def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label, debug=False):
