@@ -223,7 +223,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n
         # ax.text(0.45 * ax.get_xlim()[1], 0.85 * ax.get_ylim()[1], 'size %d' % len(line['unique_ids']), fontsize=17, color='red', fontweight='bold')  # omfg this is impossible to get in the right place
         plotname = '%s-%s' % (lb_metric, str(iclust) if iclust is not None else 'all-clusters')
         leafskipstr = ', skipped %d leaves' % n_skipped if n_skipped > 0 else ''  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
-        fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y', ylabel='counts', title='%s %s  (size %d%s)' % (plot_str, lb_metric.upper(), len(line['tree-info']['lb'][lb_metric]), leafskipstr))
+        fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y', ylabel='counts', title='%s %s  (size %d%s)' % (plot_str, lb_metric.upper(), len(plotvals), leafskipstr))
         if iclust is None:
             fnames[-1].append(fn)
         elif iclust < n_per_row:  # i.e. only put one row's worth in the html
