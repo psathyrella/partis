@@ -214,16 +214,15 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, fnames=None, is_true_line=False, a
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n_per_row=4):
-    def make_hist(plotvals, n_skipped, iclust=None):
+    def make_hist(plotvals, n_total, n_skipped, iclust=None):
         if len(plotvals) == 0:
             return
         hist = Hist(30, 0., max(plotvals), value_list=plotvals)
         fig, ax = plotting.mpl_init()
         hist.mpl_plot(ax) #, square_bins=True, errors=False)
-        # ax.text(0.45 * ax.get_xlim()[1], 0.85 * ax.get_ylim()[1], 'size %d' % len(line['unique_ids']), fontsize=17, color='red', fontweight='bold')  # omfg this is impossible to get in the right place
         plotname = '%s-%s' % (lb_metric, str(iclust) if iclust is not None else 'all-clusters')
         leafskipstr = ', skipped %d leaves' % n_skipped if n_skipped > 0 else ''  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
-        fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y', ylabel='counts', title='%s %s  (size %d%s)' % (plot_str, lb_metric.upper(), len(plotvals), leafskipstr))
+        fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y', ylabel='counts', title='%s %s  (size %d%s)' % (plot_str, lb_metric.upper(), n_total, leafskipstr))
         if iclust is None:
             fnames[-1].append(fn)
         elif iclust < n_per_row:  # i.e. only put one row's worth in the html
@@ -245,10 +244,10 @@ def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n
             iclust_plotvals = line['tree-info']['lb'][lb_metric].values()
             if lb_metric == 'lbr':
                 iclust_plotvals = [v for v in iclust_plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable
-            make_hist(iclust_plotvals, len(line['tree-info']['lb'][lb_metric]) - len(iclust_plotvals), iclust=iclust)
+            make_hist(iclust_plotvals, len(line['tree-info']['lb'][lb_metric]), len(line['tree-info']['lb'][lb_metric]) - len(iclust_plotvals), iclust=iclust)
             plotvals += iclust_plotvals
             n_skipped_leaves += len(line['tree-info']['lb'][lb_metric]) - len(iclust_plotvals)
-        make_hist(plotvals, n_skipped_leaves)
+        make_hist(plotvals, len(plotvals) + n_skipped_leaves, n_skipped_leaves)
 
     # TODO can't be bothered to get this to work with the _vs_shm (above) a.t.m.
     # fnames.append(tmpfnames)
