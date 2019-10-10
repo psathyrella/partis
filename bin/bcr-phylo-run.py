@@ -197,7 +197,7 @@ def simulate():
     if not args.only_csv_plots:
         import lbplotting
         for outdir, event in zip(outdirs, mutated_events):
-            lbplotting.plot_bcr_phylo_simulation(outdir, event, args.extrastr, args.metric_for_target_distance)
+            lbplotting.plot_bcr_phylo_simulation(outdir, event, args.extrastr, lbplotting.metric_for_target_distance_labels[args.metric_for_target_distance])
         # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
 
 # ----------------------------------------------------------------------------------------

@@ -25,6 +25,14 @@ lb_metric_axis_stuff = [  # x axis variables against which we plot each lb metri
 ]
 
 # ----------------------------------------------------------------------------------------
+metric_for_target_distance_labels = {
+    'aa' : 'AA',
+    'nuc' : 'nuc',
+    'aa-sim-ascii' : 'ascii AA sim.',
+    'aa-sim-blosum' : 'BLOSUM AA sim.',
+}
+
+# ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=7, title='', xlabel=''):
     import joypy
     # ----------------------------------------------------------------------------------------
@@ -43,7 +51,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
         with open(hfname) as runstatfile:
             numpyhists = pickle.load(runstatfile)
         xmin, xmax = None, None
-        hists, labels = [], []
+        hists, ylabels, xtralabels = [], [], []
         for ihist in range(len(numpyhists)):
             nphist = numpyhists[ihist]  # numpy.hist is two arrays: [0] is bin counts, [1] is bin x values (not sure if low, high, or centers)
             obs_time = ihist  #  + 1  # I *think* it's right without the 1 (although I guess it's really a little arbitrary)
@@ -51,7 +59,8 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
                 continue
             if nphist is None:  # time points at which we didn't sample
                 hists.append(None)
-                labels.append(None)
+                ylabels.append(None)
+                xtralabels.append(None)
                 continue
             bin_contents, bin_edges = nphist
             assert len(bin_contents) == len(bin_edges) - 1
@@ -67,13 +76,14 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
                 for _ in range(bin_contents[ibin]):
                     hist.fill(bin_center)
             hists.append(hist)
-            labels.append('%d (%.0f, %.1f)' % (obs_time, hist.integral(include_overflows=True), hist.get_mean()))
+            ylabels.append('%d' % obs_time)
+            xtralabels.append('(%.1f, %.0f)' % (hist.get_mean(), hist.integral(include_overflows=True)))
 
-        hists, labels = zip(*[(h, l) for h, l in zip(hists, labels) if h is not None])  # remove None time points
-        return hists, labels, xmin, xmax
+        hists, ylabels, xtralabels = zip(*[(h, yl, xl) for h, yl, xl in zip(hists, ylabels, xtralabels) if h is not None])  # remove None time points
+        return hists, ylabels, xtralabels, xmin, xmax
 
     # ----------------------------------------------------------------------------------------
-    all_hists, all_labels, xmin, xmax = get_hists(histfname)
+    all_hists, all_ylabels, all_xtralabels, xmin, xmax = get_hists(histfname)  # these xmin, xmax are the actual (ORd) bounds of the histograms (whereas below we also get the ranges that around filled)
     if sum(h.integral(include_overflows=True) for h in all_hists) == 0:
         print '  %s no/empty hists in %s' % (utils.color('yellow', 'warning'), histfname)
         return
@@ -81,14 +91,21 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     for hist in all_hists:
         jpdata.append([x for x, y in zip(hist.get_bin_centers(), hist.bin_contents) for _ in range(int(y)) if x > xmin and x < xmax])  # NOTE this is repeating the 'for _ in range()' in the fcn above, but that's because I used to be actually using the Hist()s, and maybe I will again
 
+    fbin_xmins, fbin_xmaxs = zip(*[h.get_filled_bin_xbounds(extra_pads=2) for h in all_hists])
+    xmin_filled, xmax_filled = min(fbin_xmins), max(fbin_xmaxs)
+
     pre_fig, pre_ax = plotting.mpl_init()  # not sure to what extent these really get used after joypy is done with things
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')  # i don't know why it has to warn me that it's clearing the fig/ax I'm passing in, and I don't know how else to stop it
-        fig, axes = joypy.joyplot(jpdata, labels=all_labels, fade=True, hist=True, overlap=0.5, ax=pre_ax, x_range=(xmin, xmax), bins=int(xmax - xmin), xlabelsize=15, ylabelsize=15)
-    fig.text(0.01, 0.9, 'generation', fontsize=15)
-    fig.text(0.01, 0.85, '(N cells, mean)', fontsize=15)
-    # NOTE do *not* set your own x ticks/labels in the next line, since they'll be in the wrong place (i.e. not the same as where joypy puts them)
-    plotting.mpl_finish(pre_ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel='generation') #, leg_loc=(0.7, 0.45)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+        fig, axes = joypy.joyplot(jpdata, labels=all_ylabels, fade=True, hist=True, overlap=0.5, ax=pre_ax, x_range=(xmin_filled, xmax_filled), bins=int(xmax_filled - xmin_filled), xlabelsize=15) #, ylabelsize=15)
+    xtextpos = 0.85 * (xmax_filled - xmin_filled) + xmin_filled
+    fsize = 15
+    for ax, lab in zip(axes, all_xtralabels):
+        ax.text(xtextpos, 1., lab, fontsize=fsize)
+    fig.text(0.03, 0.9, 'generation', fontsize=fsize)
+    fig.text(0.8, 0.87, '(mean, N cells)', fontsize=fsize)
+    # NOTE do *not* set your own x ticks/labels in the next line, since they'll be in the wrong place (i.e. not the same as where joypy puts them) (also note, the stupid y labels don't work, but setting them on the joyplot axes also doesn't work)
+    plotting.mpl_finish(pre_ax, plotdir, plotname, title=title, xlabel=xlabel) #, ylabel='generation') #, leg_loc=(0.7, 0.45)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_kd_vals(plotdir, event):
@@ -147,14 +164,14 @@ def plot_bcr_phylo_target_attraction(plotdir, event):  # plots of which sequence
     plotting.mpl_finish(ax, plotdir, plotname, xlabel='index (identity) of nearest target sequence', ylabel='counts') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_simulation(outdir, event, extrastr, metric_for_target_distance):
+def plot_bcr_phylo_simulation(outdir, event, extrastr, metric_for_target_distance_label):
     utils.prep_dir(outdir + '/plots', wildlings=['*.csv', '*.svg'])
 
     plot_bcr_phylo_kd_vals(outdir + '/plots', event)
     plot_bcr_phylo_target_attraction(outdir + '/plots', event)
 
-    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='%s distance to nearest target sequence' % metric_for_target_distance)
-    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target sequence' % metric_for_target_distance)
+    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
+    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
     plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
 
     plotting.make_html(outdir + '/plots')

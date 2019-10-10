@@ -152,6 +152,19 @@ class Hist(object):
         return ymax
 
     # ----------------------------------------------------------------------------------------
+    def get_filled_ibins(self):  # return indices of bins with nonzero contents
+        return [i for i, c in enumerate(self.bin_contents) if c > 0.]
+
+    # ----------------------------------------------------------------------------------------
+    def get_filled_bin_xbounds(self, extra_pads=0):  # low edge of lowest filled bin, high edge of highest filled bin
+        fbins = self.get_filled_ibins()
+        imin, imax = fbins[0], fbins[-1]
+        if extra_pads > 0:  # give a little extra space on either side
+            imin = max(0, imin - extra_pads)
+            imax = min(len(self.low_edges) - 1, imax + extra_pads)
+        return self.low_edges[imin], self.low_edges[imax + 1] if imax + 1 < len(self.low_edges) else self.xmax  # if it's not already the overflow bin, we want the next low edge, otherwise <self.xmax>
+
+    # ----------------------------------------------------------------------------------------
     def get_bounds(self, include_overflows=False):
         if include_overflows:
             imin, imax = 0, self.n_bins + 2
