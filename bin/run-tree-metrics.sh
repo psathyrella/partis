@@ -13,27 +13,19 @@ testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times
 # echo $bin --label $testlabel $testargs --only-csv-plots
 # echo $bin --label $label --n-replicates 3 --only-csv-plots
 
-common="--only-csv-plots --slurm"
-# TODO figure out v2 command, which now needs --legend-var obs_frac
-# label=vary-carry-cap-v0
-# echo $bin --label $label --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 500:750:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75
-# label=vary-obs-times-v0
-# echo $bin --label $label --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 100:200:300:100,150:200,250:100,200,300 --n-sim-seqs-per-gen-list 100:100:100:50:50:33 --zip-vars obs-times:n-sim-seqs-per-gen
-# label=vary-obs-times-v1
-# echo $bin --label $label --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 300:100,200,300:200,250,300 --n-sim-seqs-per-gen-list 100:33:33 --zip-vars obs-times:n-sim-seqs-per-gen
-# label=vary-obs-frac-v0
-# echo $bin --label $label --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 30:50:75:100:150:200
-# label=vary-metric-v0
-# echo $bin --label $label --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --metric-for-target-distance-list nuc:aa:aa-sim-ascii:aa-sim-blosum
-# label=vary-selection-strength-v0
-# echo $bin --label $label --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --selection-strength-list 0.1:0.4:0.7:0.8:0.9:1.0
-# label=carry-cap-vs-n-obs-v0
-# echo $bin --label $label --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 260:260:500:500:700:700:1500:1500:3000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 13:26:25:50:35:70:75:150:150:300 --lb-tau-list 0.0025 --zip-vars carry-cap:n-sim-seqs-per-gen --final-plot-xvar carry-cap --legend-var obs_frac
-# label=carry-cap-vs-n-obs-v1
-# echo $bin --label $label --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:30:75:150:500 --lb-tau-list 0.0025 --final-plot-xvar carry-cap
-# TODO everything before here was using relative affinity, but now I've added --use-relative-affy, for which the default is False. So either add the arg to the previous commands, or decide you'd rather have it turned off for them
-# label=carry-cap-vs-n-obs-only-leaves-v0
-# echo $bin --label $label --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:75:500 --lb-tau-list 0.0025 --dont-observe-common-ancestors --final-plot-xvar carry-cap
-# TODO need to add one with --metric-method shm
-label=choose-among-families-v1
-echo $bin --label $label --n-replicates 30 --n-sim-events-per-proc 30 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --dont-observe-common-ancestors --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5 --choose-among-families
+common="--only-csv-plots --slurm"  # --no-tree-plots
+# # TODO figure out v2 command, which now needs --legend-var obs_frac
+# echo $bin --label vary-carry-cap-v0 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 500:750:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75
+# echo $bin --label vary-obs-times-v0 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 100:200:300:100,150:200,250:100,200,300 --n-sim-seqs-per-gen-list 100:100:100:50:50:33 --zip-vars obs-times:n-sim-seqs-per-gen
+# echo $bin --label vary-obs-times-v1 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 300:100,200,300:200,250,300 --n-sim-seqs-per-gen-list 100:33:33 --zip-vars obs-times:n-sim-seqs-per-gen
+# echo $bin --label vary-obs-frac-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 30:50:75:100:150:200
+# echo $bin --label vary-metric-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --metric-for-target-distance-list nuc:aa:aa-sim-ascii:aa-sim-blosum
+# echo $bin --label vary-selection-strength-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --selection-strength-list 0.1:0.4:0.7:0.8:0.9:1.0
+# echo $bin --label carry-cap-vs-n-obs-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 260:260:500:500:700:700:1500:1500:3000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 13:26:25:50:35:70:75:150:150:300 --lb-tau-list 0.0025 --zip-vars carry-cap:n-sim-seqs-per-gen --final-plot-xvar carry-cap --legend-var obs_frac
+# echo $bin --label carry-cap-vs-n-obs-v1 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:30:75:150:500 --lb-tau-list 0.0025 --final-plot-xvar carry-cap
+# #TODO everything before here was using relative affinity, but now I've added --use-relative-affy, for which the default is False. So either add the arg to the previous commands, or decide you'd rather have it turned off for them
+# echo $bin --label carry-cap-vs-n-obs-only-leaves-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:75:500 --lb-tau-list 0.0025 --dont-observe-common-ancestors --final-plot-xvar carry-cap
+# # TODO need to add one with --metric-method shm
+echo $bin --label choose-among-families-v1 --n-replicates 30 --n-sim-events-per-proc 30 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --dont-observe-common-ancestors --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5 --choose-among-families
+echo $bin --label choose-among-families-v2 --n-replicates 10 --n-sim-events-per-proc 30 --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --dont-observe-common-ancestors --parameter-variances selection-strength,0.5 --choose-among-families
+echo $bin --label choose-among-families-v3 --n-replicates 10 --n-sim-events-per-proc 30 --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --lb-tau-list 0.0025 --dont-observe-common-ancestors --choose-among-families

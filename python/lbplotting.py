@@ -98,10 +98,10 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')  # i don't know why it has to warn me that it's clearing the fig/ax I'm passing in, and I don't know how else to stop it
         fig, axes = joypy.joyplot(jpdata, labels=all_ylabels, fade=True, hist=True, overlap=0.5, ax=pre_ax, x_range=(xmin_filled, xmax_filled), bins=int(xmax_filled - xmin_filled), xlabelsize=15) #, ylabelsize=15)
-    xtextpos = 0.85 * (xmax_filled - xmin_filled) + xmin_filled
+    # xtextpos = 0.85 * (xmax_filled - xmin_filled) + xmin_filled  # this is from before I found transform=ax.transAxes, but I don't want to remove it yet
     fsize = 15
     for ax, lab in zip(axes, all_xtralabels):
-        ax.text(xtextpos, 1., lab, fontsize=fsize)
+        ax.text(0.85, 0.2, lab, fontsize=fsize, transform=ax.transAxes)
     fig.text(0.03, 0.9, 'generation', fontsize=fsize)
     fig.text(0.8, 0.87, '(mean, N cells)', fontsize=fsize)
     # NOTE do *not* set your own x ticks/labels in the next line, since they'll be in the wrong place (i.e. not the same as where joypy puts them) (also note, the stupid y labels don't work, but setting them on the joyplot axes also doesn't work)
