@@ -1038,7 +1038,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
             lbplotting.plot_lb_vs_shm(true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True)
-            lbplotting.plot_lb_distributions(true_plotdir, true_lines_to_use, fnames=fnames, plot_str='true')
+            lbplotting.plot_lb_distributions(true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, plot_str='true')
             # for lb_metric, lb_label in lb_metrics.items():
             #     XXX fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, lines_to_use, lb_metric, lb_label)
             if ete_path is not None:

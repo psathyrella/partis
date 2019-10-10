@@ -190,7 +190,7 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, fnames=None, is_true_line=False, a
                 if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][node.taxon.label] == 0:  # lbr equals 0 should really be treated as None/missing
                     continue
                 iseq = line['unique_ids'].index(node.taxon.label) if node.taxon.label in line['unique_ids'] else None
-                if node.taxon.label not in line['unique_ids']:  # TODO not really sure whether I want to skip them or not (it's nice to have the visual confirmation that I'm not observing any internal nodes, but then again it's also nice to see where the internal nodes fall in the plot)
+                if is_true_line and node.taxon.label not in line['unique_ids']:  # not really sure whether I want to skip them or not (it's nice to have the visual confirmation that I'm not observing any internal nodes, but then again it's also nice to see where the internal nodes fall in the plot). For now I'll plot them for inferred, but not true (see comments in plot_lb_distributions())
                     continue
                 n_muted = line['n_mutations'][iseq] if node.taxon.label in line['unique_ids'] else node.distance_from_root() * n_max_mutes / float(max_depth)
                 tkey = 'leaf' if node.is_leaf() else 'internal'
@@ -213,13 +213,15 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, fnames=None, is_true_line=False, a
     # fnames.append([fn for lbm in treeutils.lb_metrics for fn in subfnames[lbm]])
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n_per_row=4):
+def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=None, plot_str='', n_per_row=4):
     def make_hist(plotvals, n_total, n_skipped, iclust=None):
         if len(plotvals) == 0:
             return
         hist = Hist(30, 0., max(plotvals), value_list=plotvals)
         fig, ax = plotting.mpl_init()
         hist.mpl_plot(ax) #, square_bins=True, errors=False)
+        fig.text(0.7, 0.8, 'mean %.3f' % numpy.mean(plotvals), fontsize=15)
+        fig.text(0.7, 0.75, 'max %.3f' % max(plotvals), fontsize=15)
         plotname = '%s-%s' % (lb_metric, str(iclust) if iclust is not None else 'all-clusters')
         leafskipstr = ', skipped %d leaves' % n_skipped if n_skipped > 0 else ''  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
         fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y', ylabel='counts', title='%s %s  (size %d%s)' % (plot_str, lb_metric.upper(), n_total, leafskipstr))
@@ -241,7 +243,11 @@ def plot_lb_distributions(baseplotdir, lines_to_use, fnames=None, plot_str='', n
         plotdir = '%s/%s/distributions' % (baseplotdir, lb_metric)
         utils.prep_dir(plotdir, wildlings=['*.svg'])
         for iclust, line in enumerate(sorted_lines):
-            iclust_plotvals = line['tree-info']['lb'][lb_metric].values()
+            lbfo = line['tree-info']['lb'][lb_metric]  # NOTE this contains any ancestor nodes that the phylogenetic program has in the tree, but that aren't in <line['unique_ids']>
+            if is_true_line:
+                iclust_plotvals = [lbfo[u] for u in line['unique_ids'] if u in lbfo]  # for the true plots, we *don't* want to include any inferred ancestor nodes that weren't actually sampled, since we don't have affinity info for them, and it'd make it look like there's a mismatch between these distributions and the lb vs affinity plots (which won't have them)
+            else:
+                iclust_plotvals = lbfo.values()  # whereas for real data, we want to include the inferred ancestor nodes for which we don't have sequences (although I guess in most cases where we're really interested in them, we would've used a phylogenetics program that also inferred their sequences, so they'd presumably have been added to <line['unique_ids']>)
             cluster_size = len(iclust_plotvals)  # i.e. including leaves
             if lb_metric == 'lbr':
                 iclust_plotvals = [v for v in iclust_plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable
@@ -301,7 +307,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
             return plotvals
         for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None]:
             plotvals['affinity'].append(affy)
-            plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+            plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if add_uids:
                 plotvals['uids'].append(uid)
         return plotvals
@@ -420,12 +426,21 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
     cluster_average_plotvals = {st : {vt : [] for vt in vtypes} for st in summary_fcns}  # each cluster plotted as one point using a summary over its cells (max or mean) for affinity and lb
     per_clust_ptile_vals = {}  # percentile values corresponding to choosing cells only within each cluster (as opposed to among all clusters together)
     all_correlation_vals = {}  # not really analagous to <all_plotvals>, but also not entirely not analagous
+    if debug:
+        print '                        %8s         %8s' % tuple(vtypes)
+        print '  iclust   size  %8s  %8s  %8s  %8s' % tuple(st for _ in range(2) for st in summary_fcns)
     for iclust, line in enumerate(lines):
         iclust_plotvals = get_plotvals(line)
+        if debug:
+            print '  %3d    %4d   ' % (iclust, len(line['unique_ids'])),
         for vt in vtypes:
             all_plotvals[vt] += iclust_plotvals[vt]
-            for st in cluster_average_plotvals:  # store both max and mean for affinity and lb
+            for st in summary_fcns:  # store both max and mean for affinity and lb
                 cluster_average_plotvals[st][vt].append(summary_fcns[st](iclust_plotvals[vt]))
+                if debug:
+                    print '    %5.3f' % cluster_average_plotvals[st][vt][-1],
+        if debug:
+            print ''
         iclust_ptile_vals = get_ptile_vals(iclust_plotvals)
         per_clust_ptile_vals['iclust-%d'%iclust] = iclust_ptile_vals
         all_correlation_vals['iclust-%d'%iclust] = {getcorrkey(*vtypes) : getcorr(*[iclust_plotvals[vt] for vt in vtypes])}  # might be cleaner to add this to <per_clust_ptile_vals>, but then I'd have to change the name
@@ -520,7 +535,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
             node = dtree.find_node_with_taxon_label(uid)
             if node is dtree.seed_node:  # root doesn't have any ancestors
                 continue
-            lbval = line['tree-info']['lb'][lb_metric][uid]
+            lbval = line['tree-info']['lb'][lb_metric][uid]  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if lb_metric == 'lbr' and lbval == 0:  # lbr equals 0 should really be treated as None/missing
                 continue
             n_steps, branch_len = get_n_ancestor_vals(node, dtree, line, affinity_changes)  # also adds to <affinity_changes>
@@ -629,7 +644,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
 
 # ----------------------------------------------------------------------------------------
 def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label, debug=False):
-    plotvals = {val_type : {uid : l['tree-info']['lb'][lb_metric][uid] for l in lines for uid in l['unique_ids']}
+    plotvals = {val_type : {uid : l['tree-info']['lb'][lb_metric][uid] for l in lines for uid in l['unique_ids']}  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
                 for val_type, lines in (('true', true_lines), ('inf', inf_lines))}
     common_uids = set(plotvals['true']) & set(plotvals['inf'])  # there should/may be a bunch of internal nodes in the simulation lines but not in the inferred lines, but otherwise they should have the same uids
     plotvals = {val_type : [plotvals[val_type][uid] for uid in common_uids] for val_type in plotvals}
@@ -675,7 +690,7 @@ def plot_lb_trees(baseplotdir, lines, ete_path, base_workdir, is_true_line=False
         for iclust, line in enumerate(lines):  # note that <min_tree_metric_cluster_size> was already applied in treeutils
             treestr = get_tree_from_line(line, is_true_line)
             for affy_key in treeutils.affy_keys[lb_metric]:
-                metafo = copy.deepcopy(line['tree-info']['lb'])
+                metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
                 if affy_key in line:  # either 'affinities' or 'relative_affinities'
                     metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
                 outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
