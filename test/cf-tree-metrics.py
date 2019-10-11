@@ -521,6 +521,8 @@ def get_tree_metrics(args):
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
             if args.only_csv_plots:
                 cmd += ' --only-csv-plots'
+            if args.no_tree_plots:
+                cmd += ' --ete-path None'
             cmdfos += [{
                 'cmd_str' : cmd,
                 'outfname' : get_tree_metric_fname(varnames, vstrs, 'lbi', x_axis_label='affinity'),  #  it would be better if this checked for all the files, not just the lbi + raw affinity one
@@ -616,8 +618,6 @@ if [args.n_tau_lengths_list, args.n_generations_list].count(None) != 1:
     raise Exception('have to set exactly one of --n-tau-lengths, --n-generations')
 if args.choose_among_families and args.n_sim_events_per_proc is None:
     raise Exception('only makes sense to set --choose-among-families if you\'ve also set --n-sim-events-per-proc (since the whole point is you\'re choosing among more than one family)')
-if args.no_tree_plots:
-    args.ete_path = None
 
 import random
 random.seed(args.random_seed)  # somehow this is necessary to get the same results, even though I'm not using the module anywhere directly
