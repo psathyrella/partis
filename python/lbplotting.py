@@ -230,7 +230,7 @@ def plot_lb_vs_shm(baseplotdir, lines_to_use, fnames=None, is_true_line=False, a
     # fnames.append([fn for lbm in treeutils.lb_metrics for fn in subfnames[lbm]])
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=None, plot_str='', n_per_row=4):
+def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=None, n_per_row=4):
     def make_hist(plotvals, n_total, n_skipped, iclust=None):
         if len(plotvals) == 0:
             return
@@ -241,7 +241,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
         fig.text(0.7, 0.75, 'max %.3f' % max(plotvals), fontsize=15)
         plotname = '%s-%s' % (lb_metric, str(iclust) if iclust is not None else 'all-clusters')
         leafskipstr = ', skipped %d leaves' % n_skipped if n_skipped > 0 else ''  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
-        fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y', ylabel='counts', title='%s %s  (size %d%s)' % (plot_str, lb_metric.upper(), n_total, leafskipstr))
+        fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=lb_label, log='y', ylabel='counts', title='%s %s  (size %d%s)' % ('true' if is_true_line else 'inferred', lb_metric.upper(), n_total, leafskipstr))
         if iclust is None:
             fnames[-1].append(fn)
         elif iclust < n_per_row:  # i.e. only put one row's worth in the html
@@ -315,7 +315,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return fn
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, debug=False):
+def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
@@ -375,50 +375,55 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
     def icstr(iclust):
         return '-all-clusters' if iclust is None else '-iclust-%d' % iclust
     # ----------------------------------------------------------------------------------------
-    def make_scatter_plot(plotvals, iclust=None, plotstr=None, vspstuff=None):
-        tmplbstr, tmpaffystr, tmpclstr = lb_metric, 'affinity', icstr(iclust)
-        xlabel, ylabel = '%s affinity' % affy_key_str.replace('-', ''), lb_label
-        title = '%s on %s tree' % (lb_metric.upper(), plot_str)
-        if affy_key_str != '':
-            tmpaffystr = '%s-%s' % (affy_key_str, tmpaffystr)
+    def tmpstrs(iclust, vspstuff):
+        lbstr, affystr, clstr = lb_metric, 'affinity', icstr(iclust)
+        xlabel, ylabel = '%s affinity' % affy_key_str.replace('-', ''), lb_metric.upper()
+        title = '%s on %s tree' % (lb_metric.upper(), true_inf_str)
+        if affy_key_str != '':  # add 'relative-' at the start
+            affystr = '%s-%s' % (affy_key_str, affystr)
         if vspstuff is not None:
             assert iclust is None
-            tmplbstr = '%s-%s' % (vspstuff[lb_metric], tmplbstr)
-            tmpaffystr = '%s-%s' % (vspstuff['affinity'], tmpaffystr)
-            tmpclstr = '-per-cluster'
+            lbstr = '%s-%s' % (vspstuff[lb_metric], lbstr)
+            affystr = '%s-%s' % (vspstuff['affinity'], affystr)
+            clstr = '-per-cluster'
             title += ' (per family)'
             xlabel = '%s %s' % (vspstuff['affinity'], xlabel)
             ylabel = '%s %s' % (vspstuff[lb_metric], ylabel)
         else:
             if iclust is None:
                 title += ' (%d families together)' % len(lines) if iclust is None else ''
-        plotname = '%s-vs-%s-%s-tree%s' % (tmplbstr, tmpaffystr, plot_str, tmpclstr)
-        warn_text = None
-        if len(lines) > 1 and iclust is None and 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
-            warn_text = 'wrong/misleading'
+        return lbstr, affystr, clstr, xlabel, ylabel, title
+    # ----------------------------------------------------------------------------------------
+    def make_scatter_plot(plotvals, iclust=None, vspstuff=None):
+        warn_text = 'wrong/misleading' if len(lines) > 1 and iclust is None and 'relative' in affy_key else None  # maybe I should just not make the plot, but then the html would look weird UPDATE stopped making the plot by default, but the warning is still a good idea if I start making it again
+        lbstr, affystr, clstr, xlabel, ylabel, title = tmpstrs(iclust, vspstuff)
+        plotname = '%s-vs-%s-%s-tree%s' % (lbstr, affystr, true_inf_str, clstr)
         fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, ylabel, title, xlabel=xlabel, warn_text=warn_text)
         if iclust is None: # or iclust < n_per_row:
             fnames[-2 if vspstuff is not None else -1].append(fn)
     # ----------------------------------------------------------------------------------------
-    def ptile_plotname(iclust):
-        return '%s-vs%s-affinity-%s-tree-ptiles%s' % (lb_metric, affy_key_str, plot_str, icstr(iclust))
+    def ptile_plotname(iclust=None, vspstuff=None):
+        lbstr, affystr, clstr, _, _, _ = tmpstrs(iclust, vspstuff)
+        return '%s-vs-%s-%s-tree-ptiles%s' % (lbstr, affystr, true_inf_str, clstr)
 
     # ----------------------------------------------------------------------------------------
-    def make_ptile_plot(ptile_vals, iclust=None):
+    def make_ptile_plot(ptile_vals, iclust=None, vspstuff=None):
         fig, ax = plotting.mpl_init()
         ax.plot(ptile_vals['lb_ptiles'], ptile_vals['mean_affy_ptiles'], linewidth=3, alpha=0.7)
         # ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # straight line
         ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # perfect vals
         ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
         # ax.plot(ptile_vals['lb_ptiles'], ptile_vals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
-        if len(lines) > 1 and iclust is None:
+        if len(lines) > 1 and iclust is None and vspstuff is None:
             ax.text(0.6 * ax.get_xlim()[1], 0.95 * ax.get_ylim()[1], 'choosing among %d families' % len(lines), fontsize=17, fontweight='bold')  # , color='red'
             if 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
                 ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], 'wrong/misleading', fontsize=30, fontweight='bold', color='red')
-        fn = plotting.mpl_finish(ax, getplotdir('-ptiles'), ptile_plotname(iclust), xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
-                                 title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
-                                 xlabel='%s threshold (percentile)' % lb_metric.upper(),
-                                 ylabel='mean percentile of\nresulting %s' % ' '.join([affy_key_str.replace('-', ''), 'affinities']))
+        lbstr, affystr, clstr, xlabel, ylabel, title = tmpstrs(iclust, vspstuff)
+        fn = plotting.mpl_finish(ax, getplotdir('-ptiles'), ptile_plotname(iclust=iclust, vspstuff=vspstuff),
+                                 xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
+                                 title='potential %s thresholds (%s tree)' % (ylabel, true_inf_str),
+                                 xlabel='%s threshold (percentile)' % ylabel,
+                                 ylabel='mean percentile of\nresulting %s' % xlabel.replace('affinity', 'affinities'))
         if iclust is None:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
@@ -433,6 +438,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
         fnames = []
     fnames += [[], []]
     affy_key_str = '-relative' if 'relative' in affy_key else ''
+    true_inf_str = 'true' if is_true_line else 'inferred'
     vtypes = ['affinity', lb_metric]  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
     summary_fcns = {'mean' : numpy.mean, 'max' : max}  # ways in which we summarize the affinity or lb value for all cells in a family
     for estr in ['', '-ptiles']:
@@ -474,13 +480,14 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
         all_correlation_vals[tkey] = getcorr(tmpvals['affinity'], tmpvals[lb_metric])
         if not only_csv:
             make_scatter_plot(tmpvals, vspstuff=vspdict)  # a little confusing to call them "per-cluster", since it's a slightly different meaning of "per-cluster" than <per_clust_ptile_vals>, but they both make sense
+            make_ptile_plot(get_ptile_vals(tmpvals), vspstuff=vspdict)
     if not only_csv:
         fnames.append([])
         make_scatter_plot(all_plotvals)
 
     # then plot potential lb cut thresholds with percentiles
     all_ptile_vals = get_ptile_vals(all_plotvals)  # "averaged" might be a better name than "all", but that's longer
-    with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname(None)), 'w') as yfile:
+    with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), 'w') as yfile:
         yamlfo = {'percentiles' : {k : v for k, v in all_ptile_vals.items() + per_clust_ptile_vals.items()},
                   'correlations' : all_correlation_vals}
         json.dump(yamlfo, yfile)
@@ -488,7 +495,7 @@ def plot_lb_vs_affinity(plot_str, baseplotdir, lines, lb_metric, lb_label, ptile
         make_ptile_plot(all_ptile_vals)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_label, plot_str='true', ptile_range_tuple=(50., 100., 1.), min_affinity_change=1e-6, n_max_steps=15, only_csv=False, fnames=None, n_per_row=4, debug=False):
+def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, min_affinity_change=1e-6, n_max_steps=15, only_csv=False, fnames=None, n_per_row=4, debug=False):
     # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # NOTE now that I've done a huge refactor, this fcn is very similar to plot_lb_vs_affinity(), so they could be eventually combined to clean up quite a bit
     # ----------------------------------------------------------------------------------------
@@ -603,12 +610,12 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
         return '-all-clusters' if iclust is None else '-iclust-%d' % iclust
     # ----------------------------------------------------------------------------------------
     def make_scatter_plot(plotvals, xvar, iclust=None):
-        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, plot_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if lb_metric == 'lbr' else '')
+        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if lb_metric == 'lbr' else '')
         if iclust is None: # or iclust < n_per_row:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(xvar, iclust):
-        return '%s-vs-%s-%s-tree-ptiles%s' % (lb_metric, xvar, plot_str, icstr(iclust))
+        return '%s-vs-%s-%s-tree-ptiles%s' % (lb_metric, xvar, true_inf_str, icstr(iclust))
     # ----------------------------------------------------------------------------------------
     def make_ptile_plot(plotvals, ptile_vals, xvar, xlabel, iclust=None):
         fig, ax = plotting.mpl_init()
@@ -619,7 +626,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
         ax.plot(ax.get_xlim(), (xmean, xmean), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')
         ax.plot(ptile_vals['lb_ptiles'], ptile_vals['perfect_vals'], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')
         fn = plotting.mpl_finish(ax, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(-0.02*ymax, 1.1*ymax), leg_loc=(0.5, 0.6),
-                                 title='potential %s thresholds (%s tree)' % (lb_metric.upper(), plot_str),
+                                 title='potential %s thresholds (%s tree)' % (lb_metric.upper(), true_inf_str),
                                  xlabel='%s threshold (percentile)' % lb_metric.upper(),
                                  ylabel='mean %s\nsince affinity increase' % xlabel)
         if iclust is None:
@@ -629,6 +636,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
     if fnames is None:  # no real effect (except not crashing) since we're not returning it any more
         fnames = []
     fnames += [[]]
+    true_inf_str = 'true' if is_true_line else 'inferred'
     xvar_list = collections.OrderedDict([(xvar, xlabel) for metric, xvar, xlabel in lb_metric_axis_stuff if metric == 'lbr'])
     for xvar, estr in itertools.product(xvar_list, ['', '-ptiles']):
         utils.prep_dir(getplotdir(xvar, extrastr=estr), wildlings=['*.svg', '*.yaml'])
