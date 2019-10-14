@@ -296,13 +296,13 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(yamlfo, iclust=None):
         if 'percentiles' in yamlfo:  # new-style files
-            ytmpfo = yamlfo['percentiles']
+            ytmpfo = yamlfo['percentiles']['per-seq']['all-clusters' if iclust is None else 'iclust-%d' % iclust]
         else:  # old-style files
             ytmpfo = yamlfo
-            if iclust is not None and 'iclust-%d' % iclust not in yamlfo:  # even older-style files
-                print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')  # I think it's just going to crash a couple lines later anyway
-        if iclust is not None:
-            ytmpfo = yamlfo['iclust-%d' % iclust]
+            if iclust is not None:
+                if 'iclust-%d' % iclust not in ytmpfo:  # even older-style files
+                    print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')  # I think it's just going to crash on the next line anyway
+                ytmpfo = ytmpfo['iclust-%d' % iclust]
         return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
     # ----------------------------------------------------------------------------------------
     def add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=None):
