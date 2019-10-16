@@ -2305,6 +2305,12 @@ def dot_product(naive_seq, seq1, seq2):
     return dot_product
 
 # ----------------------------------------------------------------------------------------
+def round_to_n_digits(val, n_digits):  # round <val> to <n_digits> significant figures
+    if val == 0:
+        return val
+    return round(val, n_digits - int(math.floor(math.log10(abs(val)))) - 1)
+
+# ----------------------------------------------------------------------------------------
 def get_key(names):
     """
     Return a hashable combination of the two query names that's the same if we reverse their order.

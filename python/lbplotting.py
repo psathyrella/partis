@@ -18,11 +18,26 @@ import plotting
 
 # ----------------------------------------------------------------------------------------
 # this name is terrible, but it's complicated and I can't think of a better one
-lb_metric_axis_stuff = [  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
-    ('lbi', 'affinity', 'affinity'),
-    ('lbr', 'n-ancestor', 'N ancestors'),
-    ('lbr', 'branch-length', 'branch length')
-]
+def lb_metric_axis_cfg(metric_method=None):  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
+    base_cfg = collections.OrderedDict([('lbi', [('affinity', 'affinity')]),
+                                        ('lbr', [('n-ancestor', 'N ancestors'), ('branch-length', 'branch length')])])
+    if metric_method is None:
+        return base_cfg.items()
+    elif metric_method in base_cfg:
+        return [(m, cfg) for m, cfg in base_cfg.items() if m == metric_method]
+    else:
+        return [[metric_method, [('affinity', 'affinity')]]]
+
+cluster_summary_fcns = collections.OrderedDict((('mean', numpy.mean), ('max', max)))  # ways in which we summarize the affinity or lb value for all cells in a family
+def get_lbscatteraxes(lb_metric):
+    return ['affinity', lb_metric]
+def get_cluster_summary_strs(lb_metric):
+    return ['%s-%s-vs-%s-%s' % (st1, get_lbscatteraxes(lb_metric)[0], st2, get_lbscatteraxes(lb_metric)[1]) for st1, st2 in itertools.product(cluster_summary_fcns, repeat=2)]  # all four combos and orderings of max/mean
+def choice_groupings(lb_metric):
+    cgroups = [('per-seq', [None])]
+    if lb_metric in ['shm', 'lbi']:  # not yet implemented for lbr
+        cgroups.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
+    return cgroups
 
 # ----------------------------------------------------------------------------------------
 metric_for_target_distance_labels = {
@@ -338,12 +353,13 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             print '            %3s         N     mean    mean       |  perfect   perfect' % lb_metric
             print '    ptile  threshold  taken   %saffy    affy ptile |  N taken  mean ptile'  % ('' if affy_key_str == '' else 'r-')
         lbvals = plotvals[lb_metric]  # should really use these shorthands for the previous plot as well
-        affyvals = plotvals['affinity']
+        # affyvals = [utils.round_to_n_digits(a, 4) for a in plotvals['affinity']]  # the rounding is a little weird, but something about the math in bcr-phylo frequently results in affinity values that barely differ, which makes the percentiles look wacked out (which doesn't matter on average, but when looking at individual, small families it's confusing))
+        affyvals = plotvals['affinity']  # hm, or maybe the rounding in the line above doesn't really serve a purpose
         sorted_affyvals = sorted(affyvals, reverse=True)
         for percentile in numpy.arange(*ptile_range_tuple):
             lb_ptile_val = numpy.percentile(lbvals, percentile)  # lb value corresponding to <percentile>
             corresponding_affinities = [affy for lb, affy in zip(lbvals, affyvals) if lb > lb_ptile_val]  # affinities corresponding to lb greater than <lb_ptile_val> (i.e. the affinities that you'd get if you took all the lb values greater than that)
-            corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow
+            corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy, kind='weak') for caffy in corresponding_affinities]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow (especially because I'm recalculating things I don't need to)
             if len(corr_affy_ptiles) == 0:
                 if debug:
                     print '   %5.0f    no vals' % percentile
@@ -354,7 +370,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             # make a "perfect" line using the actual affinities, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
             n_to_take = len(corresponding_affinities)  # this used to be (in general) different than the number we took above, hence the weirdness/duplication (could probably clean up at this point)
             corresponding_perfect_affy_vals = sorted_affyvals[:n_to_take]
-            corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy) for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow
+            corr_perfect_affy_ptiles = [stats.percentileofscore(affyvals, cpaffy, kind='weak') for cpaffy in corresponding_perfect_affy_vals]  # NOTE this is probably really slow (partly inherently, and partly because I could calculate the mean ptile for every n taken at the start of the loop)
             ptile_vals['perfect_vals'].append(float(numpy.mean(corr_perfect_affy_ptiles)))
 
             if debug:
@@ -365,7 +381,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             # shuffled_lb_vals = copy.deepcopy(lbvals)
             # random.shuffle(shuffled_lb_vals)
             # NON_corresponding_affinities = [affy for lb, affy in zip(shuffled_lb_vals, affyvals) if lb > lb_ptile_val]
-            # NON_corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy) for caffy in NON_corresponding_affinities]
+            # NON_corr_affy_ptiles = [stats.percentileofscore(affyvals, caffy, kind='weak') for caffy in NON_corresponding_affinities]
             # ptile_vals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
         return ptile_vals
     # ----------------------------------------------------------------------------------------
@@ -415,12 +431,12 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
         # ax.plot(tmp_ptvals['lb_ptiles'], tmp_ptvals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
         if len(lines) > 1 and iclust is None and vspstuff is None:
-            ax.text(0.6 * ax.get_xlim()[1], 0.95 * ax.get_ylim()[1], 'choosing among %d families' % len(lines), fontsize=17, fontweight='bold')  # , color='red'
+            ax.text(0.6 * ax.get_xlim()[1], 0.97 * ax.get_ylim()[1], 'choosing among %d families' % len(lines), fontsize=17, fontweight='bold')  # , color='red'
             if 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
                 ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], 'wrong/misleading', fontsize=30, fontweight='bold', color='red')
         lbstr, affystr, clstr, xlabel, ylabel, title = tmpstrs(iclust, vspstuff)
         fn = plotting.mpl_finish(ax, getplotdir('-ptiles'), ptile_plotname(iclust=iclust, vspstuff=vspstuff),
-                                 xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 100), leg_loc=(0.5, 0.2),
+                                 xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=(45, 102), leg_loc=(0.5, 0.2),
                                  title='potential %s thresholds (%s tree)' % (ylabel, true_inf_str),
                                  xlabel='%s threshold (percentile)' % ylabel,
                                  ylabel='mean percentile of\nresulting %s' % xlabel.replace('affinity', 'affinities'))
@@ -439,26 +455,25 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     fnames += [[], []]
     affy_key_str = '-relative' if 'relative' in affy_key else ''
     true_inf_str = 'true' if is_true_line else 'inferred'
-    vtypes = ['affinity', lb_metric]  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
-    summary_fcns = {'mean' : numpy.mean, 'max' : max}  # ways in which we summarize the affinity or lb value for all cells in a family
+    vtypes = get_lbscatteraxes(lb_metric)  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
     for estr in ['', '-ptiles']:
         utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 
     per_seq_plotvals = {vt : [] for vt in vtypes}  # plot values for choosing single seqs/cells (only among all clusters, since the iclust ones don't need to kept outside the cluster loop)
-    per_clust_plotvals = {st : {vt : [] for vt in vtypes} for st in summary_fcns}  # each cluster plotted as one point using a summary over its cells (max or mean) for affinity and lb
+    per_clust_plotvals = {st : {vt : [] for vt in vtypes} for st in cluster_summary_fcns}  # each cluster plotted as one point using a summary over its cells (max or mean) for affinity and lb
     ptile_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
     correlation_vals = {'per-seq' : {}, 'per-cluster' : {}}
     if debug:
         print '                        %8s         %8s' % tuple(vtypes)
-        print '  iclust   size  %8s  %8s  %8s  %8s' % tuple(st for _ in range(2) for st in summary_fcns)
+        print '  iclust   size  %8s  %8s  %8s  %8s' % tuple(st for _ in range(2) for st in cluster_summary_fcns)
     for iclust, line in enumerate(lines):
         iclust_plotvals = get_plotvals(line)
         if debug:
             print '  %3d    %4d   ' % (iclust, len(line['unique_ids'])),
         for vt in vtypes:
             per_seq_plotvals[vt] += iclust_plotvals[vt]
-            for st in summary_fcns:  # store both max and mean for affinity and lb
-                per_clust_plotvals[st][vt].append(summary_fcns[st](iclust_plotvals[vt]))
+            for st in cluster_summary_fcns:  # store both max and mean for affinity and lb
+                per_clust_plotvals[st][vt].append(cluster_summary_fcns[st](iclust_plotvals[vt]))
                 if debug:
                     print '    %5.3f' % per_clust_plotvals[st][vt][-1],
         if debug:
@@ -471,7 +486,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             make_ptile_plot(iclust_ptile_vals, iclust=iclust)
 
     correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes])}
-    for st1, st2 in itertools.product(summary_fcns, repeat=2):  # all four combos and orderings of max/mean 
+    for st1, st2 in itertools.product(cluster_summary_fcns, repeat=2):  # all four combos and orderings of max/mean
         vspairs = zip(vtypes, (st1, st2))  # assign this (st1, st2) combo to lb and affinity based on their order in <vtypes>
         vspdict = {v : s for v, s in vspairs}  # need to also access it by key
         tmpvals = {vt : per_clust_plotvals[st][vt] for vt, st in vspairs}  # e.g. 'affinity' : <max affinity value list>, 'lbi' : <mean lbi value list> (this is necessary(ish?) to flip the order/depth of st/vt keys)
@@ -638,7 +653,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
         fnames = []
     fnames += [[]]
     true_inf_str = 'true' if is_true_line else 'inferred'
-    xvar_list = collections.OrderedDict([(xvar, xlabel) for metric, xvar, xlabel in lb_metric_axis_stuff if metric == 'lbr'])
+    xvar_list = collections.OrderedDict([(xvar, xlabel) for metric, cfglist in lb_metric_axis_cfg('lbr') for xvar, xlabel in cfglist])
     for xvar, estr in itertools.product(xvar_list, ['', '-ptiles']):
         utils.prep_dir(getplotdir(xvar, extrastr=estr), wildlings=['*.svg', '*.yaml'])
     if debug:

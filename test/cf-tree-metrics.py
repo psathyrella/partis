@@ -179,7 +179,10 @@ def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relativ
 def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
     if metric_method is None:
         ura_vals = [False] #, True]  # this is hackey, but maybe I want to start looking at relative affy again
-        return [get_tree_metric_fname(varnames, vstr, mtmp, x_axis_label=xatmp, use_relative_affy=use_relative_affy) for mtmp, xatmp, _ in lbplotting.lb_metric_axis_stuff for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
+        return [get_tree_metric_fname(varnames, vstr, mtmp, x_axis_label=xatmp, use_relative_affy=use_relative_affy)
+                for mtmp, cfglist in lbplotting.lb_metric_axis_cfg(args.metric_method)
+                for xatmp, _ in cfglist
+                for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
     else:
         return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False)]  # TODO not sure it's really best to hard code this, but maybe it is
 
@@ -246,7 +249,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
+def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., cluster_summary_str=None, debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
         print '    skipping lbr when only observing leaves'
         return
@@ -296,7 +299,11 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(yamlfo, iclust=None):
         if 'percentiles' in yamlfo:  # new-style files
-            ytmpfo = yamlfo['percentiles']['per-seq']['all-clusters' if iclust is None else 'iclust-%d' % iclust]
+            ytmpfo = yamlfo['percentiles']
+            if cluster_summary_str is None:
+                ytmpfo = ytmpfo['per-seq']['all-clusters' if iclust is None else 'iclust-%d' % iclust]
+            else:
+                ytmpfo = ytmpfo['per-cluster'][cluster_summary_str]
         else:  # old-style files
             ytmpfo = yamlfo
             if iclust is not None:
@@ -440,8 +447,12 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     if xvar == 'carry-cap':
         log = 'x'
-    plotting.mpl_finish(ax, get_comparison_plotdir(),
-                        '%s-%s-ptiles-obs-frac-vs-lb-tau' % (ptilestr, metric),
+    if cluster_summary_str is None:  # TODO both of these file names kind of suck
+        plotname = '%s-%s-ptiles-vs-%s' % (ptilestr, metric, xvar)
+    else:
+        plotname = '%s' % cluster_summary_str
+    plotting.mpl_finish(ax, '%s/%s' % (get_comparison_plotdir(),'per-seq' if cluster_summary_str is None else 'per-cluster'),
+                        plotname,
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
                         title=metric.upper(), leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
@@ -554,7 +565,7 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
-parser.add_argument('--metric-method', choices=['shm'], help='method/metric to compare to/correlate with affinity (if not set, run partis to get lb metrics)')
+parser.add_argument('--metric-method', choices=['shm'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--selection-strength-list', default='1.0')
 parser.add_argument('--parameter-variances', help='see bcr-phylo-run.py help')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
@@ -635,14 +646,19 @@ for action in args.actions:
     elif action == 'get-tree-metrics':
         get_tree_metrics(args)
     elif action == 'plot' and not args.dry:
-        utils.prep_dir(get_comparison_plotdir(), wildlings='*.svg')
-        if args.metric_method is not None:
-            make_plots(args, args.metric_method, 'affinity', 'affinity', args.final_plot_xvar, debug=True)
-        elif args.test:
-            for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff:
-                make_plots(args, metric, ptilestr, ptilelabel, args.final_plot_xvar)
-                # break
-        else:
-            procs = [multiprocessing.Process(target=make_plots, args=(args, metric, ptilestr, ptilelabel, args.final_plot_xvar))  # time is almost entirely due to file open + json.load
-                     for metric, ptilestr, ptilelabel in lbplotting.lb_metric_axis_stuff]
+        utils.prep_dir(get_comparison_plotdir(), subdirs=['per-seq', 'per-cluster'], wildlings=['*.html', '*.svg'])
+        procs = []
+        for metric, cfg_list in lbplotting.lb_metric_axis_cfg(args.metric_method):  # omg these loops is confusing and complicated
+            for ptilestr, ptilelabel in cfg_list:
+                for pchoice, cgroupings in lbplotting.choice_groupings(metric):
+                    for csstr in cgroupings:
+                        arglist = (args, metric, ptilestr, ptilelabel, args.final_plot_xvar)
+                        kwargs = {'cluster_summary_str' : csstr}
+                        if args.test:
+                            make_plots(*arglist, **kwargs)
+                        else:
+                            procs.append(multiprocessing.Process(target=make_plots, args=arglist, kwargs=kwargs))
+        if not args.test:
             utils.run_proc_functions(procs)
+        plotting.make_html(get_comparison_plotdir() + '/per-cluster')
+        plotting.make_html(get_comparison_plotdir() + '/per-seq')
