@@ -249,11 +249,11 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., cluster_summary_str=None, debug=False):
+def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
         print '    skipping lbr when only observing leaves'
         return
-    treat_clusters_together = args.n_sim_events_per_proc is None or args.choose_among_families  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc
+    treat_clusters_together = args.n_sim_events_per_proc is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
     vlabels = {
         'obs_frac' : 'fraction sampled',
         'n-sim-seqs-per-gen' : 'N/gen',
@@ -297,22 +297,26 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         pvlabel[0] = '; '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey
     # ----------------------------------------------------------------------------------------
-    def get_diff_vals(yamlfo, iclust=None):
+    def get_ytmpfo(yamlfo, iclust=None):
         if 'percentiles' in yamlfo:  # new-style files
             ytmpfo = yamlfo['percentiles']
-            if cluster_summary_str is None:
+            if per_x == 'per-seq':
                 ytmpfo = ytmpfo['per-seq']['all-clusters' if iclust is None else 'iclust-%d' % iclust]
             else:
-                ytmpfo = ytmpfo['per-cluster'][cluster_summary_str]
+                ytmpfo = ytmpfo['per-cluster'][choice_grouping]
         else:  # old-style files
             ytmpfo = yamlfo
             if iclust is not None:
-                if 'iclust-%d' % iclust not in ytmpfo:  # even older-style files
+                if 'iclust-%d' % iclust not in ytmpfo:
                     print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')  # I think it's just going to crash on the next line anyway
                 ytmpfo = ytmpfo['iclust-%d' % iclust]
+        return ytmpfo
+    # ----------------------------------------------------------------------------------------
+    def get_diff_vals(ytmpfo, iclust=None):
+        ytmpfo = get_ytmpfo(yamlfo, iclust=iclust)
         return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
     # ----------------------------------------------------------------------------------------
-    def add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=None):
+    def add_plot_vals(ytmpfo, vlists, varnames, obs_frac, iclust=None):
         def getikey():
             if args.n_replicates == 1 and treat_clusters_together:
                 ikey = None
@@ -328,7 +332,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
                 def initfcn(): return {('%d-%d' % (i, j)) : [] for i in getsargval('seed') for j in range(args.n_sim_events_per_proc)}
             return ikey, initfcn
 
-        diff_vals = get_diff_vals(yamlfo, iclust=iclust)
+        diff_vals = get_diff_vals(ytmpfo, iclust=iclust)
         if len(diff_vals) == 0:
             missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
             return
@@ -349,9 +353,6 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
     # ----------------------------------------------------------------------------------------
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
-    print '  plotting %d combinations of %d variable%s (%s) with %d families per combination (%s)' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames),
-                                                                                                   1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc,
-                                                                                                   'choosing cells from all families in a combination together' if treat_clusters_together else 'choosing separately from each family')
     if debug:
         print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
     missing_vstrs = {'missing' : [], 'empty' : []}
@@ -371,10 +372,12 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         if treat_clusters_together:
             add_plot_vals(yamlfo, vlists, varnames, obs_frac)
         else:
-            iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
+            iclusts_in_file = []
+            if 'percentiles' in yamlfo:
+                iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo['percentiles']['per-seq'] if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
             missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
             if len(missing_iclusts) > 0:
-                print '  %s missing %d iclusts (i = %s) from file' % (utils.color('red', 'error'), len(missing_iclusts), ' '.join(str(i) for i in missing_iclusts))
+                print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
             assert iclusts_in_file == list(range(args.n_sim_events_per_proc))
             for iclust in iclusts_in_file:
                 add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
@@ -384,7 +387,7 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
     for mkey, vstrs_list in missing_vstrs.items():  # ok now it's iclust and vstrs list, but what tf am I going to name that
         if len(vstrs_list) == 0:
             continue
-        print '  %s: %d families' % (mkey, len(vstrs_list))
+        print '        %s: %d families' % (mkey, len(vstrs_list))
         print '     %s   iclust' % get_varname_str()
         for iclust, vstrs in vstrs_list:
             print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, x_axis_label=ptilestr, use_relative_affy=args.use_relative_affy))
@@ -447,19 +450,17 @@ def make_plots(args, metric, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., 
         ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     if xvar == 'carry-cap':
         log = 'x'
-    if cluster_summary_str is None:  # TODO both of these file names kind of suck
-        plotname = '%s-%s-ptiles-vs-%s' % (ptilestr, metric, xvar)
+    if per_x == 'per-seq':  # TODO both of these file names kind of suck
+        plotname = '%s-%s-ptiles-vs-%s-%s' % (ptilestr, metric, xvar, choice_grouping)
     else:
-        plotname = '%s' % cluster_summary_str
-    plotting.mpl_finish(ax, '%s/%s' % (get_comparison_plotdir(),'per-seq' if cluster_summary_str is None else 'per-cluster'),
+        plotname = '%s' % choice_grouping
+    plotting.mpl_finish(ax, '%s/%s' % (get_comparison_plotdir(), per_x),
                         plotname,
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
                         title=metric.upper(), leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
                         xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16, log=log,
     )
-
-    print '  wrote plots to %s' % get_comparison_plotdir()
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(args):  # also caches parameters
@@ -587,7 +588,6 @@ parser.add_argument('--dry', action='store_true')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--final-plot-xvar', default='lb-tau')
-parser.add_argument('--choose-among-families', action='store_true', help='when making plots (\'plot\' action), instead of the default of treating each cluster within each process/job separately (i.e. choosing cells only within each cluster), treat each process/job as a whole (i.e. choose among all families in a process/job). Note that this means you can\'t separately adjust the number of families per job, and the number of families among which we choose cells.')
 parser.add_argument('--legend-var')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
@@ -627,8 +627,6 @@ args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=Tru
 args.only_metrics = utils.get_arg_list(args.only_metrics)
 if [args.n_tau_lengths_list, args.n_generations_list].count(None) != 1:
     raise Exception('have to set exactly one of --n-tau-lengths, --n-generations')
-if args.choose_among_families and args.n_sim_events_per_proc is None:
-    raise Exception('only makes sense to set --choose-among-families if you\'ve also set --n-sim-events-per-proc (since the whole point is you\'re choosing among more than one family)')
 
 import random
 random.seed(args.random_seed)  # somehow this is necessary to get the same results, even though I'm not using the module anywhere directly
@@ -647,17 +645,21 @@ for action in args.actions:
         get_tree_metrics(args)
     elif action == 'plot' and not args.dry:
         utils.prep_dir(get_comparison_plotdir(), subdirs=['per-seq', 'per-cluster'], wildlings=['*.html', '*.svg'])
+        _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
+        print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir())
         procs = []
         for metric, cfg_list in lbplotting.lb_metric_axis_cfg(args.metric_method):  # omg these loops is confusing and complicated
+            # if metric != 'lbi': continue
             for ptilestr, ptilelabel in cfg_list:
-                for pchoice, cgroupings in lbplotting.choice_groupings(metric):
-                    for csstr in cgroupings:
-                        arglist = (args, metric, ptilestr, ptilelabel, args.final_plot_xvar)
-                        kwargs = {'cluster_summary_str' : csstr}
+                print '  %s  %-13s' % (utils.color('blue', metric), ptilestr)
+                for pchoice, cgroupings in lbplotting.get_choice_groupings(metric):
+                    for cgroup in cgroupings:
+                        print '    %-12s  %s' % (pchoice, cgroup)
+                        arglist = (args, metric, pchoice, cgroup, ptilestr, ptilelabel, args.final_plot_xvar)
                         if args.test:
-                            make_plots(*arglist, **kwargs)
+                            make_plots(*arglist)
                         else:
-                            procs.append(multiprocessing.Process(target=make_plots, args=arglist, kwargs=kwargs))
+                            procs.append(multiprocessing.Process(target=make_plots, args=arglist))
         if not args.test:
             utils.run_proc_functions(procs)
         plotting.make_html(get_comparison_plotdir() + '/per-cluster')

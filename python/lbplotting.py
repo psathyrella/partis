@@ -33,8 +33,10 @@ def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]
 def get_cluster_summary_strs(lb_metric):
     return ['%s-%s-vs-%s-%s' % (st1, get_lbscatteraxes(lb_metric)[0], st2, get_lbscatteraxes(lb_metric)[1]) for st1, st2 in itertools.product(cluster_summary_fcns, repeat=2)]  # all four combos and orderings of max/mean
-def choice_groupings(lb_metric):
-    cgroups = [('per-seq', [None])]
+def get_choice_groupings(lb_metric):
+    # 'within-families': treat each cluster within each process/job separately (i.e. choosing cells only within each cluster)
+    # 'among-families': treat each process/job as a whole (i.e. choose among all families in a process/job). Note that this means you can\'t separately adjust the number of families per job, and the number of families among which we choose cells (which is fine).
+    cgroups = [('per-seq', ['within-families', 'among-families'])]
     if lb_metric in ['shm', 'lbi']:  # not yet implemented for lbr
         cgroups.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
     return cgroups
