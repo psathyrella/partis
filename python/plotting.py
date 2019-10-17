@@ -829,10 +829,10 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         handles, labels = ax.get_legend_handles_labels()
         if len(handles) > 0:
             legend = ax.legend(handles, labels, loc=leg_loc, prop=leg_prop, title=leg_title)
-    if adjust is None:
-        plt.gcf().subplots_adjust(bottom=0.20, left=0.18, right=0.95, top=0.92)
-    else:
-        plt.gcf().subplots_adjust(**adjust)
+    default_adjust = {'bottom' : 0.20, 'left' : 0.18, 'right' : 0.95, 'top' : 0.92}
+    if adjust is not None:
+        default_adjust.update(adjust)  # this makes things still work if the calling fcn has {} as the default rather than None
+    plt.gcf().subplots_adjust(**default_adjust)  # ok, it's not default any more, but I don't want to change the name
     sys.modules['seaborn'].despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)

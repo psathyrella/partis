@@ -445,21 +445,36 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
             ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=pvkey, alpha=0.7, linewidth=4, markersize=markersize, marker='.')  #, title='position ' + str(position))
         else:
             ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
-    log = ''
+    log, adjust = '', {}
     if xvar == 'lb-tau':
         ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
+        adjust['bottom'] = 0.23
     if xvar == 'carry-cap':
         log = 'x'
-    if per_x == 'per-seq':  # TODO both of these file names kind of suck
+    if per_x == 'per-seq':
         plotname = '%s-%s-ptiles-vs-%s-%s' % (ptilestr, metric, xvar, choice_grouping)
     else:
-        plotname = '%s' % choice_grouping
+        plotname = '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
+    if ax.get_ylim()[1] < 1:
+        adjust['left'] = 0.21
+    if ax.get_ylim()[1] < 0.01:
+        adjust['left'] = 0.26
+    n_ticks = 4
+    ymin, ymax = ax.get_ylim()
+    dy = (ymax - ymin) / float(n_ticks - 1)
+    yticks = [utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
+    yticklabels = ['%s'%y for y in yticks]
+    title = metric.upper()
+    if per_x == 'per-seq':
+        title += ': choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
     plotting.mpl_finish(ax, '%s/%s' % (get_comparison_plotdir(), per_x),
                         plotname,
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
-                        title=metric.upper(), leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
-                        xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16, log=log,
+                        title=title, leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
+                        xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
+                        yticks=yticks, yticklabels=yticklabels,
+                        log=log, adjust=adjust,
     )
 
 # ----------------------------------------------------------------------------------------
