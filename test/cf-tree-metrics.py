@@ -564,7 +564,7 @@ def get_tree_metrics(args):
                                                     only_csv=args.only_csv_plots)  # ete_path=args.ete_path,
 
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_tree_metric_fname(varnames, vstrs, 'lbi', x_axis_label='affinity'))
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method)[0])
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         if not args.dry:
@@ -663,7 +663,7 @@ for action in args.actions:
         _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir())
         procs = []
-        for metric, cfg_list in lbplotting.lb_metric_axis_cfg(args.metric_method):  # omg these loops is confusing and complicated
+        for metric, cfg_list in lbplotting.lb_metric_axis_cfg(args.metric_method):  # omg these loops are confusing and complicated (but not sure they can really be improved that much)
             # if metric != 'lbi': continue
             for ptilestr, ptilelabel in cfg_list:
                 print '  %s  %-13s' % (utils.color('blue', metric), ptilestr)

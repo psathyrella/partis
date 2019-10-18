@@ -433,7 +433,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         ax.plot(ax.get_xlim(), (50, 50), linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # straight line
         # ax.plot(tmp_ptvals['lb_ptiles'], tmp_ptvals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
         if len(lines) > 1 and iclust is None and vspstuff is None:
-            ax.text(0.6 * ax.get_xlim()[1], 0.97 * ax.get_ylim()[1], 'choosing among %d families' % len(lines), fontsize=17, fontweight='bold')  # , color='red'
+            fig.text(0.37, 0.88, 'choosing among %d families' % len(lines), fontsize=17, fontweight='bold')  # , color='red'
             if 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
                 ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], 'wrong/misleading', fontsize=30, fontweight='bold', color='red')
         lbstr, affystr, clstr, xlabel, ylabel, title = tmpstrs(iclust, vspstuff)
