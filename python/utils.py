@@ -2267,7 +2267,7 @@ def get_sfs_occurence_info(line, restrict_to_region=None, debug=False):
     return occurence_indices, occurence_fractions
 
 # ----------------------------------------------------------------------------------------
-def fay_wu_h(line, restrict_to_region=None, occurence_indices=None, n_seqs=None, debug=True):  # from: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1461156/pdf/10880498.pdf and https://www.biorxiv.org/content/biorxiv/early/2017/10/19/145052.full.pdf
+def fay_wu_h(line, restrict_to_region=None, occurence_indices=None, n_seqs=None, debug=False):  # from: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1461156/pdf/10880498.pdf and https://www.biorxiv.org/content/biorxiv/early/2017/10/19/145052.full.pdf
     if occurence_indices is None:
         occurence_indices, _ = get_sfs_occurence_info(line, restrict_to_region=restrict_to_region, debug=debug)
         n_seqs = len(line['unique_ids'])

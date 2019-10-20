@@ -1134,6 +1134,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
 
 # ----------------------------------------------------------------------------------------
 def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, workdir=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
+    # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
     n_before = len(true_lines)
     true_lines = sorted([l for l in true_lines if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
@@ -1141,10 +1142,13 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
     print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines))
     print '        skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
     for iclust, true_line in enumerate(true_lines):
+        assert 'tree-info' not in true_line  # could handle it, but don't feel like thinking about it a.t.m.
         if metric_method == 'shm':
             metric_info = {u : utils.per_seq_val(true_line, 'mut_freqs', u) for u in true_line['unique_ids']}
-            assert 'tree-info' not in true_line  # could handle it, but don't feel like thinking about it a.t.m.
             true_line['tree-info'] = {'lb' : {metric_method : metric_info}}
+        elif metric_method == 'fay-wu-h':  # NOTE this isn't actually tree info, but I"m comparing it to things calculated with a tree, so putting it in the same place at least for now
+            fwh = -utils.fay_wu_h(true_line)
+            true_line['tree-info'] = {'lb' : {metric_method : {u : fwh for u in true_line['unique_ids']}}}  # HACK add same value for all seqs, since it isn't a per-seq quantity (but this makes it so it can be handled the same as the others in lbplotting)
         else:
             assert False
 
@@ -1158,6 +1162,7 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
         fnames = []
         lbplotting.plot_lb_vs_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames, debug=debug)
+        lbplotting.plot_lb_distributions(true_plotdir, true_lines, fnames=fnames, is_true_line=True, metric_method=metric_method, only_overall=True)
         if not only_csv:
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in [metric_method]])
 
