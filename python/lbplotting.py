@@ -483,7 +483,6 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     def ptile_plotname(iclust=None, vspstuff=None):
         lbstr, affystr, clstr, _, _, _ = tmpstrs(iclust, vspstuff)
         return '%s-vs-%s-%s-tree-ptiles%s' % (lbstr, affystr, true_inf_str, clstr)
-
     # ----------------------------------------------------------------------------------------
     def getcorr(xvals, yvals):
         return numpy.corrcoef(xvals, yvals)[0, 1]
@@ -557,11 +556,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         json.dump(yamlfo, yfile)
 
 # ----------------------------------------------------------------------------------------
-# TODO update the names in this to the more sensible ones that are now found in the previous fcn
-def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, min_affinity_change=1e-6, n_max_steps=15, only_csv=False, fnames=None, n_per_row=4, debug=False):
+def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, min_affinity_change=1e-6, n_max_steps=15, only_csv=False, fnames=None, n_per_row=4, debug=False):
     debug = True
     # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
-    # NOTE now that I've done a huge refactor, this fcn is very similar to plot_lb_vs_affinity(), so they could be eventually combined to clean up quite a bit
     # ----------------------------------------------------------------------------------------
     def check_affinity_changes(affinity_changes):
         affinity_changes = sorted(affinity_changes)
@@ -660,32 +657,33 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
         utils.prep_dir(getplotdir(xvar, extrastr=estr), wildlings=['*.svg', '*.yaml'])
     if debug:
         print 'finding ancestors with most recent affinity increases'
-    # TODO update names to conform to new conventions in plot_lb_vs_affinity() (or better yet, combine the two fcns so there isn't so much darn duplication)
     for xvar, xlabel in xvar_list.items():
-        all_plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
+        per_seq_plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
+        # not yet implemented: per_clust_plotvals = {st : {vt : [] for vt in vtypes} for st in cluster_summary_fcns}  # each cluster plotted as one point using a summary over its cells (max or mean) for affinity and lb
         ptile_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
-        for iclust, line in enumerate(true_lines):
+        # not yet implemented: correlation_vals = {'per-seq' : {}, 'per-cluster' : {}}
+        for iclust, line in enumerate(lines):
             if debug:
                 if iclust == 0:
                     print ' %s' % utils.color('green', xvar)
                 print '  %s' % utils.color('blue', 'iclust %d' % iclust)
                 print '         node        ancestors  distance   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
             iclust_plotvals = get_plotvals(line, xvar)
-            for vtype in all_plotvals:
-                all_plotvals[vtype] += iclust_plotvals[vtype]
+            for vtype in per_seq_plotvals:
+                per_seq_plotvals[vtype] += iclust_plotvals[vtype]
             iclust_ptile_vals = get_ptile_vals(lb_metric, iclust_plotvals, xvar, xlabel, dbgstr='iclust %d'%iclust, debug=debug)
             ptile_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
             if not only_csv and len(iclust_plotvals[xvar]) > 0:
                 make_scatter_plot(iclust_plotvals, xvar, iclust=iclust)
                 make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), plotvals=iclust_plotvals, xlabel=xlabel, ylabel=lb_metric.upper(), true_inf_str=true_inf_str)
         if not only_csv:
-            make_scatter_plot(all_plotvals, xvar)
-        ptile_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, all_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
+            make_scatter_plot(per_seq_plotvals, xvar)
+        ptile_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
         with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
             yamlfo = {'percentiles' : ptile_vals}
             json.dump(yamlfo, yfile)  # not adding the new correlation keys atm (like in the lb vs affinity fcn)
-        if not only_csv and len(all_plotvals[lb_metric]) > 0:
-            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), plotvals=all_plotvals, xlabel=xlabel, ylabel=lb_metric.upper(), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(true_lines))
+        if not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
+            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), plotvals=per_seq_plotvals, xlabel=xlabel, ylabel=lb_metric.upper(), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
 
 # ----------------------------------------------------------------------------------------
 def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label, debug=False):
