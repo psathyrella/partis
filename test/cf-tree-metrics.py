@@ -312,9 +312,15 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
                 ytmpfo = ytmpfo['iclust-%d' % iclust]
         return ytmpfo
     # ----------------------------------------------------------------------------------------
+    def yval_key(ytmpfo):
+        if ptilestr == 'affinity' and 'mean_affy_ptiles' in ytmpfo:  # old-style files used shortened version
+            return 'mean_affy_ptiles'
+        else:
+            return 'mean_%s_ptiles' ptilestr
+    # ----------------------------------------------------------------------------------------
     def get_diff_vals(ytmpfo, iclust=None):
         ytmpfo = get_ytmpfo(yamlfo, iclust=iclust)
-        return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
+        return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key(ytmpfo)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
     # ----------------------------------------------------------------------------------------
     def add_plot_vals(ytmpfo, vlists, varnames, obs_frac, iclust=None):
         def getikey():
@@ -368,7 +374,6 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
             missing_vstrs['missing'].append((None, vstrs))
             continue
         # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
-        yval_key = 'mean_%s_ptiles' % ('affy' if ptilestr == 'affinity' else ptilestr)  # arg, would've been nice if that was different
         if treat_clusters_together:
             add_plot_vals(yamlfo, vlists, varnames, obs_frac)
         else:
