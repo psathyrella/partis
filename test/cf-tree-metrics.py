@@ -316,7 +316,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
         if ptilestr == 'affinity' and 'mean_affy_ptiles' in ytmpfo:  # old-style files used shortened version
             return 'mean_affy_ptiles'
         else:
-            return 'mean_%s_ptiles' ptilestr
+            return 'mean_%s_ptiles' % ptilestr
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(ytmpfo, iclust=None):
         ytmpfo = get_ytmpfo(yamlfo, iclust=iclust)

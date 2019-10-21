@@ -340,48 +340,28 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 
 # ----------------------------------------------------------------------------------------
 def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 100., 1.), dbgstr=None, affy_key_str='', debug=False):
-# ----------------------------------------------------------------------------------------
-# TODO
-    xia = xvar == 'affinity'
-    def get_final_xvar_vals(corr_xvals):
-        if xia:  # for affinity we go one extra step and compare against percentiles, since it's not obvious looking at plain affinity numbers how good they are (whereas N ancestors and branch length we just want to be small)
-            return [stats.percentileofscore(plotvals[xvar], caffy, kind='weak') for caffy in corr_xvals]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow (especially because I'm recalculating things I don't need to)
-        else:
-            return corr_xvals
-
+    def get_final_xvar_vals(corr_xvals):  # for affinity we go one extra step and compare against percentiles, since it's not obvious looking at plain affinity numbers how good they are (whereas N ancestors and branch length we just want to be small)
+        return corr_xvals if not xia else [stats.percentileofscore(plotvals[xvar], caffy, kind='weak') for caffy in corr_xvals]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow (especially because I'm recalculating things I don't need to)
     # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot (i.e. are affinity, N ancestors, or branch length). On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
-# ----------------------------------------------------------------------------------------
-# TODO
-    xkey = 'mean_%s_ptiles' % xvar.replace('inity', 'y')
+    xia = xvar == 'affinity'
+    xkey = 'mean_%s_ptiles' % xvar
     tmp_ptvals = {'lb_ptiles' : [], xkey : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
     if len(plotvals[xvar]) == 0:
         return tmp_ptvals
     if debug:
-# ----------------------------------------------------------------------------------------
-# TODO
-        if not xia:
-            print '    getting ptile vals%s' % ('' if dbgstr is None else (' for %s' % utils.color('blue', dbgstr)))
+        print '    getting ptile vals%s' % ('' if dbgstr is None else (' for %s' % utils.color('blue', dbgstr)))
         print '            %3s         N     mean    %s    |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
         print '    ptile  threshold  taken   %s%-s %s|  N taken  mean %s'  % (affy_key_str.replace('relative-', 'r-'), 'affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
-# ----------------------------------------------------------------------------------------
     sorted_xvals = sorted(plotvals[xvar], reverse=xia)
     for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
-# ----------------------------------------------------------------------------------------
-# TODO switch both to >
-        if xia:
-            corresponding_xvals = [xv for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if lb > lb_ptile_val]  # x vals corresponding to lb greater than <lb_ptile_val> (i.e. the x vals that you'd get if you took all the lb values greater than that)
-        else:
-            corresponding_xvals = [xv for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if lb >= lb_ptile_val]  # x vals corresponding to lb greater than <lb_ptile_val> (i.e. the x vals that you'd get if you took all the lb values greater than that)
-# ----------------------------------------------------------------------------------------
-
-        final_xvar_vals = get_final_xvar_vals(corresponding_xvals)
-        if len(final_xvar_vals) == 0:
+        corresponding_xvals = [xv for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if lb > lb_ptile_val]  # x vals corresponding to lb greater than <lb_ptile_val> (i.e. the x vals that you'd get if you took all the lb values greater than that)
+        if len(corresponding_xvals) == 0:
             if debug:
                 print '   %5.0f    no vals' % percentile
             continue
         tmp_ptvals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
-        tmp_ptvals[xkey].append(float(numpy.mean(final_xvar_vals)))
+        tmp_ptvals[xkey].append(float(numpy.mean(get_final_xvar_vals(corresponding_xvals))))
 
         # make a "perfect" line using the actual x values, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
         n_to_take = len(corresponding_xvals)  # this used to be (in general) different than the number we took above, hence the weirdness/duplication (could probably clean up at this point)
@@ -389,10 +369,10 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
         tmp_ptvals['perfect_vals'].append(float(numpy.mean(get_final_xvar_vals(perfect_xvals))))
 
         if debug:
-            print '   %s%5.0f   %5.2f     %4d  %s  %s       | %4d    %-8s' % ('' if xia else '  ', percentile, lb_ptile_val, len(corresponding_xvals), ('%8.4f'%numpy.mean(corresponding_xvals)) if xia else '',
-                                                                              ('%5.0f' if xia else '%6.2f') % tmp_ptvals[xkey][-1],
-                                                                              n_to_take,
-                                                                              '%5.0f' % tmp_ptvals['perfect_vals'][-1] if xia else (('%8.2f' if xvar == 'n-ancestor' else '%8.6f') % tmp_ptvals['perfect_vals'][-1]))
+            v1str = ('%8.4f' % numpy.mean(corresponding_xvals)) if xia else ''
+            f1str = '5.0f' if xia else '6.2f'
+            f2str = '5.0f' if xia else ('8.2f' if xvar == 'n-ancestor' else '8.6f')
+            print ('   %5.0f   %5.2f     %4d  %s  %'+f1str+'       | %4d    %-'+f2str) % (percentile, lb_ptile_val, len(corresponding_xvals), v1str, tmp_ptvals[xkey][-1], n_to_take, tmp_ptvals['perfect_vals'][-1])
         # old way of adding a 'no correlation' line:
         # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
         # shuffled_lb_vals = copy.deepcopy(plotvals[lb_metric])
@@ -406,31 +386,22 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
 def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, affy_key=None, xlabel=None, ylabel='?', fnames=None, ptile_range_tuple=(50., 100., 1.), true_inf_str='?', n_clusters=None):
     fig, ax = plotting.mpl_init()
     xia = xvar == 'affinity'
-# ----------------------------------------------------------------------------------------
-# TODO fix xkey
-    xkey = 'mean_%s_ptiles' % xvar.replace('inity', 'y')
+    xmean = 50 if xia else numpy.mean(plotvals[xvar])  # NOTE for the latter case, this is mean of "xvar", which is the x axis on the scatter plot, but here it's the y axis on the ptile plot
+    xkey = 'mean_%s_ptiles' % xvar
+    if xlabel is None:
+        xlabel = xvar
+
     ax.plot(tmp_ptvals['lb_ptiles'], tmp_ptvals[xkey], linewidth=3, alpha=0.7)
 
     # lines corresponding to no correlation and perfect correlation to guide the eye
-    xmean = 50 if xia else numpy.mean(plotvals[xvar])  # NOTE for the latter case, this is mean of "xvar", which is the x axis on the scatter plot, but here it's the y axis on the ptile plot
-    guide_line_args = [((ax.get_xlim(), (xmean, xmean)), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkred', 'linestyle' : '--', 'label' : 'no correlation'}),
-                       ((tmp_ptvals['lb_ptiles'], tmp_ptvals['perfect_vals']), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkgreen', 'linestyle' : '--', 'label' : 'perfect correlation'})]
-    if xia:
-        guide_line_args = reversed(guide_line_args)
-    for (args, kwargs) in guide_line_args:
+    bad_args = ((ax.get_xlim(), (xmean, xmean)), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkred', 'linestyle' : '--', 'label' : 'no correlation'})
+    perf_args = ((tmp_ptvals['lb_ptiles'], tmp_ptvals['perfect_vals']), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkgreen', 'linestyle' : '--', 'label' : 'perfect correlation'})
+    for (args, kwargs) in (perf_args, bad_args) if xia else (bad_args, perf_args):
         ax.plot(*args, **kwargs)
 
-    if xlabel is None:
-        xlabel = xvar
     if xia:
         # ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # straight line
         # ax.plot(tmp_ptvals['lb_ptiles'], tmp_ptvals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
-# ----------------------------------------------------------------------------------------
-# TODO add this also for the lbr ones
-        if n_clusters is not None and n_clusters > 1:
-            fig.text(0.37, 0.88, 'choosing among %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
-            if 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
-                ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], 'wrong/misleading', fontsize=30, fontweight='bold', color='red')
         ybounds = (45, 102)
         leg_loc = (0.5, 0.2)
         xlabel = xlabel.replace('affinity', 'affinities')
@@ -441,8 +412,11 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, affy_key
         leg_loc = (0.5, 0.6)
         ptile_ylabel = 'mean %s\nsince affinity increase' % xlabel
 
-    fn = plotting.mpl_finish(ax, plotdir, plotname,
-                             xbounds=(ptile_range_tuple[0], ptile_range_tuple[1]), ybounds=ybounds, leg_loc=leg_loc,
+    if n_clusters is not None and n_clusters > 1:
+        fig.text(0.37, 0.88, 'choosing among %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
+        if affy_key is not None and 'relative' in affy_key:  # maybe I should just not make the plot, but then the html would look weird
+            ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], 'wrong/misleading', fontsize=30, fontweight='bold', color='red')
+    fn = plotting.mpl_finish(ax, plotdir, plotname, xbounds=ptile_range_tuple, ybounds=ybounds, leg_loc=leg_loc,
                              title='potential %s thresholds (%s tree)' % (ylabel, true_inf_str),
                              xlabel='%s threshold (percentile)' % ylabel,
                              ylabel=ptile_ylabel)
@@ -489,6 +463,14 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             if iclust is None:
                 title += ' (%d families together)' % len(lines) if iclust is None else ''
         return lbstr, affystr, clstr, xlabel, ylabel, title
+    # ----------------------------------------------------------------------------------------
+    def tmpxlabel(iclust, vspstuff):
+        _, _, _, xlabel, _, _ = tmpstrs(iclust, vspstuff)
+        return xlabel
+    # ----------------------------------------------------------------------------------------
+    def tmpylabel(iclust, vspstuff):
+        _, _, _, _, ylabel, _ = tmpstrs(iclust, vspstuff)
+        return ylabel
     #----------------------------------------------------------------------------------------
     def make_scatter_plot(plotvals, iclust=None, vspstuff=None):
         warn_text = 'wrong/misleading' if len(lines) > 1 and iclust is None and 'relative' in affy_key else None  # maybe I should just not make the plot, but then the html would look weird UPDATE stopped making the plot by default, but the warning is still a good idea if I start making it again
@@ -545,12 +527,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes) : getcorr(*[iclust_plotvals[vt] for vt in vtypes])}
         if not only_csv and len(iclust_plotvals['affinity']) > 0:
             make_scatter_plot(iclust_plotvals, iclust=iclust)
-# ----------------------------------------------------------------------------------------
-# TODO in all these fcn calls, make it so xlabel doesn't have to be passed in
-            _, _, _, _, ylabel, _ = tmpstrs(iclust, None)
-            make_ptile_plot(iclust_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=iclust), affy_key=affy_key, ylabel=ylabel, true_inf_str=true_inf_str)
-# ----------------------------------------------------------------------------------------
-# TODO also in all these fcn calls, clean up the interfaces in general
+            make_ptile_plot(iclust_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=iclust), affy_key=affy_key, ylabel=tmpylabel(iclust, None), true_inf_str=true_inf_str)
 
     if lb_metric != 'fay-wu-h':
         correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes])}
@@ -564,8 +541,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         ptile_vals['per-cluster'][tkey] = tmp_ptile_vals
         if not only_csv:
             make_scatter_plot(tmpvals, vspstuff=vspdict)
-            _, _, _, xlabel, ylabel, _ = tmpstrs(None, vspdict)
-            make_ptile_plot(tmp_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(vspstuff=vspdict), affy_key=affy_key, xlabel=xlabel, ylabel=ylabel, fnames=fnames, true_inf_str=true_inf_str)
+            make_ptile_plot(tmp_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(vspstuff=vspdict), affy_key=affy_key, xlabel=tmpxlabel(None, vspdict), ylabel=tmpylabel(None, vspdict), fnames=fnames, true_inf_str=true_inf_str)
 
     if not only_csv:
         fnames.append([])
@@ -575,8 +551,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     if lb_metric != 'fay-wu-h':
         ptile_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', affy_key_str=affy_key_str, debug=debug)  # choosing single cells from from every cell from every cluster together
         if not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
-            _, _, _, _, ylabel, _ = tmpstrs(None, None)
-            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(), affy_key=affy_key, ylabel=ylabel, fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
+            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(), affy_key=affy_key, ylabel=tmpylabel(None, None), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
     with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), 'w') as yfile:
         yamlfo = {'percentiles' : ptile_vals, 'correlations' : correlation_vals}
         json.dump(yamlfo, yfile)
@@ -710,7 +685,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, true_lines, lb_metric, lb_l
             yamlfo = {'percentiles' : ptile_vals}
             json.dump(yamlfo, yfile)  # not adding the new correlation keys atm (like in the lb vs affinity fcn)
         if not only_csv and len(all_plotvals[lb_metric]) > 0:
-            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), plotvals=all_plotvals, xlabel=xlabel, ylabel=lb_metric.upper(), fnames=fnames, true_inf_str=true_inf_str)
+            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), plotvals=all_plotvals, xlabel=xlabel, ylabel=lb_metric.upper(), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(true_lines))
 
 # ----------------------------------------------------------------------------------------
 def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label, debug=False):
