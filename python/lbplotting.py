@@ -26,7 +26,7 @@ def lb_metric_axis_cfg(metric_method=None):  # x axis variables against which we
     elif metric_method in base_cfg:
         return [(m, cfg) for m, cfg in base_cfg.items() if m == metric_method]
     else:
-        return [[metric_method, [('affinity', 'affinity')]]]
+        return [[metric_method, [('affinity', 'affinity')]]]  # e.g. shm
 
 cluster_summary_fcns = collections.OrderedDict((('mean', numpy.mean), ('max', max)))  # ways in which we summarize the affinity or lb value for all cells in a family
 def get_lbscatteraxes(lb_metric):
@@ -457,7 +457,10 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             clstr = '-per-cluster'
             title += ' (per family)'
             xlabel = '%s %s' % (vspstuff['affinity'], xlabel)
-            ylabel = '%s %s' % (vspstuff[lb_metric], ylabel)
+            if lb_metric != 'fay-wu-h':
+                ylabel = '%s %s' % (vspstuff[lb_metric], ylabel)
+            else:
+                ylabel = '- %s' % ylabel  # atm the hack is that we add the per-cluster quantity fay-wu h as a per-seq value that's the same for every sequence, so mean/max have no effect, so we don't want them in the y label
         else:
             if iclust is None:
                 title += ' (%d families together)' % len(lines) if iclust is None else ''
