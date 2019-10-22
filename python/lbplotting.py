@@ -396,7 +396,7 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, affy_key
     # lines corresponding to no correlation and perfect correlation to guide the eye
     bad_args = ((ax.get_xlim(), (xmean, xmean)), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkred', 'linestyle' : '--', 'label' : 'no correlation'})
     perf_args = ((tmp_ptvals['lb_ptiles'], tmp_ptvals['perfect_vals']), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkgreen', 'linestyle' : '--', 'label' : 'perfect correlation'})
-    for (args, kwargs) in (perf_args, bad_args) if xia else (bad_args, perf_args):
+    for (args, kwargs) in (perf_args, bad_args) if xia else (bad_args, perf_args):  # shenanigans are so their top/bottom ordering matches the actual lines
         ax.plot(*args, **kwargs)
 
     if xia:
@@ -425,7 +425,6 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, affy_key
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, debug=False):
-    debug = True
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
@@ -471,7 +470,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     def tmpylabel(iclust, vspstuff):
         _, _, _, _, ylabel, _ = tmpstrs(iclust, vspstuff)
         return ylabel
-    #----------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------
     def make_scatter_plot(plotvals, iclust=None, vspstuff=None):
         warn_text = 'wrong/misleading' if len(lines) > 1 and iclust is None and 'relative' in affy_key else None  # maybe I should just not make the plot, but then the html would look weird UPDATE stopped making the plot by default, but the warning is still a good idea if I start making it again
         lbstr, affystr, clstr, xlabel, ylabel, title = tmpstrs(iclust, vspstuff)
@@ -557,8 +556,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, min_affinity_change=1e-6, n_max_steps=15, only_csv=False, fnames=None, n_per_row=4, debug=False):
-    debug = True
-    # plot lb[ir] vs number of ancestors to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
+    # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
     def check_affinity_changes(affinity_changes):
         affinity_changes = sorted(affinity_changes)
