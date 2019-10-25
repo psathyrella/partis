@@ -275,7 +275,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
         fnames.append([])
     tmpfnames = []
 
-    mlist = treeutils.lb_metrics.items() if metric_method is None else [(metric_method, metric_method.upper())]
+    mlist = treeutils.lb_metrics.items() if metric_method is None else [(metric_method, mtitlestrs.get(metric_method, metric_method.upper()))]
     for lb_metric, lb_label in mlist:
         plotvals = []
         n_total_skipped_leaves = 0
@@ -463,7 +463,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
                 ylabel = '- %s' % ylabel  # atm the hack is that we add the per-cluster quantity fay-wu h as a per-seq value that's the same for every sequence, so mean/max have no effect, so we don't want them in the y label
         else:
             if iclust is None:
-                title += ' (%d families together)' % len(lines) if iclust is None else ''
+                title += ' (%d families together)' % len(lines)
         return lbstr, affystr, clstr, xlabel, ylabel, title
     # ----------------------------------------------------------------------------------------
     def tmpxlabel(iclust, vspstuff):
@@ -641,7 +641,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
         return '-all-clusters' if iclust is None else '-iclust-%d' % iclust
     # ----------------------------------------------------------------------------------------
     def make_scatter_plot(plotvals, xvar, iclust=None):
-        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, lb_label, '%s (true tree)' % lb_metric.upper(), xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if lb_metric == 'lbr' else '')
+        title = '%s on true tree%s' % (lb_metric.upper(), (' (%d families together)' % len(lines)) if iclust is None else '')
+        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, lb_label, title, xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if lb_metric == 'lbr' else '')
         if iclust is None: # or iclust < n_per_row:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
