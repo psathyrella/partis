@@ -161,13 +161,17 @@ class PartitionPlotter(object):
         return repfracstr
 
     # ----------------------------------------------------------------------------------------
-    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, plot_high_mutation=False, cluster_indices=None, title=None, debug=False):
-        def gety(minval, maxval, xmax, x):
+    # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
+    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, xkey='n_mutations', xlabel='N mutations', high_x_val=None, plot_high_x=False, cluster_indices=None, title=None, debug=False):
+        # ----------------------------------------------------------------------------------------
+        def gety(minval, maxval, xmax, x):  # linear rescaling of x from (0, xmax) to (minval, maxval)
             slope = (maxval - minval) / xmax
             return slope * x + minval
-        def getnmutelist(cluster):
-            return annotations[':'.join(cluster)]['n_mutations']
+        # ----------------------------------------------------------------------------------------
+        def get_xval_list(cluster):
+            return annotations[':'.join(cluster)][xkey]
 
+        # ----------------------------------------------------------------------------------------
         colors = ['#006600', '#3399ff', '#ffa500']
         # goldenrod '#daa520'
         # red '#cc0000',
@@ -181,7 +185,7 @@ class PartitionPlotter(object):
         fig, ax = self.plotting.mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
 
         min_linewidth = 0.3
-        max_linewidth = 12
+        max_linewidth = 12.
         # min_alpha = 0.1
         # max_alpha = 1.
         # linewidth = 7
@@ -191,27 +195,26 @@ class PartitionPlotter(object):
         iclust_global = 0  # index within this plot
         yticks, yticklabels = [], []
 
-        high_mutation_clusters = []
-        biggest_n_mutations = None
+        high_x_clusters = []
+        biggest_x = max(x for c in sorted_clusters for x in get_xval_list(c))  # this is the largest x value in any of <sorted_clusters>, whereas <high_x_val> is a fixed calling-fcn-specified value that may be more or less (kind of wasteful to get all the x vals here and then also in the main loop)
+        fixed_xmax = high_x_val if high_x_val is not None else biggest_x  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
 
         if debug:
-            print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high mutation') if plot_high_mutation else '')
+            print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%xkey) if plot_high_x else '')
             print '      size   frac      yval    median   mean'
 
+        xmin_global = None
         for csize, cluster_group in itertools.groupby(sorted_clusters, key=lambda c: len(c)):
-            cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(getnmutelist(c)))
+            cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(get_xval_list(c)))
             n_clusters = len(cluster_group)
             repfracstr = self.get_repfracstr(csize, repertoire_size)
             for iclust in range(len(cluster_group)):  # index within the clusters of this size
                 cluster = cluster_group[iclust]
-                nmutelist = sorted(getnmutelist(cluster))
-                nmedian = numpy.median(nmutelist)
-                nmean = numpy.mean(nmutelist)  # maybe should use this instead of the median?
-                if biggest_n_mutations is None or nmutelist[-1] > biggest_n_mutations:
-                    biggest_n_mutations = nmutelist[-1]
+                xvals = sorted(get_xval_list(cluster))
+                median_x = numpy.median(xvals)  # maybe should use mean instead of median?
 
-                if nmedian > self.n_max_mutations and not plot_high_mutation:
-                    high_mutation_clusters.append(cluster)
+                if high_x_val is not None and median_x > high_x_val and not plot_high_x:  # if <high_x_val> is not set, we don't skip any clusters
+                    high_x_clusters.append(cluster)
                     continue
 
                 yval = len(sorted_clusters) - iclust_global
@@ -223,61 +226,71 @@ class PartitionPlotter(object):
                 # yticklabels.append('%d' % csize)
                 yticklabels.append(repfracstr)
 
-                base_color = colors[iclust_global % len(colors)]
-                qti_n_muted = {}
+                qti_x_vals = {}
                 if self.args.queries_to_include is not None:
                     queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
                     if len(queries_to_include_in_this_cluster) > 0:
-                        unsorted_nmutelist = getnmutelist(cluster)
-                        qti_n_muted = {uid : unsorted_nmutelist[cluster.index(uid)] for uid in queries_to_include_in_this_cluster}  # add a red line for each of 'em (i.e. color that hist bin red)
-                        if plot_high_mutation:
-                            xtext = 1.1
-                        elif float(nmedian) / self.n_max_mutations < 0.5:
-                            xtext = 0.75
+                        unsorted_xvals = get_xval_list(cluster)
+                        qti_x_vals = {uid : unsorted_xvals[cluster.index(uid)] for uid in queries_to_include_in_this_cluster}  # add a red line for each of 'em (i.e. color that hist bin red)
+                        if plot_high_x:
+                            xfac = 1.1
+                        elif float(median_x) / fixed_xmax < 0.5:
+                            xfac = 0.75
                         else:
-                            xtext = 0.1
-                        ax.text(xtext * self.n_max_mutations, yval, ' '.join(sorted(queries_to_include_in_this_cluster, key=lambda q: qti_n_muted[q])), color='red', fontsize=8)
+                            xfac = 0.1
+                        ax.text(xfac * fixed_xmax, yval, ' '.join(sorted(queries_to_include_in_this_cluster, key=lambda q: qti_x_vals[q])), color='red', fontsize=8)
 
                 if debug:
-                    print '     %5s  %-10s  %4.1f  %6.1f  %6.1f' % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, nmedian, nmean)
+                    fstr = '6.1f' if xkey == 'n_mutations' else '6.4f'
+                    print ('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, median_x, numpy.mean(xvals))
 
-                nbins = nmutelist[-1] - nmutelist[0] + 1
-                hist = Hist(nbins, nmutelist[0] - 0.5, nmutelist[-1] + 0.5)
-                for nm in nmutelist:
-                    hist.fill(nm)
+                if xkey == 'n_mutations':
+                    nbins = xvals[-1] - xvals[0] + 1
+                    hist = Hist(nbins, xvals[0] - 0.5, xvals[-1] + 0.5)
+                else:
+                    nbins = 15
+                    fuzz = 0.02 * (xvals[-1] - xvals[0])
+                    if xmin_global is None or xvals[0] - fuzz < xmin_global:
+                        xmin_global = xvals[0] - fuzz  # not really sure I want the fuzz here
+                    hist = Hist(nbins, xvals[0] - fuzz, xvals[-1] + fuzz)
+                hist.list_fill(xvals)
                 assert hist.overflow_contents() == 0.  # includes underflows
-                xmax = max(hist.bin_contents)  # NOTE no relation to <ymax> above
+                max_contents = max(hist.bin_contents)
+                base_color = colors[iclust_global % len(colors)]
                 for ibin in range(1, hist.n_bins + 1):
-                    linewidth = gety(min_linewidth, max_linewidth, xmax, hist.bin_contents[ibin])
+                    linewidth = gety(min_linewidth, max_linewidth, max_contents, hist.bin_contents[ibin])
                     color = base_color
-                    # alpha = gety(min_alpha, max_alpha, xmax, hist.bin_contents[ibin])
-                    for nmuted in qti_n_muted.values():
-                        if hist.find_bin(nmuted) == ibin:
+                    # alpha = gety(min_alpha, max_alpha, max_contents, hist.bin_contents[ibin])
+                    for xtmp in qti_x_vals.values():
+                        if hist.find_bin(xtmp) == ibin:
                             color = 'red'
                     if hist.bin_contents[ibin] == 0.:
                         color = 'grey'
                         linewidth = min_linewidth
                         alpha = 0.4
-                    ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval, yval], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
+                    y_offset = 0
+                    if xkey == 'affinities':
+                        y_offset = gety(0., 1., 2*max_linewidth, linewidth/2)  # y value increment between clusters is always 1, since we're just counting clusters along the y axis
+                    ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval + y_offset, yval + y_offset], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
 
-                if cluster_indices is not None:
-                    xtext = nmutelist[-1] if plot_high_mutation else self.n_max_mutations  # NOTE reuse of <xtext> (arg)
-                    xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_mutation else self.n_max_mutations
+                if cluster_indices is not None:  # add the (global) cluster index (i.e. 1 - rank) and cluster size as text on the right side of the plot
+                    xtext = xvals[-1] if plot_high_x else fixed_xmax
+                    xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_x else fixed_xmax
                     ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
                     ax.text(0.12 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
 
                 iclust_global += 1
 
-        xbounds = [-0.2, self.n_max_mutations] if not plot_high_mutation else [self.n_max_mutations, biggest_n_mutations]
+        xbounds = [high_x_val, biggest_x] if plot_high_x else [-0.2 if xkey == 'n_mutations' else xmin_global, fixed_xmax]
         ybounds = [0.95 * ymin, 1.05 * ymax]
         n_ticks = 5
         if len(yticks) > n_ticks:
             yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
             yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel='fraction of repertoire', title=title,  # ylabel = 'clonal family size'
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel='fraction of repertoire', title=title,  # ylabel = 'clonal family size'
                                  xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
 
-        return high_mutation_clusters
+        return high_x_clusters
 
     # ----------------------------------------------------------------------------------------
     def addfname(self, fnames, fname, force_new_row=False):
@@ -327,13 +340,13 @@ class PartitionPlotter(object):
             if iclustergroup > self.n_max_joy_plots:  # note that when this is activated, the high mutation plot is no longer guaranteed to have every high mutation cluster (but it should have every high mutation cluster that was bigger than the cluster size when we started skipping here)
                 continue
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
-            high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, debug=debug)
+            high_mutation_clusters += self.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations, debug=debug)
             if len(fnames[-1]) < self.n_joyplots_in_html:
                 self.addfname(fnames, get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
         if len(high_mutation_clusters) > self.n_clusters_per_joy_plot and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
-        self.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_mutation=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations, debug=debug)
+        self.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations, high_x_val=self.n_max_mutations, debug=debug)
         self.addfname(fnames, get_fname(high_mutation=True))
 
         # size vs shm hexbin plots
@@ -603,7 +616,7 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition=None, infiles=None, annotations=None, reco_info=None, cpath=None):
         if self.args.only_csv_plots:
-            print '  --only-csv-plots not implemented for partition plots, so skipping'
+            print '  --only-csv-plots not implemented for partition plots, so returning without plotting'
             return
         assert (partition is None and annotations is not None) or infiles is None
         print '  plotting partitions'
