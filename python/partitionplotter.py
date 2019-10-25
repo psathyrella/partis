@@ -197,13 +197,13 @@ class PartitionPlotter(object):
 
         high_x_clusters = []
         biggest_x = max(x for c in sorted_clusters for x in get_xval_list(c))  # this is the largest x value in any of <sorted_clusters>, whereas <high_x_val> is a fixed calling-fcn-specified value that may be more or less (kind of wasteful to get all the x vals here and then also in the main loop)
+        smallest_x = min(x for c in sorted_clusters for x in get_xval_list(c))  # this is the largest x value in any of <sorted_clusters>, whereas <high_x_val> is a fixed calling-fcn-specified value that may be more or less (kind of wasteful to get all the x vals here and then also in the main loop)
         fixed_xmax = high_x_val if high_x_val is not None else biggest_x  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
 
         if debug:
             print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%xkey) if plot_high_x else '')
             print '      size   frac      yval    median   mean'
 
-        xmin_global = None
         for csize, cluster_group in itertools.groupby(sorted_clusters, key=lambda c: len(c)):
             cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(get_xval_list(c)))
             n_clusters = len(cluster_group)
@@ -250,8 +250,6 @@ class PartitionPlotter(object):
                 else:
                     nbins = 15
                     fuzz = 0.02 * (xvals[-1] - xvals[0])
-                    if xmin_global is None or xvals[0] - fuzz < xmin_global:
-                        xmin_global = xvals[0] - fuzz  # not really sure I want the fuzz here
                     hist = Hist(nbins, xvals[0] - fuzz, xvals[-1] + fuzz)
                 hist.list_fill(xvals)
                 assert hist.overflow_contents() == 0.  # includes underflows
@@ -281,7 +279,7 @@ class PartitionPlotter(object):
 
                 iclust_global += 1
 
-        xbounds = [high_x_val, biggest_x] if plot_high_x else [-0.2 if xkey == 'n_mutations' else xmin_global, fixed_xmax]
+        xbounds = [high_x_val, biggest_x] if plot_high_x else [-0.2 if xkey == 'n_mutations' else smallest_x, fixed_xmax]
         ybounds = [0.95 * ymin, 1.05 * ymax]
         n_ticks = 5
         if len(yticks) > n_ticks:
