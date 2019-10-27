@@ -18,6 +18,7 @@ import utils
 import plotconfig
 from hist import Hist
 
+#                   green    dark red  light blue  light red  sky blue  pink/purple   grey
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
 default_linewidths = ['5', '3', '2', '2', '2']
 

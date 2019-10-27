@@ -599,8 +599,9 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     if use_multiplicities:
         print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
 
-    if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
-        compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
+    # TODO this is too slow
+    # if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
+    #     compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
 
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
@@ -1033,6 +1034,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
         fnames = []
+        for lb_metric in lb_metrics:
+            lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric)
         for affy_key in affy_keys['lbi']:
             lbplotting.plot_lb_vs_affinity(true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
         lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)

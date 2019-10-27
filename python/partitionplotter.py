@@ -162,14 +162,92 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
-    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, xkey='n_mutations', xlabel='N mutations', high_x_val=None, plot_high_x=False, cluster_indices=None, title=None, debug=False):
+    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, high_x_val=None, plot_high_x=False, cluster_indices=None, title=None, debug=False):
+        # NOTE <xvals> must be sorted
         # ----------------------------------------------------------------------------------------
-        def gety(minval, maxval, xmax, x):  # linear rescaling of x from (0, xmax) to (minval, maxval)
-            slope = (maxval - minval) / xmax
-            return slope * x + minval
+        def offcolor(offset):
+            offcolors = {'up' : '#386cc2', 'down' : '#bf1328'}  # greyish blue, mild red
+            return offcolors[offset]
         # ----------------------------------------------------------------------------------------
-        def get_xval_list(cluster):
-            return annotations[':'.join(cluster)][xkey]
+        def bexpand(bpair, fuzz=0.02):
+            diff = bpair[-1] - bpair[0]
+            return [bpair[0] - fuzz * diff, bpair[1] + fuzz * diff]
+        # ----------------------------------------------------------------------------------------
+        def get_xval_list(cluster, xkey):
+            line = annotations[':'.join(cluster)]
+            if xkey in treeutils.lb_metrics:
+                return [line['tree-info']['lb'][xkey][u] for u in line['unique_ids']]  # we can't use .values() because there's lb values in the dict in 'tree-info' that don't correspond to uids in 'unique_ids' (and we don't want to include those values)
+            else:
+                return line[xkey]
+        # ----------------------------------------------------------------------------------------
+        def get_xval_dict(uids, xkey):
+            line = annotations[':'.join(cluster)]
+            if xkey in treeutils.lb_metrics:
+                return {u : line['tree-info']['lb'][xkey][u] for u in uids}
+            else:
+                return {u : utils.per_seq_val(line, xkey, u) for u in uids}
+        # ----------------------------------------------------------------------------------------
+        def getbounds(xkey):
+            all_xvals = [x for c in sorted_clusters for x in get_xval_list(c, xkey)]
+            return [f(all_xvals) for f in [min, max]]
+        # ----------------------------------------------------------------------------------------
+        def uselog(xkey):  # the low end (zero bin) of these distributions always dominates, but we're actually interested in the upper tail, so logify it
+            return xkey in treeutils.lb_metrics
+        # ----------------------------------------------------------------------------------------
+        def add_hist(xkey, xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
+            qti_x_vals = {}
+            if self.args.queries_to_include is not None:
+                queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
+                if len(queries_to_include_in_this_cluster) > 0:
+                    qti_x_vals = get_xval_dict(queries_to_include_in_this_cluster, xkey)  # add a red line for each of 'em (i.e. color that hist bin red)
+                    if plot_high_x:
+                        xfac = 1.1
+                    elif float(median_x1) / fixed_x1max < 0.5:
+                        xfac = 0.75
+                    else:
+                        xfac = 0.1
+                    ax.text(xfac * fixed_x1max, yval, ' '.join(sorted(queries_to_include_in_this_cluster, key=lambda q: qti_x_vals[q])), color='red', fontsize=8)
+
+            if debug:
+                fstr = '6.1f' if xkey == 'n_mutations' else '6.4f'
+                print ('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, numpy.median(xvals), numpy.mean(xvals))
+
+            if xkey == 'n_mutations':
+                nbins = xvals[-1] - xvals[0] + 1
+                hist = Hist(nbins, xvals[0] - 0.5, xvals[-1] + 0.5)
+            else:
+                nbins = 35
+                hist = Hist(nbins, *bexpand(xbounds[xkey], fuzz=0.01))
+            hist.list_fill(xvals)
+            if uselog(xkey):
+                hist.logify(0.5)  # 0.5 is kind of arbitrary, but we need to set the scale for the smallest bin contents (in this case 1)
+            assert hist.overflow_contents() == 0.  # includes underflows
+            max_contents = max(hist.bin_contents)
+            for ibin in range(1, hist.n_bins + 1):
+                linewidth = utils.intexterpolate(0., min_linewidth, max_contents, max_linewidth, hist.bin_contents[ibin])
+                color = base_color
+                y_offset = 0
+                if offset in ['up', 'down']:
+                    color = offcolor(offset)
+                    y_offset = utils.intexterpolate(0., 0., 2*max_linewidth, 1., linewidth/2)
+                    if offset == 'down':
+                        # color = '#bf1328'  # mild red
+                        y_offset = -y_offset
+                alpha = base_alpha
+                # alpha = utils.intexterpolate(0, min_alpha, max_contents, max_alpha, hist.bin_contents[ibin])
+                for xtmp in qti_x_vals.values():
+                    if hist.find_bin(xtmp) == ibin:
+                        color = 'red'
+                if hist.bin_contents[ibin] == 0.:
+                    # if xkey == x2key:  # if x1 is also zero, there'll already be a grey line, whereas if x1 isn't zero we don't really need a grey line (there'll still be a grey line if x1 is zero but x2 isn't, but oh well)
+                    #     continue
+                    color = 'grey'
+                    linewidth = min_linewidth
+                    alpha = 0.4
+                xlo, xhi = hist.low_edges[ibin], hist.low_edges[ibin+1]
+                if xkey == x2key:  # if it's the second one, we need to rescale the x vals to correspond to the existing x1key x axis
+                    xlo, xhi = [utils.intexterpolate(xbounds[x2key][0], xbounds[x1key][0], xbounds[x2key][1], xbounds[x1key][1], x) for x in [xlo, xhi]]
+                ax.plot([xlo, xhi], [yval + y_offset, yval + y_offset], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
 
         # ----------------------------------------------------------------------------------------
         colors = ['#006600', '#3399ff', '#ffa500']
@@ -189,28 +267,29 @@ class PartitionPlotter(object):
         # min_alpha = 0.1
         # max_alpha = 1.
         # linewidth = 7
-        alpha = 0.55
+        base_alpha = 0.55
 
         ymin, ymax = 9999, 0
         iclust_global = 0  # index within this plot
         yticks, yticklabels = [], []
 
         high_x_clusters = []
-        biggest_x = max(x for c in sorted_clusters for x in get_xval_list(c))  # this is the largest x value in any of <sorted_clusters>, whereas <high_x_val> is a fixed calling-fcn-specified value that may be more or less (kind of wasteful to get all the x vals here and then also in the main loop)
-        smallest_x = min(x for c in sorted_clusters for x in get_xval_list(c))  # this is the largest x value in any of <sorted_clusters>, whereas <high_x_val> is a fixed calling-fcn-specified value that may be more or less (kind of wasteful to get all the x vals here and then also in the main loop)
-        fixed_xmax = high_x_val if high_x_val is not None else biggest_x  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
+        xbounds = {x1key : getbounds(x1key)}  # these are the smallest/largest x values in any of <sorted_clusters>, whereas <high_x_val> is a fixed calling-fcn-specified value that may be more or less (kind of wasteful to get all the x vals here and then also in the main loop)
+        if x2key is not None:
+            xbounds[x2key] = getbounds(x2key)
+        fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
 
         if debug:
-            print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%xkey) if plot_high_x else '')
+            print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%x1key) if plot_high_x else '')
             print '      size   frac      yval    median   mean'
 
         for csize, cluster_group in itertools.groupby(sorted_clusters, key=lambda c: len(c)):
-            cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(get_xval_list(c)))
+            cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(get_xval_list(c, x1key)))
             n_clusters = len(cluster_group)
             repfracstr = self.get_repfracstr(csize, repertoire_size)
             for iclust in range(len(cluster_group)):  # index within the clusters of this size
                 cluster = cluster_group[iclust]
-                xvals = sorted(get_xval_list(cluster))
+                xvals = sorted(get_xval_list(cluster, x1key))
                 median_x = numpy.median(xvals)  # maybe should use mean instead of median?
 
                 if high_x_val is not None and median_x > high_x_val and not plot_high_x:  # if <high_x_val> is not set, we don't skip any clusters
@@ -226,67 +305,35 @@ class PartitionPlotter(object):
                 # yticklabels.append('%d' % csize)
                 yticklabels.append(repfracstr)
 
-                qti_x_vals = {}
-                if self.args.queries_to_include is not None:
-                    queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
-                    if len(queries_to_include_in_this_cluster) > 0:
-                        unsorted_xvals = get_xval_list(cluster)
-                        qti_x_vals = {uid : unsorted_xvals[cluster.index(uid)] for uid in queries_to_include_in_this_cluster}  # add a red line for each of 'em (i.e. color that hist bin red)
-                        if plot_high_x:
-                            xfac = 1.1
-                        elif float(median_x) / fixed_xmax < 0.5:
-                            xfac = 0.75
-                        else:
-                            xfac = 0.1
-                        ax.text(xfac * fixed_xmax, yval, ' '.join(sorted(queries_to_include_in_this_cluster, key=lambda q: qti_x_vals[q])), color='red', fontsize=8)
-
-                if debug:
-                    fstr = '6.1f' if xkey == 'n_mutations' else '6.4f'
-                    print ('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, median_x, numpy.mean(xvals))
-
-                if xkey == 'n_mutations':
-                    nbins = xvals[-1] - xvals[0] + 1
-                    hist = Hist(nbins, xvals[0] - 0.5, xvals[-1] + 0.5)
-                else:
-                    nbins = 15
-                    fuzz = 0.02 * (xvals[-1] - xvals[0])
-                    hist = Hist(nbins, xvals[0] - fuzz, xvals[-1] + fuzz)
-                hist.list_fill(xvals)
-                assert hist.overflow_contents() == 0.  # includes underflows
-                max_contents = max(hist.bin_contents)
                 base_color = colors[iclust_global % len(colors)]
-                for ibin in range(1, hist.n_bins + 1):
-                    linewidth = gety(min_linewidth, max_linewidth, max_contents, hist.bin_contents[ibin])
-                    color = base_color
-                    # alpha = gety(min_alpha, max_alpha, max_contents, hist.bin_contents[ibin])
-                    for xtmp in qti_x_vals.values():
-                        if hist.find_bin(xtmp) == ibin:
-                            color = 'red'
-                    if hist.bin_contents[ibin] == 0.:
-                        color = 'grey'
-                        linewidth = min_linewidth
-                        alpha = 0.4
-                    y_offset = 0
-                    if xkey == 'affinities':
-                        y_offset = gety(0., 1., 2*max_linewidth, linewidth/2)  # y value increment between clusters is always 1, since we're just counting clusters along the y axis
-                    ax.plot([hist.low_edges[ibin], hist.low_edges[ibin+1]], [yval + y_offset, yval + y_offset], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
+
+                add_hist(x1key, xvals, yval, iclust, cluster, median_x, fixed_xmax, base_alpha, offset=None if x2key is None else 'up')
+                if x2key is not None:
+                    x2vals = sorted(get_xval_list(cluster, x2key))
+                    add_hist(x2key, x2vals, yval, iclust, cluster, median_x, fixed_xmax, base_alpha, offset='down')
 
                 if cluster_indices is not None:  # add the (global) cluster index (i.e. 1 - rank) and cluster size as text on the right side of the plot
                     xtext = xvals[-1] if plot_high_x else fixed_xmax
                     xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_x else fixed_xmax
-                    ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
-                    ax.text(0.12 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.12 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
 
                 iclust_global += 1
 
-        xbounds = [high_x_val, biggest_x] if plot_high_x else [-0.2 if xkey == 'n_mutations' else smallest_x, fixed_xmax]
-        ybounds = [0.95 * ymin, 1.05 * ymax]
+        if x2key is not None:
+            fig.text(0.85, 0.95, x1key if not uselog(x1key) else '%s (log)'%x1key, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+            fig.text(0.85, 0.92, x2key if not uselog(x2key) else '%s (log)'%x2key, color=offcolor('down'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+
+        plot_x_bounds = [high_x_val, xbounds[x1key][1]] if plot_high_x else bexpand((xbounds[x1key][0], fixed_xmax))
+        plot_y_bounds = [0.95 * ymin, 1.05 * ymax]
+        if x2key is not None:
+            plot_y_bounds = [ymin - 0.07*(ymax - ymin), 1.05 * ymax]
         n_ticks = 5
         if len(yticks) > n_ticks:
             yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
             yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel='fraction of repertoire', title=title,  # ylabel = 'clonal family size'
-                                 xbounds=xbounds, ybounds=ybounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=x1label, ylabel='fraction of repertoire', title=title,  # ylabel = 'clonal family size'
+                                 xbounds=plot_x_bounds, ybounds=plot_y_bounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
 
         return high_x_clusters
 

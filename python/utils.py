@@ -3309,6 +3309,10 @@ def get_partition_from_str(partition_str):
     return partition
 
 # ----------------------------------------------------------------------------------------
+def get_partition_from_annotation_list(annotation_list):  # I'm adding this pretty late, so there might be code doing this already in a bunch of other places
+    return [copy.deepcopy(l['unique_ids']) for l in annotation_list]
+
+# ----------------------------------------------------------------------------------------
 def get_str_from_partition(partition):
     """ NOTE there's code in some other places that do the same thing """
     clusters = [':'.join(cl) for cl in partition]

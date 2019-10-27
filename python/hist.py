@@ -206,6 +206,16 @@ class Hist(object):
             raise Exception('not normalized: %f' % check_sum)
 
     # ----------------------------------------------------------------------------------------
+    def logify(self, factor):
+        for ib in range(self.n_bins + 2):
+            if self.bin_contents[ib] > 0:
+                if self.bin_contents[ib] <= factor:
+                    raise Exception('factor %f passed to hist.logify() must be less than all non-zero bin entries, but found a bin with %f' % (factor, self.bin_contents[ib]))
+                self.bin_contents[ib] = math.log(self.bin_contents[ib] / factor)
+            if self.errors[ib] > 0:  # I'm not actually sure this makes sense
+                self.errors[ib] = math.log(self.errors[ib] / factor)
+
+    # ----------------------------------------------------------------------------------------
     def divide_by(self, denom_hist, debug=False):
         """ NOTE doesn't check bin edges are the same, only that they've got the same number of bins """
         if self.n_bins != denom_hist.n_bins or self.xmin != denom_hist.xmin or self.xmax != denom_hist.xmax:

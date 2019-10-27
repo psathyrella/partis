@@ -301,6 +301,20 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
     # fnames.append(tmpfnames)
 
 # ----------------------------------------------------------------------------------------
+def make_lb_affinity_joyplots(plotdir, lines, lb_metric):
+    from partitionplotter import PartitionPlotter
+    class TMP_Args(object):  # it would be nice to either not need to use PartitionPlotter here, or make its signature simpler
+        def __init__(self):
+            self.queries_to_include = None
+            self.only_csv_plots = False
+    partplotter = PartitionPlotter(TMP_Args())
+    partition = utils.get_partition_from_annotation_list(lines)
+    annotation_dict = {':'.join(l['unique_ids']) : l for l in lines}
+    sorted_clusters = sorted(partition, key=lambda c: numpy.mean(annotation_dict[':'.join(c)]['affinities']), reverse=True)
+    sorted_clusters = sorted(sorted_clusters, key=lambda c: max(annotation_dict[':'.join(c)]['affinities']), reverse=True)  # ends up sorted by max(), with ties broken by mean()
+    partplotter.make_single_joyplot(sorted_clusters, annotation_dict, sum([len(c) for c in sorted_clusters]), plotdir, '%s-affinity-joyplot' % lb_metric, x1key='affinities', x1label='affinity', x2key=lb_metric)
+
+# ----------------------------------------------------------------------------------------
 def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log='', leg_loc=None, warn_text=None):
     def getall(k):
         if 'leaf' in plotvals[xvar]:
