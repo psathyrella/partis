@@ -471,6 +471,21 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
     return multifo
 
 # ----------------------------------------------------------------------------------------
+def get_repfracstr(csize, repertoire_size):  # return a concise string representing <csize> / <repertoire_size>
+    repfrac = float(csize) / repertoire_size
+    denom = int(1. / repfrac)
+    estimate = 1. / denom
+    frac_error = (estimate - repfrac) / repfrac
+    if frac_error > 0.10:  # if it's more than 10% off just use the float str
+        # print 'pretty far off: (1/denom - repfrac) / repfrac = (1./%d - %f) / %f = %f' % (denom, repfrac, repfrac, frac_error)
+        repfracstr = '%.2f' % repfrac
+    elif denom > 1000:
+        repfracstr = '%.0e' % repfrac
+    else:
+        repfracstr = '1/%d' % denom
+    return repfracstr
+
+# ----------------------------------------------------------------------------------------
 def generate_dummy_v(d_gene):
     pv, sv, al = split_gene(d_gene)
     return get_locus(d_gene).upper() + 'VxDx' + pv + '-' + sv + '*' + al
