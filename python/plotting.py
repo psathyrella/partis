@@ -1178,38 +1178,39 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             nbins = xvals[-1] - xvals[0] + 1
             hist = Hist(nbins, xvals[0] - 0.5, xvals[-1] + 0.5)
         else:
-            nbins = 35
+            nbins = 30 if xkey in treeutils.lb_metrics else 8
             hist = Hist(nbins, *bexpand(xbounds[xkey], fuzz=0.01))
         hist.list_fill(xvals)
         if uselog(xkey):
-            hist.logify(0.5)  # 0.5 is kind of arbitrary, but we need to set the scale for the smallest bin contents (in this case 1)
+            hist.logify(0.3)  # the factor is kind of arbitrary, but we need to set the scale for the smallest bin contents (in this case 1)
         assert hist.overflow_contents() == 0.  # includes underflows
         max_contents = max(hist.bin_contents)
         for ibin in range(1, hist.n_bins + 1):
-            linewidth = utils.intexterpolate(0., min_linewidth, max_contents, max_linewidth, hist.bin_contents[ibin])
+            barheight = utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
             color = base_color
-            y_offset = 0
-            if offset in ['up', 'down']:
+            if offset is None:
+                y_lower, y_upper = yval - barheight/2, yval + barheight/2
+            else:
+                y_lower, y_upper = yval, yval
                 color = offcolor(offset)
-                y_offset = utils.intexterpolate(0., 0., 2*max_linewidth, 1., linewidth/2)
-                if offset == 'down':
-                    # color = '#bf1328'  # mild red
-                    y_offset = -y_offset
+                if offset == 'up':
+                    y_upper += barheight / 2
+                elif offset == 'down':
+                    y_lower -= barheight / 2
+                else:
+                    assert False
             alpha = base_alpha
             # alpha = utils.intexterpolate(0, min_alpha, max_contents, max_alpha, hist.bin_contents[ibin])
             for xtmp in qti_x_vals.values():
                 if hist.find_bin(xtmp) == ibin:
                     color = 'red'
             if hist.bin_contents[ibin] == 0.:
-                # if xkey == x2key:  # if x1 is also zero, there'll already be a grey line, whereas if x1 isn't zero we don't really need a grey line (there'll still be a grey line if x1 is zero but x2 isn't, but oh well)
-                #     continue
                 color = 'grey'
-                linewidth = min_linewidth
                 alpha = 0.4
             xlo, xhi = hist.low_edges[ibin], hist.low_edges[ibin+1]
             if xkey == x2key:  # if it's the second one, we need to rescale the x vals to correspond to the existing x1key x axis
                 xlo, xhi = [utils.intexterpolate(xbounds[x2key][0], xbounds[x1key][0], xbounds[x2key][1], xbounds[x1key][1], x) for x in [xlo, xhi]]
-            ax.plot([xlo, xhi], [yval + y_offset, yval + y_offset], color=color, linewidth=linewidth, alpha=alpha, solid_capstyle='butt')
+            ax.fill_between([xlo, xhi], [y_lower, y_lower], [y_upper, y_upper], color=color, alpha=alpha)
 
     # ----------------------------------------------------------------------------------------
     colors = ['#006600', '#3399ff', '#ffa500']
@@ -1221,14 +1222,12 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
     dpi = 80
     xpixels = 450
-    ypixels = max(400, 10 * len(sorted_clusters))
+    min_ypixels = 400
+    total_delta_y = len(sorted_clusters)
+    ypixels = max(min_ypixels, 10 * total_delta_y)
     fig, ax = mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
-
-    min_linewidth = 0.3
-    max_linewidth = 12.
-    # min_alpha = 0.1
-    # max_alpha = 1.
-    # linewidth = 7
+    min_bar_height, max_bar_height = 0.3 / min_ypixels * total_delta_y, (12. if x2key is None else 45.) / min_ypixels * total_delta_y
+    # min_alpha, max_alpha = 0.1, 1.
     base_alpha = 0.55
 
     ymin, ymax = 9999, 0
@@ -1298,7 +1297,10 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     if x2key is None and len(yticks) > n_y_ticks:
         yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_y_ticks - 1)))]
         yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_y_ticks - 1)))]
-    mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel='fraction of repertoire' if x2key is None else 'clonal family size', title=title,
-                             xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
+    fn = mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel='fraction of repertoire' if x2key is None else 'clonal family size', title=title,
+                    xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
 
-    return high_x_clusters
+    if high_x_val is None:
+        return fn
+    else:
+        return high_x_clusters

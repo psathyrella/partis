@@ -301,12 +301,27 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
     # fnames.append(tmpfnames)
 
 # ----------------------------------------------------------------------------------------
-def make_lb_affinity_joyplots(plotdir, lines, lb_metric):
+def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters_per_joy_plot=30, n_max_joy_plots=25, n_plots_per_row=4):
+    if fnames is not None:
+        fnames.append([])
     partition = utils.get_partition_from_annotation_list(lines)
     annotation_dict = {':'.join(l['unique_ids']) : l for l in lines}
     sorted_clusters = sorted(partition, key=lambda c: numpy.mean(annotation_dict[':'.join(c)]['affinities']), reverse=True)
     sorted_clusters = sorted(sorted_clusters, key=lambda c: max(annotation_dict[':'.join(c)]['affinities']), reverse=True)  # ends up sorted by max(), with ties broken by mean()
-    plotting.make_single_joyplot(sorted_clusters, annotation_dict, sum([len(c) for c in sorted_clusters]), plotdir, '%s-affinity-joyplot' % lb_metric, x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=lb_metric)
+    sorted_cluster_groups = [sorted_clusters[i : i + n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), n_clusters_per_joy_plot)]
+    repertoire_size = sum([len(c) for c in sorted_clusters])
+    print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
+    iclustergroup = 0
+    for subclusters in sorted_cluster_groups:
+        if iclustergroup > n_max_joy_plots:
+            continue
+        title = 'affinity and %s (%d / %d)' % (lb_metric, iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
+        fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=lb_metric, title=title, debug=True)
+        if fnames is not None:
+            if len(fnames[-1]) > n_plots_per_row:
+                fnames.append([])
+            fnames[-1].append(fn)
+        iclustergroup += 1
 
 # ----------------------------------------------------------------------------------------
 def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log='', leg_loc=None, warn_text=None):
