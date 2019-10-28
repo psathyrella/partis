@@ -162,7 +162,7 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
-    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, high_x_val=None, plot_high_x=False, cluster_indices=None, title=None, debug=False):
+    def make_single_joyplot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False, cluster_indices=None, title=None, debug=False):
         # NOTE <xvals> must be sorted
         # ----------------------------------------------------------------------------------------
         def offcolor(offset):
@@ -283,9 +283,12 @@ class PartitionPlotter(object):
             print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%x1key) if plot_high_x else '')
             print '      size   frac      yval    median   mean'
 
-        for csize, cluster_group in itertools.groupby(sorted_clusters, key=lambda c: len(c)):
-            cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(get_xval_list(c, x1key)))
-            n_clusters = len(cluster_group)
+        if x2key is None:
+            cgroup_iter = itertools.groupby(sorted_clusters, key=lambda c: len(c))  # this doesn't re-sort anything, it just creates groups by size (like |sort|uniq)
+        else:
+            cgroup_iter = [(len(c), [c]) for c in sorted_clusters]  # creates a structure similar to the previous clause, but with just trivial groups (one for each cluster), since in this case the clusters aren't sorted by size (and are instead sorted with continuous-valued variables) so we don't need/want the groupby stuff to a get decent y axis
+        for csize, cluster_group in cgroup_iter:
+            cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(get_xval_list(c, x1key)))  # sort ties in the default sorting by median <x1key> (has no effect if x2key is set since the groups are always length 1)
             repfracstr = self.get_repfracstr(csize, repertoire_size)
             for iclust in range(len(cluster_group)):  # index within the clusters of this size
                 cluster = cluster_group[iclust]
@@ -302,8 +305,7 @@ class PartitionPlotter(object):
                 if yval > ymax:
                     ymax = yval
                 yticks.append(yval)
-                # yticklabels.append('%d' % csize)
-                yticklabels.append(repfracstr)
+                yticklabels.append(repfracstr if x2key is None else '%d'%csize)
 
                 base_color = colors[iclust_global % len(colors)]
 
@@ -321,19 +323,21 @@ class PartitionPlotter(object):
                 iclust_global += 1
 
         if x2key is not None:
-            fig.text(0.85, 0.95, x1key if not uselog(x1key) else '%s (log)'%x1key, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
-            fig.text(0.85, 0.92, x2key if not uselog(x2key) else '%s (log)'%x2key, color=offcolor('down'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+            fig.text(0.85, 0.25, x1label if not uselog(x1key) else '%s (log)'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+            fig.text(0.85, 0.215, x2label if not uselog(x2key) else '%s (log)'%x2label, color=offcolor('down'), alpha=base_alpha, fontdict={'weight' : 'bold'})
 
         plot_x_bounds = [high_x_val, xbounds[x1key][1]] if plot_high_x else bexpand((xbounds[x1key][0], fixed_xmax))
-        plot_y_bounds = [0.95 * ymin, 1.05 * ymax]
+        n_x_ticks, xlabel, xticks, xticklabels = 4, x1label, None, None
         if x2key is not None:
-            plot_y_bounds = [ymin - 0.07*(ymax - ymin), 1.05 * ymax]
-        n_ticks = 5
-        if len(yticks) > n_ticks:
-            yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_ticks - 1)))]
-            yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_ticks - 1)))]
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=x1label, ylabel='fraction of repertoire', title=title,  # ylabel = 'clonal family size'
-                                 xbounds=plot_x_bounds, ybounds=plot_y_bounds, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
+            xlabel = x2label
+            xticks = [x for x in numpy.arange(xbounds[x1key][0], xbounds[x1key][1], (xbounds[x1key][1] - xbounds[x1key][0]) / (n_x_ticks-1))] + [xbounds[x1key][1]]
+            xticklabels = ['%.1f' % utils.intexterpolate(xbounds[x1key][0], xbounds[x2key][0], xbounds[x1key][1], xbounds[x2key][1], x) for x in xticks]  # translate x1 tick positions to x2 tick labels
+        n_y_ticks = 5
+        if x2key is None and len(yticks) > n_y_ticks:
+            yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_y_ticks - 1)))]
+            yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_y_ticks - 1)))]
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel='fraction of repertoire' if x2key is None else 'clonal family size', title=title,
+                                 xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
 
         return high_x_clusters
 
