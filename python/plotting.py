@@ -825,7 +825,7 @@ def mpl_init(figsize=None, fontsize=20):
 
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
-               xticks=None, xticklabels=None, xticklabelsize=None, yticks=None, yticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
+               xticks=None, xticklabels=None, xticklabelsize=None, yticklabelsize=None, yticks=None, yticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     if not no_legend:
@@ -857,9 +857,9 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         if median_length > 4:
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
         else:
-            ax.set_xticklabels(xticklabels)
+            ax.set_xticklabels(xticklabels, size=xticklabelsize)
     if yticklabels is not None:
-        ax.set_yticklabels(yticklabels)
+        ax.set_yticklabels(yticklabels, size=yticklabelsize)
     plt.title(title, fontweight='bold')
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
@@ -1124,7 +1124,8 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 
 # ----------------------------------------------------------------------------------------
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
-def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False, cluster_indices=None, title=None, queries_to_include=None, debug=False):
+def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
+                        cluster_indices=None, title=None, queries_to_include=None, global_max_vals=None, debug=False):
     # NOTE <xvals> must be sorted
     # ----------------------------------------------------------------------------------------
     def offcolor(offset):
@@ -1151,10 +1152,13 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # ----------------------------------------------------------------------------------------
     def getbounds(xkey):
         all_xvals = [x for c in sorted_clusters for x in get_xval_list(c, xkey)]
-        return [f(all_xvals) for f in [min, max]]
+        bounds = [f(all_xvals) for f in [min, max]]
+        if global_max_vals is not None and xkey in global_max_vals:
+            bounds[1] = global_max_vals[xkey]
+        return bounds
     # ----------------------------------------------------------------------------------------
     def uselog(xkey):  # the low end (zero bin) of these distributions always dominates, but we're actually interested in the upper tail, so logify it
-        return xkey in treeutils.lb_metrics
+        return xkey in treeutils.lb_metrics or xkey == 'affinities'
     # ----------------------------------------------------------------------------------------
     def add_hist(xkey, xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
         qti_x_vals = {}
@@ -1178,7 +1182,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             nbins = xvals[-1] - xvals[0] + 1
             hist = Hist(nbins, xvals[0] - 0.5, xvals[-1] + 0.5)
         else:
-            nbins = 30 if xkey in treeutils.lb_metrics else 8
+            nbins = 30 if xkey in treeutils.lb_metrics else 15
             hist = Hist(nbins, *bexpand(xbounds[xkey], fuzz=0.01))
         hist.list_fill(xvals)
         if uselog(xkey):
@@ -1226,7 +1230,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     total_delta_y = len(sorted_clusters)
     ypixels = max(min_ypixels, 10 * total_delta_y)
     fig, ax = mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
-    min_bar_height, max_bar_height = 0.3 / min_ypixels * total_delta_y, (12. if x2key is None else 45.) / min_ypixels * total_delta_y
+    min_bar_height, max_bar_height = 0.3 / min_ypixels * total_delta_y, (12. if x2key is None else 25.) / min_ypixels * total_delta_y
     # min_alpha, max_alpha = 0.1, 1.
     base_alpha = 0.55
 
@@ -1284,7 +1288,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             iclust_global += 1
 
     if x2key is not None:
-        fig.text(0.85, 0.25, x1label if not uselog(x1key) else '%s (log)'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+        fig.text(0.8, 0.25, x1label if not uselog(x1key) else '%s (log)'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
         fig.text(0.85, 0.215, x2label if not uselog(x2key) else '%s (log)'%x2label, color=offcolor('down'), alpha=base_alpha, fontdict={'weight' : 'bold'})
 
     plot_x_bounds = [high_x_val, xbounds[x1key][1]] if plot_high_x else bexpand((xbounds[x1key][0], fixed_xmax))
@@ -1293,12 +1297,16 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         xlabel = x2label
         xticks = [x for x in numpy.arange(xbounds[x1key][0], xbounds[x1key][1], (xbounds[x1key][1] - xbounds[x1key][0]) / (n_x_ticks-1))] + [xbounds[x1key][1]]
         xticklabels = ['%.1f' % utils.intexterpolate(xbounds[x1key][0], xbounds[x2key][0], xbounds[x1key][1], xbounds[x2key][1], x) for x in xticks]  # translate x1 tick positions to x2 tick labels
+        fig.text(0.22, 0.1, '%.3f'%xbounds[x1key][0], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+        fig.text(0.9, 0.1, '%.3f'%xbounds[x1key][1], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+        fig.text(0.55, 0.05, x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+        fig.text(0.05, 0.9, 'sorted by\nmax %s'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
     n_y_ticks = 5
     if x2key is None and len(yticks) > n_y_ticks:
         yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_y_ticks - 1)))]
         yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_y_ticks - 1)))]
     fn = mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel='fraction of repertoire' if x2key is None else 'clonal family size', title=title,
-                    xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, adjust={'left' : 0.25})
+                    xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, yticklabelsize=11, adjust={'left' : 0.25})
 
     if high_x_val is None:
         return fn

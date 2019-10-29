@@ -301,7 +301,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
     # fnames.append(tmpfnames)
 
 # ----------------------------------------------------------------------------------------
-def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters_per_joy_plot=30, n_max_joy_plots=25, n_plots_per_row=4):
+def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters_per_joy_plot=25, n_max_joy_plots=25, n_plots_per_row=4):
     if fnames is not None:
         fnames.append([])
     partition = utils.get_partition_from_annotation_list(lines)
@@ -310,13 +310,16 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
     sorted_clusters = sorted(sorted_clusters, key=lambda c: max(annotation_dict[':'.join(c)]['affinities']), reverse=True)  # ends up sorted by max(), with ties broken by mean()
     sorted_cluster_groups = [sorted_clusters[i : i + n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), n_clusters_per_joy_plot)]
     repertoire_size = sum([len(c) for c in sorted_clusters])
+    max_affinity = max([a for c in sorted_clusters for a in annotation_dict[':'.join(c)]['affinities']])  # it's nice to keep track of the max values over the whole repertoire so all plots can have the same max values
+    max_lb_val = max([v for c in sorted_clusters for v in annotation_dict[':'.join(c)]['tree-info']['lb'][lb_metric].values()])
     print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
     iclustergroup = 0
     for subclusters in sorted_cluster_groups:
         if iclustergroup > n_max_joy_plots:
             continue
         title = 'affinity and %s (%d / %d)' % (lb_metric, iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
-        fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=lb_metric, title=title, debug=True)
+        fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=lb_metric,
+                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title)
         if fnames is not None:
             if len(fnames[-1]) > n_plots_per_row:
                 fnames.append([])
@@ -595,8 +598,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
         if any(a < 0. for a in affinity_changes):
             print '  %s negative affinity changes in %s' % (utils.color('red', 'error'), ' '.join(['%.4f' % a for a in affinity_changes]))
         max_diff = affinity_changes[-1] - affinity_changes[0]
-        if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:
-            print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
+        # if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:  # this is almost always true, which is fine, and I don't really plan on doing anything to change it soon (it would be nice to at some point use a performance metric gives us credit for differential prediction of different affinity change magnitudes, but oh well)
+        #     print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
     # ----------------------------------------------------------------------------------------
     def get_n_ancestor_vals(node, dtree, line, affinity_changes):
         # find number of steps/ancestors to the nearest ancestor with lower affinity than <node>'s

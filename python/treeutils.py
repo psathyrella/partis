@@ -1036,6 +1036,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         fnames = []
         for affy_key in affy_keys['lbi']:
             lbplotting.plot_lb_vs_affinity(true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
+            lbplotting.plot_lb_vs_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
         lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         for lb_metric in lb_metrics:
             lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
