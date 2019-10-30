@@ -1257,10 +1257,10 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(get_xval_list(c, x1key)))  # sort ties in the default sorting by median <x1key> (has no effect if x2key is set since the groups are always length 1)
         repfracstr = utils.get_repfracstr(csize, repertoire_size)
         for iclust, cluster in enumerate(cluster_group):
-            xvals = sorted(get_xval_list(cluster, x1key))
-            median_x = numpy.median(xvals)  # maybe should use mean instead of median?
+            x1vals = sorted(get_xval_list(cluster, x1key))
+            median_x1 = numpy.median(x1vals)  # maybe should use mean instead of median?
 
-            if high_x_val is not None and median_x > high_x_val and not plot_high_x:  # if <high_x_val> is not set, we don't skip any clusters
+            if high_x_val is not None and median_x1 > high_x_val and not plot_high_x:  # if <high_x_val> is not set, we don't skip any clusters
                 high_x_clusters.append(cluster)
                 continue
 
@@ -1274,13 +1274,13 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
             base_color = colors[iclust_global % len(colors)]
 
-            add_hist(x1key, xvals, yval, iclust, cluster, median_x, fixed_xmax, base_alpha, offset=None if x2key is None else 'up')
+            add_hist(x1key, x1vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset=None if x2key is None else 'up')
             if x2key is not None:
                 x2vals = sorted(get_xval_list(cluster, x2key))
-                add_hist(x2key, x2vals, yval, iclust, cluster, median_x, fixed_xmax, base_alpha, offset='down')
+                add_hist(x2key, x2vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset='down')
 
             if cluster_indices is not None:  # add the (global) cluster index (i.e. 1 - rank) and cluster size as text on the right side of the plot
-                xtext = xvals[-1] if plot_high_x else fixed_xmax
+                xtext = x1vals[-1] if plot_high_x else fixed_xmax
                 xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_x else fixed_xmax
                 ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 ax.text(0.12 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})

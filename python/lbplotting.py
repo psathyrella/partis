@@ -311,7 +311,9 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
     sorted_cluster_groups = [sorted_clusters[i : i + n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), n_clusters_per_joy_plot)]
     repertoire_size = sum([len(c) for c in sorted_clusters])
     max_affinity = max([a for c in sorted_clusters for a in annotation_dict[':'.join(c)]['affinities']])  # it's nice to keep track of the max values over the whole repertoire so all plots can have the same max values
-    max_lb_val = max([v for c in sorted_clusters for v in annotation_dict[':'.join(c)]['tree-info']['lb'][lb_metric].values()])
+    max_lb_val = max([annotation_dict[':'.join(c)]['tree-info']['lb'][lb_metric][u] for c in sorted_clusters for u in c])  # NOTE don't use all the values in the dict in 'tree-info', since non-sampled sequences (i.e. usually intermediate ancestors) are in there
+    if max_lb_val == 0.:  # at least atm, this means this is lbr on a family with no common ancestor sampling
+        return
     print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
     iclustergroup = 0
     for subclusters in sorted_cluster_groups:
@@ -539,6 +541,8 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         iclust_plotvals = get_plotvals(line)
         if debug:
             print '  %3d    %4d   ' % (iclust, len(line['unique_ids'])),
+        if iclust_plotvals[lb_metric].count(0.) == len(iclust_plotvals[lb_metric]):
+            continue
         for vt in vtypes:
             per_seq_plotvals[vt] += iclust_plotvals[vt]
             for st in cluster_summary_fcns:  # store both max and mean for affinity and lb
@@ -555,6 +559,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         if not only_csv and len(iclust_plotvals['affinity']) > 0:
             make_scatter_plot(iclust_plotvals, iclust=iclust)
             make_ptile_plot(iclust_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=iclust), affy_key=affy_key, ylabel=tmpylabel(iclust, None), true_inf_str=true_inf_str)
+
+    if per_seq_plotvals[lb_metric].count(0.) == len(per_seq_plotvals[lb_metric]):
+        return
 
     if lb_metric != 'fay-wu-h':
         correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes])}
