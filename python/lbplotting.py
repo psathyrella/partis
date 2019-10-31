@@ -37,7 +37,7 @@ def get_choice_groupings(lb_metric):
     # 'within-families': treat each cluster within each process/job separately (i.e. choosing cells only within each cluster)
     # 'among-families': treat each process/job as a whole (i.e. choose among all families in a process/job). Note that this means you can\'t separately adjust the number of families per job, and the number of families among which we choose cells (which is fine).
     cgroups = [('per-seq', ['within-families', 'among-families'])]
-    if lb_metric in ['shm', 'lbi']:  # not yet implemented for lbr
+    if lb_metric in ['shm', 'lbi', 'lbr']:
         cgroups.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
     return cgroups
 
@@ -321,7 +321,7 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
             continue
         title = 'affinity and %s (%d / %d)' % (lb_metric, iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
         fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=lb_metric,
-                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title)
+                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title)  # note that we can't really add cluster_indices> like we do in partitionplotter.py, since (i think?) the only place there's per-cluster plots we'd want to correspond to is in the bcr phylo simulation dir, which has indices unrelated to anything we're sorting by here, and which we can't reconstruct
         if fnames is not None:
             if len(fnames[-1]) > n_plots_per_row:
                 fnames.append([])

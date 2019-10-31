@@ -965,8 +965,8 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 # ----------------------------------------------------------------------------------------
 def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver_seq=None, debug=False):
     """ return consensus sequence from either aligned or unaligned seqfos """
-    # <threshold>: If the percentage of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added.
-    # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (for us, this is usually the naive sequence)
+    # <threshold>: If the percentage of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added. e.g. 0.1 means if fewer than 10% of sequences have the most common base, it gets an N.
+    # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (for us, this is usually the naive sequence) NOTE if you *don't* set this argument, all tied bases will be Ns
     from cStringIO import StringIO
     from Bio.Align import AlignInfo
     import Bio.AlignIO
