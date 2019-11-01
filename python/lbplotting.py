@@ -29,10 +29,14 @@ def lb_metric_axis_cfg(metric_method=None):  # x axis variables against which we
         return [[metric_method, [('affinity', 'affinity')]]]  # e.g. shm
 
 def meanmaxfcns(): return (('mean', lambda line, plotvals: numpy.mean(plotvals)), ('max', lambda line, plotvals: max(plotvals)))
-mean_max_metrics = ['affinity', 'lbi', 'lbr', 'shm']
+def vals_above_ptile(vals, ptile):  # return the top 1 - <ptile> values in <vals> NOTE may duplicate some code in make_ptile_plot()
+    ptval = numpy.percentile(vals, ptile)
+    return [v for v in vals if v > ptval]
+mean_max_metrics = ['lbi', 'lbr', 'shm']
 cluster_summary_cfg = collections.OrderedDict()
 for k in mean_max_metrics:
     cluster_summary_cfg[k] = meanmaxfcns()
+cluster_summary_cfg['affinity'] = (('top-quintile', lambda line, plotvals: numpy.mean(vals_above_ptile(plotvals, 0.80))), )
 cluster_summary_cfg['fay-wu-h'] = (('fay-wu-h', lambda line, plotvals: -utils.fay_wu_h(line)), )
 cluster_summary_cfg['consensus'] = (('consensus-shm', lambda line, plotvals: utils.hamming_distance(line['naive_seq'], treeutils.lb_cons_seq(line))), )
 def get_lbscatteraxes(lb_metric):
@@ -49,7 +53,7 @@ def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb meth
 per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus')
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'consensus')  # don't need this atm since it's just all of them
 mtitle_cfg = {'per-seq' : {'consensus' : '- distance to cons seq', 'shm' : '- N mutations'},
-              'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'consensus' : 'N mutations in cons seq', 'shm' : '- N mutations'}}
+              'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'consensus' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
 def mtitlestr(pchoice, lbm, short=False):
     mtstr = mtitle_cfg[pchoice].get(lbm, lbm.upper())
     if short and len(mtstr) > 12:
