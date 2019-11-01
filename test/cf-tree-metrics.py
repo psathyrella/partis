@@ -587,7 +587,7 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
-parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
+parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'consensus'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--selection-strength-list', default='1.0')
 parser.add_argument('--parameter-variances', help='see bcr-phylo-run.py help')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
@@ -670,6 +670,7 @@ for action in args.actions:
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir())
         procs = []
         for metric, cfg_list in lbplotting.lb_metric_axis_cfg(args.metric_method):  # omg these loops are confusing and complicated (but not sure they can really be improved that much)
+            # TODO needs to be updated for non-lb methods
             # if metric != 'lbi': continue
             for ptilestr, ptilelabel in cfg_list:
                 print '  %s  %-13s' % (utils.color('blue', metric), ptilestr)

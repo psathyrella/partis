@@ -28,6 +28,8 @@ default_lbr_tau_factor = 20
 
 dummy_str = 'x-dummy-x'
 
+def lb_cons_seq(line): return utils.cons_seq(0.01, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
+
 # ----------------------------------------------------------------------------------------
 # NOTE the min lbi is just tau, but I still like doing it this way
 lb_bounds = {  # calculated to 17 generations, which is quite close to the asymptote
@@ -1148,11 +1150,13 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
     for iclust, true_line in enumerate(true_lines):
         assert 'tree-info' not in true_line  # could handle it, but don't feel like thinking about it a.t.m.
         if metric_method == 'shm':
-            metric_info = {u : utils.per_seq_val(true_line, 'mut_freqs', u) for u in true_line['unique_ids']}
+            metric_info = {u : -utils.per_seq_val(true_line, 'n_mutations', u) for u in true_line['unique_ids']}
             true_line['tree-info'] = {'lb' : {metric_method : metric_info}}
         elif metric_method == 'fay-wu-h':  # NOTE this isn't actually tree info, but I"m comparing it to things calculated with a tree, so putting it in the same place at least for now
-            fwh = -utils.fay_wu_h(true_line)
-            true_line['tree-info'] = {'lb' : {metric_method : {u : fwh for u in true_line['unique_ids']}}}  # HACK add same value for all seqs, since it isn't a per-seq quantity (but this makes it so it can be handled the same as the others in lbplotting)
+            pass
+        elif metric_method == 'consensus':
+            cseq = lb_cons_seq(true_line)
+            true_line['tree-info'] = {'lb' : {metric_method : {u : -utils.hamming_distance(cseq, s) for u, s in zip(true_line['unique_ids'], true_line['seqs'])}}}
         else:
             assert False
 
