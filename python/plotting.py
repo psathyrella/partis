@@ -1126,6 +1126,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, global_max_vals=None, debug=False):
+    import lbplotting
     # NOTE <xvals> must be sorted
     # ----------------------------------------------------------------------------------------
     def offcolor(offset):
@@ -1276,6 +1277,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
             add_hist(x1key, x1vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset=None if x2key is None else 'up')
             if x2key is not None:
+                tmpval = lbplotting.mean_of_top_quintile(x1vals)
+                ax.plot([tmpval, tmpval], [yval, yval + 1./4], linewidth=2.5, alpha=0.55, color='green')
                 x2vals = sorted(get_xval_list(cluster, x2key))
                 add_hist(x2key, x2vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset='down')
 

@@ -29,14 +29,15 @@ def lb_metric_axis_cfg(metric_method=None):  # x axis variables against which we
         return [[metric_method, [('affinity', 'affinity')]]]  # e.g. shm
 
 def meanmaxfcns(): return (('mean', lambda line, plotvals: numpy.mean(plotvals)), ('max', lambda line, plotvals: max(plotvals)))
-def vals_above_ptile(vals, ptile):  # return the top 1 - <ptile> values in <vals> NOTE may duplicate some code in make_ptile_plot()
-    ptval = numpy.percentile(vals, ptile)
-    return [v for v in vals if v > ptval]
+def mean_of_top_quintile(vals):  # yeah, yeah could name it xtile and have another parameter, but maybe I won't actually need to change it
+    frac = 0.2  # i.e. top quintile
+    n_to_take = int(frac * len(vals))
+    return numpy.mean(sorted(vals)[len(vals) - n_to_take:])
 mean_max_metrics = ['lbi', 'lbr', 'shm']
 cluster_summary_cfg = collections.OrderedDict()
 for k in mean_max_metrics:
     cluster_summary_cfg[k] = meanmaxfcns()
-cluster_summary_cfg['affinity'] = (('top-quintile', lambda line, plotvals: numpy.mean(vals_above_ptile(plotvals, 0.80))), )
+cluster_summary_cfg['affinity'] = (('top-quintile', lambda line, plotvals: mean_of_top_quintile(plotvals)), )
 cluster_summary_cfg['fay-wu-h'] = (('fay-wu-h', lambda line, plotvals: -utils.fay_wu_h(line)), )
 cluster_summary_cfg['consensus'] = (('consensus-shm', lambda line, plotvals: utils.hamming_distance(line['naive_seq'], treeutils.lb_cons_seq(line))), )
 def get_lbscatteraxes(lb_metric):
@@ -322,8 +323,7 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
         fnames.append([])
     partition = utils.get_partition_from_annotation_list(lines)
     annotation_dict = {':'.join(l['unique_ids']) : l for l in lines}
-    sorted_clusters = sorted(partition, key=lambda c: numpy.mean(annotation_dict[':'.join(c)]['affinities']), reverse=True)
-    sorted_clusters = sorted(sorted_clusters, key=lambda c: max(annotation_dict[':'.join(c)]['affinities']), reverse=True)  # ends up sorted by max(), with ties broken by mean()
+    sorted_clusters = sorted(partition, key=lambda c: mean_of_top_quintile(annotation_dict[':'.join(c)]['affinities']), reverse=True)
     sorted_cluster_groups = [sorted_clusters[i : i + n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), n_clusters_per_joy_plot)]
     repertoire_size = sum([len(c) for c in sorted_clusters])
     max_affinity = max([a for c in sorted_clusters for a in annotation_dict[':'.join(c)]['affinities']])  # it's nice to keep track of the max values over the whole repertoire so all plots can have the same max values
