@@ -77,7 +77,7 @@ def get_size(vmin, vmax, val):
     return min_size + (val - vmin) * (max_size - min_size) / (vmax - vmin)
 
 # ----------------------------------------------------------------------------------------
-def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):
+def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):  # NOTE very similar to add_smap_legend() in plot_2d_scatter() in python/lbplotting.py
     if len(all_vals) == 0:
         return
     assert add_sign in [None, '-', '+']

@@ -221,49 +221,56 @@ def get_tree_from_line(line, is_true_line):
     return line['tree-info']['lb']['tree']
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_shm(baseplotdir, lines_to_use, fnames=None, is_true_line=False, add_uids=False, n_per_row=4):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+def plot_lb_scatter_plots(baseplotdir, lb_metric, lines_to_use, xvar='shm', fnames=None, is_true_line=False, colorvar=None, add_uids=False, n_per_row=4):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
     if fnames is None:
         fnames = []
-    fnames.append([])
-    sorted_lines = sorted([l for l in lines_to_use if get_tree_from_line(l, is_true_line) is not None], key=lambda l: len(l['unique_ids']), reverse=True)
+    if len(fnames) == 0 or len(fnames[-1]) >= 2:
+        fnames.append([])
 
-    # note: all clusters together
-    subfnames = {lb_metric : [] for lb_metric in treeutils.lb_metrics}
-    for lb_metric, lb_label in treeutils.lb_metrics.items():
-        plotdir = '%s/%s/%s-vs-shm' % (baseplotdir, lb_metric, lb_metric)
-        utils.prep_dir(plotdir, wildlings='*.svg')
-        plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric]}
-        basetitle = '%s %s vs SHM' % ('true' if is_true_line else 'inferred', lb_metric.upper())
-        for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
-            iclust_plotvals = {x : {'leaf' : [], 'internal' : []} for x in ['shm', lb_metric, 'uids']}
+    vtypes = [xvar, lb_metric]
+    if add_uids: vtypes.append('uids')
+    if colorvar is not None: vtypes.append(colorvar)
+    plotdir = '%s/%s/%s-vs-%s' % (baseplotdir, lb_metric, lb_metric, xvar)
+    utils.prep_dir(plotdir, wildlings='*.svg')
+    plotvals = {x : [] for x in vtypes}
+    xvartitlestr = mtitle_cfg['per-seq'][xvar] if xvar == 'consensus' else 'N mutations'
+    basetitle = '%s %s vs %s' % ('true' if is_true_line else 'inferred', lb_metric.upper(), xvartitlestr)
+    scatter_kwargs = {'xvar' : xvar, 'xlabel' : xvartitlestr, 'colorvar' : colorvar, 'leg_loc' : (0.55, 0.75), 'log' : 'y' if lb_metric == 'lbr' else ''}
+    sorted_lines = sorted(lines_to_use, key=lambda l: len(l['unique_ids']), reverse=True)
+    for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
+        iclust_plotvals = {x : [] for x in vtypes}
+        if colorvar == 'is_leaf':
             dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))
-            n_max_mutes = max(line['n_mutations'])  # don't generally have n mutations for internal nodes, so use this to rescale the depth in the tree
-            max_depth = max(n.distance_from_root() for n in dtree.leaf_node_iter())
-            for node in dtree.preorder_node_iter():
-                if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][node.taxon.label] == 0:  # lbr equals 0 should really be treated as None/missing
-                    continue
-                iseq = line['unique_ids'].index(node.taxon.label) if node.taxon.label in line['unique_ids'] else None
-                if is_true_line and node.taxon.label not in line['unique_ids']:  # not really sure whether I want to skip them or not (it's nice to have the visual confirmation that I'm not observing any internal nodes, but then again it's also nice to see where the internal nodes fall in the plot). For now I'll plot them for inferred, but not true (see comments in plot_lb_distributions())
-                    continue
-                n_muted = line['n_mutations'][iseq] if node.taxon.label in line['unique_ids'] else node.distance_from_root() * n_max_mutes / float(max_depth)
-                tkey = 'leaf' if node.is_leaf() else 'internal'
-                iclust_plotvals['shm'][tkey].append(n_muted)
-                iclust_plotvals[lb_metric][tkey].append(line['tree-info']['lb'][lb_metric][node.taxon.label])
-                affyval = line['affinities'][iseq] if 'affinities' in line and iseq is not None else None
-                if add_uids:
-                    iclust_plotvals['uids'][tkey].append(node.taxon.label if affyval is not None else None)
-            title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(line['tree-info']['lb'][lb_metric]))
-            fn = plot_2d_scatter('%s-vs-shm-iclust-%d' % (lb_metric, iclust), plotdir, iclust_plotvals, lb_metric, lb_label, title, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
-            if iclust < n_per_row:  # i.e. only put one row's worth in the html
-                subfnames[lb_metric].append(fn)
-            for vtype in [vt for vt in plotvals if vt != 'uids']:
-                for ltype in plotvals[vtype]:
-                    plotvals[vtype][ltype] += iclust_plotvals[vtype][ltype]
-        fn = plot_2d_scatter('%s-vs-shm-all-clusters' % lb_metric, plotdir, plotvals, lb_metric, lb_label, '%s (all clusters)' % basetitle, xvar='shm', xlabel='N mutations', leg_loc=(0.7, 0.75), log='y' if lb_metric == 'lbr' else '')
-        fnames[-1].append(fn)
-
-    # TODO can't be bothered figuring out how to get these to work with the distributions (below) a.t.m.
-    # fnames.append([fn for lbm in treeutils.lb_metrics for fn in subfnames[lbm]])
+            if dtree is None:
+                continue
+        if xvar == 'shm':
+            def xvalfcn(i): return line['n_mutations'][i]
+        elif xvar == 'consensus':
+            cseq = treeutils.lb_cons_seq(line)
+            def xvalfcn(i): return -utils.hamming_distance(cseq, line['seqs'][i])  # NOTE the consensus value of course is *not* in ['tree-info']['lb'], since we're making a plot of actual lb vs consensus
+        else:
+            assert False
+        for iseq, uid in enumerate(line['unique_ids']):
+            if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][uid] == 0:  # lbr equals 0 should really be treated as None/missing
+                continue
+            iclust_plotvals[xvar].append(xvalfcn(iseq))
+            iclust_plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+            if colorvar is not None:
+                if colorvar == 'is_leaf':
+                    node = dtree.find_node_with_taxon_label(uid)
+                    colorval = node.is_leaf() if node is not None else None
+                elif colorvar == 'affinity':
+                    colorval = line['affinities'][iseq] if 'affinities' in line else None
+                iclust_plotvals[colorvar].append(colorval)  # I think any uid in <line> should be in the tree, but may as well handle the case where it isn't
+            if add_uids:
+                iclust_plotvals['uids'].append(uid)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
+        title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(line['tree-info']['lb'][lb_metric]))
+        fn = plot_2d_scatter('%s-vs-%s-iclust-%d' % (lb_metric, xvar, iclust), plotdir, iclust_plotvals, lb_metric, treeutils.lb_metrics[lb_metric], title, **scatter_kwargs)
+        assert len(set([len(plotvals[vt]) for vt in plotvals])) == 1  # make sure all of them are the same length
+        for vtype in [vt for vt in plotvals if vt != 'uids']:
+            plotvals[vtype] += iclust_plotvals[vtype]
+    fn = plot_2d_scatter('%s-vs-%s-all-clusters' % (lb_metric, xvar), plotdir, plotvals, lb_metric, treeutils.lb_metrics[lb_metric], '%s (all clusters)' % basetitle, **scatter_kwargs)
+    fnames[-1].append(fn)
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=None, metric_method=None, only_overall=False, affy_key='affinities', n_per_row=4):
@@ -345,33 +352,35 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
         iclustergroup += 1
 
 # ----------------------------------------------------------------------------------------
-def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', log='', leg_loc=None, warn_text=None):
-    def getall(k):
-        if 'leaf' in plotvals[xvar]:
-            return [v for tk in plotvals[k] for v in plotvals[k][tk]]
-        else:
-            return plotvals[k]
-
-    if len(getall(xvar)) == 0:
+def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', colorvar=None, log='', leg_loc=None, warn_text=None, markersize=15):
+    leafcolors = {'leaf' : '#006600', 'internal' : '#2b65ec'}  # green, blue
+    if len(plotvals[xvar]) == 0:
         # print '    no %s vs affy info' % yvar
         return '%s/%s.svg' % (plotdir, plotname)
     fig, ax = plotting.mpl_init()
-    if 'leaf' not in plotvals[xvar]:  # single plot
+    if colorvar is None:
         ax.scatter(plotvals[xvar], plotvals[yvar], alpha=0.4)
-    else:  # separate plots for leaf/internal nodes
-        for tkey, color in zip(plotvals[xvar], (None, 'darkgreen')):
-            ax.scatter(plotvals[xvar][tkey], plotvals[yvar][tkey], label=tkey, alpha=0.4, color=color)
+    else:
+        if colorvar == 'is_leaf':
+            colorfcn = lambda x: leafcolors['leaf' if x else 'internal']
+            alpha = 0.4
+        else:
+            smap = plotting.get_normalized_scalar_map(plotvals[colorvar], 'viridis')
+            colorfcn = lambda x: plotting.get_smap_color(smap, None, val=x)
+            alpha = 0.8
+        for x, y, cval in zip(plotvals[xvar], plotvals[yvar], plotvals[colorvar]):  # we used to do the leaf/internal plots as two scatter() calls, which might be faster? but I think what really takes the time is writing the svgs, so whatever
+            ax.plot([x], [y], color=colorfcn(cval), marker='.', markersize=markersize, alpha=alpha)
     if 'uids' in plotvals:
-        for xval, yval, uid in zip(getall(xvar), getall(yvar), getall('uids')):  # note: two ways to signal not to do this: sometimes we have 'uids' in the dict, but don't fill it (so the zip() gives an empty list), but sometimes we populate 'uids' with None values
+        for xval, yval, uid in zip(plotvals[xvar], plotvals[yvar], plotvals['uids']):  # note: two ways to signal not to do this: sometimes we have 'uids' in the dict, but don't fill it (so the zip() gives an empty list), but sometimes we populate 'uids' with None values
             if uid is None:
                 continue
-            ax.plot([xval], [yval], color='red', marker='.', markersize=10)
+            ax.plot([xval], [yval], color='red', marker='.', markersize=markersize)
             ax.text(xval, yval, uid, color='red', fontsize=8)
 
     if warn_text is not None:
         ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], warn_text, fontsize=30, fontweight='bold', color='red')
-    xmin, xmax = min(getall(xvar)), max(getall(xvar))
-    ymin, ymax = min(getall(yvar)), max(getall(yvar))
+    xmin, xmax = [mfcn(plotvals[xvar]) for mfcn in [min, max]]
+    ymin, ymax = [mfcn(plotvals[yvar]) for mfcn in [min, max]]
     xbounds = xmin - 0.02 * (xmax - xmin), xmax + 0.02 * (xmax - xmin)
     if 'y' in log:
         ybounds = 0.75 * ymin, 1.3 * ymax
@@ -379,7 +388,24 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         ybounds = ymin - 0.03 * (ymax - ymin), ymax + 0.08 * (ymax - ymin)
     if yvar in ['shm', 'consensus']:
         ax.plot([xmin, xmax], [0, 0], linewidth=1, alpha=0.7, color='grey')
-    fn = plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc)
+    leg_title, leg_prop = None, None
+    if colorvar is not None:
+        leg_loc = (0.1 if xvar == 'consensus' else 0.7, 0.65)
+        leg_prop = {'size' : 12}
+        if colorvar == 'is_leaf':
+            leg_iter = [(leafcolors[l], l) for l in ['leaf', 'internal']]
+        elif colorvar == 'affinity':
+            leg_title = colorvar
+            cmin, cmax = [mfcn(plotvals[colorvar]) for mfcn in [min, max]]  # NOTE very similar to add_legend() in bin/plot-lb-tree.py
+            n_entries = 4
+            max_diff = (cmax - cmin) / float(n_entries - 1)
+            leg_iter = [(colorfcn(v), '%.3f'%v) for v in list(numpy.arange(cmin, cmax + utils.eps, max_diff))]  # first value is exactly <cmin>, last value is exactly <cmax> (eps is to keep it from missing the last one)
+        else:
+            assert False
+        for tcol, tstr in leg_iter:
+            ax.plot([], [], color=tcol, label=tstr, marker='.', markersize=markersize, linewidth=0)
+
+    fn = plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc, leg_title=leg_title, leg_prop=leg_prop)
     return fn
 
 # ----------------------------------------------------------------------------------------
