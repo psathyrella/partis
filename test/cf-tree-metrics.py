@@ -567,7 +567,7 @@ def get_tree_metrics(args):
             assert not args.use_relative_affy  # would need to implement it
             treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, args.min_tree_metric_cluster_size,
                                                     base_plotdir=get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
-                                                    only_csv=args.only_csv_plots)  # ete_path=args.ete_path,
+                                                    only_csv=args.only_csv_plots, ete_path=args.ete_path, workdir=args.workdir)
 
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method)[0])

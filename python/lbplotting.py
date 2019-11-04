@@ -798,7 +798,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None):
+def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None):
     workdir = '%s/ete3-plots' % base_workdir
     plotdir = baseplotdir + '/trees'
     utils.prep_dir(plotdir, wildlings='*.svg')
@@ -806,15 +806,15 @@ def plot_lb_trees(baseplotdir, lines, ete_path, base_workdir, is_true_line=False
     if not os.path.exists(workdir):
         os.makedirs(workdir)
     cmdfos = []
-    for lb_metric, lb_label in treeutils.lb_metrics.items():
+    for lb_metric in metric_methods:
         for iclust, line in enumerate(lines):  # note that <min_tree_metric_cluster_size> was already applied in treeutils
             treestr = get_tree_from_line(line, is_true_line)
-            for affy_key in treeutils.affy_keys[lb_metric]:
-                metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
-                if affy_key in line:  # either 'affinities' or 'relative_affinities'
-                    metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
-                outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
-                cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style)]
+            affy_key = 'affinities'  # turning off possibility of using relative affinity for now
+            metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
+            if affy_key in line:  # either 'affinities' or 'relative_affinities'
+                metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
+            outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
+            cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style)]
 
     start = time.time()
     utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=10, proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
