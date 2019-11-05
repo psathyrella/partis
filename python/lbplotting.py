@@ -54,7 +54,7 @@ def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb meth
     return cgroups
 per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus')
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'consensus')  # don't need this atm since it's just all of them
-mtitle_cfg = {'per-seq' : {'consensus' : '- distance to cons seq', 'shm' : '- N mutations'},
+mtitle_cfg = {'per-seq' : {'consensus' : '- distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'consensus' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
 def mtitlestr(pchoice, lbm, short=False):
     mtstr = mtitle_cfg[pchoice].get(lbm, treeutils.lb_metrics.get(lbm, lbm))
@@ -732,7 +732,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
     # ----------------------------------------------------------------------------------------
     if fnames is None:  # no real effect (except not crashing) since we're not returning it any more
         fnames = []
-    # fnames += [[]]
+    if len(fnames) == 0 or len(fnames[-1]) >= 4:
+        fnames += [[]]
     true_inf_str = 'true' if is_true_line else 'inferred'
     xvar_list = collections.OrderedDict([(xvar, xlabel) for metric, cfglist in lb_metric_axis_cfg('lbr') for xvar, xlabel in cfglist])
     for xvar, estr in itertools.product(xvar_list, ['', '-ptiles']):

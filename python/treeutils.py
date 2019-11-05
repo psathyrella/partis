@@ -1141,7 +1141,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, workdir=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
+def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
     n_before = len(true_lines)
@@ -1159,6 +1159,16 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
         elif metric_method == 'consensus':
             cseq = lb_cons_seq(true_line)
             true_line['tree-info'] = {'lb' : {metric_method : {u : -utils.hamming_distance(cseq, s) for u, s in zip(true_line['unique_ids'], true_line['seqs'])}}}
+        elif metric_method == 'delta-lbi':  # it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
+            dtree = get_dendro_tree(treestr=true_line['tree'])
+            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=true_line, extra_str='true tree', iclust=iclust)
+            delta_lbfo = {}
+            for uid in true_line['unique_ids']:
+                node = dtree.find_node_with_taxon_label(uid)
+                if node is dtree.seed_node:
+                    continue  # maybe I should add it as something? not sure
+                delta_lbfo[uid] = lbi_info['lbi'][uid] - lbi_info['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
+            true_line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
         else:
             assert False
 
@@ -1171,7 +1181,10 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
         fnames = []
-        lbplotting.plot_lb_vs_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames, debug=debug)
+        if metric_method == 'delta-lbi':
+            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, lbplotting.mtitlestr('per-seq', metric_method), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+        else:
+            lbplotting.plot_lb_vs_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames, debug=debug)
         # lbplotting.plot_lb_distributions(true_plotdir, true_lines, fnames=fnames, is_true_line=True, metric_method=metric_method, only_overall=True)
         # if ete_path is not None:
         #     lbplotting.plot_lb_trees([metric_method], true_plotdir, true_lines, ete_path, workdir, is_true_line=True)
