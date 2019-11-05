@@ -1037,16 +1037,15 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
         fnames = []
-        for affy_key in affy_keys['lbi']:
-            lbplotting.plot_lb_vs_affinity(true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
-            lbplotting.plot_lb_vs_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
-        lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
-            for lb_metric in lb_metrics:
-                lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
             for lb_metric in ['lbi']: #lb_metrics:
                 lbplotting.plot_lb_scatter_plots(true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='is_leaf')
                 lbplotting.plot_lb_scatter_plots(true_plotdir, lb_metric, true_lines_to_use, xvar='consensus', fnames=fnames, is_true_line=True, colorvar='affinity')
+            for lb_metric in lb_metrics:
+                lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
+        lbplotting.plot_lb_vs_affinity(true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+        lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+        if not only_csv:
             lbplotting.plot_lb_distributions(true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             if ete_path is not None:
                 lbplotting.plot_lb_trees(lb_metrics.keys(), true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)

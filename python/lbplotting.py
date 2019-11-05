@@ -295,7 +295,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
     sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
     if fnames is None:  # no real effect (except not crashing) since we're not returning it any more
         fnames = []
-    if len(fnames) < 1:  # shouldn't really happen
+    if len(fnames) < 1 or len(fnames) >= 4:
         fnames.append([])
     tmpfnames = []
 
@@ -327,7 +327,8 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
 # ----------------------------------------------------------------------------------------
 def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters_per_joy_plot=25, n_max_joy_plots=25, n_plots_per_row=4):
     if fnames is not None:
-        fnames.append([])
+        if len(fnames) == 0 or len(fnames[-1]) >= n_plots_per_row:
+            fnames.append([])
     partition = utils.get_partition_from_annotation_list(lines)
     annotation_dict = {':'.join(l['unique_ids']) : l for l in lines}
     sorted_clusters = sorted(partition, key=lambda c: mean_of_top_quintile(annotation_dict[':'.join(c)]['affinities']), reverse=True)
