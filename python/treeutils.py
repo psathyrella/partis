@@ -1021,7 +1021,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     lbplotting.plot_lb_vs_affinity(inf_plotdir + '/lbi', lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
     if not only_csv:  # all the various scatter plots are really slow
         for lb_metric in lb_metrics:
-            lbplotting.plot_lb_scatter_plots(inf_plotdir, lb_metric, lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
+            lbplotting.plot_lb_scatter_plots('shm', inf_plotdir, lb_metric, lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
         lbplotting.plot_lb_distributions(inf_plotdir, lines_to_use, fnames=fnames, only_overall=True)
         if ete_path is not None:
             lbplotting.plot_lb_trees(lb_metrics.keys(), inf_plotdir, lines_to_use, ete_path, workdir, is_true_line=False)
