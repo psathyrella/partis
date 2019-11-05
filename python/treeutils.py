@@ -20,7 +20,7 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
 
 import utils
 
-lb_metrics = collections.OrderedDict(('lb' + let, 'local branching ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
+lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
 affy_keys = {'lbi' : ['affinities'], #, 'relative_affinities'],  # uncomment the relative one to get a separate set of values/plots for affinity relative to the cells alive at the same time as each cell (when sampling ancestors, this lets you isolate the effects of selection at each time point)
              'lbr' : ['affinities']}
 default_lb_tau = 0.0025
@@ -1039,8 +1039,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         fnames = []
         if not only_csv:
             for lb_metric in ['lbi']: #lb_metrics:
-                lbplotting.plot_lb_scatter_plots(true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='is_leaf')
-                lbplotting.plot_lb_scatter_plots(true_plotdir, lb_metric, true_lines_to_use, xvar='consensus', fnames=fnames, is_true_line=True, colorvar='affinity')
+                lbplotting.plot_lb_scatter_plots('shm', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='is_leaf', only_overall=True)
+                lbplotting.plot_lb_scatter_plots('consensus', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity')
             for lb_metric in lb_metrics:
                 lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
         lbplotting.plot_lb_vs_affinity(true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
