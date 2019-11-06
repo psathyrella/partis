@@ -41,6 +41,7 @@ for k in mean_max_metrics:
 cluster_summary_cfg['affinity'] = (('top-quintile', lambda line, plotvals: mean_of_top_quintile(plotvals)), )
 cluster_summary_cfg['fay-wu-h'] = (('fay-wu-h', lambda line, plotvals: -utils.fay_wu_h(line)), )
 cluster_summary_cfg['consensus'] = (('consensus-shm', lambda line, plotvals: utils.hamming_distance(line['naive_seq'], treeutils.lb_cons_seq(line))), )
+cluster_summary_cfg['is_leaf'] = (('x-dummy-x', lambda line, plotvals: None), )  # just to keep things from breaking, doesn't actually get used
 def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]
 def get_cluster_summary_strs(lb_metric):
@@ -392,7 +393,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         ax.plot([xmin, xmax], [0, 0], linewidth=1, alpha=0.7, color='grey')
     leg_title, leg_prop = None, None
     if colorvar is not None:
-        leg_loc = (0.1 if xvar == 'consensus' else 0.7, 0.65)
+        leg_loc = (0.1 if xvar in ['consensus', 'affinity'] else 0.7, 0.65)  # I think this is sometimes overriding the one that's passed in
         leg_prop = {'size' : 12}
         if colorvar == 'is_leaf':
             leg_iter = [(leafcolors[l], l) for l in ['leaf', 'internal']]
@@ -496,11 +497,12 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, affy_key
         fnames[-1].append(fn)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, debug=False):
+def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, colorvar='is_leaf', debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
-        # dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))  # keeping this here to remind myself how to get the tree if I need it
+        if colorvar is not None and colorvar == 'is_leaf':
+            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))  # keeping this here to remind myself how to get the tree if I need it
         if affy_key not in line:
             return plotvals
         for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None]:
@@ -509,6 +511,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
                 plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if add_uids:
                 plotvals['uids'].append(uid)
+            if colorvar is not None and colorvar == 'is_leaf':
+                node = dtree.find_node_with_taxon_label(uid)
+                plotvals['is_leaf'].append(node.is_leaf() if node is not None else None)
         return plotvals
     # ----------------------------------------------------------------------------------------
     def getplotdir(extrastr=''):
@@ -550,7 +555,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         warn_text = 'wrong/misleading' if len(lines) > 1 and iclust is None and 'relative' in affy_key else None  # maybe I should just not make the plot, but then the html would look weird UPDATE stopped making the plot by default, but the warning is still a good idea if I start making it again
         lbstr, affystr, clstr, xlabel, ylabel, title = tmpstrs(iclust, vspstuff)
         plotname = '%s-vs-%s-%s-tree%s' % (lbstr, affystr, true_inf_str, clstr)
-        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, ylabel, title, xlabel=xlabel, warn_text=warn_text)
+        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, ylabel, title, xlabel=xlabel, colorvar=colorvar if vspstuff is None else None, warn_text=warn_text)
         if iclust is None: # or iclust < n_per_row:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
@@ -571,6 +576,8 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     affy_key_str = '-relative' if 'relative' in affy_key else ''
     true_inf_str = 'true' if is_true_line else 'inferred'
     vtypes = get_lbscatteraxes(lb_metric)  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
+    if colorvar is not None:
+        vtypes.append(colorvar)
     for estr in ['', '-ptiles']:
         utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 
@@ -579,7 +586,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     ptile_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
     correlation_vals = {'per-seq' : {}, 'per-cluster' : {}}
     if debug:
-        print '                        %8s         %8s' % tuple(vtypes)
+        print '                        %8s         %8s' % tuple(vtypes[:2])
         print '  iclust   size  %8s  %8s  %8s  %8s' % tuple(st for _ in range(2) for st in cluster_summary_fcns)
     for iclust, line in enumerate(lines):
         if debug:
@@ -590,7 +597,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
                 continue
             for vt in vtypes:
                 per_seq_plotvals[vt] += iclust_plotvals[vt]
-        for vt in vtypes:
+        for vt in vtypes[:2]:
             for sname, sfcn in cluster_summary_cfg[vt]:
                 per_clust_plotvals[vt][sname].append(sfcn(line, iclust_plotvals[vt]))
                 if debug:
@@ -601,7 +608,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             continue
         iclust_ptile_vals = get_ptile_vals(lb_metric, iclust_plotvals, 'affinity', 'affinity', dbgstr='iclust %d'%iclust, affy_key_str=affy_key_str, debug=debug)
         ptile_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
-        correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes) : getcorr(*[iclust_plotvals[vt] for vt in vtypes])}
+        correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes[:2]) : getcorr(*[iclust_plotvals[vt] for vt in vtypes[:2]])}
         if not only_csv and len(iclust_plotvals['affinity']) > 0:
             make_scatter_plot(iclust_plotvals, iclust=iclust)
             make_ptile_plot(iclust_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=iclust), affy_key=affy_key,
@@ -610,11 +617,11 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     if lb_metric in per_seq_metrics:
         if per_seq_plotvals[lb_metric].count(0.) == len(per_seq_plotvals[lb_metric]):
             return
-        correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes])}
+        correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes[:2]) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes[:2]])}
 
     for sn1, sfcn1 in cluster_summary_cfg[vtypes[0]]:  # I tried really hard to work out a way to get this in one (cleaner) loop
         for sn2, sfcn2 in cluster_summary_cfg[vtypes[1]]:
-            vspairs = zip(vtypes, (sn1, sn2))  # assign this (sn1, st2) combo to lb and affinity based on their order in <vtypes> (although now that we're using a double loop this is even weirder)
+            vspairs = zip(vtypes[:2], (sn1, sn2))  # assign this (sn1, st2) combo to lb and affinity based on their order in <vtypes> (although now that we're using a double loop this is even weirder)
             vspdict = {v : s for v, s in vspairs}  # need to also access it by key
             tmpvals = {vt : per_clust_plotvals[vt][sn] for vt, sn in vspairs}  # e.g. 'affinity' : <max affinity value list>, 'lbi' : <mean lbi value list>
             tkey = getcorrkey('%s-affinity%s' % (vspdict['affinity'], affy_key_str), '%s-%s' % (vspdict[lb_metric], lb_metric))  # can't use <vtypes> because of the stupid <affy_key_str>
