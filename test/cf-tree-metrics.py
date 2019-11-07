@@ -588,7 +588,7 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
-parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'consensus', 'delta-lbi'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
+parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'consensus', 'delta-lbi', 'lbi-cons'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--selection-strength-list', default='1.0')
 parser.add_argument('--parameter-variances', help='see bcr-phylo-run.py help')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')

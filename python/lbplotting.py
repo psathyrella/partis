@@ -34,7 +34,7 @@ def mean_of_top_quintile(vals):  # yeah, yeah could name it xtile and have anoth
     frac = 0.2  # i.e. top quintile
     n_to_take = int(frac * len(vals))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which cause bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
     return numpy.mean(sorted(vals)[len(vals) - n_to_take:])
-mean_max_metrics = ['lbi', 'lbr', 'shm']
+mean_max_metrics = ['lbi', 'lbr', 'shm', 'lbi-cons']
 cluster_summary_cfg = collections.OrderedDict()
 for k in mean_max_metrics:
     cluster_summary_cfg[k] = meanmaxfcns()
@@ -53,7 +53,7 @@ def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb meth
     if lb_metric in ['shm', 'lbi', 'lbr']:
         cgroups.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
     return cgroups
-per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus')
+per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus', 'delta-lbi', 'lbi-cons')
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'consensus')  # don't need this atm since it's just all of them
 mtitle_cfg = {'per-seq' : {'consensus' : '- distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'consensus' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
@@ -248,7 +248,7 @@ def plot_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             def xvalfcn(i): return line['n_mutations'][i]
         elif xvar == 'consensus':
             cseq = treeutils.lb_cons_seq(line)
-            def xvalfcn(i): return -utils.hamming_distance(cseq, line['seqs'][i])  # NOTE the consensus value of course is *not* in ['tree-info']['lb'], since we're making a plot of actual lb vs consensus
+            def xvalfcn(i): return treeutils.lb_cons_dist(cseq, line['seqs'][i])  # NOTE the consensus value of course is *not* in ['tree-info']['lb'], since we're making a plot of actual lb vs consensus
         else:
             assert False
         for iseq, uid in enumerate(line['unique_ids']):
@@ -284,6 +284,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
         hist.mpl_plot(ax) #, square_bins=True, errors=False)
         fig.text(0.7, 0.8, 'mean %.3f' % numpy.mean(plotvals), fontsize=15)
         fig.text(0.7, 0.75, 'max %.3f' % max(plotvals), fontsize=15)
+        # fig.text(0.7, 0.7, 'std %.3f' % numpy.std(plotvals, ddof=1), fontsize=15)
         if affinities is not None:
             fig.text(0.38, 0.88, 'mean/max affinity: %.4f/%.4f' % (numpy.mean(affinities), max(affinities)), fontsize=15)
         plotname = '%s-%s' % (lb_metric, str(iclust) if iclust is not None else 'all-clusters')
@@ -423,8 +424,8 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
         return tmp_ptvals
     if debug:
         print '    getting ptile vals%s' % ('' if dbgstr is None else (' for %s' % utils.color('blue', dbgstr)))
-        print '            %3s         N     mean    %s    |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
-        print '    ptile  threshold  taken   %s%-s %s|  N taken  mean %s'  % (affy_key_str.replace('relative-', 'r-'), 'affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
+        print '            %-12s N      mean     %s   |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
+        print '    ptile   threshold  taken    %s%-s %s|  N taken  mean %s'  % (affy_key_str.replace('relative-', 'r-'), 'affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
     sorted_xvals = sorted(plotvals[xvar], reverse=xia)
     for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
@@ -445,7 +446,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
             v1str = ('%8.4f' % numpy.mean(corresponding_xvals)) if xia else ''
             f1str = '5.0f' if xia else '6.2f'
             f2str = '5.0f' if xia else ('8.2f' if xvar == 'n-ancestor' else '8.6f')
-            print ('   %5.0f   %5.2f     %4d  %s  %'+f1str+'       | %4d    %-'+f2str) % (percentile, lb_ptile_val, len(corresponding_xvals), v1str, tmp_ptvals[xkey][-1], n_to_take, tmp_ptvals['perfect_vals'][-1])
+            print ('   %5.0f   %6.2f     %4d   %s  %'+f1str+'       |  %4d      %-'+f2str) % (percentile, lb_ptile_val, len(corresponding_xvals), v1str, tmp_ptvals[xkey][-1], n_to_take, tmp_ptvals['perfect_vals'][-1])
         # old way of adding a 'no correlation' line:
         # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
         # shuffled_lb_vals = copy.deepcopy(plotvals[lb_metric])
@@ -586,11 +587,11 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     ptile_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
     correlation_vals = {'per-seq' : {}, 'per-cluster' : {}}
     if debug:
-        print '                        %8s         %8s' % tuple(vtypes[:2])
-        print '  iclust   size  %8s  %8s  %8s  %8s' % tuple(st for _ in range(2) for st in cluster_summary_fcns)
+        print '                 %s   ' % ''.join([('  %-12s'%vt) for vt in vtypes[:2] for _ in cluster_summary_cfg[vt]])
+        print '  iclust   size %s' % ''.join(('  %-12s'%st) for vt in vtypes[:2] for st, _ in cluster_summary_cfg[vt])
     for iclust, line in enumerate(lines):
         if debug:
-            print '  %3d    %4d   ' % (iclust, len(line['unique_ids'])),
+            print '  %3d    %4d' % (iclust, len(line['unique_ids'])),
         iclust_plotvals = get_plotvals(line)  # if it's not in <per_seq_metrics> we still need the affinity values
         if lb_metric in per_seq_metrics:
             if iclust_plotvals[lb_metric].count(0.) == len(iclust_plotvals[lb_metric]):  # i.e. (atm) lbr on family that's only leaves (it would be nice to have a more sensible way to do this, but I guess it's not really a big deal since I think we're done sampling only leaves)
@@ -601,7 +602,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             for sname, sfcn in cluster_summary_cfg[vt]:
                 per_clust_plotvals[vt][sname].append(sfcn(line, iclust_plotvals[vt]))
                 if debug:
-                    print '    %5.3f' % per_clust_plotvals[vt][sname][-1],
+                    print '%12.3f' % per_clust_plotvals[vt][sname][-1],
         if debug:
             print ''
         if lb_metric not in per_seq_metrics:

@@ -15,6 +15,7 @@ import sys
 from distutils.version import StrictVersion
 import dendropy
 import time
+import math
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
@@ -28,7 +29,10 @@ default_lbr_tau_factor = 20
 
 dummy_str = 'x-dummy-x'
 
-def lb_cons_seq(line): return utils.cons_seq(0.01, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
+def lb_cons_seq(line):
+    return utils.cons_seq(0.01, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
+def lb_cons_dist(cons_seq, seq):
+    return -utils.hamming_distance(cons_seq, seq)
 
 # ----------------------------------------------------------------------------------------
 # NOTE the min lbi is just tau, but I still like doing it this way
@@ -1158,17 +1162,27 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
             pass
         elif metric_method == 'consensus':
             cseq = lb_cons_seq(true_line)
-            true_line['tree-info'] = {'lb' : {metric_method : {u : -utils.hamming_distance(cseq, s) for u, s in zip(true_line['unique_ids'], true_line['seqs'])}}}
+            true_line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(cseq, s) for u, s in zip(true_line['unique_ids'], true_line['seqs'])}}}
         elif metric_method == 'delta-lbi':  # it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
             dtree = get_dendro_tree(treestr=true_line['tree'])
-            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=true_line, extra_str='true tree', iclust=iclust)
+            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=true_line, extra_str='true tree', iclust=iclust)['lbi']
             delta_lbfo = {}
             for uid in true_line['unique_ids']:
                 node = dtree.find_node_with_taxon_label(uid)
                 if node is dtree.seed_node:
                     continue  # maybe I should add it as something? not sure
-                delta_lbfo[uid] = lbi_info['lbi'][uid] - lbi_info['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
+                delta_lbfo[uid] = lbi_info[uid] - lbi_info[node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
             true_line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
+        elif metric_method == 'lbi-cons':  # it would also be nice to not calculate lbi here
+            cseq = lb_cons_seq(true_line)
+            lbfo = {'consensus' : {u : lb_cons_dist(cseq, s) for u, s in zip(true_line['unique_ids'], true_line['seqs'])}}
+            dtree = get_dendro_tree(treestr=true_line['tree'])
+            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=true_line, extra_str='true tree', iclust=iclust)['lbi']
+            lbfo['lbi'] = {u : lbi_info[u] for u in true_line['unique_ids']}  # remove the ones that aren't in <true_line> (since we don't have sequences for them, so also no consensus distance)
+            for lbm in lbfo:  # normalize to z score
+                mean, std = numpy.mean(lbfo[lbm].values()), numpy.std(lbfo[lbm].values(), ddof=1)
+                lbfo[lbm] = {u : (v - mean) / std for u, v in lbfo[lbm].items()}
+            true_line['tree-info'] = {'lb' : {metric_method : {u : (lbfo['lbi'][u] + lbfo['consensus'][u]) / math.sqrt(2) for u in true_line['unique_ids']}}}
         else:
             assert False
 
@@ -1184,8 +1198,8 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
         if metric_method == 'delta-lbi':
             lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, lbplotting.mtitlestr('per-seq', metric_method), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         else:
-            lbplotting.plot_lb_vs_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames, debug=debug)
-        # lbplotting.plot_lb_distributions(true_plotdir, true_lines, fnames=fnames, is_true_line=True, metric_method=metric_method, only_overall=True)
+            lbplotting.plot_lb_vs_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames)
+        # lbplotting.plot_lb_distributions(true_plotdir, true_lines, fnames=fnames, is_true_line=True, metric_method=metric_method) #, only_overall=True)
         # if ete_path is not None:
         #     lbplotting.plot_lb_trees([metric_method], true_plotdir, true_lines, ete_path, workdir, is_true_line=True)
         if not only_csv:
