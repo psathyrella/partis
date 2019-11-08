@@ -133,7 +133,7 @@ The columns are:
 To print the partitions and/or annotations in an existing output file, run
 
 ``` 
-partis view-annotations --outfname _output/example.yaml
+partis view-output --outfname _output/example.yaml
 ```
 
 ### cache-parameters
