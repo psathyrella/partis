@@ -296,6 +296,11 @@ def useful_bool(bool_str):
         raise Exception('couldn\'t convert \'%s\' to bool' % bool_str)
 
 # ----------------------------------------------------------------------------------------
+def get_z_scores(vals):  # return list of <vals> normalized to units of standard deviations (i.e. z scores)
+    mean, std = numpy.mean(vals), numpy.std(vals, ddof=1)
+    return [(v - mean) / std for v in vals]
+
+# ----------------------------------------------------------------------------------------
 def get_str_float_pair_dict(strlist):
     def getpair(pairstr):
         pairlist = pairstr.split(':')

@@ -1022,10 +1022,10 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
     utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
     fnames = []
-    lbplotting.plot_lb_vs_affinity(inf_plotdir + '/lbi', lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
+    lbplotting.plot_lb_vs_affinity(inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
     if not only_csv:  # all the various scatter plots are really slow
         for lb_metric in lb_metrics:
-            lbplotting.plot_lb_scatter_plots('shm', inf_plotdir, lb_metric, lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
+            lbplotting.make_lb_scatter_plots('shm', inf_plotdir, lb_metric, lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
         lbplotting.plot_lb_distributions(inf_plotdir, lines_to_use, fnames=fnames, only_overall=True)
         if ete_path is not None:
             lbplotting.plot_lb_trees(lb_metrics.keys(), inf_plotdir, lines_to_use, ete_path, workdir, is_true_line=False)
@@ -1043,11 +1043,14 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         fnames = []
         if not only_csv:
             for lb_metric in ['lbi']: #lb_metrics:
-                lbplotting.plot_lb_scatter_plots('shm', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='is_leaf', only_overall=True)
-                lbplotting.plot_lb_scatter_plots('consensus', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity')
+                lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%lb_metric, colorvar='edge-dist', add_jitter=True)
+                # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%lb_metric, colorvar='edge-dist', only_overall=False, choose_among_families=True)
+                lbplotting.make_lb_scatter_plots('shm', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='edge-dist', only_overall=True, add_jitter=True)
+                lbplotting.make_lb_scatter_plots('consensus', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', add_jitter=True)
+                # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='consensus-ptile', colorvar='edge-dist', add_jitter=True)
             for lb_metric in lb_metrics:
                 lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
-        lbplotting.plot_lb_vs_affinity(true_plotdir + '/lbi', true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+        lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
             lbplotting.plot_lb_distributions(true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
@@ -1180,9 +1183,16 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
             lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=true_line, extra_str='true tree', iclust=iclust)['lbi']
             lbfo['lbi'] = {u : lbi_info[u] for u in true_line['unique_ids']}  # remove the ones that aren't in <true_line> (since we don't have sequences for them, so also no consensus distance)
             for lbm in lbfo:  # normalize to z score
-                mean, std = numpy.mean(lbfo[lbm].values()), numpy.std(lbfo[lbm].values(), ddof=1)
-                lbfo[lbm] = {u : (v - mean) / std for u, v in lbfo[lbm].items()}
-            true_line['tree-info'] = {'lb' : {metric_method : {u : (lbfo['lbi'][u] + lbfo['consensus'][u]) / math.sqrt(2) for u in true_line['unique_ids']}}}
+                lbfo[lbm] = {u : z for u, z in zip(true_line['unique_ids'], utils.get_z_scores([lbfo[lbm][u] for u in true_line['unique_ids']]))}
+            def edge_dist_fcn(uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
+                node = dtree.find_node_with_taxon_label(uid)
+                return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
+            edge_dists = [edge_dist_fcn(u) for u in true_line['unique_ids']]
+            edmin, edmax = min(edge_dists), max(edge_dists)
+            def zcombo(u):
+                weight = utils.intexterpolate(edmin, 0., edmax, 1., edge_dist_fcn(u))
+                return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo['consensus'][u]) / math.sqrt(2)
+            true_line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in true_line['unique_ids']}}}
         else:
             assert False
 
@@ -1198,7 +1208,7 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
         if metric_method == 'delta-lbi':
             lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, lbplotting.mtitlestr('per-seq', metric_method), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         else:
-            lbplotting.plot_lb_vs_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames)
+            lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames)
         # lbplotting.plot_lb_distributions(true_plotdir, true_lines, fnames=fnames, is_true_line=True, metric_method=metric_method) #, only_overall=True)
         # if ete_path is not None:
         #     lbplotting.plot_lb_trees([metric_method], true_plotdir, true_lines, ete_path, workdir, is_true_line=True)

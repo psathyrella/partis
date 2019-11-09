@@ -55,7 +55,8 @@ def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb meth
     return cgroups
 per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus', 'delta-lbi', 'lbi-cons')
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'consensus')  # don't need this atm since it's just all of them
-mtitle_cfg = {'per-seq' : {'consensus' : '- distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index'},
+mtitle_cfg = {'per-seq' : {'consensus' : '- distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
+                           'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'consensus' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
 def mtitlestr(pchoice, lbm, short=False):
     mtstr = mtitle_cfg[pchoice].get(lbm, treeutils.lb_metrics.get(lbm, lbm))
@@ -223,55 +224,133 @@ def get_tree_from_line(line, is_true_line):
     return line['tree-info']['lb']['tree']
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, add_uids=False, n_per_row=4):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, add_uids=False, yvar=None, choose_among_families=False, add_jitter=False, min_ptile=80., n_per_row=4):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+    if yvar is None:
+        yvar = lb_metric
     if fnames is None:
         fnames = []
-    if len(fnames) == 0 or len(fnames[-1]) >= 2:
+    if len(fnames) == 0 or len(fnames[-1]) >= 4:
         fnames.append([])
 
-    vtypes = [xvar, lb_metric]
+    choice_str = 'among-families' if choose_among_families else 'within-family'
+    xlabel = mtitlestr('per-seq', xvar).replace('- N', 'N')
+    ylabel = mtitlestr('per-seq', yvar)
+    if choose_among_families:
+        assert '-ptile' in xvar or '-ptile' in yvar
+        if xvar == 'affinity-ptile':
+            all_affinities = sorted([a for l in lines_to_use for a in l['affinities']])  # I don't need to sort, but it seems like the stats.percentileofscore() calls might be faster if I do
+            affinity_ptiles = {u : stats.percentileofscore(all_affinities, l['affinities'][i], kind='weak') for l in lines_to_use for i, u in enumerate(l['unique_ids'])}
+        if yvar == '%s-ptile'%lb_metric:
+            all_lbvals = sorted([l['tree-info']['lb'][lb_metric][u] for l in lines_to_use for u in l['unique_ids']])  # have to remove the ones that aren't in <line> (and sort isn't necessary, but is maybe faster)
+            lb_ptiles = {u : stats.percentileofscore(all_lbvals, l['tree-info']['lb'][lb_metric][u], kind='weak') for l in lines_to_use for u in l['unique_ids']}
+        elif yvar == 'consensus-ptile':
+            assert False  # needs finishing
+            # all_cdistvals = []
+            # for ltmp in lines_to_use:
+            #     cseq = treeutils.lb_cons_seq(ltmp)
+            #     for utmp, stmp in zip(ltmp['unique_ids'], ltmp['seqs']):
+            #         all_cdistvals.append(treeutils.lb_cons_dist(cseq, stmp))
+            # all_cdistvals = sorted(all_cdistvals)
+            # XXX lb_ptiles = {u : stats.percentileofscore(all_cdistvals, l['tree-info']['lb'][lb_metric][u], kind='weak') for l in lines_to_use for u in l['unique_ids']}
+    if '-ptile' in xvar:
+        xlabel = '%s %s' % (choice_str, xlabel)
+    if '-ptile' in yvar:
+        ylabel = '%s %s' % (choice_str, ylabel)
+
+    vtypes = [xvar, yvar]
     if add_uids: vtypes.append('uids')
     if colorvar is not None: vtypes.append(colorvar)
-    plotdir = '%s/%s/%s-vs-%s' % (baseplotdir, lb_metric, lb_metric, xvar)
+    plotdir = '%s/%s/%s-vs-%s' % (baseplotdir, lb_metric, yvar, xvar)
+    if '-ptile' in xvar or '-ptile' in yvar:
+        plotdir += '-%s' % choice_str
     utils.prep_dir(plotdir, wildlings='*.svg')
     plotvals = {x : [] for x in vtypes}
-    basetitle = '%s %s vs %s' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', lb_metric, short=True), mtitlestr('per-seq', xvar, short=True).replace('- N', 'N'))  # here 'shm' the plain number of mutations, not 'shm' the non-lb metric, so we have to fiddle with the label in mtitle_cfg
-    scatter_kwargs = {'xvar' : xvar, 'xlabel' : mtitlestr('per-seq', xvar).replace('- N', 'N'), 'colorvar' : colorvar, 'leg_loc' : (0.55, 0.75), 'log' : 'y' if lb_metric == 'lbr' else ''}
+    basetitle = '%s %s vs %s' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', yvar, short=True), mtitlestr('per-seq', xvar, short=True).replace('- N', 'N'))  # here 'shm' the plain number of mutations, not 'shm' the non-lb metric, so we have to fiddle with the label in mtitle_cfg
+    scatter_kwargs = {'xvar' : xvar, 'xlabel' : xlabel, 'colorvar' : colorvar, 'leg_loc' : (0.55, 0.75), 'log' : 'y' if yvar == 'lbr' else ''}
     sorted_lines = sorted(lines_to_use, key=lambda l: len(l['unique_ids']), reverse=True)
     for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
         iclust_plotvals = {x : [] for x in vtypes}
-        if colorvar == 'is_leaf':
+        lbfo = line['tree-info']['lb']
+        if colorvar in ['is_leaf', 'edge-dist'] or xvar == 'edge-dist':
             dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))
             if dtree is None:
                 continue
+
+        def edge_dist_fcn(iseq):  # duplicates fcn in treeutils.calculate_non_lb_tree_metrics()
+            node = dtree.find_node_with_taxon_label(line['unique_ids'][iseq])
+            return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
+
+        # TODO I should really combine the xvar and yvar stuff here
         if xvar == 'shm':
             def xvalfcn(i): return line['n_mutations'][i]
+        elif xvar == 'affinity':
+            def xvalfcn(i): return line['affinities'][i]
         elif xvar == 'consensus':
             cseq = treeutils.lb_cons_seq(line)
             def xvalfcn(i): return treeutils.lb_cons_dist(cseq, line['seqs'][i])  # NOTE the consensus value of course is *not* in ['tree-info']['lb'], since we're making a plot of actual lb vs consensus
+        elif xvar == 'edge-dist':
+            def xvalfcn(i): return edge_dist_fcn(i)
+        elif xvar == 'affinity-ptile':
+            if not choose_among_families:
+                affinity_ptiles = {u : stats.percentileofscore(line['affinities'], line['affinities'][i], kind='weak') for i, u in enumerate(line['unique_ids'])}
+            def xvalfcn(i): return affinity_ptiles[line['unique_ids'][i]]
         else:
             assert False
+
+        if yvar == lb_metric:
+            def yvalfcn(i): return lbfo[yvar][line['unique_ids'][i]]
+        elif yvar == 'z-score-err':  # prediction error, i.e. difference between lb z-score and affinity z-score (this isn't really good for much: see note below)
+            # z score difference: (this isn't actually what we want, since 1) we don't care if the best lbi was +3 sigma while best affy was +7 sigma, but only if the ranking is right and 2) we don't care about all the cells that are below the median affy)
+            zscores = {lb_metric : utils.get_z_scores([lbfo[lb_metric][u] for u in line['unique_ids']]),
+                       'affinity' : utils.get_z_scores(line['affinities'])}
+            def yvalfcn(i): return zscores[lb_metric][i] - zscores['affinity'][i]
+        elif yvar == '%s-ptile'%lb_metric:
+            lbvals = [lbfo[lb_metric][u] for u in line['unique_ids']]  # have to remove the ones that aren't in <line>
+            if not choose_among_families:
+                lb_ptiles = {u : stats.percentileofscore(lbvals, lbfo[lb_metric][u], kind='weak') for u in line['unique_ids']}
+            def yvalfcn(i): return lb_ptiles[line['unique_ids'][i]]
+        elif yvar == 'consensus-ptile':
+            cseq = treeutils.lb_cons_seq(line)
+            cvals = [treeutils.lb_cons_dist(cseq, s) for s in line['seqs']]
+            if not choose_among_families:
+                cdist_ptiles = {u : stats.percentileofscore(cvals, treeutils.lb_cons_dist(cseq, s), kind='weak') for u, s in zip(line['unique_ids'], line['seqs'])}
+            def yvalfcn(i): return cdist_ptiles[line['unique_ids'][i]]
+        else:
+            assert False
+
         for iseq, uid in enumerate(line['unique_ids']):
-            if lb_metric == 'lbr' and line['tree-info']['lb'][lb_metric][uid] == 0:  # lbr equals 0 should really be treated as None/missing
+            if yvar == 'lbr' and lbfo[yvar][uid] == 0:  # lbr equals 0 should really be treated as None/missing
+                continue
+            if xvar == 'affinity-ptile' and '-ptile' in yvar and xvalfcn(iseq) < min_ptile:  # and yvalfcn(iseq) < min_ptile:  the number of cells with high lbi but low affinity (last, commented criterion) is just too small to bother plotting -- all our errors come from the other direction
                 continue
             iclust_plotvals[xvar].append(xvalfcn(iseq))
-            iclust_plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])
+            iclust_plotvals[yvar].append(yvalfcn(iseq))
             if colorvar is not None:
                 if colorvar == 'is_leaf':
                     node = dtree.find_node_with_taxon_label(uid)
                     colorval = node.is_leaf() if node is not None else None
                 elif colorvar == 'affinity':
                     colorval = line['affinities'][iseq] if 'affinities' in line else None
+                elif colorvar == 'edge-dist':
+                    colorval = edge_dist_fcn(iseq)
+                else:
+                    assert False
                 iclust_plotvals[colorvar].append(colorval)  # I think any uid in <line> should be in the tree, but may as well handle the case where it isn't
             if add_uids:
                 iclust_plotvals['uids'].append(uid)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
+        if add_jitter: #xvar == 'affinity-ptile' and '-ptile' in yvar:
+            def jitter(frac=0.02):
+                # delta = max(3, max(iclust_plotvals[xvar]) - min(iclust_plotvals[xvar]))
+                delta = 100. - min_ptile if '-ptile' in xvar else max(iclust_plotvals[xvar]) - min(iclust_plotvals[xvar])
+                return numpy.random.uniform(-frac * delta, frac * delta)
+            iclust_plotvals[xvar] = [x + jitter() for x in iclust_plotvals[xvar]]
         if not only_overall:
-            title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(line['tree-info']['lb'][lb_metric]))
-            fn = plot_2d_scatter('%s-vs-%s-iclust-%d' % (lb_metric, xvar, iclust), plotdir, iclust_plotvals, lb_metric, treeutils.lb_metrics[lb_metric], title, **scatter_kwargs)
+            title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(lbfo[lb_metric]))
+            fn = plot_2d_scatter('%s-vs-%s-iclust-%d' % (yvar, xvar, iclust), plotdir, iclust_plotvals, yvar, ylabel, title, **scatter_kwargs)
         assert len(set([len(plotvals[vt]) for vt in plotvals])) == 1  # make sure all of them are the same length
         for vtype in [vt for vt in plotvals if vt != 'uids']:
             plotvals[vtype] += iclust_plotvals[vtype]
-    fn = plot_2d_scatter('%s-vs-%s-all-clusters' % (lb_metric, xvar), plotdir, plotvals, lb_metric, treeutils.lb_metrics[lb_metric], '%s (all clusters)' % basetitle, **scatter_kwargs)
+    fn = plot_2d_scatter('%s-vs-%s-all-clusters' % (yvar, xvar), plotdir, plotvals, yvar, ylabel, '%s (all clusters)' % basetitle, **scatter_kwargs)
     fnames[-1].append(fn)
 
 # ----------------------------------------------------------------------------------------
@@ -328,7 +407,7 @@ def plot_lb_distributions(baseplotdir, lines_to_use, is_true_line=False, fnames=
     # fnames.append(tmpfnames)
 
 # ----------------------------------------------------------------------------------------
-def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters_per_joy_plot=25, n_max_joy_plots=25, n_plots_per_row=4):
+def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters_per_joy_plot=25, n_max_joy_plots=25, n_plots_per_row=3):
     if fnames is not None:
         if len(fnames) == 0 or len(fnames[-1]) >= n_plots_per_row:
             fnames.append([])
@@ -398,12 +477,12 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         leg_prop = {'size' : 12}
         if colorvar == 'is_leaf':
             leg_iter = [(leafcolors[l], l) for l in ['leaf', 'internal']]
-        elif colorvar == 'affinity':
-            leg_title = colorvar
+        elif colorvar in ['affinity', 'edge-dist']:
+            leg_title = mtitlestr('per-seq', colorvar)
             cmin, cmax = [mfcn(plotvals[colorvar]) for mfcn in [min, max]]  # NOTE very similar to add_legend() in bin/plot-lb-tree.py
             n_entries = 4
-            max_diff = (cmax - cmin) / float(n_entries - 1)
-            leg_iter = [(colorfcn(v), '%.3f'%v) for v in list(numpy.arange(cmin, cmax + utils.eps, max_diff))]  # first value is exactly <cmin>, last value is exactly <cmax> (eps is to keep it from missing the last one)
+            max_diff = (cmax - cmin + utils.eps) / float(n_entries - 1)
+            leg_iter = [(colorfcn(v), '%.3f'%v) for v in list(numpy.arange(cmin, cmax + 2*utils.eps, max_diff))]  # first value is exactly <cmin>, last value is exactly <cmax> (eps is to keep it from missing the last one)
         else:
             assert False
         for tcol, tstr in leg_iter:
@@ -518,7 +597,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         return plotvals
     # ----------------------------------------------------------------------------------------
     def getplotdir(extrastr=''):
-        return '%s/%s-vs%s-affinity%s' % (baseplotdir, lb_metric, affy_key_str, extrastr)
+        return '%s/%s/%s-vs%s-affinity%s' % (baseplotdir, lb_metric, lb_metric, affy_key_str, extrastr)
     # ----------------------------------------------------------------------------------------
     def icstr(iclust):
         return '-all-clusters' if iclust is None else '-iclust-%d' % iclust
@@ -557,7 +636,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         lbstr, affystr, clstr, xlabel, ylabel, title = tmpstrs(iclust, vspstuff)
         plotname = '%s-vs-%s-%s-tree%s' % (lbstr, affystr, true_inf_str, clstr)
         fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, ylabel, title, xlabel=xlabel, colorvar=colorvar if vspstuff is None else None, warn_text=warn_text)
-        if iclust is None: # or iclust < n_per_row:
+        if iclust is None and vspstuff is None: # or iclust < n_per_row:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(iclust=None, vspstuff=None):
@@ -579,7 +658,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     vtypes = get_lbscatteraxes(lb_metric)  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably
     if colorvar is not None:
         vtypes.append(colorvar)
-    for estr in ['', '-ptiles']:
+
+    make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist', only_overall=False, add_jitter=True)  # there's some code duplication between these two fcns, but oh well
+    for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
         utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 
     per_seq_plotvals = {vt : [] for vt in vtypes}  # plot values for choosing single seqs/cells (only among all clusters, since the iclust ones don't need to kept outside the cluster loop)
@@ -611,7 +692,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         ptile_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
         correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes[:2]) : getcorr(*[iclust_plotvals[vt] for vt in vtypes[:2]])}
         if not only_csv and len(iclust_plotvals['affinity']) > 0:
-            make_scatter_plot(iclust_plotvals, iclust=iclust)
+            # make_scatter_plot(iclust_plotvals, iclust=iclust)  # making these with make_lb_scatter_plots() now
             make_ptile_plot(iclust_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=iclust), affy_key=affy_key,
                             ylabel=tmpylabel(iclust, None), title=mtitlestr('per-seq', lb_metric, short=True), true_inf_str=true_inf_str)
 
@@ -619,7 +700,14 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         if per_seq_plotvals[lb_metric].count(0.) == len(per_seq_plotvals[lb_metric]):
             return
         correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes[:2]) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes[:2]])}
+        ptile_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', affy_key_str=affy_key_str, debug=debug)  # choosing single cells from from every cell from every cluster together
+        if not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
+            # make_scatter_plot(per_seq_plotvals)  # making these with make_lb_scatter_plots() now
+            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(), affy_key=affy_key,
+                            ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
 
+    # per-cluster plots
+    # fnames.append([])
     for sn1, sfcn1 in cluster_summary_cfg[vtypes[0]]:  # I tried really hard to work out a way to get this in one (cleaner) loop
         for sn2, sfcn2 in cluster_summary_cfg[vtypes[1]]:
             vspairs = zip(vtypes[:2], (sn1, sn2))  # assign this (sn1, st2) combo to lb and affinity based on their order in <vtypes> (although now that we're using a double loop this is even weirder)
@@ -632,15 +720,8 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
             if not only_csv:
                 make_scatter_plot(tmpvals, vspstuff=vspdict)
                 make_ptile_plot(tmp_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(vspstuff=vspdict), affy_key=affy_key,
-                                xlabel=tmpxlabel(None, vspdict), ylabel=tmpylabel(None, vspdict), title=mtitlestr('per-cluster', lb_metric, short=True), fnames=fnames, true_inf_str=true_inf_str)
+                                xlabel=tmpxlabel(None, vspdict), ylabel=tmpylabel(None, vspdict), title=mtitlestr('per-cluster', lb_metric, short=True), fnames=None, true_inf_str=true_inf_str)
 
-    if lb_metric in per_seq_metrics:
-        ptile_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', affy_key_str=affy_key_str, debug=debug)  # choosing single cells from from every cell from every cluster together
-        if not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
-            fnames.append([])
-            make_scatter_plot(per_seq_plotvals)
-            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(), affy_key=affy_key,
-                            ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
     with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), 'w') as yfile:
         yamlfo = {'percentiles' : ptile_vals, 'correlations' : correlation_vals}
         json.dump(yamlfo, yfile)
