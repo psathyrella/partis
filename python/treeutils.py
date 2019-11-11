@@ -1148,51 +1148,55 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
+def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
-    n_before = len(true_lines)
-    true_lines = sorted([l for l in true_lines if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
-    n_after = len(true_lines)
-    print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines))
+    n_before = len(annotations)
+    annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+    n_after = len(annotations)
+    print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
     print '        skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
-    for iclust, true_line in enumerate(true_lines):
-        assert 'tree-info' not in true_line  # could handle it, but don't feel like thinking about it a.t.m.
+    for iclust, line in enumerate(annotations):
+        def get_combo_lbfo():
+            cseq = lb_cons_seq(line)
+            lbfo = {'consensus' : {u : lb_cons_dist(cseq, s) for u, s in zip(line['unique_ids'], line['seqs'])}}
+            dtree = get_dendro_tree(treestr=line['tree'])
+            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=line, extra_str='true tree', iclust=iclust)['lbi']
+            lbfo['lbi'] = {u : lbi_info[u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
+            return dtree, lbfo
+        def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
+            node = dtree.find_node_with_taxon_label(uid)
+            return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
+
+        assert 'tree-info' not in line  # could handle it, but don't feel like thinking about it a.t.m.
         if metric_method == 'shm':
-            metric_info = {u : -utils.per_seq_val(true_line, 'n_mutations', u) for u in true_line['unique_ids']}
-            true_line['tree-info'] = {'lb' : {metric_method : metric_info}}
+            metric_info = {u : -utils.per_seq_val(line, 'n_mutations', u) for u in line['unique_ids']}
+            line['tree-info'] = {'lb' : {metric_method : metric_info}}
         elif metric_method == 'fay-wu-h':  # NOTE this isn't actually tree info, but I"m comparing it to things calculated with a tree, so putting it in the same place at least for now
             pass
         elif metric_method == 'consensus':
-            cseq = lb_cons_seq(true_line)
-            true_line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(cseq, s) for u, s in zip(true_line['unique_ids'], true_line['seqs'])}}}
+            cseq = lb_cons_seq(line)
+            line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(cseq, s) for u, s in zip(line['unique_ids'], line['seqs'])}}}
         elif metric_method == 'delta-lbi':  # it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
-            dtree = get_dendro_tree(treestr=true_line['tree'])
-            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=true_line, extra_str='true tree', iclust=iclust)['lbi']
+            dtree = get_dendro_tree(treestr=line['tree'])
+            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=line, extra_str='true tree', iclust=iclust)['lbi']
             delta_lbfo = {}
-            for uid in true_line['unique_ids']:
+            for uid in line['unique_ids']:
                 node = dtree.find_node_with_taxon_label(uid)
                 if node is dtree.seed_node:
                     continue  # maybe I should add it as something? not sure
                 delta_lbfo[uid] = lbi_info[uid] - lbi_info[node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
-            true_line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
+            line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
         elif metric_method == 'lbi-cons':  # it would also be nice to not calculate lbi here
-            cseq = lb_cons_seq(true_line)
-            lbfo = {'consensus' : {u : lb_cons_dist(cseq, s) for u, s in zip(true_line['unique_ids'], true_line['seqs'])}}
-            dtree = get_dendro_tree(treestr=true_line['tree'])
-            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=true_line, extra_str='true tree', iclust=iclust)['lbi']
-            lbfo['lbi'] = {u : lbi_info[u] for u in true_line['unique_ids']}  # remove the ones that aren't in <true_line> (since we don't have sequences for them, so also no consensus distance)
+            dtree, lbfo = get_combo_lbfo()
             for lbm in lbfo:  # normalize to z score
-                lbfo[lbm] = {u : z for u, z in zip(true_line['unique_ids'], utils.get_z_scores([lbfo[lbm][u] for u in true_line['unique_ids']]))}
-            def edge_dist_fcn(uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
-                node = dtree.find_node_with_taxon_label(uid)
-                return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
-            edge_dists = [edge_dist_fcn(u) for u in true_line['unique_ids']]
+                lbfo[lbm] = {u : z for u, z in zip(line['unique_ids'], utils.get_z_scores([lbfo[lbm][u] for u in line['unique_ids']]))}
+            edge_dists = [edge_dist_fcn(dtree, u) for u in line['unique_ids']]
             edmin, edmax = min(edge_dists), max(edge_dists)
             def zcombo(u):
                 weight = utils.intexterpolate(edmin, 0., edmax, 1., edge_dist_fcn(u))
                 return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo['consensus'][u]) / math.sqrt(2)
-            true_line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in true_line['unique_ids']}}}
+            line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in line['unique_ids']}}}
         else:
             assert False
 
@@ -1200,18 +1204,18 @@ def calculate_non_lb_tree_metrics(metric_method, true_lines, min_tree_metric_clu
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         import plotting
         import lbplotting
-        if 'affinities' not in true_lines[0] or all(affy is None for affy in true_lines[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
+        if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             return
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
         fnames = []
         if metric_method == 'delta-lbi':
-            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, true_lines, metric_method, lbplotting.mtitlestr('per-seq', metric_method), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, annotations, metric_method, lbplotting.mtitlestr('per-seq', metric_method), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         else:
-            lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames)
-        # lbplotting.plot_lb_distributions(true_plotdir, true_lines, fnames=fnames, is_true_line=True, metric_method=metric_method) #, only_overall=True)
+            lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames)
+        # lbplotting.plot_lb_distributions(true_plotdir, annotations, fnames=fnames, is_true_line=True, metric_method=metric_method) #, only_overall=True)
         # if ete_path is not None:
-        #     lbplotting.plot_lb_trees([metric_method], true_plotdir, true_lines, ete_path, workdir, is_true_line=True)
+        #     lbplotting.plot_lb_trees([metric_method], true_plotdir, annotations, ete_path, workdir, is_true_line=True)
         if not only_csv:
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in [metric_method]])
 
