@@ -419,7 +419,7 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
             print '      assuming aligned %s position is %d (this will %s work if you\'re using imgt alignments)' % (codon, known_pos_in_alignment, utils.color('red', 'only'))
             raise Exception('not really using imgt alignments much any more, so this isn\'t really going to work')
         else:
-            raise Exception('no existing %s info, and couldn\'t guess it, either' % codon)
+            raise Exception('No existing conserved codon position info for \'%s\', and don\'t have any genes with info from which to guess it. If you set --sanitize-input-germlines, though, we\'ll use the default germlines in data/germlines/ as a template.' % codon)
 
         n_added = 0
         seqons = []  # (seq, pos) pairs

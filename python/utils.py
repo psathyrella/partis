@@ -914,6 +914,8 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
             return tempfile.NamedTemporaryFile()
         else:
             return open(outfname, 'w')
+    if existing_aligned_seqfos is not None and len(existing_aligned_seqfos) == 0:
+        existing_aligned_seqfos = None
 
     with tempfile.NamedTemporaryFile() as fin, outfile_fcn() as fout:
         for seqfo in seqfos:
