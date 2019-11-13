@@ -2497,6 +2497,8 @@ def transfer_indel_info(info, outfo):  # NOTE reverse of this happens in indelut
         for sicfo in special_indel_columns_for_output:
             outfo[sicfo] = info[sicfo]
     else:
+        if info['invalid']:
+            return
         outfo['has_shm_indels'] = [indelutils.has_indels(ifo) for ifo in info['indelfos']]
         outfo['qr_gap_seqs'] = [ifo['qr_gap_seq'] for ifo in info['indelfos']]
         outfo['gl_gap_seqs'] = [ifo['gl_gap_seq'] for ifo in info['indelfos']]
@@ -4493,6 +4495,8 @@ def get_yamlfo_for_output(line, headers, glfo=None):
         elif key in input_metafile_keys.values():  # these are optional, so if they're missing, don't worry about it
             continue
         else:
+            if line['invalid']:
+                continue
             add_extra_column(key, line, yamlfo, glfo=glfo)
     return yamlfo
 

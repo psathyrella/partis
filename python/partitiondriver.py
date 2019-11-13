@@ -471,7 +471,7 @@ class PartitionDriver(object):
                 if uid in dup_dict:
                     self.sw_info[uid] = self.sw_info[dup_dict[uid]]  # it would be proper to fix the duplicates in here, and probably some other things
                 else:
-                    raise Exception('no sw info for query %s' % uid)  # I can't really do anything else, it makes no sense to go remove it from <annotation_list> when the underlying problem is (probably) that sw info was just run with different options
+                    pass  # switching this to pass: even though I think it can ony happen if people are running with options that don't really make sense, I don't think there's really a pressing need to crash here raise Exception('no sw info for query %s' % uid)  # I can't really do anything else, it makes no sense to go remove it from <annotation_list> when the underlying problem is (probably) that sw info was just run with different options
             self.write_output(annotation_list, set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'get-tree-metrics':
