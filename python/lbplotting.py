@@ -32,9 +32,9 @@ def lb_metric_axis_cfg(metric_method=None):  # x axis variables against which we
 def meanmaxfcns(): return (('mean', lambda line, plotvals: numpy.mean(plotvals)), ('max', lambda line, plotvals: max(plotvals)))
 def mean_of_top_quintile(vals):  # yeah, yeah could name it xtile and have another parameter, but maybe I won't actually need to change it
     frac = 0.2  # i.e. top quintile
-    n_to_take = int(frac * len(vals))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which cause bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
+    n_to_take = int(frac * len(vals))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which causes bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
     return numpy.mean(sorted(vals)[len(vals) - n_to_take:])
-mean_max_metrics = ['lbi', 'lbr', 'shm', 'lbi-cons']
+mean_max_metrics = ['lbi', 'lbr', 'shm', 'lbi-cons', 'dtr']
 cluster_summary_cfg = collections.OrderedDict()
 for k in mean_max_metrics:
     cluster_summary_cfg[k] = meanmaxfcns()
@@ -53,7 +53,7 @@ def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb meth
     if lb_metric in ['shm', 'lbi', 'lbr']:
         cgroups.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
     return cgroups
-per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus', 'delta-lbi', 'lbi-cons')
+per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus', 'delta-lbi', 'lbi-cons', 'dtr')
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'consensus')  # don't need this atm since it's just all of them
 mtitle_cfg = {'per-seq' : {'consensus' : '- distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
                            'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile'},

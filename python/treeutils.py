@@ -16,6 +16,10 @@ from distutils.version import StrictVersion
 import dendropy
 import time
 import math
+from sklearn import tree as sktree
+from sklearn import ensemble
+import yaml
+import pickle
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
@@ -1148,7 +1152,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
+def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, dtr_path=None, workdir=None, lb_tau=None, dump_dtr_training_data=False, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
     n_before = len(annotations)
@@ -1156,13 +1160,29 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
     n_after = len(annotations)
     print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
     print '        skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
+    if metric_method == 'dtr':
+        dtrfo = {'in' : [], 'out' : []}  # , 'weights' : []}
+        if dtr_path is not None:
+            print '  reading decision tree from %s' % dtr_path
+            with open(dtr_path) as dfile:
+                rgressor = pickle.load(dfile)
     for iclust, line in enumerate(annotations):
-        def get_combo_lbfo():
-            cseq = lb_cons_seq(line)
-            lbfo = {'consensus' : {u : lb_cons_dist(cseq, s) for u, s in zip(line['unique_ids'], line['seqs'])}}
+        def get_combo_lbfo(varlist):  # TODO it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
+            lbfo = {}
+            if 'consensus' in varlist:
+                cseq = lb_cons_seq(line)
+                lbfo['consensus'] = {u : lb_cons_dist(cseq, s) for u, s in zip(line['unique_ids'], line['seqs'])}
             dtree = get_dendro_tree(treestr=line['tree'])
-            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=line, extra_str='true tree', iclust=iclust)['lbi']
-            lbfo['lbi'] = {u : lbi_info[u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
+            if 'lbi' in varlist and 'lbr' in varlist:
+                only_calc_metric = None
+                lbr_tau_factor = default_lbr_tau_factor
+            else:
+                assert 'lbi' in varlist or 'lbr' in varlist
+                only_calc_metric = 'lbi' if 'lbi' in varlist else 'lbr'
+                lbr_tau_factor = None
+            tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, extra_str='true tree', iclust=iclust)
+            for lbm in [m for m in lb_metrics if m in varlist]:
+                lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
             return dtree, lbfo
         def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
             node = dtree.find_node_with_taxon_label(uid)
@@ -1177,30 +1197,64 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
         elif metric_method == 'consensus':
             cseq = lb_cons_seq(line)
             line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(cseq, s) for u, s in zip(line['unique_ids'], line['seqs'])}}}
-        elif metric_method == 'delta-lbi':  # it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
-            dtree = get_dendro_tree(treestr=line['tree'])
-            lbi_info = calculate_lb_values(dtree, lb_tau, only_calc_metric='lbi', annotation=line, extra_str='true tree', iclust=iclust)['lbi']
+        elif metric_method == 'delta-lbi':
+            dtree, lbfo = get_combo_lbfo(['lbi'])
             delta_lbfo = {}
             for uid in line['unique_ids']:
                 node = dtree.find_node_with_taxon_label(uid)
                 if node is dtree.seed_node:
                     continue  # maybe I should add it as something? not sure
-                delta_lbfo[uid] = lbi_info[uid] - lbi_info[node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
+                delta_lbfo[uid] = lbfo['lbi'][uid] - lbfo['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
             line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
         elif metric_method == 'lbi-cons':  # it would also be nice to not calculate lbi here
-            dtree, lbfo = get_combo_lbfo()
+            dtree, lbfo = get_combo_lbfo(['consensus', 'lbi'])
             for lbm in lbfo:  # normalize to z score
                 lbfo[lbm] = {u : z for u, z in zip(line['unique_ids'], utils.get_z_scores([lbfo[lbm][u] for u in line['unique_ids']]))}
             edge_dists = [edge_dist_fcn(dtree, u) for u in line['unique_ids']]
             edmin, edmax = min(edge_dists), max(edge_dists)
             def zcombo(u):
-                weight = utils.intexterpolate(edmin, 0., edmax, 1., edge_dist_fcn(u))
+                weight = utils.intexterpolate(edmin, 0., edmax, 1., edge_dist_fcn(dtree, u))
                 return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo['consensus'][u]) / math.sqrt(2)
             line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in line['unique_ids']}}}
+        elif metric_method == 'dtr':
+            dtree, lbfo = get_combo_lbfo(['consensus', 'lbi', 'lbr'])
+            feature_names = ['lbi', 'cdist', 'edist', 'lbr', 'shm'] #, 'fwh']
+            # fwh = -utils.fay_wu_h(line)
+            dtr_invals = [[lbfo['lbi'][u], lbfo['consensus'][u], edge_dist_fcn(dtree, u), lbfo['lbr'][u], utils.per_seq_val(line, 'n_mutations', u)]
+                          for u in line['unique_ids']]
+            if dtr_path is None:  # train and write new model
+                dtrfo['in'] += dtr_invals
+                dtrfo['out'] += line['affinities']
+                # dtrfo['weights'] += line['affinities']
+                line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
+            else:  # read existing model
+                dtr_outvals = rgressor.predict(dtr_invals)
+                line['tree-info'] = {'lb' : {metric_method : {u : d for u, d in zip(line['unique_ids'], dtr_outvals)}}}
         else:
             assert False
 
-    if base_plotdir is not None:
+    if metric_method == 'dtr' and dtr_path is None:
+        print '  training new decision tree'
+        # tmptotal = sum(dtrfo['weights'])
+        # tmpmedian = numpy.median(dtrfo['weights'])
+        # NOTE doesn't add to 1. currently
+        # dtrfo['weights'] = [w / tmptotal if w > tmpmedian else 0. for w in dtrfo['weights']]
+
+        base_regr = sktree.DecisionTreeRegressor(min_samples_leaf=5)  # max_depth=5,
+        rgressor = ensemble.BaggingRegressor(base_estimator=base_regr, n_jobs=utils.auto_n_procs(), n_estimators=10) #, verbose=1)
+        if dump_dtr_training_data:
+            with open('tmp.yaml', 'w') as tfile:
+                yaml.dump(dtrfo, tfile)
+        rgressor.fit(dtrfo['in'], dtrfo['out'])  #, sample_weight=dtrfo['weights'])
+        for ifeat in range(len(dtrfo['in'][0])):
+            filist = [estm.feature_importances_[ifeat] for estm in rgressor.estimators_]
+            print '     %8s   %5.3f  %5.3f' % (feature_names[ifeat], numpy.mean(filist), numpy.std(filist, ddof=1) / math.sqrt(len(filist)))
+        if not os.path.exists(base_plotdir):
+            os.makedirs(base_plotdir)
+        with open('%s/dtr.pickle' % base_plotdir, 'w') as dfile:
+            pickle.dump(rgressor, dfile)
+
+    if base_plotdir is not None and (metric_method != 'dtr' or dtr_path is not None):
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         import plotting
         import lbplotting
