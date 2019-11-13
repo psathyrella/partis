@@ -44,6 +44,8 @@ cluster_summary_cfg['consensus'] = (('consensus-shm', lambda line, plotvals: uti
 cluster_summary_cfg['is_leaf'] = (('x-dummy-x', lambda line, plotvals: None), )  # just to keep things from breaking, doesn't actually get used
 def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]
+# ----------------------------------------------------------------------------------------
+# TODO update this
 def get_cluster_summary_strs(lb_metric):
     return ['%s-%s-vs-%s-%s' % (st1, get_lbscatteraxes(lb_metric)[0], st2, get_lbscatteraxes(lb_metric)[1]) for st1, st2 in itertools.product(cluster_summary_fcns, repeat=2)]  # all four combos and orderings of max/mean
 def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb methods
@@ -53,6 +55,8 @@ def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb meth
     if lb_metric in ['shm', 'lbi', 'lbr']:
         cgroups.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
     return cgroups
+# ----------------------------------------------------------------------------------------
+
 per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus', 'delta-lbi', 'lbi-cons', 'dtr')
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'consensus')  # don't need this atm since it's just all of them
 mtitle_cfg = {'per-seq' : {'consensus' : '- distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
@@ -232,7 +236,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
     if len(fnames) == 0 or len(fnames[-1]) >= 4:
         fnames.append([])
 
-    choice_str = 'among-families' if choose_among_families else 'within-family'
+    choice_str = 'among-families' if choose_among_families else 'within-families'
     xlabel = mtitlestr('per-seq', xvar).replace('- N', 'N')
     ylabel = mtitlestr('per-seq', yvar)
     if choose_among_families:
@@ -276,10 +280,6 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             if dtree is None:
                 continue
 
-        def edge_dist_fcn(iseq):  # duplicates fcn in treeutils.calculate_non_lb_tree_metrics()
-            node = dtree.find_node_with_taxon_label(line['unique_ids'][iseq])
-            return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
-
         # TODO I should really combine the xvar and yvar stuff here
         if xvar == 'shm':
             def xvalfcn(i): return line['n_mutations'][i]
@@ -289,7 +289,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             cseq = treeutils.lb_cons_seq(line)
             def xvalfcn(i): return treeutils.lb_cons_dist(cseq, line['seqs'][i])  # NOTE the consensus value of course is *not* in ['tree-info']['lb'], since we're making a plot of actual lb vs consensus
         elif xvar == 'edge-dist':
-            def xvalfcn(i): return edge_dist_fcn(i)
+            def xvalfcn(i): return treeutils.edge_dist_fcn(dtree, line['unique_ids'][i])
         elif xvar == 'affinity-ptile':
             if not choose_among_families:
                 affinity_ptiles = {u : stats.percentileofscore(line['affinities'], line['affinities'][i], kind='weak') for i, u in enumerate(line['unique_ids'])}
@@ -332,7 +332,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                 elif colorvar == 'affinity':
                     colorval = line['affinities'][iseq] if 'affinities' in line else None
                 elif colorvar == 'edge-dist':
-                    colorval = edge_dist_fcn(iseq)
+                    colorval = treeutils.edge_dist_fcn(dtree, line['unique_ids'][iseq])
                 else:
                     assert False
                 iclust_plotvals[colorvar].append(colorval)  # I think any uid in <line> should be in the tree, but may as well handle the case where it isn't
@@ -659,7 +659,8 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     if colorvar is not None:
         vtypes.append(colorvar)
 
-    make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist', only_overall=False, add_jitter=True)  # there's some code duplication between these two fcns, but oh well
+    if not only_csv:
+        make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist', only_overall=False, add_jitter=True)  # there's some code duplication between these two fcns, but oh well
     for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
         utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 
@@ -708,8 +709,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
 
     # per-cluster plots
     # fnames.append([])
-    for sn1, sfcn1 in cluster_summary_cfg[vtypes[0]]:  # I tried really hard to work out a way to get this in one (cleaner) loop
-        for sn2, sfcn2 in cluster_summary_cfg[vtypes[1]]:
+    # TODO combine with dtr training variable stuff
+    for sn1, _ in cluster_summary_cfg[vtypes[0]]:  # I tried really hard to work out a way to get this in one (cleaner) loop
+        for sn2, _ in cluster_summary_cfg[vtypes[1]]:
             vspairs = zip(vtypes[:2], (sn1, sn2))  # assign this (sn1, st2) combo to lb and affinity based on their order in <vtypes> (although now that we're using a double loop this is even weirder)
             vspdict = {v : s for v, s in vspairs}  # need to also access it by key
             tmpvals = {vt : per_clust_plotvals[vt][sn] for vt, sn in vspairs}  # e.g. 'affinity' : <max affinity value list>, 'lbi' : <mean lbi value list>

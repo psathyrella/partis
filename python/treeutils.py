@@ -37,6 +37,71 @@ def lb_cons_seq(line):
     return utils.cons_seq(0.01, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
 def lb_cons_dist(cons_seq, seq):
     return -utils.hamming_distance(cons_seq, seq)
+def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
+    node = dtree.find_node_with_taxon_label(uid)
+    return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
+
+# ----------------------------------------------------------------------------------------
+dtr_vars = {'within-families' : (('per-seq', ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm']),  # NOTE can't be dicts, since they go into a list in a specific order
+                                ('per-cluster', [])),
+            'among-families' : (('per-seq', ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm']),
+                               ('per-cluster', ['fay-wu-h', 'cons-seq-shm', 'mean-shm', 'max-lbi', 'max-lbr'])),
+            }
+# ----------------------------------------------------------------------------------------
+def get_dtr_vals(pchoice, line, lbfo, dtree):
+    # ----------------------------------------------------------------------------------------
+    def getval(cgroup, var, uid):
+        if cgroup == 'per-seq':
+            if var in ['lbi', 'lbr', 'cons-dist']:
+                return lbfo[var.replace('cons-dist', 'consensus')][uid]  # TODO arg
+            elif var == 'edge-dist':
+                return edge_dist_fcn(dtree, uid)
+            elif var == 'shm':
+                return utils.per_seq_val(line, 'n_mutations', uid)
+            else:
+                assert False
+        elif cgroup == 'per-cluster':
+            return per_cluster_vals[var]
+        else:
+            assert False
+    # ----------------------------------------------------------------------------------------
+    if pchoice == 'among-families':
+        per_cluster_vals = {
+            'cons-seq-shm' : utils.hamming_distance(line['naive_seq'], lb_cons_seq(line)),  # NOTE same as cluster_summary_cfg['consensus']
+            'fay-wu-h' : -utils.fay_wu_h(line),
+            'mean-shm' : numpy.mean(line['n_mutations']),
+            'max-lbi' : max(lbfo['lbi'].values()),
+            'max-lbr' : max(lbfo['lbr'].values()),
+        }
+    vals = []
+    for uid in line['unique_ids']:
+        vals.append([getval(cgroup, var, uid) for cgroup, vnames in dtr_vars[pchoice] for var in vnames])
+    return vals
+
+# ----------------------------------------------------------------------------------------
+def dtrfname(dpath, pc):
+    return '%s/%s-dtr-model.pickle' % (dpath, pc)
+
+# ----------------------------------------------------------------------------------------
+def train_dtr(pchoice, dtrfo, dmodels, outdir, min_samples_leaf=5, max_depth=10, n_estimators=10, dump_training_data=False):
+    print '    %s' % pchoice.replace('-', ' ')
+
+    base_regr = sktree.DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, max_depth=max_depth)
+    dmodels[pchoice] = ensemble.BaggingRegressor(base_estimator=base_regr, n_jobs=utils.auto_n_procs(), n_estimators=n_estimators) #, verbose=1)
+    dmodels[pchoice].fit(dtrfo[pchoice]['in'], dtrfo[pchoice]['out'])  #, sample_weight=dtrfo[pchoice]['weights'])
+
+    print '                       mean   err'
+    for ift, ftname in enumerate([v for _, vlist in dtr_vars[pchoice] for v in vlist]):
+        filist = [estm.feature_importances_[ift] for estm in dmodels[pchoice].estimators_]
+        print '       %12s   %5.3f  %5.3f' % (ftname, numpy.mean(filist), numpy.std(filist, ddof=1) / math.sqrt(len(filist)))
+
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    if dump_training_data:  # e.g. if you want to train with the newest version of sklearn, so you can make their new plots
+        with open('%s/%s-training-data.yaml' % (outdir, pchoice), 'w') as tfile:
+            yaml.dump(dtrfo, tfile)
+    with open(dtrfname(outdir, pchoice), 'w') as dfile:
+        pickle.dump(dmodels[pchoice], dfile)
 
 # ----------------------------------------------------------------------------------------
 # NOTE the min lbi is just tau, but I still like doing it this way
@@ -1155,17 +1220,21 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
 def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, dtr_path=None, workdir=None, lb_tau=None, dump_dtr_training_data=False, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
+    pchoices = ['within-families', 'among-families']
     n_before = len(annotations)
     annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(annotations)
     print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
     print '        skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
     if metric_method == 'dtr':
-        dtrfo = {'in' : [], 'out' : []}  # , 'weights' : []}
-        if dtr_path is not None:
-            print '  reading decision tree from %s' % dtr_path
-            with open(dtr_path) as dfile:
-                rgressor = pickle.load(dfile)
+        dmodels = {}
+        if dtr_path is None:
+            dtrfo = {pc : {'in' : [], 'out' : []} for pc in pchoices}  # , 'weights' : []}
+        else:
+            print '  reading decision trees from %s' % dtr_path
+            for pc in pchoices:
+                with open(dtrfname(dtr_path, pc)) as dfile:
+                    dmodels[pc] = pickle.load(dfile)
     for iclust, line in enumerate(annotations):
         def get_combo_lbfo(varlist):  # TODO it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
             lbfo = {}
@@ -1184,9 +1253,6 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
             for lbm in [m for m in lb_metrics if m in varlist]:
                 lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
             return dtree, lbfo
-        def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
-            node = dtree.find_node_with_taxon_label(uid)
-            return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
 
         assert 'tree-info' not in line  # could handle it, but don't feel like thinking about it a.t.m.
         if metric_method == 'shm':
@@ -1218,41 +1284,25 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
             line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in line['unique_ids']}}}
         elif metric_method == 'dtr':
             dtree, lbfo = get_combo_lbfo(['consensus', 'lbi', 'lbr'])
-            feature_names = ['lbi', 'cdist', 'edist', 'lbr', 'shm'] #, 'fwh']
-            # fwh = -utils.fay_wu_h(line)
-            dtr_invals = [[lbfo['lbi'][u], lbfo['consensus'][u], edge_dist_fcn(dtree, u), lbfo['lbr'][u], utils.per_seq_val(line, 'n_mutations', u)]
-                          for u in line['unique_ids']]
+            dtr_invals = {pc : get_dtr_vals(pc, line, lbfo, dtree) for pc in pchoices}
             if dtr_path is None:  # train and write new model
-                dtrfo['in'] += dtr_invals
-                dtrfo['out'] += line['affinities']
-                # dtrfo['weights'] += line['affinities']
-                line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
+                for pc in pchoices:
+                    dtrfo[pc]['in'] += dtr_invals[pc]
+                max_affy = max(line['affinities'])
+                dtrfo['within-families']['out'] += [a / max_affy for a in line['affinities']]
+                dtrfo['among-families']['out'] += line['affinities']
+                # dtrfo[XXX]['weights'] += line['affinities']
+                # line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
             else:  # read existing model
-                dtr_outvals = rgressor.predict(dtr_invals)
-                line['tree-info'] = {'lb' : {metric_method : {u : d for u, d in zip(line['unique_ids'], dtr_outvals)}}}
+                line['tree-info'] = {'lb' : {'-'.join([pc, metric_method]) :
+                                             {u : d for u, d in zip(line['unique_ids'], dmodels[pc].predict(dtr_invals[pc]))}} for pc in pchoices}
         else:
             assert False
 
     if metric_method == 'dtr' and dtr_path is None:
-        print '  training new decision tree'
-        # tmptotal = sum(dtrfo['weights'])
-        # tmpmedian = numpy.median(dtrfo['weights'])
-        # NOTE doesn't add to 1. currently
-        # dtrfo['weights'] = [w / tmptotal if w > tmpmedian else 0. for w in dtrfo['weights']]
-
-        base_regr = sktree.DecisionTreeRegressor(min_samples_leaf=5)  # max_depth=5,
-        rgressor = ensemble.BaggingRegressor(base_estimator=base_regr, n_jobs=utils.auto_n_procs(), n_estimators=10) #, verbose=1)
-        if dump_dtr_training_data:
-            with open('tmp.yaml', 'w') as tfile:
-                yaml.dump(dtrfo, tfile)
-        rgressor.fit(dtrfo['in'], dtrfo['out'])  #, sample_weight=dtrfo['weights'])
-        for ifeat in range(len(dtrfo['in'][0])):
-            filist = [estm.feature_importances_[ifeat] for estm in rgressor.estimators_]
-            print '     %8s   %5.3f  %5.3f' % (feature_names[ifeat], numpy.mean(filist), numpy.std(filist, ddof=1) / math.sqrt(len(filist)))
-        if not os.path.exists(base_plotdir):
-            os.makedirs(base_plotdir)
-        with open('%s/dtr.pickle' % base_plotdir, 'w') as dfile:
-            pickle.dump(rgressor, dfile)
+        print '  training decision trees'
+        for pc in pchoices:
+            train_dtr(pc, dtrfo, dmodels, base_plotdir.replace('/plots', '/dtr-models'), dump_training_data=dump_dtr_training_data)
 
     if base_plotdir is not None and (metric_method != 'dtr' or dtr_path is not None):
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
