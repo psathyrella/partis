@@ -51,10 +51,10 @@ def get_cluster_summary_strs(lb_metric):
 def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb methods
     # 'within-families': treat each cluster within each process/job separately (i.e. choosing cells only within each cluster)
     # 'among-families': treat each process/job as a whole (i.e. choose among all families in a process/job). Note that this means you can\'t separately adjust the number of families per job, and the number of families among which we choose cells (which is fine).
-    cgroups = [('per-seq', ['within-families', 'among-families'])]
+    XXX = [('per-seq', ['within-families', 'among-families'])]
     if lb_metric in ['shm', 'lbi', 'lbr']:
-        cgroups.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
-    return cgroups
+        XXX.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
+    return XXX
 # ----------------------------------------------------------------------------------------
 
 per_seq_metrics = ('lbi', 'lbr', 'shm', 'consensus', 'delta-lbi', 'lbi-cons', 'dtr')
