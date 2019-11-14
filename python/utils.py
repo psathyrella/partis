@@ -318,7 +318,7 @@ def get_list_of_str_list(strlist):
 linekeys = {}
 # I think 'per_family' is pretty incomplete at this point, but I also think it isn't being used
 linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
-                         ['invalid', 'tree'] + \
+                         ['invalid', 'tree', 'consensus-seq'] + \
                          [r + '_gene' for r in regions] + \
                          [e + '_del' for e in all_erosions] + \
                          [b + '_insertion' for b in all_boundaries] + \
@@ -345,6 +345,7 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'full_coding_naive_seq',
     'full_coding_input_seqs',
     'linearham-info',
+    'consensus-seq',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 
 linekeys['extra'] = extra_annotation_headers
@@ -2166,6 +2167,10 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
     # return hackey_default_gene_versions[region]
 
 # ----------------------------------------------------------------------------------------
+def lb_cons_seq(line):  # kind of messy to call it 'lb_' consensus sequence if I'm also putting it in this file, but oh well, for now
+    return cons_seq(0.01, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
+
+# ----------------------------------------------------------------------------------------
 def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, amino_acid=False):
     if extra_bases is not None:
         raise Exception('not sure what this was supposed to do (or did in the past), but it doesn\'t do anything now! (a.t.m. it seems to only be set in bin/plot-germlines.py, which I think doesn\'t do anything useful any more)')
@@ -2468,6 +2473,8 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         # for iseq in range(len(info['unique_ids'])):
         #     print info['unique_ids'][iseq]
         #     color_mutants(info['input_seqs'][iseq], full_coding_input_seqs[iseq], print_result=True, align=True, extra_str='  ')
+    elif key == 'consensus-seq':
+        outfo[key] = lb_cons_seq(info)
     elif key in linekeys['hmm'] + linekeys['sw'] + linekeys['simu']:  # these are added elsewhere
         if definitely_add_all_columns_for_csv:
             if key in io_column_configs['lists']:

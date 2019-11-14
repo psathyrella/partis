@@ -33,10 +33,10 @@ default_lbr_tau_factor = 20
 
 dummy_str = 'x-dummy-x'
 
-def lb_cons_seq(line):
-    return utils.cons_seq(0.01, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
-def lb_cons_dist(cons_seq, seq):
-    return -utils.hamming_distance(cons_seq, seq)
+def lb_cons_dist(line, iseq):
+    if 'consensus-seq' not in line:
+        line['consensus-seq'] = utils.lb_cons_seq(line)
+    return -utils.hamming_distance(line['consensus-seq'], line['seqs'][iseq])
 def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
     node = dtree.find_node_with_taxon_label(uid)
     return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
@@ -70,7 +70,7 @@ def get_dtr_vals(cgroup, line, lbfo, dtree):
     # ----------------------------------------------------------------------------------------
     if cgroup == 'among-families':
         per_cluster_vals = {
-            'cons-seq-shm' : utils.hamming_distance(line['naive_seq'], lb_cons_seq(line)),  # NOTE same as cluster_summary_cfg['consensus']
+            'cons-seq-shm' : utils.hamming_distance(line['naive_seq'], line['consensus-seq']),  # NOTE same as cluster_summary_cfg['consensus']
             'fay-wu-h' : -utils.fay_wu_h(line),
             'mean-shm' : numpy.mean(line['n_mutations']),
             'max-lbi' : max(lbfo['lbi'].values()),
@@ -1241,8 +1241,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
         def get_combo_lbfo(varlist):  # TODO it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
             lbfo = {}
             if 'consensus' in varlist:
-                cseq = lb_cons_seq(line)
-                lbfo['consensus'] = {u : lb_cons_dist(cseq, s) for u, s in zip(line['unique_ids'], line['seqs'])}
+                lbfo['consensus'] = {u : lb_cons_dist(line, i) for i, u in enumerate(line['unique_ids'])}
             dtree = get_dendro_tree(treestr=line['tree'])
             if 'lbi' in varlist and 'lbr' in varlist:
                 only_calc_metric = None
@@ -1263,8 +1262,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
         elif metric_method == 'fay-wu-h':  # NOTE this isn't actually tree info, but I"m comparing it to things calculated with a tree, so putting it in the same place at least for now
             pass
         elif metric_method == 'consensus':
-            cseq = lb_cons_seq(line)
-            line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(cseq, s) for u, s in zip(line['unique_ids'], line['seqs'])}}}
+            line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(line, i) for i, u in enumerate(line['unique_ids'])}}}
         elif metric_method == 'delta-lbi':
             dtree, lbfo = get_combo_lbfo(['lbi'])
             delta_lbfo = {}

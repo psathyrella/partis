@@ -40,7 +40,7 @@ for k in mean_max_metrics:
     cluster_summary_cfg[k] = meanmaxfcns()
 cluster_summary_cfg['affinity'] = (('top-quintile', lambda line, plotvals: mean_of_top_quintile(plotvals)), )
 cluster_summary_cfg['fay-wu-h'] = (('fay-wu-h', lambda line, plotvals: -utils.fay_wu_h(line)), )
-cluster_summary_cfg['consensus'] = (('consensus-shm', lambda line, plotvals: utils.hamming_distance(line['naive_seq'], treeutils.lb_cons_seq(line))), )
+cluster_summary_cfg['consensus'] = (('consensus-shm', lambda line, plotvals: utils.hamming_distance(line['naive_seq'], line['consensus-seq'])), )
 cluster_summary_cfg['is_leaf'] = (('x-dummy-x', lambda line, plotvals: None), )  # just to keep things from breaking, doesn't actually get used
 def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]
@@ -252,9 +252,9 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             assert False  # needs finishing
             # all_cdistvals = []
             # for ltmp in lines_to_use:
-            #     cseq = treeutils.lb_cons_seq(ltmp)
+            #     cseq = XXX needs updating XXX utils.lb_cons_seq(ltmp)
             #     for utmp, stmp in zip(ltmp['unique_ids'], ltmp['seqs']):
-            #         all_cdistvals.append(treeutils.lb_cons_dist(cseq, stmp))
+            #         all_cdistvals.append(treeutils.XXX update XXXlb_cons_dist(cseq, stmp))
             # all_cdistvals = sorted(all_cdistvals)
             # XXX lb_ptiles = {u : stats.percentileofscore(all_cdistvals, l['tree-info']['lb'][lb_metric][u], kind='weak') for l in lines_to_use for u in l['unique_ids']}
     if '-ptile' in xvar:
@@ -287,8 +287,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         elif xvar == 'affinity':
             def xvalfcn(i): return line['affinities'][i]
         elif xvar == 'consensus':
-            cseq = treeutils.lb_cons_seq(line)
-            def xvalfcn(i): return treeutils.lb_cons_dist(cseq, line['seqs'][i])  # NOTE the consensus value of course is *not* in ['tree-info']['lb'], since we're making a plot of actual lb vs consensus
+            def xvalfcn(i): return treeutils.lb_cons_dist(line, i)  # NOTE the consensus value of course is *not* in ['tree-info']['lb'], since we're making a plot of actual lb vs consensus
         elif xvar == 'edge-dist':
             def xvalfcn(i): return treeutils.edge_dist_fcn(dtree, line['unique_ids'][i])
         elif xvar == 'affinity-ptile':
@@ -311,10 +310,9 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                 lb_ptiles = {u : stats.percentileofscore(lbvals, lbfo[lb_metric][u], kind='weak') for u in line['unique_ids']}
             def yvalfcn(i): return lb_ptiles[line['unique_ids'][i]]
         elif yvar == 'consensus-ptile':
-            cseq = treeutils.lb_cons_seq(line)
-            cvals = [treeutils.lb_cons_dist(cseq, s) for s in line['seqs']]
+            cvals = [treeutils.lb_cons_dist(line, i) for i in range(len(line['unique_ids']))]
             if not choose_among_families:
-                cdist_ptiles = {u : stats.percentileofscore(cvals, treeutils.lb_cons_dist(cseq, s), kind='weak') for u, s in zip(line['unique_ids'], line['seqs'])}
+                cdist_ptiles = {u : stats.percentileofscore(cvals, treeutils.lb_cons_dist(line, i), kind='weak') for i, u in enumerate(line['unique_ids'])}
             def yvalfcn(i): return cdist_ptiles[line['unique_ids'][i]]
         else:
             assert False
@@ -353,6 +351,19 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         assert len(set([len(plotvals[vt]) for vt in plotvals])) == 1  # make sure all of them are the same length
         for vtype in [vt for vt in plotvals if vt != 'uids']:
             plotvals[vtype] += iclust_plotvals[vtype]
+
+    # uncomment this to only plot high affinity/lb values (mostly to speed up plotting)
+    # if xvar == 'affinity' and len(plotvals[xvar]) > 250:
+    #     print 'yep'
+    #     min_ptile = 75
+    #     min_xval, min_yval = [numpy.percentile(plotvals[v], min_ptile) for v in [xvar, yvar]]
+    #     new_plotvals = {x : [] for x in vtypes}
+    #     for ival in range(len(plotvals[xvar])):
+    #         if plotvals[xvar][ival] < min_xval and plotvals[yvar][ival] < min_yval:
+    #             continue
+    #         for vt in plotvals:
+    #             new_plotvals[vt].append(plotvals[vt][ival])
+    #     plotvals = new_plotvals
 
     if not only_iclust:
         fn = plot_2d_scatter('%s-vs-%s-all-clusters' % (yvar, xvar), plotdir, plotvals, yvar, ylabel, '%s (all clusters)' % basetitle, **scatter_kwargs)
