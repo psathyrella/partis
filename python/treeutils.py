@@ -44,6 +44,7 @@ def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_p
 # ----------------------------------------------------------------------------------------
 cgroups = ['within-families', 'among-families']  # different ways of grouping clusters, i.e. "cluster groupings"
 pchoices = ['per-seq', 'per-cluster']  # per-? choice, i.e. is this a per-sequence or per-cluster quantity
+dtr_metrics = ['%s-dtr'%cg for cg in cgroups]
 dtr_vars = {'within-families' : (('per-seq', ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm']),  # NOTE can't be dicts, since they go into a list in a specific order
                                 ('per-cluster', [])),
             'among-families' : (('per-seq', ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm']),
@@ -1114,10 +1115,10 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         fnames = []
         if not only_csv:
             for lb_metric in ['lbi']: #lb_metrics:
-                lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%lb_metric, colorvar='edge-dist', add_jitter=True)
+                # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%lb_metric, colorvar='edge-dist', add_jitter=True)
                 # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%lb_metric, colorvar='edge-dist', only_overall=False, choose_among_families=True)
-                lbplotting.make_lb_scatter_plots('shm', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='edge-dist', only_overall=True, add_jitter=True)
-                lbplotting.make_lb_scatter_plots('consensus', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', add_jitter=True)
+                lbplotting.make_lb_scatter_plots('shm', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='edge-dist', only_overall=True, add_jitter=False)
+                lbplotting.make_lb_scatter_plots('consensus', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
                 # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='consensus-ptile', colorvar='edge-dist', add_jitter=True)
             for lb_metric in lb_metrics:
                 lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
@@ -1296,7 +1297,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
                 # line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
             else:  # read existing model
                 line['tree-info'] = {'lb' : {'-'.join([cg, metric_method]) :
-                                             {u : d for u, d in zip(line['unique_ids'], dmodels[cg].predict(dtr_invals[cg]))}} for cg in cgroups}
+                                             {u : d for u, d in zip(line['unique_ids'], dmodels[cg].predict(dtr_invals[cg]))} for cg in cgroups}}
         else:
             assert False
 
@@ -1312,17 +1313,19 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
         if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             return
         true_plotdir = base_plotdir + '/true-tree-metrics'
-        utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
+        lbmlist = dtr_metrics if metric_method == 'dtr' else [metric_method]
+        utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
         fnames = []
-        if metric_method == 'delta-lbi':
-            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, annotations, metric_method, lbplotting.mtitlestr('per-seq', metric_method), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
-        else:
-            lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, metric_method, metric_method.upper(), is_true_line=True, affy_key='affinities', only_csv=only_csv, fnames=fnames)
-        # lbplotting.plot_lb_distributions(true_plotdir, annotations, fnames=fnames, is_true_line=True, metric_method=metric_method) #, only_overall=True)
-        # if ete_path is not None:
-        #     lbplotting.plot_lb_trees([metric_method], true_plotdir, annotations, ete_path, workdir, is_true_line=True)
+        for lbm in lbmlist:
+            if lbm == 'delta-lbi':
+                lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, annotations, lbm, lbplotting.mtitlestr('per-seq', lbm), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+            else:
+                lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, lbm, lbm.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames)
+            # lbplotting.plot_lb_distributions(true_plotdir, annotations, fnames=fnames, is_true_line=True, metric_method=lbm) #, only_overall=True)
+            # if ete_path is not None:
+            #     lbplotting.plot_lb_trees([lbm], true_plotdir, annotations, ete_path, workdir, is_true_line=True)
         if not only_csv:
-            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in [metric_method]])
+            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):
