@@ -156,7 +156,7 @@ def get_partition_fname(varnames, vstr, action, metric_method=None):  # if actio
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metric_plotdir(varnames, vstr, metric_method=None):
-    return get_tree_metric_outdir(varnames, vstr, metric_method=metric_method) + '/plots'
+    return  '%s/%splots' % (get_tree_metric_outdir(varnames, vstr, metric_method=metric_method), args.extra_plotstr+'-' if args.extra_plotstr is not None else '')
 
 # ----------------------------------------------------------------------------------------
 def rel_affy_str(use_relative_affy, metric):
@@ -602,6 +602,7 @@ parser.add_argument('--n-max-procs', type=int)  # NOTE that with slurm this thin
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
+parser.add_argument('--extra-plotstr', help='if set, put plots resulting from \'get-tree-metrics\' into a separate subdir using this string, rather than just plots/ (e.g. for plotting with many different dtr versions)')
 parser.add_argument('--use-relative-affy', action='store_true')
 parser.add_argument('--min-tree-metric-cluster-size', type=int, default=10, help='WARNING default also set in bin/partis')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv/yaml versions of plots (for future parsing), and not the actual svg files (which is slow)')
