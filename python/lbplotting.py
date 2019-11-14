@@ -498,8 +498,6 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 
 # ----------------------------------------------------------------------------------------
 def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 100., 1.), dbgstr=None, debug=False):
-    def get_final_xvar_vals(corr_xvals):  # for affinity we go one extra step and compare against percentiles, since it's not obvious looking at plain affinity numbers how good they are (whereas N ancestors and branch length we just want to be small)
-        return corr_xvals if not xia else [stats.percentileofscore(plotvals[xvar], caffy, kind='weak') for caffy in corr_xvals]  # affinity percentiles corresponding to each of these affinities  # NOTE this is probably really slow (especially because I'm recalculating things I don't need to)
     # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot (i.e. are affinity, N ancestors, or branch length). On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
     xia = xvar == 'affinity'
     xkey = 'mean_%s_ptiles' % xvar
@@ -511,26 +509,29 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
         print '            %-12s N      mean     %s   |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
         print '    ptile   threshold  taken    %-s %s|  N taken  mean %s'  % ('affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
     sorted_xvals = sorted(plotvals[xvar], reverse=xia)
+    if xia:
+        corr_ptile_vals = [stats.percentileofscore(sorted_xvals, x, kind='weak') for x in plotvals[xvar]]
+        perf_ptile_vals = [stats.percentileofscore(sorted_xvals, x, kind='weak') for x in sorted_xvals]
     for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
-        corresponding_xvals = [xv for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if lb > lb_ptile_val]  # x vals corresponding to lb greater than <lb_ptile_val> (i.e. the x vals that you'd get if you took all the lb values greater than that)
-        if len(corresponding_xvals) == 0:
-            if debug:
-                print '   %5.0f    no vals' % percentile
+        final_xvar_vals = [pt for lb, pt in zip(plotvals[lb_metric], corr_ptile_vals if xia else plotvals[xvar]) if lb > lb_ptile_val]  # percentiles (if xia, else plain xvals [i.e. N ancestors or branch length]) corresponding to lb greater than <lb_ptile_val> (i.e. the ptiles for the x vals that you'd get if you took all the lb values greater than that)
+        if len(final_xvar_vals) == 0:
+            if debug: print '   %5.0f    no vals' % percentile
             continue
         tmp_ptvals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
-        tmp_ptvals[xkey].append(float(numpy.mean(get_final_xvar_vals(corresponding_xvals))))
+        tmp_ptvals[xkey].append(float(numpy.mean(final_xvar_vals)))
 
         # make a "perfect" line using the actual x values, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
-        n_to_take = len(corresponding_xvals)  # this used to be (in general) different than the number we took above, hence the weirdness/duplication (could probably clean up at this point)
-        perfect_xvals = sorted_xvals[:n_to_take]
-        tmp_ptvals['perfect_vals'].append(float(numpy.mean(get_final_xvar_vals(perfect_xvals))))
+        n_to_take = len(final_xvar_vals)  # this used to be (in general) different than the number we took above, hence the weirdness/duplication (could probably clean up at this point)
+        tmp_ptvals['perfect_vals'].append(float(numpy.mean((perf_ptile_vals if xia else sorted_xvals)[:n_to_take])))
 
         if debug:
-            v1str = ('%8.4f' % numpy.mean(corresponding_xvals)) if xia else ''
+            if xia:  # now we have to get these if we want to print them, since we no longer calculate them otherwise
+                corr_xvals = [xv for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if lb > lb_ptile_val]  # x vals corresponding to lb greater than <lb_ptile_val> (i.e. the x vals that you'd get if you took all the lb values greater than that)
+            v1str = ('%8.4f' % numpy.mean(corr_xvals if xia else final_xvar_vals)) if xia else ''
             f1str = '5.0f' if xia else '6.2f'
             f2str = '5.0f' if xia else ('8.2f' if xvar == 'n-ancestor' else '8.6f')
-            print ('   %5.0f   %6.2f     %4d   %s  %'+f1str+'       |  %4d      %-'+f2str) % (percentile, lb_ptile_val, len(corresponding_xvals), v1str, tmp_ptvals[xkey][-1], n_to_take, tmp_ptvals['perfect_vals'][-1])
+            print ('   %5.0f   %6.2f     %4d   %s  %'+f1str+'       |  %4d      %-'+f2str) % (percentile, lb_ptile_val, len(final_xvar_vals), v1str, tmp_ptvals[xkey][-1], n_to_take, tmp_ptvals['perfect_vals'][-1])
         # old way of adding a 'no correlation' line:
         # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
         # shuffled_lb_vals = copy.deepcopy(plotvals[lb_metric])
