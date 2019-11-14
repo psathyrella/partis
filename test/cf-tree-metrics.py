@@ -195,7 +195,7 @@ def getsargval(sv):  # ick this name sucks
     def dkey(sv):
         return sv.replace('-', '_') + '_list'
     if sv == 'seed':
-        riter = range(args.n_replicates) if args.iseed is None else [args.iseed]
+        riter = range(args.n_replicates) if args.iseeds is None else args.iseeds
         return [args.random_seed + i for i in riter]
     else:
         return args.__dict__[dkey(sv)]
@@ -214,7 +214,7 @@ def get_var_info(args, scan_vars):
     def handle_var(svar, val_lists, valstrs):
         convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'selection-strength', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
         sargv = getsargval(svar)
-        if len(sargv) > 1 or (svar == 'seed' and args.iseed is not None):  # if --iseed is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
+        if len(sargv) > 1 or (svar == 'seed' and args.iseeds is not None):  # if --iseeds is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
             varnames.append(svar)
             val_lists = [vlist + [sv] for vlist in val_lists for sv in sargv]
             valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in sargv]
@@ -419,7 +419,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
             ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
             n_used = []  # just for dbg
             tmpvaldict = collections.OrderedDict()  # rearrange them into a dict keyed by the appropriate tau/xval
-            for ikey in ofvals:  # <ikey> is an amalgamation of iseed and icluster, e.g. '20-0'
+            for ikey in ofvals:  # <ikey> is an amalgamation of iseeds and icluster, e.g. '20-0'
                 for pairvals in ofvals[ikey]:
                     tau, tval = pairvals
                     tkey = tuple(tau) if isinstance(tau, list) else tau  # if it's actually tau, it will be a single value, but if xvar is set to, say, n-sim-seqs-per-gen then it will be a list
@@ -597,7 +597,7 @@ parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
-parser.add_argument('--iseed', type=int, help='if set, only run this replicate index (i.e. this corresponds to the increment *above* the random seed)')
+parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int)  # NOTE that with slurm this thinks there's twice as many jobs as there are
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
@@ -649,6 +649,7 @@ args.selection_strength_list = utils.get_arg_list(args.selection_strength_list, 
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
 args.only_metrics = utils.get_arg_list(args.only_metrics)
+args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 if [args.n_tau_lengths_list, args.n_generations_list].count(None) != 1:
     raise Exception('have to set exactly one of --n-tau-lengths, --n-generations')
 

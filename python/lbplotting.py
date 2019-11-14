@@ -229,7 +229,7 @@ def get_tree_from_line(line, is_true_line):
 
 # ----------------------------------------------------------------------------------------
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
-                          add_jitter=False, min_ptile=80., n_per_row=4):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+                          add_jitter=False, min_ptile=80., n_per_row=4, iclust_fnames=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
     if yvar is None:
         yvar = lb_metric
     if fnames is None:
@@ -348,6 +348,8 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         if not only_overall:
             title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(lbfo[lb_metric]))
             fn = plot_2d_scatter('%s-vs-%s-iclust-%d' % (yvar, xvar, iclust), plotdir, iclust_plotvals, yvar, ylabel, title, **scatter_kwargs)
+            if iclust_fnames is not None and iclust < iclust_fnames:
+                fnames[-1].append(fn)
         assert len(set([len(plotvals[vt]) for vt in plotvals])) == 1  # make sure all of them are the same length
         for vtype in [vt for vt in plotvals if vt != 'uids']:
             plotvals[vtype] += iclust_plotvals[vtype]
@@ -673,7 +675,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         vtypes.append(colorvar)
 
     if not only_csv:
-        make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist' if lb_metric == 'lbi' else None, only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, add_jitter=True)  # there's some code duplication between these two fcns, but oh well
+        make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist' if lb_metric == 'lbi' else None, only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, iclust_fnames=4, add_jitter=True)  # there's some code duplication between these two fcns, but oh well
     for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
         utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 

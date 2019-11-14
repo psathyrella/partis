@@ -46,9 +46,9 @@ cgroups = ['within-families', 'among-families']  # different ways of grouping cl
 pchoices = ['per-seq', 'per-cluster']  # per-? choice, i.e. is this a per-sequence or per-cluster quantity
 dtr_metrics = ['%s-dtr'%cg for cg in cgroups]
 dtr_vars = {'within-families' : (('per-seq', ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm']),  # NOTE can't be dicts, since they go into a list in a specific order
-                                ('per-cluster', [])),
+                                 ('per-cluster', [])),
             'among-families' : (('per-seq', ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm']),
-                               ('per-cluster', ['fay-wu-h', 'cons-seq-shm', 'mean-shm', 'max-lbi', 'max-lbr'])),
+                                ('per-cluster', ['fay-wu-h', 'cons-seq-shm', 'mean-shm', 'max-lbi', 'max-lbr'])),
             }
 # ----------------------------------------------------------------------------------------
 def get_dtr_vals(cgroup, line, lbfo, dtree):
