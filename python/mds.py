@@ -233,9 +233,8 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
 
 # ----------------------------------------------------------------------------------------
 def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, region=None, aligned=False, n_init=4, max_iter=300, eps=1e-3, n_jobs=-1, plotdir=None):
-    print '%s not testing this after moving these imports down here' % utils.color('red', 'hey')
-    with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
-        warnings.simplefilter('ignore')  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
+    assert n_clusters is not None
+    if 'sklearn' not in sys.modules:
         from sklearn import manifold  # these are both slow af to import, even on local ssd
         from sklearn.cluster import KMeans
 
@@ -257,12 +256,12 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
 
     print '  mds'
     random_state = numpy.random.RandomState(seed=seed)
-    mds = manifold.MDS(n_components=n_components, n_init=n_init, max_iter=max_iter, eps=eps, random_state=random_state, dissimilarity="precomputed", n_jobs=n_jobs)
+    mds = sys.modules['sklearn'].manifold.MDS(n_components=n_components, n_init=n_init, max_iter=max_iter, eps=eps, random_state=random_state, dissimilarity="precomputed", n_jobs=n_jobs)
     pos = mds.fit_transform(similarities)
     # pos = mds.fit(similarities).embedding_
 
     print '  kmeans'
-    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos)
+    kmeans = sys.modules['sklearn'].cluster.KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos)
     pcvals = {seqfos[iseq]['name'] : pos[iseq] for iseq in range(len(seqfos))}
     labels = {seqfos[iseq]['name'] : kmeans.labels_[iseq] for iseq in range(len(seqfos))}
     def keyfunc(q):  # should really integrate this with utils.collapse_naive_seqs()/utils.split_partition_with_criterion()

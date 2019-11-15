@@ -86,15 +86,16 @@ def dtrfname(dpath, cg):
 
 # ----------------------------------------------------------------------------------------
 def train_dtr(cgroup, dtrfo, dmodels, outdir, min_samples_leaf=5, max_depth=10, n_estimators=10, dump_training_data=False):
-    with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
-        warnings.simplefilter('ignore', category=DeprecationWarning)  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
-        from sklearn import tree as sktree
-        from sklearn import ensemble
+    if 'sklearn' not in sys.modules:
+        with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
+            warnings.simplefilter('ignore', category=DeprecationWarning)  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
+            from sklearn import tree
+            from sklearn import ensemble
 
     print '    %s' % cgroup.replace('-', ' ')
 
-    base_regr = sktree.DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, max_depth=max_depth)
-    dmodels[cgroup] = ensemble.BaggingRegressor(base_estimator=base_regr, n_jobs=utils.auto_n_procs(), n_estimators=n_estimators) #, verbose=1)
+    base_regr = sys.modules['sklearn'].tree.DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, max_depth=max_depth)
+    dmodels[cgroup] = sys.modules['sklearn'].ensemble.BaggingRegressor(base_estimator=base_regr, n_jobs=utils.auto_n_procs(), n_estimators=n_estimators) #, verbose=1)
     dmodels[cgroup].fit(dtrfo[cgroup]['in'], dtrfo[cgroup]['out'])  #, sample_weight=dtrfo[cgroup]['weights'])
 
     print '                       mean   err'
