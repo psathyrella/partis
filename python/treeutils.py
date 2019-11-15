@@ -16,10 +16,9 @@ from distutils.version import StrictVersion
 import dendropy
 import time
 import math
-from sklearn import tree as sktree
-from sklearn import ensemble
 import yaml
 import pickle
+import warnings
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
@@ -87,6 +86,11 @@ def dtrfname(dpath, cg):
 
 # ----------------------------------------------------------------------------------------
 def train_dtr(cgroup, dtrfo, dmodels, outdir, min_samples_leaf=5, max_depth=10, n_estimators=10, dump_training_data=False):
+    with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
+        warnings.simplefilter('ignore', category=DeprecationWarning)  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
+        from sklearn import tree as sktree
+        from sklearn import ensemble
+
     print '    %s' % cgroup.replace('-', ' ')
 
     base_regr = sktree.DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, max_depth=max_depth)

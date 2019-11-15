@@ -6,6 +6,7 @@ import scipy
 import numpy
 import itertools
 import subprocess
+import warnings
 
 import utils
 
@@ -233,8 +234,10 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
 # ----------------------------------------------------------------------------------------
 def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, region=None, aligned=False, n_init=4, max_iter=300, eps=1e-3, n_jobs=-1, plotdir=None):
     print '%s not testing this after moving these imports down here' % utils.color('red', 'hey')
-    from sklearn import manifold  # these are both slow af to import, even on local ssd
-    from sklearn.cluster import KMeans
+    with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
+        warnings.simplefilter('ignore')  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
+        from sklearn import manifold  # these are both slow af to import, even on local ssd
+        from sklearn.cluster import KMeans
 
     if len(set(sfo['name'] for sfo in seqfos)) != len(seqfos):
         raise Exception('duplicate sequence ids in <seqfos>')

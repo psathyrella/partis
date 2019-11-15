@@ -1153,6 +1153,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # ----------------------------------------------------------------------------------------
     def getbounds(xkey):
         all_xvals = [x for c in sorted_clusters for x in get_xval_list(c, xkey)]
+        if len(all_xvals) == 0:
+            return None
         bounds = [f(all_xvals) for f in [min, max]]
         if global_max_vals is not None and xkey in global_max_vals:
             bounds[1] = global_max_vals[xkey]
@@ -1243,6 +1245,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     xbounds = {x1key : getbounds(x1key)}  # these are the smallest/largest x values in any of <sorted_clusters>, whereas <high_x_val> is a fixed calling-fcn-specified value that may be more or less (kind of wasteful to get all the x vals here and then also in the main loop)
     if x2key is not None:
         xbounds[x2key] = getbounds(x2key)
+    if any(xbounds[xk] is None for xk in xbounds):
+        return 'no values' if high_x_val is None else high_x_clusters  # 'no values' isn't really a file name, it just shows up as a dead link in the html
     fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
 
     if debug:
