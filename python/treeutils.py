@@ -92,12 +92,14 @@ def train_dtr(cgroup, dtrfo, dmodels, outdir, min_samples_leaf=5, max_depth=10, 
             from sklearn import tree
             from sklearn import ensemble
 
-    print '    %s' % cgroup.replace('-', ' ')
+    start = time.time()
+    print '    %s:    %s' % (cgroup.replace('-', ' '), outdir)
 
     base_regr = sys.modules['sklearn'].tree.DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, max_depth=max_depth)
     dmodels[cgroup] = sys.modules['sklearn'].ensemble.BaggingRegressor(base_estimator=base_regr, n_jobs=utils.auto_n_procs(), n_estimators=n_estimators) #, verbose=1)
     dmodels[cgroup].fit(dtrfo[cgroup]['in'], dtrfo[cgroup]['out'])  #, sample_weight=dtrfo[cgroup]['weights'])
 
+    print '        training time %.1fs' % (time.time() - start)
     print '                       mean   err'
     for ift, ftname in enumerate([v for _, vlist in dtr_vars[cgroup] for v in vlist]):
         filist = [estm.feature_importances_[ift] for estm in dmodels[cgroup].estimators_]
@@ -1238,10 +1240,12 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
         if dtr_path is None:
             dtrfo = {cg : {'in' : [], 'out' : []} for cg in cgroups}  # , 'weights' : []}
         else:
-            print '  reading decision trees from %s' % dtr_path
+            rstart = time.time()
             for cg in cgroups:
                 with open(dtrfname(dtr_path, cg)) as dfile:
                     dmodels[cg] = pickle.load(dfile)
+            print '  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart)
+    pstart = time.time()
     for iclust, line in enumerate(annotations):
         def get_combo_lbfo(varlist):  # TODO it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
             lbfo = {}
@@ -1304,6 +1308,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
         else:
             assert False
 
+    if metric_method == 'dtr' and dtr_path is not None:
+        print '    dtr prediction time: %.1fs (includes calculation of tree quantities)' % (time.time() - pstart)
     if metric_method == 'dtr' and dtr_path is None:
         print '  training decision trees'
         for cg in cgroups:
