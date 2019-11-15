@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN conda update -y conda
 RUN conda install -y -cbioconda -cbiocore python=2.7 biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn mafft  # -cbioconda is for pysam, -cbiocore is for mafft
-RUN pip install colored-traceback dendropy==4.0.0
+RUN pip install colored-traceback dendropy==4.4.0
 COPY . /partis
 WORKDIR /partis
 RUN ./bin/build.sh
