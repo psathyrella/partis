@@ -9,7 +9,7 @@ All output is written to a unified yaml file (for documentation on the old csv f
 The `partition` action writes a list of the most likely partitions and their relative likelihoods, as well as annotations for each cluster in the most likely partition.
 You can write additional less-likely partitions with `--n-partitions-to-write`, as well as annotations for clusters in less-likely partitions with `--write-additional-cluster-annotations`.
 Note that you should always access clusters using first the partition list and then looking for the cluster's annotation in the annotation list, and not by first looking in the annotation list.
-In some cases the annotation list may correspond to the most likely partition, but there are many cases where it does not (e.g. if `--calculate-alternative-annotataions` or `--write-additional-cluster-annotations` are set).
+In some cases the annotation list may correspond to the most likely partition, but there are many cases where it does not (e.g. if `--calculate-alternative-annotations` or `--write-additional-cluster-annotations` are set).
 The `annotate` action, on the other hand, only writes single-sequence annotations for each sequence in the input.
 
 If you want to print the results of existing output files to the terminal, use the partis [`view-output`](subcommands.md#view-output) action.
