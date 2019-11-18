@@ -91,6 +91,10 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
     return vals
 
 # ----------------------------------------------------------------------------------------
+def get_dtr_dir(plotdir):
+    assert plotdir.split('/')[-1] == 'plots'
+    return plotdir.replace('/plots', '/dtr-models')
+# ----------------------------------------------------------------------------------------
 def dtrfname(dpath, cg):
     return '%s/%s-dtr-model.pickle' % (dpath, cg)
 
@@ -136,7 +140,7 @@ def train_dtr(dtrfo, outdir, cfgvals, cgroup):
             filist = [model.feature_importances_[iv]]
         else:
             filist = [estm.feature_importances_[iv] for estm in model.estimators_]
-        print '               %12s   %5.3f  %5.3f' % (vname, numpy.average(filist, weights=wlist), numpy.std(filist, ddof=1) / math.sqrt(len(filist)))  # NOTE not sure if std should also use the weights
+        print '               %12s   %5.3f  %5.3f' % (vname, numpy.average(filist, weights=wlist), (numpy.std(filist, ddof=1) / math.sqrt(len(filist))) if len(filist) > 1 else 0.)  # NOTE not sure if std should also use the weights
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -1361,7 +1365,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
     if metric_method == 'dtr' and dtr_path is not None:
         print '    dtr prediction time: %.1fs (includes calculation of tree quantities)' % (time.time() - pstart)
     if metric_method == 'dtr' and dtr_path is None:
-        mdir = base_plotdir.replace('/plots', '/dtr-models')
+        mdir = get_dtr_dir(base_plotdir)
         print '  training decision trees into %s' % mdir
         for cg in cgroups:
             dmodels[cg] = train_dtr(dtrfo[cg], mdir, dtr_cfgvals, cg)
