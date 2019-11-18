@@ -44,13 +44,23 @@ def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_p
 cgroups = ['within-families', 'among-families']  # different ways of grouping clusters, i.e. "cluster groupings"
 pchoices = ['per-seq', 'per-cluster']  # per-? choice, i.e. is this a per-sequence or per-cluster quantity
 dtr_metrics = ['%s-dtr'%cg for cg in cgroups]
-dtr_vars = {'within-families' : (('per-seq', ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm']),  # NOTE can't be dicts, since they go into a list in a specific order
-                                 ('per-cluster', [])),
-            'among-families' : (('per-seq', ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm']),
-                                ('per-cluster', ['fay-wu-h', 'cons-seq-shm', 'mean-shm', 'max-lbi', 'max-lbr'])),
+dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm'],  # NOTE when iterating over this, you have to take the order from <pchoices>, since both pchoices go into the same list of variable values
+                                 'per-cluster' : []},
+            'among-families' : {'per-seq' : ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm'],
+                                'per-cluster' : ['fay-wu-h', 'cons-seq-shm', 'mean-shm', 'max-lbi', 'max-lbr']},
             }
+dtr_cfg_options = {  # Default is first element of list. If categorical, rest of the list are the supported options.
+    # 'base-regr' :
+    'vars' : ['auto'],  # uses <dtr_vars> for default
+    'min_samples_leaf' : [5],  # only used if ensemble is bag
+    'max_depth' : [10],  # only used if ensemble is bag
+    'ensemble' : ['bag', 'forest', 'ada-boost', 'grad-boost'],
+    'n_estimators' : [10],
+    'n_jobs' : ['auto'],  # not used for boosted ensembles
+}
+
 # ----------------------------------------------------------------------------------------
-def get_dtr_vals(cgroup, line, lbfo, dtree):
+def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
     # ----------------------------------------------------------------------------------------
     def getval(pchoice, var, uid):
         if pchoice == 'per-seq':
@@ -77,7 +87,7 @@ def get_dtr_vals(cgroup, line, lbfo, dtree):
         }
     vals = []
     for uid in line['unique_ids']:
-        vals.append([getval(pchoice, var, uid) for pchoice, vnames in dtr_vars[cgroup] for var in vnames])
+        vals.append([getval(pc, var, uid) for pc in pchoices for var in varlists[cgroup][pc]])
     return vals
 
 # ----------------------------------------------------------------------------------------
@@ -85,33 +95,55 @@ def dtrfname(dpath, cg):
     return '%s/%s-dtr-model.pickle' % (dpath, cg)
 
 # ----------------------------------------------------------------------------------------
-def train_dtr(cgroup, dtrfo, dmodels, outdir, min_samples_leaf=5, max_depth=10, n_estimators=10, dump_training_data=False):
+def train_dtr(dtrfo, outdir, cfgvals, cgroup):
     if 'sklearn' not in sys.modules:
         with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
             warnings.simplefilter('ignore', category=DeprecationWarning)  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
             from sklearn import tree
             from sklearn import ensemble
+    skl = sys.modules['sklearn']
 
     start = time.time()
-    print '    %s:    %s' % (cgroup.replace('-', ' '), outdir)
+    base_kwargs, kwargs = {}, {'n_estimators' : cfgvals['n_estimators']}
+    if cfgvals['ensemble'] == 'bag':
+        base_kwargs = {'min_samples_leaf' : cfgvals['min_samples_leaf'], 'max_depth' : cfgvals['max_depth']}
+        kwargs['base_estimator'] = skl.tree.DecisionTreeRegressor(**base_kwargs)  # we can pass this to ada-boost, but I'm not sure if we should (it would override the default max_depth=3, for instance)
+    if 'boost' not in cfgvals['ensemble']:
+        kwargs['n_jobs'] = cfgvals['n_jobs']
 
-    base_regr = sys.modules['sklearn'].tree.DecisionTreeRegressor(min_samples_leaf=min_samples_leaf, max_depth=max_depth)
-    dmodels[cgroup] = sys.modules['sklearn'].ensemble.BaggingRegressor(base_estimator=base_regr, n_jobs=utils.auto_n_procs(), n_estimators=n_estimators) #, verbose=1)
-    dmodels[cgroup].fit(dtrfo[cgroup]['in'], dtrfo[cgroup]['out'])  #, sample_weight=dtrfo[cgroup]['weights'])
+    if cfgvals['ensemble'] == 'bag':
+        model = skl.ensemble.BaggingRegressor(**kwargs)
+    elif cfgvals['ensemble'] == 'forest':
+        model = skl.ensemble.RandomForestRegressor(**kwargs)
+    elif cfgvals['ensemble'] == 'ada-boost':
+        model = skl.ensemble.AdaBoostRegressor(**kwargs)
+    elif cfgvals['ensemble'] == 'grad-boost':
+        model = skl.ensemble.GradientBoostingRegressor(**kwargs)  # if too slow, maybe try the new hist gradient boosting stuff
+    else:
+        assert False
 
-    print '        training time %.1fs' % (time.time() - start)
-    print '                       mean   err'
-    for ift, ftname in enumerate([v for _, vlist in dtr_vars[cgroup] for v in vlist]):
-        filist = [estm.feature_importances_[ift] for estm in dmodels[cgroup].estimators_]
-        print '       %12s   %5.3f  %5.3f' % (ftname, numpy.mean(filist), numpy.std(filist, ddof=1) / math.sqrt(len(filist)))
+    model.fit(dtrfo['in'], dtrfo['out'])  #, sample_weight=dtrfo['weights'])
+
+    tmpkeys = [k for k in cfgvals if k != 'vars' and (k in kwargs or k in base_kwargs)]  # don't want to print the inapplicable ones
+    print '    %s (%.1fs):  %s' % (cgroup, time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys)))
+    print '         feature importances:'
+    print '                               mean   err'
+    for iv, vname in enumerate([v for pc in pchoices for v in cfgvals['vars'][cgroup][pc]]):
+        wlist = None
+        if cfgvals['ensemble'] == 'ada-boost':
+            wlist = model.estimator_weights_
+        if cfgvals['ensemble'] == 'grad-boost':
+            filist = [model.feature_importances_[iv]]
+        else:
+            filist = [estm.feature_importances_[iv] for estm in model.estimators_]
+        print '               %12s   %5.3f  %5.3f' % (vname, numpy.average(filist, weights=wlist), numpy.std(filist, ddof=1) / math.sqrt(len(filist)))  # NOTE not sure if std should also use the weights
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    if dump_training_data:  # e.g. if you want to train with the newest version of sklearn, so you can make their new plots
-        with open('%s/%s-training-data.yaml' % (outdir, cgroup), 'w') as tfile:
-            yaml.dump(dtrfo, tfile)
     with open(dtrfname(outdir, cgroup), 'w') as dfile:
-        pickle.dump(dmodels[cgroup], dfile)
+        pickle.dump(model, dfile)
+
+    return model
 
 # ----------------------------------------------------------------------------------------
 # NOTE the min lbi is just tau, but I still like doing it this way
@@ -1227,7 +1259,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, dtr_path=None, workdir=None, lb_tau=None, dump_dtr_training_data=False, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
+def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
     n_before = len(annotations)
@@ -1236,6 +1268,23 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
     print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
     print '        skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
     if metric_method == 'dtr':
+        if dtr_cfg is None:
+            dtr_cfgvals = {}
+        else:
+            with open(dtr_cfg) as yfile:
+                dtr_cfgvals = yaml.load(yfile, Loader=yaml.Loader)
+            if 'vars' in dtr_cfgvals:  # format is slightly different in the file (in the file we don't require the explicit split between per-seq and per-cluster variables)
+                for cg in cgroups:
+                    dtr_cfgvals['vars'][cg] = {pc : [v for v in dtr_vars[cg][pc] if v in dtr_cfgvals['vars'][cg]] for pc in pchoices}  # ok this is kind of ugly
+
+        for tk in set(dtr_cfg_options) - set(dtr_cfgvals):  # set any missing ones to the defaults
+            if tk == 'vars':
+                dtr_cfgvals[tk] = dtr_vars
+            elif tk == 'n_jobs':
+                dtr_cfgvals[tk] = utils.auto_n_procs()  # isn't working when I put it up top, not sure why
+            else:
+                dtr_cfgvals[tk] = dtr_cfg_options[tk][0]  # default is first value in list (see above)
+
         dmodels = {}
         if dtr_path is None:
             dtrfo = {cg : {'in' : [], 'out' : []} for cg in cgroups}  # , 'weights' : []}
@@ -1245,6 +1294,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
                 with open(dtrfname(dtr_path, cg)) as dfile:
                     dmodels[cg] = pickle.load(dfile)
             print '  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart)
+
     pstart = time.time()
     for iclust, line in enumerate(annotations):
         def get_combo_lbfo(varlist):  # TODO it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
@@ -1293,7 +1343,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
             line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in line['unique_ids']}}}
         elif metric_method == 'dtr':
             dtree, lbfo = get_combo_lbfo(['consensus', 'lbi', 'lbr'])
-            dtr_invals = {cg : get_dtr_vals(cg, line, lbfo, dtree) for cg in cgroups}
+            dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}
             if dtr_path is None:  # train and write new model
                 for cg in cgroups:
                     dtrfo[cg]['in'] += dtr_invals[cg]
@@ -1311,9 +1361,10 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
     if metric_method == 'dtr' and dtr_path is not None:
         print '    dtr prediction time: %.1fs (includes calculation of tree quantities)' % (time.time() - pstart)
     if metric_method == 'dtr' and dtr_path is None:
-        print '  training decision trees'
+        mdir = base_plotdir.replace('/plots', '/dtr-models')
+        print '  training decision trees into %s' % mdir
         for cg in cgroups:
-            train_dtr(cg, dtrfo, dmodels, base_plotdir.replace('/plots', '/dtr-models'), dump_training_data=dump_dtr_training_data)
+            dmodels[cg] = train_dtr(dtrfo[cg], mdir, dtr_cfgvals, cg)
 
     if base_plotdir is not None and (metric_method != 'dtr' or dtr_path is not None):
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees

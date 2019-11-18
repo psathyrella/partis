@@ -568,7 +568,7 @@ def get_tree_metrics(args):
             assert len(args.lb_tau_list) == 1
             treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, args.min_tree_metric_cluster_size,
                                                     base_plotdir=get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
-                                                    dtr_path=args.dtr_path,
+                                                    dtr_path=args.dtr_path, dtr_cfg=args.dtr_cfg,
                                                     only_csv=args.only_csv_plots, ete_path=args.ete_path, workdir=args.workdir, lb_tau=get_vlval(vstrs, varnames, 'lb-tau'))
 
     if n_already_there > 0:
@@ -591,6 +591,7 @@ parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.0
 parser.add_argument('--metric-for-target-distance-list', default='aa')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'consensus', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we only train a new one.')
+parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.train_dtr()).')
 parser.add_argument('--selection-strength-list', default='1.0')
 parser.add_argument('--parameter-variances', help='see bcr-phylo-run.py help')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
