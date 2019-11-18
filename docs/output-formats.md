@@ -6,9 +6,11 @@
   * [output file example](#output-file-example)
 
 All output is written to a unified yaml file (for documentation on the old csv formats, see [here](https://github.com/psathyrella/partis/blob/9d78600ba6b7d511825f27724de1f8e937a5ada3/docs/output-formats.md)).
-The `annotate` action writes annotations for each single sequence in the input.
 The `partition` action writes a list of the most likely partitions and their relative likelihoods, as well as annotations for each cluster in the most likely partition.
-Whether to write additional partitions, or additional annotations for clusters in those partitions, can be set using a variety of options.
+You can write additional less-likely partitions with `--n-partitions-to-write`, as well as annotations for clusters in less-likely partitions with `--write-additional-cluster-annotations`.
+Note that you should always access clusters using first the partition list and then looking for the cluster's annotation in the annotation list, and not by first looking in the annotation list.
+In some cases the annotation list may correspond to the most likely partition, but there are many cases where it does not (e.g. if `--calculate-alternative-annotataions` or `--write-additional-cluster-annotations` are set).
+The `annotate` action, on the other hand, only writes single-sequence annotations for each sequence in the input.
 
 If you want to print the results of existing output files to the terminal, use the partis [`view-output`](subcommands.md#view-output) action.
 While by default a fairly minimal set of annotation information is written to file, many more keys are present in the dictionary in memory (see below).
