@@ -159,6 +159,19 @@ def get_tree_metric_plotdir(varnames, vstr, metric_method=None):
     return  '%s/%splots' % (get_tree_metric_outdir(varnames, vstr, metric_method=metric_method), args.extra_plotstr+'-' if args.extra_plotstr is not None else '')
 
 # ----------------------------------------------------------------------------------------
+def get_dtr_model_dir(varnames, vstr):
+    plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method='dtr')
+    if plotdir.split('/')[-1] == 'plots':
+        delim = '/'
+    elif plotdir.split('-')[-1] == 'plots':  # i.e. args.extra_plotstr was set
+        delim = '-'
+    else:
+        assert False
+    plstr = delim + 'plots'
+    assert plotdir.count(plstr) == 1
+    return plotdir.replace(plstr, delim + 'dtr-models')
+
+# ----------------------------------------------------------------------------------------
 def rel_affy_str(use_relative_affy, metric):
     return '-relative' if use_relative_affy and metric == 'lbi' else ''
 
@@ -184,8 +197,7 @@ def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
                 for xatmp, _ in cfglist
                 for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
     elif metric_method == 'dtr' and args.dtr_path is None:  # training
-        plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric_method)
-        return [treeutils.dtrfname(treeutils.get_dtr_dir(plotdir), cg) for cg in treeutils.cgroups]
+        return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg) for cg in treeutils.cgroups]
     else:
         return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False)]  # TODO not sure it's really best to hard code this, but maybe it is
 
@@ -569,9 +581,10 @@ def get_tree_metrics(args):
             _, true_lines, _ = utils.read_output(get_simfname(varnames, vstrs))
             assert not args.use_relative_affy  # would need to implement it
             assert len(args.lb_tau_list) == 1
+            dtr_path = args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs)  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
             treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, args.min_tree_metric_cluster_size,
                                                     base_plotdir=get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
-                                                    dtr_path=args.dtr_path, dtr_cfg=args.dtr_cfg,
+                                                    train_dtr=args.dtr_path is None, dtr_path=dtr_path, dtr_cfg=args.dtr_cfg,
                                                     only_csv=args.only_csv_plots, ete_path=args.ete_path, workdir=args.workdir, lb_tau=get_vlval(vstrs, varnames, 'lb-tau'))
 
     if n_already_there > 0:
@@ -594,7 +607,7 @@ parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.0
 parser.add_argument('--metric-for-target-distance-list', default='aa')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'consensus', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we only train a new one.')
-parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.train_dtr()).')
+parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
 parser.add_argument('--selection-strength-list', default='1.0')
 parser.add_argument('--parameter-variances', help='see bcr-phylo-run.py help')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')

@@ -49,14 +49,14 @@ dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist', 'edge-dist', '
             'among-families' : {'per-seq' : ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm'],
                                 'per-cluster' : ['fay-wu-h', 'cons-seq-shm', 'mean-shm', 'max-lbi', 'max-lbr']},
             }
-dtr_cfg_options = {  # Default is first element of list. If categorical, rest of the list are the supported options.
+default_dtr_options = {
     # 'base-regr' :
-    'vars' : ['auto'],  # uses <dtr_vars> for default
-    'min_samples_leaf' : [5],  # only used if ensemble is bag
-    'max_depth' : [10],  # only used if ensemble is bag
-    'ensemble' : ['bag', 'forest', 'ada-boost', 'grad-boost'],
-    'n_estimators' : [10],
-    'n_jobs' : ['auto'],  # not used for boosted ensembles
+    'vars' : None,  # uses <dtr_vars> for default
+    'min_samples_leaf' : 5,  # only used if ensemble is bag
+    'max_depth' : 10,  # only used if ensemble is bag
+    'ensemble' : 'grad-boost',  # ['bag', 'forest', 'ada-boost',
+    'n_estimators' : 10,
+    'n_jobs' : None,  # default set below (also, this is not used for boosted ensembles)
 }
 
 # ----------------------------------------------------------------------------------------
@@ -91,15 +91,11 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
     return vals
 
 # ----------------------------------------------------------------------------------------
-def get_dtr_dir(plotdir):
-    assert plotdir.split('/')[-1] == 'plots'
-    return plotdir.replace('/plots', '/dtr-models')
-# ----------------------------------------------------------------------------------------
 def dtrfname(dpath, cg):
     return '%s/%s-dtr-model.pickle' % (dpath, cg)
 
 # ----------------------------------------------------------------------------------------
-def train_dtr(dtrfo, outdir, cfgvals, cgroup):
+def train_dtr_model(dtrfo, outdir, cfgvals, cgroup):
     if 'sklearn' not in sys.modules:
         with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
             warnings.simplefilter('ignore', category=DeprecationWarning)  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
@@ -1263,7 +1259,7 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
+def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, train_dtr=False, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
     n_before = len(annotations)
@@ -1272,6 +1268,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
     print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
     print '        skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
     if metric_method == 'dtr':
+        assert dtr_path is not None
         if dtr_cfg is None:
             dtr_cfgvals = {}
         else:
@@ -1281,16 +1278,16 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
                 for cg in cgroups:
                     dtr_cfgvals['vars'][cg] = {pc : [v for v in dtr_vars[cg][pc] if v in dtr_cfgvals['vars'][cg]] for pc in pchoices}  # ok this is kind of ugly
 
-        for tk in set(dtr_cfg_options) - set(dtr_cfgvals):  # set any missing ones to the defaults
+        for tk in set(default_dtr_options) - set(dtr_cfgvals):  # set any missing ones to the defaults
             if tk == 'vars':
                 dtr_cfgvals[tk] = dtr_vars
             elif tk == 'n_jobs':
                 dtr_cfgvals[tk] = utils.auto_n_procs()  # isn't working when I put it up top, not sure why
             else:
-                dtr_cfgvals[tk] = dtr_cfg_options[tk][0]  # default is first value in list (see above)
+                dtr_cfgvals[tk] = default_dtr_options[tk]
 
         dmodels = {}
-        if dtr_path is None:
+        if train_dtr:
             dtrfo = {cg : {'in' : [], 'out' : []} for cg in cgroups}  # , 'weights' : []}
         else:
             rstart = time.time()
@@ -1348,7 +1345,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
         elif metric_method == 'dtr':
             dtree, lbfo = get_combo_lbfo(['consensus', 'lbi', 'lbr'])
             dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}
-            if dtr_path is None:  # train and write new model
+            if train_dtr:  # train and write new model
                 for cg in cgroups:
                     dtrfo[cg]['in'] += dtr_invals[cg]
                 max_affy = max(line['affinities'])
@@ -1362,15 +1359,15 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
         else:
             assert False
 
-    if metric_method == 'dtr' and dtr_path is not None:
-        print '    dtr prediction time: %.1fs (includes calculation of tree quantities)' % (time.time() - pstart)
-    if metric_method == 'dtr' and dtr_path is None:
-        mdir = get_dtr_dir(base_plotdir)
-        print '  training decision trees into %s' % mdir
-        for cg in cgroups:
-            dmodels[cg] = train_dtr(dtrfo[cg], mdir, dtr_cfgvals, cg)
+    if metric_method == 'dtr':
+        if train_dtr:
+            print '  training decision trees into %s' % dtr_path
+            for cg in cgroups:
+                dmodels[cg] = train_dtr_model(dtrfo[cg], dtr_path, dtr_cfgvals, cg)
+        else:
+            print '    dtr prediction time: %.1fs (includes calculation of tree quantities)' % (time.time() - pstart)
 
-    if base_plotdir is not None and (metric_method != 'dtr' or dtr_path is not None):
+    if base_plotdir is not None and (metric_method != 'dtr' or not train_dtr):
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         import plotting
         import lbplotting
