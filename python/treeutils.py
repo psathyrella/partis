@@ -125,7 +125,7 @@ def train_dtr_model(dtrfo, outdir, cfgvals, cgroup):
     model.fit(dtrfo['in'], dtrfo['out'])  #, sample_weight=dtrfo['weights'])
 
     tmpkeys = [k for k in cfgvals if k != 'vars' and (k in kwargs or k in base_kwargs)]  # don't want to print the inapplicable ones
-    print '    %s (%.1fs):  %s' % (cgroup, time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys)))
+    print '    %s (%d observations in %.1fs):  %s' % (cgroup, len(dtrfo['in']), time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys)))
     print '         feature importances:'
     print '                               mean   err'
     for iv, vname in enumerate([v for pc in pchoices for v in cfgvals['vars'][cgroup][pc]]):

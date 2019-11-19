@@ -159,8 +159,8 @@ def get_tree_metric_plotdir(varnames, vstr, metric_method=None):
     return  '%s/%splots' % (get_tree_metric_outdir(varnames, vstr, metric_method=metric_method), args.extra_plotstr+'-' if args.extra_plotstr is not None else '')
 
 # ----------------------------------------------------------------------------------------
-def get_dtr_model_dir(varnames, vstr, cg):
-    plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=cg+'-dtr')
+def get_dtr_model_dir(varnames, vstr):
+    plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method='dtr')
     if plotdir.split('/')[-1] == 'plots':
         delim = '/'
     elif plotdir.split('-')[-1] == 'plots':  # i.e. args.extra_plotstr was set
@@ -177,15 +177,14 @@ def rel_affy_str(use_relative_affy, metric):
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relative_affy=False, cg=None):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
+    if metric == 'dtr':
+        assert cg is not None
     if metric in ['lbi', 'lbr']:  # NOTE using <metric> and <metric_method> for slightly different but overlapping things: former is the actual metric name, whereas setting the latter says we want a non-lb metric (necessary because by default we want to calculate lbi and lbr, but also be able treat lbi and lbr separately when plotting)
         plotdir = get_tree_metric_plotdir(varnames, vstr)
         old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (plotdir, metric, x_axis_label, rel_affy_str(use_relative_affy, metric))  # just for backwards compatibility, could probably remove at some point (note: not updating this when I'm adding non-lb metrics like shm)
         if os.path.exists(old_path):
             print 'exists', old_path
             return old_path
-    elif metric == 'dtr':
-        assert cg is not None
-        plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric)
     else:
         plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric)
     vs_str = '%s%s-vs%s-%s' % (cg+'-' if cg is not None else '', metric, rel_affy_str(use_relative_affy, metric), x_axis_label)
@@ -201,7 +200,7 @@ def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
                 for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
     elif metric_method == 'dtr':
         if args.dtr_path is None:  # training
-            return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr, cg), cg) for cg in treeutils.cgroups]
+            return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg) for cg in treeutils.cgroups]
         else:  # testing
             return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False, cg=cg) for cg in treeutils.cgroups]  # TODO not sure it's really best to hard code this, but maybe it is
     else:
