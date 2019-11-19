@@ -564,6 +564,7 @@ def get_tree_metrics(args):
                 os.makedirs(tmpoutdir)
 
         if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
+            proc_limit_str = 'bin/partis'
             if not args.dry:
                 subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
             cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
@@ -575,29 +576,31 @@ def get_tree_metrics(args):
                 cmd += ' --only-csv-plots'
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
-            cmdfos += [{
-                'cmd_str' : cmd,
-                'outfname' : get_tree_metric_fname(varnames, vstrs, 'lbi', x_axis_label='affinity'),  #  it would be better if this checked for all the files, not just the lbi + raw affinity one
-                'workdir' : get_tree_metric_outdir(varnames, vstrs),
-            }]
         else:  # non-lb metrics, i.e. trying to predict with shm, etc.
-            if args.dry:
-                continue
-            _, true_lines, _ = utils.read_output(get_simfname(varnames, vstrs))
+            proc_limit_str = 'bin/dtr-run'
             assert not args.use_relative_affy  # would need to implement it
             assert len(args.lb_tau_list) == 1
-            dtr_path = args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs)  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
-            treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines,
-                                                    base_plotdir=get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
-                                                    train_dtr=args.dtr_path is None, dtr_path=dtr_path, dtr_cfg=args.dtr_cfg,
-                                                    only_csv=args.only_csv_plots, ete_path=args.ete_path, workdir=args.workdir, lb_tau=get_vlval(vstrs, varnames, 'lb-tau'))
+            cmd = './bin/dtr-run.py %s --infname %s --base-plotdir %s --lb-tau %s' % ('train' if args.dtr_path is None else 'test',
+                                                                                      get_simfname(varnames, vstrs),
+                                                                                      get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
+                                                                                      get_vlval(vstrs, varnames, 'lb-tau'))
+            cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
+            if args.dtr_cfg is not None:
+                cmd += ' --dtr-cfg %s' % args.dtr_cfg
+            if args.only_csv_plots:
+                cmd += ' --only-csv-plots'
+        cmdfos += [{
+            'cmd_str' : cmd,
+            'outfname' : get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method)[0],
+            'workdir' : get_tree_metric_outdir(varnames, vstrs),
+        }]
 
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method)[0])
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         if not args.dry:
-            utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/partis')
+            utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str=proc_limit_str)
 
 # ----------------------------------------------------------------------------------------
 all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot']
