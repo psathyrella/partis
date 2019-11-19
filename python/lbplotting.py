@@ -523,7 +523,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
         print '    ptile   threshold  taken    %-s %s|  N taken  mean %s'  % ('affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
     sorted_xvals = sorted(plotvals[xvar], reverse=xia)
     if xia:
-        corr_ptile_vals = [stats.percentileofscore(sorted_xvals, x, kind='weak') for x in plotvals[xvar]]
+        corr_ptile_vals = [stats.percentileofscore(sorted_xvals, x, kind='weak') for x in plotvals[xvar]]  # could speed this up by only using the best half of each list (since ptiles are starting at 50)
         perf_ptile_vals = [stats.percentileofscore(sorted_xvals, x, kind='weak') for x in sorted_xvals]
     for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>

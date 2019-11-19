@@ -29,6 +29,7 @@ affy_keys = {'lbi' : ['affinities'], #, 'relative_affinities'],  # uncomment the
              'lbr' : ['affinities']}
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 20
+default_min_tree_metric_cluster_size = 10
 
 dummy_str = 'x-dummy-x'
 
@@ -1206,8 +1207,8 @@ def check_lb_values(line, lbvals):
             raise Exception('uids in annotation not the same as lb info keys\n    missing: %s\n    extra: %s' % (' '.join(set(line['unique_ids']) - set(lbvals[metric])), ' '.join(set(lbvals[metric]) - set(line['unique_ids']))))
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, debug=False):
+def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
+                           ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size, debug=False):
     print 'getting tree metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1219,11 +1220,11 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
 
     # get tree and calculate metrics for inferred lines
     n_before = len(lines_to_use)
-    lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+    lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(lines_to_use)  # after removing the small ones
     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
     print '    calculating tree metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
-    print '      skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
+    print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
     n_already_there = 0
     for iclust, line in enumerate(lines_to_use):
         if debug:
@@ -1245,10 +1246,10 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
     # calculate lb values for true lines/trees
     if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         n_true_before = len(true_lines_to_use)
-        true_lines_to_use = sorted([l for l in true_lines_to_use if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+        true_lines_to_use = sorted([l for l in true_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_true_after = len(true_lines_to_use)
         print '    also doing %d true cluster%s with size%s: %s' % (n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
-        print '      skipping %d smaller than %d' % (n_true_before - n_true_after, min_tree_metric_cluster_size)
+        print '      skipping %d smaller than %d' % (n_true_before - n_true_after, min_cluster_size)
         for iclust, true_line in enumerate(true_lines_to_use):
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
@@ -1260,14 +1261,15 @@ def calculate_tree_metrics(annotations, min_tree_metric_cluster_size, lb_tau, lb
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cluster_size, base_plotdir=None, ete_path=None, train_dtr=False, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, only_csv=False, debug=False):  # well, not necessarily really using a tree, but they're analagous to the lb metrics
+# well, not necessarily really using a tree, but they're analagous to the lb metrics
+def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, train_dtr=False, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size, debug=False):
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
     n_before = len(annotations)
-    annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_tree_metric_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+    annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(annotations)
     print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
-    print '        skipping %d smaller than %d' % (n_before - n_after, min_tree_metric_cluster_size)
+    print '        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
     if metric_method == 'dtr':
         assert dtr_path is not None
         if dtr_cfg is None:

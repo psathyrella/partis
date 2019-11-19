@@ -587,7 +587,7 @@ def get_tree_metrics(args):
             assert not args.use_relative_affy  # would need to implement it
             assert len(args.lb_tau_list) == 1
             dtr_path = args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs)  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
-            treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, args.min_tree_metric_cluster_size,
+            treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines,
                                                     base_plotdir=get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
                                                     train_dtr=args.dtr_path is None, dtr_path=dtr_path, dtr_cfg=args.dtr_cfg,
                                                     only_csv=args.only_csv_plots, ete_path=args.ete_path, workdir=args.workdir, lb_tau=get_vlval(vstrs, varnames, 'lb-tau'))
@@ -626,7 +626,6 @@ parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.geten
 parser.add_argument('--label', default='test')
 parser.add_argument('--extra-plotstr', help='if set, put plots resulting from \'get-tree-metrics\' into a separate subdir using this string, rather than just plots/ (e.g. for plotting with many different dtr versions)')
 parser.add_argument('--use-relative-affy', action='store_true')
-parser.add_argument('--min-tree-metric-cluster-size', type=int, default=10, help='WARNING default also set in bin/partis')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv/yaml versions of plots (for future parsing), and not the actual svg files (which is slow)')
 parser.add_argument('--no-tree-plots', action='store_true', help='don\'t make any of the tree plots, which are slow (this just sets --ete-path to None)')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
