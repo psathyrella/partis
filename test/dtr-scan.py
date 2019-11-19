@@ -19,38 +19,42 @@ vsets = {
         'among-families' : ['lbi', 'cons-dist', 'mean-shm', 'max-lbi']}
 }
 
-train = True
-predict = False
+train_dtr = False
 
 label = 'test-dtr-v0'
 baseworkdir = '%s/_tmp' % os.getcwd()
 basecmd = './test/cf-tree-metrics.py --label %s --n-replicates 2 --n-sim-events-per-proc 5 --carry-cap-list 750 --obs-times-list 75 --n-sim-seqs-per-gen-list 80 --lb-tau-list 0.0025 --actions get-tree-metrics --metric-method dtr' % label
 basepath = '/fh/fast/matsen_e/dralph/partis/tree-metrics/%s' % label
+TMP_SEED = 0  # just for output file names, I don't really want to keep track of here, but utils.run_cmds() requires it
 
 cmdfos = []
-for ensemble in treeutils.dtr_cfg_options['ensemble']:
-    for n_estimators in [10, 30, 100, 500]:
+for ensemble in ['ada-boost']: #treeutils.dtr_cfg_options['ensemble']:
+    for n_estimators in [10]: #, 30, 100, 500]:
         for vsname, varset in vsets.items():
             cmd = basecmd
-            xtra_label = 'ensemble_%s_n-estimators_%d_vars_%s' % (ensemble, n_estimators, vsname)
-
-            if train:
-                workdir = '%s/%s' % (baseworkdir, xtra_label)
+            paramstr = 'ensemble_%s_n-estimators_%d_vars_%s' % (ensemble, n_estimators, vsname)
+            xtrastrs = {s : '%s_%s' % (s, paramstr) for s in ['train', 'test']}
+            modeldir = '%s/seed-%d/dtr/%s-dtr-models' % (basepath, TMP_SEED, xtrastrs['train'])
+            workdir = '%s/%s' % (baseworkdir, paramstr)
+            cfgfname = '%s/cfg.yaml' % workdir
+            cmd += ' --dtr-cfg %s' % cfgfname
+            if train_dtr:
                 if not os.path.exists(workdir):
                     os.makedirs(workdir)
-                cfgfname = '%s/cfg.yaml' % workdir
                 with open(cfgfname, 'w') as cfile:
                     yaml.dump({'ensemble' : ensemble, 'n_estimators' : n_estimators, 'vars' : varset}, cfile, width=200)
-                cmd += ' --dtr-cfg %s --extra-plotstr train_%s' % (cfgfname, xtra_label)
-                outfname = 'x'
+                cmd += ' --extra-plotstr %s' % xtrastrs['train']
+                modelfnames = [treeutils.dtrfname(modeldir, cg) for cg in treeutils.cgroups]
+                outfname = modelfnames[0]
+            else:
+                cmd += ' --dtr-path %s --extra-plotstr %s' % (modeldir, xtrastrs['test'])
+                outfname = ['%s/seed-%d/dtr/%s-plots/true-tree-metrics/%s-dtr/%s-dtr-vs-affinity-ptiles/%s-dtr-vs-affinity-ptiles-all-clusters.yaml' % (basepath, TMP_SEED, xtrastrs['test'], cg, cg, cg) for cg in treeutils.cgroups][0]
 
-            # if predict:
-            #     x = '--dtr-path %s/seed-%d/dtr/dtr-models' % (basepath, iseed)
+            utils.simplerun(cmd, debug=True)
+#             cmdfo = {'cmd_str' : cmd,
+#                      'outfname' : outfname,
+#                      'workdir' : workdir}  # I don't think I actually need the work dir
+#             cmdfos.append(cmdfo)
 
-            cmdfo = {'cmd_str' : cmd,
-                     'outfname' : outfname,
-                     'workdir' : workdir}  # I don't think I actually need the work dir
-            cmdfos.append(cmdfo)
-
-print '  staring %d jobs' % len(cmdfos)
-utils.run_cmds(cmdfos, n_max_procs=utils.auto_n_procs(), proc_limit_str='test/cf-tree-metrics')
+# print '  starting %d jobs' % len(cmdfos)
+# utils.run_cmds(cmdfos, n_max_procs=utils.auto_n_procs(), proc_limit_str='test/cf-tree-metrics', debug='print')

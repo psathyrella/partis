@@ -3111,7 +3111,7 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
     # handle failure
     print '    proc %d try %d' % (iproc, n_tried),
     if procs[iproc].returncode == 0 and not os.path.exists(cmdfo['outfname']):  # don't really need both the clauses
-        print 'succeded but output is missing'
+        print 'succeeded but output is missing: %s' % cmdfo['outfname']
     else:
         print 'failed with exit code %d (output %s)' % (procs[iproc].returncode, ('exists: %s' % cmdfo['outfname']) if os.path.exists(cmdfo['outfname']) else 'is missing')
     if batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and

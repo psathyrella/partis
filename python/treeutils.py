@@ -129,13 +129,14 @@ def train_dtr_model(dtrfo, outdir, cfgvals, cgroup):
     print '         feature importances:'
     print '                               mean   err'
     for iv, vname in enumerate([v for pc in pchoices for v in cfgvals['vars'][cgroup][pc]]):
-        wlist = None
-        if cfgvals['ensemble'] == 'ada-boost':
-            wlist = model.estimator_weights_
         if cfgvals['ensemble'] == 'grad-boost':
             filist = [model.feature_importances_[iv]]
         else:
             filist = [estm.feature_importances_[iv] for estm in model.estimators_]
+        wlist = None
+        if cfgvals['ensemble'] == 'ada-boost':
+            wlist = [w for w in model.estimator_weights_ if w > 0]
+            assert len(wlist) == len(model.estimators_)  # it terminates early (i.e. before making all the allowed estimators) if it already has perfect performance, but doesn't leave the lists the same length
         print '               %12s   %5.3f  %5.3f' % (vname, numpy.average(filist, weights=wlist), (numpy.std(filist, ddof=1) / math.sqrt(len(filist))) if len(filist) > 1 else 0.)  # NOTE not sure if std should also use the weights
 
     if not os.path.exists(outdir):
@@ -1295,6 +1296,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, min_tree_metric_cl
                 with open(dtrfname(dtr_path, cg)) as dfile:
                     dmodels[cg] = pickle.load(dfile)
             print '  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart)
+            print '           plotting to %s' % base_plotdir
 
     pstart = time.time()
     for iclust, line in enumerate(annotations):

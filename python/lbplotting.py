@@ -656,7 +656,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(iclust=None, vspstuff=None):
         lbstr, affystr, clstr, _, _, _ = tmpstrs(iclust, vspstuff)
-        return '%s-vs-%s-ptiles%s' % (lbstr, affystr, clstr)
+        return '%s-vs-%s-%s-tree-ptiles%s' % (lbstr, affystr, true_inf_str, clstr)
     # ----------------------------------------------------------------------------------------
     def getcorr(xvals, yvals):
         return numpy.corrcoef(xvals, yvals)[0, 1]
