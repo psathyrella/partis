@@ -49,7 +49,7 @@ for ensemble in ['grad-boost', 'ada-boost', 'forest', 'bag']:
                     os.makedirs(workdir)
                 with open(cfgfname, 'w') as cfile:
                     yaml.dump({'ensemble' : ensemble, 'n_estimators' : n_estimators, 'vars' : varset}, cfile, width=200)
-                cmd += ' --extra-plotstr %s' % xtrastrs['train']
+                cmd += ' --iseed %d --extra-plotstr %s' % (TMP_SEED, xtrastrs['train'])
                 modelfnames = [treeutils.dtrfname(modeldir, cg) for cg in treeutils.cgroups]
                 outfname = modelfnames[0]
             else:
