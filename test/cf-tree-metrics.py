@@ -592,7 +592,7 @@ def get_tree_metrics(args):
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method)[0],
-            'workdir' : get_tree_metric_outdir(varnames, vstrs),
+            'workdir' : get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
         }]
 
     if n_already_there > 0:

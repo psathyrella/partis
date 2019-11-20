@@ -31,6 +31,7 @@ baseworkdir = '%s/_tmp' % os.getcwd()
 basecmds = {
     'test-dtr-v0' : './test/cf-tree-metrics.py --label test-dtr-v0 --n-replicates 2 --n-sim-events-per-proc 5 --carry-cap-list 750 --obs-times-list 75 --n-sim-seqs-per-gen-list 80 --lb-tau-list 0.0025',
     'choose-among-families-v3' : './test/cf-tree-metrics.py --label choose-among-families-v3 --n-replicates 10 --n-sim-events-per-proc 30 --slurm --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --lb-tau-list 0.0025 --dont-observe-common-ancestors',
+    'dtr-train-v0' : './test/cf-tree-metrics.py --label dtr-train-v0 --n-replicates 5 --n-sim-events-per-proc 1000 --slurm --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5',
 }
 basecmd = basecmds[args.label]
 
@@ -39,7 +40,7 @@ basepath = '/fh/fast/matsen_e/dralph/partis/tree-metrics/%s' % args.label
 training_seed = 0  # just for output file names, I don't really want to keep track of here, but utils.run_cmds() requires it
 
 cmdfos = []
-for ensemble in ['grad-boost']: #, 'ada-boost', 'forest', 'bag']:
+for ensemble in ['grad-boost', 'ada-boost', 'forest']: #, 'bag']:
     for n_estimators in [10, 30, 100]:
         for vsname, varset in vsets.items():
             cmd = basecmd
@@ -66,7 +67,7 @@ for ensemble in ['grad-boost']: #, 'ada-boost', 'forest', 'bag']:
             else:
                 assert False
 
-            print cmd
+            print '    %s' % logdir
 
             # utils.simplerun(cmd, debug=True) #, dryrun=True)
             cmdfo = {'cmd_str' : cmd,
@@ -77,4 +78,4 @@ for ensemble in ['grad-boost']: #, 'ada-boost', 'forest', 'bag']:
             cmdfos.append(cmdfo)
 
 print '  starting %d jobs' % len(cmdfos)
-utils.run_cmds(cmdfos, n_max_procs=utils.auto_n_procs(), proc_limit_str='test/cf-tree-metrics', debug='write')
+utils.run_cmds(cmdfos, n_max_procs=utils.auto_n_procs(), proc_limit_str='test/cf-tree-metrics', debug='print')

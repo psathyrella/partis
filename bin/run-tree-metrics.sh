@@ -32,3 +32,4 @@ common="--only-csv-plots --slurm"  # --no-tree-plots
 # echo $bin --label choose-among-families-v5 --n-replicates 10 --n-sim-events-per-proc 150 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --lb-tau-list 0.0025
 
 echo $bin --label dtr-train-v0 --n-replicates 5 --n-sim-events-per-proc 1000  $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5 --actions bcr-phylo
+echo $bin --label dtr-train-v1 --n-replicates 5 --n-sim-events-per-proc 30000  $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 30 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5 --actions bcr-phylo
