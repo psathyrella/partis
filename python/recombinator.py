@@ -189,7 +189,7 @@ class Recombinator(object):
             functional_iseqs = [iseq for iseq in range(len(line['unique_ids'])) if utils.is_functional(line, iseq)]
             if len(functional_iseqs) == 0:  # none functional -- try again
                 return None
-            self.remove_nonfunctional_seqs(line)
+            self.remove_nonfunc_seqs(line)
 
         return line
 
@@ -676,11 +676,10 @@ class Recombinator(object):
             utils.print_reco_event(reco_event.line, extra_str='    ')
 
     # ----------------------------------------------------------------------------------------
-    def remove_nonfunctional_seqs(self, line):
+    def remove_nonfunc_seqs(self, line):
         functional_iseqs = [iseq for iseq in range(len(line['unique_ids'])) if utils.is_functional(line, iseq)]
-        if len(functional_iseqs) == len(line['unique_ids']):  # all functional! (this will generally be very rare)
-            return functional_iseqs
-        return utils.restrict_to_iseqs(line, functional_iseqs, self.glfo)
+        if len(functional_iseqs) < len(line['unique_ids']):  # it's generally very rare for them to all be functional
+            utils.restrict_to_iseqs(line, functional_iseqs, self.glfo)
 
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, mean_total_height, regional_heights, chosen_tree, scaled_trees, regional_naive_seqs, mseqs, reco_event, debug=False):

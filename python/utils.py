@@ -1773,7 +1773,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
 def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):
     """ remove from <line> any sequences corresponding to indices not in <iseqs_to_keep>. modifies line. """
     if len(iseqs_to_keep) < 1:
-        return None
+        raise Exception('must be called with at least one sequence to keep (got %s)' % iseqs_to_keep)
     remove_all_implicit_info(line)
     for tkey in set(linekeys['per_seq']) & set(line):
         line[tkey] = [line[tkey][iseq] for iseq in iseqs_to_keep]
@@ -1783,7 +1783,6 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):
             add_linearham_info(sw_info, [line])
         else:
             print '% restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None) needs sw_info to re-add existing \'linearham-info\' key to an annotation' % color('yellow', 'warning')
-    return line
 
 # ----------------------------------------------------------------------------------------
 def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_partition=None, extra_str='    '):
