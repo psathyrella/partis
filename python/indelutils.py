@@ -99,14 +99,6 @@ def get_iseqs_with_compatible_indels(line, ifo_to_match, max_separation=10):
     return iseqs_to_keep
 
 # ----------------------------------------------------------------------------------------
-def restrict_to_compatible_indels(line, ifo_to_match, glfo):
-    """ edit line to only contain all sequences in line that have an indel matching ifo_to_match """
-    iseqs_to_keep = get_iseqs_with_compatible_indels(line, ifo_to_match)
-    if len(iseqs_to_keep) > 0:
-        utils.restrict_to_iseqs(line, iseqs_to_keep, glfo)
-    return len(iseqs_to_keep)
-
-# ----------------------------------------------------------------------------------------
 def add_indels(n_indels, qrseq, glseq, mean_length, codon_positions, indel_location=None, indel_positions=None, keep_in_frame=False, dbg_pad=0, debug=False):
     def getpos():  # if <pos> is specified we use that, otherwise we use <indel_location> to decide the region of the sequence from which to choose a position
         if indel_location is None:  # uniform over entire sequence
