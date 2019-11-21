@@ -53,8 +53,8 @@ dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist', 'edge-dist', '
 default_dtr_options = {
     # 'base-regr' :
     'vars' : None,  # uses <dtr_vars> for default
-    'min_samples_leaf' : 5,  # only used if ensemble is bag
-    'max_depth' : 10,  # only used if ensemble is bag
+    'min_samples_leaf' : 5,  # only used for grad-boost and bag
+    'max_depth' : 5,  # only used for grad-boost and bag
     'ensemble' : 'grad-boost',  # ['bag', 'forest', 'ada-boost',
     'n_estimators' : 10,
     'n_jobs' : None,  # default set below (also, this is not used for boosted ensembles)
@@ -109,6 +109,9 @@ def train_dtr_model(dtrfo, outdir, cfgvals, cgroup):
     if cfgvals['ensemble'] == 'bag':
         base_kwargs = {'min_samples_leaf' : cfgvals['min_samples_leaf'], 'max_depth' : cfgvals['max_depth']}
         kwargs['base_estimator'] = skl.tree.DecisionTreeRegressor(**base_kwargs)  # we can pass this to ada-boost, but I'm not sure if we should (it would override the default max_depth=3, for instance)
+    if 'grad-boost' in cfgvals['ensemble']:
+        kwargs['max_depth'] = cfgvals['max_depth']
+        kwargs['min_samples_leaf'] = cfgvals['min_samples_leaf']
     if 'boost' not in cfgvals['ensemble']:
         kwargs['n_jobs'] = cfgvals['n_jobs']
 
@@ -1262,7 +1265,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
 
 # ----------------------------------------------------------------------------------------
 # well, not necessarily really using a tree, but they're analagous to the lb metrics
-def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, train_dtr=False, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size, debug=False):
+def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, train_dtr=False, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, n_train_per_family=None, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size, debug=False):
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
     n_before = len(annotations)
@@ -1351,10 +1354,20 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}
             if train_dtr:  # train and write new model
                 for cg in cgroups:
-                    dtrfo[cg]['in'] += dtr_invals[cg]
-                max_affy = max(line['affinities'])
-                dtrfo['within-families']['out'] += [a / max_affy for a in line['affinities']]
-                dtrfo['among-families']['out'] += line['affinities']
+                    if cg == 'within-families':
+                        dtrfo[cg]['in'] += dtr_invals[cg]
+                        max_affy = max(line['affinities'])
+                        dtrfo[cg]['out'] += [a / max_affy for a in line['affinities']]
+                    elif cg == 'among-families':
+                        if n_train_per_family is None:
+                            dtrfo[cg]['in'] += dtr_invals[cg]
+                            dtrfo[cg]['out'] += line['affinities']
+                        else:
+                            i_to_keep = numpy.random.choice(range(len(line['unique_ids'])), size=n_train_per_family, replace=False)
+                            dtrfo[cg]['in'] += [dtr_invals[cg][i] for i in i_to_keep]
+                            dtrfo[cg]['out'] += [line['affinities'][i] for i in i_to_keep]
+                    else:
+                        assert False
                 # dtrfo[XXX]['weights'] += line['affinities']
                 # line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
             else:  # read existing model
@@ -1366,12 +1379,15 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
     if metric_method == 'dtr':
         if train_dtr:
             print '  training decision trees into %s' % dtr_path
+            if n_train_per_family is not None:
+                print '     using only %d from each family for among-families dtr' % n_train_per_family
             for cg in cgroups:
                 dmodels[cg] = train_dtr_model(dtrfo[cg], dtr_path, dtr_cfgvals, cg)
         else:
             print '    dtr prediction time: %.1fs (includes calculation of tree quantities)' % (time.time() - pstart)
 
     if base_plotdir is not None and (metric_method != 'dtr' or not train_dtr):
+        plstart = time.time()
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         import plotting
         import lbplotting
@@ -1391,6 +1407,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             #     lbplotting.plot_lb_trees([lbm], true_plotdir, annotations, ete_path, workdir, is_true_line=True)
         if not only_csv:
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
+        print '      non-lb metric plotting time %.1fs' % (time.time() - plstart)
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):
