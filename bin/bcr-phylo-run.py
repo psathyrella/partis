@@ -8,6 +8,7 @@ import os
 import sys
 import numpy
 import math
+import time
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 sys.path.insert(1, current_script_dir)
@@ -41,6 +42,8 @@ def rearrange():
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
     cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, naive_fname(), args.n_sim_events)
+    # if args.n_procs > 1 and args.n_sim_events > 10*args.n_procs:  # not worth it since if --n-procs is not divisble by --n-sim-events, partis simulate doesn't give you exactly the number you asked for
+    #     cmd += ' --n-procs %d' % args.n_procs
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
@@ -109,7 +112,13 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    utils.run_ete_script(cmd, ete_path)  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
+    cfo = None
+    if args.n_procs == 1:
+        utils.run_ete_script(cmd, ete_path)  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
+    else:
+        cmd, _ = utils.run_ete_script(cmd, ete_path, return_for_cmdfos=True, tmpdir=outdir)
+        cfo = {'cmd_str' : cmd, 'workdir' : outdir, 'outfname' : bcr_phylo_fasta_fname(outdir)}
+    return cfo
 
 # ----------------------------------------------------------------------------------------
 def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
@@ -137,7 +146,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if args.stype == 'selection':
         cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (outdir, args.extrastr, outdir, outdir)
-        utils.run_ete_script(cmd, ete_path)
+        utils.run_ete_script(cmd, ete_path, debug=args.n_procs==1)
         nodefo = {}
         with open('%s/kd-vals.csv' % outdir) as kdfile:
             reader = csv.DictReader(kdfile)
@@ -180,18 +189,29 @@ def simulate():
 
     outdirs = ['%s/event-%d' % (simdir(), i) for i in range(len(naive_event_list))]
 
+    start = time.time()
+    cmdfos = []
+    if args.n_procs > 1:
+        print '    starting %d events' % len(naive_event_list)
     uid_str_len = 6 + int(math.log(len(naive_event_list), 10))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
     for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
-        if args.n_sim_events > 1:
+        if args.n_sim_events > 1 and args.n_procs == 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
-        run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list), uid_str_len=uid_str_len)
+        cfo = run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list), uid_str_len=uid_str_len)  # if n_procs > 1, doesn't run, just returns cfo
+        cmdfos.append(cfo)
+
+    if args.n_procs > 1:
+        utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs)
+    print '  bcr-phylo run time: %.1fs' % (time.time() - start)
 
     if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
         return
 
+    start = time.time()
     mutated_events = []
     for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
         mutated_events.append(parse_bcr_phylo_output(glfo, naive_line, outdir, ievent))
+    print '  parsing time: %.1fs' % (time.time() - start)
 
     print '  writing annotations to %s' % simfname()
     utils.write_annotations(simfname(), glfo, mutated_events, utils.simulation_headers)
@@ -206,19 +226,23 @@ def simulate():
 def cache_parameters():
     if utils.output_exists(args, param_dir() + '/hmm/hmms', outlabel='parameters', offset=4):
         return
-    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s --n-procs %d --seed %d' % (simfname(), param_dir(), args.n_procs, args.seed)
+    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s --seed %d' % (simfname(), param_dir(), args.seed)
+    if args.n_procs > 1:
+        cmd += ' --n-procs %d' % args.n_procs
     utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
 def partition():
     if utils.output_exists(args, partition_fname(), outlabel='partition', offset=4):
         return
-    cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --infname %s --parameter-dir %s --n-procs %d --outfname %s --seed %d' % (simfname(), param_dir(), args.n_procs, partition_fname(), args.seed)
+    cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --infname %s --parameter-dir %s --outfname %s --seed %d' % (simfname(), param_dir(), partition_fname(), args.seed)
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
     if not args.dont_get_tree_metrics:
         cmd += ' --get-tree-metrics --plotdir %s' % (infdir() + '/plots')
     if args.lb_tau is not None:
         cmd += ' --lb-tau %f' % args.lb_tau
+    if args.n_procs > 1:
+        cmd += ' --n-procs %d' % args.n_procs
     utils.simplerun(cmd, debug=True) #, dryrun=True)
     # cmd = './bin/partis get-tree-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
@@ -260,6 +284,8 @@ args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
 args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generation, intify=True)
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, floatify=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
+
+assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 
 # ----------------------------------------------------------------------------------------
 if 'simu' in args.actions:

@@ -530,6 +530,8 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --overwrite'
         if args.only_csv_plots:
             cmd += ' --only-csv-plots'
+        if args.n_bcr_phylo_procs is not None:
+            cmd += ' --n-procs %d' % args.n_bcr_phylo_procs
         # cmd += ' --debug 2'
         cmdfos += [{
             'cmd_str' : cmd,
