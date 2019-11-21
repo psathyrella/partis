@@ -2919,11 +2919,16 @@ def auto_n_procs():  # for running on the local machine
     return n_procs
 
 # ----------------------------------------------------------------------------------------
-def limit_procs(cmdstr, n_max_procs=None, sleep_time=1, debug=False):  # <sleep_time> is seconds
-    def n_running_jobs():
-        return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | wc -l' % cmdstr, shell=True))
+def limit_procs(cmdstr, n_max_procs=None, sleep_time=1, procs=None, debug=False):  # <sleep_time> is seconds
     if cmdstr is None:
-        raise Exception('<cmdstr> should be a (string) fragment of the command that will show up in ps, e.g. \'bin/partis\'')
+        if procs is None:
+            raise Exception('<cmdstr> should be a (string) fragment of the command that will show up in ps, e.g. \'bin/partis\'')
+        else:
+            def n_running_jobs():
+                return [p.poll() for p in procs].count(None)
+    else:
+        def n_running_jobs():
+            return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | wc -l' % cmdstr, shell=True))
     if n_max_procs is None:
         n_max_procs = auto_n_procs()
     n_jobs = n_running_jobs()
@@ -3037,7 +3042,7 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
         if sleep:
             time.sleep(per_proc_sleep_time)
         if n_max_procs is not None:
-            limit_procs(proc_limit_str, n_max_procs)
+            limit_procs(proc_limit_str, n_max_procs, procs=procs)  # NOTE now that I've added the <procs> arg, I should remove all the places where I'm using the old cmd str method (I mean, it works fine, but it's hackier/laggier, and in cases where several different parent procs are running a log of the same-named subprocs on the same machine, the old way will be wrong [i.e. limit_procs was originally intended as a global machine-wide limit, whereas in this fcn we usually call it wanting to set a specific number of subproces for this process])
 
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
