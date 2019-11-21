@@ -1363,11 +1363,11 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                         max_affy = max(line['affinities'])
                         dtrfo[cg]['out'] += [a / max_affy for a in line['affinities']]
                     elif cg == 'among-families':
-                        if cfgvals['n_train_per_family'] is None:
+                        if dtr_cfgvals['n_train_per_family'] is None:
                             dtrfo[cg]['in'] += dtr_invals[cg]
                             dtrfo[cg]['out'] += line['affinities']
                         else:
-                            i_to_keep = numpy.random.choice(range(len(line['unique_ids'])), size=cfgvals['n_train_per_family'], replace=False)
+                            i_to_keep = numpy.random.choice(range(len(line['unique_ids'])), size=dtr_cfgvals['n_train_per_family'], replace=False)
                             dtrfo[cg]['in'] += [dtr_invals[cg][i] for i in i_to_keep]
                             dtrfo[cg]['out'] += [line['affinities'][i] for i in i_to_keep]
                     else:
@@ -1383,8 +1383,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
     if metric_method == 'dtr':
         if train_dtr:
             print '  training decision trees into %s' % dtr_path
-            if cfgvals['n_train_per_family'] is not None:
-                print '     n_train_per_family: using only %d from each family for among-families dtr' % cfgvals['n_train_per_family']
+            if dtr_cfgvals['n_train_per_family'] is not None:
+                print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
             for cg in cgroups:
                 dmodels[cg] = train_dtr_model(dtrfo[cg], dtr_path, dtr_cfgvals, cg)
         else:
