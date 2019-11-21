@@ -3175,7 +3175,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
     ]
     def read_and_delete_file(fname):
         fstr = ''
-        if os.stat(fname).st_size > 0:
+        if os.stat(fname).st_size > 0:  # NOTE if <fname> doesn't exist, it probably means you have more than one process writing to the same log file
             ftmp = open(fname)
             fstr = ''.join(ftmp.readlines())
             ftmp.close()

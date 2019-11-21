@@ -57,6 +57,7 @@ default_dtr_options = {
     'max_depth' : 5,  # only used for grad-boost and bag
     'ensemble' : 'grad-boost',  # ['bag', 'forest', 'ada-boost',
     'n_estimators' : 10,
+    'n_train_per_family' : 1,  # for among-families dtr, only train on this many cells per family (to avoid over training). Set to None to use all of 'em
     'n_jobs' : None,  # default set below (also, this is not used for boosted ensembles)
 }
 
@@ -1265,9 +1266,12 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
 
 # ----------------------------------------------------------------------------------------
 # well, not necessarily really using a tree, but they're analagous to the lb metrics
-def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, train_dtr=False, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, n_train_per_family=None, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size, debug=False):
+def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, train_dtr=False, dtr_path=None, dtr_cfg=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, debug=False):
     # NOTE doesn't allow use of relative affinity atm
     # NOTE these true clusters should be identical to the ones in <true_lines_to_use> in the lb metric fcn, but I guess that depends on reco_info and synthesize_multi_seq_line_from_reco_info() and whatnot behaving properly
+    if min_cluster_size is None:
+        min_cluster_size = default_min_tree_metric_cluster_size
+
     n_before = len(annotations)
     annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(annotations)
@@ -1359,11 +1363,11 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                         max_affy = max(line['affinities'])
                         dtrfo[cg]['out'] += [a / max_affy for a in line['affinities']]
                     elif cg == 'among-families':
-                        if n_train_per_family is None:
+                        if cfgvals['n_train_per_family'] is None:
                             dtrfo[cg]['in'] += dtr_invals[cg]
                             dtrfo[cg]['out'] += line['affinities']
                         else:
-                            i_to_keep = numpy.random.choice(range(len(line['unique_ids'])), size=n_train_per_family, replace=False)
+                            i_to_keep = numpy.random.choice(range(len(line['unique_ids'])), size=cfgvals['n_train_per_family'], replace=False)
                             dtrfo[cg]['in'] += [dtr_invals[cg][i] for i in i_to_keep]
                             dtrfo[cg]['out'] += [line['affinities'][i] for i in i_to_keep]
                     else:
@@ -1379,8 +1383,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
     if metric_method == 'dtr':
         if train_dtr:
             print '  training decision trees into %s' % dtr_path
-            if n_train_per_family is not None:
-                print '     using only %d from each family for among-families dtr' % n_train_per_family
+            if cfgvals['n_train_per_family'] is not None:
+                print '     n_train_per_family: using only %d from each family for among-families dtr' % cfgvals['n_train_per_family']
             for cg in cgroups:
                 dmodels[cg] = train_dtr_model(dtrfo[cg], dtr_path, dtr_cfgvals, cg)
         else:
