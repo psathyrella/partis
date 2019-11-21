@@ -7,6 +7,7 @@ import copy
 import os
 import sys
 import numpy
+import math
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 sys.path.insert(1, current_script_dir)
@@ -63,7 +64,7 @@ def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command lin
     return return_val
 
 # ----------------------------------------------------------------------------------------
-def run_bcr_phylo(naive_line, outdir, ievent, n_total_events):
+def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
     if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
         return
 
@@ -101,8 +102,8 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events):
     cmd += ' --no_plot'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     cmd += ' --random_seed %d' % (args.seed + ievent)
-    if n_total_events > 1:  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
-        cmd += ' --uid_str_len 7'
+    if uid_str_len is not None:
+        cmd += ' --uid_str_len %d' % uid_str_len
     cmd += ' --naive_seq %s' % naive_line['naive_seq']
 
     if not os.path.exists(outdir):
@@ -179,10 +180,11 @@ def simulate():
 
     outdirs = ['%s/event-%d' % (simdir(), i) for i in range(len(naive_event_list))]
 
+    uid_str_len = 6 + int(math.log(len(naive_event_list), 10))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
     for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
         if args.n_sim_events > 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
-        run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list))
+        run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list), uid_str_len=uid_str_len)
 
     if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
         return

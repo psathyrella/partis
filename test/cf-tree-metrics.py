@@ -540,8 +540,10 @@ def run_bcr_phylo(args):  # also caches parameters
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, 'bcr-phylo'))
     if len(cmdfos) > 0:
-        print '      starting %d jobs' % len(cmdfos)
-        if not args.dry:
+        if args.dry:
+            print '    %s' % '\n    '.join(cfo['cmd_str'] for cfo in cmdfos)
+        else:
+            print '      starting %d jobs' % len(cmdfos)
             utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
 
 # ----------------------------------------------------------------------------------------
