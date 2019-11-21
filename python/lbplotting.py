@@ -595,7 +595,7 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, xlabel=N
         fnames[-1].append(fn)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, only_csv=False, fnames=None, add_uids=False, colorvar='is_leaf', debug=False):
+def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, n_per_row=4, only_csv=False, fnames=None, add_uids=False, colorvar='is_leaf', max_scatter_plot_size=500, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
@@ -674,7 +674,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
     if colorvar is not None:
         vtypes.append(colorvar)
 
-    if not only_csv:
+    if not only_csv and sum(len(l['unique_ids']) for l in lines) < max_scatter_plot_size:
         make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist' if lb_metric == 'lbi' else None, only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, iclust_fnames=4, add_jitter=True)  # there's some code duplication between these two fcns, but oh well
     for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
         utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
