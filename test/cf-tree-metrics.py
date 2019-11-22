@@ -530,8 +530,8 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --overwrite'
         if args.only_csv_plots:
             cmd += ' --only-csv-plots'
-        if args.n_bcr_phylo_procs is not None:
-            cmd += ' --n-procs %d' % args.n_bcr_phylo_procs
+        if args.n_sub_procs > 1:
+            cmd += ' --n-procs %d' % args.n_sub_procs
         # cmd += ' --debug 2'
         cmdfos += [{
             'cmd_str' : cmd,
@@ -546,7 +546,7 @@ def run_bcr_phylo(args):  # also caches parameters
             print '    %s' % '\n    '.join(cfo['cmd_str'] for cfo in cmdfos)
         else:
             print '      starting %d jobs' % len(cmdfos)
-            utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str='bin/bcr-phylo-run')
+            utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs)
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metrics(args):
@@ -568,7 +568,6 @@ def get_tree_metrics(args):
                 os.makedirs(tmpoutdir)
 
         if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
-            proc_limit_str = 'bin/partis'
             if not args.dry:
                 subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
             cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
@@ -580,8 +579,9 @@ def get_tree_metrics(args):
                 cmd += ' --only-csv-plots'
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
+            # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
+            #     cmd += ' --n-procs %d' % args.n_sub_procs
         else:  # non-lb metrics, i.e. trying to predict with shm, etc.
-            proc_limit_str = 'bin/dtr-run'
             assert not args.use_relative_affy  # would need to implement it
             assert len(args.lb_tau_list) == 1
             cmd = './bin/dtr-run.py %s --infname %s --base-plotdir %s --lb-tau %s' % ('train' if args.dtr_path is None else 'test',
@@ -604,7 +604,7 @@ def get_tree_metrics(args):
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         if not args.dry:
-            utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, proc_limit_str=proc_limit_str)
+            utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs)
 
 # ----------------------------------------------------------------------------------------
 all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot']
@@ -627,7 +627,8 @@ parser.add_argument('--zip-vars', help='colon-separated list of variables for wh
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
-parser.add_argument('--n-max-procs', type=int)  # NOTE that with slurm this thinks there's twice as many jobs as there are
+parser.add_argument('--n-max-procs', type=int, help='max number of *child* procs (see --n-sub-procs)')
+parser.add_argument('--n-sub-procs', type=int, default=1, help='max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
