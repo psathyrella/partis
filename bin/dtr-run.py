@@ -10,12 +10,15 @@ sys.path.insert(1, './python')
 import utils
 import treeutils
 
+# NOTE not just to run dtr, also to run other non-lb metrics
+
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['train', 'test'])
 parser.add_argument('--infname', required=True)
 parser.add_argument('--base-plotdir', required=True)
 parser.add_argument('--lb-tau', required=True, type=float)
-parser.add_argument('--dtr-path', required=True)
+parser.add_argument('--action', choices=['train', 'test'])
+parser.add_argument('--dtr-path')
+parser.add_argument('--metric-method', default='dtr')
 parser.add_argument('--dtr-cfg')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--n-max-queries', type=int)
@@ -33,5 +36,6 @@ if args.max_family_size is not None:
         iseqs_to_keep = numpy.random.choice(range(len(line['unique_ids'])), args.max_family_size)
         utils.restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
-treeutils.calculate_non_lb_tree_metrics('dtr', true_lines, base_plotdir=args.base_plotdir, train_dtr=args.action=='train', dtr_path=args.dtr_path, dtr_cfg=args.dtr_cfg,
+train_dtr = args.metric_method == 'dtr' and args.action == 'train'
+treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, train_dtr=train_dtr, dtr_path=args.dtr_path, dtr_cfg=args.dtr_cfg,
                                         only_csv=args.only_csv_plots, lb_tau=args.lb_tau, min_cluster_size=args.max_family_size)  # ete_path=args.ete_path, workdir=args.workdir,

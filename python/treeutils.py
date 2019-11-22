@@ -45,10 +45,10 @@ def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_p
 cgroups = ['within-families', 'among-families']  # different ways of grouping clusters, i.e. "cluster groupings"
 pchoices = ['per-seq', 'per-cluster']  # per-? choice, i.e. is this a per-sequence or per-cluster quantity
 dtr_metrics = ['%s-dtr'%cg for cg in cgroups]
-dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm'],  # NOTE when iterating over this, you have to take the order from <pchoices>, since both pchoices go into the same list of variable values
+dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm'],  # NOTE when iterating over this, you have to take the order from <pchoices>, since both pchoices go into the same list of variable values
                                  'per-cluster' : []},
-            'among-families' : {'per-seq' : ['lbi', 'cons-dist', 'edge-dist', 'lbr', 'shm'],
-                                'per-cluster' : ['fay-wu-h', 'cons-seq-shm', 'mean-shm', 'max-lbi', 'max-lbr']},
+            'among-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm'],
+                                'per-cluster' : ['fay-wu-h', 'cons-seq-shm-nuc', 'cons-seq-shm-aa', 'mean-shm', 'max-lbi', 'max-lbr']},
             }
 default_dtr_options = {
     # 'base-regr' :
@@ -66,8 +66,8 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
     # ----------------------------------------------------------------------------------------
     def getval(pchoice, var, uid):
         if pchoice == 'per-seq':
-            if var in ['lbi', 'lbr', 'cons-dist']:
-                return lbfo[var.replace('cons-dist', 'consensus')][uid]  # TODO arg
+            if var in ['lbi', 'lbr', 'cons-dist-nuc', 'cons-dist-aa']:
+                return lbfo[var][uid]
             elif var == 'edge-dist':
                 return edge_dist_fcn(dtree, uid)
             elif var == 'shm':
@@ -81,7 +81,7 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
     # ----------------------------------------------------------------------------------------
     if cgroup == 'among-families':
         per_cluster_vals = {
-            'cons-seq-shm' : utils.hamming_distance(line['naive_seq'], line['consensus-seq']),  # NOTE same as cluster_summary_cfg['consensus']
+            'cons-seq-shm-nuc' : utils.hamming_distance(line['naive_seq'], line['consensus-seq']),  # NOTE same as lbplotting.cluster_summary_cfg['cons-dist-nuc']
             'fay-wu-h' : -utils.fay_wu_h(line),
             'mean-shm' : numpy.mean(line['n_mutations']),
             'max-lbi' : max(lbfo['lbi'].values()),
@@ -1163,8 +1163,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
                 # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%lb_metric, colorvar='edge-dist', add_jitter=True)
                 # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%lb_metric, colorvar='edge-dist', only_overall=False, choose_among_families=True)
                 lbplotting.make_lb_scatter_plots('shm', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='edge-dist', only_overall=True, add_jitter=False)
-                lbplotting.make_lb_scatter_plots('consensus', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
-                # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='consensus-ptile', colorvar='edge-dist', add_jitter=True)
+                lbplotting.make_lb_scatter_plots('cons-dist-nuc', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
+                # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='cons-dist-nuc-ptile', colorvar='edge-dist', add_jitter=True)
             for lb_metric in lb_metrics:
                 lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
         lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
@@ -1311,8 +1311,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
     for iclust, line in enumerate(annotations):
         def get_combo_lbfo(varlist):  # TODO it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
             lbfo = {}
-            if 'consensus' in varlist:
-                lbfo['consensus'] = {u : lb_cons_dist(line, i) for i, u in enumerate(line['unique_ids'])}
+            if 'cons-dist-nuc' in varlist:
+                lbfo['cons-dist-nuc'] = {u : lb_cons_dist(line, i) for i, u in enumerate(line['unique_ids'])}
             dtree = get_dendro_tree(treestr=line['tree'])
             if 'lbi' in varlist and 'lbr' in varlist:
                 only_calc_metric = None
@@ -1332,7 +1332,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             line['tree-info'] = {'lb' : {metric_method : metric_info}}
         elif metric_method == 'fay-wu-h':  # NOTE this isn't actually tree info, but I"m comparing it to things calculated with a tree, so putting it in the same place at least for now
             pass
-        elif metric_method == 'consensus':
+        elif metric_method == 'cons-dist-nuc':
             line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(line, i) for i, u in enumerate(line['unique_ids'])}}}
         elif metric_method == 'delta-lbi':
             dtree, lbfo = get_combo_lbfo(['lbi'])
@@ -1344,17 +1344,17 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                 delta_lbfo[uid] = lbfo['lbi'][uid] - lbfo['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
             line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
         elif metric_method == 'lbi-cons':  # it would also be nice to not calculate lbi here
-            dtree, lbfo = get_combo_lbfo(['consensus', 'lbi'])
+            dtree, lbfo = get_combo_lbfo(['cons-dist-nuc', 'lbi'])
             for lbm in lbfo:  # normalize to z score
                 lbfo[lbm] = {u : z for u, z in zip(line['unique_ids'], utils.get_z_scores([lbfo[lbm][u] for u in line['unique_ids']]))}
             edge_dists = [edge_dist_fcn(dtree, u) for u in line['unique_ids']]
             edmin, edmax = min(edge_dists), max(edge_dists)
             def zcombo(u):
                 weight = utils.intexterpolate(edmin, 0., edmax, 1., edge_dist_fcn(dtree, u))
-                return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo['consensus'][u]) / math.sqrt(2)
+                return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo['cons-dist-nuc'][u]) / math.sqrt(2)
             line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in line['unique_ids']}}}
         elif metric_method == 'dtr':
-            dtree, lbfo = get_combo_lbfo(['consensus', 'lbi', 'lbr'])
+            dtree, lbfo = get_combo_lbfo(['cons-dist-nuc', 'lbi', 'lbr'])
             dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}
             if train_dtr:  # train and write new model
                 for cg in cgroups:
