@@ -33,10 +33,36 @@ default_min_tree_metric_cluster_size = 10
 
 dummy_str = 'x-dummy-x'
 
-def lb_cons_dist(line, iseq):
-    if 'consensus-seq' not in line:
-        line['consensus-seq'] = utils.lb_cons_seq(line)
-    return -utils.hamming_distance(line['consensus-seq'], line['seqs'][iseq])
+# ----------------------------------------------------------------------------------------
+def add_cons_seqs(line, aa=False):
+    ckey = 'consensus_seq'
+    if ckey not in line:
+        line[ckey] = utils.lb_cons_seq(line)
+    if aa:
+        ckey += '_aa'
+        if ckey not in line:
+            line[ckey] = utils.lb_cons_seq(line, aa=True)
+
+# ----------------------------------------------------------------------------------------
+def lb_cons_dist(line, iseq, aa=False):
+    add_cons_seqs(line, aa=aa)
+    tseq = line['seqs'][iseq]
+    if aa:
+        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
+        tseq = str(sys.modules['Bio.Seq'].Seq(utils.pad_nuc_seq(tseq)).translate())
+    tstr = '_aa' if aa else ''
+    return -utils.hamming_distance(line['consensus_seq'+tstr], tseq, amino_acid=aa)
+
+# ----------------------------------------------------------------------------------------
+def lb_cons_seq_shm(line, aa=False):
+    add_cons_seqs(line, aa=aa)
+    if aa and 'naive_seq_aa' not in line:
+        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
+        line['naive_seq_aa'] = str(sys.modules['Bio.Seq'].Seq(utils.pad_nuc_seq(line['naive_seq'])).translate())
+    tstr = '_aa' if aa else ''
+    return utils.hamming_distance(line['naive_seq'+tstr], line['consensus_seq'+tstr], amino_acid=aa)
+
+# ----------------------------------------------------------------------------------------
 def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
     node = dtree.find_node_with_taxon_label(uid)
     return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
@@ -81,7 +107,8 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
     # ----------------------------------------------------------------------------------------
     if cgroup == 'among-families':
         per_cluster_vals = {
-            'cons-seq-shm-nuc' : utils.hamming_distance(line['naive_seq'], line['consensus-seq']),  # NOTE same as lbplotting.cluster_summary_cfg['cons-dist-nuc']
+            'cons-seq-shm-nuc' : lb_cons_seq_shm(line),
+            'cons-seq-shm-aa' : lb_cons_seq_shm(line, aa=True),
             'fay-wu-h' : -utils.fay_wu_h(line),
             'mean-shm' : numpy.mean(line['n_mutations']),
             'max-lbi' : max(lbfo['lbi'].values()),
@@ -142,7 +169,7 @@ def train_dtr_model(dtrfo, outdir, cfgvals, cgroup):
         if cfgvals['ensemble'] == 'ada-boost':
             wlist = [w for w in model.estimator_weights_ if w > 0]
             assert len(wlist) == len(model.estimators_)  # it terminates early (i.e. before making all the allowed estimators) if it already has perfect performance, but doesn't leave the lists the same length
-        print '               %12s   %5.3f  %5.3f' % (vname, numpy.average(filist, weights=wlist), (numpy.std(filist, ddof=1) / math.sqrt(len(filist))) if len(filist) > 1 else 0.)  # NOTE not sure if std should also use the weights
+        print '               %17s   %5.3f  %5.3f' % (vname, numpy.average(filist, weights=wlist), (numpy.std(filist, ddof=1) / math.sqrt(len(filist))) if len(filist) > 1 else 0.)  # NOTE not sure if std should also use the weights
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -1313,6 +1340,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             lbfo = {}
             if 'cons-dist-nuc' in varlist:
                 lbfo['cons-dist-nuc'] = {u : lb_cons_dist(line, i) for i, u in enumerate(line['unique_ids'])}
+            if 'cons-dist-aa' in varlist:
+                lbfo['cons-dist-aa'] = {u : lb_cons_dist(line, i, aa=True) for i, u in enumerate(line['unique_ids'])}
             dtree = get_dendro_tree(treestr=line['tree'])
             if 'lbi' in varlist and 'lbr' in varlist:
                 only_calc_metric = None
@@ -1354,7 +1383,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                 return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo['cons-dist-nuc'][u]) / math.sqrt(2)
             line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in line['unique_ids']}}}
         elif metric_method == 'dtr':
-            dtree, lbfo = get_combo_lbfo(['cons-dist-nuc', 'lbi', 'lbr'])
+            dtree, lbfo = get_combo_lbfo(['cons-dist-nuc', 'cons-dist-aa', 'lbi', 'lbr'])
             dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}
             if train_dtr:  # train and write new model
                 for cg in cgroups:
