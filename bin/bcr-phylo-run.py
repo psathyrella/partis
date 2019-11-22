@@ -42,8 +42,8 @@ def rearrange():
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
     cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, naive_fname(), args.n_sim_events)
-    # if args.n_procs > 1 and args.n_sim_events > 10*args.n_procs:  # not worth it since if --n-procs is not divisble by --n-sim-events, partis simulate doesn't give you exactly the number you asked for
-    #     cmd += ' --n-procs %d' % args.n_procs
+    if args.n_procs > 1 and args.n_sim_events % args.n_procs == 0:  # if --n-procs is not divisble by --n-sim-events, partis simulate doesn't give you exactly the number you asked for
+        cmd += ' --n-procs %d' % args.n_procs
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
@@ -199,9 +199,8 @@ def simulate():
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
         cfo = run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list), uid_str_len=uid_str_len)  # if n_procs > 1, doesn't run, just returns cfo
         cmdfos.append(cfo)
-
     if args.n_procs > 1:
-        utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs)
+        utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None)
     print '  bcr-phylo run time: %.1fs' % (time.time() - start)
 
     if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
@@ -229,6 +228,8 @@ def cache_parameters():
     cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s --seed %d' % (simfname(), param_dir(), args.seed)
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
+    if args.slurm:
+        cmd += ' --batch-system slurm'
     utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
@@ -243,6 +244,8 @@ def partition():
         cmd += ' --lb-tau %f' % args.lb_tau
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
+    if args.slurm:
+        cmd += ' --batch-system slurm'
     utils.simplerun(cmd, debug=True) #, dryrun=True)
     # cmd = './bin/partis get-tree-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
@@ -277,6 +280,7 @@ parser.add_argument('--selection-strength', type=float, default=1., help='see bc
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--parameter-variances', help='if set, the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family, rather than having the same value for all families. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75')
+parser.add_argument('--slurm', action='store_true')
 
 args = parser.parse_args()
 
