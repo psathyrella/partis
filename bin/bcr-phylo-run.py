@@ -44,6 +44,8 @@ def rearrange():
     cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, naive_fname(), args.n_sim_events)
     if args.n_procs > 1 and args.n_sim_events % args.n_procs == 0:  # if --n-procs is not divisble by --n-sim-events, partis simulate doesn't give you exactly the number you asked for
         cmd += ' --n-procs %d' % args.n_procs
+    if args.slurm:
+        cmd += ' --batch-system slurm'
     utils.simplerun(cmd, debug=True)
 
 # ----------------------------------------------------------------------------------------
