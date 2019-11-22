@@ -2558,10 +2558,14 @@ def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_e
     else:
         raise Exception('unhandled annotation file suffix %s' % args.outfname)
 
-    print '   read %d events from %d csv files' % (sum(n_event_list), len(file_list))
+    print '   read %d events from %d %s files' % (sum(n_event_list), len(file_list), getsuffix(outfname))
     if n_total_expected is not None:
-        if n_event_list.count(n_per_proc_expected) != len(n_event_list):
-            raise Exception('expected %d events per proc, but read: %s' % (n_per_proc_expected, ' '.join([str(n) for n in n_event_list])))
+        if isinstance(n_per_proc_expected, list):  # different number for each proc
+            if n_event_list != n_per_proc_expected:
+                raise Exception('expected events per proc (%s), different from those read from the files (%s)' % (' '.join(str(n) for n in n_per_proc_expected), ' '.join([str(n) for n in n_event_list])))
+        else:  # all procs the same number
+            if n_event_list.count(n_per_proc_expected) != len(n_event_list):
+                raise Exception('expected %d events per proc, but read: %s' % (n_per_proc_expected, ' '.join([str(n) for n in n_event_list])))
         if n_total_expected != sum(n_event_list):
             print '  %s expected %d total events but read %d (per-file couts: %s)' % (color('yellow', 'warning'), n_total_expected, sum(n_event_list), ' '.join([str(n) for n in n_event_list]))
 

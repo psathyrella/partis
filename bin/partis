@@ -87,17 +87,18 @@ def run_simulation(args):
     if not args.im_a_subproc:
         print 'simulating'
 
-    n_per_proc = int(float(args.n_sim_events) / args.n_procs)
+    n_per_proc_list = [args.n_sim_events / args.n_procs for _ in range(args.n_procs)]
+    n_per_proc_list[0] += args.n_sim_events % args.n_procs  # do any extra ones in the first proc
 
     # generate all the random seeds NOTE these aren't used if <args.subsimproc> is set, i.e. results will be different with and without <args.subsimproc> set.
     all_random_ints = []
     for iproc in range(args.n_procs):  # have to do it all at once, 'cause each of the subprocesses is going to reset its seed and god knows what happens to our seed at that point
-        all_random_ints.append([random.randint(0, numpy.iinfo(numpy.int32).max) for i in range(n_per_proc)])
+        all_random_ints.append([random.randint(0, numpy.iinfo(numpy.int32).max) for i in range(n_per_proc_list[iproc])])
 
     if args.n_procs == 1:  # multiprocessing is kind of messy
-        make_events(n_per_proc, 0, args.workdir, args.outfname, all_random_ints[0])
+        make_events(n_per_proc_list[0], 0, args.workdir, args.outfname, all_random_ints[0])
     else:  # start the processes and wait for 'em to finish
-        cmdfos = [{'cmd_str' : get_subproc_cmd_str(n_per_proc, iproc, get_workdir(iproc), get_outfname(iproc)) if args.subsimproc else None,
+        cmdfos = [{'cmd_str' : get_subproc_cmd_str(n_per_proc_list[iproc], iproc, get_workdir(iproc), get_outfname(iproc)) if args.subsimproc else None,
                    'workdir' : get_workdir(iproc),
                    'logdir' : args.workdir + '/log-' + str(iproc),  # have to be different than <workdirs> since ./bin/partis barfs if its workdir already exists (as it should)
                    'outfname' : get_outfname(iproc)}
@@ -106,14 +107,14 @@ def run_simulation(args):
             utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, batch_config_fname=args.batch_config_fname, debug='print')
         else:
             for iproc in range(args.n_procs):
-                proc = multiprocessing.Process(target=make_events, args=(n_per_proc, iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
+                proc = multiprocessing.Process(target=make_events, args=(n_per_proc_list[iproc], iproc, cmdfos[iproc]['workdir'], cmdfos[iproc]['outfname'], all_random_ints[iproc]))
                 proc.start()
             while len(multiprocessing.active_children()) > 0:
                 sys.stdout.flush()
                 time.sleep(1)
 
         file_list = [cmdfos[i]['outfname'] for i in range(args.n_procs)]
-        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc, use_pyyaml=args.write_full_yaml_output)  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
+        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc_list, use_pyyaml=args.write_full_yaml_output)  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
 
     if not args.im_a_subproc and args.allele_prevalence_fname is not None:  # check final prevalence freqs
         glutils.check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname, only_region='v', debug=args.debug)
