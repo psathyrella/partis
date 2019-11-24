@@ -256,7 +256,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             assert False  # needs finishing
             # all_cdistvals = []
             # for ltmp in lines_to_use:
-            #     cseq = XXX needs updating XXX utils.lb_cons_seq(ltmp, aa=XXX)
+            #     cseq = XXX needs updating XXX utils.cons_seq_of_line(ltmp, aa=XXX)
             #     for utmp, stmp in zip(ltmp['unique_ids'], ltmp['seqs']):
             #         all_cdistvals.append(treeutils.XXX update XXXlb_cons_dist(cseq, stmp, aa=XXX))
             # all_cdistvals = sorted(all_cdistvals)

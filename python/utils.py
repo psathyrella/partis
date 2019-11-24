@@ -327,7 +327,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -348,6 +348,7 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'consensus_seq',
     'consensus_seq_aa',
     'naive_seq_aa',
+    'seqs_aa',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 
 linekeys['extra'] = extra_annotation_headers
@@ -1009,6 +1010,15 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
             color_mutants(cons_seq, tie_resolver_seq, align=aligned_seqfos is None, print_result=True, only_print_seq=True, seq_label='tie resolv ', extra_str='        ')
 
     return cons_seq
+
+# ----------------------------------------------------------------------------------------
+def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
+    # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line>
+    if aa:
+        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
+        return str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(line.get('consensus_seq', cons_seq_of_line(line)))).translate())
+    else:  # this is fairly slow
+        return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='',
@@ -2168,15 +2178,6 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
     # return hackey_default_gene_versions[region]
 
 # ----------------------------------------------------------------------------------------
-def lb_cons_seq(line, aa=False):  # kind of messy to call it 'lb_' consensus sequence if I'm also putting it in this file, but oh well, for now
-    # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line>
-    if aa:
-        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
-        return str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(line.get('consensus_seq', lb_cons_seq(line)))).translate())
-    else:  # this is fairly slow
-        return cons_seq(0.01, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
-
-# ----------------------------------------------------------------------------------------
 def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, amino_acid=False):
     if extra_bases is not None:
         raise Exception('not sure what this was supposed to do (or did in the past), but it doesn\'t do anything now! (a.t.m. it seems to only be set in bin/plot-germlines.py, which I think doesn\'t do anything useful any more)')
@@ -2461,6 +2462,20 @@ def get_cdr3_seq(info, iseq):  # NOTE includeds both codons, i.e. not the same a
     return info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3]    
 
 # ----------------------------------------------------------------------------------------
+def add_naive_seq_aa(line):
+    if 'naive_seq_aa' in line:
+        return
+    if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
+    line['naive_seq_aa'] = str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(line['naive_seq'])).translate())
+
+# ----------------------------------------------------------------------------------------
+def add_seqs_aa(line):
+    if 'seqs_aa' in line:
+        return
+    if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
+    line['seqs_aa'] = [str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(s)).translate()) for s in line['seqs']]
+
+# ----------------------------------------------------------------------------------------
 def pad_nuc_seq(nseq):  # if length not multiple of three, pad on right with Ns
     if len(nseq) % 3 != 0:
         nseq += 'N' * (3 - (len(nseq) % 3))
@@ -2486,12 +2501,15 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         #     print info['unique_ids'][iseq]
         #     color_mutants(info['input_seqs'][iseq], full_coding_input_seqs[iseq], print_result=True, align=True, extra_str='  ')
     elif key == 'consensus_seq':
-        outfo[key] = lb_cons_seq(info)
+        outfo[key] = cons_seq_of_line(info)
     elif key == 'consensus_seq_aa':
-        outfo[key] = lb_cons_seq(info, aa=True)
+        outfo[key] = cons_seq_of_line(info, aa=True)
     elif key == 'naive_seq_aa':
         if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
         outfo[key] = str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(info['naive_seq'])).translate())
+    elif key == 'seqs_aa':
+        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
+        outfo[key] = [str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(s)).translate()) for s in info['seqs']]
     elif key in linekeys['hmm'] + linekeys['sw'] + linekeys['simu']:  # these are added elsewhere
         if definitely_add_all_columns_for_csv:
             if key in io_column_configs['lists']:

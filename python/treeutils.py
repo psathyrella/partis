@@ -37,19 +37,20 @@ dummy_str = 'x-dummy-x'
 def add_cons_seqs(line, aa=False):
     ckey = 'consensus_seq'
     if ckey not in line:
-        line[ckey] = utils.lb_cons_seq(line)
+        line[ckey] = utils.cons_seq_of_line(line)
     if aa:
         ckey += '_aa'
         if ckey not in line:
-            line[ckey] = utils.lb_cons_seq(line, aa=True)
+            line[ckey] = utils.cons_seq_of_line(line, aa=True)
 
 # ----------------------------------------------------------------------------------------
 def lb_cons_dist(line, iseq, aa=False):
     add_cons_seqs(line, aa=aa)
     tseq = line['seqs'][iseq]
     if aa:
-        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
-        tseq = str(sys.modules['Bio.Seq'].Seq(utils.pad_nuc_seq(tseq)).translate())
+        if 'seqs_aa' not in line:
+            utils.add_seqs_aa(line)
+        tseq = line['seqs_aa'][iseq]
     tstr = '_aa' if aa else ''
     return -utils.hamming_distance(line['consensus_seq'+tstr], tseq, amino_acid=aa)
 
@@ -57,8 +58,7 @@ def lb_cons_dist(line, iseq, aa=False):
 def lb_cons_seq_shm(line, aa=False):
     add_cons_seqs(line, aa=aa)
     if aa and 'naive_seq_aa' not in line:
-        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
-        line['naive_seq_aa'] = str(sys.modules['Bio.Seq'].Seq(utils.pad_nuc_seq(line['naive_seq'])).translate())
+        utils.add_naive_seq_aa(line)
     tstr = '_aa' if aa else ''
     return utils.hamming_distance(line['naive_seq'+tstr], line['consensus_seq'+tstr], amino_acid=aa)
 
@@ -71,9 +71,9 @@ def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_p
 cgroups = ['within-families', 'among-families']  # different ways of grouping clusters, i.e. "cluster groupings"
 pchoices = ['per-seq', 'per-cluster']  # per-? choice, i.e. is this a per-sequence or per-cluster quantity
 dtr_metrics = ['%s-dtr'%cg for cg in cgroups]
-dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm'],  # NOTE when iterating over this, you have to take the order from <pchoices>, since both pchoices go into the same list of variable values
+dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm', 'shm-aa'],  # NOTE when iterating over this, you have to take the order from <pchoices>, since both pchoices go into the same list of variable values
                                  'per-cluster' : []},
-            'among-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm'],
+            'among-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm', 'shm-aa'],
                                 'per-cluster' : ['fay-wu-h', 'cons-seq-shm-nuc', 'cons-seq-shm-aa', 'mean-shm', 'max-lbi', 'max-lbr']},
             }
 default_dtr_options = {
@@ -98,6 +98,8 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
                 return edge_dist_fcn(dtree, uid)
             elif var == 'shm':
                 return utils.per_seq_val(line, 'n_mutations', uid)
+            elif var == 'shm-aa':
+                return utils.hamming_distance(line['naive_seq_aa'], utils.per_seq_val(line, 'seqs_aa', uid))  # assumes we've handled adding 'seqs_aa' elsewhere
             else:
                 assert False
         elif pchoice == 'per-cluster':
@@ -1336,12 +1338,14 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
 
     pstart = time.time()
     for iclust, line in enumerate(annotations):
-        def get_combo_lbfo(varlist):  # TODO it would be nice to not calculate lbi here, but atm we're not rewriting the simulation file with true lb info, so it's only in memory even if we've already run get-tree-metrics with the regular lb metrics (anyway, since we already have the tree, it should be really fast)
+        def get_combo_lbfo(varlist):
+            if 'shm-aa' in varlist and 'seqs_aa' not in line:
+                utils.add_naive_seq_aa(line)
+                utils.add_seqs_aa(line)
             lbfo = {}
-            if 'cons-dist-nuc' in varlist:
-                lbfo['cons-dist-nuc'] = {u : lb_cons_dist(line, i) for i, u in enumerate(line['unique_ids'])}
-            if 'cons-dist-aa' in varlist:
-                lbfo['cons-dist-aa'] = {u : lb_cons_dist(line, i, aa=True) for i, u in enumerate(line['unique_ids'])}
+            for tstr in ['nuc', 'aa']:
+                if 'cons-dist-'+tstr in varlist:
+                    lbfo['cons-dist-'+tstr] = {u : lb_cons_dist(line, i, aa=tstr=='aa') for i, u in enumerate(line['unique_ids'])}
             dtree = get_dendro_tree(treestr=line['tree'])
             if 'lbi' in varlist and 'lbr' in varlist:
                 only_calc_metric = None
@@ -1383,7 +1387,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                 return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo['cons-dist-nuc'][u]) / math.sqrt(2)
             line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in line['unique_ids']}}}
         elif metric_method == 'dtr':
-            dtree, lbfo = get_combo_lbfo(['cons-dist-nuc', 'cons-dist-aa', 'lbi', 'lbr'])
+            dtree, lbfo = get_combo_lbfo(['shm-aa', 'cons-dist-nuc', 'cons-dist-aa', 'lbi', 'lbr'])
             dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}
             if train_dtr:  # train and write new model
                 for cg in cgroups:
