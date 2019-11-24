@@ -119,7 +119,7 @@ def set_meta_styles(args, etree, tstyle):
     affyfo = None
     if args.affy_key in args.metafo and set(args.metafo[args.affy_key].values()) != set([None]):
         affyfo = args.metafo[args.affy_key]
-        if args.lb_metric in ['lbi', 'shm', 'consensus']:
+        if args.lb_metric in ['lbi', 'shm', 'cons-dist-nuc']:
             affyvals = affyfo.values()
             affy_smap = plotting.get_normalized_scalar_map([a for a in affyvals if a is not None], 'viridis')
         elif args.lb_metric == 'lbr':
@@ -133,7 +133,7 @@ def set_meta_styles(args, etree, tstyle):
         node.img_style['size'] = 0
         rfsize = 0
         bgcolor = plotting.getgrey()
-        if args.lb_metric in ['lbi', 'shm', 'consensus']:
+        if args.lb_metric in ['lbi', 'shm', 'cons-dist-nuc']:
             if node.name not in lbfo:  # really shouldn't happen
                 print '  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name)
                 continue
@@ -165,7 +165,7 @@ def set_meta_styles(args, etree, tstyle):
         node.add_face(rface, column=0)
 
     affy_label = args.affy_key.replace('_', ' ')
-    if args.lb_metric in ['lbi', 'shm', 'consensus']:
+    if args.lb_metric in ['lbi', 'shm', 'cons-dist-nuc']:
         if affyfo is None:
             add_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, n_entries=4)
         else:
@@ -204,7 +204,7 @@ def plot_trees(args):
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--treefname', required=True)
 parser.add_argument('--outfname', required=True)
-parser.add_argument('--lb-metric', default='lbi', choices=['lbi', 'lbr', 'shm', 'consensus'])
+parser.add_argument('--lb-metric', default='lbi', choices=['lbi', 'lbr', 'shm', 'cons-dist-nuc'])
 parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'relative_affinity'])
 # parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--metafname')

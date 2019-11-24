@@ -586,15 +586,18 @@ def get_tree_metrics(args):
         else:  # non-lb metrics, i.e. trying to predict with shm, etc.
             assert not args.use_relative_affy  # would need to implement it
             assert len(args.lb_tau_list) == 1
-            cmd = './bin/dtr-run.py %s --infname %s --base-plotdir %s --lb-tau %s' % ('train' if args.dtr_path is None else 'test',
-                                                                                      get_simfname(varnames, vstrs),
-                                                                                      get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
-                                                                                      get_vlval(vstrs, varnames, 'lb-tau'))
-            cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
-            if args.dtr_cfg is not None:
-                cmd += ' --dtr-cfg %s' % args.dtr_cfg
+            cmd = './bin/dtr-run.py --metric-method %s --infname %s --base-plotdir %s --lb-tau %s' % (args.metric_method,
+                                                                                                      get_simfname(varnames, vstrs),
+                                                                                                      get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
+                                                                                                      get_vlval(vstrs, varnames, 'lb-tau'))
+            if args.metric_method == 'dtr':
+                cmd += ' --action %s' % ('train' if args.dtr_path is None else 'test',)
+                cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
+                if args.dtr_cfg is not None:
+                    cmd += ' --dtr-cfg %s' % args.dtr_cfg
             if args.only_csv_plots:
                 cmd += ' --only-csv-plots'
+
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method)[0],
@@ -619,7 +622,7 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
-parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'consensus', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
+parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we only train a new one.')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
 parser.add_argument('--selection-strength-list', default='1.0')
