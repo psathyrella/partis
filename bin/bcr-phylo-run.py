@@ -71,7 +71,7 @@ def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command lin
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
     if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
-        return
+        return None
 
     cmd = '%s/bin/simulator.py' % bcr_phylo_path
     if args.run_help:
@@ -200,8 +200,9 @@ def simulate():
         if args.n_sim_events > 1 and args.n_procs == 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
         cfo = run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list), uid_str_len=uid_str_len)  # if n_procs > 1, doesn't run, just returns cfo
-        cmdfos.append(cfo)
-    if args.n_procs > 1:
+        if cfo is not None:
+            cmdfos.append(cfo)
+    if args.n_procs > 1 and len(cmdfos) > 0:
         utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None)
     print '  bcr-phylo run time: %.1fs' % (time.time() - start)
 
