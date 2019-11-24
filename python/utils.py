@@ -779,10 +779,7 @@ def get_airr_line(line, iseq, partition=None, debug=False):
         elif akey == 'junction':
             aline[akey] = get_cdr3_seq(line, iseq)
         elif akey == 'junction_aa':
-            if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
-                from Bio.Seq import Seq
-            cdr3_seq = aline.get('junction', get_cdr3_seq(line, iseq))  # should already be in there, since we're using an ordered dict
-            aline[akey] = str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(cdr3_seq)).translate())
+            aline[akey] = ltranslate(aline.get('junction', get_cdr3_seq(line, iseq)))  # should already be in there, since we're using an ordered dict and the previous elif block should've added it
         elif akey == 'clone_id':
             if partition is None:
                 continue
@@ -1015,8 +1012,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
 def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
     # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line>
     if aa:
-        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
-        return str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(line.get('consensus_seq', cons_seq_of_line(line)))).translate())
+        return ltranslate(line.get('consensus_seq', cons_seq_of_line(line)))
     else:  # this is fairly slow
         return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
 
@@ -2458,22 +2454,27 @@ def process_input_line(info, skip_literal_eval=False):
             raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
 
 # ----------------------------------------------------------------------------------------
+def ltranslate(nuc_seq):  # local file translation function
+    if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
+        from Bio.Seq import Seq
+    bseq = sys.modules['Bio.Seq']
+    return str(bseq.Seq(pad_nuc_seq(nuc_seq)).translate())  # the padding is annoying, but it's extremely common for bcr sequences to have lengths not a multiple of three (e.g. because out out of frame rearrangements), so easier to just always check for it
+
+# ----------------------------------------------------------------------------------------
 def get_cdr3_seq(info, iseq):  # NOTE includeds both codons, i.e. not the same as imgt definition
     return info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3]    
 
 # ----------------------------------------------------------------------------------------
-def add_naive_seq_aa(line):
+def add_naive_seq_aa(line):  # NOTE similarity to block in add_extra_column()
     if 'naive_seq_aa' in line:
         return
-    if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
-    line['naive_seq_aa'] = str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(line['naive_seq'])).translate())
+    line['naive_seq_aa'] = ltranslate(line['naive_seq'])
 
 # ----------------------------------------------------------------------------------------
-def add_seqs_aa(line):
+def add_seqs_aa(line):  # NOTE similarity to block in add_extra_column()
     if 'seqs_aa' in line:
         return
-    if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
-    line['seqs_aa'] = [str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(s)).translate()) for s in line['seqs']]
+    line['seqs_aa'] = [ltranslate(s) for s in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
 def pad_nuc_seq(nseq):  # if length not multiple of three, pad on right with Ns
@@ -2504,12 +2505,10 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         outfo[key] = cons_seq_of_line(info)
     elif key == 'consensus_seq_aa':
         outfo[key] = cons_seq_of_line(info, aa=True)
-    elif key == 'naive_seq_aa':
-        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
-        outfo[key] = str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(info['naive_seq'])).translate())
-    elif key == 'seqs_aa':
-        if 'Bio.Seq' not in sys.modules: from Bio.Seq import Seq  # import is frequently slow af
-        outfo[key] = [str(sys.modules['Bio.Seq'].Seq(pad_nuc_seq(s)).translate()) for s in info['seqs']]
+    elif key == 'naive_seq_aa':  # NOTE similarity to add_naive_seq_aa()
+        outfo[key] = ltranslate(info['naive_seq'])
+    elif key == 'seqs_aa':  # NOTE similarity to add_seqs_aa()
+        outfo[key] = [ltranslate(s) for s in info['seqs']]
     elif key in linekeys['hmm'] + linekeys['sw'] + linekeys['simu']:  # these are added elsewhere
         if definitely_add_all_columns_for_csv:
             if key in io_column_configs['lists']:
@@ -4018,7 +4017,7 @@ def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have w
             seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):  # Bio.SeqIO takes too goddamn long to import
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):
     if ftype is None:
         suffix = getsuffix(fname)
         if suffix == '.fa' or suffix == '.fasta':

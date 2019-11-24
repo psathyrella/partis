@@ -19,8 +19,6 @@ class PartitionPlotter(object):
         self.args = args
         import plotting
         self.plotting = sys.modules['plotting']
-        from Bio.Seq import Seq
-        self.Seq = sys.modules['Bio.Seq']
 
         self.n_clusters_per_joy_plot = 50
         self.n_max_joy_plots = 30
@@ -51,7 +49,7 @@ class PartitionPlotter(object):
             # print '  out of frame: adding %s' % ((3 - len(naive_cdr3_seq) % 3) * 'N')
             naive_cdr3_seq += (3 - len(naive_cdr3_seq) % 3) * 'N'
             title += ' (out of frame)'
-        title = self.Seq.Seq(naive_cdr3_seq).translate() + title
+        title = utils.ltranslate(naive_cdr3_seq) + title
         return title
 
     # # ----------------------------------------------------------------------------------------

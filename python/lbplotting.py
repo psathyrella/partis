@@ -191,8 +191,6 @@ def plot_bcr_phylo_kd_vals(plotdir, event):
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_target_attraction(plotdir, event):  # plots of which sequences are going toward which targets
-    from Bio.Seq import Seq
-
     fig, ax = plotting.mpl_init()
 
     # affinity vs stuff:

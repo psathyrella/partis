@@ -5,7 +5,6 @@ csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv field
 import argparse
 import numpy
 import itertools
-from Bio.Seq import Seq
 import colored_traceback.always
 
 # # example usage:
@@ -85,7 +84,7 @@ def cdr3_translation(info):
     if len(naive_cdr3_seq) % 3 != 0:
         # print '  out of frame: adding %s' % ((3 - len(naive_cdr3_seq) % 3) * 'N')
         naive_cdr3_seq += (3 - len(naive_cdr3_seq) % 3) * 'N'
-    return Seq(naive_cdr3_seq).translate()
+    return utils.ltranslate(naive_cdr3_seq)
 
 # ----------------------------------------------------------------------------------------
 cpaths = [ClusterPath() for _ in range(len(args.infiles))]

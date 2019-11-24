@@ -41,11 +41,8 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def init_aa_stuff(self):
-        if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
-            from Bio.Seq import Seq
-        self.Seq = sys.modules['Bio.Seq']
         codons = itertools.product(utils.nukes + ['N'], repeat=3)  # I cannot for the life of me find anything in Bio that will give me the list of amino acids, wtf, but I'm tired of googling, this will be fine
-        self.all_aa = set([self.Seq.translate(''.join(c)) for c in codons])
+        self.all_aa = set([utils.ltranslate(''.join(c)) for c in codons])
 
     # ----------------------------------------------------------------------------------------
     def get_index(self, info, deps):
@@ -80,8 +77,8 @@ class ParameterCounter(object):
         if len(info['fv_insertion']) > 0:
             nseq = nseq[len(info['fv_insertion']) :]
         if len(nseq) % 3 != 0:
-            nseq += utils.ambiguous_bases[0] * (3 - (len(nseq) % 3))
-        aaseq = self.Seq.translate(nseq)
+            nseq += utils.ambiguous_bases[0] * (3 - (len(nseq) % 3))  # I think I could replace this with the new utils.pad_nuc_seq()
+        aaseq = utils.ltranslate(nseq)
         for aa in self.all_aa:
             self.counts['seq_aa_content'][aa] += aaseq.count(aa)
 
