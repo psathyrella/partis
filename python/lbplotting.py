@@ -753,7 +753,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         json.dump(yamlfo, yfile)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, min_affinity_change=1e-6, n_max_steps=15, only_csv=False, fnames=None, n_per_row=4, debug=False):
+def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, n_per_row=4, debug=False):
     # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
     def check_affinity_changes(affinity_changes):
@@ -770,44 +770,6 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
         # if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:  # this is almost always true, which is fine, and I don't really plan on doing anything to change it soon (it would be nice to at some point use a performance metric gives us credit for differential prediction of different affinity change magnitudes, but oh well)
         #     print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
     # ----------------------------------------------------------------------------------------
-    def get_n_ancestor_vals(node, dtree, line, affinity_changes):
-        # find number of steps/ancestors to the nearest ancestor with lower affinity than <node>'s
-        #   - also finds the corresponding distance, which is to the lower end of the branch containing the corresponding affinity-increasing mutation
-        #   - this is chosen so that <n_steps> and <branch_len> are both 0 for the node at the bottom of a branch on which affinity increases, and are *not* the distance *to* the lower-affinity node
-        #   - because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
-        #   - <min_affinity_change> is just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd) (note that at least for now, and with default settings, the affinity changes should all be pretty similar, and not small)
-        this_affinity = utils.per_seq_val(line, 'affinities', node.taxon.label)
-        if debug:
-            print '     %12s %12s %8s %9.4f' % (node.taxon.label, '', '', this_affinity)
-    
-        ancestor_node = node
-        chosen_ancestor_affinity = None
-        n_steps, branch_len  = 0, 0.
-        while n_steps < n_max_steps:  # note that if we can't find an ancestor with worse affinity, we don't plot the node
-            if ancestor_node is dtree.seed_node:
-                break
-            ancestor_distance = ancestor_node.edge_length  # distance from current <ancestor_node> to its parent (who in the next line becomes <ancestor_node>)
-            ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
-            ancestor_uid = ancestor_node.taxon.label
-            if ancestor_uid not in line['unique_ids']:
-                print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, node.taxon.label)
-                break
-            ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
-            if this_affinity - ancestor_affinity > min_affinity_change:  # if we found an ancestor with lower affinity, we're done
-                chosen_ancestor_affinity = ancestor_affinity
-                affinity_changes.append(this_affinity - ancestor_affinity)
-                break
-            if debug:
-                print '     %12s %12s %8.4f %9.4f%s' % ('', ancestor_uid, branch_len, ancestor_affinity, utils.color('green', ' x') if ancestor_node is dtree.seed_node else '')
-            n_steps += 1
-            branch_len += ancestor_distance
-    
-        if chosen_ancestor_affinity is None:  # couldn't find ancestor with lower affinity
-            return None, None
-        if debug:
-            print '     %12s %12s %8.4f %9.4f  %s%-9.4f' % ('', ancestor_uid, branch_len, chosen_ancestor_affinity, utils.color('red', '+'), this_affinity - chosen_ancestor_affinity)
-        return n_steps, branch_len
-    # ----------------------------------------------------------------------------------------
     def get_plotvals(line, xvar):
         plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
@@ -819,7 +781,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
             lbval = line['tree-info']['lb'][lb_metric][uid]  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if lb_metric == 'lbr' and lbval == 0:  # lbr equals 0 should really be treated as None/missing
                 continue
-            n_steps, branch_len = get_n_ancestor_vals(node, dtree, line, affinity_changes)  # also adds to <affinity_changes>
+            n_steps, branch_len = treeutils.get_n_ancestors_to_affy_change(node, dtree, line, affinity_changes=affinity_changes, also_return_branch_len=True, debug=debug)  # also adds to <affinity_changes>
             if n_steps is None:
                 continue
             plotvals[xvar].append(n_steps if xvar == 'n-ancestor' else branch_len)

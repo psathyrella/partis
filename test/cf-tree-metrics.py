@@ -200,7 +200,7 @@ def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
                 for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
     elif metric_method == 'dtr':
         if args.dtr_path is None:  # training
-            return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg) for cg in treeutils.cgroups]
+            return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg, tvar) for cg in treeutils.cgroups for tvar in treeutils.dtr_targets[cg]]
         else:  # testing
             return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False, cg=cg) for cg in treeutils.cgroups]  # TODO not sure it's really best to hard code this, but maybe it is
     else:
