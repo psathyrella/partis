@@ -60,7 +60,7 @@ def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb meth
 per_seq_metrics = ['lbi', 'lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons'] + treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
 mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
-                           'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-dtr' : 'within-family dtr', 'among-families-dtr' : 'among-families dtr'},
+                           'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'within-family dtr', 'within-families-delta-affinity-dtr' : 'within-family dtr', 'among-families-affinity-dtr' : 'among-families dtr'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'cons-seq-shm-nuc' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
 def mtitlestr(pchoice, lbm, short=False):
     if pchoice == 'per-cluster' and 'cons-dist' in lbm:

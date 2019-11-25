@@ -160,7 +160,7 @@ def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
     model.fit(dtrfo['in'], dtrfo['out'])  #, sample_weight=dtrfo['weights'])
 
     tmpkeys = [k for k in cfgvals if k != 'vars' and (k in kwargs or k in base_kwargs)]  # don't want to print the inapplicable ones
-    print '    %s %s (%d observations in %.1fs):  %s' % (cgroup, tvar, len(dtrfo['in']), time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys)))
+    print '    %s-families %s (%d observations in %.1fs):  %s' % (utils.color('green', cgroup.split('-')[0]), utils.color('blue', tvar), len(dtrfo['in']), time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys)))
     print '         feature importances:'
     print '                               mean   err'
     for iv, vname in enumerate([v for pc in pchoices for v in cfgvals['vars'][cgroup][pc]]):
@@ -1420,7 +1420,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                         if n_steps is None:
                             continue
                         tmpvals['in'].append(dtr_invals[cg][iseq])
-                        tmpvals['out'].append(n_steps)
+                        tmpvals['out'].append(-n_steps)
                     tfo['in'] += tmpvals['in']
                     tfo['out'] += tmpvals['out']
                 else:

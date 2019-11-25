@@ -176,9 +176,9 @@ def rel_affy_str(use_relative_affy, metric):
     return '-relative' if use_relative_affy and metric == 'lbi' else ''
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relative_affy=False, cg=None):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
+def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relative_affy=False, cg=None, tv=None):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
     if metric == 'dtr':
-        assert cg is not None
+        assert cg is not None and tv is not None
     if metric in ['lbi', 'lbr']:  # NOTE using <metric> and <metric_method> for slightly different but overlapping things: former is the actual metric name, whereas setting the latter says we want a non-lb metric (necessary because by default we want to calculate lbi and lbr, but also be able treat lbi and lbr separately when plotting)
         plotdir = get_tree_metric_plotdir(varnames, vstr)
         old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (plotdir, metric, x_axis_label, rel_affy_str(use_relative_affy, metric))  # just for backwards compatibility, could probably remove at some point (note: not updating this when I'm adding non-lb metrics like shm)
@@ -187,8 +187,8 @@ def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relativ
             return old_path
     else:
         plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric)
-    vs_str = '%s%s-vs%s-%s' % (cg+'-' if cg is not None else '', metric, rel_affy_str(use_relative_affy, metric), x_axis_label)
-    return '%s/true-tree-metrics/%s%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (plotdir, cg+'-' if cg is not None else '', metric, vs_str, vs_str)
+    vs_str = '%s%s%s-vs%s-%s' % (cg+'-' if cg is not None else '', tv+'-' if tv is not None else '', metric, rel_affy_str(use_relative_affy, metric), x_axis_label)
+    return '%s/true-tree-metrics/%s%s%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (plotdir, cg+'-' if cg is not None else '', tv+'-' if tv is not None else '', metric, vs_str, vs_str)
 
 # ----------------------------------------------------------------------------------------
 def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
@@ -202,7 +202,7 @@ def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
         if args.dtr_path is None:  # training
             return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg, tvar) for cg in treeutils.cgroups for tvar in treeutils.dtr_targets[cg]]
         else:  # testing
-            return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False, cg=cg) for cg in treeutils.cgroups]  # TODO not sure it's really best to hard code this, but maybe it is
+            return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False, cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]  # TODO not sure it's really best to hard code this, but maybe it is
     else:
         return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity', use_relative_affy=False)]  # TODO not sure it's really best to hard code this, but maybe it is
 
@@ -609,7 +609,10 @@ def get_tree_metrics(args):
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         if not args.dry:
-            utils.run_cmds(cmdfos, debug='write:get-tree-metrics.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs)
+            logstr = 'get-tree-metrics'
+            if args.metric_method == 'dtr':
+                logstr += '-train' if args.dtr_path is None else '-test'
+            utils.run_cmds(cmdfos, debug='write:%s.log'%logstr, batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs)
 
 # ----------------------------------------------------------------------------------------
 all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot']
