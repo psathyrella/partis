@@ -514,7 +514,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return fn
 
 # ----------------------------------------------------------------------------------------
-def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 100., 1.), dbgstr=None, debug=False):
+def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 100., 2.), dbgstr=None, debug=False):
     # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot (i.e. are affinity, N ancestors, or branch length). On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
     xia = xvar == 'affinity'
     xkey = 'mean_%s_ptiles' % xvar
@@ -532,10 +532,13 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
     for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
         final_xvar_vals = [pt for lb, pt in zip(plotvals[lb_metric], corr_ptile_vals if xia else plotvals[xvar]) if lb > lb_ptile_val]  # percentiles (if xia, else plain xvals [i.e. N ancestors or branch length]) corresponding to lb greater than <lb_ptile_val> (i.e. the ptiles for the x vals that you'd get if you took all the lb values greater than that)
+        tmp_ptvals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
         if len(final_xvar_vals) == 0:
             if debug: print '   %5.0f    no vals' % percentile
+            mfcn = max if xia else min  # if xvar is affinity, we want the max value if we've run out of values, whereas if it's branch length or N ancestors we want the min
+            tmp_ptvals[xkey].append(mfcn(corr_ptile_vals if xia else plotvals[xvar]))  # kind of hackey, but I think ok (if the ptile is too high [e.g. ptile is 99 but there's only 10 values total] we just take 1
+            tmp_ptvals['perfect_vals'].append(mfcn(perf_ptile_vals if xia else sorted_xvals))
             continue
-        tmp_ptvals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
         tmp_ptvals[xkey].append(float(numpy.mean(final_xvar_vals)))
 
         # make a "perfect" line using the actual x values, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
@@ -559,13 +562,37 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
     return tmp_ptvals
 
 # ----------------------------------------------------------------------------------------
-def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, xlabel=None, ylabel='?', title=None, fnames=None, ptile_range_tuple=(50., 100., 1.), true_inf_str='?', n_clusters=None, iclust=None, n_per_row=4):
+def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind of duplicates code in cf-tree-metrics.py (well except there we're averaging the *difference* between us and perfect
+    if debug:
+        print_var = 'lb_ptiles' # 'mean_%s_ptiles'%xvar
+        fstr = '%5.1f' if ('affinity' in print_var or print_var == 'lb_ptiles') else '%4.2f'
+        for iclust in range(n_clusters):
+            print '%3d   %s' % (iclust, '  '.join([fstr%v for v in ptile_vals['iclust-%d'%iclust][print_var]]))
+    if len(ptile_vals) != n_clusters:
+        raise Exception('got n_clusters %d but %d ptile vals' % (n_clusters, len(ptile_vals)))
+    outvals = {k : [] for k in ptile_vals['iclust-0']}
+    # for iclust in range(n_clusters):
+    for ival in range(len(ptile_vals['iclust-0']['lb_ptiles'])):
+        for tkey in outvals:
+            tmpvals = [ptile_vals['iclust-%d'%iclust][tkey][ival] for iclust in range(n_clusters)]
+            if tkey == 'lb_ptiles':  # they should all be the same
+                assert len(set(tmpvals)) == 1
+                oval = tmpvals[0]
+            else:
+                oval = numpy.mean(tmpvals)
+            outvals[tkey].append(oval)
+    if debug:
+        print '  --> %s' % '  '.join([fstr%v for v in outvals[print_var]])
+    return outvals
+
+# ----------------------------------------------------------------------------------------
+def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, xlabel=None, ylabel='?', title=None, fnames=None, ptile_range_tuple=(50., 100., 1.), true_inf_str='?', n_clusters=None, iclust=None, within_cluster_average=False, xmean=50, n_per_row=4):
     if len(tmp_ptvals['lb_ptiles']) == 0:
         return
 
     fig, ax = plotting.mpl_init()
     xia = xvar == 'affinity'
-    xmean = 50 if xia else numpy.mean(plotvals[xvar])  # NOTE for the latter case, this is mean of "xvar", which is the x axis on the scatter plot, but here it's the y axis on the ptile plot
+    # xmean = 50 if plotvals is None else numpy.mean(plotvals[xvar])  # NOTE for the latter case, this is mean of "xvar", which is the x axis on the scatter plot, but here it's the y axis on the ptile plot
     xkey = 'mean_%s_ptiles' % xvar
     if xlabel is None:
         xlabel = xvar
@@ -592,7 +619,10 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, plotvals=None, xlabel=N
         ptile_ylabel = 'mean %s\nsince affinity increase' % xlabel
 
     if n_clusters is not None and n_clusters > 1:
-        fig.text(0.37, 0.88, 'choosing among %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
+        if within_cluster_average:
+            fig.text(0.25, 0.88, 'within-cluster average over %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
+        else:
+            fig.text(0.37, 0.88, 'choosing among %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
     tstr = '%s tree' % true_inf_str
     fn = plotting.mpl_finish(ax, plotdir, plotname, xbounds=ptile_range_tuple, ybounds=ybounds, leg_loc=leg_loc,
                              title='potential thresholds: %s' % (('%s, iclust %d'%(tstr, iclust)) if iclust is not None else ('%ss, all clusters'%tstr)),
@@ -663,9 +693,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         if iclust is None and vspstuff is None: # or iclust < n_per_row:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
-    def ptile_plotname(iclust=None, vspstuff=None):
+    def ptile_plotname(iclust=None, vspstuff=None, extra_str=None):
         lbstr, affystr, clstr, _, _, _ = tmpstrs(iclust, vspstuff)
-        return '%s-vs-%s-%s-tree-ptiles%s' % (lbstr, affystr, true_inf_str, clstr)
+        return '%s-vs-%s-%s-tree-ptiles%s%s' % (lbstr, affystr, true_inf_str, clstr, '' if extra_str is None else '-'+extra_str )
     # ----------------------------------------------------------------------------------------
     def getcorr(xvals, yvals):
         return numpy.corrcoef(xvals, yvals)[0, 1]
@@ -730,6 +760,10 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         fnames.insert(len(fnames) - 1, pt_fnames[-1])
     else:  # not sure what's up
         fnames += pt_fnames
+
+    if lb_metric in per_seq_metrics and 'among-families' not in lb_metric and not only_csv:
+        make_ptile_plot(get_mean_ptile_vals(len(lines), ptile_vals['per-seq'], 'affinity'), 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=None, extra_str='within-cluster-average'),
+                        ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True)
 
     if lb_metric in per_seq_metrics and 'within-families' not in lb_metric:
         if per_seq_plotvals[lb_metric].count(0.) == len(per_seq_plotvals[lb_metric]):
@@ -818,8 +852,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
                 tfns.append([])
             tfns[-1].append(fn)
     # ----------------------------------------------------------------------------------------
-    def ptile_plotname(xvar, iclust):
-        return '%s-vs-%s-%s-tree-ptiles%s' % (lb_metric, xvar, true_inf_str, icstr(iclust))
+    def ptile_plotname(xvar, iclust, extra_str=None):
+        return '%s-vs-%s-%s-tree-ptiles%s%s' % (lb_metric, xvar, true_inf_str, icstr(iclust), '' if extra_str is None else '-'+extra_str)
 
     # ----------------------------------------------------------------------------------------
     if fnames is None:  # no real effect (except not crashing) since we're not returning it any more
@@ -852,17 +886,21 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
             ptile_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
             if not only_csv:
                 make_scatter_plot(iclust_plotvals, xvar, iclust=iclust, tfns=sc_fnames if iclust < n_per_row else None)
-                make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), plotvals=iclust_plotvals,
+                make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xmean=numpy.mean(iclust_plotvals[xvar]),
                                 xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), true_inf_str=true_inf_str, iclust=iclust, fnames=pt_fnames if iclust < n_per_row else None)
 
         fnames += sc_fnames
         fnames += pt_fnames
 
+        if 'among-families' not in lb_metric and not only_csv:
+            make_ptile_plot(get_mean_ptile_vals(len(lines), ptile_vals['per-seq'], xvar), xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None, extra_str='within-cluster-average'),
+                            xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, xmean=numpy.mean(per_seq_plotvals[xvar]))
+
         if 'within-families' not in lb_metric:
             ptile_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
             if not only_csv:
                 make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
-                make_ptile_plot(ptile_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), plotvals=per_seq_plotvals,
+                make_ptile_plot(ptile_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xmean=numpy.mean(per_seq_plotvals[xvar]),
                                 xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
 
         with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
