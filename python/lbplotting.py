@@ -563,18 +563,18 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
 
 # ----------------------------------------------------------------------------------------
 def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind of duplicates code in cf-tree-metrics.py (well except there we're averaging the *difference* between us and perfect
+    non_empty_iclusts = [iclust for iclust in range(n_clusters) if len(ptile_vals['iclust-%d'%iclust]['lb_ptiles']) > 0]
     if debug:
+        if len(non_empty_iclusts) < n_clusters:
+            print '  removed %d empty iclusts' % (n_clusters - len(non_empty_iclusts))
         print_var = 'lb_ptiles' # 'mean_%s_ptiles'%xvar
         fstr = '%5.1f' if ('affinity' in print_var or print_var == 'lb_ptiles') else '%4.2f'
-        for iclust in range(n_clusters):
-            print '%3d   %s' % (iclust, '  '.join([fstr%v for v in ptile_vals['iclust-%d'%iclust][print_var]]))
-    if len(ptile_vals) != n_clusters:
-        raise Exception('got n_clusters %d but %d ptile vals' % (n_clusters, len(ptile_vals)))
-    outvals = {k : [] for k in ptile_vals['iclust-0']}
-    # for iclust in range(n_clusters):
-    for ival in range(len(ptile_vals['iclust-0']['lb_ptiles'])):
+        for iclust in non_empty_iclusts:
+            print '    %3d   %s' % (iclust, '  '.join([fstr%v for v in ptile_vals['iclust-%d'%iclust][print_var]]))
+    outvals = {k : [] for k in ptile_vals['iclust-%d'%non_empty_iclusts[0]]}
+    for ival in range(len(ptile_vals['iclust-%d'%non_empty_iclusts[0]]['lb_ptiles'])):
         for tkey in outvals:
-            tmpvals = [ptile_vals['iclust-%d'%iclust][tkey][ival] for iclust in range(n_clusters)]
+            tmpvals = [ptile_vals['iclust-%d'%iclust][tkey][ival] for iclust in non_empty_iclusts]
             if tkey == 'lb_ptiles':  # they should all be the same
                 assert len(set(tmpvals)) == 1
                 oval = tmpvals[0]
@@ -582,7 +582,7 @@ def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind
                 oval = numpy.mean(tmpvals)
             outvals[tkey].append(oval)
     if debug:
-        print '  --> %s' % '  '.join([fstr%v for v in outvals[print_var]])
+        print '      --> %s' % '  '.join([fstr%v for v in outvals[print_var]])
     return outvals
 
 # ----------------------------------------------------------------------------------------
