@@ -1358,8 +1358,13 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             with open(dtr_cfg) as yfile:
                 dtr_cfgvals = yaml.load(yfile, Loader=yaml.Loader)
             if 'vars' in dtr_cfgvals:  # format is slightly different in the file (in the file we don't require the explicit split between per-seq and per-cluster variables)
+                allowed_vars = set(v for cg in cgroups for pc in dtr_vars[cg] for v in dtr_vars[cg][pc])
+                cfg_vars = set(v for cg in cgroups for v in dtr_cfgvals['vars'][cg])
+                bad_vars = cfg_vars - allowed_vars
+                if len(bad_vars) > 0:
+                    raise Exception('unexpected dtr var%s (%s) in cfg file %s' % (utils.plural(len(bad_vars)), ', '.join(bad_vars), dtr_cfg))
                 for cg in cgroups:
-                    dtr_cfgvals['vars'][cg] = {pc : [v for v in dtr_vars[cg][pc] if v in dtr_cfgvals['vars'][cg]] for pc in pchoices}  # ok this is kind of ugly
+                    dtr_cfgvals['vars'][cg] = {pc : [v for v in dtr_vars[cg][pc] if v in dtr_cfgvals['vars'][cg]] for pc in pchoices}  # loop over the allowed vars here so the order is always the same
 
         for tk in set(default_dtr_options) - set(dtr_cfgvals):  # set any missing ones to the defaults
             if tk == 'vars':
