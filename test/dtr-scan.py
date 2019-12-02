@@ -14,7 +14,6 @@ parser.add_argument('action', choices=['train', 'test'])
 parser.add_argument('--label', default='test-dtr-v0')
 parser.add_argument('--base-outdir')
 parser.add_argument('--overwrite', action='store_true')
-parser.add_argument('--n-max-queries', type=int)
 args = parser.parse_args()
 
 # vsets = {  # NOTE if you change the allowed vars in treeutils, these will of course not reflect that
@@ -61,8 +60,6 @@ for ensemble in ['grad-boost']: #, 'ada-boost', 'forest']: #, 'bag']:
                     cmd += ' --base-outdir %s' % args.base_outdir
                 if args.overwrite:
                     cmd += ' --overwrite'
-                if args.n_max_queries is not None:
-                    cmd += ' --n-max-queries %d' % args.n_max_queries
                 if args.action == 'train':
                     if not os.path.exists(workdir):
                         os.makedirs(workdir)
@@ -95,5 +92,5 @@ for ensemble in ['grad-boost']: #, 'ada-boost', 'forest']: #, 'bag']:
                 cmdfos.append(cmdfo)
 
 print '  starting %d jobs' % len(cmdfos)
-n_max_procs = 10 #utils.auto_n_procs()
+n_max_procs = 7 #utils.auto_n_procs()
 utils.run_cmds(cmdfos, n_max_procs=n_max_procs, proc_limit_str='test/cf-tree-metrics', debug='write:cf-tree-metrics.log')
