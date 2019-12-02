@@ -41,7 +41,7 @@ basecmds = {
 basecmd = basecmds[args.label]
 
 basecmd += ' --actions get-tree-metrics --metric-method dtr'
-training_seed = 0  # just for output file names, I don't really want to keep track of here, but utils.run_cmds() requires it
+training_seed = 0
 
 cmdfos = []
 for ensemble in ['grad-boost']: #, 'ada-boost', 'forest']: #, 'bag']:
