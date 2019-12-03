@@ -3052,9 +3052,9 @@ cmdfo_defaults = {  # None means by default it's absent
 # notes:
 #  - set sleep to False if your commands are going to run really really really quickly
 #  - unlike everywhere else, <debug> is not a boolean, and is either None (swallow out, print err)), 'print' (print out and err), 'write' (write out and err to file called 'log' in logdir), or 'write:<log file name>' (same as 'write', but you set your own base name)
-#  - <proc_limit_str> must be set if <n_max_procs> is set
+#  - if both <n_max_procs> and <proc_limit_str> are set, it uses limit_procs() (i.e. a ps call) to count the total number of <proc_limit_str> running on the machine; whereas if only <n_max_procs> is set, it counts only subprocesses that it is itself running
 def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batch_system=None, batch_options=None, batch_config_fname=None,
-             debug=None, ignore_stderr=False, sleep=True, n_max_procs=None, proc_limit_str=None):
+             debug=None, ignore_stderr=False, sleep=True, n_max_procs=None, proc_limit_str=None, allow_failure=False):
     if len(cmdfos) == 0:
         raise Exception('zero length cmdfos')
     if n_max_tries is None:
@@ -3088,7 +3088,7 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                status = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success)
+                status = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, allow_failure=allow_failure)
                 if status == 'restart':
                     procs[iproc] = run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)
                     n_tries_list[iproc] += 1
@@ -3131,16 +3131,17 @@ def get_slurm_node(errfname):
     return nodelist
 
 # ----------------------------------------------------------------------------------------
-# deal with a process once it's finished (i.e. check if it failed, and restart if so)
-def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_system=None, debug=None, ignore_stderr=False, clean_on_success=False):
+# deal with a process once it's finished (i.e. check if it failed, and tell the calling fcn to restart it if so)
+def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_system=None, debug=None, ignore_stderr=False, clean_on_success=False, allow_failure=False):
     procs[iproc].communicate()
+    outfname = cmdfo['outfname']
 
     # success
     if procs[iproc].returncode == 0:
-        if not os.path.exists(cmdfo['outfname']):
-            print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit: %s' % (iproc, cmdfo['outfname'])  # give a networked file system some time to catch up
+        if not os.path.exists(outfname):
+            print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit: %s' % (iproc, outfname)  # give a networked file system some time to catch up
             time.sleep(0.5)
-        if os.path.exists(cmdfo['outfname']):
+        if os.path.exists(outfname):
             process_out_err(cmdfo['logdir'], extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)
             procs[iproc] = None  # job succeeded
             if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
@@ -3149,14 +3150,14 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
                         os.remove(fn)
                 if os.path.isdir(cmdfo['workdir']):
                     os.rmdir(cmdfo['workdir'])
-            return
+            return 'ok'
 
     # handle failure
     print '    proc %d try %d' % (iproc, n_tried),
-    if procs[iproc].returncode == 0 and not os.path.exists(cmdfo['outfname']):  # don't really need both the clauses
-        print 'succeeded but output is missing: %s' % cmdfo['outfname']
+    if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
+        print 'succeeded but output is missing: %s' % outfname
     else:
-        print 'failed with exit code %d (output %s)' % (procs[iproc].returncode, ('exists: %s' % cmdfo['outfname']) if os.path.exists(cmdfo['outfname']) else 'is missing')
+        print 'failed with exit code %d, %s: %s' % (procs[iproc].returncode, 'but output exists' if os.path.exists(outfname) else 'and output is missing',  outfname)
     if batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
         if 'nodelist' in cmdfo:  # if we're doing everything from within an existing slurm allocation
             nodelist = cmdfo['nodelist']
@@ -3171,9 +3172,9 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         # except subprocess.CalledProcessError as err:
         #     print '        failed to ssh:'
         #     print err
-    if os.path.exists(cmdfo['outfname'] + '.progress'):  # glomerator.cc is the only one that uses this at the moment
-        print '        progress file (%s):' % (cmdfo['outfname'] + '.progress')
-        print pad_lines(subprocess.check_output(['cat', cmdfo['outfname'] + '.progress']), padwidth=12)
+    if os.path.exists(outfname + '.progress'):  # glomerator.cc is the only one that uses this at the moment
+        print '        progress file (%s):' % (outfname + '.progress')
+        print pad_lines(subprocess.check_output(['cat', outfname + '.progress']), padwidth=12)
 
     # ----------------------------------------------------------------------------------------
     def logfname(ltype):
@@ -3192,17 +3193,18 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
 
     if n_tried < n_max_tries:
         print getlogstrs(['err'])
-        print '    restarting proc %d' % iproc
+        print '      restarting proc %d' % iproc
         return 'restart'
     else:
-        if n_tried > 1:
-            failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n  %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
-        else:
-            failstr = 'subprocess failed with command:\n  %s\n' % cmdfo['cmd_str']
+        failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
         failstr += getlogstrs(['err'])
-        raise Exception(failstr)
+        if allow_failure:
+            print '      %s\n      not raising exception for failed process' % failstr
+            procs[iproc] = None  # let it keep running any other processes
+        else:
+            raise Exception(failstr)
 
-    return 'ok'
+    return 'failed'
 
 # ----------------------------------------------------------------------------------------
 def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, ignore_stderr=False):
