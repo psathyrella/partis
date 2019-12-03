@@ -1,20 +1,36 @@
 #!/usr/bin/env python
 import sys
+import json
 import colored_traceback.always
 import os
 import yaml
 import argparse
+import numpy
+import operator
 
 sys.path.insert(1, './python')
 import utils
 import treeutils
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('action', choices=['train', 'test'])
+parser.add_argument('action', choices=['train', 'test', 'plot'])
 parser.add_argument('--label', default='test-dtr-v0')
 parser.add_argument('--base-outdir')
+parser.add_argument('--plot-seed', type=int)
 parser.add_argument('--overwrite', action='store_true')
 args = parser.parse_args()
+
+
+# ----------------------------------------------------------------------------------------
+def getptvals(yfname, choice_grouping, target_var, per_x='per-seq', iclust=None, min_ptile_to_plot=75.):  # NOTE duplicates code in cf-tree-metrics.py
+    with open(yfname) as yfile:
+        yamlfo = json.load(yfile)  # too slow with yaml
+    ytmpfo = yamlfo['percentiles'][per_x]
+    if per_x == 'per-seq':
+        ytmpfo = ytmpfo['all-clusters' if iclust is None else 'iclust-%d' % iclust]
+    else:
+        ytmpfo = ytmpfo[choice_grouping]
+    return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo['mean_%s_ptiles' % target_var], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
 
 # vsets = {  # NOTE if you change the allowed vars in treeutils, these will of course not reflect that
 #     'all' : {
@@ -43,7 +59,7 @@ basecmd = basecmds[args.label]
 basecmd += ' --actions get-tree-metrics --metric-method dtr'
 training_seed = 0
 
-cmdfos = []
+cmdfos, plotfo = [], []
 for ensemble in ['grad-boost']: #, 'ada-boost', 'forest']: #, 'bag']:
     for n_estimators in [30, 100, 500]:
         for max_depth in [5, 10]:
@@ -77,13 +93,20 @@ for ensemble in ['grad-boost']: #, 'ada-boost', 'forest']: #, 'bag']:
                     allfns = [treeutils.tmfname(plotdir, 'dtr', 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
                     outfname = allfns[-1]
                     logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
+                elif args.action == 'plot':
+                    plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, args.plot_seed, xtrastrs['test'])
                 else:
                     assert False
+
+                if args.action == 'plot':
+                    pfo = {'cfg' : {'n_estimators' : n_estimators, 'max_depth' : max_depth, 'n_train_per_family' : n_train_per_family},
+                           'plotdir' : plotdir}
+                    plotfo.append(pfo)
+                    continue
 
                 print '    %s' % logdir
                 if not os.path.exists(logdir):
                     os.makedirs(logdir)
-                print cmd
 
                 # utils.simplerun(cmd, debug=True) #, dryrun=True)
                 cmdfo = {'cmd_str' : cmd,
@@ -93,6 +116,19 @@ for ensemble in ['grad-boost']: #, 'ada-boost', 'forest']: #, 'bag']:
                 }  # I don't think I actually use the work dir
                 cmdfos.append(cmdfo)
 
-print '  starting %d jobs' % len(cmdfos)
-n_max_procs = 7 #utils.auto_n_procs()
-utils.run_cmds(cmdfos, n_max_procs=n_max_procs, proc_limit_str='test/cf-tree-metrics', debug='write:cf-tree-metrics.log')
+if args.action == 'plot':
+    for cg in treeutils.cgroups:
+        for tv in treeutils.dtr_targets[cg]:
+            if cg == 'within-families':
+                continue
+            print '  %s %s' % (cg, tv)
+            print '    %s' % ' '.join(tuple('%20s'%k for k in sorted(plotfo[0]['cfg'])))
+            for pfo in plotfo:
+                yfn = treeutils.tmfname(pfo['plotdir'], 'dtr', 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv)
+                diff_vals = getptvals(yfn, cg, tv)
+                diff_to_perfect = numpy.mean(diff_vals)
+                print '     %s       %6.2f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])
+else:
+    print '  starting %d jobs' % len(cmdfos)
+    n_max_procs = 7 #utils.auto_n_procs()
+    utils.run_cmds(cmdfos, n_max_procs=n_max_procs, proc_limit_str='test/cf-tree-metrics', debug='write:cf-tree-metrics.log')
