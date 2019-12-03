@@ -67,13 +67,15 @@ for ensemble in ['grad-boost']: #, 'ada-boost', 'forest']: #, 'bag']:
                         yaml.dump({'ensemble' : ensemble, 'n_estimators' : n_estimators, 'max_depth' : max_depth, 'n_train_per_family' : n_train_per_family}, cfile, width=200)
                     cmd += ' --iseed %d --extra-plotstr %s' % (training_seed, xtrastrs['train'])
                     modelfnames = [treeutils.dtrfname(modeldir, cg, tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
-                    outfname = modelfnames[0]
+                    outfname = modelfnames[-1]
                     # logdir = os.path.dirname(outfname)  # NOTE has to be the '%s-dtr-models' dir (or at least can't be the '%s-plots' dir, since cf-tree-metrics uses the latter, and the /{out,err} files overwrite each other
                     logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, training_seed, xtrastrs['train'])
                 elif args.action == 'test':
                     cmd += ' --dtr-path %s --extra-plotstr %s' % (modeldir, xtrastrs['test'])
                     log_seed = 0  # put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
-                    outfname = ['%s/%s/seed-%d/dtr/%s-plots/true-tree-metrics/%s-dtr/%s-dtr-vs-affinity-ptiles/%s-dtr-vs-affinity-true-tree-ptiles-all-clusters.yaml' % (args.base_outdir, args.label, log_seed, xtrastrs['test'], cg, cg, cg) for cg in treeutils.cgroups][0]
+                    plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
+                    allfns = [treeutils.tmfname(plotdir, 'dtr', 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
+                    outfname = allfns[-1]
                     logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
                 else:
                     assert False

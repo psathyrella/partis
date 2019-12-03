@@ -3138,7 +3138,7 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
     # success
     if procs[iproc].returncode == 0:
         if not os.path.exists(cmdfo['outfname']):
-            print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit...' % iproc  # give a networked file system some time to catch up
+            print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit: %s' % (iproc, cmdfo['outfname'])  # give a networked file system some time to catch up
             time.sleep(0.5)
         if os.path.exists(cmdfo['outfname']):
             process_out_err(cmdfo['logdir'], extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)

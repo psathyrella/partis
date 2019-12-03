@@ -176,7 +176,7 @@ def rel_affy_str(use_relative_affy, metric):
     return '-relative' if use_relative_affy and metric == 'lbi' else ''
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relative_affy=False, cg=None, tv=None):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
+def get_tree_metric_fname(varnames, vstr, metric, x_axis_label, use_relative_affy=False, cg=None, tv=None):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
     if metric == 'dtr':
         assert cg is not None and tv is not None
     if metric in ['lbi', 'lbr']:  # NOTE using <metric> and <metric_method> for slightly different but overlapping things: former is the actual metric name, whereas setting the latter says we want a non-lb metric (necessary because by default we want to calculate lbi and lbr, but also be able treat lbi and lbr separately when plotting)
@@ -187,14 +187,14 @@ def get_tree_metric_fname(varnames, vstr, metric, x_axis_label=None, use_relativ
             return old_path
     else:
         plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric)
-    vs_str = '%s%s%s-vs%s-%s' % (cg+'-' if cg is not None else '', tv+'-' if tv is not None else '', metric, rel_affy_str(use_relative_affy, metric), x_axis_label)
-    return '%s/true-tree-metrics/%s%s%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (plotdir, cg+'-' if cg is not None else '', tv+'-' if tv is not None else '', metric, vs_str, vs_str)
+    assert not use_relative_affy  # would have to be updated
+    return treeutils.tmfname(plotdir, metric, x_axis_label, cg=cg, tv=tv)
 
 # ----------------------------------------------------------------------------------------
 def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
     if metric_method is None:
         ura_vals = [False] #, True]  # this is hackey, but maybe I want to start looking at relative affy again
-        return [get_tree_metric_fname(varnames, vstr, mtmp, x_axis_label=xatmp, use_relative_affy=use_relative_affy)
+        return [get_tree_metric_fname(varnames, vstr, mtmp, xatmp, use_relative_affy=use_relative_affy)
                 for mtmp, cfglist in lbplotting.lb_metric_axis_cfg(args.metric_method)
                 for xatmp, _ in cfglist
                 for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
@@ -202,9 +202,9 @@ def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
         if args.dtr_path is None:  # training
             return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg, tvar) for cg in treeutils.cgroups for tvar in treeutils.dtr_targets[cg]]
         else:  # testing
-            return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]  # TODO not sure it's really best to hard code this, but maybe it is
+            return [get_tree_metric_fname(varnames, vstr, metric_method, 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]  # TODO not sure it's really best to hard code this, but maybe it is
     else:
-        return [get_tree_metric_fname(varnames, vstr, metric_method, x_axis_label='affinity')]  # TODO not sure it's really best to hard code this, but maybe it is
+        return [get_tree_metric_fname(varnames, vstr, metric_method, 'affinity')]  # TODO not sure it's really best to hard code this, but maybe it is
 
 # ----------------------------------------------------------------------------------------
 def get_comparison_plotdir():
@@ -386,7 +386,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
         obs_frac, dbgstr = get_obs_frac(vlists, varnames)
         if debug:
             print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
-        yfname = get_tree_metric_fname(varnames, vstrs, metric, x_axis_label=ptilestr, use_relative_affy=args.use_relative_affy)  # why is this called vstrs rather than vstr?
+        yfname = get_tree_metric_fname(varnames, vstrs, metric, ptilestr, use_relative_affy=args.use_relative_affy)  # why is this called vstrs rather than vstr?
         try:
             with open(yfname) as yfile:
                 yamlfo = json.load(yfile)  # too slow with yaml
@@ -415,7 +415,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
         print '        %s: %d families' % (mkey, len(vstrs_list))
         print '     %s   iclust' % get_varname_str()
         for iclust, vstrs in vstrs_list:
-            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, x_axis_label=ptilestr, use_relative_affy=args.use_relative_affy))
+            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, ptilestr, use_relative_affy=args.use_relative_affy))
             n_printed += 1
             if n_printed >= n_max_print:
                 print '             [...]'

@@ -127,6 +127,12 @@ def dtrfname(dpath, cg, tvar):
     return '%s/%s-%s-dtr-model.pickle' % (dpath, cg, tvar)
 
 # ----------------------------------------------------------------------------------------
+def tmfname(plotdir, metric, x_axis_label, cg=None, tv=None, use_relative_affy=False):  # tree metric fname
+    metric_str = metric if cg is None else '-'.join([cg, tv, metric])
+    vs_str = '%s-vs%s-%s' % (metric_str, '-relative' if use_relative_affy and metric == 'lbi' else '', x_axis_label)
+    return '%s/true-tree-metrics/%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (plotdir, metric_str, vs_str, vs_str)  # NOTE has 'true-tree' in there, which is fine for now but may need to change
+
+# ----------------------------------------------------------------------------------------
 def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
     if 'sklearn' not in sys.modules:
         with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
