@@ -203,7 +203,7 @@ def simulate():
         if cfo is not None:
             cmdfos.append(cfo)
     if args.n_procs > 1 and len(cmdfos) > 0:
-        utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None)
+        utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None, allow_failure=True)
     print '  bcr-phylo run time: %.1fs' % (time.time() - start)
 
     if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused

@@ -548,7 +548,7 @@ def run_bcr_phylo(args):  # also caches parameters
             print '    %s' % '\n    '.join(cfo['cmd_str'] for cfo in cmdfos)
         else:
             print '      starting %d jobs' % len(cmdfos)
-            utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs)
+            utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, allow_failure=True)
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metrics(args):
@@ -612,7 +612,7 @@ def get_tree_metrics(args):
             logstr = 'get-tree-metrics'
             if args.metric_method == 'dtr':
                 logstr += '-train' if args.dtr_path is None else '-test'
-            utils.run_cmds(cmdfos, debug='write:%s.log'%logstr, batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs)
+            utils.run_cmds(cmdfos, debug='write:%s.log'%logstr, batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, allow_failure=True)
 
 # ----------------------------------------------------------------------------------------
 all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot']
