@@ -60,61 +60,57 @@ basecmd += ' --actions get-tree-metrics --metric-method dtr'
 training_seed = 0
 
 cmdfos, plotfo = [], []
-for ensemble in ['grad-boost']: #, 'ada-boost', 'forest']: #, 'bag']:
-    for n_estimators in [30, 100, 500]:
-        for max_depth in [5, 10]:
-        # for min_samples_leaf in XXX
-            for n_train_per_family in [1, 3, 7]:
-                cmd = basecmd
-                paramstr = 'ensemble_%s_n-estimators_%d_max-depth_%d_n-train-per-family_%d' % (ensemble, n_estimators, max_depth, n_train_per_family)
-                xtrastrs = {s : '%s_%s' % (s, paramstr) for s in ['train', 'test']}
-                modeldir = '%s/%s/seed-%d/dtr/%s-dtr-models' % (args.base_outdir, args.label, training_seed, xtrastrs['train'])
-                workdir = '%s/%s' % (baseworkdir, paramstr)
-                cfgfname = '%s/cfg.yaml' % workdir
-                cmd += ' --dtr-cfg %s' % cfgfname
-                if args.base_outdir is not None:
-                    cmd += ' --base-outdir %s' % args.base_outdir
-                if args.overwrite:
-                    cmd += ' --overwrite'
-                if args.action == 'train':
-                    if not os.path.exists(workdir):
-                        os.makedirs(workdir)
-                    with open(cfgfname, 'w') as cfile:
-                        yaml.dump({'ensemble' : ensemble, 'n_estimators' : n_estimators, 'max_depth' : max_depth, 'n_train_per_family' : n_train_per_family}, cfile, width=200)
-                    cmd += ' --iseed %d --extra-plotstr %s' % (training_seed, xtrastrs['train'])
-                    modelfnames = [treeutils.dtrfname(modeldir, cg, tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
-                    outfname = modelfnames[-1]
-                    # logdir = os.path.dirname(outfname)  # NOTE has to be the '%s-dtr-models' dir (or at least can't be the '%s-plots' dir, since cf-tree-metrics uses the latter, and the /{out,err} files overwrite each other
-                    logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, training_seed, xtrastrs['train'])
-                elif args.action == 'test':
-                    cmd += ' --dtr-path %s --extra-plotstr %s' % (modeldir, xtrastrs['test'])
-                    log_seed = 0  # put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
-                    plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
-                    allfns = [treeutils.tmfname(plotdir, 'dtr', 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
-                    outfname = allfns[-1]
-                    logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
-                elif args.action == 'plot':
-                    plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, args.plot_seed, xtrastrs['test'])
-                else:
-                    assert False
+for n_estimators in [30, 100, 500]:
+    for max_depth in [5, 10, 50]:
+        cfgfo = {'n_estimators' : n_estimators, 'max_depth' : max_depth}
+        cmd = basecmd
+        paramstr = 'n-estimators_%d_max-depth_%d' % (n_estimators, max_depth)
+        xtrastrs = {s : '%s_%s' % (s, paramstr) for s in ['train', 'test']}
+        modeldir = '%s/%s/seed-%d/dtr/%s-dtr-models' % (args.base_outdir, args.label, training_seed, xtrastrs['train'])
+        workdir = '%s/%s' % (baseworkdir, paramstr)
+        cfgfname = '%s/cfg.yaml' % workdir
+        cmd += ' --dtr-cfg %s' % cfgfname
+        if args.base_outdir is not None:
+            cmd += ' --base-outdir %s' % args.base_outdir
+        if args.overwrite:
+            cmd += ' --overwrite'
+        if args.action == 'train':
+            if not os.path.exists(workdir):
+                os.makedirs(workdir)
+            with open(cfgfname, 'w') as cfile:
+                yaml.dump(cfgfo, cfile, width=200)
+            cmd += ' --iseed %d --extra-plotstr %s' % (training_seed, xtrastrs['train'])
+            modelfnames = [treeutils.dtrfname(modeldir, cg, tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
+            outfname = modelfnames[-1]
+            # logdir = os.path.dirname(outfname)  # NOTE has to be the '%s-dtr-models' dir (or at least can't be the '%s-plots' dir, since cf-tree-metrics uses the latter, and the /{out,err} files overwrite each other
+            logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, training_seed, xtrastrs['train'])
+        elif args.action == 'test':
+            cmd += ' --dtr-path %s --extra-plotstr %s' % (modeldir, xtrastrs['test'])
+            log_seed = 0  # put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
+            plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
+            allfns = [treeutils.tmfname(plotdir, 'dtr', 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
+            outfname = allfns[-1]
+            logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
+        elif args.action == 'plot':
+            plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, args.plot_seed, xtrastrs['test'])
+        else:
+            assert False
 
-                if args.action == 'plot':
-                    pfo = {'cfg' : {'n_estimators' : n_estimators, 'max_depth' : max_depth, 'n_train_per_family' : n_train_per_family},
-                           'plotdir' : plotdir}
-                    plotfo.append(pfo)
-                    continue
+        if args.action == 'plot':
+            plotfo.append({'cfg' : cfgfo, 'plotdir' : plotdir})
+            continue
 
-                print '    %s' % logdir
-                if not os.path.exists(logdir):
-                    os.makedirs(logdir)
+        print '    %s' % logdir
+        if not os.path.exists(logdir):
+            os.makedirs(logdir)
 
-                # utils.simplerun(cmd, debug=True) #, dryrun=True)
-                cmdfo = {'cmd_str' : cmd,
-                         'outfname' : outfname,
-                         'logdir' : logdir,
-                         'workdir' : workdir,
-                }  # I don't think I actually use the work dir
-                cmdfos.append(cmdfo)
+        # utils.simplerun(cmd, debug=True) #, dryrun=True)
+        cmdfo = {'cmd_str' : cmd,
+                 'outfname' : outfname,
+                 'logdir' : logdir,
+                 'workdir' : workdir,
+        }  # I don't think I actually use the work dir
+        cmdfos.append(cmdfo)
 
 if args.action == 'plot':
     for cg in treeutils.cgroups:
