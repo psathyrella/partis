@@ -202,7 +202,7 @@ def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
         if args.dtr_path is None:  # training
             return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg, tvar) for cg in treeutils.cgroups for tvar in treeutils.dtr_targets[cg]]
         else:  # testing
-            return [get_tree_metric_fname(varnames, vstr, metric_method, 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]  # TODO not sure it's really best to hard code this, but maybe it is
+            return [get_tree_metric_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]  # TODO not sure it's really best to hard code this, but maybe it is
     else:
         return [get_tree_metric_fname(varnames, vstr, metric_method, 'affinity')]  # TODO not sure it's really best to hard code this, but maybe it is
 

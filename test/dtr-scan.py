@@ -11,6 +11,7 @@ import operator
 sys.path.insert(1, './python')
 import utils
 import treeutils
+import lbplotting
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('action', choices=['train', 'test', 'plot'])
@@ -19,18 +20,6 @@ parser.add_argument('--base-outdir')
 parser.add_argument('--plot-seed', type=int)
 parser.add_argument('--overwrite', action='store_true')
 args = parser.parse_args()
-
-
-# ----------------------------------------------------------------------------------------
-def getptvals(yfname, choice_grouping, target_var, per_x='per-seq', iclust=None, min_ptile_to_plot=75.):  # NOTE duplicates code in cf-tree-metrics.py
-    with open(yfname) as yfile:
-        yamlfo = json.load(yfile)  # too slow with yaml
-    ytmpfo = yamlfo['percentiles'][per_x]
-    if per_x == 'per-seq':
-        ytmpfo = ytmpfo['all-clusters' if iclust is None else 'iclust-%d' % iclust]
-    else:
-        ytmpfo = ytmpfo[choice_grouping]
-    return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo['mean_%s_ptiles' % target_var], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
 
 # vsets = {  # NOTE if you change the allowed vars in treeutils, these will of course not reflect that
 #     'all' : {
@@ -50,7 +39,7 @@ basecmds = {
     'test-dtr-v0' : './test/cf-tree-metrics.py --label test-dtr-v0 --n-replicates 2 --n-sim-events-per-proc 5 --carry-cap-list 750 --obs-times-list 75 --n-sim-seqs-per-gen-list 80 --lb-tau-list 0.0025',
     'choose-among-families-v3' : './test/cf-tree-metrics.py --label choose-among-families-v3 --n-replicates 10 --n-sim-events-per-proc 30 --slurm --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --lb-tau-list 0.0025 --dont-observe-common-ancestors',
     'dtr-train-v0' : './test/cf-tree-metrics.py --label dtr-train-v0 --n-replicates 5 --n-sim-events-per-proc 1000  --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5',
-    'dtr-train-v1' : './test/cf-tree-metrics.py --label dtr-train-v1 --n-replicates 2 --n-sim-events-per-proc 50000 --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 30  --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5',
+    'dtr-train-v1' : './test/cf-tree-metrics.py --label dtr-train-v1 --n-replicates 4 --n-sim-events-per-proc 50000 --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 30  --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5',
     #  --slurm
     # --n-sub-procs 30
 }
@@ -61,7 +50,7 @@ training_seed = 0
 
 cmdfos, plotfo = [], []
 for n_estimators in [30, 100, 500]:
-    for max_depth in [5, 10, 50]:
+    for max_depth in [5, 10]:  # tried max depth 50, but gave up waiting for training to finish (waited 18hr or so on 2.4m seqs/50000 families)
         cfgfo = {'n_estimators' : n_estimators, 'max_depth' : max_depth}
         cmd = basecmd
         paramstr = 'n-estimators_%d_max-depth_%d' % (n_estimators, max_depth)
@@ -88,10 +77,12 @@ for n_estimators in [30, 100, 500]:
             cmd += ' --dtr-path %s --extra-plotstr %s' % (modeldir, xtrastrs['test'])
             log_seed = 0  # put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
             plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
-            allfns = [treeutils.tmfname(plotdir, 'dtr', 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
+            allfns = [treeutils.tmfname(plotdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
             outfname = allfns[-1]
             logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
         elif args.action == 'plot':
+            if args.plot_seed is None:
+                raise Exception('have to specify --plot-seed for \'plot\' action')
             plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, args.plot_seed, xtrastrs['test'])
         else:
             assert False
@@ -113,14 +104,25 @@ for n_estimators in [30, 100, 500]:
         cmdfos.append(cmdfo)
 
 if args.action == 'plot':
+    # ----------------------------------------------------------------------------------------
+    def getptvals(yfname, choice_grouping, target_var, per_x='per-seq', iclust=None, min_ptile_to_plot=75.):  # NOTE duplicates code in cf-tree-metrics.py
+        with open(yfname) as yfile:
+            yamlfo = json.load(yfile)  # too slow with yaml
+        ytmpfo = yamlfo['percentiles'][per_x]
+        if per_x == 'per-seq':
+            assert iclust is None
+            ytmpfo = ytmpfo['all-clusters' if choice_grouping == 'among-families' else 'within-families-mean']
+        else:
+            ytmpfo = ytmpfo[choice_grouping]
+        return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo['mean_%s_ptiles' % lbplotting.getptvar(target_var)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
+
+    # ----------------------------------------------------------------------------------------
     for cg in treeutils.cgroups:
         for tv in treeutils.dtr_targets[cg]:
-            if cg == 'within-families':
-                continue
             print '  %s %s' % (cg, tv)
             print '    %s' % ' '.join(tuple('%20s'%k for k in sorted(plotfo[0]['cfg'])))
             for pfo in plotfo:
-                yfn = treeutils.tmfname(pfo['plotdir'], 'dtr', 'affinity' if tv == 'affinity' else 'n-ancestor', cg=cg, tv=tv)
+                yfn = treeutils.tmfname(pfo['plotdir'], 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv)
                 diff_vals = getptvals(yfn, cg, tv)
                 diff_to_perfect = numpy.mean(diff_vals)
                 print '     %s       %6.2f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])

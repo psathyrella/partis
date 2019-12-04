@@ -56,6 +56,8 @@ def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb meth
         XXX.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
     return XXX
 # ----------------------------------------------------------------------------------------
+def getptvar(xvar):  # NOTE if I start using 'branch-length' again, that'd also need to be included in the latter case
+    return xvar if xvar == 'affinity' else 'n-ancestor'
 
 per_seq_metrics = ['lbi', 'lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons'] + treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
@@ -714,7 +716,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
 
     per_seq_plotvals = {vt : [] for vt in vtypes}  # plot values for choosing single seqs/cells (only among all clusters, since the iclust ones don't need to kept outside the cluster loop)
     per_clust_plotvals = {vt : {sn : [] for sn, _ in cluster_summary_cfg[vt]} for vt in vtypes}  # each cluster plotted as one point using a summary over its cells (e.g. max, mean) for affinity and lb
-    ptile_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
+    pt_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
     # correlation_vals = {'per-seq' : {}, 'per-cluster' : {}}
     if debug:
         print '                 %s   ' % ''.join([('  %-12s'%vt) for vt in vtypes[:2] for _ in cluster_summary_cfg[vt]])
@@ -738,7 +740,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
         if lb_metric not in per_seq_metrics or 'among-families' in lb_metric:
             continue
         iclust_ptile_vals = get_ptile_vals(lb_metric, iclust_plotvals, 'affinity', 'affinity', dbgstr='iclust %d'%iclust, debug=debug)
-        ptile_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
+        pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
         # correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes[:2]) : getcorr(*[iclust_plotvals[vt] for vt in vtypes[:2]])}
         if not only_csv and len(iclust_plotvals['affinity']) > 0 and iclust < max_iclust_plots:
             # make_scatter_plot(iclust_plotvals, iclust=iclust)  # making these with make_lb_scatter_plots() now
@@ -746,17 +748,18 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
                             ylabel=tmpylabel(iclust, None), title=mtitlestr('per-seq', lb_metric, short=True), true_inf_str=true_inf_str, iclust=iclust)
 
     if lb_metric in per_seq_metrics and 'among-families' not in lb_metric and not only_csv:
-        make_ptile_plot(get_mean_ptile_vals(len(lines), ptile_vals['per-seq'], 'affinity'), 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=None, extra_str='within-cluster-average'),
+        pt_vals['per-seq']['within-families-mean'] = get_mean_ptile_vals(len(lines), pt_vals['per-seq'], 'affinity')  # within-family mean
+        make_ptile_plot(pt_vals['per-seq']['within-families-mean'], 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=None, extra_str='within-cluster-average'),
                         ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True)
 
     if lb_metric in per_seq_metrics and 'within-families' not in lb_metric:
         if per_seq_plotvals[lb_metric].count(0.) == len(per_seq_plotvals[lb_metric]):
             return
         # correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes[:2]) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes[:2]])}
-        ptile_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', debug=debug)  # choosing single cells from from every cell from every cluster together
+        pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', debug=debug)  # choosing single cells from from every cell from every cluster together
         if not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
             # make_scatter_plot(per_seq_plotvals)  # making these with make_lb_scatter_plots() now
-            make_ptile_plot(ptile_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(),
+            make_ptile_plot(pt_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(),
                             ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
 
     # per-cluster plots
@@ -770,14 +773,14 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, lb_label, ptile_range_tup
                 tkey = getcorrkey('affinity%s' % vspdict['affinity'], '%s-%s' % (vspdict[lb_metric], lb_metric))  # can't use <vtypes> because of the stupid <affy_key_str> UPDATE now I've removed <affy_key_str> I should be able to
                 # correlation_vals['per-cluster'][tkey] = getcorr(tmpvals['affinity'], tmpvals[lb_metric])
                 tmp_ptile_vals = get_ptile_vals(lb_metric, tmpvals, 'affinity', 'affinity', debug=debug)
-                ptile_vals['per-cluster'][tkey] = tmp_ptile_vals
+                pt_vals['per-cluster'][tkey] = tmp_ptile_vals
                 if not only_csv:
                     make_scatter_plot(tmpvals, vspstuff=vspdict)
                     make_ptile_plot(tmp_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(vspstuff=vspdict),
                                     xlabel=tmpxlabel(None, vspdict), ylabel=tmpylabel(None, vspdict), title=mtitlestr('per-cluster', lb_metric, short=True), true_inf_str=true_inf_str)
 
     with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), 'w') as yfile:
-        yamlfo = {'percentiles' : ptile_vals} #, 'correlations' : correlation_vals}
+        yamlfo = {'percentiles' : pt_vals} #, 'correlations' : correlation_vals}
         json.dump(yamlfo, yfile)
 
 # ----------------------------------------------------------------------------------------
@@ -846,7 +849,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
     for xvar, xlabel in xvar_list.items():
         per_seq_plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
         # not yet implemented: per_clust_plotvals = {st : {vt : [] for vt in vtypes} for st in cluster_summary_fcns}  # each cluster plotted as one point using a summary over its cells (max or mean) for affinity and lb
-        ptile_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
+        pt_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
         # not yet implemented: correlation_vals = {'per-seq' : {}, 'per-cluster' : {}}
         for iclust, line in enumerate(lines):
             if debug:
@@ -859,25 +862,26 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
             if 'among-families' in lb_metric:
                 continue
             iclust_ptile_vals = get_ptile_vals(lb_metric, iclust_plotvals, xvar, xlabel, dbgstr='iclust %d'%iclust, debug=debug)
-            ptile_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
+            pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
             if not only_csv and iclust < max_iclust_plots:
                 make_scatter_plot(iclust_plotvals, xvar, iclust=iclust)
                 make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xlist=iclust_plotvals[xvar],
                                 xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), true_inf_str=true_inf_str, iclust=iclust)
 
         if 'among-families' not in lb_metric and not only_csv:
-            make_ptile_plot(get_mean_ptile_vals(len(lines), ptile_vals['per-seq'], xvar), xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None, extra_str='within-cluster-average'),
+            pt_vals['per-seq']['within-families-mean'] = get_mean_ptile_vals(len(lines), pt_vals['per-seq'], xvar)
+            make_ptile_plot(pt_vals['per-seq']['within-families-mean'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None, extra_str='within-cluster-average'),
                             xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, xlist=per_seq_plotvals[xvar])
 
         if 'within-families' not in lb_metric:
-            ptile_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
+            pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
             if not only_csv:
                 make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
-                make_ptile_plot(ptile_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
+                make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
                                 xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
 
         with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
-            yamlfo = {'percentiles' : ptile_vals}
+            yamlfo = {'percentiles' : pt_vals}
             json.dump(yamlfo, yfile)  # not adding the new correlation keys atm (like in the lb vs affinity fcn)
 
 # ----------------------------------------------------------------------------------------
