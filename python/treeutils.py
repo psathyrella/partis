@@ -1490,16 +1490,15 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         else:
             assert False
 
-    if metric_method == 'dtr':
-        if train_dtr:
-            print '  training decision trees into %s' % dtr_path
-            if dtr_cfgvals['n_train_per_family'] is not None:
-                print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
-            for cg in cgroups:
-                for tvar in dtr_targets[cg]:
-                    dmodels[cg][tvar] = train_dtr_model(dtrfo[cg][tvar], dtr_path, dtr_cfgvals, cg, tvar)
-        else:
-            print '    dtr prediction time: %.1fs (includes calculation of tree quantities)' % (time.time() - pstart)
+    print '       tree quantity calculation/prediction time: %.1fs' % (time.time() - pstart)
+
+    if metric_method == 'dtr' and train_dtr:
+        print '  training decision trees into %s' % dtr_path
+        if dtr_cfgvals['n_train_per_family'] is not None:
+            print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
+        for cg in cgroups:
+            for tvar in dtr_targets[cg]:
+                dmodels[cg][tvar] = train_dtr_model(dtrfo[cg][tvar], dtr_path, dtr_cfgvals, cg, tvar)
 
     if base_plotdir is not None and (metric_method != 'dtr' or not train_dtr):
         plstart = time.time()
