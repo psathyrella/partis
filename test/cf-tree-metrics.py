@@ -577,8 +577,6 @@ def get_tree_metrics(args):
             if len(args.lb_tau_list) > 1:
                 cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
-            if args.only_csv_plots:
-                cmd += ' --only-csv-plots'
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
             # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
@@ -595,8 +593,10 @@ def get_tree_metrics(args):
                 cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
                 if args.dtr_cfg is not None:
                     cmd += ' --dtr-cfg %s' % args.dtr_cfg
-            if args.only_csv_plots:
-                cmd += ' --only-csv-plots'
+        if args.only_csv_plots:
+            cmd += ' --only-csv-plots'
+        if args.n_max_queries is not None:
+            cmd += ' --n-max-queries %d' % args.n_max_queries
 
         cmdfos += [{
             'cmd_str' : cmd,
@@ -638,6 +638,7 @@ parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
+parser.add_argument('--n-max-queries', type=int, help='stop after reading this many queries from whatever is input file for this step (NOTE does *not* work for most steps)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')

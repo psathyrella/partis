@@ -28,6 +28,8 @@ parser.add_argument('--max-family-size', type=int, help='subset each family down
 # parser.add_argument('--workdir')  # only required to make ete trees
 args = parser.parse_args()
 
+if args.n_max_queries is not None:
+    print '    --n-max-queries set to %d' % args.n_max_queries
 glfo, true_lines, _ = utils.read_output(args.infname, n_max_queries=args.n_max_queries)
 
 # numpy.random.seed(1)

@@ -81,7 +81,7 @@ default_dtr_options = {
     # 'base-regr' :
     'vars' : None,  # uses <dtr_vars> for default
     'min_samples_leaf' : 5,  # only used for grad-boost and bag
-    'max_depth' : 10,  # only used for grad-boost and bag
+    'max_depth' : 5,  # only used for grad-boost and bag
     'ensemble' : 'grad-boost',  # ['bag', 'forest', 'ada-boost',
     'n_estimators' : 100,
     'n_train_per_family' : 1,  # for among-families dtr, only train on this many cells per family (to avoid over training). Set to None to use all of 'em

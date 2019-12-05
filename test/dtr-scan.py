@@ -46,7 +46,7 @@ basecmds = {
 basecmd = basecmds[args.label]
 
 basecmd += ' --actions get-tree-metrics --metric-method dtr'
-training_seed = 0
+training_seed, log_seed = 0, 0  # for the latter, put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
 
 cmdfos, plotfo = [], []
 for n_estimators in [30, 100, 500]:
@@ -75,7 +75,6 @@ for n_estimators in [30, 100, 500]:
             logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, training_seed, xtrastrs['train'])
         elif args.action == 'test':
             cmd += ' --dtr-path %s --extra-plotstr %s' % (modeldir, xtrastrs['test'])
-            log_seed = 0  # put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
             plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
             allfns = [treeutils.tmfname(plotdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
             outfname = allfns[-1]
@@ -125,7 +124,7 @@ if args.action == 'plot':
                 yfn = treeutils.tmfname(pfo['plotdir'], 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv)
                 diff_vals = getptvals(yfn, cg, tv)
                 diff_to_perfect = numpy.mean(diff_vals)
-                print '     %s       %6.2f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])
+                print '     %s       %6.3f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])
 else:
     print '  starting %d jobs' % len(cmdfos)
     n_max_procs = 7 #utils.auto_n_procs()
