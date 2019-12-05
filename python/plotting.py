@@ -956,7 +956,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
         lines += newlines
     def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
         fname = fullfname.replace(plotdir, '').lstrip('/')
-        if htmlfname is None:  # dirname screws it up if we're specifying htmfname explicitly, since then the files are in a variety of different subdirs
+        if htmlfname is None:  # dirname screws it up if we're specifying htmlfname explicitly, since then the files are in a variety of different subdirs
             fname = dirname + '/' + fname
         line = '<td><a target="_blank" href="' + fname + '"><img src="' + fname + '" alt="' + fname + '" width="100%"></a></td>'
         lines.append(line)

@@ -128,7 +128,9 @@ def dtrfname(dpath, cg, tvar):
 
 # ----------------------------------------------------------------------------------------
 def tmfname(plotdir, metric, x_axis_label, cg=None, tv=None, use_relative_affy=False):  # tree metric fname
-    metric_str = metric if cg is None else '-'.join([cg, tv, metric])
+    assert x_axis_label in ['affinity', 'n-ancestor']  # arg, this is messy
+    assert tv in [None, 'affinity', 'delta-affinity']
+    metric_str = metric if metric != 'dtr' else '-'.join([cg, tv, metric])
     vs_str = '%s-vs%s-%s' % (metric_str, '-relative' if use_relative_affy and metric == 'lbi' else '', x_axis_label)
     return '%s/true-tree-metrics/%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (plotdir, metric_str, vs_str, vs_str)  # NOTE has 'true-tree' in there, which is fine for now but may need to change
 

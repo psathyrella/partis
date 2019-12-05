@@ -18,13 +18,14 @@ import plotting
 
 # ----------------------------------------------------------------------------------------
 # this name is terrible, but it's complicated and I can't think of a better one
-def lb_metric_axis_cfg(metric_method=None):  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
+def lb_metric_axis_cfg(metric_method):  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
     base_cfg = collections.OrderedDict([('lbi', [('affinity', 'affinity')]),
-                                        ('lbr', [('n-ancestor', 'N ancestors')])  # , ('branch-length', 'branch length')])  # turning off branch length at least for now (for run time reasons)
+                                        ('lbr', [('n-ancestor', 'N ancestors')]),  # , ('branch-length', 'branch length')])  # turning off branch length at least for now (for run time reasons)
     ])
     if metric_method is None:
-        return base_cfg.items()
-    elif metric_method in base_cfg:
+       return base_cfg.items()
+    base_cfg['dtr'] = [('affinity', 'affinity'), ('n-ancestor', 'N ancestors')]  # hack hack hack
+    if metric_method in base_cfg:
         return [(m, cfg) for m, cfg in base_cfg.items() if m == metric_method]
     else:
         return [[metric_method, [('affinity', 'affinity')]]]  # e.g. shm
@@ -44,20 +45,8 @@ cluster_summary_cfg['cons-dist-nuc'] = (('cons-seq-shm-nuc', lambda line, plotva
 cluster_summary_cfg['is_leaf'] = (('x-dummy-x', lambda line, plotvals: None), )  # just to keep things from breaking, doesn't actually get used
 def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]
-# ----------------------------------------------------------------------------------------
-# TODO update this
-def get_cluster_summary_strs(lb_metric):
-    return ['%s-%s-vs-%s-%s' % (st1, get_lbscatteraxes(lb_metric)[0], st2, get_lbscatteraxes(lb_metric)[1]) for st1, st2 in itertools.product(cluster_summary_fcns, repeat=2)]  # all four combos and orderings of max/mean
-def get_choice_groupings(lb_metric):  # TODO needs to be updated for non-lb methods
-    # 'within-families': treat each cluster within each process/job separately (i.e. choosing cells only within each cluster)
-    # 'among-families': treat each process/job as a whole (i.e. choose among all families in a process/job). Note that this means you can\'t separately adjust the number of families per job, and the number of families among which we choose cells (which is fine).
-    XXX = [('per-seq', ['within-families', 'among-families'])]
-    if lb_metric in ['shm', 'lbi', 'lbr']:
-        XXX.append(('per-cluster', get_cluster_summary_strs(lb_metric)))
-    return XXX
-# ----------------------------------------------------------------------------------------
-def getptvar(xvar):  # NOTE if I start using 'branch-length' again, that'd also need to be included in the latter case
-    return xvar if xvar == 'affinity' else 'n-ancestor'
+def getptvar(xvar): return xvar if xvar == 'affinity' else 'n-ancestor'  # NOTE if I start using 'branch-length' again, that'd also need to be included in the latter case
+def ungetptvar(xvar): return xvar if xvar == 'affinity' else 'delta-affinity'  # ok this name sucks, and these two functions are anyway shitty hacks
 
 per_seq_metrics = ['lbi', 'lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons'] + treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
@@ -877,8 +866,9 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, lb_label,
             pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
             if not only_csv:
                 make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
-                make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
-                                xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
+                # # in most cases I don't think we really care about among-families delta affinity
+                # make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
+                #                 xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
 
         with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
             yamlfo = {'percentiles' : pt_vals}

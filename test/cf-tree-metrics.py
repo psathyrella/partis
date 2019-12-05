@@ -176,7 +176,7 @@ def rel_affy_str(use_relative_affy, metric):
     return '-relative' if use_relative_affy and metric == 'lbi' else ''
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_fname(varnames, vstr, metric, x_axis_label, use_relative_affy=False, cg=None, tv=None):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
+def get_tm_fname(varnames, vstr, metric, x_axis_label, use_relative_affy=False, cg=None, tv=None):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
     if metric == 'dtr':
         assert cg is not None and tv is not None
     if metric in ['lbi', 'lbr']:  # NOTE using <metric> and <metric_method> for slightly different but overlapping things: former is the actual metric name, whereas setting the latter says we want a non-lb metric (necessary because by default we want to calculate lbi and lbr, but also be able treat lbi and lbr separately when plotting)
@@ -191,10 +191,10 @@ def get_tree_metric_fname(varnames, vstr, metric, x_axis_label, use_relative_aff
     return treeutils.tmfname(plotdir, metric, x_axis_label, cg=cg, tv=tv)
 
 # ----------------------------------------------------------------------------------------
-def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
+def get_all_tm_fnames(varnames, vstr, metric_method=None):
     if metric_method is None:
         ura_vals = [False] #, True]  # this is hackey, but maybe I want to start looking at relative affy again
-        return [get_tree_metric_fname(varnames, vstr, mtmp, xatmp, use_relative_affy=use_relative_affy)
+        return [get_tm_fname(varnames, vstr, mtmp, xatmp)
                 for mtmp, cfglist in lbplotting.lb_metric_axis_cfg(args.metric_method)
                 for xatmp, _ in cfglist
                 for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
@@ -202,9 +202,9 @@ def get_all_tree_metric_fnames(varnames, vstr, metric_method=None):
         if args.dtr_path is None:  # training
             return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg, tvar) for cg in treeutils.cgroups for tvar in treeutils.dtr_targets[cg]]
         else:  # testing
-            return [get_tree_metric_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]  # TODO not sure it's really best to hard code this, but maybe it is
+            return [get_tm_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
     else:
-        return [get_tree_metric_fname(varnames, vstr, metric_method, 'affinity')]  # TODO not sure it's really best to hard code this, but maybe it is
+        return [get_tm_fname(varnames, vstr, metric_method, 'affinity')]  # TODO not sure it's really best to hard code this, but maybe it is
 
 # ----------------------------------------------------------------------------------------
 def get_comparison_plotdir():
@@ -382,11 +382,11 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
     if debug:
         print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
     missing_vstrs = {'missing' : [], 'empty' : []}
-    for vlists, vstrs in zip(val_lists, valstrs):
+    for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
         obs_frac, dbgstr = get_obs_frac(vlists, varnames)
         if debug:
             print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
-        yfname = get_tree_metric_fname(varnames, vstrs, metric, ptilestr, use_relative_affy=args.use_relative_affy)  # why is this called vstrs rather than vstr?
+        yfname = get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr))
         try:
             with open(yfname) as yfile:
                 yamlfo = json.load(yfile)  # too slow with yaml
@@ -415,7 +415,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
         print '        %s: %d families' % (mkey, len(vstrs_list))
         print '     %s   iclust' % get_varname_str()
         for iclust, vstrs in vstrs_list:
-            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tree_metric_fname(varnames, vstrs, metric, ptilestr, use_relative_affy=args.use_relative_affy))
+            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr)))
             n_printed += 1
             if n_printed >= n_max_print:
                 print '             [...]'
@@ -560,7 +560,7 @@ def get_tree_metrics(args):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        if utils.all_outputs_exist(args, get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method), outlabel='get-tree-metrics', offset=8, debug=args.debug):
+        if utils.all_outputs_exist(args, get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method), outlabel='get-tree-metrics', offset=8, debug=args.debug):
             n_already_there += 1
             continue
 
@@ -600,12 +600,12 @@ def get_tree_metrics(args):
 
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method)[0],
+            'outfname' : get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method)[0],
             'workdir' : get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
         }]
 
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tree_metric_fnames(varnames, vstrs, metric_method=args.metric_method)[0])
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method)[0])
     if len(cmdfos) > 0:
         print '      starting %d jobs' % len(cmdfos)
         if not args.dry:
@@ -626,6 +626,7 @@ parser.add_argument('--obs-times-list', default='125,150', help='colon-separated
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
+parser.add_argument('--plot-metrics', default='lbi') #:within-families-affinity-dtr')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we only train a new one.')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
 parser.add_argument('--selection-strength-list', default='1.0')
@@ -684,6 +685,7 @@ args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, 
 args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'obs-times' not in args.zip_vars)
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
 args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target_distance_list, forbid_duplicates=True, choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'])
+args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.selection_strength_list = utils.get_arg_list(args.selection_strength_list, floatify=True, forbid_duplicates=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
@@ -708,24 +710,24 @@ for action in args.actions:
     elif action == 'get-tree-metrics':
         get_tree_metrics(args)
     elif action == 'plot' and not args.dry:
-        utils.prep_dir(get_comparison_plotdir(), subdirs=['per-seq', 'per-cluster'], wildlings=['*.html', '*.svg'])
+        utils.prep_dir(get_comparison_plotdir(), subdirs=['per-seq'], wildlings=['*.html', '*.svg'])  # , 'per-cluster'
         _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir())
         procs = []
-        for metric, cfg_list in lbplotting.lb_metric_axis_cfg(args.metric_method):  # omg these loops are confusing and complicated (but not sure they can really be improved that much)
-            # TODO needs to be updated for non-lb methods
-            # if metric != 'lbi': continue
-            for ptilestr, ptilelabel in cfg_list:
-                print '  %s  %-13s' % (utils.color('blue', metric), ptilestr)
-                for pchoice, cgroupings in lbplotting.get_choice_groupings(metric):
-                    for cgroup in cgroupings:
-                        print '    %-12s  %s' % (pchoice, cgroup)
-                        arglist = (args, metric, pchoice, cgroup, ptilestr, ptilelabel, args.final_plot_xvar)
-                        if args.test:
-                            make_plots(*arglist)
-                        else:
-                            procs.append(multiprocessing.Process(target=make_plots, args=arglist))
+        pchoice = 'per-seq'
+        for metric in args.plot_metrics:
+            cfg_list = lbplotting.lb_metric_axis_cfg(metric)[0][1]
+            for ptvar, ptlabel in cfg_list:
+                print '  %s  %-13s' % (utils.color('blue', metric), ptvar)
+                for cgroup in treeutils.cgroups:
+                    if ptvar == 'n-ancestor' and cgroup == 'among-families':  # doesn't really make sense
+                        continue
+                    print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
+                    arglist = (args, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar)
+                    if args.test:
+                        make_plots(*arglist)
+                    else:
+                        procs.append(multiprocessing.Process(target=make_plots, args=arglist))
         if not args.test:
             utils.run_proc_functions(procs)
-        plotting.make_html(get_comparison_plotdir() + '/per-cluster')
         plotting.make_html(get_comparison_plotdir() + '/per-seq')
