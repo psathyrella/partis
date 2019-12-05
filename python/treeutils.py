@@ -1518,9 +1518,6 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                 lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, annotations, lbm, lbplotting.mtitlestr('per-seq', lbm), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
             else:
                 lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, lbm, lbm.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames)
-            # lbplotting.plot_lb_distributions(true_plotdir, annotations, fnames=fnames, is_true_line=True, metric_method=lbm) #, only_overall=True)
-            # if ete_path is not None:
-            #     lbplotting.plot_lb_trees([lbm], true_plotdir, annotations, ete_path, workdir, is_true_line=True)
         if not only_csv:
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
         print '      non-lb metric plotting time %.1fs' % (time.time() - plstart)

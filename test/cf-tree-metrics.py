@@ -607,7 +607,7 @@ def get_tree_metrics(args):
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method)[0])
     if len(cmdfos) > 0:
-        print '      starting %d jobs' % len(cmdfos)
+        print '      %s %d jobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos))
         if not args.dry:
             logstr = 'get-tree-metrics'
             if args.metric_method == 'dtr':

@@ -1127,6 +1127,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, global_max_vals=None, debug=False):
     import lbplotting
+    all_metrics = treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
     # ----------------------------------------------------------------------------------------
     def offcolor(offset):
@@ -1139,14 +1140,14 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # ----------------------------------------------------------------------------------------
     def get_xval_list(cluster, xkey):
         line = annotations[':'.join(cluster)]
-        if xkey in treeutils.lb_metrics:
+        if xkey in all_metrics:
             return [line['tree-info']['lb'][xkey][u] for u in line['unique_ids']]  # we can't use .values() because there's lb values in the dict in 'tree-info' that don't correspond to uids in 'unique_ids' (and we don't want to include those values)
         else:
             return line[xkey]
     # ----------------------------------------------------------------------------------------
     def get_xval_dict(uids, xkey):
         line = annotations[':'.join(cluster)]
-        if xkey in treeutils.lb_metrics:
+        if xkey in all_metrics:
             return {u : line['tree-info']['lb'][xkey][u] for u in uids}
         else:
             return {u : utils.per_seq_val(line, xkey, u) for u in uids}
@@ -1161,7 +1162,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return bounds
     # ----------------------------------------------------------------------------------------
     def uselog(xkey):  # the low end (zero bin) of these distributions always dominates, but we're actually interested in the upper tail, so logify it
-        return xkey in treeutils.lb_metrics or xkey == 'affinities'
+        return xkey in all_metrics or xkey == 'affinities'
     # ----------------------------------------------------------------------------------------
     def add_hist(xkey, xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
         qti_x_vals = {}
@@ -1185,7 +1186,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             nbins = xvals[-1] - xvals[0] + 1
             hist = Hist(nbins, xvals[0] - 0.5, xvals[-1] + 0.5)
         else:
-            nbins = 30 if xkey in treeutils.lb_metrics else 15
+            nbins = 30 if xkey in all_metrics else 15
             hist = Hist(nbins, *bexpand(xbounds[xkey], fuzz=0.01))
         hist.list_fill(xvals)
         if uselog(xkey):

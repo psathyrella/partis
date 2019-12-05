@@ -47,17 +47,18 @@ def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]
 def getptvar(xvar): return xvar if xvar == 'affinity' else 'n-ancestor'  # NOTE if I start using 'branch-length' again, that'd also need to be included in the latter case
 def ungetptvar(xvar): return xvar if xvar == 'affinity' else 'delta-affinity'  # ok this name sucks, and these two functions are anyway shitty hacks
+def ungetptlabel(xvar): return xvar if xvar == 'affinity' else 'affinity change'
 
 per_seq_metrics = ['lbi', 'lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons'] + treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
 mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
-                           'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'within-family dtr', 'within-families-delta-affinity-dtr' : 'within-family dtr', 'among-families-affinity-dtr' : 'among-families dtr'},
+                           'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'in-family dtr', 'within-families-delta-affinity-dtr' : 'in-family dtr', 'among-families-affinity-dtr' : 'among-families dtr'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'cons-seq-shm-nuc' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
 def mtitlestr(pchoice, lbm, short=False):
     if pchoice == 'per-cluster' and 'cons-dist' in lbm:
         lbm = cluster_summary_cfg[lbm][0][0]  # hack hack hack
     mtstr = mtitle_cfg[pchoice].get(lbm, treeutils.lb_metrics.get(lbm, lbm))
-    if short and len(mtstr) > 13:
+    if short and len(mtstr) > 13 and len(lbm) < len(mtstr):
         mtstr = lbm
     return mtstr
 # ----------------------------------------------------------------------------------------
@@ -432,8 +433,8 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
     for subclusters in sorted_cluster_groups:
         if iclustergroup > n_max_joy_plots:
             continue
-        title = 'affinity and %s (%d / %d)' % (treeutils.lb_metrics[lb_metric], iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
-        fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=treeutils.lb_metrics[lb_metric],
+        title = 'affinity and %s (%d / %d)' % (mtitlestr('per-seq', lb_metric), iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
+        fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=mtitlestr('per-seq', lb_metric),
                                           global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title)  # note that we can't really add cluster_indices> like we do in partitionplotter.py, since (i think?) the only place there's per-cluster plots we'd want to correspond to is in the bcr phylo simulation dir, which has indices unrelated to anything we're sorting by here, and which we can't reconstruct
         add_fn(fnames, fn=fn)
         iclustergroup += 1
@@ -594,7 +595,7 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
     if xia:
         # ax.plot(ax.get_xlim(), [50 + 0.5 * x for x in ax.get_xlim()], linewidth=3, alpha=0.7, color='darkgreen', linestyle='--', label='perfect correlation')  # straight line
         # ax.plot(tmp_ptvals['lb_ptiles'], tmp_ptvals['reshuffled_vals'], linewidth=3, alpha=0.7, color='darkred', linestyle='--', label='no correlation')  # reshuffled vals
-        ybounds = (45, 102)
+        ybounds = (45, 105)
         leg_loc = (0.5, 0.2)
         xlabel = xlabel.replace('affinity', 'affinities')
         ptile_ylabel = 'mean percentile of\nresulting %s' % xlabel
@@ -609,9 +610,8 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
             fig.text(0.25, 0.88, 'within-cluster average over %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
         else:
             fig.text(0.37, 0.88, 'choosing among %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
-    tstr = '%s tree' % true_inf_str
     fn = plotting.mpl_finish(ax, plotdir, plotname, xbounds=ptile_range_tuple, ybounds=ybounds, leg_loc=leg_loc,
-                             title='potential thresholds: %s' % (('%s, iclust %d'%(tstr, iclust)) if iclust is not None else ('%ss, all clusters'%tstr)),
+                             title='%s %s' % (ungetptlabel(xvar), '' if iclust is None else ', iclust %d'%iclust),
                              xlabel='%s threshold (percentile)' % ylabel,
                              ylabel=ptile_ylabel)
     add_fn(fnames, fn=fn)
