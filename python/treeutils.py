@@ -1225,8 +1225,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         for lb_metric in lb_metrics:
             lbplotting.make_lb_scatter_plots('shm', inf_plotdir, lb_metric, lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
         lbplotting.plot_lb_distributions(inf_plotdir, lines_to_use, fnames=fnames, only_overall=True)
-        if ete_path is not None:
-            lbplotting.plot_lb_trees(lb_metrics.keys(), inf_plotdir, lines_to_use, ete_path, workdir, is_true_line=False)
+        # if ete_path is not None:
+        #     lbplotting.plot_lb_trees(lb_metrics.keys(), inf_plotdir, lines_to_use, ete_path, workdir, is_true_line=False)
         subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
         plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
@@ -1252,8 +1252,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
             lbplotting.plot_lb_distributions(true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
-            if ete_path is not None:
-                lbplotting.plot_lb_trees(lb_metrics.keys(), true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
+            # if ete_path is not None:
+            #     lbplotting.plot_lb_trees(lb_metrics.keys(), true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
             # for lb_metric, lb_label in lb_metrics.items():
             #     XXX fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, lines_to_use, lb_metric, lb_label)
             subdirs = [d for d in os.listdir(true_plotdir) if os.path.isdir(true_plotdir + '/' + d)]
@@ -1510,7 +1510,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             return
         true_plotdir = base_plotdir + '/true-tree-metrics'
-        lbmlist = dtr_metrics if metric_method == 'dtr' else [metric_method]
+        lbmlist = sorted(dtr_metrics) if metric_method == 'dtr' else [metric_method]  # sorted() is just so the order in the html file matches that in the lb metric one
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
         fnames = []
         for lbm in lbmlist:
