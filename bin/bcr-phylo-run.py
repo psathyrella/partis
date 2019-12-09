@@ -105,6 +105,8 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
     cmd += ' --n_tries 30'
     cmd += ' --no_context'
     cmd += ' --no_plot'
+    if args.only_csv_plots:
+        cmd += ' --dont_write_hists'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
     cmd += ' --random_seed %d' % (args.seed + ievent)
     if uid_str_len is not None:
