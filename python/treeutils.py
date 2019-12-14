@@ -69,7 +69,7 @@ def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_p
 
 # ----------------------------------------------------------------------------------------
 cgroups = ['within-families', 'among-families']  # different ways of grouping clusters, i.e. "cluster groupings"
-dtr_targets = {'within-families' : ['affinity', 'delta-affinity'], 'among-families' : ['affinity']}  # variables that we try to predict, i.e. we train on dtr for each of these
+dtr_targets = {'within-families' : ['affinity', 'delta-affinity'], 'among-families' : ['affinity', 'delta-affinity']}  # variables that we try to predict, i.e. we train on dtr for each of these
 pchoices = ['per-seq', 'per-cluster']  # per-? choice, i.e. is this a per-sequence or per-cluster quantity
 dtr_metrics = ['%s-%s-dtr'%(cg, tv) for cg in cgroups for tv in dtr_targets[cg]]
 dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm', 'shm-aa'],  # NOTE when iterating over this, you have to take the order from <pchoices>, since both pchoices go into the same list of variable values
@@ -137,7 +137,7 @@ def tmfname(plotdir, metric, x_axis_label, cg=None, tv=None, use_relative_affy=F
 # ----------------------------------------------------------------------------------------
 def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
     if 'sklearn' not in sys.modules:
-        with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings
+        with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings UPDATE oh, I think the warnings are getting thrown by function calls, not imports
             warnings.simplefilter('ignore', category=DeprecationWarning)  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
             from sklearn import tree
             from sklearn import ensemble
@@ -1418,8 +1418,17 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                 lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
             return dtree, lbfo
         # ----------------------------------------------------------------------------------------
-        def add_dtr_training_vals(cg, tvar, dtrfo, dtr_invals):
+        def add_dtr_training_vals(cg, tvar, dtrfo, dtr_invals):  # transfer dtr input values to tfo['in'], and add output (affinity stuff) values to tfo['out']
             # dtrfo[XXX]['weights'] += line['affinities']
+            def get_delta_affinity_vals():
+                tmpvals = {s : [] for s in tfo}
+                for iseq, uid in enumerate(line['unique_ids']):
+                    n_steps = get_n_ancestors_to_affy_change(dtree.find_node_with_taxon_label(uid), dtree, line)
+                    if n_steps is None:  # can't train on None-type values
+                        continue
+                    tmpvals['in'].append(dtr_invals[cg][iseq])
+                    tmpvals['out'].append(-n_steps)
+                return tmpvals
             tfo = dtrfo[cg][tvar]
             if cg == 'within-families':
                 if tvar == 'affinity':
@@ -1427,26 +1436,30 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                     max_affy = max(line['affinities'])
                     tfo['out'] += [a / max_affy for a in line['affinities']]
                 elif tvar == 'delta-affinity':
-                    tmpvals = {s : [] for s in tfo}
-                    for iseq, uid in enumerate(line['unique_ids']):  # can't train on None-type values
-                        n_steps = get_n_ancestors_to_affy_change(dtree.find_node_with_taxon_label(uid), dtree, line)
-                        if n_steps is None:
-                            continue
-                        tmpvals['in'].append(dtr_invals[cg][iseq])
-                        tmpvals['out'].append(-n_steps)
+                    tmpvals = get_delta_affinity_vals()
                     tfo['in'] += tmpvals['in']
                     tfo['out'] += tmpvals['out']
                 else:
                     assert False
             elif cg == 'among-families':
-                assert tvar == 'affinity'
                 if dtr_cfgvals['n_train_per_family'] is None:
+                    assert tvar == 'affinity'  # eh why bother doing the other one
                     tfo['in'] += dtr_invals[cg]
                     tfo['out'] += line['affinities']
                 else:
-                    i_to_keep = numpy.random.choice(range(len(line['unique_ids'])), size=dtr_cfgvals['n_train_per_family'], replace=False)
-                    tfo['in'] += [dtr_invals[cg][i] for i in i_to_keep]
-                    tfo['out'] += [line['affinities'][i] for i in i_to_keep]
+                    if tvar == 'affinity':
+                        i_to_keep = numpy.random.choice(range(len(line['unique_ids'])), size=dtr_cfgvals['n_train_per_family'], replace=False)
+                        tfo['in'] += [dtr_invals[cg][i] for i in i_to_keep]
+                        tfo['out'] += [line['affinities'][i] for i in i_to_keep]
+                    elif tvar == 'delta-affinity':
+                        tmpvals = get_delta_affinity_vals()
+                        if len(tmpvals['in']) == 0:  # no affinity increases
+                            return
+                        i_to_keep = numpy.random.choice(range(len(tmpvals['in'])), size=dtr_cfgvals['n_train_per_family'], replace=False)
+                        tfo['in'] += [tmpvals['in'][i] for i in i_to_keep]
+                        tfo['out'] += [tmpvals['out'][i] for i in i_to_keep]
+                    else:
+                        assert False
             else:
                 assert False
 
@@ -1514,7 +1527,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
         fnames = []
         for lbm in lbmlist:
-            if lbm in ['delta-lbi', 'within-families-delta-affinity-dtr']:
+            if lbm in ['delta-lbi', 'within-families-delta-affinity-dtr', 'among-families-delta-affinity-dtr']:
                 lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, annotations, lbm, lbplotting.mtitlestr('per-seq', lbm), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
             else:
                 lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, lbm, lbm.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames)
