@@ -526,6 +526,8 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
         if args.dont_observe_common_ancestors:
             cmd += ' --dont-observe-common-ancestors'
+        if args.leaf_sampling_scheme:
+            cmd += ' --leaf-sampling-scheme'
         if args.overwrite:
             cmd += ' --overwrite'
         if args.only_csv_plots:
@@ -625,6 +627,7 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
+parser.add_argument('--leaf-sampling-scheme')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi') #:within-families-affinity-dtr')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we only train a new one.')

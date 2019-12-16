@@ -93,11 +93,10 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
         cmd += ' --carry_cap %d' % get_vpar_val('carry-cap', args.carry_cap)
         if not args.dont_observe_common_ancestors:
             cmd += ' --observe_common_ancestors'
-
+        if args.leaf_sampling_scheme is not None:
+            cmd += ' --leaf_sampling_scheme %s' % args.leaf_sampling_scheme
         # cmd += ' --n_target_clusters 1'
         # cmd += ' --target_cluster_distance 1'
-
-        # cmd += ' --observe_based_on_affinity'  # implementation in bcr-phylo needs some work
     else:
         assert False
 
@@ -284,6 +283,7 @@ parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
+parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')
 parser.add_argument('--parameter-variances', help='if set, the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family, rather than having the same value for all families. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75')
 parser.add_argument('--slurm', action='store_true')
 
