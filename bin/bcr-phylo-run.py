@@ -9,6 +9,7 @@ import sys
 import numpy
 import math
 import time
+import traceback
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 sys.path.insert(1, current_script_dir)
@@ -141,17 +142,25 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
         mline['input_seqs'] = [sfo['seq']]  # it's really important to set both the seqs (since they're both already in there from the naive line)
         mline['duplicates'] = [[]]
         reco_info[sfo['name']] = mline
-        utils.add_implicit_info(glfo, mline)
+        try:
+            utils.add_implicit_info(glfo, mline)
+        except:  # TODO not sure if I really want to leave this in long term, but it shouldn't hurt anything (it's crashing on unequal naive/mature sequence lengths, and I need this to track down which event it is)
+            print 'implicit info adding failed for ievent %d in %s' % (ievent, outdir)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print utils.pad_lines(''.join(lines))
     final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in seqfos], reco_info)
     if args.debug:
         utils.print_reco_event(final_line)
 
     # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
     if args.stype == 'selection':
-        cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s/kd-vals.csv --newick-tree-file %s/simu.nwk' % (outdir, args.extrastr, outdir, outdir)
-        utils.run_ete_script(cmd, ete_path, debug=args.n_procs==1)
+        kdfname, nwkfname = '%s/kd-vals.csv' % outdir, '%s/simu.nwk' % outdir
+        if not utils.output_exists(args, kdfname, outlabel='kd/nwk conversion', offset=4):  # eh, don't really need to check for both kd an nwk file, chances of only one being missing are really small, and it'll just crash when it looks for it a couple lines later
+            cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s --newick-tree-file %s' % (outdir, args.extrastr, kdfname, nwkfname)
+            utils.run_ete_script(cmd, ete_path, debug=args.n_procs==1)
         nodefo = {}
-        with open('%s/kd-vals.csv' % outdir) as kdfile:
+        with open(kdfname) as kdfile:
             reader = csv.DictReader(kdfile)
             for line in reader:
                 nodefo[line['uid']] = {
@@ -168,7 +177,7 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
         final_line['relative_affinities'] = [1. / nodefo[u]['relative_kd'] for u in final_line['unique_ids']]
         final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
         final_line['nearest_target_indices'] = [nodefo[u]['target_index'] for u in final_line['unique_ids']]
-        tree = treeutils.get_dendro_tree(treefname='%s/simu.nwk' % outdir)
+        tree = treeutils.get_dendro_tree(treefname=nwkfname)
         tree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))
         if args.debug:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
