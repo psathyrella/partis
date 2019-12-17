@@ -144,11 +144,11 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
         reco_info[sfo['name']] = mline
         try:
             utils.add_implicit_info(glfo, mline)
-        except:  # TODO not sure if I really want to leave this in long term, but it shouldn't hurt anything (it's crashing on unequal naive/mature sequence lengths, and I need this to track down which event it is)
+        except:  # TODO not sure if I really want to leave this in long term, but it shouldn't hurt anything (it's crashing on unequal naive/mature sequence lengths, and I need this to track down which event it is) UPDATE: yeah it was just because something crashed in the middle of writing a .fa file
             print 'implicit info adding failed for ievent %d in %s' % (ievent, outdir)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            print utils.pad_lines(''.join(lines))
+            print utils.pad_lines(''.join(lines))  # NOTE this will still crash on the next line if implicit info adding failed
     final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in seqfos], reco_info)
     if args.debug:
         utils.print_reco_event(final_line)
