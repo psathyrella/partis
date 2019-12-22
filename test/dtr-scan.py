@@ -16,7 +16,8 @@ import lbplotting
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('action', choices=['train', 'test', 'plot'])
 parser.add_argument('--label', default='test-dtr-v0')
-parser.add_argument('--base-outdir')
+parser.add_argument('--base-outdir', default='/fh/fast/matsen_e/%s/partis/tree-metrics'%os.getenv('USER'))
+parser.add_argument('--training-seed', type=int, default=0)
 parser.add_argument('--plot-seed', type=int)
 parser.add_argument('--overwrite', action='store_true')
 args = parser.parse_args()
@@ -47,7 +48,7 @@ basecmds = {
 basecmd = basecmds[args.label]
 
 basecmd += ' --actions get-tree-metrics --metric-method dtr'
-training_seed, log_seed = 0, 0  # for the latter, put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
+log_seed = 0  # for the latter, put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
 
 cmdfos, plotfo = [], []
 for n_estimators in [30, 100, 500]:
@@ -56,12 +57,11 @@ for n_estimators in [30, 100, 500]:
         cmd = basecmd
         paramstr = 'n-estimators_%d_max-depth_%d' % (n_estimators, max_depth)
         xtrastrs = {s : '%s_%s' % (s, paramstr) for s in ['train', 'test']}
-        modeldir = '%s/%s/seed-%d/dtr/%s-dtr-models' % (args.base_outdir, args.label, training_seed, xtrastrs['train'])
+        modeldir = '%s/%s/seed-%d/dtr/%s-dtr-models' % (args.base_outdir, args.label, args.training_seed, xtrastrs['train'])
         workdir = '%s/%s' % (baseworkdir, paramstr)
         cfgfname = '%s/cfg.yaml' % workdir
         cmd += ' --dtr-cfg %s' % cfgfname
-        if args.base_outdir is not None:
-            cmd += ' --base-outdir %s' % args.base_outdir
+        cmd += ' --base-outdir %s' % args.base_outdir
         if args.overwrite:
             cmd += ' --overwrite'
         if args.action == 'train':
@@ -69,11 +69,11 @@ for n_estimators in [30, 100, 500]:
                 os.makedirs(workdir)
             with open(cfgfname, 'w') as cfile:
                 yaml.dump(cfgfo, cfile, width=200)
-            cmd += ' --iseed %d --extra-plotstr %s' % (training_seed, xtrastrs['train'])
+            cmd += ' --iseed %d --extra-plotstr %s' % (args.training_seed, xtrastrs['train'])
             modelfnames = [treeutils.dtrfname(modeldir, cg, tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
             outfname = modelfnames[-1]
             # logdir = os.path.dirname(outfname)  # NOTE has to be the '%s-dtr-models' dir (or at least can't be the '%s-plots' dir, since cf-tree-metrics uses the latter, and the /{out,err} files overwrite each other
-            logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, training_seed, xtrastrs['train'])
+            logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, args.training_seed, xtrastrs['train'])
         elif args.action == 'test':
             cmd += ' --dtr-path %s --extra-plotstr %s' % (modeldir, xtrastrs['test'])
             plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
@@ -128,5 +128,5 @@ if args.action == 'plot':
                 print '     %s       %6.3f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])
 else:
     print '  starting %d jobs' % len(cmdfos)
-    n_max_procs = 7 #utils.auto_n_procs()
+    n_max_procs = 2 #utils.auto_n_procs()
     utils.run_cmds(cmdfos, n_max_procs=n_max_procs, proc_limit_str='test/cf-tree-metrics', debug='write:cf-tree-metrics.log')
