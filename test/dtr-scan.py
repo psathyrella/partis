@@ -20,6 +20,7 @@ parser.add_argument('--base-outdir', default='/fh/fast/matsen_e/%s/partis/tree-m
 parser.add_argument('--training-seed', type=int, default=0)
 parser.add_argument('--plot-seed', type=int)
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--n-max-queries', type=int)
 args = parser.parse_args()
 
 # vsets = {  # NOTE if you change the allowed vars in treeutils, these will of course not reflect that
@@ -87,11 +88,15 @@ for n_estimators in [30, 100, 500]:
         else:
             assert False
 
+        if args.n_max_queries is not None:
+            cmd += ' --n-max-queries %d' % args.n_max_queries
+
         if args.action == 'plot':
             plotfo.append({'cfg' : cfgfo, 'plotdir' : plotdir})
             continue
 
         print '    %s' % logdir
+        print cmd
         if not os.path.exists(logdir):
             os.makedirs(logdir)
 
@@ -128,5 +133,5 @@ if args.action == 'plot':
                 print '     %s       %6.3f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])
 else:
     print '  starting %d jobs' % len(cmdfos)
-    n_max_procs = 2 #utils.auto_n_procs()
+    n_max_procs = 10 #utils.auto_n_procs()
     utils.run_cmds(cmdfos, n_max_procs=n_max_procs, proc_limit_str='test/cf-tree-metrics', debug='write:cf-tree-metrics.log')
