@@ -99,7 +99,7 @@ def convert_to_duplicate_name(glfo, gene):
 #----------------------------------------------------------------------------------------
 def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs
     """ check a list of sequences, and keep track of some statistics """
-    n_total, n_ok, n_too_short, n_bad_codons = 0, 0, 0, 0
+    n_total, n_ok, n_too_short, n_bad_codons, n_out_of_frame = 0, 0, 0, 0, 0
     for seq, pos in seqons:
         n_total += 1
         if len(seq) < pos + 3:
@@ -107,7 +107,7 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
         elif not utils.codon_unmutated(codon, seq, pos):
             n_bad_codons += 1
         elif codon == 'cyst' and not utils.in_frame_germline_v(seq, pos):
-            n_bad_codons += 1
+            n_out_of_frame += 1
         else:
             n_ok += 1
 
@@ -119,6 +119,8 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
             print '  %d too short' % n_too_short,
         if n_bad_codons > 0:
             print '  %d mutated' % n_bad_codons,
+        if n_out_of_frame > 0:
+            print '  %d out of frame' % n_out_of_frame,
         print ''
 
 # ----------------------------------------------------------------------------------------
@@ -576,10 +578,13 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate
                             if not utils.codon_unmutated(codon, glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])) or not utils.in_frame_germline_v(glfo['seqs'][region][seqfo['name']], utils.cdn_pos(glfo, region, seqfo['name'])):
                                 extra_str += '   %s codon' % utils.color('red', 'bad')
 
-                    # NOTE if you <align> below here the codon info is wrong (and I _think_ I've fixed it so I no longer ever need to align)
+                    # NOTE if you <align> below here the codon info is wrong (and I _think_ I've fixed it so I no longer ever need to align) UPDATE nope, just happened, so adding the continue below
 
                     cons_seq = clusterfo['cons_seq'] if print_separate_cons_seqs else first_cons_seq
                     leftpad = len(cons_seq) - len(cons_seq.lstrip('-'))
+                    if not align and len(cons_seq) != len(seqfo['seq']):
+                        print '%s cons seq and seq different lengths, so skipping %s' % (utils.color('red', 'error'), utils.color_gene(seqfo['name']))
+                        continue
                     print '    %s%s    %s      %s' % (' ' * leftpad, utils.color_mutants(cons_seq, seqfo['seq'], align=align, emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str)
 
 #----------------------------------------------------------------------------------------
