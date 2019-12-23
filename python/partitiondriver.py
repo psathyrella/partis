@@ -857,7 +857,7 @@ class PartitionDriver(object):
 
         if self.args.debug:
             print 'final'
-            self.print_results(cpath, all_annotations)
+            self.print_results(cpath, all_annotations.values())
 
     # ----------------------------------------------------------------------------------------
     def get_cached_hmm_naive_seqs(self, queries=None):
@@ -1955,7 +1955,7 @@ class PartitionDriver(object):
         annotations_to_use = eroded_annotations if self.args.mimic_data_read_length else padded_annotations
         seqfileopener.add_input_metafo(self.input_info, annotations_to_use.values())
         if print_annotations:
-            self.print_results(None, annotations_to_use)
+            self.print_results(None, annotations_to_use.values())
 
         self.check_for_unexpectedly_missing_keys(annotations_to_use, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
 
