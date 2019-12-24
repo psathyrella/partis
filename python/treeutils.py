@@ -1389,6 +1389,9 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             rstart = time.time()
             for cg in cgroups:
                 for tvar in dtr_targets[cg]:
+                    if not os.path.exists(dtrfname(dtr_path, cg, tvar)):
+                        print ' %s %s doesn\'t exist, skipping (%s)' % (cg, tvar, dtrfname(dtr_path, cg, tvar))
+                        continue
                     with open(dtrfname(dtr_path, cg, tvar)) as dfile:
                         dmodels[cg][tvar] = pickle.load(dfile)
             print '  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart)
@@ -1501,7 +1504,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                 # line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
             else:  # read existing model
                 line['tree-info'] = {'lb' : {'-'.join([cg, tv, metric_method]) :
-                                             {u : d for u, d in zip(line['unique_ids'], dmodels[cg][tv].predict(dtr_invals[cg]))} for cg in cgroups for tv in dtr_targets[cg]}}
+                                             {u : d for u, d in zip(line['unique_ids'], dmodels[cg][tv].predict(dtr_invals[cg]))} for cg in cgroups for tv in dtr_targets[cg] if dmodels[cg][tvar] is not None}}
         else:
             assert False
 
