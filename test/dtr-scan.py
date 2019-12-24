@@ -16,12 +16,16 @@ import lbplotting
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('action', choices=['train', 'test', 'plot'])
 parser.add_argument('--label', default='test-dtr-v0')
+parser.add_argument('--training-label', help='if set, use the dtr that was trained on this label (wheras --label is used for the sample we test on)')
 parser.add_argument('--base-outdir', default='/fh/fast/matsen_e/%s/partis/tree-metrics'%os.getenv('USER'))
 parser.add_argument('--training-seed', type=int, default=0)
 parser.add_argument('--plot-seed', type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--n-max-queries', type=int)
 args = parser.parse_args()
+
+if args.training_label is not None:  # only makes sense for --training-label to be set if we're testing or plotting
+    assert args.action in ['test', 'plot']
 
 # vsets = {  # NOTE if you change the allowed vars in treeutils, these will of course not reflect that
 #     'all' : {
@@ -52,13 +56,14 @@ basecmd += ' --actions get-tree-metrics --metric-method dtr'
 log_seed = 0  # for the latter, put our log file here, and also (only) check for existing output in this seed NOTE wait I'm not sure this gets used for checking for existing output, maybe it's only used to see if the job finished successfully
 
 cmdfos, plotfo = [], []
-for n_estimators in [30, 100, 500]:
+for n_estimators in [30, 100]:
     for max_depth in [5, 10]:  # tried max depth 50, but gave up waiting for training to finish (waited 18hr or so on 2.4m seqs/50000 families)
         cfgfo = {'n_estimators' : n_estimators, 'max_depth' : max_depth}
         cmd = basecmd
         paramstr = 'n-estimators_%d_max-depth_%d' % (n_estimators, max_depth)
         xtrastrs = {s : '%s_%s' % (s, paramstr) for s in ['train', 'test']}
-        modeldir = '%s/%s/seed-%d/dtr/%s-dtr-models' % (args.base_outdir, args.label, args.training_seed, xtrastrs['train'])
+        trainstr = '_trained-on-%s' % args.training_label if args.training_label is not None else ''
+        modeldir = '%s/%s/seed-%d/dtr/%s-dtr-models' % (args.base_outdir, args.label if args.training_label is None else args.training_label, args.training_seed, xtrastrs['train'])
         workdir = '%s/%s' % (baseworkdir, paramstr)
         cfgfname = '%s/cfg.yaml' % workdir
         cmd += ' --dtr-cfg %s' % cfgfname
@@ -66,6 +71,7 @@ for n_estimators in [30, 100, 500]:
         if args.overwrite:
             cmd += ' --overwrite'
         if args.action == 'train':
+            assert args.training_label is None
             if not os.path.exists(workdir):
                 os.makedirs(workdir)
             with open(cfgfname, 'w') as cfile:
@@ -74,17 +80,17 @@ for n_estimators in [30, 100, 500]:
             modelfnames = [treeutils.dtrfname(modeldir, cg, tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
             outfname = modelfnames[-1]
             # logdir = os.path.dirname(outfname)  # NOTE has to be the '%s-dtr-models' dir (or at least can't be the '%s-plots' dir, since cf-tree-metrics uses the latter, and the /{out,err} files overwrite each other
-            logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, args.training_seed, xtrastrs['train'])
+            logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label if args.training_label is None else args.training_label, args.training_seed, xtrastrs['train'])
         elif args.action == 'test':
-            cmd += ' --dtr-path %s --extra-plotstr %s' % (modeldir, xtrastrs['test'])
-            plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
-            allfns = [treeutils.tmfname(plotdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
+            cmd += ' --dtr-path %s --extra-plotstr %s%s' % (modeldir, xtrastrs['test'], trainstr)
+            plotdir = '%s/%s/seed-%d/dtr/%s%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'], trainstr)
+            allfns = [treeutils.tmfname(plotdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]  # i think this should really include all seeds, but the only problem it'd cause is output would be missing, which I'd immediately notice, so whatever
             outfname = allfns[-1]
-            logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'])
+            logdir = '%s/%s/seed-%d/dtr/%s%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'], trainstr)
         elif args.action == 'plot':
             if args.plot_seed is None:
                 raise Exception('have to specify --plot-seed for \'plot\' action')
-            plotdir = '%s/%s/seed-%d/dtr/%s-plots' % (args.base_outdir, args.label, args.plot_seed, xtrastrs['test'])
+            plotdir = '%s/%s/seed-%d/dtr/%s%s-plots' % (args.base_outdir, args.label, args.plot_seed, xtrastrs['test'], trainstr)
         else:
             assert False
 
