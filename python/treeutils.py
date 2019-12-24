@@ -1383,6 +1383,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                 dtr_cfgvals[tk] = default_dtr_options[tk]
 
         dmodels = {cg : {tv : None} for cg in cgroups for tv in dtr_targets[cg]}
+        missing_dmodels = []
         if train_dtr:
             dtrfo = {cg : {tv : {'in' : [], 'out' : []} for tv in dtr_targets[cg]} for cg in cgroups}  # , 'weights' : []}
         else:
@@ -1390,6 +1391,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             for cg in cgroups:
                 for tvar in dtr_targets[cg]:
                     if not os.path.exists(dtrfname(dtr_path, cg, tvar)):
+                        missing_dmodels.append('-'.join([cg, tvar, metric_method]))  # this is fucking dumb, but I need it later when I have the full name, not cg and tvar
                         print ' %s %s doesn\'t exist, skipping (%s)' % (cg, tvar, dtrfname(dtr_path, cg, tvar))
                         continue
                     with open(dtrfname(dtr_path, cg, tvar)) as dfile:
@@ -1503,8 +1505,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                         add_dtr_training_vals(cg, tvar, dtrfo, dtr_invals)
                 # line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
             else:  # read existing model
-                line['tree-info'] = {'lb' : {'-'.join([cg, tv, metric_method]) :
-                                             {u : d for u, d in zip(line['unique_ids'], dmodels[cg][tv].predict(dtr_invals[cg]))} for cg in cgroups for tv in dtr_targets[cg] if dmodels[cg][tvar] is not None}}
+                line['tree-info'] = {'lb' : {'-'.join([cg, tvar, metric_method]) :
+                                             {u : d for u, d in zip(line['unique_ids'], dmodels[cg][tvar].predict(dtr_invals[cg]))} for cg in cgroups for tvar in dtr_targets[cg] if dmodels[cg][tvar] is not None}}
         else:
             assert False
 
@@ -1526,7 +1528,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             return
         true_plotdir = base_plotdir + '/true-tree-metrics'
-        lbmlist = sorted(dtr_metrics) if metric_method == 'dtr' else [metric_method]  # sorted() is just so the order in the html file matches that in the lb metric one
+        lbmlist = sorted(m for m in dtr_metrics if m not in missing_dmodels) if metric_method == 'dtr' else [metric_method]  # sorted() is just so the order in the html file matches that in the lb metric one
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
         fnames = []
         for lbm in lbmlist:
