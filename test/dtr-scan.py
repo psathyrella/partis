@@ -115,6 +115,7 @@ for n_estimators in [30, 100]:
         cmdfos.append(cmdfo)
 
 if args.action == 'plot':
+    print '%s --training-seed has no effect when we\'re plotting, i.e. we aren\'t checking what seed was used for training here' % utils.color('yellow', 'note')
     # ----------------------------------------------------------------------------------------
     def getptvals(yfname, choice_grouping, target_var, per_x='per-seq', iclust=None, min_ptile_to_plot=75.):  # NOTE duplicates code in cf-tree-metrics.py
         with open(yfname) as yfile:
@@ -134,6 +135,8 @@ if args.action == 'plot':
             print '    %s' % ' '.join(tuple('%20s'%k for k in sorted(plotfo[0]['cfg'])))
             for pfo in plotfo:
                 yfn = treeutils.tmfname(pfo['plotdir'], 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv)
+                if not os.path.exists(yfn):
+                    continue
                 diff_vals = getptvals(yfn, cg, tv)
                 diff_to_perfect = numpy.mean(diff_vals)
                 print '     %s       %6.3f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])
