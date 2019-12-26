@@ -7,6 +7,7 @@ import yaml
 import argparse
 import numpy
 import operator
+import math
 
 sys.path.insert(1, './python')
 import utils
@@ -22,10 +23,18 @@ parser.add_argument('--training-seed', type=int, default=0)
 parser.add_argument('--plot-seed', type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--n-max-queries', type=int)
+parser.add_argument('--cgroup')
+parser.add_argument('--tvar')
 args = parser.parse_args()
 
 if args.training_label is not None:  # only makes sense for --training-label to be set if we're testing or plotting
     assert args.action in ['test', 'plot']
+    if args.training_label == args.label:
+        # print '  setting --training-label to None since it\'s the same as --label'
+        args.training_label = None
+cglist = treeutils.cgroups if args.cgroup is None else [args.cgroup]
+def tvlist(cg):
+    return treeutils.dtr_targets[cg] if args.tvar is None else [args.tvar]
 
 # vsets = {  # NOTE if you change the allowed vars in treeutils, these will of course not reflect that
 #     'all' : {
@@ -77,29 +86,26 @@ for n_estimators in [30, 100]:
             with open(cfgfname, 'w') as cfile:
                 yaml.dump(cfgfo, cfile, width=200)
             cmd += ' --iseed %d --extra-plotstr %s' % (args.training_seed, xtrastrs['train'])
-            modelfnames = [treeutils.dtrfname(modeldir, cg, tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
+            modelfnames = [treeutils.dtrfname(modeldir, cg, tv) for cg in cglist for tv in tvlist(cg)]
             outfname = modelfnames[-1]
             # logdir = os.path.dirname(outfname)  # NOTE has to be the '%s-dtr-models' dir (or at least can't be the '%s-plots' dir, since cf-tree-metrics uses the latter, and the /{out,err} files overwrite each other
             logdir = '%s/%s/seed-%d/dtr/%s-plots/dtr-scan-logs' % (args.base_outdir, args.label if args.training_label is None else args.training_label, args.training_seed, xtrastrs['train'])
         elif args.action == 'test':
             cmd += ' --dtr-path %s --extra-plotstr %s%s' % (modeldir, xtrastrs['test'], trainstr)
             plotdir = '%s/%s/seed-%d/dtr/%s%s-plots' % (args.base_outdir, args.label, log_seed, xtrastrs['test'], trainstr)
-            allfns = [treeutils.tmfname(plotdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]  # i think this should really include all seeds, but the only problem it'd cause is output would be missing, which I'd immediately notice, so whatever
+            allfns = [treeutils.tmfname(plotdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in cglist for tv in tvlist(cg)]  # i think this should really include all seeds, but the only problem it'd cause is output would be missing, which I'd immediately notice, so whatever
             outfname = allfns[-1]
             logdir = '%s/%s/seed-%d/dtr/%s%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'], trainstr)
         elif args.action == 'plot':
-            if args.plot_seed is None:
-                raise Exception('have to specify --plot-seed for \'plot\' action')
-            plotdir = '%s/%s/seed-%d/dtr/%s%s-plots' % (args.base_outdir, args.label, args.plot_seed, xtrastrs['test'], trainstr)
+            def pdfcn(tmpseed): return '%s/%s/seed-%d/dtr/%s%s-plots' % (args.base_outdir, args.label, tmpseed, xtrastrs['test'], trainstr)
+            seed_iter = [args.plot_seed] if args.plot_seed is not None else range(int(utils.get_val_from_arglist(cmd.split(), '--n-replicates')))
+            plotfo.append({'cfg' : cfgfo, 'plotdirs' : [(s, pdfcn(s)) for s in seed_iter if os.path.exists(pdfcn(s))]})
+            continue
         else:
             assert False
 
         if args.n_max_queries is not None:
             cmd += ' --n-max-queries %d' % args.n_max_queries
-
-        if args.action == 'plot':
-            plotfo.append({'cfg' : cfgfo, 'plotdir' : plotdir})
-            continue
 
         print '    %s' % logdir
         print cmd
@@ -115,7 +121,8 @@ for n_estimators in [30, 100]:
         cmdfos.append(cmdfo)
 
 if args.action == 'plot':
-    print '%s --training-seed has no effect when we\'re plotting, i.e. we aren\'t checking what seed was used for training here' % utils.color('yellow', 'note')
+    print_all_seeds = False
+    # print '%s --training-seed has no effect when we\'re plotting, i.e. we aren\'t checking what seed was used for training here' % utils.color('yellow', 'note')
     # ----------------------------------------------------------------------------------------
     def getptvals(yfname, choice_grouping, target_var, per_x='per-seq', iclust=None, min_ptile_to_plot=75.):  # NOTE duplicates code in cf-tree-metrics.py
         with open(yfname) as yfile:
@@ -129,17 +136,28 @@ if args.action == 'plot':
         return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo['mean_%s_ptiles' % lbplotting.getptvar(target_var)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
 
     # ----------------------------------------------------------------------------------------
-    for cg in treeutils.cgroups:
-        for tv in treeutils.dtr_targets[cg]:
-            print '  %s %s' % (cg, tv)
-            print '    %s' % ' '.join(tuple('%20s'%k for k in sorted(plotfo[0]['cfg'])))
+    for cg in cglist:
+        for tv in tvlist(cg):
+            print '  %s %s   train: %s   test: %s' % (cg, tv, args.training_label if args.training_label is not None else args.label, args.label)
+            print '    %s    diff to perfect   seeds' % ' '.join(tuple('%20s'%k for k in sorted(plotfo[0]['cfg'])))
             for pfo in plotfo:
-                yfn = treeutils.tmfname(pfo['plotdir'], 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv)
-                if not os.path.exists(yfn):
-                    continue
-                diff_vals = getptvals(yfn, cg, tv)
-                diff_to_perfect = numpy.mean(diff_vals)
-                print '     %s       %6.3f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])
+                paramstr = '    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0))))
+                fstr = '1' if tv == 'affinity' else '2'
+                estr = str(int(fstr)+1)
+                diff_val_list, seed_list = [], []  # for each seed
+                for ipd, (pseed, pdir) in enumerate(pfo['plotdirs']):
+                    is_train_seed = args.training_label is None and pseed == args.training_seed
+                    yfn = treeutils.tmfname(pdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv)
+                    if not os.path.exists(yfn):
+                        continue
+                    diff_vals = getptvals(yfn, cg, tv)  # for each percentile
+                    diff_to_perfect = numpy.mean(diff_vals)
+                    if not is_train_seed:
+                        diff_val_list.append(diff_to_perfect)
+                        seed_list.append(pseed)
+                    if print_all_seeds:
+                        print ('     %s        %3d   %6.'+fstr+'f  %s') % (paramstr if ipd == 0 else len(paramstr)*' ', pseed, diff_to_perfect, utils.color('red', 'training') if is_train_seed else '')
+                print ('     %s        %6.'+fstr+'f +/-%-6.'+estr+'f     %s') % (paramstr, numpy.mean(diff_val_list), 0. if len(diff_val_list) < 2 else numpy.std(diff_val_list, ddof=1) / math.sqrt(len(diff_val_list)), ' '.join(str(s) for s in seed_list))
 else:
     print '  starting %d jobs' % len(cmdfos)
     n_max_procs = utils.auto_n_procs()
