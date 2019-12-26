@@ -142,5 +142,5 @@ if args.action == 'plot':
                 print '     %s       %6.3f    %s' % ('    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0)))), diff_to_perfect, pfo['plotdir'])
 else:
     print '  starting %d jobs' % len(cmdfos)
-    n_max_procs = 10 #utils.auto_n_procs()
-    utils.run_cmds(cmdfos, n_max_procs=n_max_procs, proc_limit_str='test/cf-tree-metrics', debug='write:cf-tree-metrics.log')
+    n_max_procs = utils.auto_n_procs()
+    utils.run_cmds(cmdfos, n_max_procs=n_max_procs, debug='write:cf-tree-metrics.log')
