@@ -1391,9 +1391,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             for cg in cgroups:
                 for tvar in dtr_targets[cg]:
                     if not os.path.exists(dtrfname(dtr_path, cg, tvar)):
-                        tmpname = '-'.join([cg, tvar, metric_method])
-                        if tmpname == 'among-families-delta-affinity':  # this is the only one that should be missing, since we added it last
-                            missing_dmodels.append(tmpname)  # this is fucking dumb, but I need it later when I have the full name, not cg and tvar
+                        if cg == 'among-families' and tvar == 'delta-affinity':  # this is the only one that should be missing, since we added it last
+                            missing_dmodels.append('-'.join([cg, tvar, metric_method]))  # this is fucking dumb, but I need it later when I have the full name, not cg and tvar
                             print ' %s %s doesn\'t exist, skipping (%s)' % (cg, tvar, dtrfname(dtr_path, cg, tvar))
                             continue
                         else:  # whereas if the other ones are missing, we want to crash right here

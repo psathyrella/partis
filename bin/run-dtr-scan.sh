@@ -6,4 +6,4 @@ trlabel=dtr-train-v1; trseed=0
 common=" --training-label $trlabel --training-seed $trseed --n-max-queries 250000" # --cgroup among-families --tvar affinity"
 # ./test/dtr-scan.py $action --label dtr-train-v0 $common
 # ./test/dtr-scan.py $action --label dtr-train-v1 $common
-echo ./test/dtr-scan.py $action --label dtr-train-v2 $common
+./test/dtr-scan.py $action --label dtr-train-v2 $common
