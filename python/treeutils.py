@@ -17,8 +17,12 @@ import dendropy
 import time
 import math
 import yaml
+import json
 import pickle
 import warnings
+import joblib
+import sklearn2pmml
+import pypmml
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
@@ -89,6 +93,10 @@ default_dtr_options = {
 }
 
 # ----------------------------------------------------------------------------------------
+def get_dtr_varnames(cgroup, varlists, with_pc=False):  # arg, <with_pc> is fucking ugly
+    return [(pc, vn) if with_pc else vn for pc in pchoices for vn in varlists[cgroup][pc]]
+
+# ----------------------------------------------------------------------------------------
 def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
     # ----------------------------------------------------------------------------------------
     def getval(pchoice, var, uid):
@@ -119,12 +127,12 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
         }
     vals = []
     for uid in line['unique_ids']:
-        vals.append([getval(pc, var, uid) for pc in pchoices for var in varlists[cgroup][pc]])
+        vals.append([getval(pc, var, uid) for pc, var in get_dtr_varnames(cgroup, varlists, with_pc=True)])
     return vals
 
 # ----------------------------------------------------------------------------------------
-def dtrfname(dpath, cg, tvar):
-    return '%s/%s-%s-dtr-model.pickle' % (dpath, cg, tvar)
+def dtrfname(dpath, cg, tvar, suffix='pickle'):
+    return '%s/%s-%s-dtr-model.%s' % (dpath, cg, tvar, suffix)
 
 # ----------------------------------------------------------------------------------------
 def tmfname(plotdir, metric, x_axis_label, cg=None, tv=None, use_relative_affy=False):  # tree metric fname
@@ -135,19 +143,25 @@ def tmfname(plotdir, metric, x_axis_label, cg=None, tv=None, use_relative_affy=F
     return '%s/true-tree-metrics/%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (plotdir, metric_str, vs_str, vs_str)  # NOTE has 'true-tree' in there, which is fine for now but may need to change
 
 # ----------------------------------------------------------------------------------------
+def write_pmml(pmmlfname, dmodel, varlist, targetvar):
+    pmml_pipeline = sklearn2pmml.make_pmml_pipeline(dmodel, active_fields=varlist, target_fields=targetvar)
+    sklearn2pmml.sklearn2pmml(pmml_pipeline, pmmlfname)
+
+# ----------------------------------------------------------------------------------------
 def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
-    if 'sklearn' not in sys.modules:
+    if 'sklearn.ensemble' not in sys.modules:
         with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings UPDATE oh, I think the warnings are getting thrown by function calls, not imports
             warnings.simplefilter('ignore', category=DeprecationWarning)  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it
             from sklearn import tree
             from sklearn import ensemble
-    skl = sys.modules['sklearn']
+    skens = sys.modules['sklearn.ensemble']
+    sktree = sys.modules['sklearn.tree']
 
     start = time.time()
     base_kwargs, kwargs = {}, {'n_estimators' : cfgvals['n_estimators']}
     if cfgvals['ensemble'] == 'bag':
         base_kwargs = {'min_samples_leaf' : cfgvals['min_samples_leaf'], 'max_depth' : cfgvals['max_depth']}
-        kwargs['base_estimator'] = skl.tree.DecisionTreeRegressor(**base_kwargs)  # we can pass this to ada-boost, but I'm not sure if we should (it would override the default max_depth=3, for instance)
+        kwargs['base_estimator'] = sktree.DecisionTreeRegressor(**base_kwargs)  # we can pass this to ada-boost, but I'm not sure if we should (it would override the default max_depth=3, for instance)
     if 'grad-boost' in cfgvals['ensemble']:
         kwargs['max_depth'] = cfgvals['max_depth']
         kwargs['min_samples_leaf'] = cfgvals['min_samples_leaf']
@@ -155,13 +169,13 @@ def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
         kwargs['n_jobs'] = cfgvals['n_jobs']
 
     if cfgvals['ensemble'] == 'bag':
-        model = skl.ensemble.BaggingRegressor(**kwargs)
+        model = skens.BaggingRegressor(**kwargs)
     elif cfgvals['ensemble'] == 'forest':
-        model = skl.ensemble.RandomForestRegressor(**kwargs)
+        model = skens.RandomForestRegressor(**kwargs)
     elif cfgvals['ensemble'] == 'ada-boost':
-        model = skl.ensemble.AdaBoostRegressor(**kwargs)
+        model = skens.AdaBoostRegressor(**kwargs)
     elif cfgvals['ensemble'] == 'grad-boost':
-        model = skl.ensemble.GradientBoostingRegressor(**kwargs)  # if too slow, maybe try the new hist gradient boosting stuff
+        model = skens.GradientBoostingRegressor(**kwargs)  # if too slow, maybe try the new hist gradient boosting stuff
     else:
         assert False
 
@@ -185,9 +199,8 @@ def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     with open(dtrfname(outdir, cgroup, tvar), 'w') as dfile:
-        pickle.dump(model, dfile)
-
-    return model
+        joblib.dump(model, dfile)
+    write_pmml(dtrfname(outdir, cgroup, tvar, suffix='pmml'), model, get_dtr_varnames(cgroup, cfgvals['vars']), tvar)
 
 # ----------------------------------------------------------------------------------------
 # NOTE the min lbi is just tau, but I still like doing it this way
@@ -1382,23 +1395,34 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             else:
                 dtr_cfgvals[tk] = default_dtr_options[tk]
 
-        dmodels = {cg : {tv : None} for cg in cgroups for tv in dtr_targets[cg]}
-        missing_dmodels = []
+        skmodels = {cg : {tv : None for tv in dtr_targets[cg]} for cg in cgroups}
+        pmml_models = {cg : {tv : None for tv in dtr_targets[cg]} for cg in cgroups}
+        missing_models = []
         if train_dtr:
             dtrfo = {cg : {tv : {'in' : [], 'out' : []} for tv in dtr_targets[cg]} for cg in cgroups}  # , 'weights' : []}
         else:
+            # ----------------------------------------------------------------------------------------
+            def read_dmodel(cg, tvar):
+                picklefname, pmmlfname = dtrfname(dtr_path, cg, tvar), dtrfname(dtr_path, cg, tvar, suffix='pmml')
+                if os.path.exists(picklefname):  # pickle file (i.e. with entire model class written to disk, but *must* be read with the same version of sklearn that was used to write it) [these should always be there, since on old ones they were all we had, and on new ones we write both pickle and pmml]
+                    if os.path.exists(pmmlfname):  # pmml file (i.e. just with the info to make predictions, but can be read with other software versions)
+                        pmml_models[cg][tvar] = pypmml.Model.fromFile(pmmlfname)
+                    else:  # if the pmml file isn't there, this must be old files, so we read the pickle, convert to pmml, then read that new pmml file
+                        with open(picklefname) as dfile:
+                            skmodels[cg][tvar] = joblib.load(dfile)
+                        write_pmml(pmmlfname, skmodels[cg][tvar], get_dtr_varnames(cg, dtr_cfgvals['vars']), tvar)
+                        pmml_models[cg][tvar] = pypmml.Model.fromFile(pmmlfname)
+                else:
+                    if cg == 'among-families' and tvar == 'delta-affinity':  # this is the only one that should be missing, since we added it last
+                        missing_models.append('-'.join([cg, tvar, metric_method]))  # this is fucking dumb, but I need it later when I have the full name, not cg and tvar
+                        print ' %s %s doesn\'t exist, skipping (%s)' % (cg, tvar, dtrfname(dtr_path, cg, tvar))
+                        return
+                    raise Exception('model file doesn\'t exist: %s' % picklefname)
+            # ----------------------------------------------------------------------------------------
             rstart = time.time()
             for cg in cgroups:
                 for tvar in dtr_targets[cg]:
-                    if not os.path.exists(dtrfname(dtr_path, cg, tvar)):
-                        if cg == 'among-families' and tvar == 'delta-affinity':  # this is the only one that should be missing, since we added it last
-                            missing_dmodels.append('-'.join([cg, tvar, metric_method]))  # this is fucking dumb, but I need it later when I have the full name, not cg and tvar
-                            print ' %s %s doesn\'t exist, skipping (%s)' % (cg, tvar, dtrfname(dtr_path, cg, tvar))
-                            continue
-                        else:  # whereas if the other ones are missing, we want to crash right here
-                            pass
-                    with open(dtrfname(dtr_path, cg, tvar)) as dfile:
-                        dmodels[cg][tvar] = pickle.load(dfile)
+                    read_dmodel(cg, tvar)
             print '  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart)
             print '           plotting to %s' % base_plotdir
 
@@ -1508,8 +1532,19 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                         add_dtr_training_vals(cg, tvar, dtrfo, dtr_invals)
                 # line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
             else:  # read existing model
-                line['tree-info'] = {'lb' : {'-'.join([cg, tvar, metric_method]) :
-                                             {u : d for u, d in zip(line['unique_ids'], dmodels[cg][tvar].predict(dtr_invals[cg]))} for cg in cgroups for tvar in dtr_targets[cg] if dmodels[cg][tvar] is not None}}
+                line['tree-info'] = {'lb' : {}}
+                for cg in cgroups:
+                    for tvar in dtr_targets[cg]:
+                        if pmml_models[cg][tvar] is None:  # only way this can happen atm is old dirs that don't have among-families delta-affinity
+                            continue
+                        outfo = {}
+                        for iseq, uid in enumerate(line['unique_ids']):
+                            pmml_invals = {var : val for var, val in zip(get_dtr_varnames(cg, dtr_cfgvals['vars']), dtr_invals[cg][iseq])}  # convert from format for sklearn to format for pmml
+                            outfo[uid] = pmml_models[cg][tvar].predict(pmml_invals)['predicted_%s'%tvar]
+                            # if skmodels[cg][tvar] is not None:  # leaving this here cause maybe we'll want to fall back to it or something if pmml ends up having problems
+                            #     sk_val = skmodels[cg][tvar].predict([dtr_invals[cg][iseq]])
+                            #     assert utils.is_normed(sk_val / outfo[uid])
+                        line['tree-info']['lb']['-'.join([cg, tvar, metric_method])] = outfo
         else:
             assert False
 
@@ -1521,7 +1556,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
         for cg in cgroups:
             for tvar in dtr_targets[cg]:
-                dmodels[cg][tvar] = train_dtr_model(dtrfo[cg][tvar], dtr_path, dtr_cfgvals, cg, tvar)
+                train_dtr_model(dtrfo[cg][tvar], dtr_path, dtr_cfgvals, cg, tvar)
 
     if base_plotdir is not None and (metric_method != 'dtr' or not train_dtr):
         plstart = time.time()
@@ -1531,7 +1566,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             return
         true_plotdir = base_plotdir + '/true-tree-metrics'
-        lbmlist = sorted(m for m in dtr_metrics if m not in missing_dmodels) if metric_method == 'dtr' else [metric_method]  # sorted() is just so the order in the html file matches that in the lb metric one
+        lbmlist = sorted(m for m in dtr_metrics if m not in missing_models) if metric_method == 'dtr' else [metric_method]  # sorted() is just so the order in the html file matches that in the lb metric one
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
         fnames = []
         for lbm in lbmlist:
