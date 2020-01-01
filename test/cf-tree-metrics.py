@@ -399,6 +399,8 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
             iclusts_in_file = []
             if 'percentiles' in yamlfo:
                 iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo['percentiles']['per-seq'] if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
+            else:
+                iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
             missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
             if len(missing_iclusts) > 0:
                 print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
