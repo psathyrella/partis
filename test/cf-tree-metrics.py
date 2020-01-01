@@ -206,8 +206,8 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None):
         return [get_tm_fname(varnames, vstr, metric_method, 'affinity')]  # TODO not sure it's really best to hard code this, but maybe it is
 
 # ----------------------------------------------------------------------------------------
-def get_comparison_plotdir():
-    return '%s/%s/plots' % (args.base_outdir, args.label)
+def get_comparison_plotdir(metric=None):
+    return '%s/%s/plots%s' % (args.base_outdir, args.label, '/' + metric if metric is not None else '')
 
 # ----------------------------------------------------------------------------------------
 def getsargval(sv):  # ick this name sucks
@@ -368,7 +368,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
         if pvkey not in plotvals:
             plotvals[pvkey] = initfcn()
         plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
-        plotlist.append((tau, diff_to_perfect))
+        plotlist.append((tau, diff_to_perfect))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
     # ----------------------------------------------------------------------------------------
     def get_varname_str():
         return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
@@ -404,7 +404,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
             missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
             if len(missing_iclusts) > 0:
                 print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
-            assert iclusts_in_file == list(range(args.n_sim_events_per_proc))
+            # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_tree_metric_cluster_size)
             for iclust in iclusts_in_file:
                 add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
 
@@ -439,15 +439,16 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
             mean_vals, err_vals = [], []
             ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
             n_used = []  # just for dbg
-            tmpvaldict = collections.OrderedDict()  # rearrange them into a dict keyed by the appropriate tau/xval
+            tmpvaldict = {}  # rearrange them into a dict keyed by the appropriate tau/xval
             for ikey in ofvals:  # <ikey> is an amalgamation of iseeds and icluster, e.g. '20-0'
                 for pairvals in ofvals[ikey]:
-                    tau, tval = pairvals
+                    tau, tval = pairvals  # reminder: tau is not in general (any more) tau, but is the variable values fulfilling the original purpose of tau (i think x values?) in the plot
                     tkey = tuple(tau) if isinstance(tau, list) else tau  # if it's actually tau, it will be a single value, but if xvar is set to, say, n-sim-seqs-per-gen then it will be a list
-                    if tkey not in tmpvaldict:
+                    if tkey not in tmpvaldict:  # these will usually get added in order, except when there's missing ones in some ikeys
                         tmpvaldict[tkey] = []
                     tmpvaldict[tkey].append(tval)
-            for tau, ltmp in tmpvaldict.items():  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
+            for tau in sorted(tmpvaldict):  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
+                ltmp = tmpvaldict[tau]
                 mean_vals.append((tau, numpy.mean(ltmp)))
                 err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))
                 n_used.append(len(ltmp))
@@ -461,6 +462,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
 
     fig, ax = plotting.mpl_init()
     lb_taus, xticklabels = None, None
+    outfo = {}
     for pvkey in plotvals:
         lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
         assert lb_taus == tuple(sorted(lb_taus))  # only happened once, before I had the duplicate checks and things, but still seems like a good idea
@@ -471,6 +473,8 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
             ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=pvkey, alpha=0.7, linewidth=4, markersize=markersize, marker='.')  #, title='position ' + str(position))
         else:
             ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
+        outfo[pvkey] = {'xvals' : lb_taus, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}
+
     log, adjust = '', {}
     if xvar == 'lb-tau':
         ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
@@ -481,6 +485,11 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
         plotname = '%s-%s-ptiles-vs-%s-%s' % (ptilestr, metric, xvar, choice_grouping)
     else:
         plotname = '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
+
+    plotdir = '%s/%s' % (get_comparison_plotdir(metric), per_x)
+    with open('%s/%s.yaml'%(plotdir, plotname), 'w') as yfile:
+        json.dump(outfo, yfile)
+
     if ax.get_ylim()[1] < 1:
         adjust['left'] = 0.21
     if ax.get_ylim()[1] < 0.01:
@@ -493,8 +502,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
     title = metric.upper()
     if per_x == 'per-seq':
         title += ': choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
-    plotting.mpl_finish(ax, '%s/%s' % (get_comparison_plotdir(), per_x),
-                        plotname,
+    plotting.mpl_finish(ax, plotdir, plotname,
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
                         title=title, leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
@@ -580,6 +588,7 @@ def get_tree_metrics(args):
             if len(args.lb_tau_list) > 1:
                 cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
+            cmd += ' --min-tree-metric-cluster-size 5'  # if n per gen is small, sometimes the clusters are a bit smaller than 10, but we don't really want to skip any clusters here (especially because it confuses the plotting above)
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
             # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
@@ -717,12 +726,12 @@ for action in args.actions:
     elif action == 'get-tree-metrics':
         get_tree_metrics(args)
     elif action == 'plot' and not args.dry:
-        utils.prep_dir(get_comparison_plotdir(), subdirs=['per-seq'], wildlings=['*.html', '*.svg'])  # , 'per-cluster'
         _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir())
         procs = []
         pchoice = 'per-seq'
         for metric in args.plot_metrics:
+            utils.prep_dir(get_comparison_plotdir(metric), subdirs=['per-seq'], wildlings=['*.html', '*.svg', '*.yaml'])  # , 'per-cluster'
             cfg_list = lbplotting.lb_metric_axis_cfg(metric)[0][1]
             for ptvar, ptlabel in cfg_list:
                 print '  %s  %-13s' % (utils.color('blue', metric), ptvar)
@@ -737,4 +746,5 @@ for action in args.actions:
                         procs.append(multiprocessing.Process(target=make_plots, args=arglist))
         if not args.test:
             utils.run_proc_functions(procs)
-        plotting.make_html(get_comparison_plotdir() + '/per-seq')
+        for metric in args.plot_metrics:
+            plotting.make_html(get_comparison_plotdir(metric) + '/per-seq')
