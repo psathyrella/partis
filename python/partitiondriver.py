@@ -839,6 +839,8 @@ class PartitionDriver(object):
         if self.args.calculate_alternative_annotations:
             clusters_in_partitions = set([':'.join(c) for partition in cpath.partitions for c in partition])
             for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
+                if len(set(cluster) & hmm_failures) == len(cluster):
+                    continue
                 self.get_subcluster_naive_seqs(cluster, all_annotations, clusters_in_partitions, debug=self.args.debug)  # NOTE modifies the annotations (adds 'alternative-annotations' key)
 
         if self.args.outfname is not None:
