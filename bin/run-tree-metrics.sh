@@ -15,6 +15,7 @@ testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times
 
 common="--only-csv-plots --slurm"  # --no-tree-plots
 # # TODO figure out v2 command, which now needs --legend-var obs_frac
+# echo $bin --label v2 --n-replicates 200 --n-sim-seqs-per-gen-list 30:50:75:100:150:200 --legend-var obs_frac
 # echo $bin --label vary-carry-cap-v0 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 500:750:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75
 # echo $bin --label vary-obs-times-v0 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 100:200:300:100,150:200,250:100,200,300 --n-sim-seqs-per-gen-list 100:100:100:50:50:33 --zip-vars obs-times:n-sim-seqs-per-gen
 # echo $bin --label vary-obs-times-v1 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 300:100,200,300:200,250,300 --n-sim-seqs-per-gen-list 100:33:33 --zip-vars obs-times:n-sim-seqs-per-gen
@@ -34,4 +35,4 @@ common="--only-csv-plots --slurm"  # --no-tree-plots
 common="--only-csv-plots" # --sub-slurm"
 # echo $bin --label dtr-train-v0 --n-replicates 5 --n-sim-events-per-proc 1000 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5 --actions bcr-phylo
 # echo $bin --label dtr-train-v1 --n-replicates 5 --n-sub-procs 30 --n-sim-events-per-proc 50000 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 30 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5 --actions bcr-phylo
-echo $bin --label dtr-train-v2 --n-replicates 2 --iseed 0 --n-sub-procs 15 --n-sim-events-per-proc 300000 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 20 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5 --actions bcr-phylo --base-outdir /loc/scratch/dralph/partis/tree-metrics
+# echo $bin --label dtr-train-v2 --n-replicates 2 --iseed 0 --n-sub-procs 15 --n-sim-events-per-proc 300000 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 20 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5 --actions bcr-phylo --base-outdir /loc/scratch/dralph/partis/tree-metrics

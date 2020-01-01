@@ -183,7 +183,6 @@ def get_tm_fname(varnames, vstr, metric, x_axis_label, use_relative_affy=False, 
         plotdir = get_tree_metric_plotdir(varnames, vstr)
         old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (plotdir, metric, x_axis_label, rel_affy_str(use_relative_affy, metric))  # just for backwards compatibility, could probably remove at some point (note: not updating this when I'm adding non-lb metrics like shm)
         if os.path.exists(old_path):
-            print 'exists', old_path
             return old_path
     else:
         plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric)
