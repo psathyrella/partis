@@ -588,7 +588,6 @@ def get_tree_metrics(args):
             if len(args.lb_tau_list) > 1:
                 cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
-            cmd += ' --min-tree-metric-cluster-size 5'  # if n per gen is small, sometimes the clusters are a bit smaller than 10, but we don't really want to skip any clusters here (especially because it confuses the plotting above)
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
             # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
@@ -609,6 +608,7 @@ def get_tree_metrics(args):
             cmd += ' --only-csv-plots'
         if args.n_max_queries is not None:
             cmd += ' --n-max-queries %d' % args.n_max_queries
+        cmd += ' --min-tree-metric-cluster-size 5'  # if n per gen is small, sometimes the clusters are a bit smaller than 10, but we don't really want to skip any clusters here (especially because it confuses the plotting above)
 
         cmdfos += [{
             'cmd_str' : cmd,

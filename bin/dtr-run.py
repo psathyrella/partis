@@ -23,6 +23,7 @@ parser.add_argument('--dtr-cfg')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--n-max-queries', type=int)
 parser.add_argument('--max-family-size', type=int, help='subset each family down to this size before passing to treeutils')
+parser.add_argument('--min-tree-metric-cluster-size', type=int)
 # tree plots turned off in the treeutils fcn atm
 # parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
 # parser.add_argument('--workdir')  # only required to make ete trees
@@ -40,4 +41,4 @@ if args.max_family_size is not None:
 
 train_dtr = args.metric_method == 'dtr' and args.action == 'train'
 treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, train_dtr=train_dtr, dtr_path=args.dtr_path, dtr_cfg=args.dtr_cfg,
-                                        only_csv=args.only_csv_plots, lb_tau=args.lb_tau, min_cluster_size=args.max_family_size)  # ete_path=args.ete_path, workdir=args.workdir,
+                                        only_csv=args.only_csv_plots, lb_tau=args.lb_tau, min_cluster_size=args.min_tree_metric_cluster_size)  # ete_path=args.ete_path, workdir=args.workdir,
