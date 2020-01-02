@@ -206,8 +206,8 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None):
         return [get_tm_fname(varnames, vstr, metric_method, 'affinity')]  # TODO not sure it's really best to hard code this, but maybe it is
 
 # ----------------------------------------------------------------------------------------
-def get_comparison_plotdir(metric=None):
-    return '%s/%s/plots%s' % (args.base_outdir, args.label, '/' + metric if metric is not None else '')
+def get_comparison_plotdir(metric, per_x):
+    return '%s/%s/plots%s%s' % (args.base_outdir, args.label, '/'+metric if metric is not None else '', '/'+per_x if per_x is not None else '')
 
 # ----------------------------------------------------------------------------------------
 def getsargval(sv):  # ick this name sucks
@@ -268,7 +268,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
+def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
         print '    skipping lbr when only observing leaves'
         return
@@ -374,98 +374,117 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
         return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
     def get_varval_str(vstrs):
         return ''.join('%10s' % v for v in vstrs)
+    # ----------------------------------------------------------------------------------------
+    def read_plot_info():
+        if debug:
+            print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
+        missing_vstrs = {'missing' : [], 'empty' : []}
+        for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
+            obs_frac, dbgstr = get_obs_frac(vlists, varnames)
+            if debug:
+                print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
+            yfname = get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr))
+            try:
+                with open(yfname) as yfile:
+                    yamlfo = json.load(yfile)  # too slow with yaml
+            except IOError:  # os.path.exists() is too slow with this many files
+                missing_vstrs['missing'].append((None, vstrs))
+                continue
+            # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
+            if treat_clusters_together:
+                add_plot_vals(yamlfo, vlists, varnames, obs_frac)
+            else:
+                iclusts_in_file = []
+                if 'percentiles' in yamlfo:
+                    iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo['percentiles']['per-seq'] if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
+                else:
+                    iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
+                missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
+                if len(missing_iclusts) > 0:
+                    print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
+                # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_tree_metric_cluster_size)
+                for iclust in iclusts_in_file:
+                    add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
+
+        # print info about missing and empty results
+        n_printed, n_max_print = 0, 5
+        for mkey, vstrs_list in missing_vstrs.items():  # ok now it's iclust and vstrs list, but what tf am I going to name that
+            if len(vstrs_list) == 0:
+                continue
+            print '        %s: %d families' % (mkey, len(vstrs_list))
+            print '     %s   iclust' % get_varname_str()
+            for iclust, vstrs in vstrs_list:
+                print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr)))
+                n_printed += 1
+                if n_printed >= n_max_print:
+                    print '             [...]'
+                    print '      skipping %d more lines' % (len(vstrs_list) - n_max_print)
+                    break
+
+        # average over the replicates/clusters
+        if (args.n_replicates > 1 or not treat_clusters_together) and len(plotvals) > 0:
+            if debug:
+                print '  averaging over %d replicates' % args.n_replicates,
+                if args.n_sim_events_per_proc is not None:
+                    if treat_clusters_together:
+                        print '(treating %d clusters per proc together)' % args.n_sim_events_per_proc,
+                    else:
+                        print 'times %d clusters per proc:' % args.n_sim_events_per_proc,
+                print ''
+                tmplen = str(max(len(pvkey) for pvkey in plotvals))
+                print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
+            for pvkey, ofvals in plotvals.items():
+                mean_vals, err_vals = [], []
+                ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
+                n_used = []  # just for dbg
+                tmpvaldict = {}  # rearrange them into a dict keyed by the appropriate tau/xval
+                for ikey in ofvals:  # <ikey> is an amalgamation of iseeds and icluster, e.g. '20-0'
+                    for pairvals in ofvals[ikey]:
+                        tau, tval = pairvals  # reminder: tau is not in general (any more) tau, but is the variable values fulfilling the original purpose of tau (i think x values?) in the plot
+                        tkey = tuple(tau) if isinstance(tau, list) else tau  # if it's actually tau, it will be a single value, but if xvar is set to, say, n-sim-seqs-per-gen then it will be a list
+                        if tkey not in tmpvaldict:  # these will usually get added in order, except when there's missing ones in some ikeys
+                            tmpvaldict[tkey] = []
+                        tmpvaldict[tkey].append(tval)
+                for tau in sorted(tmpvaldict):  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
+                    ltmp = tmpvaldict[tau]
+                    mean_vals.append((tau, numpy.mean(ltmp)))
+                    err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))
+                    n_used.append(len(ltmp))
+                plotvals[pvkey] = mean_vals
+                errvals[pvkey] = err_vals
+                if debug:
+                    n_expected = args.n_replicates
+                    if not treat_clusters_together:
+                        n_expected *= args.n_sim_events_per_proc
+                    print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
 
     # ----------------------------------------------------------------------------------------
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
-    if debug:
-        print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
-    missing_vstrs = {'missing' : [], 'empty' : []}
-    for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
-        obs_frac, dbgstr = get_obs_frac(vlists, varnames)
-        if debug:
-            print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
-        yfname = get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr))
-        try:
-            with open(yfname) as yfile:
-                yamlfo = json.load(yfile)  # too slow with yaml
-        except IOError:  # os.path.exists() is too slow with this many files
-            missing_vstrs['missing'].append((None, vstrs))
-            continue
-        # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
-        if treat_clusters_together:
-            add_plot_vals(yamlfo, vlists, varnames, obs_frac)
-        else:
-            iclusts_in_file = []
-            if 'percentiles' in yamlfo:
-                iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo['percentiles']['per-seq'] if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
-            else:
-                iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
-            missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
-            if len(missing_iclusts) > 0:
-                print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
-            # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_tree_metric_cluster_size)
-            for iclust in iclusts_in_file:
-                add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
-
-    # print info about missing and empty results
-    n_printed, n_max_print = 0, 5
-    for mkey, vstrs_list in missing_vstrs.items():  # ok now it's iclust and vstrs list, but what tf am I going to name that
-        if len(vstrs_list) == 0:
-            continue
-        print '        %s: %d families' % (mkey, len(vstrs_list))
-        print '     %s   iclust' % get_varname_str()
-        for iclust, vstrs in vstrs_list:
-            print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr)))
-            n_printed += 1
-            if n_printed >= n_max_print:
-                print '             [...]'
-                print '      skipping %d more lines' % (len(vstrs_list) - n_max_print)
-                break
-
-    # average over the replicates/clusters
-    if (args.n_replicates > 1 or not treat_clusters_together) and len(plotvals) > 0:
-        if debug:
-            print '  averaging over %d replicates' % args.n_replicates,
-            if args.n_sim_events_per_proc is not None:
-                if treat_clusters_together:
-                    print '(treating %d clusters per proc together)' % args.n_sim_events_per_proc,
-                else:
-                    print 'times %d clusters per proc:' % args.n_sim_events_per_proc,
-            print ''
-            tmplen = str(max(len(pvkey) for pvkey in plotvals))
-            print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
-        for pvkey, ofvals in plotvals.items():
-            mean_vals, err_vals = [], []
-            ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
-            n_used = []  # just for dbg
-            tmpvaldict = {}  # rearrange them into a dict keyed by the appropriate tau/xval
-            for ikey in ofvals:  # <ikey> is an amalgamation of iseeds and icluster, e.g. '20-0'
-                for pairvals in ofvals[ikey]:
-                    tau, tval = pairvals  # reminder: tau is not in general (any more) tau, but is the variable values fulfilling the original purpose of tau (i think x values?) in the plot
-                    tkey = tuple(tau) if isinstance(tau, list) else tau  # if it's actually tau, it will be a single value, but if xvar is set to, say, n-sim-seqs-per-gen then it will be a list
-                    if tkey not in tmpvaldict:  # these will usually get added in order, except when there's missing ones in some ikeys
-                        tmpvaldict[tkey] = []
-                    tmpvaldict[tkey].append(tval)
-            for tau in sorted(tmpvaldict):  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
-                ltmp = tmpvaldict[tau]
-                mean_vals.append((tau, numpy.mean(ltmp)))
-                err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))
-                n_used.append(len(ltmp))
-            plotvals[pvkey] = mean_vals
-            errvals[pvkey] = err_vals
-            if debug:
-                n_expected = args.n_replicates
-                if not treat_clusters_together:
-                    n_expected *= args.n_sim_events_per_proc
-                print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
+    if action == 'plot':
+        read_plot_info()
 
     fig, ax = plotting.mpl_init()
+    if per_x == 'per-seq':
+        plotname = '%s-%s-ptiles-vs-%s-%s' % (ptilestr, metric, xvar, choice_grouping)
+    else:
+        plotname = '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
+    plotdir = get_comparison_plotdir(metric, per_x)
+    yfname = '%s/%s.yaml'%(plotdir, plotname)
+    if action == 'combine-plots':
+        _ = [pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists]  # have to call this fcn at least once just to set pvlabel
+        with open(yfname) as yfile:
+            yfo = collections.OrderedDict(json.load(yfile))
+    outfo = []
     lb_taus, xticklabels = None, None
-    outfo = {}
-    for pvkey in plotvals:
-        lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
-        assert lb_taus == tuple(sorted(lb_taus))  # only happened once, before I had the duplicate checks and things, but still seems like a good idea
+    for pvkey in (plotvals if action=='plot' else yfo):
+        if action == 'plot':
+            lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
+            assert lb_taus == tuple(sorted(lb_taus))  # only happened once, before I had the duplicate checks and things, but still seems like a good idea (won't sort correclty if we're looking at <yfo> since <pvkey> will be string rather than integer)
+        else:
+            lb_taus, diffs_to_perfect, yerrs = yfo[pvkey]['xvals'], yfo[pvkey]['yvals'], yfo[pvkey]['yerrs']
+            if yerrs is not None and len(yerrs) == len(lb_taus):  # not sure if i need the first bit, but don't feel like checking right now
+                errvals[pvkey] = zip(lb_taus, yerrs)
         xticklabels = [str(t) for t in lb_taus]
         markersize = 1 if len(lb_taus) > 1 else 15
         if pvkey in errvals:
@@ -473,7 +492,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
             ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=pvkey, alpha=0.7, linewidth=4, markersize=markersize, marker='.')  #, title='position ' + str(position))
         else:
             ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
-        outfo[pvkey] = {'xvals' : lb_taus, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}
+        outfo.append((pvkey, {'xvals' : lb_taus, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
 
     log, adjust = '', {}
     if xvar == 'lb-tau':
@@ -481,14 +500,10 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
         adjust['bottom'] = 0.23
     if xvar == 'carry-cap':
         log = 'x'
-    if per_x == 'per-seq':
-        plotname = '%s-%s-ptiles-vs-%s-%s' % (ptilestr, metric, xvar, choice_grouping)
-    else:
-        plotname = '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
 
-    plotdir = '%s/%s' % (get_comparison_plotdir(metric), per_x)
-    with open('%s/%s.yaml'%(plotdir, plotname), 'w') as yfile:
-        json.dump(outfo, yfile)
+    if action == 'plot':  # write json file to be read by 'combine-plots'
+        with open(yfname, 'w') as yfile:
+            json.dump(outfo, yfile)
 
     if ax.get_ylim()[1] < 1:
         adjust['left'] = 0.21
@@ -502,7 +517,7 @@ def make_plots(args, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar,
     title = metric.upper()
     if per_x == 'per-seq':
         title += ': choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
-    plotting.mpl_finish(ax, plotdir, plotname,
+    plotting.mpl_finish(ax, plotdir if action == 'plot' else get_comparison_plotdir('combined', per_x), plotname,
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
                         title=title, leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
@@ -631,7 +646,7 @@ def get_tree_metrics(args):
             utils.run_cmds(cmdfos, debug='write:%s.log'%logstr, batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, allow_failure=True)
 
 # ----------------------------------------------------------------------------------------
-all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot']
+all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot', 'combine-plots']
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--actions', default=':'.join(a for a in all_actions if a != 'get-lb-bounds'))
 parser.add_argument('--test', action='store_true')
@@ -643,7 +658,7 @@ parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.0
 parser.add_argument('--metric-for-target-distance-list', default='aa')
 parser.add_argument('--leaf-sampling-scheme')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
-parser.add_argument('--plot-metrics', default='lbi') #:within-families-affinity-dtr')
+parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
@@ -728,26 +743,30 @@ for action in args.actions:
         run_bcr_phylo(args)
     elif action == 'get-tree-metrics':
         get_tree_metrics(args)
-    elif action == 'plot' and not args.dry:
+    elif action in ['plot', 'combine-plots'] and not args.dry:
         _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
-        print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir())
+        print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir(None, None))
         procs = []
         pchoice = 'per-seq'
+        if action == 'combine-plots':
+            utils.prep_dir(get_comparison_plotdir('combined', None), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
         for metric in args.plot_metrics:
-            utils.prep_dir(get_comparison_plotdir(metric), subdirs=['per-seq'], wildlings=['*.html', '*.svg', '*.yaml'])  # , 'per-cluster'
+            if action == 'plot':
+                utils.prep_dir(get_comparison_plotdir(metric, None), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
             cfg_list = lbplotting.lb_metric_axis_cfg(metric)[0][1]
             for ptvar, ptlabel in cfg_list:
                 print '  %s  %-13s' % (utils.color('blue', metric), ptvar)
                 for cgroup in treeutils.cgroups:
-                    if ptvar == 'n-ancestor' and cgroup == 'among-families':  # doesn't really make sense
-                        continue
                     print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
-                    arglist = (args, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar)
+                    arglist = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar)
                     if args.test:
                         make_plots(*arglist)
                     else:
                         procs.append(multiprocessing.Process(target=make_plots, args=arglist))
         if not args.test:
             utils.run_proc_functions(procs)
-        for metric in args.plot_metrics:
-            plotting.make_html(get_comparison_plotdir(metric) + '/per-seq')
+        if action == 'plot':
+            for metric in args.plot_metrics:
+                plotting.make_html(get_comparison_plotdir(metric, pchoice))
+        elif action == 'combine-plots':
+            plotting.make_html(get_comparison_plotdir('combined', pchoice))
