@@ -156,6 +156,9 @@ def write_pmml(pmmlfname, dmodel, varlist, targetvar):
 
 # ----------------------------------------------------------------------------------------
 def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
+    if os.path.exists(dtrfname(outdir, cgroup, tvar)):
+        print '  %s dtr model file exists, so skipping training: %s' % (utils.color('yellow', 'warning'), dtrfname(outdir, cgroup, tvar))
+        return
     if 'sklearn.ensemble' not in sys.modules:
         with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings UPDATE oh, I think the warnings are getting thrown by function calls, not imports
             warnings.simplefilter('ignore', category=DeprecationWarning)  # numpy is complaining about how sklearn is importing something, and I really don't want to *@*($$ing hear about it

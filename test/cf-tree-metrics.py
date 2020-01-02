@@ -600,6 +600,8 @@ def get_tree_metrics(args):
                                                                                                       get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
                                                                                                       get_vlval(vstrs, varnames, 'lb-tau'))
             if args.metric_method == 'dtr':
+                if args.dtr_path is None and args.overwrite:
+                    raise Exception('need to remove dtr model files by hand, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)')
                 cmd += ' --action %s' % ('train' if args.dtr_path is None else 'test',)
                 cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
                 if args.dtr_cfg is not None:
