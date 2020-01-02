@@ -23,6 +23,7 @@ import warnings
 import joblib
 import sklearn2pmml
 import pypmml
+import traceback
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 
@@ -144,8 +145,14 @@ def tmfname(plotdir, metric, x_axis_label, cg=None, tv=None, use_relative_affy=F
 
 # ----------------------------------------------------------------------------------------
 def write_pmml(pmmlfname, dmodel, varlist, targetvar):
-    pmml_pipeline = sklearn2pmml.make_pmml_pipeline(dmodel, active_fields=varlist, target_fields=targetvar)
-    sklearn2pmml.sklearn2pmml(pmml_pipeline, pmmlfname)
+    try:  # seems to crash for no @**($ing reason sometimes
+        pmml_pipeline = sklearn2pmml.make_pmml_pipeline(dmodel, active_fields=varlist, target_fields=targetvar)
+        sklearn2pmml.sklearn2pmml(pmml_pipeline, pmmlfname)
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        elines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        print utils.pad_lines(''.join(elines))
+        print '  %s pmml conversion failed (see above), but continuing' % utils.color('red', 'error')
 
 # ----------------------------------------------------------------------------------------
 def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
