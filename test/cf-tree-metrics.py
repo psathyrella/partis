@@ -198,7 +198,7 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None):
                 for xatmp, _ in cfglist
                 for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
     elif metric_method == 'dtr':
-        if args.dtr_path is None:  # training
+        if args.train_dtr:  # training
             return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg, tvar) for cg in treeutils.cgroups for tvar in treeutils.dtr_targets[cg]]
         else:  # testing
             return [get_tm_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
@@ -600,9 +600,9 @@ def get_tree_metrics(args):
                                                                                                       get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method),
                                                                                                       get_vlval(vstrs, varnames, 'lb-tau'))
             if args.metric_method == 'dtr':
-                if args.dtr_path is None and args.overwrite:
-                    raise Exception('need to remove dtr model files by hand, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)')
-                cmd += ' --action %s' % ('train' if args.dtr_path is None else 'test',)
+                if args.train_dtr and args.overwrite:  # make sure no training files exist, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)
+                    assert set([os.path.exists(f) for f in get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method)]) == set([False])
+                cmd += ' --action %s' % ('train' if args.train_dtr else 'test')
                 cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
                 if args.dtr_cfg is not None:
                     cmd += ' --dtr-cfg %s' % args.dtr_cfg
@@ -627,7 +627,7 @@ def get_tree_metrics(args):
         else:
             logstr = 'get-tree-metrics'
             if args.metric_method == 'dtr':
-                logstr += '-train' if args.dtr_path is None else '-test'
+                logstr += '-train' if args.train_dtr else '-test'
             utils.run_cmds(cmdfos, debug='write:%s.log'%logstr, batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, allow_failure=True)
 
 # ----------------------------------------------------------------------------------------
@@ -644,7 +644,8 @@ parser.add_argument('--metric-for-target-distance-list', default='aa')
 parser.add_argument('--leaf-sampling-scheme')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi') #:within-families-affinity-dtr')
-parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we only train a new one.')
+parser.add_argument('--train-dtr', action='store_true')
+parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
 parser.add_argument('--selection-strength-list', default='1.0')
 parser.add_argument('--parameter-variances', help='see bcr-phylo-run.py help')

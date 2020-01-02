@@ -85,7 +85,7 @@ for n_estimators in [30, 100]:
                 os.makedirs(workdir)
             with open(cfgfname, 'w') as cfile:
                 yaml.dump(cfgfo, cfile, width=200)
-            cmd += ' --iseed %d --extra-plotstr %s' % (args.training_seed, xtrastrs['train'])
+            cmd += ' --train-dtr --iseed %d --extra-plotstr %s' % (args.training_seed, xtrastrs['train'])
             modelfnames = [treeutils.dtrfname(modeldir, cg, tv) for cg in cglist for tv in tvlist(cg)]
             outfname = modelfnames[-1]
             # logdir = os.path.dirname(outfname)  # NOTE has to be the '%s-dtr-models' dir (or at least can't be the '%s-plots' dir, since cf-tree-metrics uses the latter, and the /{out,err} files overwrite each other
