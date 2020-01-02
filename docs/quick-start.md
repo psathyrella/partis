@@ -13,7 +13,7 @@ The slurm and sge batch systems are also supported (details [here](parallel.md))
 Typically, you can expect to annotate 10 thousand sequences on an 8-core desktop in about five minutes, and partition in 25 minutes.
 
 By default, it assumes the sequences are human igh.
-To change this, use the `--species {human,mouse,macaque,chicken}` and `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
+To change this, use the `--species {human,mouse,macaque}` and `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
 
 In addition to any output files specified with `--oufname`, partis writes to two directories on your file system.
 Temporary working files go in `--workdir`, which is entirely removed upon successful completion.
