@@ -13,6 +13,9 @@ import subprocess
 import multiprocessing
 
 # ----------------------------------------------------------------------------------------
+linestyles = {'lbi' : '--', 'lbr' : '--', 'dtr' : '-'}
+
+# ----------------------------------------------------------------------------------------
 def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.calculate_max_lbi()
     return max(1, int(args.seq_len * tau * ntl))
 
@@ -338,37 +341,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             return 'mean_%s_ptiles' % ptilestr
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(ytmpfo, iclust=None):
-        ytmpfo = get_ytmpfo(yamlfo, iclust=iclust)
+        ytmpfo = get_ytmpfo(ytmpfo, iclust=iclust)
         return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key(ytmpfo)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
-    # ----------------------------------------------------------------------------------------
-    def add_plot_vals(ytmpfo, vlists, varnames, obs_frac, iclust=None):
-        def getikey():
-            if args.n_replicates == 1 and treat_clusters_together:
-                ikey = None
-                def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
-            elif args.n_replicates == 1:  # but more than one event per proc
-                ikey = iclust
-                def initfcn(): return {i : [] for i in range(args.n_sim_events_per_proc)}
-            elif treat_clusters_together:  # but more than one replicate/seed
-                ikey = vlists[varnames.index('seed')]
-                def initfcn(): return {i : [] for i in getsargval('seed')}
-            else:  # both of 'em non-trivial
-                ikey = '%d-%d' % (vlists[varnames.index('seed')], iclust)
-                def initfcn(): return {('%d-%d' % (i, j)) : [] for i in getsargval('seed') for j in range(args.n_sim_events_per_proc)}
-            return ikey, initfcn
-
-        diff_vals = get_diff_vals(ytmpfo, iclust=iclust)
-        if len(diff_vals) == 0:
-            missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
-            return
-        diff_to_perfect = numpy.mean(diff_vals)
-        tau = get_vlval(vlists, varnames, xvar)  # not necessarily tau anymore
-        ikey, initfcn = getikey()
-        pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
-        if pvkey not in plotvals:
-            plotvals[pvkey] = initfcn()
-        plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
-        plotlist.append((tau, diff_to_perfect))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
     # ----------------------------------------------------------------------------------------
     def get_varname_str():
         return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
@@ -376,6 +350,37 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         return ''.join('%10s' % v for v in vstrs)
     # ----------------------------------------------------------------------------------------
     def read_plot_info():
+        # ----------------------------------------------------------------------------------------
+        def add_plot_vals(ytmpfo, vlists, varnames, obs_frac, iclust=None):
+            def getikey():
+                if args.n_replicates == 1 and treat_clusters_together:
+                    ikey = None
+                    def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
+                elif args.n_replicates == 1:  # but more than one event per proc
+                    ikey = iclust
+                    def initfcn(): return {i : [] for i in range(args.n_sim_events_per_proc)}
+                elif treat_clusters_together:  # but more than one replicate/seed
+                    ikey = vlists[varnames.index('seed')]
+                    def initfcn(): return {i : [] for i in getsargval('seed')}
+                else:  # both of 'em non-trivial
+                    ikey = '%d-%d' % (vlists[varnames.index('seed')], iclust)
+                    def initfcn(): return {('%d-%d' % (i, j)) : [] for i in getsargval('seed') for j in range(args.n_sim_events_per_proc)}
+                return ikey, initfcn
+
+            diff_vals = get_diff_vals(ytmpfo, iclust=iclust)
+            if len(diff_vals) == 0:
+                missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
+                return
+            diff_to_perfect = numpy.mean(diff_vals)
+            tau = get_vlval(vlists, varnames, xvar)  # not necessarily tau anymore
+            ikey, initfcn = getikey()
+            pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
+            if pvkey not in plotvals:
+                plotvals[pvkey] = initfcn()
+            plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
+            plotlist.append((tau, diff_to_perfect))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
+
+        # ----------------------------------------------------------------------------------------
         if debug:
             print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
         missing_vstrs = {'missing' : [], 'empty' : []}
@@ -457,42 +462,70 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     if not treat_clusters_together:
                         n_expected *= args.n_sim_events_per_proc
                     print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
+    # ----------------------------------------------------------------------------------------
+    def plotcall(pvkey, lb_taus, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5):
+        xticklabels = [str(t) for t in lb_taus]
+        markersize = 1 if len(lb_taus) > 1 else 15
+        linestyle = linestyles.get(mtmp, '-')
+        color = None
+        if ipv is not None:
+            color = plotting.pltcolors[ipv % len(plotting.pltcolors)]
+        if yerrs is not None:
+            ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=label, color=color, alpha=alpha, linewidth=4, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
+        else:
+            ax.plot(lb_taus, diffs_to_perfect, label=label, color=color, alpha=alpha, linewidth=4)
+        if dummy_leg:
+            ax.plot([], [], label=mtmp, alpha=alpha, linewidth=4, linestyle=linestyle, color='grey', marker='.', markersize=markersize)
+        return lb_taus, xticklabels  # ick
+    # ----------------------------------------------------------------------------------------
+    def getplotname(mtmp):
+        if per_x == 'per-seq':
+            return '%s-%s-ptiles-vs-%s-%s' % (ptilestr, mtmp if mtmp is not None else 'combined', xvar, choice_grouping)
+        else:
+            return '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
+    # ----------------------------------------------------------------------------------------
+    def yfname(mtmp):
+        return '%s/%s.yaml' % (get_comparison_plotdir(mtmp, per_x), getplotname(mtmp))
 
     # ----------------------------------------------------------------------------------------
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
+    fig, ax = plotting.mpl_init()
+    lb_taus, xticklabels = None, None
     if action == 'plot':
         read_plot_info()
-
-    fig, ax = plotting.mpl_init()
-    if per_x == 'per-seq':
-        plotname = '%s-%s-ptiles-vs-%s-%s' % (ptilestr, metric, xvar, choice_grouping)
-    else:
-        plotname = '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
-    plotdir = get_comparison_plotdir(metric, per_x)
-    yfname = '%s/%s.yaml'%(plotdir, plotname)
-    if action == 'combine-plots':
-        _ = [pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists]  # have to call this fcn at least once just to set pvlabel
-        with open(yfname) as yfile:
-            yfo = collections.OrderedDict(json.load(yfile))
-    outfo = []
-    lb_taus, xticklabels = None, None
-    for pvkey in (plotvals if action=='plot' else yfo):
-        if action == 'plot':
+        outfo = []
+        for ipv, pvkey in enumerate(plotvals):
             lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
-            assert lb_taus == tuple(sorted(lb_taus))  # only happened once, before I had the duplicate checks and things, but still seems like a good idea (won't sort correclty if we're looking at <yfo> since <pvkey> will be string rather than integer)
-        else:
-            lb_taus, diffs_to_perfect, yerrs = yfo[pvkey]['xvals'], yfo[pvkey]['yvals'], yfo[pvkey]['yerrs']
-            if yerrs is not None and len(yerrs) == len(lb_taus):  # not sure if i need the first bit, but don't feel like checking right now
-                errvals[pvkey] = zip(lb_taus, yerrs)
-        xticklabels = [str(t) for t in lb_taus]
-        markersize = 1 if len(lb_taus) > 1 else 15
-        if pvkey in errvals:
-            _, yerrs = zip(*errvals[pvkey])  # first item would just be the same as <lb_taus>
-            ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=pvkey, alpha=0.7, linewidth=4, markersize=markersize, marker='.')  #, title='position ' + str(position))
-        else:
-            ax.plot(lb_taus, diffs_to_perfect, label=pvkey, alpha=0.7, linewidth=4)
-        outfo.append((pvkey, {'xvals' : lb_taus, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
+            assert lb_taus == tuple(sorted(lb_taus))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove
+            yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
+            _, xticklabels = plotcall(pvkey, lb_taus, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey)
+            outfo.append((pvkey, {'xvals' : lb_taus, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
+        with open(yfname(metric), 'w') as yfile:  # write json file to be read by 'combine-plots'
+            json.dump(outfo, yfile)
+        title = metric.upper()
+        plotdir = get_comparison_plotdir(metric, per_x)
+        ylabelstr = metric.upper()
+    elif action == 'combine-plots':
+        _ = [pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists]  # have to call this fcn at least once just to set pvlabel
+        plotfos = collections.OrderedDict()
+        for mtmp in args.plot_metrics:
+            if not os.path.exists(yfname(mtmp)):
+                print '    %s missing %s' % (utils.color('yellow', 'warning'), yfname(mtmp))
+                continue
+            with open(yfname(mtmp)) as yfile:
+                plotfos[mtmp] = collections.OrderedDict(json.load(yfile))
+        if len(plotfos) == 0:
+            print '  nothing to plot'
+            return
+        for ipv, pvkey in enumerate(plotfos[plotfos.keys()[0]]):
+            for imtmp, (mtmp, pfo) in enumerate(plotfos.items()):
+                lb_taus, xticklabels = plotcall(pvkey, pfo[pvkey]['xvals'], pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv, imtmp=imtmp, dummy_leg=ipv==0)
+        title = '+'.join(plotfos)
+        plotdir = get_comparison_plotdir('combined', per_x)
+        ylabelstr = 'metric'
+    else:
+        assert False
 
     log, adjust = '', {}
     if xvar == 'lb-tau':
@@ -500,10 +533,6 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         adjust['bottom'] = 0.23
     if xvar == 'carry-cap':
         log = 'x'
-
-    if action == 'plot':  # write json file to be read by 'combine-plots'
-        with open(yfname, 'w') as yfile:
-            json.dump(outfo, yfile)
 
     if ax.get_ylim()[1] < 1:
         adjust['left'] = 0.21
@@ -514,13 +543,12 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     dy = (ymax - ymin) / float(n_ticks - 1)
     yticks = [utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
     yticklabels = ['%s'%y for y in yticks]
-    title = metric.upper()
     if per_x == 'per-seq':
         title += ': choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
-    plotting.mpl_finish(ax, plotdir if action == 'plot' else get_comparison_plotdir('combined', per_x), plotname,
+    plotting.mpl_finish(ax, plotdir, getplotname(metric),
                         xlabel=xvar.replace('-', ' '),
-                        ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, metric.upper(), min_ptile_to_plot),
-                        title=title, leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.67),
+                        ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
+                        title=title, leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.63),
                         xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
                         yticks=yticks, yticklabels=yticklabels,
                         log=log, adjust=adjust,
@@ -748,25 +776,31 @@ for action in args.actions:
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir(None, None))
         procs = []
         pchoice = 'per-seq'
-        if action == 'combine-plots':
-            utils.prep_dir(get_comparison_plotdir('combined', None), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
-        for metric in args.plot_metrics:
-            if action == 'plot':
-                utils.prep_dir(get_comparison_plotdir(metric, None), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
-            cfg_list = lbplotting.lb_metric_axis_cfg(metric)[0][1]
-            for ptvar, ptlabel in cfg_list:
-                print '  %s  %-13s' % (utils.color('blue', metric), ptvar)
-                for cgroup in treeutils.cgroups:
-                    print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
-                    arglist = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar)
-                    if args.test:
-                        make_plots(*arglist)
-                    else:
-                        procs.append(multiprocessing.Process(target=make_plots, args=arglist))
-        if not args.test:
-            utils.run_proc_functions(procs)
         if action == 'plot':
+            for metric in args.plot_metrics:
+                utils.prep_dir(get_comparison_plotdir(metric, None), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
+                cfg_list = lbplotting.lb_metric_axis_cfg(metric)[0][1]
+                for ptvar, ptlabel in cfg_list:
+                    print '  %s  %-13s' % (utils.color('blue', metric), ptvar)
+                    for cgroup in treeutils.cgroups:
+                        print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
+                        arglist = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar)
+                        if args.test:
+                            make_plots(*arglist)
+                        else:
+                            procs.append(multiprocessing.Process(target=make_plots, args=arglist))
+            if not args.test:
+                utils.run_proc_functions(procs)
             for metric in args.plot_metrics:
                 plotting.make_html(get_comparison_plotdir(metric, pchoice))
         elif action == 'combine-plots':
+            utils.prep_dir(get_comparison_plotdir('combined', None), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
+            cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.lb_metric_axis_cfg(mtmp)[0][1]])  # I don't think we care about the order
+            for ptvar, ptlabel in cfg_list:
+                print ptvar
+                for cgroup in treeutils.cgroups:
+                    print '  ', cgroup
+                    make_plots(args, action, None, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar)
             plotting.make_html(get_comparison_plotdir('combined', pchoice))
+        else:
+            assert False

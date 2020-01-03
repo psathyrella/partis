@@ -23,6 +23,7 @@ import treeutils
 #                   green    dark red  light blue  light red  sky blue  pink/purple   grey
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
 default_linewidths = ['5', '3', '2', '2', '2']
+pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 plot_ratios = {
     'v' : (30, 3),
@@ -831,6 +832,8 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if not no_legend:
         handles, labels = ax.get_legend_handles_labels()
         if len(handles) > 0:
+            if len(handles) > 5:
+                leg_loc = leg_loc[0], leg_loc[1] - 0.15
             legend = ax.legend(handles, labels, loc=leg_loc, prop=leg_prop, title=leg_title)
     default_adjust = {'bottom' : 0.20, 'left' : 0.18, 'right' : 0.95, 'top' : 0.92}
     if adjust is not None:
