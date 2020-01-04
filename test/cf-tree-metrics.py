@@ -742,7 +742,6 @@ except ImportError as e:
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
-args.bcr_phylo_actions = utils.get_arg_list(bcr_phylo_args.actions)
 args.zip_vars = utils.get_arg_list(args.zip_vars)
 args.carry_cap_list = utils.get_arg_list(args.carry_cap_list, intify=True, forbid_duplicates=args.zip_vars is None or 'carry-cap' not in args.zip_vars)  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()
 args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'n-sim-seqs-per-gen' not in args.zip_vars)

@@ -55,18 +55,24 @@ def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command lin
         return pval
     def sfcn(x):  # just for dbg/exceptions
         return str(int(x)) if parg != 'selection-strength' else ('%.2f' % x)
-    pmean = pval
     pvar = args.parameter_variances[parg]
-    pmin, pmax = pmean - 0.5 * pvar, pmean + 0.5 * pvar
-    if pmin < 0:
-        raise Exception('min parameter value for %s less than 0 (from mean %s and half width %s)' % (parg, sfcn(pmean), sfcn(pvar)))
-    if parg == 'selection-strength' and pmax > 1:
-        raise Exception('max parameter value for %s greater than 1 (from mean %s and half width %s)' % (parg, sfcn(pmean), sfcn(pvar)))
-    return_val = numpy.random.uniform(pmin, pmax)
+    if '..' in pvar:  # list of allowed values NOTE pval is *not* used if we're choosing from several choices (ick, but not sure what else to do)
+        dbgstr = '[%s]' % pvar.replace('..', ', ')
+        return_val = numpy.random.choice([float(pv) for pv in pvar.split('..')])
+    else:  # actual parameter variance (i know, this is ugly)
+        pmean = pval
+        pvar = float(pvar)
+        pmin, pmax = pmean - 0.5 * pvar, pmean + 0.5 * pvar
+        if pmin < 0:
+            raise Exception('min parameter value for %s less than 0 (from mean %s and half width %s)' % (parg, sfcn(pmean), sfcn(pvar)))
+        if parg == 'selection-strength' and pmax > 1:
+            raise Exception('max parameter value for %s greater than 1 (from mean %s and half width %s)' % (parg, sfcn(pmean), sfcn(pvar)))
+        dbgstr = '[%6s, %6s]' % (sfcn(pmin), sfcn(pmax))
+        return_val = numpy.random.uniform(pmin, pmax)
     if parg != 'selection-strength':
         return_val = int(return_val)
     if debug:
-        print '  %7s   %6s %6s  %s' % (sfcn(return_val), sfcn(pmean), sfcn(pvar), parg)
+        print '  %30s --> %-7s  %s' % (dbgstr, sfcn(return_val), parg)
     return return_val
 
 # ----------------------------------------------------------------------------------------
@@ -298,10 +304,12 @@ parser.add_argument('--slurm', action='store_true')
 
 args = parser.parse_args()
 
+if args.seed is not None:
+    numpy.random.seed(args.seed)
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
 args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generation, intify=True)
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
-args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, floatify=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
+args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 
