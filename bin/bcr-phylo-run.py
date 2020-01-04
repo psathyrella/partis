@@ -43,7 +43,7 @@ def rearrange():
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
     cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, naive_fname(), args.n_sim_events)
-    if args.n_procs > 1 and args.n_sim_events % args.n_procs == 0:  # if --n-procs is not divisble by --n-sim-events, partis simulate doesn't give you exactly the number you asked for
+    if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
         cmd += ' --batch-system slurm'
