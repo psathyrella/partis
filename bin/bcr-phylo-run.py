@@ -108,7 +108,7 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
         assert False
 
     cmd += ' --debug %d' % args.debug
-    cmd += ' --n_tries 30'
+    cmd += ' --n_tries 100'
     cmd += ' --no_context'
     cmd += ' --no_plot'
     if args.only_csv_plots:
