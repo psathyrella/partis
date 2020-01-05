@@ -345,6 +345,19 @@ class ClusterPath(object):
         return lines
 
     # ----------------------------------------------------------------------------------------
+    def seed_cluster(self, ipart=None):
+        if self.seed_unique_id is None:
+            print '  %s self.seed_unique_id isn\'t set' % utils.color('red', 'error')
+            return  # I don't like returning different types of things, but this lets the calling code handle things
+        seed_clusters = [c for c in self.partitions[ipart if ipart is not None else self.i_best] if self.seed_unique_id in c]
+        if len(seed_clusters) == 0:
+            print '  %s couldn\'t find cluster containing seed %s' % (utils.color('red', 'error'), self.seed_unique_id)
+        elif len(seed_clusters) > 1:
+            print '  %s more than one cluster containing seed %s (this can be expected if this is the non-best partition)' % (utils.color('red', 'error'), self.seed_unique_id)
+        else:
+            return seed_clusters[0]
+
+    # ----------------------------------------------------------------------------------------
     def get_bad_clusters(self, partition, reco_info, true_partition):
         bad_clusters = []  # inferred clusters that aren't really all from the same event
         for ic in range(len(partition)):

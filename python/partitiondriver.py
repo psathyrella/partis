@@ -517,6 +517,9 @@ class PartitionDriver(object):
         else:
             cpath = self.cluster_with_bcrham()
 
+        if self.args.seed_unique_id is not None:
+            print '  seed cluster size in best partition: %d' % len(cpath.seed_cluster())
+
         self.get_cluster_annotations(cpath)
 
         self.check_partition(cpath.partitions[cpath.i_best])
