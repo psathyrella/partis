@@ -517,9 +517,6 @@ class PartitionDriver(object):
         else:
             cpath = self.cluster_with_bcrham()
 
-        if self.args.seed_unique_id is not None:
-            print '  seed cluster size in best partition: %d' % len(cpath.seed_cluster())
-
         self.get_cluster_annotations(cpath)
 
         self.check_partition(cpath.partitions[cpath.i_best])
@@ -859,6 +856,14 @@ class PartitionDriver(object):
         if self.args.plotdir is not None:
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=all_annotations, reco_info=self.reco_info, cpath=cpath)
+
+        if self.args.seed_unique_id is not None:
+            seed_cluster = cpath.seed_cluster()
+            qtistr = ''
+            if self.args.queries_to_include is not None:
+                non_qti_size = len([u for u in seed_cluster if u not in self.args.queries_to_include])
+                qtistr = ',  excluding --queries-to-include: %d' % non_qti_size
+            print '  seed cluster size in best partition: %d%s' % (len(seed_cluster), qtistr)
 
         if self.args.debug:
             print 'final'
