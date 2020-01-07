@@ -3014,10 +3014,23 @@ def get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options):
     return prestr, fout, ferr
 
 # ----------------------------------------------------------------------------------------
+def cycle_log_files(logfname, debug=False):  # move any existing log file to .0, .1, etc.
+    if not os.path.exists(logfname):  # nothing to do
+        return
+    itmp = 0
+    while os.path.exists('%s.%d'%(logfname, itmp)):
+        itmp += 1
+    if debug:
+        print '  %s --> %s' % (logfname, '%s.%d'%(logfname, itmp))
+    os.rename(logfname, '%s.%d'%(logfname, itmp))
+
+# ----------------------------------------------------------------------------------------
 def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
     cstr = cmdfo['cmd_str']  # don't want to modify the str in <cmdfo>
     fout = cmdfo['logdir'] + '/out'
     ferr = cmdfo['logdir'] + '/err'
+    cycle_log_files(fout)
+    cycle_log_files(ferr)
 
     if batch_system is not None:
         prestr, fout, ferr = get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options)
@@ -3279,11 +3292,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
             else:
                 assert debug[:6] == 'write:'
                 logfile = logdir + '/' + debug.replace('write:', '')
-            if os.path.exists(logfile):  # move any existing log file to .0, .1, etc.
-                itmp = 0
-                while os.path.exists('%s.%d'%(logfile, itmp)):
-                    itmp += 1
-                os.rename(logfile, '%s.%d'%(logfile, itmp))
+            cycle_log_files(logfile)
             with open(logfile, 'w') as dbgfile:
                 if cmd_str is not None:
                     dbgfile.write('%s %s\n' % (color('red', 'run'), cmd_str))  # NOTE duplicates code in datascripts/run.py
