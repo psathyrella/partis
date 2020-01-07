@@ -39,6 +39,9 @@ if args.max_family_size is not None:
         iseqs_to_keep = numpy.random.choice(range(len(line['unique_ids'])), args.max_family_size)
         utils.restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
-train_dtr = args.metric_method == 'dtr' and args.action == 'train'
-treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, train_dtr=train_dtr, dtr_path=args.dtr_path, dtr_cfg=args.dtr_cfg,
-                                        only_csv=args.only_csv_plots, lb_tau=args.lb_tau, min_cluster_size=args.min_tree_metric_cluster_size)  # ete_path=args.ete_path, workdir=args.workdir,
+if args.metric_method == 'dtr':
+    treeutils.calculate_dtr_metrics(true_lines, args.action=='train', args.dtr_path, base_plotdir=args.base_plotdir, dtr_cfg=args.dtr_cfg, only_csv=args.only_csv_plots,
+                                    lb_tau=args.lb_tau, min_cluster_size=args.min_tree_metric_cluster_size)  # ete_path=args.ete_path, workdir=args.workdir,
+else:
+    treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, only_csv=args.only_csv_plots,
+                                            min_cluster_size=args.min_tree_metric_cluster_size)  # ete_path=args.ete_path, workdir=args.workdir,

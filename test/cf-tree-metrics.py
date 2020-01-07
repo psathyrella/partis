@@ -206,7 +206,7 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None):
         else:  # testing
             return [get_tm_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
     else:
-        return [get_tm_fname(varnames, vstr, metric_method, 'affinity')]  # TODO not sure it's really best to hard code this, but maybe it is
+        return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method == 'delta-lbi' else 'affinity')]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
 
 # ----------------------------------------------------------------------------------------
 def get_comparison_plotdir(metric, per_x):
@@ -676,7 +676,7 @@ def get_tree_metrics(args):
 # ----------------------------------------------------------------------------------------
 all_actions = ['get-lb-bounds', 'bcr-phylo', 'get-tree-metrics', 'plot', 'combine-plots']
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('--actions', default=':'.join(a for a in all_actions if a != 'get-lb-bounds'))
+parser.add_argument('--actions', default=':'.join(a for a in all_actions if a not in ['get-lb-bounds', 'combine-plots']))
 parser.add_argument('--bcr-phylo-actions', default='simu:cache-parameters:partition')
 parser.add_argument('--test', action='store_true')
 parser.add_argument('--carry-cap-list', default='1000')
