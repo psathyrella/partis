@@ -3053,6 +3053,7 @@ cmdfo_defaults = {  # None means by default it's absent
 #  - set sleep to False if your commands are going to run really really really quickly
 #  - unlike everywhere else, <debug> is not a boolean, and is either None (swallow out, print err)), 'print' (print out and err), 'write' (write out and err to file called 'log' in logdir), or 'write:<log file name>' (same as 'write', but you set your own base name)
 #  - if both <n_max_procs> and <proc_limit_str> are set, it uses limit_procs() (i.e. a ps call) to count the total number of <proc_limit_str> running on the machine; whereas if only <n_max_procs> is set, it counts only subprocesses that it is itself running
+#  - debug: can be None (stdout mostly gets ignored), 'print' (printed), 'write' (written to file 'log' in logdir), or 'write:<logfname>' (same, but use <logfname>)
 def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batch_system=None, batch_options=None, batch_config_fname=None,
              debug=None, ignore_stderr=False, sleep=True, n_max_procs=None, proc_limit_str=None, allow_failure=False):
     if len(cmdfos) == 0:
@@ -3278,6 +3279,11 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
             else:
                 assert debug[:6] == 'write:'
                 logfile = logdir + '/' + debug.replace('write:', '')
+            if os.path.exists(logfile):  # move any existing log file to .0, .1, etc.
+                itmp = 0
+                while os.path.exists('%s.%d'%(logfile, itmp)):
+                    itmp += 1
+                os.rename(logfile, '%s.%d'%(logfile, itmp))
             with open(logfile, 'w') as dbgfile:
                 if cmd_str is not None:
                     dbgfile.write('%s %s\n' % (color('red', 'run'), cmd_str))  # NOTE duplicates code in datascripts/run.py
