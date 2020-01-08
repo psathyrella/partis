@@ -317,7 +317,7 @@ class PartitionDriver(object):
             seqfileopener.read_input_metafo(self.args.input_metafname, annotation_list, debug=True)
         treeutils.calculate_tree_metrics(annotation_dict, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir, dont_normalize_lbi=self.args.dont_normalize_lbi,
-                                         only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_tree_metric_cluster_size, debug=self.args.debug)
+                                         only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_tree_metric_cluster_size, dtr_path=self.args.dtr_path, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_list, ignore_args_dot_queries=False, process_csv=False):

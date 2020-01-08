@@ -155,7 +155,7 @@ def write_pmml(pmmlfname, dmodel, varlist, targetvar):
         print '  %s pmml conversion failed (see above), but continuing' % utils.color('red', 'error')
 
 # ----------------------------------------------------------------------------------------
-def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
+def train_dtr_model(trainfo, outdir, cfgvals, cgroup, tvar):
     if os.path.exists(dtrfname(outdir, cgroup, tvar)):
         print '  %s dtr model file exists, so skipping training: %s' % (utils.color('yellow', 'warning'), dtrfname(outdir, cgroup, tvar))
         return
@@ -189,10 +189,10 @@ def train_dtr_model(dtrfo, outdir, cfgvals, cgroup, tvar):
     else:
         assert False
 
-    model.fit(dtrfo['in'], dtrfo['out'])  #, sample_weight=dtrfo['weights'])
+    model.fit(trainfo['in'], trainfo['out'])  #, sample_weight=trainfo['weights'])
 
     tmpkeys = [k for k in cfgvals if k != 'vars' and (k in kwargs or k in base_kwargs)]  # don't want to print the inapplicable ones
-    print '    %s-families %s (%d observations in %.1fs):  %s' % (utils.color('green', cgroup.split('-')[0]), utils.color('blue', tvar), len(dtrfo['in']), time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys)))
+    print '    %s-families %s (%d observations in %.1fs):  %s' % (utils.color('green', cgroup.split('-')[0]), utils.color('blue', tvar), len(trainfo['in']), time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys)))
     print '         feature importances:'
     print '                                   mean   err'
     for iv, vname in enumerate([v for pc in pchoices for v in cfgvals['vars'][cgroup][pc]]):
@@ -1238,6 +1238,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     import plotting
     import lbplotting
     start = time.time()
+    print '           plotting to %s' % base_plotdir
 
     # first make inferred plots
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
@@ -1316,7 +1317,8 @@ def check_lb_values(line, lbvals):
 
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size, debug=False):
+                           ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size,
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, debug=False):
     print 'getting tree metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1324,35 +1326,44 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
 
-    lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters)
+    if dtr_path is not None:
+        dtr_cfgvals, trainfo, skmodels, pmml_models, missing_models = init_dtr(train_dtr, dtr_path, cfg_fname=dtr_cfg)
+
+    if true_lines_to_use is not None:  # i.e. being called by bin/dtr-run.py
+        assert reco_info is None
+        lines_to_use = None
+    else:  # called from python/partitiondriver.py
+        lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters)
 
     # get tree and calculate metrics for inferred lines
-    n_before = len(lines_to_use)
-    lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
-    n_after = len(lines_to_use)  # after removing the small ones
-    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-    print '    calculating tree metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
-    print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
-    n_already_there = 0
-    for iclust, line in enumerate(lines_to_use):
-        if debug:
-            print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
-        if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
+    if lines_to_use is not None:
+        n_before = len(lines_to_use)
+        lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+        n_after = len(lines_to_use)  # after removing the small ones
+        tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
+        print '    calculating tree metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+        print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
+        n_already_there = 0
+        for iclust, line in enumerate(lines_to_use):
             if debug:
-                print '       %s overwriting tree metric info that was already in <line>' % utils.color('yellow', 'warning')
-            n_already_there += 1
-        treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
-        tree_origin_counts[treefo['origin']]['count'] += 1
-        line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-        line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
-        check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
-
-    print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
-    if n_already_there > 0:
-        print '    %s overwriting %d / %d that already had tree info' % (utils.color('yellow', 'warning'), n_already_there, n_after)
+                print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
+            if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
+                if debug:
+                    print '       %s overwriting tree metric info that was already in <line>' % utils.color('yellow', 'warning')
+                n_already_there += 1
+            treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
+            tree_origin_counts[treefo['origin']]['count'] += 1
+            line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
+            line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
+            check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+            if dtr_path is not None and not train_dtr:  # don't want to train on data
+                calc_dtr(False, line, line['tree-info']['lb'], treefo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
+        print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
+        if n_already_there > 0:
+            print '    %s overwriting %d / %d that already had tree info' % (utils.color('yellow', 'warning'), n_already_there, n_after)
 
     # calculate lb values for true lines/trees
-    if reco_info is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
+    if true_lines_to_use is not None:  # note that if <base_plotdir> *isn't* set, we don't actually do anything with the true lb values
         n_true_before = len(true_lines_to_use)
         true_lines_to_use = sorted([l for l in true_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_true_after = len(true_lines_to_use)
@@ -1363,51 +1374,57 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+            if dtr_path is not None:
+                calc_dtr(train_dtr, true_line, true_lb_info, true_dtree, trainfo, pmml_models, dtr_cfgvals)  # either adds training values to trainfo, or adds predicted dtr values to lbfo
 
-    if base_plotdir is not None:
+    if dtr_path is not None:
+        if train_dtr:
+            print '  training decision trees into %s' % dtr_path
+            if dtr_cfgvals['n_train_per_family'] is not None:
+                print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
+            for cg in cgroups:
+                for tvar in dtr_targets[cg]:
+                    train_dtr_model(trainfo[cg][tvar], dtr_path, dtr_cfgvals, cg, tvar)
+        elif base_plotdir is not None:
+            assert true_lines_to_use is not None
+            plstart = time.time()
+            assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
+            import plotting
+            import lbplotting
+            # if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
+            #     return
+            print '           plotting to %s' % base_plotdir
+            true_plotdir = base_plotdir + '/true-tree-metrics'
+            lbmlist = sorted(m for m in dtr_metrics if m not in missing_models)  # sorted() is just so the order in the html file matches that in the lb metric one
+            utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
+            fnames = []
+            for lbm in lbmlist:
+                if 'delta-affinity' in lbm:
+                    lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, true_lines_to_use, lbm, lbplotting.mtitlestr('per-seq', lbm), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+                else:
+                    lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, lbm, lbm.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames)
+            if not only_csv:
+                plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
+            print '      dtr plotting time %.1fs' % (time.time() - plstart)
+    elif base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def get_combo_lbfo(varlist, iclust, line, lb_tau):
-    if 'shm-aa' in varlist and 'seqs_aa' not in line:
-        utils.add_naive_seq_aa(line)
-        utils.add_seqs_aa(line)
-    lbfo = {}
-    for tstr in ['nuc', 'aa']:
-        if 'cons-dist-'+tstr in varlist:
-            lbfo['cons-dist-'+tstr] = {u : lb_cons_dist(line, i, aa=tstr=='aa') for i, u in enumerate(line['unique_ids'])}
-    dtree = get_dendro_tree(treestr=line['tree'])
-    if 'lbi' in varlist and 'lbr' in varlist:
-        only_calc_metric = None
-        lbr_tau_factor = default_lbr_tau_factor
-    else:
-        assert 'lbi' in varlist or 'lbr' in varlist
-        only_calc_metric = 'lbi' if 'lbi' in varlist else 'lbr'
-        lbr_tau_factor = None
-    tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, extra_str='true tree', iclust=iclust)
-    for lbm in [m for m in lb_metrics if m in varlist]:
-        lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
-    return dtree, lbfo
-
-# ----------------------------------------------------------------------------------------
-def calculate_dtr_metrics(annotations, train_dtr, dtr_path, base_plotdir=None, ete_path=None, dtr_cfg=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, debug=False):
-    metric_method = 'dtr'
-    if min_cluster_size is None:
-        min_cluster_size = default_min_tree_metric_cluster_size
+def init_dtr(train_dtr, dtr_path, cfg_fname=None):
     # ----------------------------------------------------------------------------------------
     def read_cfg():
-        if dtr_cfg is None:  # just use the defaults
+        if cfg_fname is None:  # just use the defaults
             dtr_cfgvals = {}
         else:  # read cfg values from a file
-            with open(dtr_cfg) as yfile:
+            with open(cfg_fname) as yfile:
                 dtr_cfgvals = yaml.load(yfile, Loader=yaml.Loader)
             if 'vars' in dtr_cfgvals:  # format is slightly different in the file (in the file we don't require the explicit split between per-seq and per-cluster variables)
                 allowed_vars = set(v for cg in cgroups for pc in dtr_vars[cg] for v in dtr_vars[cg][pc])
                 cfg_vars = set(v for cg in cgroups for v in dtr_cfgvals['vars'][cg])
                 bad_vars = cfg_vars - allowed_vars
                 if len(bad_vars) > 0:
-                    raise Exception('unexpected dtr var%s (%s) in cfg file %s' % (utils.plural(len(bad_vars)), ', '.join(bad_vars), dtr_cfg))
+                    raise Exception('unexpected dtr var%s (%s) in cfg file %s' % (utils.plural(len(bad_vars)), ', '.join(bad_vars), cfg_fname))
                 for cg in cgroups:
                     dtr_cfgvals['vars'][cg] = {pc : [v for v in dtr_vars[cg][pc] if v in dtr_cfgvals['vars'][cg]] for pc in pchoices}  # loop over the allowed vars here so the order is always the same
         for tk in set(default_dtr_options) - set(dtr_cfgvals):  # set any missing ones to the defaults
@@ -1419,7 +1436,7 @@ def calculate_dtr_metrics(annotations, train_dtr, dtr_path, base_plotdir=None, e
                 dtr_cfgvals[tk] = default_dtr_options[tk]
         return dtr_cfgvals
     # ----------------------------------------------------------------------------------------
-    def read_dmodel(cg, tvar):
+    def read_model(cg, tvar):
         picklefname, pmmlfname = dtrfname(dtr_path, cg, tvar), dtrfname(dtr_path, cg, tvar, suffix='pmml')
         if os.path.exists(picklefname):  # pickle file (i.e. with entire model class written to disk, but *must* be read with the same version of sklearn that was used to write it) [these should always be there, since on old ones they were all we had, and on new ones we write both pickle and pmml]
             if os.path.exists(pmmlfname):  # pmml file (i.e. just with the info to make predictions, but can be read with other software versions)
@@ -1435,9 +1452,30 @@ def calculate_dtr_metrics(annotations, train_dtr, dtr_path, base_plotdir=None, e
                 print ' %s %s doesn\'t exist, skipping (%s)' % (cg, tvar, dtrfname(dtr_path, cg, tvar))
                 return
             raise Exception('model file doesn\'t exist: %s' % picklefname)
+
     # ----------------------------------------------------------------------------------------
-    def add_dtr_training_vals(cg, tvar, dtrfo, dtr_invals, line):  # transfer dtr input values to tfo['in'], and add output (affinity stuff) values to tfo['out']
-        # dtrfo[XXX]['weights'] += line['affinities']
+    dtr_cfgvals = read_cfg()
+
+    skmodels = {cg : {tv : None for tv in dtr_targets[cg]} for cg in cgroups}
+    pmml_models = {cg : {tv : None for tv in dtr_targets[cg]} for cg in cgroups}
+    missing_models = []
+    trainfo = None
+    if train_dtr:
+        trainfo = {cg : {tv : {'in' : [], 'out' : []} for tv in dtr_targets[cg]} for cg in cgroups}  # , 'weights' : []}
+    else:
+        rstart = time.time()
+        for cg in cgroups:
+            for tvar in dtr_targets[cg]:
+                read_model(cg, tvar)
+        print '  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart)
+
+    return dtr_cfgvals, trainfo, skmodels, pmml_models, missing_models
+
+# ----------------------------------------------------------------------------------------
+def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, skmodels=None):  # either add training values for <line>, or predict on it
+    # ----------------------------------------------------------------------------------------
+    def add_dtr_training_vals(cg, tvar, dtr_invals):  # transfer dtr input values to tfo['in'], and add output (affinity stuff) values to tfo['out']
+        # trainfo[XXX]['weights'] += line['affinities']
         def get_delta_affinity_vals():
             tmpvals = {s : [] for s in tfo}
             for iseq, uid in enumerate(line['unique_ids']):
@@ -1447,7 +1485,7 @@ def calculate_dtr_metrics(annotations, train_dtr, dtr_path, base_plotdir=None, e
                 tmpvals['in'].append(dtr_invals[cg][iseq])
                 tmpvals['out'].append(-n_steps)
             return tmpvals
-        tfo = dtrfo[cg][tvar]
+        tfo = trainfo[cg][tvar]
         if cg == 'within-families':
             if tvar == 'affinity':
                 tfo['in'] += dtr_invals[cg]
@@ -1482,88 +1520,60 @@ def calculate_dtr_metrics(annotations, train_dtr, dtr_path, base_plotdir=None, e
             assert False
 
     # ----------------------------------------------------------------------------------------
-    n_before = len(annotations)
-    annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
-    n_after = len(annotations)
-    print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
-    print '        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
+    if 'seqs_aa' not in line:
+        utils.add_naive_seq_aa(line)
+        utils.add_seqs_aa(line)
+    for tstr in ['nuc', 'aa']:
+        lbfo['cons-dist-'+tstr] = {u : lb_cons_dist(line, i, aa=tstr=='aa') for i, u in enumerate(line['unique_ids'])}
 
-    dtr_cfgvals = read_cfg()
-
-    skmodels = {cg : {tv : None for tv in dtr_targets[cg]} for cg in cgroups}
-    pmml_models = {cg : {tv : None for tv in dtr_targets[cg]} for cg in cgroups}
-    missing_models = []
-    if train_dtr:
-        dtrfo = {cg : {tv : {'in' : [], 'out' : []} for tv in dtr_targets[cg]} for cg in cgroups}  # , 'weights' : []}
-    else:
-        rstart = time.time()
+    dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}  # all dtr input variable values, before we fiddle with them for the different dtrs
+    if train_dtr:  # train and write new model
         for cg in cgroups:
             for tvar in dtr_targets[cg]:
-                read_dmodel(cg, tvar)
-        print '  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart)
-        print '           plotting to %s' % base_plotdir
-
-    pstart = time.time()
-    for iclust, line in enumerate(annotations):
-# ----------------------------------------------------------------------------------------
-# TODO
-        assert 'tree-info' not in line  # could handle it, but don't feel like thinking about it a.t.m.
-# ----------------------------------------------------------------------------------------
-        dtree, lbfo = get_combo_lbfo(['shm-aa', 'cons-dist-nuc', 'cons-dist-aa', 'lbi', 'lbr'], iclust, line, lb_tau)
-        dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}  # all dtr input variable values, before we fiddle with them for the different dtrs
-        if train_dtr:  # train and write new model
-            for cg in cgroups:
-                for tvar in dtr_targets[cg]:
-                    add_dtr_training_vals(cg, tvar, dtrfo, dtr_invals, line)
-            # line['tree-info'] = {'lb' : {metric_method : {u : 0. for u in line['unique_ids']}}}
-        else:  # read existing model
-            line['tree-info'] = {'lb' : {}}
-            for cg in cgroups:
-                for tvar in dtr_targets[cg]:
-                    if pmml_models[cg][tvar] is None:  # only way this can happen atm is old dirs that don't have among-families delta-affinity
-                        continue
-                    outfo = {}
-                    for iseq, uid in enumerate(line['unique_ids']):
-                        pmml_invals = {var : val for var, val in zip(get_dtr_varnames(cg, dtr_cfgvals['vars']), dtr_invals[cg][iseq])}  # convert from format for sklearn to format for pmml
-                        outfo[uid] = pmml_models[cg][tvar].predict(pmml_invals)['predicted_%s'%tvar]
-                        # if skmodels[cg][tvar] is not None:  # leaving this here cause maybe we'll want to fall back to it or something if pmml ends up having problems
-                        #     sk_val = skmodels[cg][tvar].predict([dtr_invals[cg][iseq]])
-                        #     assert utils.is_normed(sk_val / outfo[uid])
-                    line['tree-info']['lb']['-'.join([cg, tvar, metric_method])] = outfo
-
-    print '       tree quantity calculation/prediction time: %.1fs' % (time.time() - pstart)
-
-    if train_dtr:
-        print '  training decision trees into %s' % dtr_path
-        if dtr_cfgvals['n_train_per_family'] is not None:
-            print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
+                add_dtr_training_vals(cg, tvar, dtr_invals)
+    else:  # read existing model
         for cg in cgroups:
             for tvar in dtr_targets[cg]:
-                train_dtr_model(dtrfo[cg][tvar], dtr_path, dtr_cfgvals, cg, tvar)
-
-    if base_plotdir is not None and not train_dtr:
-        plstart = time.time()
-        assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        import plotting
-        import lbplotting
-        if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
-            return
-        true_plotdir = base_plotdir + '/true-tree-metrics'
-        lbmlist = sorted(m for m in dtr_metrics if m not in missing_models)  # sorted() is just so the order in the html file matches that in the lb metric one
-        utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
-        fnames = []
-        for lbm in lbmlist:
-            if 'delta-affinity' in lbm:
-                lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, annotations, lbm, lbplotting.mtitlestr('per-seq', lbm), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
-            else:
-                lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, lbm, lbm.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames)
-        if not only_csv:
-            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
-        print '      dtr plotting time %.1fs' % (time.time() - plstart)
+                if pmml_models[cg][tvar] is None:  # only way this can happen atm is old dirs that don't have among-families delta-affinity
+                    continue
+                outfo = {}
+                for iseq, uid in enumerate(line['unique_ids']):
+                    pmml_invals = {var : val for var, val in zip(get_dtr_varnames(cg, dtr_cfgvals['vars']), dtr_invals[cg][iseq])}  # convert from format for sklearn to format for pmml
+                    outfo[uid] = pmml_models[cg][tvar].predict(pmml_invals)['predicted_%s'%tvar]
+                    # if skmodels[cg][tvar] is not None:  # leaving this here cause maybe we'll want to fall back to it or something if pmml ends up having problems
+                    #     sk_val = skmodels[cg][tvar].predict([dtr_invals[cg][iseq]])
+                    #     assert utils.is_normed(sk_val / outfo[uid])
+                lbfo['-'.join([cg, tvar, 'dtr'])] = outfo  # NOTE it would be nice to automate this '-'.join() conversion, it happens in a few places already
 
 # ----------------------------------------------------------------------------------------
 # well, not necessarily really using a tree, but they're analagous to the lb metrics
 def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def get_combo_lbfo(varlist, iclust, line, lbfo=None, lb_tau=None):
+        if 'shm-aa' in varlist and 'seqs_aa' not in line:
+            utils.add_naive_seq_aa(line)
+            utils.add_seqs_aa(line)
+        if lbfo is None:
+            lbfo = {}
+        else:  # NOTE assumes that if <lbfo> is None, lbi+lbr (but nothing else) are in <lbfo>. Which is what we want now, but it's not particularly general
+            dtree = get_dendro_tree(treestr=lbfo['tree'])
+        for tstr in ['nuc', 'aa']:
+            if 'cons-dist-'+tstr in varlist:
+                lbfo['cons-dist-'+tstr] = {u : lb_cons_dist(line, i, aa=tstr=='aa') for i, u in enumerate(line['unique_ids'])}
+        if lbfo is None:
+            dtree = get_dendro_tree(treestr=line['tree'])
+            if 'lbi' in varlist and 'lbr' in varlist:
+                only_calc_metric = None
+                lbr_tau_factor = default_lbr_tau_factor
+            else:
+                assert 'lbi' in varlist or 'lbr' in varlist
+                only_calc_metric = 'lbi' if 'lbi' in varlist else 'lbr'
+                lbr_tau_factor = None
+            tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, extra_str='true tree', iclust=iclust)
+            for lbm in [m for m in lb_metrics if m in varlist]:
+                lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
+        return dtree, lbfo
+
     if min_cluster_size is None:
         min_cluster_size = default_min_tree_metric_cluster_size
     n_before = len(annotations)
