@@ -57,6 +57,9 @@ basecmds = {
     'dtr-train-v0' : './test/cf-tree-metrics.py --label dtr-train-v0 --n-replicates 5 --n-sim-events-per-proc 1000   --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5',
     'dtr-train-v1' : './test/cf-tree-metrics.py --label dtr-train-v1 --n-replicates 4 --n-sim-events-per-proc 50000  --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 30  --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5',
     'dtr-train-v2' : './test/cf-tree-metrics.py --label dtr-train-v2 --n-replicates 2 --n-sim-events-per-proc 300000 --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 20  --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5',
+    # NOTE not actually two replicates, but want to get the dir structure the same as the others
+    'dtr-train-v3' : './test/cf-tree-metrics.py --label dtr-train-v3 --n-replicates 2 --n-sim-events-per-proc 50000  --carry-cap-list=-1   --obs-times-list=-1  --n-sim-seqs-per-gen-list=-1  --selection-strength=-1.  --lb-tau-list 0.0025 --parameter-variances carry-cap,250..500..900..1000..1100..1500..5000:obs-times,75..100..150..200..1000:n-sim-seqs-per-generation,15..30..75..150..500:selection-strength,0.5..0.9..0.95..1.0',
+
     #  --slurm
     # --n-sub-procs 30
 }
