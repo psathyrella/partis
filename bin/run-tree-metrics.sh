@@ -32,8 +32,8 @@ common="--only-csv-plots --slurm"  # --no-tree-plots
 # echo $bin --label choose-among-families-v4 --n-replicates 10 --n-sim-events-per-proc 150 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --lb-tau-list 0.0025 --dont-observe-common-ancestors
 # echo $bin --label choose-among-families-v5 --n-replicates 10 --n-sim-events-per-proc 150 $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --lb-tau-list 0.0025
 # ----------------------------------------------------------------------------------------
-echo $bin --label vary-obs-times-v2 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:1000:5000 --obs-times-list 50:100:250:500:1000:3000 --n-sim-seqs-per-gen-list 100 --final-plot-xvar obs-times  # also pretty similar to v3-with-err
-echo $bin --label vary-obs-times-v3 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:1000:5000 --obs-times-list 50,100,150,200,250:100,200,300,400,500:200,400,600,800,1000:600,1200,1800,2400,3000 --n-sim-seqs-per-gen-list 20 --final-plot-xvar obs-times  # also pretty similar to v3-with-err
+echo $bin --label vary-obs-times-v2 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:1000:5000 --lb-tau-list 0.0025 --obs-times-list 50:100:250:500:1000:3000 --n-sim-seqs-per-gen-list 100 --final-plot-xvar obs-times  # also pretty similar to v3-with-err
+echo $bin --label vary-obs-times-v3 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:1000:5000 --lb-tau-list 0.0025 --obs-times-list 50,100,150,200,250:100,200,300,400,500:200,400,600,800,1000:600,1200,1800,2400,3000 --n-sim-seqs-per-gen-list 20 --final-plot-xvar obs-times  # also pretty similar to v3-with-err
 
 
 common="--actions bcr-phylo --bcr-phylo-actions simu --only-csv-plots --base-outdir /fh/local/dralph/partis/tree-metrics" # --sub-slurm"  #  /loc/scratch/dralph/partis/tree-metrics
