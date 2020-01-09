@@ -9,6 +9,7 @@ import subprocess
 import warnings
 
 import utils
+from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
@@ -161,7 +162,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
 # ----------------------------------------------------------------------------------------
 def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=False, reco_info=None, region=None,
                  max_runs=100, max_iterations=1000, method='euclidean',
-                 plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, labels=None, title=None, debug=False):
+                 plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, labels=None, title=None, remove_duplicates=False, debug=False):
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
     mdsfname = workdir + '/components.txt'
@@ -170,7 +171,14 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
         os.makedirs(workdir)
 
     if len(set([sfo['seq'] for sfo in seqfos])) < len(seqfos):  # it'll just crash when it's running mds later, but this is faster
-        raise Exception('duplicate sequences in seqfos')
+        if remove_duplicates:
+            seq_groups = [list(group) for _, group in itertools.groupby(sorted(seqfos, key=lambda x: x['seq']), key=lambda x: x['seq'])]
+            seqs_to_remove = []
+            for sgroup in seq_groups:
+                seqs_to_remove += [sfo['name'] for sfo in sgroup[1:]]  # remove any after the first one
+            seqfos = [sfo for sfo in seqfos if sfo['name'] not in seqs_to_remove]
+        else:
+            raise Exception('duplicate sequences in seqfos')
 
     if aligned:  # NOTE unlike the sklearn version below, this doesn't modify <seqfos>
         with open(msafname, 'w') as fastafile:
@@ -216,6 +224,10 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
     pcvals = read_component_file(mdsfname, n_components, seqfos)
     partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
     rstop = time.time()
+    if debug and partition is not None:
+        print '  kmeans partition:'
+        cp = ClusterPath(partition=partition)
+        cp.print_partitions(abbreviate=False)
 
     os.remove(msafname)
     os.rmdir(workdir)
@@ -227,7 +239,8 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
         if reco_info is not None:
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
             plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)
-    print '    %5.1f  %5.1f' % (rstop - rstart, time.time() - plotstart),
+    if not debug:  # this isn't a great way to do this, but I don't want to deal with finding all the calling functions, I just want to add some debug printing to this fcn
+        print '    %5.1f  %5.1f' % (rstop - rstart, time.time() - plotstart),
 
     return partition
 
