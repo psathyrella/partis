@@ -347,7 +347,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     def get_varname_str():
         return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
     def get_varval_str(vstrs):
-        return ''.join('%10s' % v for v in vstrs)
+        return ''.join(' %9s' % v for v in vstrs)
     # ----------------------------------------------------------------------------------------
     def read_plot_info():
         # ----------------------------------------------------------------------------------------
@@ -463,20 +463,18 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                         n_expected *= args.n_sim_events_per_proc
                     print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
     # ----------------------------------------------------------------------------------------
-    def plotcall(pvkey, lb_taus, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5):
-        xticklabels = [str(t) for t in lb_taus]
-        markersize = 1 if len(lb_taus) > 1 else 15
+    def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5):
+        markersize = 1 if len(xticks) > 1 else 15
         linestyle = linestyles.get(mtmp, '-')
         color = None
         if ipv is not None:
             color = plotting.pltcolors[ipv % len(plotting.pltcolors)]
         if yerrs is not None:
-            ax.errorbar(lb_taus, diffs_to_perfect, yerr=yerrs, label=label, color=color, alpha=alpha, linewidth=4, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
+            ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, label=label, color=color, alpha=alpha, linewidth=4, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
         else:
-            ax.plot(lb_taus, diffs_to_perfect, label=label, color=color, alpha=alpha, linewidth=4)
+            ax.plot(xticks, diffs_to_perfect, label=label, color=color, alpha=alpha, linewidth=4)
         if dummy_leg:
             ax.plot([], [], label=mtmp, alpha=alpha, linewidth=4, linestyle=linestyle, color='grey', marker='.', markersize=markersize)
-        return lb_taus, xticklabels  # ick
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
         if per_x == 'per-seq':
@@ -486,21 +484,31 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     # ----------------------------------------------------------------------------------------
     def yfname(mtmp):
         return '%s/%s.yaml' % (get_comparison_plotdir(mtmp, per_x), getplotname(mtmp))
+    # ----------------------------------------------------------------------------------------
+    def getxticks(xvals):
+        if isinstance(xvals[0], tuple):  # if it's a list, use (more or less arbitrary) integer x axis values
+            xticks = list(range(len(xvals)))
+            xticklabels = [', '.join(str(v) for v in t) for t in xvals]
+        else:
+            xticks = xvals
+            xticklabels = [str(t) for t in xvals]
+        return xticks, xticklabels
 
     # ----------------------------------------------------------------------------------------
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     fig, ax = plotting.mpl_init()
-    lb_taus, xticklabels = None, None
+    xticks = None
     if action == 'plot':
         read_plot_info()
         outfo = []
         for ipv, pvkey in enumerate(plotvals):
-            lb_taus, diffs_to_perfect = zip(*plotvals[pvkey])
-            assert lb_taus == tuple(sorted(lb_taus))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove
+            xvals, diffs_to_perfect = zip(*plotvals[pvkey])
+            xticks, xticklabels = getxticks(xvals)
+            # assert xvals == tuple(sorted(xvals))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove this
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
-            _, xticklabels = plotcall(pvkey, lb_taus, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey)
-            outfo.append((pvkey, {'xvals' : lb_taus, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
+            plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey)
+            outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
         with open(yfname(metric), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
         title = metric.upper()
@@ -520,7 +528,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             return
         for ipv, pvkey in enumerate(plotfos[plotfos.keys()[0]]):
             for imtmp, (mtmp, pfo) in enumerate(plotfos.items()):
-                lb_taus, xticklabels = plotcall(pvkey, pfo[pvkey]['xvals'], pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv, imtmp=imtmp, dummy_leg=ipv==0)
+                xticks, xticklabels = getxticks(pfo[pvkey]['xvals'])
+                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv, imtmp=imtmp, dummy_leg=ipv==0)
         title = '+'.join(plotfos)
         plotdir = get_comparison_plotdir('combined', per_x)
         ylabelstr = 'metric'
@@ -549,7 +558,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
                         title=title, leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.63),
-                        xticks=lb_taus, xticklabels=xticklabels, xticklabelsize=16,
+                        xticks=xticks, xticklabels=xticklabels, xticklabelsize=16,
                         yticks=yticks, yticklabels=yticklabels,
                         log=log, adjust=adjust,
     )
