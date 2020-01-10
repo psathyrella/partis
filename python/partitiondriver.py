@@ -323,6 +323,7 @@ class PartitionDriver(object):
     def parse_existing_annotations(self, annotation_list, ignore_args_dot_queries=False, process_csv=False):
         n_queries_read = 0
         failed_query_strs = set()
+        new_annotation_list = []
         for line in annotation_list:
             if process_csv:
                 utils.process_input_line(line)
@@ -336,6 +337,7 @@ class PartitionDriver(object):
             if self.args.reco_ids is not None and line['reco_id'] not in self.args.reco_ids:
                 continue
             utils.add_implicit_info(self.glfo, line)
+            new_annotation_list.append(line)
 
             n_queries_read += 1
             if self.args.n_max_queries > 0 and n_queries_read >= self.args.n_max_queries:
@@ -343,6 +345,7 @@ class PartitionDriver(object):
 
         if len(failed_query_strs) > 0:
             print '\n%d failed queries' % len(failed_query_strs)
+        return new_annotation_list
 
     # ----------------------------------------------------------------------------------------
     def view_alternative_annotations(self):
@@ -400,6 +403,7 @@ class PartitionDriver(object):
                 true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
                 true_cp.add_partition(true_partition, -1., 1)
                 print 'true:'
+                # print utils.new_ccfs_that_need_better_names(cpath.partitions[cpath.i_best], true_partition, self.reco_info, seed_unique_id=self.args.seed_unique_id)
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best')
 
         if len(annotation_list) > 0:
@@ -459,7 +463,7 @@ class PartitionDriver(object):
         else:
             raise Exception('unhandled annotation file suffix %s' % outfname)
 
-        self.parse_existing_annotations(annotation_list, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')
+        annotation_list = self.parse_existing_annotations(annotation_list, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')  # NOTE modifies <annotation_list>
         annotation_dict = utils.get_annotation_dict(annotation_list)  # returns none type if there's duplicate annotations
 
         if tmpact == 'get-linearham-info':
