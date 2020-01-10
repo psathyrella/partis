@@ -909,6 +909,22 @@ class Waterer(object):
         if self.debug:
             print '  %s' % qname
 
+        if self.debug >= 2:
+            for region in utils.regions:
+                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
+                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
+
+        # in very rare cases the j match gets extended so far left it touches the v, in which case we get no d match, but we don't really want to throw these out
+        tmpbest = {r : qinfo['matches'][r][0][1] for r in utils.regions if len(qinfo['matches'][r]) > 0}  # this is hackey and duplicates too much code from just below, but I don't want to change anything that's down there since it's been there for so long and is so thoroughly tested
+        if 'd' in utils.getregions(self.args.locus) and set(tmpbest.keys()) == set(['v', 'j']):  # missing d (not sure I actually need the first clause)
+            v_end, j_start = qinfo['qrbounds'][tmpbest['v']][1], qinfo['qrbounds'][tmpbest['j']][0]
+            if v_end >= j_start:  # set all the d genes to zero-length matches at that point, then the overlap resolution should make things at least consistent, and then the hmm should sort stuf out
+                for dg in self.glfo['seqs']['d']:  # NOTE duplicates a bit of code in check_boundaries()
+                    qinfo['matches']['d'].append((0, dg))  # add the d gene as a match with score 0
+                    qinfo['qrbounds'][dg] = (v_end, v_end + 1)
+                    d_midpoint = len(self.glfo['seqs']['d'][dg]) / 2
+                    qinfo['glbounds'][dg] = (d_midpoint, d_midpoint + 1)
+
         # do we have a match for each region?
         for region in utils.getregions(self.args.locus):
             if len(qinfo['matches'][region]) == 0:
@@ -940,11 +956,6 @@ class Waterer(object):
                 self.info['indels'][qinfo['name']] = indelfo
                 self.indel_reruns.add(qname)
                 return dbgfcn(' new indels in %s' % ' '.join(qinfo['new_indels'].keys()))  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
-
-        if self.debug >= 2:
-            for region in utils.regions:
-                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
-                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
 
         if self.super_high_mutation(qinfo, best):
             return dbgfcn('super high mutation')
@@ -1136,7 +1147,6 @@ class Waterer(object):
             k_d_max = max(this_k_d, k_d_max)
             if debug:
                 print '    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max)
-
 
         # ----------------------------------------------------------------------------------------
         # switch to usual indexing conventions, i.e. that start with min and do not include max NOTE would be clearer to do this more coherently
