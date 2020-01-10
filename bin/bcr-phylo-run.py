@@ -244,7 +244,7 @@ def simulate():
 def cache_parameters():
     if utils.output_exists(args, param_dir() + '/hmm/hmms', outlabel='parameters', offset=4):
         return
-    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s --seed %d' % (simfname(), param_dir(), args.seed)
+    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s --seed %d --no-indels' % (simfname(), param_dir(), args.seed)  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
