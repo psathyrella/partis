@@ -158,6 +158,7 @@ class ClusterPath(object):
             if self.ccfs[ip][0] is not None and self.ccfs[ip][1] is not None:  # already have them
                 continue
 
+            # NOTE this isn't really the true partition
             true_partition = utils.get_true_partition(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])  # can't use the true partition we might already have in the calling function, since we need this to only have uids from this partition (i.e. this isn't really the true partition)
             new_vals = utils.new_ccfs_that_need_better_names(self.partitions[ip], true_partition, reco_info, seed_unique_id=self.seed_unique_id)
             if None not in new_vals:  # if the function finds messed up partitions, it returns None, None (at this point, this seems to just happens when a uid was found in multiple clusters, which happens for earlier partitions (n_procs > 1) when seed_unique_id is set, since we pass seed_unique_id to all the subprocs)
