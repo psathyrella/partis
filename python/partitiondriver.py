@@ -827,6 +827,7 @@ class PartitionDriver(object):
         # ----------------------------------------------------------------------------------------
         clusters_to_annotate = get_clusters_to_annotate()
         if len(clusters_to_annotate) == 0:
+            print '  no final clusters'
             return
         action_cache = self.current_action  # hackey, but probably not worth trying (more) to improve
         self.current_action = 'annotate'
