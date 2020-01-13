@@ -18,7 +18,7 @@ import plotting
 
 # ----------------------------------------------------------------------------------------
 # this name is terrible, but it's complicated and I can't think of a better one
-def lb_metric_axis_cfg(metric_method, include_use_relative_affy=False):  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
+def lb_metric_axis_cfg(metric_method):  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
     base_cfg = collections.OrderedDict([('lbi', [('affinity', 'affinity')]),
                                         ('lbr', [('n-ancestor', 'N ancestors')]),  # , ('branch-length', 'branch length')])  # turning off branch length at least for now (for run time reasons)
     ])
