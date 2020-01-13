@@ -521,6 +521,9 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=F
 def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):
     if debug:
         print '    running FastTree on %d sequences plus a naive' % len(seqfos)
+    uid_list = [sfo['name'] for sfo in seqfos]
+    if any(uid_list.count(u) > 1 for u in uid_list):
+        raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
     with tempfile.NamedTemporaryFile() as tmpfile:
         if naive_seq is not None:
             tmpfile.write('>%s\n%s\n' % (naive_seq_name, naive_seq))
