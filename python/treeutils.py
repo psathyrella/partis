@@ -30,8 +30,6 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
 import utils
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
-affy_keys = {'lbi' : ['affinities'], #, 'relative_affinities'],  # uncomment the relative one to get a separate set of values/plots for affinity relative to the cells alive at the same time as each cell (when sampling ancestors, this lets you isolate the effects of selection at each time point)
-             'lbr' : ['affinities']}
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 20
 default_min_tree_metric_cluster_size = 10
@@ -140,7 +138,7 @@ def tmfname(plotdir, metric, x_axis_label, cg=None, tv=None, use_relative_affy=F
     assert x_axis_label in ['affinity', 'n-ancestor']  # arg, this is messy
     assert tv in [None, 'affinity', 'delta-affinity']
     metric_str = metric if metric != 'dtr' else '-'.join([cg, tv, metric])
-    vs_str = '%s-vs%s-%s' % (metric_str, '-relative' if use_relative_affy and metric == 'lbi' else '', x_axis_label)
+    vs_str = '%s-vs%s-%s' % (metric_str, '-relative' if x_axis_label == 'affinity' and use_relative_affy else '', x_axis_label)
     return '%s/true-tree-metrics/%s/%s-ptiles/%s-true-tree-ptiles-all-clusters.yaml' % (plotdir, metric_str, vs_str, vs_str)  # NOTE has 'true-tree' in there, which is fine for now but may need to change
 
 # ----------------------------------------------------------------------------------------
@@ -1234,7 +1232,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
     return lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=None, workdir=None, only_csv=False, debug=False):
+def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, debug=False):
     import plotting
     import lbplotting
     start = time.time()
@@ -1272,7 +1270,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
                 # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, lb_metric, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='cons-dist-nuc-ptile', colorvar='edge-dist', add_jitter=True)
             for lb_metric in lb_metrics:
                 lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
-        lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+        for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
+            lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'lbi', lb_metrics['lbi'], is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
         lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', lb_metrics['lbr'], is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
             lbplotting.plot_lb_distributions(true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
@@ -1318,7 +1317,7 @@ def check_lb_values(line, lbvals):
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, debug=False):
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False, debug=False):
     print 'getting tree metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1402,13 +1401,14 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
                 if 'delta-affinity' in lbm:
                     lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, true_lines_to_use, lbm, lbplotting.mtitlestr('per-seq', lbm), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
                 else:
-                    lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, lbm, lbm.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames)
+                    for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
+                        lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, lbm, lbm.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames, affy_key=affy_key)
             if not only_csv:
                 plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
             print '      dtr plotting time %.1fs' % (time.time() - plstart)
     elif base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, only_csv=only_csv, debug=debug)
+        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def init_dtr(train_dtr, dtr_path, cfg_fname=None):

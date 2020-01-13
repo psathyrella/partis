@@ -16,6 +16,12 @@ import multiprocessing
 linestyles = {'lbi' : '--', 'lbr' : '--', 'dtr' : '-'}
 
 # ----------------------------------------------------------------------------------------
+def ura_vals(xvar):  # list of whether we're using relative affinity values
+    if xvar == 'affinity' and args.include_relative_affy_plots:
+        return [False, True]  # i.e. [don'e use relative affy, do use relative affy]
+    else:
+        return [False]
+# ----------------------------------------------------------------------------------------
 def get_n_generations(ntl, tau):  # NOTE duplicates code in treeutils.calculate_max_lbi()
     return max(1, int(args.seq_len * tau * ntl))
 
@@ -189,22 +195,20 @@ def get_tm_fname(varnames, vstr, metric, x_axis_label, use_relative_affy=False, 
             return old_path
     else:
         plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric)
-    assert not use_relative_affy  # would have to be updated
-    return treeutils.tmfname(plotdir, metric, x_axis_label, cg=cg, tv=tv)
+    return treeutils.tmfname(plotdir, metric, x_axis_label, cg=cg, tv=tv, use_relative_affy=use_relative_affy)
 
 # ----------------------------------------------------------------------------------------
 def get_all_tm_fnames(varnames, vstr, metric_method=None):
     if metric_method is None:
-        ura_vals = [False] #, True]  # this is hackey, but maybe I want to start looking at relative affy again
-        return [get_tm_fname(varnames, vstr, mtmp, xatmp)
+        return [get_tm_fname(varnames, vstr, mtmp, xatmp, use_relative_affy=use_relative_affy)
                 for mtmp, cfglist in lbplotting.lb_metric_axis_cfg(args.metric_method)
                 for xatmp, _ in cfglist
-                for use_relative_affy in (ura_vals if mtmp == 'lbi' else [False])]  # arg wow that's kind of complicated and ugly
+                for use_relative_affy in ura_vals(xatmp)]  # arg wow that's kind of complicated and ugly
     elif metric_method == 'dtr':
         if args.train_dtr:  # training
             return [treeutils.dtrfname(get_dtr_model_dir(varnames, vstr), cg, tvar) for cg in treeutils.cgroups for tvar in treeutils.dtr_targets[cg]]
         else:  # testing
-            return [get_tm_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg]]
+            return [get_tm_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv, use_relative_affy=use_relative_affy) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg] for use_relative_affy in ura_vals(tv)]
     else:
         return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method == 'delta-lbi' else 'affinity')]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
 
@@ -271,10 +275,11 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., debug=False):
+def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., use_relative_affy=False, debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
         print '    skipping lbr when only observing leaves'
         return
+    affy_key_str = 'relative-' if (use_relative_affy and ptilestr=='affinity') else ''  # NOTE somewhat duplicates lbplotting.rel_affy_str()
     treat_clusters_together = args.n_sim_events_per_proc is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
     vlabels = {
         'obs_frac' : 'fraction sampled',
@@ -388,7 +393,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             obs_frac, dbgstr = get_obs_frac(vlists, varnames)
             if debug:
                 print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
-            yfname = get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr))
+            yfname = get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy)
             try:
                 with open(yfname) as yfile:
                     yamlfo = json.load(yfile)  # too slow with yaml
@@ -419,7 +424,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             print '        %s: %d families' % (mkey, len(vstrs_list))
             print '     %s   iclust' % get_varname_str()
             for iclust, vstrs in vstrs_list:
-                print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr)))
+                print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy))
                 n_printed += 1
                 if n_printed >= n_max_print:
                     print '             [...]'
@@ -478,7 +483,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
         if per_x == 'per-seq':
-            return '%s-%s-ptiles-vs-%s-%s' % (ptilestr, mtmp if mtmp is not None else 'combined', xvar, choice_grouping)
+            return '%s%s-%s-ptiles-vs-%s-%s' % (affy_key_str, ptilestr, mtmp if mtmp is not None else 'combined', xvar, choice_grouping)
         else:
             return '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
     # ----------------------------------------------------------------------------------------
@@ -486,7 +491,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         return '%s/%s.yaml' % (get_comparison_plotdir(mtmp, per_x), getplotname(mtmp))
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
-        if isinstance(xvals[0], tuple):  # if it's a list, use (more or less arbitrary) integer x axis values
+        if isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
             xticks = list(range(len(xvals)))
             xticklabels = [', '.join(str(v) for v in t) for t in xvals]
         else:
@@ -550,10 +555,14 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     n_ticks = 4
     ymin, ymax = ax.get_ylim()
     dy = (ymax - ymin) / float(n_ticks - 1)
-    yticks = [utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
-    yticklabels = ['%s'%y for y in yticks]
+    yticks, yticklabels = None, None
+    # if ptilestr != 'affinity':
+    #     yticks = [int(y) if ptilestr == 'affinity' else utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
+    #     yticklabels = ['%s'%y for y in yticks]
     if per_x == 'per-seq':
         title += ': choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
+    if use_relative_affy:
+        fig.text(0.5, 0.87, 'relative %s' % ptilestr, fontsize=15, color='red', fontweight='bold')
     plotting.mpl_finish(ax, plotdir, getplotname(metric),
                         xlabel=xvar.replace('-', ' '),
                         ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
@@ -645,7 +654,6 @@ def get_tree_metrics(args):
             # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
             #     cmd += ' --n-procs %d' % args.n_sub_procs
         else:  # non-lb metrics, i.e. trying to predict with shm, etc.
-            assert not args.use_relative_affy  # would need to implement it
             assert len(args.lb_tau_list) == 1
             cmd = './bin/dtr-run.py --metric-method %s --infname %s --base-plotdir %s --lb-tau %s' % (args.metric_method,
                                                                                                       get_simfname(varnames, vstrs),
@@ -663,6 +671,8 @@ def get_tree_metrics(args):
         if args.n_max_queries is not None:
             cmd += ' --n-max-queries %d' % args.n_max_queries
         cmd += ' --min-tree-metric-cluster-size 5'  # if n per gen is small, sometimes the clusters are a bit smaller than 10, but we don't really want to skip any clusters here (especially because it confuses the plotting above)
+        if args.include_relative_affy_plots:
+            cmd += ' --include-relative-affy-plots'
 
         cmdfos += [{
             'cmd_str' : cmd,
@@ -714,7 +724,7 @@ parser.add_argument('--random-seed', default=0, type=int, help='note that if --n
 parser.add_argument('--base-outdir', default='%s/partis/tree-metrics' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--label', default='test')
 parser.add_argument('--extra-plotstr', help='if set, put plots resulting from \'get-tree-metrics\' into a separate subdir using this string, rather than just plots/ (e.g. for plotting with many different dtr versions)')
-parser.add_argument('--use-relative-affy', action='store_true')
+parser.add_argument('--include-relative-affy-plots', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv/yaml versions of plots (for future parsing), and not the actual svg files (which is slow)')
 parser.add_argument('--no-tree-plots', action='store_true', help='don\'t make any of the tree plots, which are slow (this just sets --ete-path to None)')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
@@ -790,27 +800,29 @@ for action in args.actions:
             for metric in args.plot_metrics:
                 utils.prep_dir(get_comparison_plotdir(metric, None), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
                 cfg_list = lbplotting.lb_metric_axis_cfg(metric)[0][1]
-                for ptvar, ptlabel in cfg_list:
-                    print '  %s  %-13s' % (utils.color('blue', metric), ptvar)
+                cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
+                for ptvar, ptlabel, use_relative_affy in cfg_list:
+                    print '  %s  %-13s%-s' % (utils.color('blue', metric), ptvar, utils.color('green', '(relative)') if use_relative_affy else '')
                     for cgroup in treeutils.cgroups:
                         print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
-                        arglist = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar)
+                        arglist, kwargs = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar), {'use_relative_affy' : use_relative_affy}
                         if args.test:
-                            make_plots(*arglist)
+                            make_plots(*arglist, **kwargs)
                         else:
-                            procs.append(multiprocessing.Process(target=make_plots, args=arglist))
+                            procs.append(multiprocessing.Process(target=make_plots, args=arglist, kwargs=kwargs))
             if not args.test:
                 utils.run_proc_functions(procs)
             for metric in args.plot_metrics:
-                plotting.make_html(get_comparison_plotdir(metric, pchoice))
+                plotting.make_html(get_comparison_plotdir(metric, pchoice), n_columns=2)
         elif action == 'combine-plots':
             utils.prep_dir(get_comparison_plotdir('combined', None), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
             cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.lb_metric_axis_cfg(mtmp)[0][1]])  # I don't think we care about the order
-            for ptvar, ptlabel in cfg_list:
+            cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
+            for ptvar, ptlabel, use_relative_affy in cfg_list:
                 print ptvar
                 for cgroup in treeutils.cgroups:
                     print '  ', cgroup
-                    make_plots(args, action, None, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar)
-            plotting.make_html(get_comparison_plotdir('combined', pchoice))
+                    make_plots(args, action, None, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar, use_relative_affy=use_relative_affy)
+            plotting.make_html(get_comparison_plotdir('combined', pchoice), n_columns=2)
         else:
             assert False
