@@ -1245,7 +1245,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
     utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
     fnames = []
-    lbplotting.plot_lb_vs_affinity(inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
+    if any('affinities' in l for l in lines_to_use):  # it should really be all or none of them have affinities, but oh well
+        lbplotting.plot_lb_vs_affinity(inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
     if not only_csv:  # all the various scatter plots are really slow
         for lb_metric in lb_metrics:
             lbplotting.make_lb_scatter_plots('shm', inf_plotdir, lb_metric, lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
