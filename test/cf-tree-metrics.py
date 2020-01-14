@@ -213,8 +213,16 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None):
         return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method == 'delta-lbi' else 'affinity')]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
 
 # ----------------------------------------------------------------------------------------
-def get_comparison_plotdir(metric, per_x):
-    return '%s/%s/plots%s%s' % (args.base_outdir, args.label, '/'+metric if metric is not None else '', '/'+per_x if per_x is not None else '')
+def get_comparison_plotdir(metric, per_x, extra_str=''):  # both <metric> and <per_x> can be None, in which case we return the parent dir
+    plotdir = '%s/%s/plots' % (args.base_outdir, args.label)
+    if metric is not None:
+        plotdir += '/' + metric
+    if extra_str != '':
+        assert metric is not None
+        plotdir += '_' + extra_str
+    if per_x is not None:
+        plotdir += '/' + per_x
+    return plotdir
 
 # ----------------------------------------------------------------------------------------
 def getsargval(sv):  # ick this name sucks
@@ -275,7 +283,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., use_relative_affy=False, debug=False):
+def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
         print '    skipping lbr when only observing leaves'
         return
@@ -468,7 +476,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                         n_expected *= args.n_sim_events_per_proc
                     print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
     # ----------------------------------------------------------------------------------------
-    def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5):
+    def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5, estr=''):
         markersize = 1 if len(xticks) > 1 else 15
         linestyle = linestyles.get(mtmp, '-')
         color = None
@@ -479,7 +487,12 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         else:
             ax.plot(xticks, diffs_to_perfect, label=label, color=color, alpha=alpha, linewidth=4)
         if dummy_leg:
-            ax.plot([], [], label=mtmp, alpha=alpha, linewidth=4, linestyle=linestyle, color='grey', marker='.', markersize=markersize)
+            dlabel = mtmp
+            if estr != '':
+                dlabel += ' %s' % estr
+            ax.plot([], [], label=dlabel, alpha=alpha, linewidth=4, linestyle=linestyle, color='grey', marker='.', markersize=markersize)
+        # elif estr != '':
+        #     fig.text(0.5, 0.7, estr, color='red', fontweight='bold')
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
         if per_x == 'per-seq':
@@ -487,8 +500,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         else:
             return '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
     # ----------------------------------------------------------------------------------------
-    def yfname(mtmp):
-        return '%s/%s.yaml' % (get_comparison_plotdir(mtmp, per_x), getplotname(mtmp))
+    def yfname(mtmp, estr):
+        return '%s/%s.yaml' % (get_comparison_plotdir(mtmp, per_x, extra_str=estr), getplotname(mtmp))
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
         if isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
@@ -512,29 +525,33 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             xticks, xticklabels = getxticks(xvals)
             # assert xvals == tuple(sorted(xvals))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove this
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
-            plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey)
+            plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
-        with open(yfname(metric), 'w') as yfile:  # write json file to be read by 'combine-plots'
+        with open(yfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
         title = metric.upper()
-        plotdir = get_comparison_plotdir(metric, per_x)
+        plotdir = get_comparison_plotdir(metric, per_x, extra_str=metric_extra_str)
         ylabelstr = metric.upper()
     elif action == 'combine-plots':
         _ = [pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists]  # have to call this fcn at least once just to set pvlabel
         plotfos = collections.OrderedDict()
-        for mtmp in args.plot_metrics:
-            if not os.path.exists(yfname(mtmp)):
-                print '    %s missing %s' % (utils.color('yellow', 'warning'), yfname(mtmp))
+        for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
+            if not os.path.exists(yfname(mtmp, estr)):
+                print '    %s missing %s' % (utils.color('yellow', 'warning'), yfname(mtmp, estr))
                 continue
-            with open(yfname(mtmp)) as yfile:
-                plotfos[mtmp] = collections.OrderedDict(json.load(yfile))
+            with open(yfname(mtmp, estr)) as yfile:
+                mkey = mtmp
+                if estr != '':
+                    mkey = '%s%s%s' % (mtmp, xdelim, estr)  # this is ugly, but we need to be able to split it apart in the loop just below here
+                plotfos[mkey] = collections.OrderedDict(json.load(yfile))
         if len(plotfos) == 0:
             print '  nothing to plot'
             return
         for ipv, pvkey in enumerate(plotfos[plotfos.keys()[0]]):
-            for imtmp, (mtmp, pfo) in enumerate(plotfos.items()):
+            for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
+                mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels = getxticks(pfo[pvkey]['xvals'])
-                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv, imtmp=imtmp, dummy_leg=ipv==0)
+                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
         title = '+'.join(plotfos)
         plotdir = get_comparison_plotdir('combined', per_x)
         ylabelstr = 'metric'
@@ -707,6 +724,7 @@ parser.add_argument('--metric-for-target-distance-list', default='aa')
 parser.add_argument('--leaf-sampling-scheme')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
+parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
@@ -768,6 +786,10 @@ args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
 args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target_distance_list, forbid_duplicates=True, choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'])
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
+args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
+if args.plot_metric_extra_strs is None:
+    args.plot_metric_extra_strs = ['' for _ in args.plot_metrics]
+assert len(args.plot_metrics) == len(args.plot_metric_extra_strs)
 args.selection_strength_list = utils.get_arg_list(args.selection_strength_list, floatify=True, forbid_duplicates=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
@@ -792,28 +814,29 @@ for action in args.actions:
     elif action == 'get-tree-metrics':
         get_tree_metrics(args)
     elif action in ['plot', 'combine-plots'] and not args.dry:
+        assert args.extra_plotstr is None  # only use --extra-plotstr for get-tree-metrics, for this use --plot-metric-extra-strs (because we in general have multiple --plot-metrics when we're here)
         _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir(None, None))
         procs = []
         pchoice = 'per-seq'
         if action == 'plot':
-            for metric in args.plot_metrics:
-                utils.prep_dir(get_comparison_plotdir(metric, None), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
+            for metric, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
+                utils.prep_dir(get_comparison_plotdir(metric, None, extra_str=estr), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
                 cfg_list = lbplotting.lb_metric_axis_cfg(metric)[0][1]
                 cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
                 for ptvar, ptlabel, use_relative_affy in cfg_list:
                     print '  %s  %-13s%-s' % (utils.color('blue', metric), ptvar, utils.color('green', '(relative)') if use_relative_affy else '')
                     for cgroup in treeutils.cgroups:
                         print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
-                        arglist, kwargs = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar), {'use_relative_affy' : use_relative_affy}
+                        arglist, kwargs = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar), {'use_relative_affy' : use_relative_affy, 'metric_extra_str' : estr}
                         if args.test:
                             make_plots(*arglist, **kwargs)
                         else:
                             procs.append(multiprocessing.Process(target=make_plots, args=arglist, kwargs=kwargs))
             if not args.test:
                 utils.run_proc_functions(procs)
-            for metric in args.plot_metrics:
-                plotting.make_html(get_comparison_plotdir(metric, pchoice), n_columns=2)
+            for metric, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
+                plotting.make_html(get_comparison_plotdir(metric, pchoice, extra_str=estr), n_columns=2)
         elif action == 'combine-plots':
             utils.prep_dir(get_comparison_plotdir('combined', None), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
             cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.lb_metric_axis_cfg(mtmp)[0][1]])  # I don't think we care about the order
