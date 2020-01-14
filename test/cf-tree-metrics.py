@@ -484,6 +484,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         color = None
         if ipv is not None:
             color = plotting.pltcolors[ipv % len(plotting.pltcolors)]
+        elif imtmp is not None:
+            color = plotting.pltcolors[imtmp % len(plotting.pltcolors)]
         if yerrs is not None:
             ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, label=label, color=color, alpha=alpha, linewidth=4, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
         else:
@@ -492,7 +494,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             dlabel = mtmp
             if estr != '':
                 dlabel += ' %s' % estr
-            ax.plot([], [], label=dlabel, alpha=alpha, linewidth=4, linestyle=linestyle, color='grey', marker='.', markersize=markersize)
+            ax.plot([], [], label=dlabel, alpha=alpha, linewidth=4, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=markersize)
         # elif estr != '':
         #     fig.text(0.5, 0.7, estr, color='red', fontweight='bold')
     # ----------------------------------------------------------------------------------------
@@ -549,12 +551,16 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         if len(plotfos) == 0:
             print '  nothing to plot'
             return
+        n_pvkeys = len(plotfos[plotfos.keys()[0]])  # just used for color choice
         for ipv, pvkey in enumerate(plotfos[plotfos.keys()[0]]):
             for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels = getxticks(pfo[pvkey]['xvals'])
-                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
-        title = '+'.join(plotfos)
+                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv if n_pvkeys > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
+        if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
+            title = '+'.join(plotfos)
+        else:
+            title = '+'.join(set(args.plot_metrics))
         plotdir = get_comparison_plotdir('combined', per_x)
         ylabelstr = 'metric'
     else:
