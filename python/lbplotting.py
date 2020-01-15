@@ -29,6 +29,12 @@ def lb_metric_axis_cfg(metric_method):  # x axis variables against which we plot
         return [(m, cfg) for m, cfg in base_cfg.items() if m == metric_method]
     else:
         return [[metric_method, [('affinity', 'affinity')]]]  # e.g. shm
+
+# ----------------------------------------------------------------------------------------
+def single_lbma_cfg_vars(metric_method):
+    assert metric_method is not None  # only use this for single metrics
+    return lb_metric_axis_cfg(metric_method)[0][1]  # [0] gets you the first metric's cfg (there's ony one because we specified a single <metric_method>, [1] gets you the (var, label)
+
 # ----------------------------------------------------------------------------------------
 def add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=False):  # NOTE acts on sub lists of the return value of the above (i.e. the .values())
     cfg_list = [[s, l, False] for s, l in cfg_list]

@@ -13,7 +13,7 @@ import subprocess
 import multiprocessing
 
 # ----------------------------------------------------------------------------------------
-linestyles = {'lbi' : '--', 'lbr' : '--', 'dtr' : '-'}
+linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
 
 # ----------------------------------------------------------------------------------------
 def ura_vals(xvar):  # list of whether we're using relative affinity values
@@ -481,6 +481,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5, estr=''):
         markersize = 1 if len(xticks) > 1 else 15
         linestyle = linestyles.get(mtmp, '-')
+        if args.plot_metrics.count(mtmp) > 1 and estr != '':
+            linestyle = 'dotted'
         color = None
         if ipv is not None:
             color = plotting.pltcolors[ipv % len(plotting.pltcolors)]
@@ -524,6 +526,9 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     if action == 'plot':
         read_plot_info()
         outfo = []
+        if len(plotvals) == 0:
+            print '  %s no plotvals for %s %s %s' % (utils.color('yellow', 'warning'), metric, per_x, choice_grouping)
+            return
         for ipv, pvkey in enumerate(plotvals):
             xvals, diffs_to_perfect = zip(*plotvals[pvkey])
             xticks, xticklabels = getxticks(xvals)
@@ -540,6 +545,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         _ = [pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists]  # have to call this fcn at least once just to set pvlabel
         plotfos = collections.OrderedDict()
         for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
+            if ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
+                continue
             if not os.path.exists(yfname(mtmp, estr)):
                 print '    %s missing %s' % (utils.color('yellow', 'warning'), yfname(mtmp, estr))
                 continue
@@ -548,15 +555,20 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 if estr != '':
                     mkey = '%s%s%s' % (mtmp, xdelim, estr)  # this is ugly, but we need to be able to split it apart in the loop just below here
                 plotfos[mkey] = collections.OrderedDict(json.load(yfile))
+                if len(plotfos[mkey]) == 0:
+                    raise Exception('read zero length info from %s' % yfname(mtmp, estr))  # if this happens when we're writing the file (above), we can skip it, but  I think we have to crash here (just rerun without this metric/extra_str). It probably means you were missing the dtr files for this per_x/cgroup
         if len(plotfos) == 0:
             print '  nothing to plot'
             return
-        n_pvkeys = len(plotfos[plotfos.keys()[0]])  # just used for color choice
-        for ipv, pvkey in enumerate(plotfos[plotfos.keys()[0]]):
+        pvk_list = set([tuple(pfo.keys()) for pfo in plotfos.values()])  # list of lists of pv keys (to make sure the ones from each metric's file are the same)
+        if len(pvk_list) > 1:
+            raise Exception('different lists of pv keys for different metrics: %s' % pvk_list)
+        pvk_list = list(pvk_list)[0]
+        for ipv, pvkey in enumerate(pvk_list):
             for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels = getxticks(pfo[pvkey]['xvals'])
-                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv if n_pvkeys > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
+                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
         if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
             title = '+'.join(plotfos)
         else:
@@ -823,6 +835,7 @@ for action in args.actions:
         get_tree_metrics(args)
     elif action in ['plot', 'combine-plots'] and not args.dry:
         assert args.extra_plotstr == ''  # only use --extra-plotstr for get-tree-metrics, for this use --plot-metric-extra-strs (because we in general have multiple --plot-metrics when we're here)
+        assert args.metric_method is None  # when plotting, you should only be using --plot-metrics
         _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir(None, None))
         procs = []
@@ -830,7 +843,7 @@ for action in args.actions:
         if action == 'plot':
             for metric, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
                 utils.prep_dir(get_comparison_plotdir(metric, None, extra_str=estr), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
-                cfg_list = lbplotting.lb_metric_axis_cfg(metric)[0][1]
+                cfg_list = lbplotting.single_lbma_cfg_vars(metric)
                 cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
                 for ptvar, ptlabel, use_relative_affy in cfg_list:
                     print '  %s  %-s %-13s%-s' % (utils.color('blue', metric), utils.color('purple', estr, width=20, padside='right') if estr != '' else 20*' ', ptvar, utils.color('green', '(relative)') if use_relative_affy else '')
@@ -847,7 +860,7 @@ for action in args.actions:
                 plotting.make_html(get_comparison_plotdir(metric, pchoice, extra_str=estr), n_columns=2)
         elif action == 'combine-plots':
             utils.prep_dir(get_comparison_plotdir('combined', None), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
-            cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.lb_metric_axis_cfg(mtmp)[0][1]])  # I don't think we care about the order
+            cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.single_lbma_cfg_vars(mtmp)])  # I don't think we care about the order
             cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
             for ptvar, ptlabel, use_relative_affy in cfg_list:
                 print ptvar
