@@ -156,7 +156,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     reco_info = None
     if not is_data:
         reco_info = OrderedDict()
-    # already_printed_forbidden_character_warning = False
+    n_duplicate_uids = 0
     n_queries_added = 0
     found_seed = False
     potential_names, used_names = None, None  # for abbreviating
@@ -200,8 +200,10 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             while new_uid in input_info:
                 new_uid = uid + '-' + str(iid)
                 iid += 1
-            print '  %s uid %s already read from input file %s, so replacing with new uid %s' % (utils.color('yellow', 'warning'), uid, infname, new_uid)  # if you decide you want to change it also in <reco_info>, don't forget to also modify the tree (and maybe other stuff, hence why I don't want to do it)
-            uid = new_uid
+            if n_duplicate_uids == 0:
+                print '  %s duplicate uid(s) in input file, so renaming by appending integer string, e.g. \'%s\' --> \'%s\'' % (utils.color('yellow', 'warning'), uid, new_uid)
+            n_duplicate_uids += 1
+            uid = new_uid  # if you decide you want to change it also in <reco_info>, don't forget to also modify the tree (and maybe other stuff, hence why I don't want to do it)
         inseq = line['input_seqs'][0]
 
         # # it would be nice to check here for forbidden characters (in addition to in the .fa code above), but it's hard because we won't have read the csv properly above if it has them
@@ -244,6 +246,9 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             if not quiet:  # just adding <quiet>, and too lazy to decide what other print statements it should effect, this is the only one I care about right now
                 print '  --n-max-queries: stopped after reading %d queries from input file' % len(input_info)
             break
+
+    if n_duplicate_uids > 0:
+        print '  %s renamed %d duplicate uids from %s' % (utils.color('yellow', 'warning'), n_duplicate_uids, infname)
 
     if more_input_info is not None:  # if you use this on simulation, the extra queries that aren't in <reco_info> may end up breaking something down the line (but I don't imagine this really getting used on simulation)
         if len(set(more_input_info) & set(input_info)) > 0:  # check for sequences in both places
