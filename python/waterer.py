@@ -909,11 +909,6 @@ class Waterer(object):
         if self.debug:
             print '  %s' % qname
 
-        if self.debug >= 2:
-            for region in utils.regions:
-                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
-                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
-
         # in very rare cases the j match gets extended so far left it touches the v, in which case we get no d match, but we don't really want to throw these out
         tmpbest = {r : qinfo['matches'][r][0][1] for r in utils.regions if len(qinfo['matches'][r]) > 0}  # this is hackey and duplicates too much code from just below, but I don't want to change anything that's down there since it's been there for so long and is so thoroughly tested
         if 'd' in utils.getregions(self.args.locus) and set(tmpbest.keys()) == set(['v', 'j']):  # missing d (not sure I actually need the first clause)
@@ -957,6 +952,11 @@ class Waterer(object):
                 self.indel_reruns.add(qname)
                 return dbgfcn(' new indels in %s' % ' '.join(qinfo['new_indels'].keys()))  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
 
+        if self.debug >= 2:  # keep this after the indel stuff, since it will crash (from different-length strings) if there's indels
+            for region in utils.regions:
+                for score, gene in qinfo['matches'][region]:  # sorted by decreasing match quality
+                    self.print_match(region, gene, score, qseq, qinfo['glbounds'][gene], qinfo['qrbounds'][gene], skipping=False)
+
         if self.super_high_mutation(qinfo, best):
             return dbgfcn('super high mutation')
 
@@ -981,7 +981,7 @@ class Waterer(object):
         # check cdr3 length
         cdr3_length = codon_positions['j'] - codon_positions['v'] + 3
         if cdr3_length < 6:  # NOTE six is also hardcoded in utils
-            return dbgfcn('negative cdr3 length %d' % cdr3_length)
+            return dbgfcn('negative cdr3 length %d (well, start and end codons overlap)' % cdr3_length)
 
         # convert to regular format used elsewhere, and add implicit info
         line = self.convert_qinfo(qinfo, best, codon_positions)
@@ -1430,26 +1430,31 @@ class Waterer(object):
 
             if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, we rerun sw with <self.args.no_indel_gap_open_penalty>
                 if debug:
-                    print '      sw called a v indel, but there\'s already a vsearch v indel, sogive up (rerun sw forbidding indels)'
+                    print '      sw called a v indel, but there\'s already a vsearch v indel, so give up (rerun sw forbidding indels)'
                 return None
 
             vs_indelfo = self.info['indels'][qinfo['name']]
             assert 'v' in vs_indelfo['genes']  # a.t.m. vsearch is only looking for v genes, and if that changes in the future we'd need to rewrite this
-            non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
-            vs_indelfo['qr_gap_seq'] = vs_indelfo['qr_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['qr_gap_seq']) - non_v_bases]
-            vs_indelfo['gl_gap_seq'] = vs_indelfo['gl_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['gl_gap_seq']) - non_v_bases]
-            assert len(vs_indelfo['qr_gap_seq']) == len(vs_indelfo['gl_gap_seq'])
 
-            net_v_indel_length = indelutils.net_length(vs_indelfo)
-            qrbounds['v'] = (qrbounds['v'][0], qrbounds['v'][1] + net_v_indel_length)
-            for region in ['d', 'j']:
-                qrbounds[region] = (qrbounds[region][0] + net_v_indel_length, qrbounds[region][1] + net_v_indel_length)
-                if region in qinfo['new_indels']:
-                    for ifo in qinfo['new_indels'][region]['indels']:
-                        ifo['pos'] += net_v_indel_length
+            if any(ifo['pos'] >= qrbounds['v'][1] for ifo in vs_indelfo['indels']):  # if any of the vsearch indels are to the right of the sw v bounds, we want to ignore them all (well, really I guess we only want to ignore the ones that're to the right of the sw bounds, but this is so incredibly rare that I think this is ok)
+                if self.debug:
+                    print '    ignoring vsearch v indel that\'s to the right of the sw v bounds'
+            else:
+                non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
+                vs_indelfo['qr_gap_seq'] = vs_indelfo['qr_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['qr_gap_seq']) - non_v_bases]
+                vs_indelfo['gl_gap_seq'] = vs_indelfo['gl_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['gl_gap_seq']) - non_v_bases]
+                assert len(vs_indelfo['qr_gap_seq']) == len(vs_indelfo['gl_gap_seq'])
+                net_v_indel_length = indelutils.net_length(vs_indelfo)
+                qrbounds['v'] = (qrbounds['v'][0], qrbounds['v'][1] + net_v_indel_length)
+                for region in ['d', 'j']:
+                    qrbounds[region] = (qrbounds[region][0] + net_v_indel_length, qrbounds[region][1] + net_v_indel_length)
+                    if region in qinfo['new_indels']:
+                        for ifo in qinfo['new_indels'][region]['indels']:
+                            ifo['pos'] += net_v_indel_length
+                regional_indelfos['v'] = vs_indelfo
+
             full_qrseq = self.input_info[qinfo['name']]['seqs'][0]  # should in principle replace qinfo['seq'] as well, since it's the reversed seq from vsearch, but see note below
             del self.info['indels'][qinfo['name']]
-            regional_indelfos['v'] = vs_indelfo
         elif 'v' in qinfo['new_indels']:
             regional_indelfos['v'] = qinfo['new_indels']['v']
 
