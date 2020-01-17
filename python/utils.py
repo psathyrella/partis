@@ -1494,7 +1494,7 @@ def add_linearham_info(sw_info, annotation_list, min_cluster_size=None, debug=Fa
 
 # ----------------------------------------------------------------------------------------
 def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
-    """ compute the flexbounds/relpos values and return in a dict """
+    """ compute the flexbounds/relpos values and return in a dict """  # NOTE deep copies per_gene_support, and then modifies this copy
     def get_swfo(uid):
         def getmatches(matchfo):  # get list of gene matches sorted by decreasing score
             genes, gfos = zip(*sorted(matchfo.items(), key=lambda x: x[1]['score'], reverse=True))
