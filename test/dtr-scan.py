@@ -57,7 +57,7 @@ basecmds = {
     'dtr-train-v0' : './test/cf-tree-metrics.py --label dtr-train-v0 --n-replicates 5 --n-sim-events-per-proc 1000   --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5',
     'dtr-train-v1' : './test/cf-tree-metrics.py --label dtr-train-v1 --n-replicates 4 --n-sim-events-per-proc 50000  --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 30  --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5',
     'dtr-train-v2' : './test/cf-tree-metrics.py --label dtr-train-v2 --n-replicates 2 --n-sim-events-per-proc 300000 --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 20  --selection-strength 0.75 --lb-tau-list 0.0025 --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,15:selection-strength,0.5',
-    # NOTE not actually two replicates, but want to get the dir structure the same as the others
+    # NOTE not actually two replicates, but want to get the dir structure the same as the others UPDATE made a second replicate for testing, with only 1000 families
     'dtr-train-v3' : './test/cf-tree-metrics.py --label dtr-train-v3 --n-replicates 2 --n-sim-events-per-proc 50000  --carry-cap-list=-1   --obs-times-list=-1  --n-sim-seqs-per-gen-list=-1  --selection-strength=-1.  --lb-tau-list 0.0025 --parameter-variances carry-cap,250..500..900..1000..1100..1500..5000:obs-times,75..100..150..200..1000:n-sim-seqs-per-generation,15..30..75..150..500:selection-strength,0.5..0.9..0.95..1.0',
 
     #  --slurm
@@ -150,9 +150,10 @@ if args.action == 'plot':
                 estr = str(int(fstr)+1)
                 diff_val_list, seed_list = [], []  # for each seed
                 for ipd, (pseed, pdir) in enumerate(pfo['plotdirs']):
-                    is_train_seed = args.training_label is None and pseed == args.training_seed
+                    is_train_seed = args.training_label is None and pseed == args.training_seed  # even if it was set on command line, we set it to None if it's the same as --label
                     yfn = treeutils.tmfname(pdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv)
                     if not os.path.exists(yfn):
+                        print '  %s missing %s' % (utils.color('yellow', 'warning'), yfn)
                         continue
                     diff_vals = getptvals(yfn, cg, tv)  # for each percentile
                     diff_to_perfect = numpy.mean(diff_vals)
@@ -161,7 +162,8 @@ if args.action == 'plot':
                         seed_list.append(pseed)
                     if print_all_seeds:
                         print ('     %s        %3d   %6.'+fstr+'f  %s') % (paramstr if ipd == 0 else len(paramstr)*' ', pseed, diff_to_perfect, utils.color('red', 'training') if is_train_seed else '')
-                print ('     %s        %6.'+fstr+'f +/-%-6.'+estr+'f     %s') % (paramstr, numpy.mean(diff_val_list), 0. if len(diff_val_list) < 2 else numpy.std(diff_val_list, ddof=1) / math.sqrt(len(diff_val_list)), ' '.join(str(s) for s in seed_list))
+                if not print_all_seeds:
+                    print ('     %s        %6.'+fstr+'f +/-%-6.'+estr+'f     %s') % (paramstr, numpy.mean(diff_val_list), 0. if len(diff_val_list) < 2 else numpy.std(diff_val_list, ddof=1) / math.sqrt(len(diff_val_list)), ' '.join(str(s) for s in seed_list))
 else:
     print '  starting %d jobs' % len(cmdfos)
     utils.run_cmds(cmdfos, n_max_procs=args.n_max_procs, debug='write:cf-tree-metrics.log')
