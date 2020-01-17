@@ -149,8 +149,9 @@ def process(args):
             utils.split_gene(gene)
 
     if args.print_git_commit or args.action == 'version':
-        print '  commit: %s' % subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
-        cmd = 'git describe --always --tags'
+        git_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/.git')
+        print '  commit: %s' % subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD']).strip()
+        cmd = 'git --git-dir %s describe --always --tags' % git_dir
         out, err = utils.simplerun(cmd, return_out_err=True, debug=False)
         if '-' in out:
             if out.count('-') == 2:
