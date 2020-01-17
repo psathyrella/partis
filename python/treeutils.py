@@ -1251,8 +1251,8 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
         for lb_metric in lb_metrics:
             lbplotting.make_lb_scatter_plots('shm', inf_plotdir, lb_metric, lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
         lbplotting.plot_lb_distributions(inf_plotdir, lines_to_use, fnames=fnames, only_overall=True)
-        # if ete_path is not None:
-        #     lbplotting.plot_lb_trees(lb_metrics.keys(), inf_plotdir, lines_to_use, ete_path, workdir, is_true_line=False)
+        if ete_path is not None:
+            lbplotting.plot_lb_trees(lb_metrics.keys(), inf_plotdir, lines_to_use, ete_path, workdir, is_true_line=False)
         subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
         plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
