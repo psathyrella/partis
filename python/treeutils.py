@@ -20,8 +20,6 @@ import yaml
 import json
 import pickle
 import warnings
-import joblib
-import sklearn2pmml
 import pypmml
 import traceback
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
@@ -144,8 +142,10 @@ def tmfname(plotdir, metric, x_axis_label, cg=None, tv=None, use_relative_affy=F
 # ----------------------------------------------------------------------------------------
 def write_pmml(pmmlfname, dmodel, varlist, targetvar):
     try:  # seems to crash for no @**($ing reason sometimes
-        pmml_pipeline = sklearn2pmml.make_pmml_pipeline(dmodel, active_fields=varlist, target_fields=targetvar)
-        sklearn2pmml.sklearn2pmml(pmml_pipeline, pmmlfname)
+        if 'sklearn2pmml' not in sys.modules:  # just so people don't need to install/import it if they're not training
+            import sklearn2pmml
+        pmml_pipeline = sys.modules['sklearn2pmml'].make_pmml_pipeline(dmodel, active_fields=varlist, target_fields=targetvar)
+        sys.modules['sklearn2pmml'].sklearn2pmml(pmml_pipeline, pmmlfname)
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         elines = traceback.format_exception(exc_type, exc_value, exc_traceback)
@@ -206,8 +206,10 @@ def train_dtr_model(trainfo, outdir, cfgvals, cgroup, tvar):
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
+    if 'joblib' not in sys.modules:  # just so people don't need to install it unless they're training (also scons seems to break it https://stackoverflow.com/questions/24453387/scons-attributeerror-builtin-function-or-method-object-has-no-attribute-disp)
+        import joblib
     with open(dtrfname(outdir, cgroup, tvar), 'w') as dfile:
-        joblib.dump(model, dfile)
+        sys.modules['joblib'].dump(model, dfile)
     write_pmml(dtrfname(outdir, cgroup, tvar, suffix='pmml'), model, get_dtr_varnames(cgroup, cfgvals['vars']), tvar)
 
 # ----------------------------------------------------------------------------------------
@@ -1446,8 +1448,10 @@ def init_dtr(train_dtr, dtr_path, cfg_fname=None):
             if os.path.exists(pmmlfname):  # pmml file (i.e. just with the info to make predictions, but can be read with other software versions)
                 pmml_models[cg][tvar] = pypmml.Model.fromFile(pmmlfname)
             else:  # if the pmml file isn't there, this must be old files, so we read the pickle, convert to pmml, then read that new pmml file
+                if 'joblib' not in sys.modules:  # just so people don't need to install it unless they're training (also scons seems to break it https://stackoverflow.com/questions/24453387/scons-attributeerror-builtin-function-or-method-object-has-no-attribute-disp)
+                    import joblib
                 with open(picklefname) as dfile:
-                    skmodels[cg][tvar] = joblib.load(dfile)
+                    skmodels[cg][tvar] = sys.modules['joblib'].load(dfile)
                 write_pmml(pmmlfname, skmodels[cg][tvar], get_dtr_varnames(cg, dtr_cfgvals['vars']), tvar)
                 pmml_models[cg][tvar] = pypmml.Model.fromFile(pmmlfname)
         else:
