@@ -679,12 +679,13 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
             tns.add_taxon(dendropy.Taxon(new_label))
             new_child_node = lnode.new_child(taxon=tns.get_taxon(new_label), edge_length=dummy_edge_length)
 
-    zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0 and not e.head_node.is_leaf()]  # zero len edges above leaves are fine, since leaves don't count for lbr
-    if len(zero_len_edge_nodes) > 0:
-        print '    %s found %d zero length internal edges in tree, which means lb ratio may mis-categorize branches: %s' % (utils.color('red', 'warning'), len(zero_len_edge_nodes), ' '.join([n.taxon.label for n in zero_len_edge_nodes]))
-        # for node in zero_len_edge_nodes:  # we don't really want to modify the tree this drastically here (and a.t.m. this causes a crash later on), but I'm leaving it as a placeholder for how to remove zero length edges
-        #     collapse_nodes(new_dtree, node.taxon.label, node.parent_node.taxon.label)  # keep the child, since it can be a leaf
-        # print utils.pad_lines(get_ascii_tree(dendro_tree=new_dtree))
+    # TODO commenting this because it gets triggered way too much, but I'm not actually sure that I can really just ignore the problem (but maybe I can)
+    # zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0 and not e.head_node.is_leaf()]  # zero len edges above leaves are fine, since leaves don't count for lbr
+    # if len(zero_len_edge_nodes) > 0:
+    #     print '    %s found %d zero length internal edges in tree, which means lb ratio may mis-categorize branches: %s' % (utils.color('red', 'warning'), len(zero_len_edge_nodes), ' '.join([n.taxon.label for n in zero_len_edge_nodes]))
+    #     # for node in zero_len_edge_nodes:  # we don't really want to modify the tree this drastically here (and a.t.m. this causes a crash later on), but I'm leaving it as a placeholder for how to remove zero length edges
+    #     #     collapse_nodes(new_dtree, node.taxon.label, node.parent_node.taxon.label)  # keep the child, since it can be a leaf
+    #     # print utils.pad_lines(get_ascii_tree(dendro_tree=new_dtree))
 
     new_dtree.update_bipartitions(suppress_unifurcations=False)  # not sure if I need this? (suppress_unifurcations is because otherwise it removes the branch between the old and new root nodes)
 
@@ -792,7 +793,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
 
     if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
         if annotation is None:
-            raise Exception('tree needs rescaling in lb calculation (metrics will be wrong), but no annotation was passed in')
+            raise Exception('tree needs rescaling in lb calculation (metrics will be wrong): found leaf depth greater than 1 (even when less than 1 they can be wrong, but we can be fairly certain that your BCR sequences don\'t have real mutation frequencty greater than 1, so this case we can actually check). If you pass in annotations we can rescale to the observed mutation frequencty.')
         print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
         dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
 
@@ -1296,6 +1297,9 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
     if treefname is not None:
         dtree = get_dendro_tree(treefname=treefname, debug=debug)
         origin = 'treefname'
+        if len(set([n.taxon.label for n in dtree.preorder_node_iter()]) & set(line['unique_ids'])) == 0:  # if no nodes in common between line and tree in file (e.g. you passed in the wrong file or didn't set --cluster-indices)
+            print '    no uids in common between cluster with size %d and tree from %s (so skipping this cluster)' % (len(line['unique_ids']), treefname)
+            return None
     elif False:  # use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
         lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
         dtree = get_dendro_tree(treestr=lonr_info['tree'])
@@ -1317,13 +1321,19 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
 # ----------------------------------------------------------------------------------------
 def check_lb_values(line, lbvals):
     for metric in [m for m in lbvals if m in lb_metrics]:
-        if len(set(line['unique_ids']) - set(lbvals[metric])) > 0:  # we expect to get extra ones, for inferred ancestral nodes for which we don't have sequences
-            raise Exception('uids in annotation not the same as lb info keys\n    missing: %s\n    extra: %s' % (' '.join(set(line['unique_ids']) - set(lbvals[metric])), ' '.join(set(lbvals[metric]) - set(line['unique_ids']))))
+        missing = set(line['unique_ids']) - set(lbvals[metric])
+        if len(missing) > 0:  # we expect to get extra ones in the tree, for inferred ancestral nodes for which we don't have sequences, but missing ones probabliy indicate something's up
+            # raise Exception('uids in annotation not the same as lb info keys\n    missing: %s\n    extra: %s' % (' '.join(set(line['unique_ids']) - set(lbvals[metric])), ' '.join(set(lbvals[metric]) - set(line['unique_ids']))))
+            extra = set(lbvals[metric]) - set(line['unique_ids'])
+            common = set(line['unique_ids']) & set(lbvals[metric])
+            print '    %s uids in annotation not the same as lb info keys for \'%s\':  %d missing  %d extra  (%d in common)'  % (utils.color('red', 'error'), metric, len(missing), len(extra), len(common))
+            if len(missing) + len(extra) < 35:
+                print '      missing: %s\n      extra: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common))
 
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False, debug=False):
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False, cluster_indices=None, debug=False):
     print 'getting tree metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1348,8 +1358,14 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
         tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
         print '    calculating tree metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
+        if cluster_indices is not None:
+            if min(cluster_indices) < 0 or max(cluster_indices) >= len(lines_to_use):
+                raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, len(lines_to_use)))
+            print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(lines_to_use[i]['unique_ids'])) for i in cluster_indices))
         n_already_there = 0
         for iclust, line in enumerate(lines_to_use):
+            if cluster_indices is not None and iclust not in cluster_indices:
+                continue
             if debug:
                 print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
             if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
@@ -1357,6 +1373,8 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
                     print '       %s overwriting tree metric info that was already in <line>' % utils.color('yellow', 'warning')
                 n_already_there += 1
             treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
+            if treefo is None:
+                continue
             tree_origin_counts[treefo['origin']]['count'] += 1
             line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
             line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)

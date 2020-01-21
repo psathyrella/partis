@@ -319,7 +319,8 @@ class PartitionDriver(object):
             annotation_dict = OrderedDict([(uidstr, line) for uidstr, line in annotation_dict.items() if self.args.seed_unique_id in line['unique_ids'] and line['unique_ids'] in cpath.partitions[cpath.i_best]])
         treeutils.calculate_tree_metrics(annotation_dict, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir, dont_normalize_lbi=self.args.dont_normalize_lbi,
-                                         only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_tree_metric_cluster_size, dtr_path=self.args.dtr_path, include_relative_affy_plots=self.args.include_relative_affy_plots, debug=self.args.debug)
+                                         only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_tree_metric_cluster_size, dtr_path=self.args.dtr_path, include_relative_affy_plots=self.args.include_relative_affy_plots,
+                                         cluster_indices=self.args.cluster_indices, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_list, ignore_args_dot_queries=False, process_csv=False):
@@ -482,8 +483,14 @@ class PartitionDriver(object):
 
         if tmpact == 'get-tree-metrics':
             self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list, cpath=cpath)  # adds tree metrics to <annotations>
-            print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
-            self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
+            if self.args.tree_metric_fname is None:
+                print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
+                self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
+            else:
+                print '  writing tree metrics to %s' % self.args.tree_metric_fname
+                utils.prep_dir(None, fname=self.args.tree_metric_fname, allow_other_files=True)
+                with open(self.args.tree_metric_fname, 'w') as tfile:
+                    yaml.dump([l['tree-info'] for l in annotation_list if 'tree-info' in l], tfile, width=200)
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
