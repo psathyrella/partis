@@ -1330,6 +1330,41 @@ def check_lb_values(line, lbvals):
             if len(missing) + len(extra) < 35:
                 print '      missing: %s\n      extra: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common))
 
+# NOTE this is not tested, but might be worth using in the future
+# # ----------------------------------------------------------------------------------------
+# def get_trees_for_annotations(annotations, cpath=None, workdir=None, min_cluster_size=default_min_tree_metric_cluster_size, cluster_indices=None, debug=False):  # NOTE this duplicates some code in the following function (but I want them separate since I don't really care about this fcn much)
+#     print 'getting trees'
+#     lines_to_use = annotations.values()
+#     n_before = len(lines_to_use)
+#     lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+#     n_after = len(lines_to_use)  # after removing the small ones
+#     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
+#     print '    calculating tree metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+#     print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
+#     if cluster_indices is not None:
+#         if min(cluster_indices) < 0 or max(cluster_indices) >= len(lines_to_use):
+#             raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, len(lines_to_use)))
+#         print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(lines_to_use[i]['unique_ids'])) for i in cluster_indices))
+#     n_already_there = 0
+#     for iclust, line in enumerate(lines_to_use):
+#         if cluster_indices is not None and iclust not in cluster_indices:
+#             continue
+#         if debug:
+#             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
+#         if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
+#             if debug:
+#                 print '       %s overwriting tree that was already in <line>' % utils.color('yellow', 'warning')
+#             n_already_there += 1
+#         treefo = get_tree_for_line(line, cpath=cpath, annotations=annotations, debug=debug)
+#         if treefo is None:
+#             continue
+#         tree_origin_counts[treefo['origin']]['count'] += 1
+#         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
+#         line['tree-info']['tree'] = treefo['tree'].as_string(schema='newick')
+#     print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
+#     if n_already_there > 0:
+#         print '    %s overwriting %d / %d that already had trees' % (utils.color('yellow', 'warning'), n_already_there, n_after)
+
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size,
