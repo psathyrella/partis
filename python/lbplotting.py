@@ -84,10 +84,10 @@ def mtitlestr(pchoice, lbm, short=False):
     return mtstr
 # ----------------------------------------------------------------------------------------
 metric_for_target_distance_labels = {
-    'aa' : 'AA',
+    'aa' : 'AA hamming',
     'nuc' : 'nuc',
-    'aa-sim-ascii' : 'ascii AA sim.',
-    'aa-sim-blosum' : 'BLOSUM AA sim.',
+    'aa-sim-ascii' : 'AA ascii',
+    'aa-sim-blosum' : 'AA BLOSUM',
 }
 cdist_keys = ['cons-dist-'+s for s in ['nuc', 'aa']]
 

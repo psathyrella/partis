@@ -13,24 +13,24 @@ testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times
 # echo $bin --label $testlabel $testargs --only-csv-plots
 # echo $bin --label $label --n-replicates 3 --only-csv-plots
 
-# # dtv=2; nest=100; depth=5
-# # dtv=3; nest=100; depth=10
-# dtv=3; nest=30; depth=10
-# dtr_args="--actions get-tree-metrics --metric-method dtr --dtr-path /fh/fast/matsen_e/dralph/partis/tree-metrics/dtr-train-v$dtv/seed-0/dtr/train_n-estimators_${nest}_max-depth_${depth}-dtr-models --extra-plotstr v$dtv-$nest-$depth"
-dtr_args="--actions plot:combine-plots --plot-metrics lbi:lbr:dtr:dtr:dtr --plot-metric-extra-strs ::v2-100-5:v3-100-10:v3-30-10"
+dtv=3; nest=100; depth=10  # dtv=3; nest=30; depth=10  # dtv=2; nest=100; depth=5
+dtr_args="--actions get-tree-metrics --metric-method dtr --dtr-path /fh/fast/matsen_e/dralph/partis/tree-metrics/dtr-train-v$dtv/seed-0/dtr/train_n-estimators_${nest}_max-depth_${depth}-dtr-models --extra-plotstr v$dtv-$nest-$depth"
+# dtr_args="--actions plot:combine-plots --plot-metrics lbi:lbr:dtr --plot-metric-extra-strs ::v3-100-10"  # :dtr:dtr  # :v2-100-5:v3-30-10
 
-common="--only-csv-plots --n-max-procs 10 --actions get-tree-metrics"  #$dtr_args"  # --no-tree-plots --slurm
+common="--only-csv-plots --n-max-procs 10 $dtr_args"  # --no-tree-plots --slurm
 # # TODO figure out v2 command, which now needs --legend-var obs_frac
+# #  - bcr-phylo command was (example): ./bin/bcr-phylo-run.py --actions simu:cache-parameters:partition --dont-get-tree-metrics --base-outdir /fh/fast/matsen_e/dralph/partis/tree-metrics/v2/n-sim-seqs-per-gen-30/seed-0/bcr-phylo --carry-cap 1000 --obs-times 125:150 --n-sim-seqs-per-gen 30 --seed 0
 # echo $bin --label v2 --n-replicates 200 --n-sim-seqs-per-gen-list 30:50:75:100:150:200 --legend-var obs_frac
-# echo $bin --label vary-carry-cap-v0 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 500:750:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75 --include-relative-affy
-# echo $bin --label vary-obs-times-v0 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 100:200:300:100,150:200,250:100,200,300 --n-sim-seqs-per-gen-list 100:100:100:50:50:33 --zip-vars obs-times:n-sim-seqs-per-gen --include-relative-affy
-# echo $bin --label vary-obs-times-v1 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 300:100,200,300:200,250,300 --n-sim-seqs-per-gen-list 100:33:33 --zip-vars obs-times:n-sim-seqs-per-gen --include-relative-affy
+# echo $bin --label vary-carry-cap-v0 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 500:750:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75 --include-relative-affy-plots
+# echo $bin --label vary-obs-times-v0 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 100:200:300:100,150:200,250:100,200,300 --n-sim-seqs-per-gen-list 100:100:100:50:50:33 --zip-vars obs-times:n-sim-seqs-per-gen --include-relative-affy-plots
+# echo $bin --label vary-obs-times-v1 --n-replicates 10 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 300:100,200,300:200,250,300 --n-sim-seqs-per-gen-list 100:33:33 --zip-vars obs-times:n-sim-seqs-per-gen --include-relative-affy-plots
 # echo $bin --label vary-obs-frac-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 30:50:75:100:150:200
-# echo $bin --label vary-metric-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --metric-for-target-distance-list nuc:aa:aa-sim-ascii:aa-sim-blosum
+# echo $bin --label vary-metric-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --metric-for-target-distance-list nuc:aa:aa-sim-ascii:aa-sim-blosum --include-relative-affy-plots
 # echo $bin --label vary-selection-strength-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --selection-strength-list 0.1:0.4:0.7:0.8:0.9:1.0
+# echo $bin --label vary-selection-strength-v1 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --selection-strength-list 0.1:0.4:0.7:0.8:0.9:1.0 --lb-tau-list 0.0025 --final-plot-xvar selection-strength  # all the other tau values are also there, but I decided I wanted selection strength on the x axis
 # echo $bin --label carry-cap-vs-n-obs-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 260:260:500:500:700:700:1500:1500:3000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 13:26:25:50:35:70:75:150:150:300 --lb-tau-list 0.0025 --zip-vars carry-cap:n-sim-seqs-per-gen --final-plot-xvar carry-cap --legend-var obs_frac
-# echo $bin --label carry-cap-vs-n-obs-v1 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:30:75:150:500 --lb-tau-list 0.0025 --final-plot-xvar carry-cap
-# #TODO everything before here was using relative affinity, but now I've added --use-relative-affy, for which the default is False. So either add the arg to the previous commands, or decide you'd rather have it turned off for them UPDATE now i've implemented them as separate plots using --include-relative-affy, and I think maybe I've added that option to all the right lines
+# echo $bin --label carry-cap-vs-n-obs-v1 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:75:150:500 --lb-tau-list 0.0025 --final-plot-xvar carry-cap  # NOTE there's also a n/gen of 30, but I stopped plotting it
+# #TODO everything before here was using relative affinity, but now I've added --use-relative-affy, for which the default is False. So either add the arg to the previous commands, or decide you'd rather have it turned off for them UPDATE now i've implemented them as separate plots using --include-relative-affy-plots, and I think maybe I've added that option to all the right lines
 # echo $bin --label carry-cap-vs-n-obs-only-leaves-v0 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:75:500 --lb-tau-list 0.0025 --dont-observe-common-ancestors --final-plot-xvar carry-cap
 # echo $bin --label choose-among-families-v1 --n-replicates 30 --n-sim-events-per-proc 30  $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --dont-observe-common-ancestors --parameter-variances carry-cap,2000:obs-times,150:n-sim-seqs-per-generation,200:selection-strength,0.5
 # echo $bin --label choose-among-families-v2 --n-replicates 10 --n-sim-events-per-proc 30  $common --carry-cap-list 1500 --obs-times-list 150 --n-sim-seqs-per-gen-list 150 --selection-strength 0.75 --lb-tau-list 0.0025 --dont-observe-common-ancestors --parameter-variances selection-strength,0.5
@@ -40,6 +40,7 @@ common="--only-csv-plots --n-max-procs 10 --actions get-tree-metrics"  #$dtr_arg
 # ----------------------------------------------------------------------------------------
 # echo $bin --label vary-obs-times-v2 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:1000:2000 --lb-tau-list 0.0025 --obs-times-list 50:100:250:500:1000:3000 --n-sim-seqs-per-gen-list 100 --final-plot-xvar obs-times  # also pretty similar to v3-with-err
 # echo $bin --label vary-obs-times-v3 --n-replicates 30 --n-sim-events-per-proc 10 $common --carry-cap-list 250:1000:2000 --lb-tau-list 0.0025 --obs-times-list 50,100,150,200,250:100,200,300,400,500:200,400,600,800,1000:600,1200,1800,2400,3000 --n-sim-seqs-per-gen-list 20 --final-plot-xvar obs-times --include-relative-affy-plots # also pretty similar to v3-with-err
+# echo $bin --label tau-vs-obs-frac-v1 --n-replicates 30 --n-sim-events-per-proc 10 $common --n-sim-seqs-per-gen-list 30:50:100:200 --obs-times-list 150 --legend-var obs_frac  # rerun of "v2" (at top), but redoing things since plots look a bit weird on v2 when I remake them
 
 
 common="--actions bcr-phylo --bcr-phylo-actions simu --only-csv-plots --base-outdir /fh/local/dralph/partis/tree-metrics" # --sub-slurm"  #  /loc/scratch/dralph/partis/tree-metrics

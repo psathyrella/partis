@@ -14,6 +14,7 @@ import multiprocessing
 
 # ----------------------------------------------------------------------------------------
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
+linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
 
 # ----------------------------------------------------------------------------------------
 def ura_vals(xvar):  # list of whether we're using relative affinity values
@@ -297,6 +298,11 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         'obs-times' : 't obs',
         'carry-cap' : 'carry cap',
     }
+    legtexts = {'metric-for-target-distance' : 'target dist. metric'}
+    legtexts.update(lbplotting.metric_for_target_distance_labels)
+    def legstr(label):
+        return legtexts.get(label, label)
+
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames):
@@ -479,24 +485,25 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
     # ----------------------------------------------------------------------------------------
     def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5, estr=''):
-        markersize = 1 if len(xticks) > 1 else 15
+        markersize = 15  # 1 if len(xticks) > 1 else 15
         linestyle = linestyles.get(mtmp, '-')
         if args.plot_metrics.count(mtmp) > 1 and estr != '':
             linestyle = 'dotted'
+        linewidth = linewidths.get(mtmp, 4)
         color = None
         if ipv is not None:
             color = plotting.pltcolors[ipv % len(plotting.pltcolors)]
         elif imtmp is not None:
             color = plotting.pltcolors[imtmp % len(plotting.pltcolors)]
         if yerrs is not None:
-            ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, label=label, color=color, alpha=alpha, linewidth=4, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
+            ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, label=legstr(label), color=color, alpha=alpha, linewidth=linewidth, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
         else:
-            ax.plot(xticks, diffs_to_perfect, label=label, color=color, alpha=alpha, linewidth=4)
+            ax.plot(xticks, diffs_to_perfect, label=legstr(label), color=color, alpha=alpha, linewidth=linewidth)
         if dummy_leg:
             dlabel = mtmp
             if estr != '':
                 dlabel += ' %s' % estr
-            ax.plot([], [], label=dlabel, alpha=alpha, linewidth=4, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=markersize)
+            ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=markersize)
         # elif estr != '':
         #     fig.text(0.5, 0.7, estr, color='red', fontweight='bold')
     # ----------------------------------------------------------------------------------------
@@ -511,8 +518,13 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
         if isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
+            def tickstr(t):
+                if len(t) < 4:
+                    return ', '.join(str(v) for v in t)
+                else:
+                    return '%s -\n %s\n(%d)' % (t[0], t[-1], len(t)) #, t[1] - t[0])
             xticks = list(range(len(xvals)))
-            xticklabels = [', '.join(str(v) for v in t) for t in xvals]
+            xticklabels = [tickstr(t) for t in xvals]
         else:
             xticks = xvals
             xticklabels = [str(t) for t in xvals]
@@ -569,19 +581,25 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels = getxticks(pfo[pvkey]['xvals'])
                 plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
-        if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
-            title = '+'.join(plotfos)
-        else:
-            title = '+'.join(set(args.plot_metrics))
+        # if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
+        #     title = '+'.join(plotfos)
+        # else:
+        #     title = '+'.join(set(args.plot_metrics))
+        title = ''
         plotdir = get_comparison_plotdir('combined', per_x)
         ylabelstr = 'metric'
     else:
         assert False
 
+    ymin, ymax = ax.get_ylim()
+    # if ptilestr == 'affinity':
+    #     ymin, ymax = 0, max(ymax, 25)
+    # elif ptilestr == 'n-ancestors':
+    #     ymin, ymax = 0, max(ymax, 1.5)
+
     log, adjust = '', {}
     if xvar == 'lb-tau':
-        ax.plot([1./args.seq_len, 1./args.seq_len], ax.get_ylim(), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-        adjust['bottom'] = 0.23
+        ax.plot([1./args.seq_len, 1./args.seq_len], (ymin, ymax), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     if xvar == 'carry-cap':
         log = 'x'
 
@@ -589,24 +607,27 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         adjust['left'] = 0.21
     if ax.get_ylim()[1] < 0.01:
         adjust['left'] = 0.26
+    adjust['bottom'] = 0.25
+    adjust['top'] = 0.9
+
     n_ticks = 4
-    ymin, ymax = ax.get_ylim()
     dy = (ymax - ymin) / float(n_ticks - 1)
     yticks, yticklabels = None, None
     # if ptilestr != 'affinity':
     #     yticks = [int(y) if ptilestr == 'affinity' else utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
     #     yticklabels = ['%s'%y for y in yticks]
     if per_x == 'per-seq':
-        title += ': choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
+        title += 'choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
     if use_relative_affy:
         fig.text(0.5, 0.87, 'relative %s' % ptilestr, fontsize=15, color='red', fontweight='bold')
     plotting.mpl_finish(ax, plotdir, getplotname(metric),
                         xlabel=xvar.replace('-', ' '),
-                        ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
-                        title=title, leg_title=pvlabel[0], leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.63),
+                        # ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
+                        ylabel='mean %s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel),
+                        title=title, leg_title=legstr(pvlabel[0]), leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.63),
                         xticks=xticks, xticklabels=xticklabels, xticklabelsize=16,
                         yticks=yticks, yticklabels=yticklabels,
-                        log=log, adjust=adjust,
+                        ybounds=(ymin, ymax), log=log, adjust=adjust,
     )
 
 # ----------------------------------------------------------------------------------------
