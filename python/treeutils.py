@@ -1377,6 +1377,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
 
     if dtr_path is not None:
+        assert not dont_normalize_lbi  # it's trained on normalized lbi, so results are garbage if you don't normalize
         dtr_cfgvals, trainfo, skmodels, pmml_models, missing_models = init_dtr(train_dtr, dtr_path, cfg_fname=dtr_cfg)
 
     if true_lines_to_use is not None:  # i.e. being called by bin/dtr-run.py
