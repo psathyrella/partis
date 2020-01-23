@@ -249,7 +249,7 @@ def get_vlval(vlists, varnames, vname):  # ok this name also sucks, but they're 
 # ----------------------------------------------------------------------------------------
 def get_var_info(args, scan_vars):
     def handle_var(svar, val_lists, valstrs):
-        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'selection-strength', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
+        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
         sargv = getsargval(svar)
         if len(sargv) > 1 or (svar == 'seed' and args.iseeds is not None):  # if --iseeds is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
             varnames.append(svar)
@@ -298,7 +298,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         'obs-times' : 't obs',
         'carry-cap' : 'carry cap',
     }
-    legtexts = {'metric-for-target-distance' : 'target dist. metric'}
+    legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme'}
     legtexts.update(lbplotting.metric_for_target_distance_labels)
     def legstr(label):
         return legtexts.get(label, label)
@@ -654,8 +654,6 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
         if args.dont_observe_common_ancestors:
             cmd += ' --dont-observe-common-ancestors'
-        if args.leaf_sampling_scheme:
-            cmd += ' --leaf-sampling-scheme'
         if args.overwrite:
             cmd += ' --overwrite'
         if args.only_csv_plots:
@@ -760,7 +758,7 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--metric-for-target-distance-list', default='aa')
-parser.add_argument('--leaf-sampling-scheme')
+parser.add_argument('--leaf-sampling-scheme-list', default='uniform-random')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
@@ -803,10 +801,8 @@ parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lb
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
-args.scan_vars = {
-    'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength'],
-    'get-tree-metrics' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'lb-tau'],
-}
+args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme'],}
+args.scan_vars['get-tree-metrics'] = args.scan_vars['simu'] + ['lb-tau']
 
 sys.path.insert(1, args.partis_dir + '/python')
 try:
@@ -825,6 +821,7 @@ args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, 
 args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'obs-times' not in args.zip_vars)
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
 args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target_distance_list, forbid_duplicates=True, choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'])
+args.leaf_sampling_scheme_list = utils.get_arg_list(args.leaf_sampling_scheme_list, forbid_duplicates=True, choices=['uniform-random', 'affinity-biased', 'high-affinity'])
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:

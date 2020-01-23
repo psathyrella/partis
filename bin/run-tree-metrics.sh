@@ -17,8 +17,9 @@ dtv=3; nest=100; depth=10  # dtv=3; nest=30; depth=10  # dtv=2; nest=100; depth=
 dtr_args="--actions get-tree-metrics --metric-method dtr --dtr-path /fh/fast/matsen_e/dralph/partis/tree-metrics/dtr-train-v$dtv/seed-0/dtr/train_n-estimators_${nest}_max-depth_${depth}-dtr-models --extra-plotstr v$dtv-$nest-$depth"
 # dtr_args="--actions plot:combine-plots --plot-metrics lbi:lbr:dtr --plot-metric-extra-strs ::v3-100-10"  # :dtr:dtr  # :v2-100-5:v3-30-10
 
-# common="--only-csv-plots --n-max-procs 10" # $dtr_args"  # --no-tree-plots --slurm
-common="--actions combine-plots --plot-metrics lbi:lbr:dtr --plot-metric-extra-strs ::v3-100-10 --dont-plot-extra-str"
+common="--actions bcr-phylo --only-csv-plots --n-max-procs 25" # $dtr_args"  # --no-tree-plots --slurm
+# common="--actions combine-plots --plot-metrics lbi:lbr:dtr --plot-metric-extra-strs ::v3-100-10 --dont-plot-extra-str"
+# ----------------------------------------------------------------------------------------
 # echo $bin --label vary-carry-cap-v0 --n-replicates 10 --n-sim-events-per-proc 10 --carry-cap-list 500:750:1000:2000:5000 --obs-times-list 100,200 --n-sim-seqs-per-gen-list 75 --include-relative-affy-plots $common
 # echo $bin --label vary-obs-times-v0 --n-replicates 10 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 100:200:300:100,150:200,250:100,200,300 --n-sim-seqs-per-gen-list 100:100:100:50:50:33 --zip-vars obs-times:n-sim-seqs-per-gen --include-relative-affy-plots $common
 # echo $bin --label vary-obs-times-v1 --n-replicates 10 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 300:100,200,300:200,250,300 --n-sim-seqs-per-gen-list 100:33:33 --zip-vars obs-times:n-sim-seqs-per-gen --include-relative-affy-plots $common
@@ -38,6 +39,7 @@ common="--actions combine-plots --plot-metrics lbi:lbr:dtr --plot-metric-extra-s
 # echo $bin --label carry-cap-vs-n-obs-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 250:500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 15:75:150:500 --lb-tau-list 0.0025 --final-plot-xvar carry-cap $common  # NOTE there's also a n/gen of 30, but I stopped plotting it
 # echo $bin --label vary-obs-times-v2 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 250:1000:2000 --lb-tau-list 0.0025 --obs-times-list 50:100:250:500:1000:3000 --n-sim-seqs-per-gen-list 100 --final-plot-xvar obs-times $common  # also pretty similar to v3-with-err
 # echo $bin --label vary-obs-times-v3 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 250:1000:2000 --lb-tau-list 0.0025 --obs-times-list 50,100,150,200,250:100,200,300,400,500:200,400,600,800,1000:600,1200,1800,2400,3000 --n-sim-seqs-per-gen-list 20 --final-plot-xvar obs-times --include-relative-affy-plots $common  # also pretty similar to v3-with-err
+# echo $bin --label vary-sampling-scheme-v0 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --leaf-sampling-scheme-list uniform-random:affinity-biased:high-affinity --include-relative-affy-plots $common
 
 
 common="--actions bcr-phylo --bcr-phylo-actions simu --only-csv-plots --base-outdir /fh/local/dralph/partis/tree-metrics" # --sub-slurm"  #  /loc/scratch/dralph/partis/tree-metrics
