@@ -501,7 +501,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             ax.plot(xticks, diffs_to_perfect, label=legstr(label), color=color, alpha=alpha, linewidth=linewidth)
         if dummy_leg:
             dlabel = mtmp
-            if estr != '':
+            if not args.dont_plot_extra_strs and estr != '':
                 dlabel += ' %s' % estr
             ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=markersize)
         # elif estr != '':
@@ -557,7 +557,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         _ = [pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists]  # have to call this fcn at least once just to set pvlabel
         plotfos = collections.OrderedDict()
         for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
-            if ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
+            if ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
                 continue
             if not os.path.exists(yfname(mtmp, estr)):
                 print '    %s missing %s' % (utils.color('yellow', 'warning'), yfname(mtmp, estr))
@@ -764,6 +764,7 @@ parser.add_argument('--leaf-sampling-scheme')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
+parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
 parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')

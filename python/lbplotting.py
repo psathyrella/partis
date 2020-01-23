@@ -18,22 +18,22 @@ import plotting
 
 # ----------------------------------------------------------------------------------------
 # this name is terrible, but it's complicated and I can't think of a better one
-def lb_metric_axis_cfg(metric_method):  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
+def lb_metric_axis_cfg(metric_method, final_plots=False):  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
     base_cfg = collections.OrderedDict([('lbi', [('affinity', 'affinity')]),
                                         ('lbr', [('n-ancestor', 'N ancestors')]),  # , ('branch-length', 'branch length')])  # turning off branch length at least for now (for run time reasons)
     ])
     if metric_method is None:
        return base_cfg.items()
-    base_cfg['dtr'] = [('affinity', 'affinity'), ('n-ancestor', 'N ancestors')]  # hack hack hack
+    base_cfg['dtr'] = [('affinity', 'affinity'),] if final_plots else [('affinity', 'affinity'), ('n-ancestor', 'N ancestors')]  # hack hack hack
     if metric_method in base_cfg:
         return [(m, cfg) for m, cfg in base_cfg.items() if m == metric_method]
     else:
         return [[metric_method, [('affinity', 'affinity')]]]  # e.g. shm
 
 # ----------------------------------------------------------------------------------------
-def single_lbma_cfg_vars(metric_method):
+def single_lbma_cfg_vars(metric_method, final_plots=False):
     assert metric_method is not None  # only use this for single metrics
-    return lb_metric_axis_cfg(metric_method)[0][1]  # [0] gets you the first metric's cfg (there's ony one because we specified a single <metric_method>, [1] gets you the (var, label)
+    return lb_metric_axis_cfg(metric_method, final_plots=final_plots)[0][1]  # [0] gets you the first metric's cfg (there's ony one because we specified a single <metric_method>, [1] gets you the (var, label)
 
 # ----------------------------------------------------------------------------------------
 def add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=False):  # NOTE acts on sub lists of the return value of the above (i.e. the .values())
