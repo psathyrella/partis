@@ -703,20 +703,15 @@ def get_tree_metrics(args):
             if not args.dry:
                 subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
             cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs, extra_str=args.extra_plotstr), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
-            cmd += ' --lb-tau %s' % get_vlval(vstrs, varnames, 'lb-tau')
-            if len(args.lb_tau_list) > 1:
-                cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
             # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
             #     cmd += ' --n-procs %d' % args.n_sub_procs
         else:  # non-lb metrics, i.e. trying to predict with shm, etc.
-            assert len(args.lb_tau_list) == 1
-            cmd = './bin/dtr-run.py --metric-method %s --infname %s --base-plotdir %s --lb-tau %s' % (args.metric_method,
-                                                                                                      get_simfname(varnames, vstrs),
-                                                                                                      get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr),
-                                                                                                      get_vlval(vstrs, varnames, 'lb-tau'))
+            cmd = './bin/dtr-run.py --metric-method %s --infname %s --base-plotdir %s' % (args.metric_method,
+                                                                                          get_simfname(varnames, vstrs),
+                                                                                          get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr))
             if args.metric_method == 'dtr':
                 if args.train_dtr and args.overwrite:  # make sure no training files exist, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)
                     assert set([os.path.exists(f) for f in get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)]) == set([False])
@@ -724,6 +719,9 @@ def get_tree_metrics(args):
                 cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs, extra_str=args.extra_plotstr))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
                 if args.dtr_cfg is not None:
                     cmd += ' --dtr-cfg %s' % args.dtr_cfg
+        cmd += ' --lb-tau %s' % get_vlval(vstrs, varnames, 'lb-tau')
+        if len(args.lb_tau_list) > 1:
+            cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
         if args.only_csv_plots:
             cmd += ' --only-csv-plots'
         if args.n_max_queries is not None:
