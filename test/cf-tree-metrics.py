@@ -474,7 +474,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 for tau in sorted(tmpvaldict):  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
                     ltmp = tmpvaldict[tau]
                     mean_vals.append((tau, numpy.mean(ltmp)))
-                    err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))
+                    err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))  # standard error on mean (for standard deviation, comment out denominator)
                     n_used.append(len(ltmp))
                 plotvals[pvkey] = mean_vals
                 errvals[pvkey] = err_vals
@@ -550,7 +550,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
         with open(yfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
-        title = metric.upper()
+        title = metric.upper() + ': '
         plotdir = get_comparison_plotdir(metric, per_x, extra_str=metric_extra_str)
         ylabelstr = metric.upper()
     elif action == 'combine-plots':
@@ -582,9 +582,9 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 xticks, xticklabels = getxticks(pfo[pvkey]['xvals'])
                 plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
         # if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
-        #     title = '+'.join(plotfos)
+        #     title = '+'.join(plotfos) + ': '
         # else:
-        #     title = '+'.join(set(args.plot_metrics))
+        #     title = '+'.join(set(args.plot_metrics)) + ': '
         title = ''
         plotdir = get_comparison_plotdir('combined', per_x)
         ylabelstr = 'metric'
