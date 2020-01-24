@@ -301,7 +301,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme'}
     legtexts.update(lbplotting.metric_for_target_distance_labels)
     def legstr(label):
-        return legtexts.get(label, label)
+        if label is None: return None
+        return legtexts.get(label, label.replace('-', ' '))
 
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     # ----------------------------------------------------------------------------------------
@@ -503,7 +504,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             dlabel = mtmp
             if not args.dont_plot_extra_strs and estr != '':
                 dlabel += ' %s' % estr
-            ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=markersize)
+            ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=0)
         # elif estr != '':
         #     fig.text(0.5, 0.7, estr, color='red', fontweight='bold')
     # ----------------------------------------------------------------------------------------
@@ -598,7 +599,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     #     ymin, ymax = 0, max(ymax, 1.5)
 
     log, adjust = '', {}
-    if xvar == 'lb-tau':
+    if xvar == 'lb-tau' and len(xticks) > 1:
         ax.plot([1./args.seq_len, 1./args.seq_len], (ymin, ymax), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     if xvar == 'carry-cap':
         log = 'x'
