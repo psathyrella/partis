@@ -298,7 +298,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         'obs-times' : 't obs',
         'carry-cap' : 'carry cap',
     }
-    legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme'}
+    legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme', 'uniform-random' : 'unif. random', 'affinity-biased' : 'high affinity', 'high-affinity' : 'perf. affinity'}
     legtexts.update(lbplotting.metric_for_target_distance_labels)
     def legstr(label):
         if label is None: return None
@@ -623,8 +623,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         fig.text(0.5, 0.87, 'relative %s' % ptilestr, fontsize=15, color='red', fontweight='bold')
     plotting.mpl_finish(ax, plotdir, getplotname(metric),
                         xlabel=xvar.replace('-', ' '),
-                        # ylabel='mean %s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
-                        ylabel='mean %s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel),
+                        # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
+                        ylabel='%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel),
                         title=title, leg_title=legstr(pvlabel[0]), leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.63),
                         xticks=xticks, xticklabels=xticklabels, xticklabelsize=16,
                         yticks=yticks, yticklabels=yticklabels,

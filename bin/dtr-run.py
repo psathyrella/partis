@@ -47,6 +47,5 @@ if args.metric_method == 'dtr':
                                      dtr_path=args.dtr_path, train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, include_relative_affy_plots=args.include_relative_affy_plots,
                                      dont_normalize_lbi=args.dont_normalize_lbi)  # ete_path=args.ete_path, workdir=args.workdir,
 else:
-    assert not args.include_relative_affy_plots  # just needs to be updated
     treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, only_csv=args.only_csv_plots,
-                                            min_cluster_size=args.min_tree_metric_cluster_size)  # ete_path=args.ete_path, workdir=args.workdir,
+                                            min_cluster_size=args.min_tree_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots)  # ete_path=args.ete_path, workdir=args.workdir,

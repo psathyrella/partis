@@ -787,7 +787,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     if use_multiplicities:
         print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
 
-    # TODO this is too slow
+    # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes)
     # if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
     #     compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
 
@@ -1609,7 +1609,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 
 # ----------------------------------------------------------------------------------------
 # well, not necessarily really using a tree, but they're analagous to the lb metrics
-def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, debug=False):
+def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_combo_lbfo(varlist, iclust, line, lbfo=None, lb_tau=None):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
@@ -1692,7 +1692,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         if metric_method in ['delta-lbi']:
             lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, annotations, metric_method, lbplotting.mtitlestr('per-seq', metric_method), is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         else:
-            lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, metric_method, metric_method.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames)
+            for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
+                lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, metric_method, metric_method.upper(), is_true_line=True, only_csv=only_csv, fnames=fnames, affy_key=affy_key)
         if not only_csv:
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(metric_method, '%s/%s/' % (true_plotdir, metric_method)),])
         print '      non-lb metric plotting time %.1fs' % (time.time() - plstart)
