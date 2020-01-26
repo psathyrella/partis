@@ -220,6 +220,8 @@ def get_comparison_plotdir(metric, per_x, extra_str=''):  # both <metric> and <p
     plotdir = '%s/%s/plots' % (args.base_outdir, args.label)
     if metric is not None:
         plotdir += '/' + metric
+        if metric == 'combined' and args.combo_extra_str is not None:
+            plotdir += '-' + args.combo_extra_str
     if extra_str != '':
         assert metric is not None
         plotdir += '_' + extra_str
@@ -555,7 +557,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         plotdir = get_comparison_plotdir(metric, per_x, extra_str=metric_extra_str)
         ylabelstr = metric.upper()
     elif action == 'combine-plots':
-        _ = [pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists]  # have to call this fcn at least once just to set pvlabel
+        pvks_from_args = set([pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
         plotfos = collections.OrderedDict()
         for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
             if ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
@@ -573,15 +575,18 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         if len(plotfos) == 0:
             print '  nothing to plot'
             return
-        pvk_list = set([tuple(pfo.keys()) for pfo in plotfos.values()])  # list of lists of pv keys (to make sure the ones from each metric's file are the same)
-        if len(pvk_list) > 1:
-            raise Exception('different lists of pv keys for different metrics: %s' % pvk_list)
-        pvk_list = list(pvk_list)[0]
+        pvks_from_file = set([tuple(pfo.keys()) for pfo in plotfos.values()])  # list of lists of pv keys (to make sure the ones from each metric's file are the same)
+        if len(pvks_from_file) > 1:
+            raise Exception('different lists of pv keys for different metrics: %s' % pvks_from_file)
+        pvk_list = list(pvks_from_file)[0]
+        if args.pvks_to_plot is not None:
+            # pvk_list = [p for p in list(pvks_from_file)[0] if p in pvks_from_args]  # don't do it this way since if you only ask it to plot one value it'll get the wrong file path (since it'll no longer make a subdir level for that variable)
+            pvk_list = [p for p in pvk_list if p in args.pvks_to_plot]
         for ipv, pvkey in enumerate(pvk_list):
             for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels = getxticks(pfo[pvkey]['xvals'])
-                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if imtmp == 0 else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
+                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if (imtmp == 0 and len(pvk_list) > 1) else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
         # if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
         #     title = '+'.join(plotfos) + ': '
         # else:
@@ -764,6 +769,8 @@ parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nu
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
+parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
+parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
 parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
@@ -828,6 +835,7 @@ args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:
     args.plot_metric_extra_strs = ['' for _ in args.plot_metrics]
 assert len(args.plot_metrics) == len(args.plot_metric_extra_strs)
+args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
 args.selection_strength_list = utils.get_arg_list(args.selection_strength_list, floatify=True, forbid_duplicates=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
