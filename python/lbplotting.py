@@ -63,6 +63,7 @@ for k in mean_max_metrics:
 cluster_summary_cfg['affinity'] = (('top-quintile', lambda line, plotvals: mean_of_top_quintile(plotvals)), )
 cluster_summary_cfg['fay-wu-h'] = (('fay-wu-h', lambda line, plotvals: -utils.fay_wu_h(line)), )
 cluster_summary_cfg['cons-dist-nuc'] = (('cons-seq-shm-nuc', lambda line, plotvals: treeutils.lb_cons_seq_shm(line, aa=False)), )  # NOTE the cluster_summary_cfg key doesn't really make sense here any more (used to be 'consensus'), but i'm not really using these cluster summary things any more, since it turns out to not work very well to choose entire families
+cluster_summary_cfg['cons-dist-aa'] = (('cons-seq-shm-aa', lambda line, plotvals: treeutils.lb_cons_seq_shm(line, aa=True)), )  # NOTE the cluster_summary_cfg key doesn't really make sense here any more (used to be 'consensus'), but i'm not really using these cluster summary things any more, since it turns out to not work very well to choose entire families
 cluster_summary_cfg['is_leaf'] = (('x-dummy-x', lambda line, plotvals: None), )  # just to keep things from breaking, doesn't actually get used
 def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]

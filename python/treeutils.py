@@ -1653,8 +1653,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         elif metric_method == 'fay-wu-h':  # NOTE this isn't actually tree info, but I"m comparing it to things calculated with a tree, so putting it in the same place at least for now
             fwh = -utils.fay_wu_h(line)
             line['tree-info'] = {'lb' : {metric_method : {u : fwh for i, u in enumerate(line['unique_ids'])}}}  # kind of weird to set it individually for each sequence when they all have the same value (i.e. it's a per-family metric), but I don't want to do actual per-family comparisons any more, and this way we can at least look at it
-        elif metric_method == 'cons-dist-nuc':
-            line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(line, i) for i, u in enumerate(line['unique_ids'])}}}
+        elif metric_method in ['cons-dist-nuc', 'cons-dist-aa']:
+            line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(line, i, aa='-aa' in metric_method) for i, u in enumerate(line['unique_ids'])}}}
         elif metric_method == 'delta-lbi':
             dtree, lbfo = get_combo_lbfo(['lbi'], iclust, line, lb_tau)
             delta_lbfo = {}
