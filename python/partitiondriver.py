@@ -491,7 +491,7 @@ class PartitionDriver(object):
                 print '  writing tree metrics to %s' % self.args.tree_metric_fname
                 utils.prep_dir(None, fname=self.args.tree_metric_fname, allow_other_files=True)
                 with open(self.args.tree_metric_fname, 'w') as tfile:
-                    yaml.dump([l['tree-info'] for l in annotation_list if 'tree-info' in l], tfile, width=200)
+                    json.dump([l['tree-info'] for l in annotation_list if 'tree-info' in l], tfile) #, width=200, Dumper=yaml.CDumper, allow_unicode=False)  # switching to json to avoid unicode bullshit
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
