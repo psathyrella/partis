@@ -492,7 +492,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         linestyle = linestyles.get(mtmp, '-')
         if args.plot_metrics.count(mtmp) > 1 and estr != '':
             linestyle = 'dotted'
-        linewidth = linewidths.get(mtmp, 4)
+        linewidth = linewidths.get(mtmp, 3)
         color = None
         if ipv is not None:
             color = plotting.pltcolors[ipv % len(plotting.pltcolors)]
@@ -576,12 +576,13 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             print '  nothing to plot'
             return
         pvks_from_file = set([tuple(pfo.keys()) for pfo in plotfos.values()])  # list of lists of pv keys (to make sure the ones from each metric's file are the same)
-        if len(pvks_from_file) > 1:
-            raise Exception('different lists of pv keys for different metrics: %s' % pvks_from_file)
+        # if len(pvks_from_file) > 1:  # eh, they can be different now if I ran different metrics with different argument lists
+        #     raise Exception('different lists of pv keys for different metrics: %s\n  from files %s' % (pvks_from_file, ))
         pvk_list = list(pvks_from_file)[0]
         if args.pvks_to_plot is not None:
             # pvk_list = [p for p in list(pvks_from_file)[0] if p in pvks_from_args]  # don't do it this way since if you only ask it to plot one value it'll get the wrong file path (since it'll no longer make a subdir level for that variable)
             pvk_list = [p for p in pvk_list if p in args.pvks_to_plot]
+            assert len(pvk_list) > 0
         for ipv, pvkey in enumerate(pvk_list):
             for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
