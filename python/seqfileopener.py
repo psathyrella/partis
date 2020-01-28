@@ -157,6 +157,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     if not is_data:
         reco_info = OrderedDict()
     n_duplicate_uids = 0
+    printed_simu_mismatch_warning = False
     n_queries_added = 0
     found_seed = False
     potential_names, used_names = None, None  # for abbreviating
@@ -233,8 +234,9 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             if 'v_gene' not in line:
                 raise Exception('simulation info not found in %s' % infname)
             reco_info[uid] = copy.deepcopy(line)
-            if uid != line['unique_ids'][0]:
-                print '     note: chosen uid %s (probably changed above) doesn\'t match simulation info uid %s (so simulation info will be internally consistent, but the key indexing that info in <reco_info> is different, since it corresponds to the newly chosen uid above)' % (uid, line['unique_ids'][0])
+            if uid != line['unique_ids'][0] and not printed_simu_mismatch_warning:
+                print '     note: uid in simulation info %s doesn\'t match input file uid %s (latter was probably changed above). Simulation info will be internally consistent, but the key indexing that info in <reco_info> will be different, since it corresponds to the newly chosen uid above.' % (uid, line['unique_ids'][0])
+                printed_simu_mismatch_warning = True
             if simglfo is not None:
                 utils.add_implicit_info(simglfo, reco_info[uid])
             for line_key in utils.input_metafile_keys.values():
