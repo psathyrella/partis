@@ -302,9 +302,17 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     }
     legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme', 'uniform-random' : 'unif. random', 'affinity-biased' : 'high affinity', 'high-affinity' : 'perf. affinity'}
     legtexts.update(lbplotting.metric_for_target_distance_labels)
-    def legstr(label):
+    def legstr(label, title=False):
         if label is None: return None
-        return legtexts.get(label, label.replace('-', ' '))
+        lstr = legtexts.get(label, label.replace('-', ' '))
+        if title and args.pvks_to_plot is not None:  # if we're only plotting one value, put that value in the legend str
+            assert isinstance(args.pvks_to_plot, list)  # don't really need this
+            if len(args.pvks_to_plot) == 1:
+                pstr = lbplotting.metric_for_target_distance_labels.get(args.pvks_to_plot[0], args.pvks_to_plot[0])
+            else:
+                pstr = ' '.join(args.pvks_to_plot)
+            lstr += ': %s' % pstr
+        return lstr
 
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     # ----------------------------------------------------------------------------------------
@@ -633,7 +641,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                         xlabel=xvar.replace('-', ' '),
                         # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
                         ylabel='%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel),
-                        title=title, leg_title=legstr(pvlabel[0]), leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.63),
+                        title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.63),
                         xticks=xticks, xticklabels=xticklabels, xticklabelsize=16,
                         yticks=yticks, yticklabels=yticklabels,
                         ybounds=(ymin, ymax), log=log, adjust=adjust,
@@ -832,7 +840,7 @@ args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, 
 args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'obs-times' not in args.zip_vars)
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
 args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target_distance_list, forbid_duplicates=True, choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'])
-args.leaf_sampling_scheme_list = utils.get_arg_list(args.leaf_sampling_scheme_list, forbid_duplicates=True, choices=['uniform-random', 'affinity-biased', 'high-affinity'])
+args.leaf_sampling_scheme_list = utils.get_arg_list(args.leaf_sampling_scheme_list, forbid_duplicates=True, choices=['uniform-random', 'affinity-biased', 'high-affinity'])  # WARNING 'high-affinity' gets called 'perfect' in the legends and 'affinity-biased' gets called 'high affinity'
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:
