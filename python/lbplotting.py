@@ -27,8 +27,9 @@ def lb_metric_axis_cfg(metric_method, final_plots=False):  # x axis variables ag
     base_cfg['dtr'] = [('affinity', 'affinity'),] if final_plots else [('affinity', 'affinity'), ('n-ancestor', 'N ancestors')]  # hack hack hack
     if metric_method in base_cfg:
         return [(m, cfg) for m, cfg in base_cfg.items() if m == metric_method]
-    else:
-        return [[metric_method, [('affinity', 'affinity')]]]  # e.g. shm
+    else:  # shm, delta-lbi, cons-dist-*, etc
+        xv = 'n-ancestor' if metric_method == 'delta-lbi' else 'affinity'  # also hack hack hack
+        return [[metric_method, [(xv, xv.replace('n-a', 'N a'))]]]
 
 # ----------------------------------------------------------------------------------------
 def single_lbma_cfg_vars(metric_method, final_plots=False):
