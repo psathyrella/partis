@@ -1615,29 +1615,25 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 # well, not necessarily really using a tree, but they're analagous to the lb metrics
 def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False, debug=False):
     # ----------------------------------------------------------------------------------------
-    def get_combo_lbfo(varlist, iclust, line, lbfo=None, lb_tau=None):
+    def get_combo_lbfo(varlist, iclust, line, lb_tau=None):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
             utils.add_naive_seq_aa(line)
             utils.add_seqs_aa(line)
-        if lbfo is None:
-            lbfo = {}
-        else:  # NOTE assumes that if <lbfo> is None, lbi+lbr (but nothing else) are in <lbfo>. Which is what we want now, but it's not particularly general
-            dtree = get_dendro_tree(treestr=lbfo['tree'])
+        lbfo = {}
         for tstr in ['nuc', 'aa']:
             if 'cons-dist-'+tstr in varlist:
                 lbfo['cons-dist-'+tstr] = {u : lb_cons_dist(line, i, aa=tstr=='aa') for i, u in enumerate(line['unique_ids'])}
-        if lbfo is None:
-            dtree = get_dendro_tree(treestr=line['tree'])
-            if 'lbi' in varlist and 'lbr' in varlist:
-                only_calc_metric = None
-                lbr_tau_factor = default_lbr_tau_factor
-            else:
-                assert 'lbi' in varlist or 'lbr' in varlist
-                only_calc_metric = 'lbi' if 'lbi' in varlist else 'lbr'
-                lbr_tau_factor = None
-            tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, extra_str='true tree', iclust=iclust)
-            for lbm in [m for m in lb_metrics if m in varlist]:
-                lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
+        dtree = get_dendro_tree(treestr=line['tree'])
+        if 'lbi' in varlist and 'lbr' in varlist:
+            only_calc_metric = None
+            lbr_tau_factor = default_lbr_tau_factor
+        else:
+            assert 'lbi' in varlist or 'lbr' in varlist  # require at least one of lbi/lbr in varlist (not really a reason, but it's slightly easier)
+            only_calc_metric = 'lbi' if 'lbi' in varlist else 'lbr'
+            lbr_tau_factor = None
+        tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, extra_str='true tree', iclust=iclust)
+        for lbm in [m for m in lb_metrics if m in varlist]:
+            lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
         return dtree, lbfo
 
     if min_cluster_size is None:
@@ -1660,7 +1656,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         elif metric_method in ['cons-dist-nuc', 'cons-dist-aa']:
             line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(line, i, aa='-aa' in metric_method) for i, u in enumerate(line['unique_ids'])}}}
         elif metric_method == 'delta-lbi':
-            dtree, lbfo = get_combo_lbfo(['lbi'], iclust, line, lb_tau)
+            dtree, lbfo = get_combo_lbfo(['lbi'], iclust, line, lb_tau=lb_tau)
             delta_lbfo = {}
             for uid in line['unique_ids']:
                 node = dtree.find_node_with_taxon_label(uid)
@@ -1669,7 +1665,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                 delta_lbfo[uid] = lbfo['lbi'][uid] - lbfo['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
             line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
         elif metric_method == 'lbi-cons':  # it would be nice to not calculate lbi here UPDATE eh, who cares, this doesn't perform well, so it's not really going to be used
-            dtree, lbfo = get_combo_lbfo(['cons-dist-nuc', 'lbi'], iclust, line, lb_tau)
+            dtree, lbfo = get_combo_lbfo(['cons-dist-nuc', 'lbi'], iclust, line, lb_tau=lb_tau)
             for lbm in lbfo:  # normalize to z score
                 lbfo[lbm] = {u : z for u, z in zip(line['unique_ids'], utils.get_z_scores([lbfo[lbm][u] for u in line['unique_ids']]))}
             edge_dists = [edge_dist_fcn(dtree, u) for u in line['unique_ids']]
