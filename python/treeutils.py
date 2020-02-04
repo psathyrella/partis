@@ -1613,7 +1613,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 
 # ----------------------------------------------------------------------------------------
 # well, not necessarily really using a tree, but they're analagous to the lb metrics
-def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False, debug=False):
+def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False, dont_normalize_lbi=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_combo_lbfo(varlist, iclust, line, lb_tau=None):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
@@ -1631,7 +1631,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             assert 'lbi' in varlist or 'lbr' in varlist  # require at least one of lbi/lbr in varlist (not really a reason, but it's slightly easier)
             only_calc_metric = 'lbi' if 'lbi' in varlist else 'lbr'
             lbr_tau_factor = None
-        tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, extra_str='true tree', iclust=iclust)
+        tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust)
         for lbm in [m for m in lb_metrics if m in varlist]:
             lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
         return dtree, lbfo
