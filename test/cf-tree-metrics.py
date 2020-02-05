@@ -15,6 +15,10 @@ import multiprocessing
 # ----------------------------------------------------------------------------------------
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
 linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
+def metric_color(metric):  # as a fcn to avoid import if we're not plotting
+    mstrlist = ['shm:lbi:cons-dist-aa:cons-dist-nuc:dtr', 'delta-lbi:lbr:dtr']
+    metric_colors = {m : plotting.frozen_pltcolors[i % len(plotting.frozen_pltcolors)] for mstrs in mstrlist for i, m in enumerate(mstrs.split(':'))}
+    return metric_colors[metric]
 
 # ----------------------------------------------------------------------------------------
 def ura_vals(xvar):  # list of whether we're using relative affinity values
@@ -302,18 +306,18 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         'obs-times' : 't obs',
         'carry-cap' : 'carry cap',
     }
-    legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme', 'target-count' : 'N target seqs', 'n-target-clusters' : 'N target clusters', 'uniform-random' : 'unif. random', 'affinity-biased' : 'high affinity', 'high-affinity' : 'perf. affinity'}
+    legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme', 'target-count' : 'N target seqs', 'n-target-clusters' : 'N target clust.', 'uniform-random' : 'unif. random', 'affinity-biased' : 'high affinity', 'high-affinity' : 'perf. affinity'}
     legtexts.update(lbplotting.metric_for_target_distance_labels)
     def legstr(label, title=False):
         if label is None: return None
-        lstr = legtexts.get(label, label.replace('-', ' '))
-        if title and args.pvks_to_plot is not None:  # if we're only plotting one value, put that value in the legend str
+        jstr = '\n' if title else '; '
+        tmplist = [legtexts.get(l, l.replace('-', ' ')) for l in label.split('; ')]
+        if title and args.pvks_to_plot is not None:  # if we're only plotting specific values, put them in the legend str (typically we're just plotting one value)
             assert isinstance(args.pvks_to_plot, list)  # don't really need this
-            if len(args.pvks_to_plot) == 1:
-                pstr = lbplotting.metric_for_target_distance_labels.get(args.pvks_to_plot[0], args.pvks_to_plot[0])
-            else:
-                pstr = ' '.join(args.pvks_to_plot)
-            lstr += ': %s' % pstr
+            for il in range(len(tmplist)):
+                subpvks = [pvk.split('; ')[il] for pvk in args.pvks_to_plot]
+                tmplist[il] += ': %s' % ' '.join(lbplotting.metric_for_target_distance_labels.get(spvk, spvk) for spvk in subpvks)
+        lstr = jstr.join(tmplist)
         return lstr
 
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
@@ -505,9 +509,10 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         linewidth = linewidths.get(mtmp, 3)
         color = None
         if ipv is not None:
-            color = plotting.pltcolors[ipv % len(plotting.pltcolors)]
-        elif imtmp is not None:
-            color = plotting.pltcolors[imtmp % len(plotting.pltcolors)]
+            color = plotting.frozen_pltcolors[ipv % len(plotting.frozen_pltcolors)]
+        elif imtmp is not None:  # used to us <imtmp> to directly get color, but now we want to get the same colors no matter the matplotlib version and order on the command line, so now it just indicates that we should add the metric str
+            # color = plotting.frozen_pltcolors[imtmp % len(plotting.pltcolors)]
+            color = metric_color(mtmp)
         if yerrs is not None:
             ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, label=legstr(label), color=color, alpha=alpha, linewidth=linewidth, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
         else:
