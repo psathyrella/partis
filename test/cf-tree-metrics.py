@@ -568,7 +568,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
         with open(yfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
-        title = metric.upper() + ': '
+        title = lbplotting.mtitlestr(per_x, metric, short=True) + ': '
         plotdir = get_comparison_plotdir(metric, per_x, extra_str=metric_extra_str)
         ylabelstr = metric.upper()
     elif action == 'combine-plots':
