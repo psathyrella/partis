@@ -568,7 +568,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
         with open(yfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
-        title = lbplotting.mtitlestr(per_x, metric, short=True) + ': '
+        title = lbplotting.mtitlestr(per_x, metric, short=True, max_len=7) + ': '
         plotdir = get_comparison_plotdir(metric, per_x, extra_str=metric_extra_str)
         ylabelstr = metric.upper()
     elif action == 'combine-plots':
@@ -644,11 +644,14 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         title += 'choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
     if use_relative_affy:
         fig.text(0.5, 0.87, 'relative %s' % ptilestr, fontsize=15, color='red', fontweight='bold')
+    leg_loc = [0.04, 0.6]
+    # if metric != 'lbi' and len(title) < 17:
+    #     leg_loc[0] = 0.7
     plotting.mpl_finish(ax, plotdir, getplotname(metric),
                         xlabel=xvar.replace('-', ' '),
                         # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
                         ylabel='%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel),
-                        title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=(0.04 if metric == 'lbi' else 0.7, 0.63),
+                        title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
                         xticks=xticks, xticklabels=xticklabels, xticklabelsize=16,
                         yticks=yticks, yticklabels=yticklabels,
                         ybounds=(ymin, ymax), log=log, adjust=adjust,

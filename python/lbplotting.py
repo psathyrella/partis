@@ -77,12 +77,15 @@ per_seq_metrics = ['lbi', 'lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-
 mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
                            'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'in-family dtr', 'within-families-delta-affinity-dtr' : 'in-family dtr', 'among-families-affinity-dtr' : 'among-families dtr', 'among-families-delta-affinity-dtr' : 'among-families dtr'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'cons-seq-shm-nuc' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
-def mtitlestr(pchoice, lbm, short=False):
+mtitle_shorts = {'cons-dist-aa' : 'AA cons dist', 'cons-dist-nuc' : 'nuc cons dist'}
+def mtitlestr(pchoice, lbm, short=False, max_len=13):
     if pchoice == 'per-cluster' and 'cons-dist' in lbm:
         lbm = cluster_summary_cfg[lbm][0][0]  # hack hack hack
     mtstr = mtitle_cfg[pchoice].get(lbm, treeutils.lb_metrics.get(lbm, lbm))
-    if short and len(mtstr) > 13 and len(lbm) < len(mtstr):
-        mtstr = lbm
+    if short and len(mtstr) > max_len:
+        tmpstr = mtitle_shorts.get(lbm, lbm)
+        if len(tmpstr) < len(mtstr):
+            mtstr = tmpstr
     return mtstr
 # ----------------------------------------------------------------------------------------
 metric_for_target_distance_labels = {
