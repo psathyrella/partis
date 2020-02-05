@@ -45,6 +45,7 @@ dtv=3; nest=100; depth=10  # dtv=3; nest=30; depth=10  # dtv=2; nest=100; depth=
 # echo $bin --label vary-obs-times-v3 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 350:1000:2000 --obs-times-list 50,100,150,200,250:100,200,300,400,500:200,400,600,800,1000:600,1200,1800,2400,3000 --n-sim-seqs-per-gen-list 20 --lb-tau-list 0.0025 --final-plot-xvar obs-times --include-relative-affy-plots $common --pvks-to-plot 1000  # full carry-cap-list 250:350:500:1000:2000
 # echo $bin --label vary-sampling-scheme-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 30:50:100:200 --leaf-sampling-scheme-list uniform-random:affinity-biased:high-affinity --lb-tau-list 0.0025 --final-plot-xvar n-sim-seqs-per-gen $common #  --pvks-to-plot high-affinity
 echo $bin --label vary-n-targets-v0 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 50:100:250:500 --n-sim-seqs-per-gen-list 100 --target-count-list 1:2:4 --lb-tau-list 0.0025 --final-plot-xvar obs-times $common
+echo $bin --label vary-n-targets-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 50:100:250:500 --n-sim-seqs-per-gen-list 100 --target-count-list 4:8:16 --n-target-clusters-list 1:2:4 --zip-vars target-count:n-target-clusters --lb-tau-list 0.0025 --final-plot-xvar obs-times $common
 
 
 # common="--actions bcr-phylo --bcr-phylo-actions simu --only-csv-plots --base-outdir /fh/local/dralph/partis/tree-metrics" # --sub-slurm"  #  /loc/scratch/dralph/partis/tree-metrics
