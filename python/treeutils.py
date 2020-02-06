@@ -62,8 +62,9 @@ def add_cons_dists(line, aa=False, debug=False):
         line[ckey] = [lb_cons_dist(line, i, aa=aa) for i, u in enumerate(line['unique_ids'])]
     if debug:  # it would kind of make more sense to have this in some of the fcns that this fcn is calling, but then I'd have to pass the debug arg through a bunch of tiny fcns that don't really need it 
         tstr = '_aa' if aa else ''
-        if aa:  # we have to add this by hand since we don't actually use it to calculate the aa cons seq -- we get that by just translating the nuc cons seq
-            utils.add_naive_seq_aa(line)
+        # don't need this unless we turn the tie resolver stuff back on:
+        # if aa:  # we have to add this by hand since we don't actually use it to calculate the aa cons seq -- we get that by just translating the nuc cons seq
+        #     utils.add_naive_seq_aa(line)
         utils.print_cons_seq_dbg([{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'+tstr])], line['consensus_seq'+tstr], align=False, aa=aa)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
 
 # ----------------------------------------------------------------------------------------
