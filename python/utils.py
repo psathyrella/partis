@@ -1023,7 +1023,7 @@ def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general ver
         cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line)  # NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
         return ltranslate(cseq)
     else:  # this is fairly slow
-        return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
+        return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])]) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='',
