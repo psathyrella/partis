@@ -83,7 +83,7 @@ class PartitionDriver(object):
             'view-annotations'             : self.read_existing_output,
             'view-partitions'              : self.read_existing_output,
             'plot-partitions'              : self.read_existing_output,
-            'get-tree-metrics'             : self.read_existing_output,
+            'get-selection-metrics'        : self.read_existing_output,
             'get-linearham-info'           : self.read_existing_output,
             'view-alternative-annotations'  : self.view_alternative_annotations,
         }
@@ -304,7 +304,7 @@ class PartitionDriver(object):
             return
         print 'hmm'
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
-        if self.args.get_tree_metrics:
+        if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:
             self.write_output(annotations.values(), hmm_failures)
@@ -313,14 +313,14 @@ class PartitionDriver(object):
     def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
         if annotation_list is None:
             annotation_list = annotation_dict.values()
-        if self.current_action == 'get-tree-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-tree-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
+        if self.current_action == 'get-selection-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-selection-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
             seqfileopener.read_input_metafo(self.args.input_metafname, annotation_list, debug=True)
         if self.args.seed_unique_id is not None:  # restrict to seed cluster in the best partition (clusters from non-best partition have duplicate uids, which then make fasttree barf, and it doesn't seem worth the trouble to fix it now)
             annotation_dict = OrderedDict([(uidstr, line) for uidstr, line in annotation_dict.items() if self.args.seed_unique_id in line['unique_ids'] and line['unique_ids'] in cpath.partitions[cpath.i_best]])
-        # treeutils.get_trees_for_annotations(annotation_dict, cpath=cpath, workdir=self.args.workdir, min_cluster_size=self.args.min_tree_metric_cluster_size, cluster_indices=self.args.cluster_indices, debug=self.args.debug)  # NOTE this is not tested, but might be worth using in the future
+        # treeutils.get_trees_for_annotations(annotation_dict, cpath=cpath, workdir=self.args.workdir, min_cluster_size=self.args.min_selection_metric_cluster_size, cluster_indices=self.args.cluster_indices, debug=self.args.debug)  # NOTE this is not tested, but might be worth using in the future
         treeutils.calculate_tree_metrics(annotation_dict, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir, dont_normalize_lbi=self.args.dont_normalize_lbi,
-                                         only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_tree_metric_cluster_size, dtr_path=self.args.dtr_path, add_aa_consensus_distance=True, include_relative_affy_plots=self.args.include_relative_affy_plots,
+                                         only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_selection_metric_cluster_size, dtr_path=self.args.dtr_path, add_aa_consensus_distance=True, include_relative_affy_plots=self.args.include_relative_affy_plots,
                                          cluster_indices=self.args.cluster_indices, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
@@ -452,9 +452,9 @@ class PartitionDriver(object):
         cpath = None
         tmpact = self.current_action  # just a shorthand for brevity
         if utils.getsuffix(outfname) == '.csv':  # old way
-            if tmpact == 'view-partitions' or tmpact == 'plot-partitions' or tmpact == 'view-output' or tmpact == 'get-tree-metrics' or read_partitions:
+            if tmpact == 'view-partitions' or tmpact == 'plot-partitions' or tmpact == 'view-output' or tmpact == 'get-selection-metrics' or read_partitions:
                 cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, fname=outfname)
-            if tmpact == 'view-annotations' or tmpact == 'plot-partitions' or tmpact == 'view-output' or tmpact == 'get-tree-metrics' or read_annotations:
+            if tmpact == 'view-annotations' or tmpact == 'plot-partitions' or tmpact == 'view-output' or tmpact == 'get-selection-metrics' or read_annotations:
                 csvfile = open(outfname if cpath is None else self.args.cluster_annotation_fname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop)
                 reader = csv.DictReader(csvfile)
                 if 'unique_ids' not in reader.fieldnames:
@@ -482,15 +482,15 @@ class PartitionDriver(object):
                     pass  # switching this to pass: even though I think it can ony happen if people are running with options that don't really make sense, I don't think there's really a pressing need to crash here raise Exception('no sw info for query %s' % uid)  # I can't really do anything else, it makes no sense to go remove it from <annotation_list> when the underlying problem is (probably) that sw info was just run with different options
             self.write_output(annotation_list, set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
-        if tmpact == 'get-tree-metrics':
+        if tmpact == 'get-selection-metrics':
             self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list, cpath=cpath)  # adds tree metrics to <annotations>
-            if self.args.tree_metric_fname is None:
-                print '  note: rewriting output file %s with newly-calculated tree metrics' % outfname
+            if self.args.selection_metric_fname is None:
+                print '  note: rewriting output file %s with newly-calculated selection metrics' % outfname
                 self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
             else:
-                print '  writing tree metrics to %s' % self.args.tree_metric_fname
-                utils.prep_dir(None, fname=self.args.tree_metric_fname, allow_other_files=True)
-                with open(self.args.tree_metric_fname, 'w') as tfile:
+                print '  writing selection metrics to %s' % self.args.selection_metric_fname
+                utils.prep_dir(None, fname=self.args.selection_metric_fname, allow_other_files=True)
+                with open(self.args.selection_metric_fname, 'w') as tfile:
                     json.dump([l['tree-info'] for l in annotation_list if 'tree-info' in l], tfile) #, width=200, Dumper=yaml.CDumper, allow_unicode=False)  # switching to json to avoid unicode bullshit
 
         if tmpact == 'plot-partitions':
@@ -710,7 +710,7 @@ class PartitionDriver(object):
             print ''
 
         n_before, n_after = self.args.n_partitions_to_write, self.args.n_partitions_to_write  # this takes more than we need, since --n-partitions-to-write is the *full* width, not half-width, but oh, well
-        if self.args.debug or self.args.calculate_alternative_annotations or self.args.get_tree_metrics:  # take all of 'em
+        if self.args.debug or self.args.calculate_alternative_annotations or self.args.get_selection_metrics:  # take all of 'em
             n_before, n_after = sys.maxint, sys.maxint
         elif self.args.write_additional_cluster_annotations is not None:
             n_before, n_after = [max(waca, n_) for waca, n_ in zip(self.args.write_additional_cluster_annotations, (n_before, n_after))]
@@ -848,7 +848,7 @@ class PartitionDriver(object):
         if n_procs > 1:
             self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
         all_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
-        if self.args.get_tree_metrics:
+        if self.args.get_selection_metrics:
             self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
         if self.args.calculate_alternative_annotations:
@@ -2052,7 +2052,7 @@ class PartitionDriver(object):
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
-            utils.add_linearham_info(self.sw_info, annotation_list, self.args.min_tree_metric_cluster_size)
+            utils.add_linearham_info(self.sw_info, annotation_list, self.args.min_selection_metric_cluster_size)
 
         headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
         if utils.getsuffix(outfname) == '.csv':

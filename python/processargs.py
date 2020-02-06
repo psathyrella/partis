@@ -70,6 +70,13 @@ def process(args):
     if args.action == 'run-viterbi':
         print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (you don\'t need to change anything unless you want this warning message to go away)'
         args.action = 'annotate'
+    if args.action == 'get-tree-metrics':
+        print'  note: replacing deprecated action name \'get-tree-metrics\' with current name \'get-selection-metrics\' (you don\'t need to change anything unless you want this warning message to go away)'
+        args.action = 'get-selection-metrics'
+    if args.get_tree_metrics:
+        print '    note: replacing deprecated option \'--get-tree-metrics\' with new option \'--get-selection-metrics\' (you don\'t need to change anything unless you want this warning message to go away)'
+        args.get_selection_metrics = True
+        delattr(args, 'get_tree_metrics')
     if args.action == 'view-alternative-naive-seqs':
         print'  note: replacing deprecated action name \'view-alternative-naive-seqs\' with current name \'view-alternative-annotations\' (you don\'t need to change anything unless you want this warning message to go away)'
         args.action = 'view-alternative-annotations'
@@ -334,7 +341,7 @@ def process(args):
         args.allele_cluster = False
         args.dont_find_new_alleles = True
 
-    if args.infname is None and args.action not in ['simulate', 'view-output', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-tree-metrics', 'get-linearham-info']:
+    if args.infname is None and args.action not in ['simulate', 'view-output', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info']:
         raise Exception('--infname is required for action \'%s\'' % args.action)
 
     if args.action == 'get-linearham-info':

@@ -30,7 +30,7 @@ import utils
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 20
-default_min_tree_metric_cluster_size = 10
+default_min_selection_metric_cluster_size = 10
 
 dummy_str = 'x-dummy-x'
 
@@ -1217,7 +1217,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
         assert reco_info is not None
         true_partition = utils.get_true_partition(reco_info)
-        print '    using %d true clusters to calculate inferred tree metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True)))
+        print '    using %d true clusters to calculate inferred selection metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True)))
         if debug:
             print '      choosing    N        N       N         frac       (N chosen)'
             print '       from     true  & chosen = in common  in common   (w/out duplicates)'
@@ -1280,7 +1280,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     if true_lines_to_use is not None:
         if 'affinities' not in true_lines_to_use[0] or all(affy is None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             # print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
-            print '    tree metric plotting time (no true plots)): %.1f sec' % (time.time() - start)
+            print '    selection metric plotting time (no true plots)): %.1f sec' % (time.time() - start)
             return
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
@@ -1307,7 +1307,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
             subdirs = [d for d in os.listdir(true_plotdir) if os.path.isdir(true_plotdir + '/' + d)]
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in subdirs])
 
-    print '    tree metric plotting time: %.1f sec' % (time.time() - start)
+    print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 
 # ----------------------------------------------------------------------------------------
 def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, debug=False):
@@ -1350,14 +1350,14 @@ def check_lb_values(line, lbvals):
 
 # NOTE this is not tested, but might be worth using in the future
 # # ----------------------------------------------------------------------------------------
-# def get_trees_for_annotations(annotations, cpath=None, workdir=None, min_cluster_size=default_min_tree_metric_cluster_size, cluster_indices=None, debug=False):  # NOTE this duplicates some code in the following function (but I want them separate since I don't really care about this fcn much)
+# def get_trees_for_annotations(annotations, cpath=None, workdir=None, min_cluster_size=default_min_selection_metric_cluster_size, cluster_indices=None, debug=False):  # NOTE this duplicates some code in the following function (but I want them separate since I don't really care about this fcn much)
 #     print 'getting trees'
 #     lines_to_use = annotations.values()
 #     n_before = len(lines_to_use)
 #     lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
 #     n_after = len(lines_to_use)  # after removing the small ones
 #     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-#     print '    calculating tree metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+#     print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
 #     print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
 #     if cluster_indices is not None:
 #         if min(cluster_indices) < 0 or max(cluster_indices) >= len(lines_to_use):
@@ -1385,12 +1385,12 @@ def check_lb_values(line, lbvals):
 
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size,
+                           ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
                            dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, true_lines_to_use=None, include_relative_affy_plots=False, cluster_indices=None, debug=False):
-    print 'getting tree metrics'
+    print 'getting selection metrics'
     if reco_info is not None:
         if not use_true_clusters:
-            print '    note: getting tree metrics on simulation without setting <use_true_clusters> (i.e. probably without setting --simultaneous-true-clonal-seqs)'
+            print '    note: getting selection metrics on simulation without setting <use_true_clusters> (i.e. probably without setting --simultaneous-true-clonal-seqs)'
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
 
@@ -1410,7 +1410,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
         lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_after = len(lines_to_use)  # after removing the small ones
         tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-        print '    calculating tree metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+        print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
         if cluster_indices is not None:
             if min(cluster_indices) < 0 or max(cluster_indices) >= len(lines_to_use):
@@ -1429,7 +1429,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             tree_origin_counts[treefo['origin']]['count'] += 1
             if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
                 if debug:
-                    print '       %s overwriting tree metric info that was already in <line>' % utils.color('yellow', 'warning')
+                    print '       %s overwriting selection metric info that was already in <line>' % utils.color('yellow', 'warning')
                 n_already_there += 1
             line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
             line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
@@ -1656,7 +1656,7 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
         return dtree, lbfo
 
     if min_cluster_size is None:
-        min_cluster_size = default_min_tree_metric_cluster_size
+        min_cluster_size = default_min_selection_metric_cluster_size
     n_before = len(annotations)
     annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(annotations)

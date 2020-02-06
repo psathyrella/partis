@@ -445,7 +445,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
                 if len(missing_iclusts) > 0:
                     print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
-                # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_tree_metric_cluster_size)
+                # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_selection_metric_cluster_size)
                 for iclust in iclusts_in_file:
                     add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
 
@@ -751,7 +751,7 @@ def get_tree_metrics(args):
             cmd += ' --only-csv-plots'
         if args.n_max_queries is not None:
             cmd += ' --n-max-queries %d' % args.n_max_queries
-        cmd += ' --min-tree-metric-cluster-size 5'  # if n per gen is small, sometimes the clusters are a bit smaller than 10, but we don't really want to skip any clusters here (especially because it confuses the plotting above)
+        cmd += ' --min-selection-metric-cluster-size 5'  # if n per gen is small, sometimes the clusters are a bit smaller than 10, but we don't really want to skip any clusters here (especially because it confuses the plotting above)
         if args.include_relative_affy_plots:
             cmd += ' --include-relative-affy-plots'
 

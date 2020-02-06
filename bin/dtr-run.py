@@ -25,7 +25,7 @@ parser.add_argument('--dtr-cfg')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--n-max-queries', type=int)
 parser.add_argument('--max-family-size', type=int, help='subset each family down to this size before passing to treeutils')
-parser.add_argument('--min-tree-metric-cluster-size', type=int, default=treeutils.default_min_tree_metric_cluster_size)
+parser.add_argument('--min-selection-metric-cluster-size', type=int, default=treeutils.default_min_selection_metric_cluster_size)
 parser.add_argument('--include-relative-affy-plots', action='store_true')
 # tree plots turned off in the treeutils fcn atm
 # parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
@@ -43,10 +43,10 @@ if args.max_family_size is not None:
         utils.restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
 if args.metric_method == 'dtr':
-    treeutils.calculate_tree_metrics(None, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, base_plotdir=args.base_plotdir, only_csv=args.only_csv_plots, min_cluster_size=args.min_tree_metric_cluster_size,
+    treeutils.calculate_tree_metrics(None, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, base_plotdir=args.base_plotdir, only_csv=args.only_csv_plots, min_cluster_size=args.min_selection_metric_cluster_size,
                                      dtr_path=args.dtr_path, train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, include_relative_affy_plots=args.include_relative_affy_plots,
                                      dont_normalize_lbi=args.dont_normalize_lbi)  # ete_path=args.ete_path, workdir=args.workdir,
 else:
     treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, only_csv=args.only_csv_plots,
-                                            min_cluster_size=args.min_tree_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots,
+                                            min_cluster_size=args.min_selection_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots,
                                             dont_normalize_lbi=args.dont_normalize_lbi)  # ete_path=args.ete_path, workdir=args.workdir,

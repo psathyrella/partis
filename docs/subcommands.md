@@ -62,16 +62,18 @@ Because these optimizations (like any purely distance-based approach) know nothi
 This is nevertheless a thoroughly reasonably way to get a rough idea of the lineage structure of your sample.
 After running vsearch clustering, you can always pass families of interest (e.g. with `--seed-unique-id`) to the more accurate clustering method.
 
-##### `--get-tree-metrics` (and `get-tree-metrics` action)
+##### `--get-selection-metrics` option and `get-selection-metrics` action (formerly `get-tree-metrics`)
 
-Construct a phylogenetic tree and use it to calculate tree-based selection metrics (e.g. local branching index/ratio) for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc., or restricted with --cluster-index.
+Calculate quantities for prediction of BCR fitness/affinity.
+At the moment these are by default local branching index and ratio (lbi and lbr), and AA distance to clonal family consensus sequence.
+Constructs a phylogenetic tree and uses it to calculate lbi and lbr for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc., or restricted with --cluster-index.
 Since we want this to be fast enough to run on all the families in a large repertoire, this uses a fairly heuristic approach to calculating trees.
 If this is run in the context of partitioning (so there's a clustering path available from hierarchical agglomeration), then that clustering path is used as the starting point for the tree.
 It is then refined by replacing any subtrees stemming from large multifurcations with a subtree inferred using FastTree (for instance, the first clustering step is to merge all sequences with similar inferred naive sequences, which results in such subtrees).
 If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
-You can also calculate tree metrics from just a newick tree file using `bin/get-tree-metrics.py`.
-If you'd like a more accurate tree, you can infer it separately using your program of choice, and specify it as input to `get-tree-metrics` using `--treefname`.
-This more accurate approach is highly recommended if you care very much about the accuracy of the tree metrics, although the default approach is fine for getting a general sense of the data.
+You can also calculate selection metrics from just a newick tree file using `bin/get-selection-metrics.py`.
+If you'd like a more accurate tree, you can infer it separately using your program of choice, and specify it as input to `get-selection-metrics` using `--treefname`.
+This more accurate approach is highly recommended if you care very much about the accuracy of the tree-based metrics, although the default approach is fine for getting a general sense of the data.
 If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](http://www.olmstedviz.org/).
 
 ##### ignore smaller clusters

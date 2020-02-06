@@ -959,7 +959,7 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
         os.makedirs(workdir)
     cmdfos = []
     for lb_metric in metric_methods:
-        for iclust, line in enumerate(lines):  # note that <min_tree_metric_cluster_size> was already applied in treeutils
+        for iclust, line in enumerate(lines):  # note that <min_selection_metric_cluster_size> was already applied in treeutils
             treestr = get_tree_from_line(line, is_true_line)
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
             metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])

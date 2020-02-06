@@ -281,7 +281,7 @@ parent_parser.add_argument('--max-vj-mut-freq', type=float, default=0.4, help='s
 parent_parser.add_argument('--max-logprob-drop', type=float, default=5., help='stop glomerating when the total logprob has dropped by this much')
 parent_parser.add_argument('--n-simultaneous-seqs', type=int, help='Number of simultaneous sequences on which to run the multi-HMM (e.g. 2 for a pair hmm)')
 parent_parser.add_argument('--all-seqs-simultaneous', action='store_true', help='Run all input sequences simultaneously, i.e. equivalent to setting --n-simultaneous-seqs to the number of input sequences.')
-parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true', help='If action is annotate/cache-parameters, run true clonal sequences together simultaneously with the multi-HMM. If actions is partition, skip clustering entirely and instead use the true partition (useful for e.g. validating tree metrics, where you don\'t want to be conflating partition performance with tree metric performance).')
+parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true', help='If action is annotate/cache-parameters, run true clonal sequences together simultaneously with the multi-HMM. If actions is partition, skip clustering entirely and instead use the true partition (useful for e.g. validating selection metrics, where you don\'t want to be conflating partition performance with selection metric performance).')
 parent_parser.add_argument('--mimic-data-read-length', action='store_true', help='In simulation, trim V 5\' and D 3\' to mimic read lengths seen in data (must also be set when caching parameters)')
 
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
@@ -317,7 +317,7 @@ parent_parser.add_argument('--initial-germline-dir', help='Directory with fastas
 parent_parser.add_argument('--sanitize-input-germlines', action='store_true', help='By default we require all gene names to look like IGHVx*y. If you set this option when you\'re also setting --initial-germline-dir, then we instead allow arbitrary strings as gene names in this input germline directory, and we sanitize them by adding the correct locus and region info at the start (so make sure that you have --locus set correctly), and adding an arbitrary allele string at the end (e.g. <stuff> --> IGHV<stuff>*x).')
 parent_parser.add_argument('--simulation-germline-dir', help='Germline directory that was used for simulation (used if --is-simu is set, altough if the default germline info is similar to that used for simulation it may not be necessary)')
 parent_parser.add_argument('--aligned-germline-fname', help='fasta file with imgt-gapped alignments for each V, D, and J gene (used by --presto-output). The defaults are in data/germlines/<species>/imgt-alignments/ (set in processargs.py). The existing alignments are automatically extended with any missing genes, but no guarantees are made as to the similarity of this to what imgt would do.')
-parent_parser.add_argument('--dtr-path', help='path to directory with decision tree regression model files')  # , default=partis_dir + '/data/tree-metrics/dtr-models'
+parent_parser.add_argument('--dtr-path', help='path to directory with decision tree regression model files')  # , default=partis_dir + '/data/selection-metrics/dtr-models'
 
 parent_parser.add_argument('--n-max-alleles-per-gene', type=int, default=None, help='if set, after allele inference the germline set is reduced such that each imgt-name-defined gene has at most this many alleles, with the alleles assigned to the fewest sequences removed first.')
 parent_parser.add_argument('--typical-genes-per-region-per-subject', default='55:25:6', help='typical number of alleles per subject for the v, d, and j regions (used by --min-allele-prevalence-fraction)')
@@ -336,13 +336,13 @@ parent_parser.add_argument('--n-max-mutations-per-segment', type=int, default=23
 parent_parser.add_argument('--min-allele-finding-gene-length', type=int, default=150, help='if (after excluding particularly short reads) the reads for a gene are shorter than this, then don\'t look for new alleles with/on this gene')
 parent_parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 parent_parser.add_argument('--cluster-indices', help='indices of clusters (when sorted largest to smallest) to print for the \'view-output\' action. Specified as a colon-separated list, where each item can be either a single integer or a python slice-style range of integers, e.g. 0:3-6:50 --> 0:3:4:5:50')
-parent_parser.add_argument('--min-tree-metric-cluster-size', type=int, default=treeutils.default_min_tree_metric_cluster_size, help='don\'t calculate tree metrics for clusters smaller than this')
-parent_parser.add_argument('--treefname', help='newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-tree-metrics).')
-parent_parser.add_argument('--tree-metric-fname', help='By default when running \'get-tree-metrics\', the tree metric info is written to --outfname. If this argument is set, the tree metric info is instead written by itself to a separate file, and --outfname is not modified.')
-parent_parser.add_argument('--lb-tau', type=float, default=treeutils.default_lb_tau, help='exponential decay length for local branching index (lbi). See also --lbr-tau-factor.')  # default is set in treeutils so we can import it in bin/get-tree-metrics.py
-parent_parser.add_argument('--lbr-tau-factor', type=int, default=treeutils.default_lbr_tau_factor, help='factor by which to multiply --lb-tau in order to get the exponential decay length (tau) for local branching ratio (lbr). The ratio (lbr) should, in general, have tau much larger than for the index (lbi). See also --lb-tau.')  # default is set in treeutils so we can import it in bin/get-tree-metrics.py
+parent_parser.add_argument('--min-selection-metric-cluster-size', type=int, default=treeutils.default_min_selection_metric_cluster_size, help='don\'t calculate selection metrics for clusters smaller than this')
+parent_parser.add_argument('--treefname', help='newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-selection-metrics).')
+parent_parser.add_argument('--selection-metric-fname', help='By default when running \'get-selection-metrics\', the selection metric info is written to --outfname. If this argument is set, the selection metric info is instead written by itself to a separate file, and --outfname is not modified.')
+parent_parser.add_argument('--lb-tau', type=float, default=treeutils.default_lb_tau, help='exponential decay length for local branching index (lbi). See also --lbr-tau-factor.')  # default is set in treeutils so we can import it in bin/get-selection-metrics.py
+parent_parser.add_argument('--lbr-tau-factor', type=int, default=treeutils.default_lbr_tau_factor, help='factor by which to multiply --lb-tau in order to get the exponential decay length (tau) for local branching ratio (lbr). The ratio (lbr) should, in general, have tau much larger than for the index (lbi). See also --lb-tau.')  # default is set in treeutils so we can import it in bin/get-selection-metrics.py
 parent_parser.add_argument('--dont-normalize-lbi', action='store_true', help='By default, we normalize tau so that 0. is a rough minimum, and 1. is a fairly large value. But since you can\'t normalize for tau larger than 1/seq_len, it\'s useful to turn off normalization.')
-parent_parser.add_argument('--include-relative-affy-plots', action='store_true', help='in addition to validation plots using actual affinity from simulation, also make plots using \'relative\' affinity (see bcr-phylo), i.e. a cell\'s affinity relative only to other cells alive at the same point in time. Useful because the tree metrics attempt to predict the effects of fitness on branchiness only at a given time (or: if you sample a lot of intermediate ancestors, your tree metric performance will look artificially bad because the ancestors, while having higher affinity than other cells alive at the same time, have affinity lower than the leaves).')
+parent_parser.add_argument('--include-relative-affy-plots', action='store_true', help='in addition to validation plots using actual affinity from simulation, also make plots using \'relative\' affinity (see bcr-phylo), i.e. a cell\'s affinity relative only to other cells alive at the same point in time. Useful because the selection metrics attempt to predict the effects of fitness on branchiness only at a given time (or: if you sample a lot of intermediate ancestors, your selection metric performance will look artificially bad because the ancestors, while having higher affinity than other cells alive at the same time, have affinity lower than the leaves).')
 
 parent_parser.add_argument('--no-sw-vsearch', action='store_true', help='By default, we get preliminary V annotations from vsearch that we pass to sw. This improves accuracy because the vsearch shm rate estimates let us separate sequences into groups by optimal sw match/mismatch scores, and improves speed by letting us reverse shm V indels before running sw (so fewer sw iterations; also vsearch is faster than sw). Setting this option skips the preliminary vsearch step (although if caching parameters, we still use vsearch to remove less-likely genes; but no vsearch info is passed to sw)')
 
@@ -356,13 +356,14 @@ subconfig = collections.OrderedDict((
     ('view-output'      , {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'}),
     ('view-alternative-annotations' , {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs in a previous partition step so that this information was saved.'}),
     ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
-    ('get-tree-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate tree-based selection metrics on existing output.'}),
+    ('get-selection-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate selection metrics on existing output.'}),
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
     ('view-alternative-naive-seqs'  , {'func' : run_partitiondriver, 'help' : 'DEPRECATED use \'view-alternative-annotations\''}),
     ('run-viterbi'      , {'func' : run_partitiondriver, 'help' : 'DEPRECATED use \'annotate\''}),
+    ('get-tree-metrics' , {'func' : run_partitiondriver, 'help' : 'DEPRECATED use get-selection-metrics'}),
 ))
 
 def runs_on_existing_output(actionstr):
@@ -371,7 +372,7 @@ def runs_on_existing_output(actionstr):
 subargs = {subname : [] for subname in subconfig}
 
 # ----------------------------------------------------------------------------------------
-subargs['annotate'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster.'}})
+subargs['annotate'].append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster.'}})
 
 # ----------------------------------------------------------------------------------------
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
@@ -398,7 +399,8 @@ subargs['partition'].append({'name' : '--calculate-alternative-annotations', 'kw
 subargs['partition'].append({'name' : '--calculate-alternative-naive-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'DEPRECATED use --calculate-alternative-annotations'}})
 subargs['partition'].append({'name' : '--max-cluster-size', 'kwargs' : {'type' : int, 'help' : 'stop clustering immediately if any cluster grows larger than this (useful for limiting memory usage, which can become a problem when the final partition contains very large clusters)'}})
 subargs['partition'].append({'name' : '--write-additional-cluster-annotations', 'kwargs' : {'help' : 'in addition to writing annotations for each cluster in the best partition, also write annotations for all the clusters in several partitions on either side of the best partition. Specified as a pair of numbers \'m:n\' for m partitions before, and n partitions after, the best partition.'}})
-subargs['partition'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-tree-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname.'}})
+subargs['partition'].append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname.'}})
+subargs['partition'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'DEPRECATED use --get-selection-metrics'}})
 
 # ----------------------------------------------------------------------------------------
 # basic simulation:
@@ -444,7 +446,8 @@ subargs['view-alternative-annotations'].append({'name' : '--print-all-annotation
 subargs['view-alternative-annotations'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['view-output'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['view-output'].append({'name' : '--extra-print-key', 'kwargs' : {'help' : 'add the value of this key to the ascii art annotation'}})
-subargs['get-tree-metrics'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+subargs['get-selection-metrics'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+subargs['get-tree-metrics'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'DEPRECATED use the \'get-selection-metrics\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 
