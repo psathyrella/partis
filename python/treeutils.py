@@ -1214,7 +1214,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
 # ----------------------------------------------------------------------------------------
 def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_overlap_fraction=0.5, debug=False):
     # collect inferred and true events
-    lines_to_use, true_lines_to_use = None, None
+    inf_lines_to_use, true_lines_to_use = None, None
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
         assert reco_info is not None
         true_partition = utils.get_true_partition(reco_info)
@@ -1222,7 +1222,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
         if debug:
             print '      choosing    N        N       N         frac       (N chosen)'
             print '       from     true  & chosen = in common  in common   (w/out duplicates)'
-        lines_to_use, true_lines_to_use = [], []
+        inf_lines_to_use, true_lines_to_use = [], []
         chosen_ustrs = set()  # now that we're using the fraction instead of the raw total, we mostly shouldn't get multiple true clusters corresponding to the same inferred cluster, but maybe it'll still happen occasionally
         for cluster in true_partition:
             true_lines_to_use.append(utils.synthesize_multi_seq_line_from_reco_info(cluster, reco_info))  # note: duplicates (a tiny bit of) code in utils.print_true_events()
@@ -1245,18 +1245,18 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
             if ustr_to_use in chosen_ustrs:
                 raise Exception('chose the same inferred cluster to correspond to two different true clusters')
             chosen_ustrs.add(ustr_to_use)
-            lines_to_use.append(annotations[ustr_to_use])
+            inf_lines_to_use.append(annotations[ustr_to_use])
     else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
-        lines_to_use = annotations.values()  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
+        inf_lines_to_use = annotations.values()  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
         if reco_info is not None:
-            for line in lines_to_use:
+            for line in inf_lines_to_use:
                 true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
                 true_lines_to_use.append(true_line)
 
-    return lines_to_use, true_lines_to_use
+    return inf_lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, debug=False):
+def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, debug=False):
     import plotting
     import lbplotting
     start = time.time()
@@ -1266,14 +1266,15 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
     inf_plotdir = base_plotdir + '/inferred-tree-metrics'
     utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
     fnames = []
-    if any('affinities' in l for l in lines_to_use):  # it should really be all or none of them have affinities, but oh well
-        lbplotting.plot_lb_vs_affinity(inf_plotdir, lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
+    if any('affinities' in l for l in inf_lines_to_use):  # it should really be all or none of them have affinities, but oh well
+        lbplotting.plot_lb_vs_affinity(inf_plotdir, inf_lines_to_use, 'lbi', lb_metrics['lbi'], only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
     if not only_csv:  # all the various scatter plots are really slow
         for lb_metric in lb_metrics:
-            lbplotting.make_lb_scatter_plots('shm', inf_plotdir, lb_metric, lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
-        lbplotting.plot_lb_distributions(inf_plotdir, lines_to_use, fnames=fnames, only_overall=True)
+            lbplotting.make_lb_scatter_plots('shm', inf_plotdir, lb_metric, inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf')
+        lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='is_leaf', add_jitter=False)
+        lbplotting.plot_lb_distributions(inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=True)
         if ete_path is not None:
-            lbplotting.plot_lb_trees(lb_metrics.keys(), inf_plotdir, lines_to_use, ete_path, workdir, is_true_line=False)
+            lbplotting.plot_lb_trees(lb_metrics.keys(), inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False)
         subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
         plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
@@ -1304,7 +1305,7 @@ def plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=No
             # if ete_path is not None:
             #     lbplotting.plot_lb_trees(lb_metrics.keys(), true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
             # for lb_metric, lb_label in lb_metrics.items():
-            #     XXX fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, lines_to_use, lb_metric, lb_label)
+            #     XXX fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, inf_lines_to_use, lb_metric, lb_label)
             subdirs = [d for d in os.listdir(true_plotdir) if os.path.isdir(true_plotdir + '/' + d)]
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in subdirs])
 
@@ -1324,7 +1325,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
         dtree = get_dendro_tree(treestr=lonr_info['tree'])
         # line['tree-info']['lonr'] = lonr_info
         origin = 'lonr'
-    elif cpath is not None and cpath.i_best is not None and not use_true_clusters and line['unique_ids'] in cpath.partitions[cpath.i_best]:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work NOTE now that I've added the direct check if the unique ids are in the best partition, i can probably remove the use_true_clusters check, but I don't want to mess with it a.t.m.
+    elif cpath is not None and cpath.i_best is not None and not use_true_clusters and line['unique_ids'] in cpath.partitions[cpath.i_best]:  # if <use_true_clusters> is set, then the clusters in <inf_lines_to_use> won't correspond to the history in <cpath>, so this won't work NOTE now that I've added the direct check if the unique ids are in the best partition, i can probably remove the use_true_clusters check, but I don't want to mess with it a.t.m.
         assert annotations is not None
         i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])
         cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True, debug=False)
@@ -1353,19 +1354,19 @@ def check_lb_values(line, lbvals):
 # # ----------------------------------------------------------------------------------------
 # def get_trees_for_annotations(annotations, cpath=None, workdir=None, min_cluster_size=default_min_selection_metric_cluster_size, cluster_indices=None, debug=False):  # NOTE this duplicates some code in the following function (but I want them separate since I don't really care about this fcn much)
 #     print 'getting trees'
-#     lines_to_use = annotations.values()
-#     n_before = len(lines_to_use)
-#     lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
-#     n_after = len(lines_to_use)  # after removing the small ones
+#     inf_lines_to_use = annotations.values()
+#     n_before = len(inf_lines_to_use)
+#     inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+#     n_after = len(inf_lines_to_use)  # after removing the small ones
 #     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-#     print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+#     print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
 #     print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
 #     if cluster_indices is not None:
-#         if min(cluster_indices) < 0 or max(cluster_indices) >= len(lines_to_use):
-#             raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, len(lines_to_use)))
-#         print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(lines_to_use[i]['unique_ids'])) for i in cluster_indices))
+#         if min(cluster_indices) < 0 or max(cluster_indices) >= len(inf_lines_to_use):
+#             raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, len(inf_lines_to_use)))
+#         print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
 #     n_already_there = 0
-#     for iclust, line in enumerate(lines_to_use):
+#     for iclust, line in enumerate(inf_lines_to_use):
 #         if cluster_indices is not None and iclust not in cluster_indices:
 #             continue
 #         if debug:
@@ -1401,24 +1402,24 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
 
     if true_lines_to_use is not None:  # i.e. being called by bin/dtr-run.py
         assert reco_info is None
-        lines_to_use = None
+        inf_lines_to_use = None
     else:  # called from python/partitiondriver.py
-        lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters)
+        inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters)
 
     # get tree and calculate metrics for inferred lines
-    if lines_to_use is not None:
-        n_before = len(lines_to_use)
-        lines_to_use = sorted([l for l in lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
-        n_after = len(lines_to_use)  # after removing the small ones
+    if inf_lines_to_use is not None:
+        n_before = len(inf_lines_to_use)
+        inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
+        n_after = len(inf_lines_to_use)  # after removing the small ones
         tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-        print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in lines_to_use))
+        print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
         if cluster_indices is not None:
-            if min(cluster_indices) < 0 or max(cluster_indices) >= len(lines_to_use):
-                raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, len(lines_to_use)))
-            print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(lines_to_use[i]['unique_ids'])) for i in cluster_indices))
+            if min(cluster_indices) < 0 or max(cluster_indices) >= len(inf_lines_to_use):
+                raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, len(inf_lines_to_use)))
+            print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
         n_already_there, n_skipped_uid = 0, 0
-        for iclust, line in enumerate(lines_to_use):
+        for iclust, line in enumerate(inf_lines_to_use):
             if cluster_indices is not None and iclust not in cluster_indices:
                 continue
             if debug:
@@ -1494,7 +1495,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             print '      dtr plotting time %.1fs' % (time.time() - plstart)
     elif base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        plot_tree_metrics(base_plotdir, lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, debug=debug)
+        plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def init_dtr(train_dtr, dtr_path, cfg_fname=None):
