@@ -320,7 +320,7 @@ class PartitionDriver(object):
         # treeutils.get_trees_for_annotations(annotation_dict, cpath=cpath, workdir=self.args.workdir, min_cluster_size=self.args.min_tree_metric_cluster_size, cluster_indices=self.args.cluster_indices, debug=self.args.debug)  # NOTE this is not tested, but might be worth using in the future
         treeutils.calculate_tree_metrics(annotation_dict, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir, dont_normalize_lbi=self.args.dont_normalize_lbi,
-                                         only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_tree_metric_cluster_size, dtr_path=self.args.dtr_path, include_relative_affy_plots=self.args.include_relative_affy_plots,
+                                         only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_tree_metric_cluster_size, dtr_path=self.args.dtr_path, add_aa_consensus_distance=True, include_relative_affy_plots=self.args.include_relative_affy_plots,
                                          cluster_indices=self.args.cluster_indices, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------

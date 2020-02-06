@@ -45,7 +45,7 @@ def add_cons_seqs(line, aa=False):
             line[ckey] = utils.cons_seq_of_line(line, aa=True)
 
 # ----------------------------------------------------------------------------------------
-def lb_cons_dist(line, iseq, aa=False):
+def lb_cons_dist(line, iseq, aa=False):  # at every point where this can add something to <line> (i.e. consensus seqs and aa seqs) it checks that they're not already there, so it will never do those calculations twice. But the final hamming calculation is *not* cached so will get redone if you call more than once
     add_cons_seqs(line, aa=aa)
     tseq = line['seqs'][iseq]
     if aa:
@@ -53,7 +53,24 @@ def lb_cons_dist(line, iseq, aa=False):
             utils.add_seqs_aa(line)
         tseq = line['seqs_aa'][iseq]
     tstr = '_aa' if aa else ''
-    return -utils.hamming_distance(line['consensus_seq'+tstr], tseq, amino_acid=aa)
+    return utils.hamming_distance(line['consensus_seq'+tstr], tseq, amino_acid=aa)
+
+# ----------------------------------------------------------------------------------------
+def add_cons_dists(line, aa=False, debug=False):
+    ckey = 'cons_dists_' + ('aa' if aa else 'nuc')
+    if ckey not in line:
+        line[ckey] = [lb_cons_dist(line, i, aa=aa) for i, u in enumerate(line['unique_ids'])]
+    if debug:  # it would kind of make more sense to have this in some of the fcns that this fcn is calling, but then I'd have to pass the debug arg through a bunch of tiny fcns that don't really need it 
+        tstr = '_aa' if aa else ''
+        if aa:  # we have to add this by hand since we don't actually use it to calculate the aa cons seq -- we get that by just translating the nuc cons seq
+            utils.add_naive_seq_aa(line)
+        utils.print_cons_seq_dbg([{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'+tstr])], line['consensus_seq'+tstr], align=False, aa=aa, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
+
+# ----------------------------------------------------------------------------------------
+def add_cdists_to_lbfo(line, lbfo, cdist, debug=False):  # it's kind of dumb to store them both in <line> and in <lbfo> (and thus in <line['tree-info']['lb']>), but I think it's ultimately the most sensible thing, given the inherent contradiction that a) we want to *treat* the cons dists like lbi/lbr tree metrics in almost every way, but b) they're *not* actually tree metrics in the sense that they don't use a tree (also, we want the minus sign in lbfo)
+    add_cons_dists(line, aa='-aa' in cdist, debug=debug)
+    tkey = cdist.replace('cons-dist-', 'cons_dists_')  # yes, I want the names to be different (although admittedly with a time machine it'd be set up differently)
+    lbfo[cdist] = {u : -line[tkey][i] for i, u in enumerate(line['unique_ids'])}
 
 # ----------------------------------------------------------------------------------------
 def lb_cons_seq_shm(line, aa=False):
@@ -1306,7 +1323,7 @@ def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_tr
         dtree = get_dendro_tree(treestr=lonr_info['tree'])
         # line['tree-info']['lonr'] = lonr_info
         origin = 'lonr'
-    elif cpath is not None and not use_true_clusters and line['unique_ids'] in cpath.partitions[cpath.i_best]:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work NOTE now that I've added the direct check if the unique ids are in the best partition, i can probably remove the use_true_clusters check, but I don't want to mess with it a.t.m.
+    elif cpath is not None and cpath.i_best is not None and not use_true_clusters and line['unique_ids'] in cpath.partitions[cpath.i_best]:  # if <use_true_clusters> is set, then the clusters in <lines_to_use> won't correspond to the history in <cpath>, so this won't work NOTE now that I've added the direct check if the unique ids are in the best partition, i can probably remove the use_true_clusters check, but I don't want to mess with it a.t.m.
         assert annotations is not None
         i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])
         cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True, debug=False)
@@ -1369,7 +1386,7 @@ def check_lb_values(line, lbvals):
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_tree_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False, cluster_indices=None, debug=False):
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, true_lines_to_use=None, include_relative_affy_plots=False, cluster_indices=None, debug=False):
     print 'getting tree metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1417,6 +1434,8 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
             line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
             check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+            if add_aa_consensus_distance:
+                add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
             if dtr_path is not None and not train_dtr:  # don't want to train on data
                 calc_dtr(False, line, line['tree-info']['lb'], treefo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
         print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
@@ -1437,6 +1456,8 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+            if add_aa_consensus_distance:
+                add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above
             if dtr_path is not None:
                 calc_dtr(train_dtr, true_line, true_lb_info, true_dtree, trainfo, pmml_models, dtr_cfgvals)  # either adds training values to trainfo, or adds predicted dtr values to lbfo
 
@@ -1586,11 +1607,10 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
             assert False
 
     # ----------------------------------------------------------------------------------------
-    if 'seqs_aa' not in line:
-        utils.add_naive_seq_aa(line)
-        utils.add_seqs_aa(line)
-    for tstr in ['nuc', 'aa']:
-        lbfo['cons-dist-'+tstr] = {u : lb_cons_dist(line, i, aa=tstr=='aa') for i, u in enumerate(line['unique_ids'])}
+    utils.add_naive_seq_aa(line)
+    utils.add_seqs_aa(line)
+    for mtmp in ['cons-dist-nuc', 'cons-dist-aa']:
+        add_cdists_to_lbfo(line, lbfo, mtmp)
 
     dtr_invals = {cg : get_dtr_vals(cg, dtr_cfgvals['vars'], line, lbfo, dtree) for cg in cgroups}  # all dtr input variable values, before we fiddle with them for the different dtrs
     if train_dtr:  # train and write new model
@@ -1620,9 +1640,8 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             utils.add_naive_seq_aa(line)
             utils.add_seqs_aa(line)
         lbfo = {}
-        for tstr in ['nuc', 'aa']:
-            if 'cons-dist-'+tstr in varlist:
-                lbfo['cons-dist-'+tstr] = {u : lb_cons_dist(line, i, aa=tstr=='aa') for i, u in enumerate(line['unique_ids'])}
+        for mtmp in [m for m in varlist if 'cons-dist-' in m]:
+            add_cdists_to_lbfo(line, lbfo, mtmp)
         dtree = get_dendro_tree(treestr=line['tree'])
         if 'lbi' in varlist and 'lbr' in varlist:
             only_calc_metric = None
@@ -1654,7 +1673,9 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
             fwh = -utils.fay_wu_h(line)
             line['tree-info'] = {'lb' : {metric_method : {u : fwh for i, u in enumerate(line['unique_ids'])}}}  # kind of weird to set it individually for each sequence when they all have the same value (i.e. it's a per-family metric), but I don't want to do actual per-family comparisons any more, and this way we can at least look at it
         elif metric_method in ['cons-dist-nuc', 'cons-dist-aa']:
-            line['tree-info'] = {'lb' : {metric_method : {u : lb_cons_dist(line, i, aa='-aa' in metric_method) for i, u in enumerate(line['unique_ids'])}}}
+            lbfo = {}
+            add_cdists_to_lbfo(line, lbfo, metric_method)
+            line['tree-info'] = {'lb' : lbfo}
         elif metric_method == 'delta-lbi':
             dtree, lbfo = get_combo_lbfo(['lbi'], iclust, line, lb_tau=lb_tau)
             delta_lbfo = {}

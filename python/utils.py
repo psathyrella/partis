@@ -27,6 +27,7 @@ import operator
 
 import indelutils
 import clusterpath
+import treeutils
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -318,7 +319,7 @@ def get_list_of_str_list(strlist):
 linekeys = {}
 # I think 'per_family' is pretty incomplete at this point, but I also think it isn't being used
 linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
-                         ['invalid', 'tree', 'consensus_seq', 'consensus_seq_aa', 'naive_seq_aa'] + \
+                         ['invalid', 'tree', 'consensus_seq', 'consensus_seq_aa', 'naive_seq_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                          [r + '_gene' for r in regions] + \
                          [e + '_del' for e in all_erosions] + \
                          [b + '_insertion' for b in all_boundaries] + \
@@ -327,7 +328,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -349,6 +350,8 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'consensus_seq_aa',
     'naive_seq_aa',
     'seqs_aa',
+    'cons_dists_nuc',
+    'cons_dists_aa',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 
 linekeys['extra'] = extra_annotation_headers
@@ -971,7 +974,15 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
     return msa_info['ref'], msa_info['new']
 
 # ----------------------------------------------------------------------------------------
-def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver_seq=None, debug=False):
+def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq=None, tie_resolver_label=None):
+    for iseq in range(len(seqfos)):
+        color_mutants(cons_seq, seqfos[iseq]['seq'], align=align, amino_acid=aa, print_result=True, only_print_seq=iseq>0, ref_label=' consensus ', extra_str='  ', post_str='    '+seqfos[iseq]['name'], print_n_snps=True)
+    if tie_resolver_seq is not None:
+        color_mutants(cons_seq, tie_resolver_seq, align=align, amino_acid=aa, print_result=True, only_print_seq=True, seq_label=' '*len(' consensus '),
+                      post_str='    tie resolver%s'%('' if tie_resolver_label is None else (' (%s)'%tie_resolver_label)), extra_str='  ', print_n_snps=True)
+
+# ----------------------------------------------------------------------------------------
+def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver_seq=None, tie_resolver_label=None, debug=False):
     """ return consensus sequence from either aligned or unaligned seqfos """
     # <threshold>: If the percentage*0.01 of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added. e.g. 0.1 means if fewer than 10% of sequences have the most common base, it gets an N.
     # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (for us, this is usually the naive sequence) NOTE if you *don't* set this argument, all tied bases will be Ns
@@ -1001,10 +1012,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
         cons_seq = ''.join(cons_seq)
 
     if debug:
-        for iseq in range(len(seqfos)):
-            color_mutants(cons_seq, seqfos[iseq]['seq'], align=aligned_seqfos is None, print_result=True, only_print_seq=iseq>0, ref_label=' consensus ', extra_str='        ')
-        if tie_resolver_seq is not None:
-            color_mutants(cons_seq, tie_resolver_seq, align=aligned_seqfos is None, print_result=True, only_print_seq=True, seq_label='tie resolv ', extra_str='        ')
+        print_cons_seq_dbg(seqfos, cons_seq, align=aligned_seqfos is None, tie_resolver_seq=tie_resolver_seq, tie_resolver_label=tie_resolver_label)
 
     return cons_seq
 
@@ -1012,13 +1020,14 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
 def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
     # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line>
     if aa:
-        return ltranslate(line.get('consensus_seq', cons_seq_of_line(line)))
+        cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line)  # NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
+        return ltranslate(cseq)
     else:  # this is fairly slow
-        return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'])  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
+        return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])], tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')  # consensus seq fcn for use with lb metrics (defining it here since we need to use it in two different places)
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='',
-                  print_hfrac=False, print_isnps=False, return_isnps=False, emphasis_positions=None, use_min_len=False,
+                  print_hfrac=False, print_isnps=False, return_isnps=False, print_n_snps=False, emphasis_positions=None, use_min_len=False,
                   only_print_seq=False, align=False, align_if_necessary=False, return_ref=False, amino_acid=False):  # NOTE if <return_ref> is set, the order isn't the same as the input sequence order
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
 
@@ -1056,19 +1065,22 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
             char = color('reverse_video', char)
         return_str.append(char)
 
-    isnp_str = ''
-    if print_isnps and len(isnps) > 0:
-        isnp_str = '   %d snp%s' % (len(isnps), plural(len(isnps)))
-        if len(isnps) < 10:
-            isnp_str +=  ' at: %s' % ' '.join([str(i) for i in isnps])
+    isnp_str, n_snp_str = '', ''
+    if len(isnps) > 0:
+        if print_isnps:
+            isnp_str = '   %d snp%s' % (len(isnps), plural(len(isnps)))
+            if len(isnps) < 10:
+                isnp_str +=  ' at: %s' % ' '.join([str(i) for i in isnps])
+        if print_n_snps:
+            n_snp_str = ' %3d' % len(isnps)
     hfrac_str = ''
     if print_hfrac:
         hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
     if print_result:
         lwidth = max(len_excluding_colors(ref_label), len_excluding_colors(seq_label))
         if not only_print_seq:
-            print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq)
-        print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + post_str + isnp_str + hfrac_str)
+            print '%s%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq, '  hdist' if print_n_snps else '')
+        print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + n_snp_str + post_str + isnp_str + hfrac_str)
 
     return_list = [extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str]
     if return_ref:
@@ -2484,6 +2496,7 @@ def pad_nuc_seq(nseq):  # if length not multiple of three, pad on right with Ns
 
 # ----------------------------------------------------------------------------------------
 def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for_csv=False):
+    # NOTE use <info> to calculate all quantities, *then* put them in <outfo>: <outfo> only has the stuff that'll get written to the file, so can be missing things that are needed for calculations
     if key == 'cdr3_seqs':
         outfo[key] = [get_cdr3_seq(info, iseq) for iseq in range(len(info['unique_ids']))]
     elif key == 'full_coding_naive_seq':
@@ -2509,6 +2522,9 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         outfo[key] = ltranslate(info['naive_seq'])
     elif key == 'seqs_aa':  # NOTE similarity to add_seqs_aa()
         outfo[key] = [ltranslate(s) for s in info['seqs']]
+    elif key in ['cons_dists_nuc', 'cons_dists_aa']:
+        treeutils.add_cons_dists(info, aa='_aa' in key)
+        outfo[key] = info[key]  # has to be done in two steps (see note at top of fcn)
     elif key in linekeys['hmm'] + linekeys['sw'] + linekeys['simu']:  # these are added elsewhere
         if definitely_add_all_columns_for_csv:
             if key in io_column_configs['lists']:

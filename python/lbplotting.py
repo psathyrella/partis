@@ -284,7 +284,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             # for ltmp in lines_to_use:
             #     cseq = XXX needs updating XXX utils.cons_seq_of_line(ltmp, aa=XXX)
             #     for utmp, stmp in zip(ltmp['unique_ids'], ltmp['seqs']):
-            #         all_cdistvals.append(treeutils.XXX update XXXlb_cons_dist(cseq, stmp, aa=XXX))
+            #         all_cdistvals.append(treeutils.XXX update (use add_cons_dists(), or just access the keys in <line>) XXX-lb_cons_dist(cseq, stmp, aa=XXX))
             # all_cdistvals = sorted(all_cdistvals)
             # XXX lb_ptiles = {u : stats.percentileofscore(all_cdistvals, l['tree-info']['lb'][lb_metric][u], kind='weak') for l in lines_to_use for u in l['unique_ids']}
     if '-ptile' in xvar:
@@ -319,7 +319,9 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         elif xvar == 'affinity':
             def xvalfcn(i): return line['affinities'][i]
         elif xvar in cdist_keys:
-            def xvalfcn(i): return treeutils.lb_cons_dist(line, i, aa='-aa' in xvar)  # NOTE the consensus value of course is *not* in ['tree-info']['lb'], since we're making a plot of actual lb vs consensus
+            treeutils.add_cons_dists(line, aa='aa-' in xvar)
+            tkey = xvar.replace('cons-dist-', 'cons_dists_')
+            def xvalfcn(i): return -line[tkey][i]
         elif xvar == 'edge-dist':
             def xvalfcn(i): return treeutils.edge_dist_fcn(dtree, line['unique_ids'][i])
         elif xvar == 'affinity-ptile':
@@ -342,7 +344,9 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                 lb_ptiles = {u : stats.percentileofscore(lbvals, lbfo[lb_metric][u], kind='weak') for u in line['unique_ids']}
             def yvalfcn(i): return lb_ptiles[line['unique_ids'][i]]
         elif yvar in cdist_pt_keys:
-            cvals = [treeutils.lb_cons_dist(line, i, aa='-aa' in yvar) for i in range(len(line['unique_ids']))]
+            treeutils.add_cons_dists(line, aa='aa-' in yvar)
+            tkey = yvar.replace('-ptile', '').replace('cons-dist-', 'cons_dists_')
+            cvals = [-v for v in line[tkey]]
             if not choose_among_families:
                 cdist_ptiles = {u : stats.percentileofscore(cvals, cvals[i], kind='weak') for i, u in enumerate(line['unique_ids'])}
             def yvalfcn(i): return cdist_ptiles[line['unique_ids'][i]]
