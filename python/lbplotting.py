@@ -307,7 +307,10 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
     sorted_lines = sorted(lines_to_use, key=lambda l: len(l['unique_ids']), reverse=True)
     for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
         iclust_plotvals = {x : [] for x in vtypes}
-        lbfo = line['tree-info']['lb']
+        lbfo = line['tree-info']['lb'][lb_metric]
+        if len(set(lbfo) - set(line['unique_ids'])) > 0 or len(set(line['unique_ids']) - set(lbfo)) > 0:
+            if 'ptile' in xvar or 'ptile' in yvar:  # if it's not a ptile, we just don't plot it unless we have a value for both x and y. But for ptiles I don't really want to think through right now how to handle it
+                raise Exception('  %s different uids in <lbfo> and <line>, and xvar or yvar is a ptile: %3d extra uids in lbfo, %3d extra in line, %3d in common. This (the code below) needs to be checked.' % (utils.color('yellow', 'warning'), len(set(lbfo) - set(line['unique_ids'])), len(set(line['unique_ids']) - set(lbfo)), len(set(line['unique_ids']) & set(lbfo))))
         if colorvar in ['is_leaf', 'edge-dist'] or xvar == 'edge-dist':
             dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))
             if dtree is None:
@@ -332,16 +335,16 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             assert False
 
         if yvar == lb_metric:
-            def yvalfcn(i): return lbfo[yvar][line['unique_ids'][i]]
+            def yvalfcn(i): return lbfo.get(line['unique_ids'][i], None)
         elif yvar == 'z-score-err':  # prediction error, i.e. difference between lb z-score and affinity z-score (this isn't really good for much: see note below)
             # z score difference: (this isn't actually what we want, since 1) we don't care if the best lbi was +3 sigma while best affy was +7 sigma, but only if the ranking is right and 2) we don't care about all the cells that are below the median affy)
-            zscores = {lb_metric : utils.get_z_scores([lbfo[lb_metric][u] for u in line['unique_ids']]),
+            zscores = {lb_metric : utils.get_z_scores([lbfo[u] for u in line['unique_ids'] if u in lbfo]),
                        'affinity' : utils.get_z_scores(line['affinities'])}
             def yvalfcn(i): return zscores[lb_metric][i] - zscores['affinity'][i]
         elif yvar == '%s-ptile'%lb_metric:
-            lbvals = [lbfo[lb_metric][u] for u in line['unique_ids']]  # have to remove the ones that aren't in <line>
+            lbvals = [lbfo[u] for u in line['unique_ids'] if u in lbfo]  # have to remove the ones that aren't in <line> (and vice versa)
             if not choose_among_families:
-                lb_ptiles = {u : stats.percentileofscore(lbvals, lbfo[lb_metric][u], kind='weak') for u in line['unique_ids']}
+                lb_ptiles = {u : stats.percentileofscore(lbvals, lbfo[u], kind='weak') for u in line['unique_ids'] if u in lbfo}
             def yvalfcn(i): return lb_ptiles[line['unique_ids'][i]]
         elif yvar in cdist_pt_keys:
             treeutils.add_cons_dists(line, aa='aa-' in yvar)
@@ -354,12 +357,16 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             assert False
 
         for iseq, uid in enumerate(line['unique_ids']):
-            if yvar == 'lbr' and lbfo[yvar][uid] == 0:  # lbr equals 0 should really be treated as None/missing
-                continue
+            xval = xvalfcn(iseq)
             if xvar == 'affinity-ptile' and '-ptile' in yvar and xvalfcn(iseq) < min_ptile:  # and yvalfcn(iseq) < min_ptile:  the number of cells with high lbi but low affinity (last, commented criterion) is just too small to bother plotting -- all our errors come from the other direction
                 continue
-            iclust_plotvals[xvar].append(xvalfcn(iseq))
-            iclust_plotvals[yvar].append(yvalfcn(iseq))
+            yval = yvalfcn(iseq)
+            if yvar == 'lbr' and yval == 0:
+                continue
+            if None in (xval, yval):
+                continue
+            iclust_plotvals[xvar].append(xval)
+            iclust_plotvals[yvar].append(yval)
             if colorvar is not None:
                 if colorvar == 'is_leaf':
                     node = dtree.find_node_with_taxon_label(uid)
@@ -382,7 +389,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             if 'jitter' not in scatter_kwargs['xlabel']:
                 scatter_kwargs['xlabel'] += ' (+jitter)'
         if not only_overall:
-            title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(lbfo[lb_metric]))
+            title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(lbfo))
             tmpplotname = '%s%s-vs-%s%s-iclust-%d' % (rel_affy_str(yvar, use_relative_affy), yvar, rel_affy_str(yvar, use_relative_affy), xvar, iclust)
             fn = plot_2d_scatter(tmpplotname, plotdir, iclust_plotvals, yvar, ylabel, title, **scatter_kwargs)
             if iclust_fnames is not None and iclust < iclust_fnames:
