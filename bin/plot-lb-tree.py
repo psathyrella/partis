@@ -119,10 +119,10 @@ def set_meta_styles(args, etree, tstyle):
     affyfo = None
     if args.affy_key in args.metafo and set(args.metafo[args.affy_key].values()) != set([None]):
         affyfo = args.metafo[args.affy_key]
-        if args.lb_metric in ['lbi', 'shm', 'cons-dist-nuc']:
+        if args.lb_metric in affy_metrics:
             affyvals = affyfo.values()
             affy_smap = plotting.get_normalized_scalar_map([a for a in affyvals if a is not None], 'viridis')
-        elif args.lb_metric == 'lbr':
+        elif args.lb_metric in delta_affy_metrics:
             delta_affyvals = set_delta_affinities(etree, affyfo)
             delta_affy_increase_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v > 0], 'Reds', remove_top_end=True) if len(delta_affyvals) > 0 else None
             delta_affy_decrease_smap = plotting.get_normalized_scalar_map([abs(v) for v in delta_affyvals if v < 0], 'Blues', remove_top_end=True) if len(delta_affyvals) > 0 else None
@@ -133,7 +133,7 @@ def set_meta_styles(args, etree, tstyle):
         node.img_style['size'] = 0
         rfsize = 0
         bgcolor = plotting.getgrey()
-        if args.lb_metric in ['lbi', 'shm', 'cons-dist-nuc']:
+        if args.lb_metric in affy_metrics:
             if node.name not in lbfo:  # really shouldn't happen
                 print '  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name)
                 continue
@@ -144,7 +144,7 @@ def set_meta_styles(args, etree, tstyle):
             else:
                 rfsize = 5
                 bgcolor = plotting.get_smap_color(lb_smap, lbfo, key=node.name)
-        elif args.lb_metric == 'lbr':
+        elif args.lb_metric in delta_affy_metrics:
             node.img_style['vt_line_color'] = plotting.getgrey()  # if they're black, it's too hard to see the large changes in affinity, since they're very dark (at least with current color schemes)
             # rfsize = get_size(lb_min, lb_max, lbfo[node.name]) if node.name in lbfo else 1.5
             rfsize = 5 if node.name in lbfo else 1.5
@@ -165,13 +165,13 @@ def set_meta_styles(args, etree, tstyle):
         node.add_face(rface, column=0)
 
     affy_label = args.affy_key.replace('_', ' ')
-    if args.lb_metric in ['lbi', 'shm', 'cons-dist-nuc']:
+    if args.lb_metric in affy_metrics:
         if affyfo is None:
             add_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, n_entries=4)
         else:
             add_legend(tstyle, args.lb_metric, lbvals, None, lbfo, 0, n_entries=4)
             add_legend(tstyle, affy_label, [a for a in affyvals if a is not None], affy_smap, affyfo, 3)
-    elif args.lb_metric == 'lbr':
+    elif args.lb_metric in delta_affy_metrics:
         add_legend(tstyle, args.lb_metric, lbvals, lb_smap, lbfo, 0, reverse_log=args.log_lbr)
         if affyfo is not None:
             add_legend(tstyle, '%s decrease' % affy_label, [abs(v) for v in delta_affyvals if v < 0], delta_affy_decrease_smap, affyfo, 3, add_sign='-', no_opacity=True)
@@ -201,10 +201,12 @@ def plot_trees(args):
     etree.render(args.outfname, tree_style=tstyle)
 
 # ----------------------------------------------------------------------------------------
+affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm']  # it would be nice to instead use the info at the top of treeutils/lbplotting
+delta_affy_metrics = ['lbr']
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--treefname', required=True)
 parser.add_argument('--outfname', required=True)
-parser.add_argument('--lb-metric', default='lbi', choices=['lbi', 'lbr', 'shm', 'cons-dist-nuc'])
+parser.add_argument('--lb-metric', default='lbi', choices=affy_metrics+delta_affy_metrics)
 parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'relative_affinity'])
 # parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--metafname')
