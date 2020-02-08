@@ -415,9 +415,11 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         tmpplotname = '%s%s-vs-%s%s-all-clusters' % (rel_affy_str(yvar, use_relative_affy), yvar, rel_affy_str(xvar, use_relative_affy), xvar)
         fn = plot_2d_scatter(tmpplotname, plotdir, plotvals, yvar, ylabel, '%s (all clusters)' % basetitle, **scatter_kwargs)
         add_fn(fnames, fn=fn)
+    if iclust_fnames is not None:
+        fnames.append([])
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=False, fnames=None, only_overall=False, affy_key='affinities'):
+def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=False, fnames=None, only_overall=False, affy_key='affinities', iclust_fnames=None):
     def make_hist(plotvals, n_total, n_skipped, iclust=None, affinities=None):
         if len(plotvals) == 0:
             return
@@ -432,7 +434,7 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
         leafskipstr = ', skipped %d leaves' % n_skipped if n_skipped > 0 else ''  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
         title = '%s %s: %d entries%s (%s)' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', lb_metric, short=True), n_total, leafskipstr, 'all clusters' if iclust is None else 'iclust %d'%iclust)
         fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=mtitlestr('per-seq', lb_metric), log='y', ylabel='counts', title=title)
-        if iclust is None:
+        if iclust is None or (iclust_fnames is not None and iclust < iclust_fnames):
             add_fn(fnames, fn=fn)
 
     sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
@@ -456,6 +458,8 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
         plotvals += iclust_plotvals
         n_total_skipped_leaves += cluster_size - len(iclust_plotvals)
     make_hist(plotvals, len(plotvals) + n_total_skipped_leaves, n_total_skipped_leaves)
+    if iclust_fnames is not None:
+        fnames.append([])
 
 # ----------------------------------------------------------------------------------------
 def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters_per_joy_plot=25, n_max_joy_plots=25, n_plots_per_row=4):
@@ -662,7 +666,7 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
     add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, colorvar='is_leaf', max_scatter_plot_size=2500, max_iclust_plots=10, debug=False):
+def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, colorvar='is_leaf', max_scatter_plot_size=2500, max_iclust_plots=10, make_distribution_plots=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
@@ -743,8 +747,8 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         if sum(len(l['unique_ids']) for l in lines) < max_scatter_plot_size:
             make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist',
                                   only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, add_jitter=True, use_relative_affy='relative' in affy_key)  # there's some code duplication between these two fcns, but oh well
-            # if make_distribution_plots:
-            #     plot_lb_distributions(lb_metric, baseplotdir, lines, fnames=fnames, only_overall=True)
+            if make_distribution_plots:
+                plot_lb_distributions(lb_metric, baseplotdir, lines, fnames=fnames, is_true_line=is_true_line, only_overall=True)
         else:  # ok this is hackey
             utils.prep_dir(getplotdir(), wildlings=['*.svg', '*.yaml'])
     for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
