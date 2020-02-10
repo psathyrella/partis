@@ -827,7 +827,7 @@ def mpl_init(figsize=None, fontsize=20):
 
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
-               xticks=None, xticklabels=None, xticklabelsize=None, yticklabelsize=None, yticks=None, yticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None):
+               xticks=None, xticklabels=None, xticklabelsize=None, yticklabelsize=None, yticks=None, yticklabels=None, no_legend=False, adjust=None, suffix='svg', leg_title=None, legend_fontsize=None):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     if not no_legend:
@@ -835,7 +835,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         if len(handles) > 0:
             if len(handles) > 5:
                 leg_loc = leg_loc[0], leg_loc[1] - 0.15
-            legend = ax.legend(handles, labels, loc=leg_loc, prop=leg_prop, title=leg_title)
+            legend = ax.legend(handles, labels, loc=leg_loc, prop=leg_prop, title=leg_title, fontsize=legend_fontsize)
     default_adjust = {'bottom' : 0.20, 'left' : 0.18, 'right' : 0.95, 'top' : 0.92}
     if adjust is not None:
         default_adjust.update(adjust)  # this makes things still work if the calling fcn has {} as the default rather than None
@@ -864,7 +864,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
             ax.set_xticklabels(xticklabels, size=xticklabelsize)
     if yticklabels is not None:
         ax.set_yticklabels(yticklabels, size=yticklabelsize)
-    plt.title(title, fontweight='bold')
+    plt.title(title, fontweight='bold', fontsize=20 if len(title) < 25 else 15)
     if not os.path.exists(plotdir):
         os.makedirs(plotdir)
 

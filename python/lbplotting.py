@@ -490,16 +490,16 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         # print '    no %s vs affy info' % yvar
         return '%s/%s.svg' % (plotdir, plotname)
     fig, ax = plotting.mpl_init()
+    alpha = 0.4
     if colorvar is None:
         ax.scatter(plotvals[xvar], plotvals[yvar], alpha=0.4)
     else:
         if colorvar == 'is_leaf':
             colorfcn = lambda x: leafcolors['leaf' if x else 'internal']
-            alpha = 0.4
         else:
-            smap = plotting.get_normalized_scalar_map(plotvals[colorvar], 'viridis')
-            colorfcn = lambda x: plotting.get_smap_color(smap, None, val=x)
-            alpha = 0.8
+            smap = plotting.get_normalized_scalar_map([v for v in plotvals[colorvar] if v is not None], 'viridis')
+            colorfcn = lambda x: 'grey' if x is None else plotting.get_smap_color(smap, None, val=x)
+            alpha = 0.65
         for x, y, cval in zip(plotvals[xvar], plotvals[yvar], plotvals[colorvar]):  # we used to do the leaf/internal plots as two scatter() calls, which might be faster? but I think what really takes the time is writing the svgs, so whatever
             ax.plot([x], [y], color=colorfcn(cval), marker='.', markersize=markersize, alpha=alpha)
     if 'uids' in plotvals:
@@ -520,7 +520,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         ybounds = ymin - 0.03 * (ymax - ymin), ymax + 0.08 * (ymax - ymin)
     if yvar in ['shm']+cdist_keys:
         ax.plot([xmin, xmax], [0, 0], linewidth=1, alpha=0.7, color='grey')
-    leg_title, leg_prop = None, None
+    leg_title, leg_prop, leg_iter = None, None, []
     if colorvar is not None:
         leg_loc = [0.1 if xvar in cdist_keys+['affinity'] else 0.7, 0.65]  # I think this is sometimes overriding the one that's passed in
         if yvar == 'cons-dist-aa':
@@ -528,16 +528,19 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         leg_prop = {'size' : 12}
         if colorvar == 'is_leaf':
             leg_iter = [(leafcolors[l], l) for l in ['leaf', 'internal']]
+        elif plotvals[colorvar].count(None) == len(plotvals[colorvar]):  # no points have color values
+            pass
         elif colorvar in ['affinity', 'edge-dist']:
             leg_title = mtitlestr('per-seq', colorvar)
-            cmin, cmax = [mfcn(plotvals[colorvar]) for mfcn in [min, max]]  # NOTE very similar to add_legend() in bin/plot-lb-tree.py
-            n_entries = 4
-            max_diff = (cmax - cmin + utils.eps) / float(n_entries - 1)
-            leg_iter = [(colorfcn(v), '%.3f'%v) for v in list(numpy.arange(cmin, cmax + 2*utils.eps, max_diff))]  # first value is exactly <cmin>, last value is exactly <cmax> (eps is to keep it from missing the last one)
+            cmin, cmax = [mfcn(v for v in plotvals[colorvar] if v is not None) for mfcn in [min, max]]  # NOTE very similar to add_legend() in bin/plot-lb-tree.py
+            if cmin != cmax:
+                n_entries = 4
+                max_diff = (cmax - cmin + utils.eps) / float(n_entries - 1)
+                leg_iter = [(colorfcn(v), '%.3f'%v) for v in list(numpy.arange(cmin, cmax + 2*utils.eps, max_diff))]  # first value is exactly <cmin>, last value is exactly <cmax> (eps is to keep it from missing the last one)
         else:
             assert False
         for tcol, tstr in leg_iter:
-            ax.plot([], [], color=tcol, label=tstr, marker='.', markersize=markersize, linewidth=0)
+            ax.plot([], [], color=tcol, label=tstr, marker='.', markersize=markersize, linewidth=0, alpha=alpha)
 
     fn = plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc, leg_title=leg_title, leg_prop=leg_prop)
     return fn
@@ -593,7 +596,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
 
 # ----------------------------------------------------------------------------------------
 def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind of duplicates code in cf-tree-metrics.py (well except there we're averaging the *difference* between us and perfect
-    non_empty_iclusts = [iclust for iclust in range(n_clusters) if len(ptile_vals['iclust-%d'%iclust]['lb_ptiles']) > 0]
+    non_empty_iclusts = [iclust for iclust in range(n_clusters) if 'iclust-%d'%iclust in ptile_vals and len(ptile_vals['iclust-%d'%iclust]['lb_ptiles']) > 0]
     if debug:
         if len(non_empty_iclusts) < n_clusters:
             print '  removed %d empty iclusts' % (n_clusters - len(non_empty_iclusts))
@@ -656,13 +659,12 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
 
     if n_clusters is not None:
         if within_cluster_average:
-            fig.text(0.25, 0.88, 'within-cluster average over %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
+            fig.text(0.25, 0.88, 'within-cluster average over %d families' % n_clusters, fontsize=12, fontweight='bold')  # , color='red'
         else:
-            fig.text(0.37, 0.88, 'choosing among %d families' % n_clusters, fontsize=17, fontweight='bold')  # , color='red'
+            fig.text(0.37, 0.88, 'choosing among %d families' % n_clusters, fontsize=12, fontweight='bold')  # , color='red'
     fn = plotting.mpl_finish(ax, plotdir, plotname, xbounds=ptile_range_tuple, ybounds=ybounds, leg_loc=leg_loc,
                              title='%s %s' % (ungetptlabel(xvar), '' if iclust is None else ', iclust %d'%iclust),
-                             xlabel='%s threshold (percentile)' % ylabel,
-                             ylabel=ptile_ylabel)
+                             xlabel='%s threshold (percentile)' % ylabel, ylabel=ptile_ylabel, adjust={'left' : 0.21}, legend_fontsize=14)
     add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
@@ -746,7 +748,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     if not only_csv:
         if sum(len(l['unique_ids']) for l in lines) < max_scatter_plot_size:
             make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist',
-                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, add_jitter=True, use_relative_affy='relative' in affy_key)  # there's some code duplication between these two fcns, but oh well
+                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, add_jitter=is_true_line, use_relative_affy='relative' in affy_key)  # there's some code duplication between these two fcns, but oh well
             if make_distribution_plots:
                 plot_lb_distributions(lb_metric, baseplotdir, lines, fnames=fnames, is_true_line=is_true_line, only_overall=True)
         else:  # ok this is hackey
