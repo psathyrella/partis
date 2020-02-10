@@ -322,8 +322,10 @@ def process(args):
 
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')
-        if os.path.exists(args.parameter_dir) and len(set(os.listdir(args.parameter_dir)) & set(parameter_type_choices)) == 0:
-            raise Exception('couldn\'t find any expected parameter types (i.e. subdirs) in --parameter-dir \'%s\'. Allowed types: %s, found: %s. Maybe you added the parameter type to the parameter dir path?' % (args.parameter_dir, ' '.join(parameter_type_choices), ' '.join(os.listdir(args.parameter_dir))))
+        if os.path.exists(args.parameter_dir):
+            pdirs = [d for d in os.listdir(args.parameter_dir) if os.path.isdir(d)]
+            if len(pdirs) > 0 and len(set(pdirs) & set(parameter_type_choices)) == 0:
+                raise Exception('couldn\'t find any expected parameter types (i.e. subdirs) in --parameter-dir \'%s\'. Allowed types: %s, found: %s. Maybe you added the parameter type to the parameter dir path?' % (args.parameter_dir, ' '.join(parameter_type_choices), ' '.join(os.listdir(args.parameter_dir))))
 
     if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
         args.default_initial_germline_dir += '/' + args.species
