@@ -567,7 +567,7 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
         print '           distance       leaf                     parent'
     for leaf in dtree.leaf_node_iter():  # subsume super short/zero length leaves into their parent internal nodes
         if leaf.edge_length < 1./typical_bcr_seq_len:  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
-            if leaf.parent_node.taxon.label in uid_list:  # only want to do it if the parent node is a (spurious) internal node added by fasttree
+            if leaf.parent_node is not None and leaf.parent_node.taxon.label in uid_list:  # only want to do it if the parent node is a (spurious) internal node added by fasttree
                 continue
             if debug:
                 print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, leaf.taxon.label, leaf.parent_node.taxon.label)
