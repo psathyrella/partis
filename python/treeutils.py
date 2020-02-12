@@ -20,7 +20,6 @@ import yaml
 import json
 import pickle
 import warnings
-import pypmml
 import traceback
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
@@ -1559,17 +1558,19 @@ def init_dtr(train_dtr, dtr_path, cfg_fname=None):
         return dtr_cfgvals
     # ----------------------------------------------------------------------------------------
     def read_model(cg, tvar):
+        if 'pypmml' not in sys.modules:
+            import pypmml
         picklefname, pmmlfname = dtrfname(dtr_path, cg, tvar), dtrfname(dtr_path, cg, tvar, suffix='pmml')
         if os.path.exists(picklefname):  # pickle file (i.e. with entire model class written to disk, but *must* be read with the same version of sklearn that was used to write it) [these should always be there, since on old ones they were all we had, and on new ones we write both pickle and pmml]
             if os.path.exists(pmmlfname):  # pmml file (i.e. just with the info to make predictions, but can be read with other software versions)
-                pmml_models[cg][tvar] = pypmml.Model.fromFile(pmmlfname)
+                pmml_models[cg][tvar] = sys.modules['pypmml'].Model.fromFile(pmmlfname)
             else:  # if the pmml file isn't there, this must be old files, so we read the pickle, convert to pmml, then read that new pmml file
                 if 'joblib' not in sys.modules:  # just so people don't need to install it unless they're training (also scons seems to break it https://stackoverflow.com/questions/24453387/scons-attributeerror-builtin-function-or-method-object-has-no-attribute-disp)
                     import joblib
                 with open(picklefname) as dfile:
                     skmodels[cg][tvar] = sys.modules['joblib'].load(dfile)
                 write_pmml(pmmlfname, skmodels[cg][tvar], get_dtr_varnames(cg, dtr_cfgvals['vars']), tvar)
-                pmml_models[cg][tvar] = pypmml.Model.fromFile(pmmlfname)
+                pmml_models[cg][tvar] = sys.modules['pypmml'].Model.fromFile(pmmlfname)
         else:
             if cg == 'among-families' and tvar == 'delta-affinity':  # this is the only one that should be missing, since we added it last
                 missing_models.append('-'.join([cg, tvar, metric_method]))  # this is fucking dumb, but I need it later when I have the full name, not cg and tvar
