@@ -321,7 +321,7 @@ class PartitionDriver(object):
         treeutils.calculate_tree_metrics(annotation_dict, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                          use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir, dont_normalize_lbi=self.args.dont_normalize_lbi,
                                          only_csv=self.args.only_csv_plots, min_cluster_size=self.args.min_selection_metric_cluster_size, dtr_path=self.args.dtr_path, add_aa_consensus_distance=True, include_relative_affy_plots=self.args.include_relative_affy_plots,
-                                         cluster_indices=self.args.cluster_indices, debug=self.args.debug)
+                                         cluster_indices=self.args.cluster_indices, outfname=self.args.selection_metric_fname, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_list, ignore_args_dot_queries=False, process_csv=False):
@@ -484,14 +484,9 @@ class PartitionDriver(object):
 
         if tmpact == 'get-selection-metrics':
             self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list, cpath=cpath)  # adds tree metrics to <annotations>
-            if self.args.selection_metric_fname is None:
-                print '  note: rewriting output file %s with newly-calculated selection metrics' % outfname
+            if self.args.add_selection_metrics_to_outfname:
+                print '  rewriting output file with newly-calculated selection metrics: %s' % outfname
                 self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
-            else:
-                print '  writing selection metrics to %s' % self.args.selection_metric_fname
-                utils.prep_dir(None, fname=self.args.selection_metric_fname, allow_other_files=True)
-                with open(self.args.selection_metric_fname, 'w') as tfile:
-                    json.dump([l['tree-info'] for l in annotation_list if 'tree-info' in l], tfile) #, width=200, Dumper=yaml.CDumper, allow_unicode=False)  # switching to json to avoid unicode bullshit
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)

@@ -1393,7 +1393,7 @@ def check_lb_values(line, lbvals):
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, true_lines_to_use=None, include_relative_affy_plots=False, cluster_indices=None, debug=False):
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, true_lines_to_use=None, include_relative_affy_plots=False, cluster_indices=None, outfname=None, debug=False):
     print 'getting selection metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1504,6 +1504,12 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
     elif base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, debug=debug)
+
+    if outfname is not None:
+        print '  writing selection metrics to %s' % outfname
+        utils.prep_dir(None, fname=outfname, allow_other_files=True)
+        with open(outfname, 'w') as tfile:
+            json.dump([l['tree-info'] for l in inf_lines_to_use if 'tree-info' in l], tfile) #, width=200, Dumper=yaml.CDumper, allow_unicode=False)  # switching to json to avoid unicode bullshit
 
 # ----------------------------------------------------------------------------------------
 def init_dtr(train_dtr, dtr_path, cfg_fname=None):
