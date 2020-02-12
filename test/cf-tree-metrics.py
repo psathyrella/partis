@@ -161,7 +161,7 @@ def get_tree_metric_outdir(varnames, vstr, metric_method=None):  # metric_method
     return get_outdir(varnames, vstr, 'get-tree-metrics') + '/' + ('partis' if metric_method is None else metric_method)
 
 # ----------------------------------------------------------------------------------------
-def get_partition_fname(varnames, vstr, action, metric_method=None):  # if action is 'bcr-phylo', we want the original partition output file, but if it's 'get-tree-metrics', we want the copied one, that had tree metrics added to it (and which is in the e.g. tau subdir)
+def get_partition_fname(varnames, vstr, action, metric_method=None):  # if action is 'bcr-phylo', we want the original partition output file, but if it's 'get-tree-metrics', we want the copied one, that had tree metrics added to it (and which is in the e.g. tau subdir) UPDATE no longer modifying output files by default, so no longer doing the copying thing
     if action == 'bcr-phylo' or metric_method is not None:  # for non-lb metrics (i.e. if metric_method is set) we won't modify the partition file, so can just read the one in the bcr-phylo dir
         outdir = '%s/selection/partis' % get_bcr_phylo_outdir(varnames, vstr)
     else:
@@ -725,9 +725,8 @@ def get_tree_metrics(args):
                 os.makedirs(tmpoutdir)
 
         if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
-            if not args.dry:
-                subprocess.check_call(['cp', get_partition_fname(varnames, vstrs, 'bcr-phylo'), get_partition_fname(varnames, vstrs, 'get-tree-metrics')])
-            cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs, extra_str=args.extra_plotstr), get_partition_fname(varnames, vstrs, 'get-tree-metrics'))
+            cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs, extra_str=args.extra_plotstr),
+                                                                                                                                   get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
