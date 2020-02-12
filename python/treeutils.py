@@ -28,6 +28,7 @@ if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on 
 import utils
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
+typical_bcr_seq_len = 400
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 20
 default_min_selection_metric_cluster_size = 10
@@ -233,7 +234,7 @@ def train_dtr_model(trainfo, outdir, cfgvals, cgroup, tvar):
 # ----------------------------------------------------------------------------------------
 # NOTE the min lbi is just tau, but I still like doing it this way
 lb_bounds = {  # calculated to 17 generations, which is quite close to the asymptote
-    400 : {  # seq_len
+    typical_bcr_seq_len : {  # seq_len
         0.0030: (0.0030, 0.0331),  # if tau is any bigger than this it doesn't really converge
         0.0025: (0.0025, 0.0176),
         0.0020: (0.0020, 0.0100),
@@ -361,6 +362,9 @@ def collapse_nodes(dtree, keep_name, remove_name, debug=False):  # collapse edge
     if debug:
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
     assert dtree.find_node_with_taxon_label(remove_name) is None
+
+    # NOTE do i need to add this?
+    # dtree.purge_taxon_namespace()
 
 # ----------------------------------------------------------------------------------------
 def check_node_labels(dtree, debug=False):
@@ -558,6 +562,23 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
+
+    if debug:
+        print '  merging trivially-dangling leaves into parent internal nodes'
+        print '           distance       leaf                     parent'
+    for leaf in dtree.leaf_node_iter():  # subsume super short/zero length leaves into their parent internal nodes
+        if leaf.edge_length < 1./typical_bcr_seq_len:  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
+            if leaf.parent_node.taxon.label in uid_list:  # only want to do it if the parent node is a (spurious) internal node added by fasttree
+                continue
+            if debug:
+                print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, leaf.taxon.label, leaf.parent_node.taxon.label)
+            parent_node = leaf.parent_node
+            leaf_label = leaf.taxon.label
+            dtree.prune_taxa_with_labels([leaf.taxon], suppress_unifurcations=False)
+            parent_node.taxon = dendropy.Taxon(leaf_label)  # i'm not sure I really need to make a whole new taxon (rather than relabelling the parent's existing one), but it seems better
+    dtree.update_bipartitions()
+    dtree.purge_taxon_namespace()
+
     return dtree
 
 # ----------------------------------------------------------------------------------------
