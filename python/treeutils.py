@@ -575,10 +575,10 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
         while leaf.edge_length is not None and leaf.edge_length < 1./(2*typical_bcr_seq_len):  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
             if leaf.parent_node is None:  # why tf can i get the root node here?
                 break
-            if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in uid_list + [naive_seq_name]:  # only want to do it if the parent node is a (spurious) internal node added by fasttree
+            if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in uid_list + [naive_seq_name]:  # only want to do it if the parent node is a (spurious) internal node added by fasttree (this parent's taxon will be None if suppress_internal_node_taxa was set)
                 break
             if debug > 1:
-                print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, ' " ' if recursed else leaf.taxon.label, leaf.parent_node.taxon.label)
+                print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, ' " ' if recursed else leaf.taxon.label, 'none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label)
 
             parent_node = leaf.parent_node
             removed_nodes.append(parent_node.taxon.label if parent_node.taxon is not None else None)
