@@ -484,7 +484,7 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
         iclustergroup += 1
 
 # ----------------------------------------------------------------------------------------
-def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', colorvar=None, log='', leg_loc=None, warn_text=None, markersize=15):
+def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', colorvar=None, log='', leg_loc=None, warn_text=None, markersize=15, stats=None):
     leafcolors = {'leaf' : '#006600', 'internal' : '#2b65ec'}  # green, blue
     if len(plotvals[xvar]) == 0:
         # print '    no %s vs affy info' % yvar
@@ -542,6 +542,9 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         for tcol, tstr in leg_iter:
             ax.plot([], [], color=tcol, label=tstr, marker='.', markersize=markersize, linewidth=0, alpha=alpha)
 
+    if stats is not None:
+        if stats == 'correlation':
+            fig.text(0.7, 0.3, 'r = %.3f' % numpy.corrcoef(plotvals[xvar], plotvals[yvar])[0, 1], fontsize=20, fontweight='bold') #, color='red')
     fn = plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc, leg_title=leg_title, leg_prop=leg_prop)
     return fn
 
@@ -931,14 +934,19 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             json.dump(yamlfo, yfile)  # not adding the new correlation keys atm (like in the lb vs affinity fcn)
 
 # ----------------------------------------------------------------------------------------
-def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, lb_label, debug=False):
-    plotvals = {val_type : {uid : l['tree-info']['lb'][lb_metric][uid] for l in lines for uid in l['unique_ids']}  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
+def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, fnames=None, debug=False):
+    plotvals = {val_type : {uid : l['tree-info']['lb'][lb_metric][uid] for l in lines for uid in l['unique_ids'] if uid in l['tree-info']['lb'][lb_metric]}  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
                 for val_type, lines in (('true', true_lines), ('inf', inf_lines))}
     common_uids = set(plotvals['true']) & set(plotvals['inf'])  # there should/may be a bunch of internal nodes in the simulation lines but not in the inferred lines, but otherwise they should have the same uids
+    # tmpvals = sorted([(u, plotvals['true'][u], plotvals['inf'][u]) for u in common_uids], key=lambda x: x[2] / x[1])
+    # for x in tmpvals:
+    #     print ' %12s  %8.5f  %8.5f  %8.5f' % (x[0], x[2] / x[1], x[1], x[2])
+    # sys.exit()
     plotvals = {val_type : [plotvals[val_type][uid] for uid in common_uids] for val_type in plotvals}
     plotname = '%s-true-vs-inferred' % lb_metric
-    fn = plot_2d_scatter(plotname, plotdir, plotvals, 'inf', '%s on inferred tree' % lb_metric.upper(), 'true vs inferred %s' % lb_metric.upper(), xvar='true', xlabel='%s on true tree' % lb_metric.upper())
-    return [fn]
+    mtstr = mtitlestr('per-seq', lb_metric)
+    fn = plot_2d_scatter(plotname, plotdir, plotvals, 'inf', '%s on inferred tree' % mtstr, 'true vs inferred %s' % mtstr, xvar='true', xlabel='%s on true tree' % mtstr, stats='correlation')
+    add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None):

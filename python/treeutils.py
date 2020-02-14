@@ -320,12 +320,16 @@ def get_n_nodes(tree):
     return len(list(tree.preorder_node_iter()))
 
 # ----------------------------------------------------------------------------------------
-def collapse_nodes(dtree, keep_name, remove_name, debug=False):  # collapse edge between <keep_name> and <remove_name>, leaving remaining node with name <keep_name>
+def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_name_node=None, debug=False):  # collapse edge between <keep_name> and <remove_name>, leaving remaining node with name <keep_name>
     # NOTE I wrote this to try to fix the phylip trees from lonr.r, but it ends up they're kind of unfixable... but this fcn may be useful in the future, I guess, and it works
     if debug:
         print '    collapsing %s and %s (the former will be the label for the surviving node)' % (keep_name, remove_name)
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
-    keep_name_node, remove_name_node = [dtree.find_node_with_taxon_label(n) for n in (keep_name, remove_name)]  # nodes corresponding to {keep,remove}_name, not necessarily respectively the nodes we keep/remove
+    if keep_name_node is None:
+        keep_name_node = dtree.find_node_with_taxon_label(keep_name)
+    if remove_name_node is None:
+        assert remove_name is not None  # if we *are* passed <remove_name_node>, it's ok for <remove_name> to be None
+        remove_name_node = dtree.find_node_with_taxon_label(remove_name)
     swapped = False
     if keep_name_node in remove_name_node.child_nodes():
         assert remove_name_node not in keep_name_node.child_nodes()
@@ -562,21 +566,29 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
 
-    if debug:
+    if debug > 1:
         print '  merging trivially-dangling leaves into parent internal nodes'
         print '           distance       leaf                     parent'
-    for leaf in dtree.leaf_node_iter():  # subsume super short/zero length leaves into their parent internal nodes
-        if leaf.edge_length < 1./typical_bcr_seq_len:  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
-            if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in uid_list:  # only want to do it if the parent node is a (spurious) internal node added by fasttree
-                continue
-            if debug:
-                print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, leaf.taxon.label, leaf.parent_node.taxon.label)
+    removed_nodes = []
+    for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
+        recursed = False
+        while leaf.edge_length is not None and leaf.edge_length < 1./(2*typical_bcr_seq_len):  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
+            if leaf.parent_node is None:  # why tf can i get the root node here?
+                break
+            if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in uid_list + [naive_seq_name]:  # only want to do it if the parent node is a (spurious) internal node added by fasttree
+                break
+            if debug > 1:
+                print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, ' " ' if recursed else leaf.taxon.label, leaf.parent_node.taxon.label)
+
             parent_node = leaf.parent_node
-            leaf_label = leaf.taxon.label
-            dtree.prune_taxa_with_labels([leaf.taxon], suppress_unifurcations=False)
-            parent_node.taxon = dendropy.Taxon(leaf_label)  # i'm not sure I really need to make a whole new taxon (rather than relabelling the parent's existing one), but it seems better
-    dtree.update_bipartitions()
+            removed_nodes.append(parent_node.taxon.label if parent_node.taxon is not None else None)
+            collapse_nodes(dtree, leaf.taxon.label, None, keep_name_node=leaf, remove_name_node=leaf.parent_node)
+            leaf = parent_node
+            recursed = True
+    dtree.update_bipartitions(suppress_unifurcations=False)
     dtree.purge_taxon_namespace()
+    if debug:
+        print '    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes))
 
     return dtree
 
@@ -1329,8 +1341,8 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
             # lbplotting.plot_lb_distributions('lbr', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             if ete_path is not None:
                 lbplotting.plot_lb_trees(lb_metrics.keys(), true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
-            # for lb_metric, lb_label in lb_metrics.items():
-            #     XXX fnames[-1] += lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, inf_lines_to_use, lb_metric, lb_label)
+            # for lb_metric in lb_metrics:
+            #     lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, inf_lines_to_use, lb_metric, fnames=fnames)
             subdirs = [d for d in os.listdir(true_plotdir) if os.path.isdir(true_plotdir + '/' + d)]
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in subdirs])
 
@@ -1481,7 +1493,10 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
         n_true_after = len(true_lines_to_use)
         print '    also doing %d true cluster%s with size%s: %s' % (n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
         print '      skipping %d smaller than %d' % (n_true_before - n_true_after, min_cluster_size)
+        final_true_lines = []
         for iclust, true_line in enumerate(true_lines_to_use):
+            if cluster_indices is not None and iclust not in cluster_indices:
+                continue
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
@@ -1490,6 +1505,8 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
                 add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above
             if dtr_path is not None:
                 calc_dtr(train_dtr, true_line, true_lb_info, true_dtree, trainfo, pmml_models, dtr_cfgvals)  # either adds training values to trainfo, or adds predicted dtr values to lbfo
+            final_true_lines.append(true_line)
+        true_lines_to_use = final_true_lines  # replace it with a new list that only has the clusters we really want
 
     if dtr_path is not None:  # it would be nice to eventually merge these two blocks, i.e. use the same code to plot dtr and lbi/lbr
         if train_dtr:
