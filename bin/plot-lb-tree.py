@@ -64,7 +64,7 @@ fsize = 7
 def set_delta_affinities(etree, affyfo):  # set change in affinity from parent for each node, and return a list of all such affinity changes (for normalizing the cmap)
     delta_affyvals = []
     for node in etree.traverse():
-        if node.name not in affyfo or node.up is None or node.up.name not in affyfo:
+        if node.up is None or any(n.name not in affyfo or affyfo[n.name] is None for n in (node, node.up)):
             node.add_feature('affinity_change', None)
             continue
         node.add_feature('affinity_change', affyfo[node.name] - affyfo[node.up.name])
