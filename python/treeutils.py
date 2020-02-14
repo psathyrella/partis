@@ -334,6 +334,8 @@ def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_na
     if keep_name_node in remove_name_node.child_nodes():
         assert remove_name_node not in keep_name_node.child_nodes()
         parent_node = remove_name_node
+        if parent_node.taxon is None:
+            parent_node.taxon = dendropy.Taxon()
         parent_node.taxon.label = keep_name  # have to rename it, since we always actually keep the parent
         swapped = True
         child_node = keep_name_node
@@ -454,7 +456,7 @@ def get_mean_leaf_height(tree=None, treestr=None):
     return sum(heights) / len(heights)
 
 # ----------------------------------------------------------------------------------------
-def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=200, schema='newick'):
+def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=200, schema='newick', label_fcn=None):
     """
         AsciiTreePlot docs (don't show up in as_ascii_plot()):
             plot_metric : str
@@ -489,6 +491,8 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
             lb = x.label
         else:
             lb = 'o'
+        if label_fcn is not None:
+            lb = label_fcn(lb)
         return '%s%s%s' % (start_char, lb, end_char)
     dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)
     special_chars = [c for c in reversed(string.punctuation) if c not in set(dendro_str)]  # find some special characters that we can use to identify the start and end of each label (could also use non-printable special characters, but it shouldn't be necessary)
@@ -545,6 +549,34 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=F
     print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
 
 # ----------------------------------------------------------------------------------------
+def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence_uids> is uids for which we have actual sequences (i.e. not internal nodes inferred by the tree program without sequences)
+    if debug > 1:
+        print '  merging trivially-dangling leaves into parent internal nodes'
+        print '           distance       leaf                     parent'
+    removed_nodes = []
+    for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
+        recursed = False
+        while leaf.edge_length is not None and leaf.edge_length < 1./(2*typical_bcr_seq_len):  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
+            if leaf.parent_node is None:  # why tf can i get the root node here?
+                break
+            if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in sequence_uids:  # only want to do it if the parent node is a (spurious) internal node added by fasttree (this parent's taxon will be None if suppress_internal_node_taxa was set)
+                break
+            if debug > 1:
+                print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, ' " ' if recursed else leaf.taxon.label, 'none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label)
+
+            parent_node = leaf.parent_node
+            removed_nodes.append(parent_node.taxon.label if parent_node.taxon is not None else None)
+            collapse_nodes(dtree, leaf.taxon.label, None, keep_name_node=leaf, remove_name_node=leaf.parent_node)
+            leaf = parent_node
+            recursed = True
+    dtree.update_bipartitions(suppress_unifurcations=False)
+    dtree.purge_taxon_namespace()
+    if debug:
+        print '    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes))
+        # print get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
+        # print dtree.as_string(schema='newick').strip()
+
+# ----------------------------------------------------------------------------------------
 def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_namespace=None, suppress_internal_node_taxa=False, debug=False):
     if debug:
         print '    running FastTree on %d sequences plus a naive' % len(seqfos)
@@ -566,29 +598,8 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
 
-    if debug > 1:
-        print '  merging trivially-dangling leaves into parent internal nodes'
-        print '           distance       leaf                     parent'
-    removed_nodes = []
-    for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
-        recursed = False
-        while leaf.edge_length is not None and leaf.edge_length < 1./(2*typical_bcr_seq_len):  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
-            if leaf.parent_node is None:  # why tf can i get the root node here?
-                break
-            if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in uid_list + [naive_seq_name]:  # only want to do it if the parent node is a (spurious) internal node added by fasttree (this parent's taxon will be None if suppress_internal_node_taxa was set)
-                break
-            if debug > 1:
-                print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, ' " ' if recursed else leaf.taxon.label, 'none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label)
-
-            parent_node = leaf.parent_node
-            removed_nodes.append(parent_node.taxon.label if parent_node.taxon is not None else None)
-            collapse_nodes(dtree, leaf.taxon.label, None, keep_name_node=leaf, remove_name_node=leaf.parent_node)
-            leaf = parent_node
-            recursed = True
-    dtree.update_bipartitions(suppress_unifurcations=False)
-    dtree.purge_taxon_namespace()
-    if debug:
-        print '    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes))
+    if not suppress_internal_node_taxa:  # if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards)
+        collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], debug=debug)
 
     return dtree
 

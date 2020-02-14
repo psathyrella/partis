@@ -463,13 +463,13 @@ class ClusterPath(object):
                         tmpnode.uids = set([tmpnode.taxon.label])
                     else:
                         tmpnode.uids = set([uid for c in tmpnode.child_node_iter() for uid in c.uids])
+                        assert tmpnode.taxon is None  # make sure that we didn't do any modification to the fasttree tree to label the internal nodes
                         ttaxon = dendropy.Taxon(lget(tmpnode.uids))
                         subtree.taxon_namespace.add_taxon(ttaxon)
                         tmpnode.taxon = ttaxon  # ...and use the string of leaf nodes, even though they'll be in the wrong order (I think these get ignored when I call label_nodes() below, but it's still tidier to have them right in the meantime, and anyway since I'm suppressing internal taxa I think I need to set them to something)
-
                 if debug:
                     print '   adding subtree with %d leaves from fastree at leaf node %s' % (len(seqfos), lnode.taxon.label)
-                    print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=subtree))
+                    print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=subtree, width=350, label_fcn=lambda x: '<combo>' if ':' in x else x))
                 dtree.taxon_namespace.add_taxa(subtree.taxon_namespace)
                 lnode.add_child(subtree.seed_node)
                 assert len(lnode.child_edges()) == 1  # we're iterating over leaves, so this should always be true
@@ -527,7 +527,8 @@ class ClusterPath(object):
             del node.n_descendent_leaves
 
         treeutils.label_nodes(dtree, ignore_existing_internal_node_labels=True, ignore_existing_internal_taxon_labels=True, debug=debug)
-        dtree.update_bipartitions()  # probably don't really need this
+        treeutils.collapse_zero_length_leaves(dtree, [], debug=debug)
+        # dtree.update_bipartitions(suppress_unifurcations=False)  # probably don't really need this UPDATE now i'm commenting it since it gets run by the zero length leaf collapse fcn
         if debug:
             print treeutils.utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250))
 
