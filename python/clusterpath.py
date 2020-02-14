@@ -527,10 +527,16 @@ class ClusterPath(object):
             del node.n_descendent_leaves
 
         treeutils.label_nodes(dtree, ignore_existing_internal_node_labels=True, ignore_existing_internal_taxon_labels=True, debug=debug)
-        treeutils.collapse_zero_length_leaves(dtree, [], debug=debug)
+        treeutils.collapse_zero_length_leaves(dtree, uid_set, debug=debug)
         # dtree.update_bipartitions(suppress_unifurcations=False)  # probably don't really need this UPDATE now i'm commenting it since it gets run by the zero length leaf collapse fcn
         if debug:
             print treeutils.utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250))
+
+        # make sure we didn't lose any uids in the process of making the tree (this shouldn't happen any more, but it kept happening when i thought i'd fixed it before, so...)
+        node_set = set(n.taxon.label for n in dtree.preorder_node_iter())
+        missing_uids = uid_set - node_set
+        if len(missing_uids) > 0:
+            raise Exception('final clusterpath tree is missing %d input uids: %s' % (len(missing_uids), ' '.join(missing_uids)))
 
         return dtree
 
