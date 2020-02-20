@@ -1038,8 +1038,10 @@ def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=
             return 3
         elif n_sampled < 30:
             return 4
-        elif n_sampled < 50:
+        elif n_sampled < 40:
             return 5
+        elif n_sampled < 85:
+            return 10
         else:
             return 30
     def get_n_sample_list(n_total):
