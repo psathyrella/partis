@@ -561,13 +561,14 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
         print '    getting ptile vals%s' % ('' if dbgstr is None else (' for %s' % utils.color('blue', dbgstr)))
         print '            %-12s N      mean     %s   |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
         print '    ptile   threshold  taken    %s%-s %s|  N taken  mean %s'  % (utils.color('red', 'rel-') if xia and 'relative' in affy_key else '', 'affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
+    max_lb_val = max(plotvals[lb_metric])
     sorted_xvals = sorted(plotvals[xvar], reverse=xia)
     if xia:
         np_arr_sorted_xvals = numpy.asarray(sorted_xvals)  # the stats calls in the next two lines make this conversion, and it's way too slow to do for every x
         corr_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in plotvals[xvar]]  # x (e.g. affinity) percentile of each plot val (could speed this up by only using the best half of each list (since ptiles are starting at 50))
         perf_ptile_vals = sorted(corr_ptile_vals, reverse=True)  # x (e.g. affinity) percentile or each plot val, *after sorting by x* (e.g. affinity)
     for percentile in numpy.arange(*ptile_range_tuple):
-        lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
+        lb_ptile_val = min(max_lb_val, numpy.percentile(plotvals[lb_metric], percentile))  # lb value corresponding to <percentile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
         final_xvar_vals = [pt for lb, pt in zip(plotvals[lb_metric], corr_ptile_vals if xia else plotvals[xvar]) if lb >= lb_ptile_val]  # percentiles (if xia, else plain xvals [i.e. N ancestors or branch length]) corresponding to lb greater than <lb_ptile_val> (i.e. the ptiles for the x vals that you'd get if you took all the lb values greater than that)
         tmp_ptvals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
         assert len(final_xvar_vals) > 0  # this shouldn't need to be here, but I'm removing the old block that handled the length-zero case (because it had a bad bug), and i want to be absolutely certain it doesn't come up any more. (it was necessary because the above line [and below in dbg] were '>' rather than '>=')
