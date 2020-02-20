@@ -1018,12 +1018,65 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
 
 # ----------------------------------------------------------------------------------------
 def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
-    # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line>
+    # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
     if aa:
         cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line)  # NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
         return ltranslate(cseq)
     else:  # this is fairly slow
         return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])]) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+
+# ----------------------------------------------------------------------------------------
+def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=None, threshold=0.01, debug=False):  # yeah yeah the name is too long, but it's clear, isn't it?
+    # NOTE i started to write this so that for small n_sampled it took several different subsamples, but i think that isn't a good idea since we want to make sure they're independent
+    def get_step(n_sampled):
+        if n_sample_step is not None:  # calling fcn can set it explicitly
+            return n_sample_step
+        if n_sampled < 10:
+            return 1
+        elif n_sampled < 20:
+            return 3
+        elif n_sampled < 30:
+            return 4
+        elif n_sampled < 50:
+            return 5
+        else:
+            return 30
+    def get_n_sample_list(n_total):
+        nslist = [n_sample_min]
+        while True:
+            n_sampled = nslist[-1] + get_step(nslist[-1])
+            if n_sampled > n_total:
+                break
+            nslist.append(n_sampled)
+        return nslist
+
+    n_total = len(line['unique_ids'])
+    if n_total < n_sample_min:
+        if debug:
+            print '  small cluster %d' % n_total
+        return
+
+    if debug:
+        print '  getting cons seq accuracy for cluster with size %d' % n_total
+    ctypes = ['nuc', 'aa']
+    info = {ct : {'n_sampled' : [], 'cseqs' : [], 'hdists' : None} for ct in ctypes}
+    for n_sampled in get_n_sample_list(n_total):
+        seqfos = [{'name' : line['unique_ids'][i], 'seq' : line['seqs'][i]} for i in numpy.random.choice(range(n_total), size=n_sampled, replace=False)]
+        cseq = cons_seq(threshold, aligned_seqfos=seqfos)  # if we're sampling few enough that ties are frequent, then this doesn't really do what we want (e.g. there's a big oscillation for odd vs even n_sampled, I think because even ones have more ambiguous bases which don't count against them). But it doesn't matter, since ties are only at all frequent for families smaller than we care about (like, less than 10).
+        for ctype in ctypes:
+            info[ctype]['n_sampled'].append(n_sampled)
+        info['nuc']['cseqs'].append(cseq)
+        info['aa']['cseqs'].append(ltranslate(cseq))
+
+    for ctype in ctypes:
+        best_cseq = info[ctype]['cseqs'][-1]
+        info[ctype]['hdists'] = [hamming_distance(cs, best_cseq, amino_acid=ctype=='aa') for cs in info[ctype]['cseqs']]
+        if debug:
+            print '  %s    N sampled   hdist   ' % color('green', ctype, width=6)
+            for n_sampled, cseq, hdist in zip(info[ctype]['n_sampled'], info[ctype]['cseqs'], info[ctype]['hdists']):
+                print '             %4d      %4d     %s' % (n_sampled, hdist, color_mutants(best_cseq, cseq, amino_acid=ctype=='aa'))
+
+    return info
 
 # ----------------------------------------------------------------------------------------
 def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='',
