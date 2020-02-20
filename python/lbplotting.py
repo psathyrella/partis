@@ -565,10 +565,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
     if xia:
         np_arr_sorted_xvals = numpy.asarray(sorted_xvals)  # the stats calls in the next two lines make this conversion, and it's way too slow to do for every x
         corr_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in plotvals[xvar]]  # x (e.g. affinity) percentile of each plot val (could speed this up by only using the best half of each list (since ptiles are starting at 50))
-        perf_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in sorted_xvals]  # x (e.g. affinity) percentile or each plot val, *after sorting by x* (e.g. affinity)
-# ----------------------------------------------------------------------------------------
-# TODO wait can't i just do this? (i think so, but i don't feel like thinking about it right now, and the only benefit would be a speed up, which I'm not feeling i really need right now)
-        assert perf_ptile_vals == sorted(corr_ptile_vals, reverse=True)
+        perf_ptile_vals = sorted(corr_ptile_vals, reverse=True)  # x (e.g. affinity) percentile or each plot val, *after sorting by x* (e.g. affinity)
     for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
         final_xvar_vals = [pt for lb, pt in zip(plotvals[lb_metric], corr_ptile_vals if xia else plotvals[xvar]) if lb >= lb_ptile_val]  # percentiles (if xia, else plain xvals [i.e. N ancestors or branch length]) corresponding to lb greater than <lb_ptile_val> (i.e. the ptiles for the x vals that you'd get if you took all the lb values greater than that)
