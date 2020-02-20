@@ -1071,11 +1071,11 @@ def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=
 
     for ctype in ctypes:
         best_cseq = info[ctype]['cseqs'][-1]
-        info[ctype]['hdists'] = [hamming_distance(cs, best_cseq, amino_acid=ctype=='aa') for cs in info[ctype]['cseqs']]
+        info[ctype]['hdists'] = [hamming_distance(cs, best_cseq, amino_acid=ctype=='aa') for cs in info[ctype]['cseqs']]  # it might make more sense for this to use hamming fraction, since small families get perhaps too much credit for ties that end up as ambiguous characters, but whatever
         if debug:
             print '  %s    N sampled   hdist   ' % color('green', ctype, width=6)
             for n_sampled, cseq, hdist in zip(info[ctype]['n_sampled'], info[ctype]['cseqs'], info[ctype]['hdists']):
-                print '             %4d      %4d     %s' % (n_sampled, hdist, color_mutants(best_cseq, cseq, amino_acid=ctype=='aa'))
+                print '             %4d      %5.2f     %s' % (n_sampled, hdist, color_mutants(best_cseq, cseq, amino_acid=ctype=='aa'))
 
     return info
 
@@ -2282,8 +2282,8 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         return distance
 
 # ----------------------------------------------------------------------------------------
-def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False):  # NOTE use hamming_distance() to get the positions (yeah, I should eventually add it here as well)
-    distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True)
+def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False, amino_acid=False):  # NOTE use hamming_distance() to get the positions (yeah, I should eventually add it here as well)
+    distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True, amino_acid=amino_acid)
 
     fraction = 0.
     if len_excluding_ambig > 0:

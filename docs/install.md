@@ -38,7 +38,7 @@ While conda typically works better, you can also install the python packages wit
 Because conda and pip do not play well with each other, if you've used pip in the past but are going to now use conda, and you won't need pip in the future, you should completely remove `~/.local`.
 If you might need pip in the future, you should expect some difficulty with having both conda and pip on the same system.
 In most cases you can prevent conda from finding the packages in `~/.local` (and consequently breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
-You may also need to `unset LD_LIBRARY_PATH`. 
+You may also need to `unset LD_LIBRARY_PATH`.
 
 Once conda is installed, run the rest of the commands in the Dockerfile whose lines are marked with `RUN` or `CMD`, except substitute the line `WORKDIR /partis` with `cd partis/`.
 
