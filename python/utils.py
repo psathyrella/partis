@@ -180,6 +180,7 @@ effective_boundaries = ['fv', 'jf']
 all_boundaries = boundaries + effective_boundaries
 nukes = ['A', 'C', 'G', 'T']
 ambiguous_bases = ['N', ]
+ambiguous_amino_acids = ['X', ]
 alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinction, but note difference to <expected_characters>
 gap_chars = ['.', '-']
 expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the greatest naming distinction, but note difference to <alphabet>
@@ -1001,7 +1002,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
 
     fastalist = ['>%s\n%s' % (sfo['name'], sfo['seq']) for sfo in seqfos]
     alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
-    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous='N'))
+    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous=ambiguous_bases[0]))
 
     if tie_resolver_seq is not None:  # huh, maybe it'd make more sense to just pass in the tie-breaker sequence to the consensus fcn?
         assert len(tie_resolver_seq) == len(cons_seq)
@@ -1070,11 +1071,11 @@ def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=
 
     for ctype in ctypes:
         best_cseq = info[ctype]['cseqs'][-1]
-        info[ctype]['hdists'] = [hamming_distance(cs, best_cseq, amino_acid=ctype=='aa') for cs in info[ctype]['cseqs']]
+        info[ctype]['hdists'] = [hamming_distance(cs, best_cseq, amino_acid=ctype=='aa') for cs in info[ctype]['cseqs']]  # it might make more sense for this to use hamming fraction, since small families get perhaps too much credit for ties that end up as ambiguous characters, but whatever
         if debug:
             print '  %s    N sampled   hdist   ' % color('green', ctype, width=6)
             for n_sampled, cseq, hdist in zip(info[ctype]['n_sampled'], info[ctype]['cseqs'], info[ctype]['hdists']):
-                print '             %4d      %4d     %s' % (n_sampled, hdist, color_mutants(best_cseq, cseq, amino_acid=ctype=='aa'))
+                print '             %4d      %5.2f     %s' % (n_sampled, hdist, color_mutants(best_cseq, cseq, amino_acid=ctype=='aa'))
 
     return info
 
@@ -1097,11 +1098,12 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if len(ref_seq) != len(seq):
         raise Exception('unequal lengths in color_mutants()\n    %s\n    %s' % (ref_seq, seq))
 
-    tmp_ambigs = ambiguous_bases
-    tmp_gaps = gap_chars
     if amino_acid:
-        tmp_ambigs = []
+        tmp_ambigs = ambiguous_amino_acids
         tmp_gaps = []
+    else:
+        tmp_ambigs = ambiguous_bases
+        tmp_gaps = gap_chars
 
     return_str, isnps = [], []
     for inuke in range(len(seq)):  # would be nice to integrate this with hamming_distance()
@@ -2255,7 +2257,7 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
             return 0
 
     if amino_acid:
-        skip_chars = set(gap_chars)
+        skip_chars = set(ambiguous_amino_acids + gap_chars)
     else:
         skip_chars = set(ambiguous_bases + gap_chars)
 
@@ -2279,18 +2281,9 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
     else:
         return distance
 
-    # seems like it'd maybe be faster, but it's twice as slow:
-    # assert len(ambiguous_bases) == 1  # would just have to update the below if it's longer
-    # ambig_base = ambiguous_bases[0]
-    # if return_len_excluding_ambig:
-    #     spairs = [(ch1, ch2) for ch1, ch2 in zip(seq1, seq2) if ambig_base not in ch1 + ch2]
-    #     return sum(ch1 != ch2 for ch1, ch2 in spairs), len(spairs)
-    # else:
-    #     return sum(ch1 != ch2 for ch1, ch2 in zip(seq1, seq2) if ambig_base not in ch1 + ch2)
-
 # ----------------------------------------------------------------------------------------
-def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False):  # NOTE use hamming_distance() to get the positions (yeah, I should eventually add it here as well)
-    distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True)
+def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False, amino_acid=False):  # NOTE use hamming_distance() to get the positions (yeah, I should eventually add it here as well)
+    distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True, amino_acid=amino_acid)
 
     fraction = 0.
     if len_excluding_ambig > 0:
