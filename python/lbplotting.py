@@ -564,18 +564,16 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
     sorted_xvals = sorted(plotvals[xvar], reverse=xia)
     if xia:
         np_arr_sorted_xvals = numpy.asarray(sorted_xvals)  # the stats calls in the next two lines make this conversion, and it's way too slow to do for every x
-        corr_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in plotvals[xvar]]  # could speed this up by only using the best half of each list (since ptiles are starting at 50)
-        perf_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in sorted_xvals]
+        corr_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in plotvals[xvar]]  # x (e.g. affinity) percentile of each plot val (could speed this up by only using the best half of each list (since ptiles are starting at 50))
+        perf_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in sorted_xvals]  # x (e.g. affinity) percentile or each plot val, *after sorting by x* (e.g. affinity)
+# ----------------------------------------------------------------------------------------
+# TODO wait can't i just do this? (i think so, but i don't feel like thinking about it right now, and the only benefit would be a speed up, which I'm not feeling i really need right now)
+        assert perf_ptile_vals == sorted(corr_ptile_vals, reverse=True)
     for percentile in numpy.arange(*ptile_range_tuple):
         lb_ptile_val = numpy.percentile(plotvals[lb_metric], percentile)  # lb value corresponding to <percentile>
-        final_xvar_vals = [pt for lb, pt in zip(plotvals[lb_metric], corr_ptile_vals if xia else plotvals[xvar]) if lb > lb_ptile_val]  # percentiles (if xia, else plain xvals [i.e. N ancestors or branch length]) corresponding to lb greater than <lb_ptile_val> (i.e. the ptiles for the x vals that you'd get if you took all the lb values greater than that)
+        final_xvar_vals = [pt for lb, pt in zip(plotvals[lb_metric], corr_ptile_vals if xia else plotvals[xvar]) if lb >= lb_ptile_val]  # percentiles (if xia, else plain xvals [i.e. N ancestors or branch length]) corresponding to lb greater than <lb_ptile_val> (i.e. the ptiles for the x vals that you'd get if you took all the lb values greater than that)
         tmp_ptvals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
-        if len(final_xvar_vals) == 0:
-            if debug: print '   %5.0f    no vals' % percentile
-            mfcn = max if xia else min  # if xvar is affinity, we want the max value if we've run out of values, whereas if it's branch length or N ancestors we want the min
-            tmp_ptvals[xkey].append(mfcn(corr_ptile_vals if xia else plotvals[xvar]))  # kind of hackey, but I think ok (if the ptile is too high [e.g. ptile is 99 but there's only 10 values total] we just take 1
-            tmp_ptvals['perfect_vals'].append(mfcn(perf_ptile_vals if xia else sorted_xvals))
-            continue
+        assert len(final_xvar_vals) > 0  # this shouldn't need to be here, but I'm removing the old block that handled the length-zero case (because it had a bad bug), and i want to be absolutely certain it doesn't come up any more. (it was necessary because the above line [and below in dbg] were '>' rather than '>=')
         tmp_ptvals[xkey].append(float(numpy.mean(final_xvar_vals)))
 
         # make a "perfect" line using the actual x values, as opposed to just a straight line (this accounts better for, e.g. the case where the top N affinities are all the same)
@@ -584,7 +582,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
 
         if debug:
             if xia:  # now we have to get these if we want to print them, since we no longer calculate them otherwise
-                corr_xvals = [xv for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if lb > lb_ptile_val]  # x vals corresponding to lb greater than <lb_ptile_val> (i.e. the x vals that you'd get if you took all the lb values greater than that)
+                corr_xvals = [xv for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if lb >= lb_ptile_val]  # x vals corresponding to lb greater than <lb_ptile_val> (i.e. the x vals that you'd get if you took all the lb values greater than that)
             v1str = ('%8.4f' % numpy.mean(corr_xvals if xia else final_xvar_vals)) if xia else ''
             f1str = '5.0f' if xia else '6.2f'
             f2str = '5.0f' if xia else ('8.2f' if xvar == 'n-ancestor' else '8.6f')
