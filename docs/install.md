@@ -27,17 +27,18 @@ To then reattach to this running container, run `docker attach container-1`.
 
 #### Installation from scratch
 
-To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile) (ignoring the `FROM` line).
+To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile) (ignoring the `FROM` and `COPY` lines).
 If you're on a debian variant, run the apt-get install as written.
 On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/brew for apt-get.
 
 If you don't have conda installed, follow the full installation instructions [here](https://docs.anaconda.com/anaconda/install/).
-Any time you're using conda, it needs to be in your path, typically by `export PATH=<path_to_conda>:$PATH`.
+Any time you're using conda, it needs to be in your path, for example with `export PATH=<path_to_conda>:$PATH`.
+While conda typically works better, you can also install the python packages with pip (you should probably user the `--user` option).
 
-If you've used pip in the past, but you won't need it in the future, you should also completely remove `~/.local`.
+Because conda and pip do not play well with each other, if you've used pip in the past but are going to now use conda, and you won't need pip in the future, you should completely remove `~/.local`.
 If you might need pip in the future, you should expect some difficulty with having both conda and pip on the same system.
 In most cases you can prevent conda from finding the packages in `~/.local` (and consequently breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
-You may also need to `unset LD_LIBRARY_PATH`.
+You may also need to `unset LD_LIBRARY_PATH`. 
 
 Once conda is installed, run the rest of the commands in the Dockerfile whose lines are marked with `RUN` or `CMD`, except substitute the line `WORKDIR /partis` with `cd partis/`.
 

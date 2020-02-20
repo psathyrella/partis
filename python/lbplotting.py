@@ -10,6 +10,7 @@ import time
 import warnings
 import collections
 import itertools
+import math
 
 import utils
 from hist import Hist
@@ -936,9 +937,9 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, fnames=N
     plotvals = {val_type : {uid : l['tree-info']['lb'][lb_metric][uid] for l in lines for uid in l['unique_ids'] if uid in l['tree-info']['lb'][lb_metric]}  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
                 for val_type, lines in (('true', true_lines), ('inf', inf_lines))}
     common_uids = set(plotvals['true']) & set(plotvals['inf'])  # there should/may be a bunch of internal nodes in the simulation lines but not in the inferred lines, but otherwise they should have the same uids
-    # tmpvals = sorted([(u, plotvals['true'][u], plotvals['inf'][u]) for u in common_uids], key=lambda x: x[2] / x[1])
+    # tmpvals = sorted([(u, plotvals['true'][u], plotvals['inf'][u]) for u in common_uids], key=lambda x: x[2] / x[1] if x[1] != 0 else 0)
     # for x in tmpvals:
-    #     print ' %12s  %8.5f  %8.5f  %8.5f' % (x[0], x[2] / x[1], x[1], x[2])
+    #     print ' %12s  %8.5f  %8.5f  %8.5f' % (x[0], x[2] / x[1] if x[1] != 0 else 0, x[1], x[2])
     # sys.exit()
     plotvals = {val_type : [plotvals[val_type][uid] for uid in common_uids] for val_type in plotvals}
     plotname = '%s-true-vs-inferred' % lb_metric
@@ -947,6 +948,40 @@ def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, fnames=N
     add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
+def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=None, debug=False):  # n_total_bin_size: merge together everybody with family size that's this close to each other
+    csinfo = {}
+    for line in lines:
+        tmpfo = utils.get_cons_seq_accuracy_vs_n_sampled_seqs(line)
+        n_total = len(line['unique_ids'])
+        if n_total_bin_size is not None:
+            n_total = n_total - n_total % n_total_bin_size
+        if n_total not in csinfo:
+            csinfo[n_total] = []
+        csinfo[n_total].append(tmpfo)
+
+    ctypes = ['nuc', 'aa']
+    for ctype in ctypes:
+        fig, ax = plotting.mpl_init()
+        for n_total, subfos in csinfo.items():
+            all_n_sampleds = [sfo[ctype]['n_sampled'] for sfo in subfos]
+            # assert len(set(tuple(l) for l in all_n_sampleds)) == 1
+            n_sample_list = sorted(all_n_sampleds, key=len)[0]  # they should all be similar lengths, but some families can be a bit smaller, so will be missing the last few values, so just ignore those last few values
+            all_y_vals = [[sfo[ctype]['hdists'][i_n_sampled] for sfo in subfos] for i_n_sampled in range(len(n_sample_list))]
+            plotvals = {'xvals' : n_sample_list,
+                        'yvals' : [numpy.mean(all_y_vals[i_n_sampled]) for i_n_sampled in range(len(n_sample_list))],
+                        'yerrs' : [numpy.std(all_y_vals[i_n_sampled], ddof=1) / math.sqrt(len(all_y_vals[i_n_sampled])) for i_n_sampled in range(len(n_sample_list))],
+            }
+            label = str(n_total) if len(csinfo) > 1 else '%d-%d' % (min(len(l['unique_ids']) for l in lines), max(len(l['unique_ids']) for l in lines))
+            ax.errorbar(plotvals['xvals'], plotvals['yvals'], yerr=plotvals['yerrs'], label=label, alpha=0.7, linewidth=4, markersize=15, marker='.')
+        metric = 'cons-dist-' + ctype
+        def ctypetitle(ct):
+            return ct.upper() if ct == 'aa' else ct + '.'
+        fn = plotting.mpl_finish(ax, baseplotdir + '/' + metric, '%s-accuracy' % metric,
+                                 xticks=n_sample_list, xticklabels=[str(x) for x in n_sample_list],
+                                 xlabel='N sampled', ylabel='hamming dist. to\nfull-family cons seq', title='%s cons. seq accuracy'%ctypetitle(ctype),
+                                 leg_title='N total', leg_loc=[0.7, 0.6], log='x')
+        add_fn(fnames, fn=fn)
+
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
