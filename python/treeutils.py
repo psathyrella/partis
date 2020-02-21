@@ -1255,7 +1255,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_overlap_fraction=0.5, debug=False):
+def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_overlap_fraction=0.5, only_plot_uids_with_affinity_info=False, glfo=None, debug=False):
     # collect inferred and true events
     inf_lines_to_use, true_lines_to_use = None, None
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
@@ -1291,6 +1291,18 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
             inf_lines_to_use.append(annotations[ustr_to_use])
     else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
         inf_lines_to_use = annotations.values()  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
+        if only_plot_uids_with_affinity_info:
+            assert False  # should work fine as is, but needs to be checked and integrated with things
+            tmplines = []
+            for line in inf_lines_to_use:
+                iseqs_to_keep = [i for i, a in enumerate(line['affinities']) if a is not None]
+                if len(iseqs_to_keep) == 0:
+                    continue
+                print '  keeping %d/%d' % (len(iseqs_to_keep), len(line['unique_ids']))
+                new_line = copy.deepcopy(line)  # *really* don't want to modify the annotations from partitiondriver
+                utils.restrict_to_iseqs(new_line, iseqs_to_keep, glfo)
+                tmplines.append(new_line)
+            inf_lines_to_use = tmplines
         if reco_info is not None:
             for line in inf_lines_to_use:
                 true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], reco_info)
@@ -1437,7 +1449,7 @@ def check_lb_values(line, lbvals):
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, true_lines_to_use=None, include_relative_affy_plots=False, cluster_indices=None, outfname=None, debug=False):
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, true_lines_to_use=None, include_relative_affy_plots=False, cluster_indices=None, outfname=None, glfo=None, debug=False):
     print 'getting selection metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1453,7 +1465,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
         assert reco_info is None
         inf_lines_to_use = None
     else:  # called from python/partitiondriver.py
-        inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters)  # NOTE these continue to be modified (by removing clusters we don't want) further down, and then they get passed to the plotting functions
+        inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, glfo=glfo)  # NOTE these continue to be modified (by removing clusters we don't want) further down, and then they get passed to the plotting functions
 
     # get tree and calculate metrics for inferred lines
     if inf_lines_to_use is not None:
