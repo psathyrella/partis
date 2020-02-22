@@ -316,7 +316,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             assert isinstance(args.pvks_to_plot, list)  # don't really need this
             for il in range(len(tmplist)):
                 subpvks = [pvk.split('; ')[il] for pvk in args.pvks_to_plot]
-                tmplist[il] += ': %s' % ' '.join(lbplotting.metric_for_target_distance_labels.get(spvk, spvk) for spvk in subpvks)
+                tmplist[il] += ': %s' % ' '.join(legtexts.get(spvk, spvk) for spvk in subpvks)
         lstr = jstr.join(tmplist)
         return lstr
 
