@@ -747,7 +747,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
 
     if not only_csv:
         if sum(len(l['unique_ids']) for l in lines) < max_scatter_plot_size:
-            make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist',
+            make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist' if is_true_line else None,
                                   only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, add_jitter=is_true_line, use_relative_affy='relative' in affy_key)  # there's some code duplication between these two fcns, but oh well
             if make_distribution_plots:
                 plot_lb_distributions(lb_metric, baseplotdir, lines, fnames=fnames, is_true_line=is_true_line, only_overall=True)

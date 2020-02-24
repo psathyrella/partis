@@ -306,7 +306,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         'obs-times' : 't obs',
         'carry-cap' : 'carry cap',
     }
-    legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme', 'target-count' : 'N target seqs', 'n-target-clusters' : 'N target clust.', 'uniform-random' : 'unif. random', 'affinity-biased' : 'high affinity', 'high-affinity' : 'perf. affinity'}
+    legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme', 'target-count' : 'N target seqs', 'n-target-clusters' : 'N target clust.', 'uniform-random' : 'unif. random', 'affinity-biased' : 'affinity biased', 'high-affinity' : 'perf. affinity'}
     legtexts.update(lbplotting.metric_for_target_distance_labels)
     def legstr(label, title=False):
         if label is None: return None
