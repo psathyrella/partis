@@ -94,6 +94,8 @@ class AlleleClusterer(object):
             for query in cluster:
                 self.all_j_mutations[query] = j_mutations[query]  # I don't think I can key by the cluster str, since here things correspond to the naive-seq-collapsed clusters, then we remove some of the clusters, and then cluster with vsearch
         print '   collapsed %d input sequences into %d representatives from %d clones (removed %d clones with >= %d j mutations)' % (len(full_length_queries), len(qr_seqs), len(clusters), len(clusters) - len(qr_seqs), self.max_mutations['j'])
+        if len(qr_seqs) == 0:
+            return None, None
 
         self.gene_info = {q : swfo[q][self.region + '_gene'] for q in qr_seqs}  # assigned gene for the clonal representative from each cluster that we used (i.e. *not* from every sequence in the sample)
         self.mfreqs = {  # NOTE only includes cluster representatives, i.e. it's biased towards sequences with low overall mutation, and low j mutation
