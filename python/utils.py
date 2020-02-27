@@ -3486,6 +3486,20 @@ def get_cluster_ids(uids, partition):
     return clids
 
 # ----------------------------------------------------------------------------------------
+# return a new list of partitions that has no duplicate uids (choice as to which cluster gets to keep a duplicate id is entirely random [well, it's the first one that has it, so not uniform random, but you can't specify it])
+def get_deduplicated_partitions(partitions):  # not using this atm since i wrote it for use in clusterpath, but then ended up not needing it
+    new_partitions = [[] for _ in partitions]
+    for ipart in range(len(partitions)):
+        previously_encountered_uids = set()
+        for cluster in partitions[ipart]:
+            new_cluster = copy.deepcopy(cluster)  # need to make sure not to modify the existing partitions
+            new_cluster = list(set(new_cluster) - previously_encountered_uids)  # remove any uids that were in previous clusters (note that this will, of course, change the order of uids)
+            previously_encountered_uids |= set(new_cluster)
+            if len(new_cluster) > 0:
+                new_partitions[ipart].append(new_cluster)
+    return new_partitions
+
+# ----------------------------------------------------------------------------------------
 def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None, debug=False):
     if seed_unique_id is None:
         check_intersection_and_complement(partition, true_partition)
