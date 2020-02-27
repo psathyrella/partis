@@ -1023,9 +1023,10 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
             cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style)]
 
-    start = time.time()
-    utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=10, proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
-    print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
+    if len(cmdfos) > 0:
+        start = time.time()
+        utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=10, proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
+        print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
 
     os.rmdir(workdir)
 
