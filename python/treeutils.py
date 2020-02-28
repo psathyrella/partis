@@ -1366,7 +1366,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
             # lbplotting.plot_lb_distributions('lbi', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             # lbplotting.plot_lb_distributions('lbr', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             if ete_path is not None:
-                lbplotting.plot_lb_trees(lb_metrics.keys(), true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
+                lbplotting.plot_lb_trees(['lbi', 'lbr', 'cons-dist-aa'], true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
             # for lb_metric in lb_metrics:
             #     lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, inf_lines_to_use, lb_metric, fnames=fnames)
             # lbplotting.plot_cons_seq_accuracy(true_plotdir, true_lines_to_use, fnames=fnames)
