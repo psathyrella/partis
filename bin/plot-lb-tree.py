@@ -46,7 +46,7 @@ simu_colors = OrderedDict((
 ))
 def get_scale_min(metric, vals):  # only make the color scale go down to here
     if metric == 'cons-dist-aa':
-        return max(vals) - 6
+        return max(vals) - 10
     else:
         return min(vals)
 
