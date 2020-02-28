@@ -65,14 +65,14 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
     return new_cmap
 
 # ----------------------------------------------------------------------------------------
-def get_normalized_cmap_and_norm(vals, cmap=None, remove_top_end=False):
+def get_normalized_cmap_and_norm(vals, cmap=None, remove_top_end=False, hard_min=None):
     if cmap is None:
         cmap = plt.cm.Blues  # 'Blues'
     if len(vals) == 0:
         print '  %s zero values passed to get_normalized_cmap_and_norm' % utils.color('yellow', 'warning')
         vals = [0.]
     sorted_vals = sorted(vals)
-    vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0])  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
+    vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0]) if hard_min is None else hard_min  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
     vmax = sorted_vals[-1]
     if remove_top_end:  # remove the top end of the color spectrum (at least when I'm adding this, it's because the Reds and Blues top color is way too close to black [and I can't set opacity on lines in ete3, which would also fix it])
         vmax = vmax + 0.3 * (vmax - vmin)
@@ -80,8 +80,8 @@ def get_normalized_cmap_and_norm(vals, cmap=None, remove_top_end=False):
     return cmap, norm
 
 # ----------------------------------------------------------------------------------------
-def get_normalized_scalar_map(vals, cmap=None, remove_top_end=False):
-    cmap, norm = get_normalized_cmap_and_norm(vals, cmap=cmap, remove_top_end=remove_top_end)
+def get_normalized_scalar_map(vals, cmap=None, remove_top_end=False, hard_min=None):
+    cmap, norm = get_normalized_cmap_and_norm(vals, cmap=cmap, remove_top_end=remove_top_end, hard_min=hard_min)
     scalarMap = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
     return scalarMap
 

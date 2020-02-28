@@ -44,7 +44,11 @@ simu_colors = OrderedDict((
     ('missing', '#d77c7c'),
     ('spurious', '#a44949'),
 ))
-
+def get_scale_min(metric, vals):  # only make the color scale go down to here
+    if metric == 'cons-dist-aa':
+        return max(vals) - 6
+    else:
+        return min(vals)
 
 # ----------------------------------------------------------------------------------------
 def read_input(args):
@@ -82,7 +86,7 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         return
     assert add_sign in [None, '-', '+']
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
-    min_val, max_val = min(all_vals), max(all_vals)
+    min_val, max_val = get_scale_min(args.lb_metric, all_vals), max(all_vals)
     if min_val == max_val:
         return
     max_diff = (max_val - min_val) / float(n_entries - 1)
@@ -113,7 +117,7 @@ def set_meta_styles(args, etree, tstyle):
     lbvals = lbfo.values()
     if len(lbvals) == 0:
         return
-    lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis')
+    lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis', hard_min=get_scale_min(args.lb_metric, lbvals) if args.lb_metric=='cons-dist-aa' else None)
     lb_min, lb_max = min(lbvals), max(lbvals)
 
     affyfo = None
@@ -189,7 +193,7 @@ def plot_trees(args):
     tstyle = ete3.TreeStyle()
     tstyle.mode = args.tree_style[0]
     # tstyle.show_scale = False
-    # tstyle.scale_length = args.lb_tau
+    tstyle.scale_length = 1. / treeutils.typical_bcr_seq_len
     # tstyle.show_branch_length = True
     # tstyle.complete_branch_lines_when_necessary = True
 
@@ -218,6 +222,7 @@ args = parser.parse_args()
 sys.path.insert(1, args.partis_dir + '/python')
 try:
     import utils
+    import treeutils
     import glutils
     import plotting
 except ImportError as e:
