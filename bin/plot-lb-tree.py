@@ -107,7 +107,8 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         if not no_opacity:
             rface.opacity = opacity
         tstyle.legend.add_face(rface, column=start_column + 1)
-        tstyle.legend.add_face(ete3.TextFace(('  %s%.4f' % (add_sign if add_sign is not None else '', math.exp(val) if reverse_log else val)) if key is None else '  missing', fsize=fsize), column=start_column + 2)
+        fstr = '%.1f' if args.lb_metric == 'cons-dist-aa' else '%.2f'
+        tstyle.legend.add_face(ete3.TextFace((('  %s'+fstr) % (add_sign if add_sign is not None else '', math.exp(val) if reverse_log else val)) if key is None else '  missing', fsize=fsize), column=start_column + 2)
 
 # ----------------------------------------------------------------------------------------
 def set_meta_styles(args, etree, tstyle):
