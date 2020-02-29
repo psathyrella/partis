@@ -165,6 +165,9 @@ def set_meta_styles(args, etree, tstyle):
                     node.img_style['hz_line_width'] = 1.2
                 else:
                     node.img_style['hz_line_color'] = plotting.getgrey()
+        if args.queries_to_include is not None and node.name in args.queries_to_include:
+            tface = ete3.TextFace(node.name, fsize=3, fgcolor='red')
+            node.add_face(tface, column=0)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
@@ -215,6 +218,7 @@ parser.add_argument('--lb-metric', default='lbi', choices=affy_metrics+delta_aff
 parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'relative_affinity'])
 # parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--metafname')
+parser.add_argument('--queries-to-include')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
@@ -230,6 +234,7 @@ except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 
+args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 args.metafo = None
 if args.metafname is not None:
     with open(args.metafname) as metafile:

@@ -1314,7 +1314,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
     return inf_lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, debug=False):
+def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, queries_to_include=None, debug=False):
     import plotting
     import lbplotting
     start = time.time()
@@ -1337,7 +1337,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
             lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8)
             lbplotting.plot_lb_distributions('lbr', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
             if ete_path is not None:
-                lbplotting.plot_lb_trees(['lbi', 'lbr', 'cons-dist-aa'], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False)
+                lbplotting.plot_lb_trees(['lbi', 'lbr', 'cons-dist-aa'], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
             subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
             plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
@@ -1453,7 +1453,7 @@ def check_lb_values(line, lbvals):
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
                            dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, true_lines_to_use=None, include_relative_affy_plots=False,
-                           cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, debug=False):
+                           cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, debug=False):
     print 'getting selection metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1568,7 +1568,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             print '      dtr plotting time %.1fs' % (time.time() - plstart)
     elif base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, debug=debug)
+        plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, queries_to_include=queries_to_include, debug=debug)
 
     if outfname is not None:
         print '  writing selection metrics to %s' % outfname
