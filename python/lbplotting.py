@@ -58,7 +58,7 @@ def mean_of_top_quintile(vals):  # yeah, yeah could name it xtile and have anoth
     frac = 0.2  # i.e. top quintile
     n_to_take = int(frac * len(vals))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which causes bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
     return numpy.mean(sorted(vals)[len(vals) - n_to_take:])
-mean_max_metrics = ['lbi', 'lbr', 'shm', 'lbi-cons'] + treeutils.dtr_metrics
+mean_max_metrics = ['lbi', 'lbr', 'shm', 'lbi-cons-aa', 'lbi-cons-nuc'] + treeutils.dtr_metrics
 cluster_summary_cfg = collections.OrderedDict()
 for k in mean_max_metrics:
     cluster_summary_cfg[k] = meanmaxfcns()
@@ -73,7 +73,7 @@ def getptvar(xvar): return xvar if xvar == 'affinity' else 'n-ancestor'  # NOTE 
 def ungetptvar(xvar): return xvar if xvar == 'affinity' else 'delta-affinity'  # ok this name sucks, and these two functions are anyway shitty hacks
 def ungetptlabel(xvar): return xvar if xvar == 'affinity' else 'affinity change'
 
-per_seq_metrics = ['lbi', 'lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons'] + treeutils.dtr_metrics
+per_seq_metrics = ['lbi', 'lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons-aa', 'lbi-cons-nuc'] + treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
 mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
                            'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'in-family dtr', 'within-families-delta-affinity-dtr' : 'in-family dtr', 'among-families-affinity-dtr' : 'among-families dtr', 'among-families-delta-affinity-dtr' : 'among-families dtr'},

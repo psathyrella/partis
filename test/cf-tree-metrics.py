@@ -18,7 +18,7 @@ linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
 def metric_color(metric):  # as a fcn to avoid import if we're not plotting
     mstrlist = ['shm:lbi:cons-dist-aa:cons-dist-nuc:dtr', 'delta-lbi:lbr:dtr']
     metric_colors = {m : plotting.frozen_pltcolors[i % len(plotting.frozen_pltcolors)] for mstrs in mstrlist for i, m in enumerate(mstrs.split(':'))}
-    return metric_colors[metric]
+    return metric_colors.get(metric, 'red')
 
 # ----------------------------------------------------------------------------------------
 def ura_vals(xvar):  # list of whether we're using relative affinity values
@@ -787,7 +787,7 @@ parser.add_argument('--metric-for-target-distance-list', default='aa')  # it wou
 parser.add_argument('--leaf-sampling-scheme-list', default='uniform-random')
 parser.add_argument('--target-count-list', default='1')
 parser.add_argument('--n-target-clusters-list')  # NOTE do *not* set a default here, since in bcr-phylo simulator.py the default is None
-parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
+parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons-aa', 'lbi-cons-nuc', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')

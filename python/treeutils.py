@@ -1768,15 +1768,16 @@ def calculate_non_lb_tree_metrics(metric_method, annotations, base_plotdir=None,
                     continue  # maybe I should add it as something? not sure
                 delta_lbfo[uid] = lbfo['lbi'][uid] - lbfo['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
             line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
-        elif metric_method == 'lbi-cons':  # it would be nice to not calculate lbi here UPDATE eh, who cares, this doesn't perform well, so it's not really going to be used
-            dtree, lbfo = get_combo_lbfo(['cons-dist-nuc', 'lbi'], iclust, line, lb_tau=lb_tau)
+        elif 'lbi-cons' in metric_method:  # it would be nice to not calculate lbi here UPDATE eh, who cares, this doesn't perform well, so it's not really going to be used
+            cdkey = 'cons-dist-nuc' if '-nuc' in metric_method else 'cons-dist-aa'
+            dtree, lbfo = get_combo_lbfo([cdkey, 'lbi'], iclust, line, lb_tau=lb_tau)
             for lbm in lbfo:  # normalize to z score
                 lbfo[lbm] = {u : z for u, z in zip(line['unique_ids'], utils.get_z_scores([lbfo[lbm][u] for u in line['unique_ids']]))}
             edge_dists = [edge_dist_fcn(dtree, u) for u in line['unique_ids']]
             edmin, edmax = min(edge_dists), max(edge_dists)
             def zcombo(u):
                 weight = utils.intexterpolate(edmin, 0., edmax, 1., edge_dist_fcn(dtree, u))
-                return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo['cons-dist-nuc'][u]) / math.sqrt(2)
+                return (weight * lbfo['lbi'][u] + (1. - weight) * lbfo[cdkey][u]) / math.sqrt(2)
             line['tree-info'] = {'lb' : {metric_method : {u : zcombo(u) for u in line['unique_ids']}}}
         else:
             assert False
