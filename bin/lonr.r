@@ -9,6 +9,8 @@
 #    - this is "handled" by the "affected by descendents" flag, but that doesn't solve the problem, it just alerts you to lineages where there's more likely to be a problem
 #    - it would be much better to use an lbi-style weighting that decreases contributions as they get further away
 #  - ignores pairs of sibling edges in which both edges have mutations, i.e. it can throw out a large fraction of mutations in cases where most branches have mutations
+#  - ignores branches with no siblings
+#  - ignores branches with multiple mutations
 # notes
 #  - number of offspring for a node is set as the number of edges in the entire subtree below that node
 
