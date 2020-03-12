@@ -864,7 +864,7 @@ class PartitionDriver(object):
             os.remove(self.hmm_infname)
         self.current_action = action_cache
 
-        if self.args.plotdir is not None:
+        if self.args.plotdir is not None and not self.args.no_partition_plots:
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=all_annotations, reco_info=self.reco_info, cpath=cpath)
 
