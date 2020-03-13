@@ -220,7 +220,7 @@ parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'rela
 parser.add_argument('--metafname')
 parser.add_argument('--queries-to-include')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
-parser.add_argument('--partis-dir', default=utils.get_partis_dir(), help='path to main partis install dir')
+parser.add_argument('--partis-dir', default=os.path.dirname(os.path.realpath(__file__)).replace('/bin', ''), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
 args = parser.parse_args()
 
