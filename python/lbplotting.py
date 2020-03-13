@@ -988,7 +988,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         os.makedirs(subworkdir)
     with open(treefname, 'w') as treefile:
         treefile.write(treestr)
-    cmdstr = './bin/plot-lb-tree.py --treefname %s' % treefname
+    cmdstr = '%s/bin/plot-lb-tree.py --treefname %s' % (utils.get_partis_dir(), treefname)
     if metafo is not None:
         with open(metafname, 'w') as metafile:
             yaml.dump(metafo, metafile)

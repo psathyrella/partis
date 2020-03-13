@@ -30,6 +30,10 @@ import clusterpath
 import treeutils
 
 # ----------------------------------------------------------------------------------------
+def get_partis_dir():
+    return os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
+
+# ----------------------------------------------------------------------------------------
 def fsdir():
     fsdir = '/fh/fast/matsen_e'
     if not os.path.exists(fsdir):
@@ -2964,7 +2968,7 @@ def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None, dryr
         tmpdir = choose_random_subdir('/tmp/xvfb-run', make_dir=True)
     cmd = 'export TMPDIR=%s' % tmpdir
     cmd += ' && export PATH=%s:$PATH' % ete_path
-    cmd += ' && ./bin/xvfb-run -a python%s %s' % (prof_cmds, sub_cmd)
+    cmd += ' && %s/bin/xvfb-run -a python%s %s' % (get_partis_dir(), prof_cmds, sub_cmd)
     if return_for_cmdfos:
         return cmd, tmpdir
     else:
