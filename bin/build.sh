@@ -1,7 +1,7 @@
 echo -e "\n--> running $0"
 set -eu
 
-if [ -f /.dockerenv ]; then  # if we're in docker
+if [ -f /.dockerenv ]; then  # if we're in docker TODO this file may go away in the future, so it'd probably be better to switch to the "grep docker /proc/1/cgroup" method
     basedir=/partis
 else
     basedir=$PWD
