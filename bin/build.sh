@@ -1,7 +1,7 @@
 echo -e "\n--> running $0"
 set -eu
 
-if [ -f /.dockerinit ]; then  # if we're in docker
+if [ -f /.dockerenv ]; then  # if we're in docker
     basedir=/partis
 else
     basedir=$PWD
