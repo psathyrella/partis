@@ -212,16 +212,18 @@ There is, however, a wealth of information that can be used to get a good sense 
 
 Note that in order to run simulation, you have to have R installed, along with several [extra packages](install.md#simulation).
 
-In the simplest simulation mode, partis mimics the characteristics of a particular template data sample as closely as possible: germline set, gene usage frequencies, insertion and deletion lengths, somatic hypermutation rates and per-position dependencies, etc. (as well as the correlations between these).
-This mode uses the previously-inferred parameters from that sample, located in `--parameter-dir`.
-By default, for instance, if a sample at the path `/path/to/sample.fa` was previously partitioned, the parameters would have been written to `_output/_path_to_sample/`.
+There are two simulation modes (as well as options below for running hybrids between the two):
+  1. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `./bin/partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
+  2. you pass it an inferred parameter directory (`--parameter-dir`) and it mimics the data sample from which those parameters were inferred
+
+If you did not specify a parameter directory during inference, then by default if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`.
 You could thus write the mature sequences resulting from three simulated rearrangement events to the file `simu.yaml` by running
 
 ```partis simulate --parameter-dir _output/_path_to_sample --outfname simu.yaml --n-sim-events 3 --debug 1```,
 
 where `--debug 1` prints to stdout what the rearrangement events look like as they're being made.
 The resulting output file follows regular output [format](output-formats.md), with an additional column `reco_id` to identify clonal families (it's a hash of the rearrangement parameters).
-When subsequently running inference on simulation, you typically want to pass the `--is-simu` option.
+When subsequently running inference on this simulation, you typically want to pass the `--is-simu` option.
 During parameter caching, this will write a separate parameter directory with the true parameters (in a addition to `sw/` and `hmm/`).
 During annotation and partitioning, with `--debug 1` it will print the true rearrangements and partitions along with the inferred ones.
 
