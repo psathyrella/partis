@@ -214,10 +214,10 @@ Note that in order to run simulation, you have to have R installed, along with s
 
 There are two simulation modes (as well as options below for running hybrids between the two):
   1. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `./bin/partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
-  2. you pass it an inferred parameter directory (`--parameter-dir`) and it mimics the data sample from which those parameters were inferred
+  2. you pass it an inferred parameter directory with `--parameter-dir` and it mimics the data sample from which those parameters were inferred
 
 If you did not specify a parameter directory during inference, then by default if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`.
-You could thus write the mature sequences resulting from three simulated rearrangement events to the file `simu.yaml` by running
+You could thus for instance simulate based on this parameter dir with:
 
 ```partis simulate --parameter-dir _output/_path_to_sample --outfname simu.yaml --n-sim-events 3 --debug 1```,
 
