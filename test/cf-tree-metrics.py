@@ -675,14 +675,14 @@ def run_bcr_phylo(args):  # also caches parameters
         cmd = './bin/bcr-phylo-run.py --actions %s --dont-get-tree-metrics --base-outdir %s %s' % (args.bcr_phylo_actions, outdir, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
             cmd += ' --%s %s' % (vname, vstr)
+            if 'context' in vname:
+                cmd += ' --restrict-available-genes'
         if args.parameter_variances is not None:
             cmd += ' --parameter-variances %s' % args.parameter_variances  # we don't parse through this at all here, which means it's the same for all combos of variables (which I think makes sense -- we probably don't even really want to vary most variables if this is set)
         if args.n_sim_events_per_proc is not None:
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
         if args.dont_observe_common_ancestors:
             cmd += ' --dont-observe-common-ancestors'
-        if args.context_depend:
-            cmd += ' --context-depend'
         if args.overwrite:
             cmd += ' --overwrite'
         if args.only_csv_plots:
@@ -789,7 +789,7 @@ parser.add_argument('--metric-for-target-distance-list', default='aa')  # it wou
 parser.add_argument('--leaf-sampling-scheme-list', default='uniform-random')
 parser.add_argument('--target-count-list', default='1')
 parser.add_argument('--n-target-clusters-list')  # NOTE do *not* set a default here, since in bcr-phylo simulator.py the default is None
-parser.add_argument('--context-depend', action='store_true')
+parser.add_argument('--context-depend-list')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons-aa', 'lbi-cons-nuc', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
@@ -834,7 +834,7 @@ parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lb
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
-args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters'],}
+args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'context-depend'],}
 args.scan_vars['get-tree-metrics'] = args.scan_vars['simu'] + ['lb-tau']
 
 sys.path.insert(1, args.partis_dir + '/python')
@@ -857,6 +857,7 @@ args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target
 args.leaf_sampling_scheme_list = utils.get_arg_list(args.leaf_sampling_scheme_list, forbid_duplicates=True, choices=['uniform-random', 'affinity-biased', 'high-affinity'])  # WARNING 'high-affinity' gets called 'perfect' in the legends and 'affinity-biased' gets called 'high affinity'
 args.target_count_list = utils.get_arg_list(args.target_count_list, forbid_duplicates=True)
 args.n_target_clusters_list = utils.get_arg_list(args.n_target_clusters_list, forbid_duplicates=True)
+args.context_depend_list = utils.get_arg_list(args.context_depend_list, forbid_duplicates=True)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:

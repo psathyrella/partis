@@ -43,6 +43,8 @@ def rearrange():
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
     cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, naive_fname(), args.n_sim_events)
+    if args.restrict_available_genes:
+        cmd += ' --only-genes IGHV1-18*01:IGHJ1*01'
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
@@ -110,7 +112,7 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
 
     cmd += ' --debug %d' % args.debug
     cmd += ' --n_tries 1000'
-    if not args.context_depend:
+    if args.context_depend == 0:
         cmd += ' --no_context'
     cmd += ' --no_plot'
     if args.only_csv_plots:
@@ -219,9 +221,10 @@ def simulate():
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
         cfo = run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list), uid_str_len=uid_str_len)  # if n_procs > 1, doesn't run, just returns cfo
         if cfo is not None:
+            print '      %s %s' % (utils.color('red', 'run'), cfo['cmd_str'])
             cmdfos.append(cfo)
     if args.n_procs > 1 and len(cmdfos) > 0:
-        utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None, allow_failure=True)
+        utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None, allow_failure=True, debug='print')
     print '  bcr-phylo run time: %.1fs' % (time.time() - start)
 
     if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
@@ -299,7 +302,8 @@ parser.add_argument('--n-target-clusters', type=int, help='number of cluster int
 parser.add_argument('--branching-parameter', type=float, default=2., help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
-parser.add_argument('--context-depend', action='store_true')
+parser.add_argument('--context-depend', type=int, default=0, choices=[0, 1])  # i wish this could be a boolean, but having it int makes it much much easier to interface with the scan infrastructure in cf-tree-metrics.py
+parser.add_argument('--restrict-available-genes', action='store_true', help='restrict v and j gene choice to one each (so context dependence is easier to plot)')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')
