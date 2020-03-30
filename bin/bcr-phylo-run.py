@@ -110,7 +110,8 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
 
     cmd += ' --debug %d' % args.debug
     cmd += ' --n_tries 1000'
-    cmd += ' --no_context'
+    if not args.context_depend:
+        cmd += ' --no_context'
     cmd += ' --no_plot'
     if args.only_csv_plots:
         cmd += ' --dont_write_hists'
@@ -298,6 +299,7 @@ parser.add_argument('--n-target-clusters', type=int, help='number of cluster int
 parser.add_argument('--branching-parameter', type=float, default=2., help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
+parser.add_argument('--context-depend', action='store_true')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')

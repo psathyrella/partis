@@ -681,6 +681,8 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
         if args.dont_observe_common_ancestors:
             cmd += ' --dont-observe-common-ancestors'
+        if args.context_depend:
+            cmd += ' --context-depend'
         if args.overwrite:
             cmd += ' --overwrite'
         if args.only_csv_plots:
@@ -787,6 +789,7 @@ parser.add_argument('--metric-for-target-distance-list', default='aa')  # it wou
 parser.add_argument('--leaf-sampling-scheme-list', default='uniform-random')
 parser.add_argument('--target-count-list', default='1')
 parser.add_argument('--n-target-clusters-list')  # NOTE do *not* set a default here, since in bcr-phylo simulator.py the default is None
+parser.add_argument('--context-depend', action='store_true')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons-aa', 'lbi-cons-nuc', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
