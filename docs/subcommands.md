@@ -119,7 +119,7 @@ The columns are:
   * total number of cluster merges that have so far been performed, broken down into hamming fraction merges and likelihood ratio (i.e. forward calculation) merges
   * a list of all cluster sizes in the current partition
 
-### get-selection-metrics (and `--get-selection-metrics` option to other actions)
+### get-selection-metrics
 
 Calculate quantities for prediction of fitness/affinity.
 At the moment these are by default AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr).
