@@ -136,15 +136,16 @@ It is then refined by replacing any subtrees stemming from large multifurcations
 If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
 This will make a tree for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc., or restricted with --cluster-index.
 
-If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](http://www.olmstedviz.org/).
+If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](https://github.com/matsengrp/olmsted/).
 
 ### view-output
 
 To print the partitions and/or annotations in an existing output file, run
 
 ``` 
-partis view-output --outfname _output/example.yaml
+partis view-output --outfname _output/example.yaml | less -RS
 ```
+You can also send std out to a log file `>log.txt` instead of piping to `less -RS`.
 
 ### cache-parameters
 

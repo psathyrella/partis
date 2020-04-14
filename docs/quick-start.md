@@ -1,8 +1,8 @@
 ### Quick start
 
 There are a lot of different partis [subcommands](subcommands.md), but probably the first thing you want to do is run `partition` on a fasta input file `/path/to/yourseqs.fa`.
-This groups the sequences into clonal families and then annotates each family (with V gene, naive sequence, etc).
-Assuming you don't pass it a parameter dir, it will first infer parameters, including germline inference.
+This will group the sequences into clonal families, and then annotate each family with V gene, naive sequence, etc.
+Assuming you don't pass it a parameter dir, it will also first infer parameters, including germline inference.
 
 ```/path/to/<partis_dir>/bin/partis partition --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.yaml```.
 
@@ -22,10 +22,10 @@ The output of these should usually be viewed with `less -RS` either directly by 
 
 For details on the large number of available partition options, run `partis partition --help`.
 
-A variety of overview plots will be written to disk if you set `--plotdir <plotdir`. Details on their content can be found [here](plotting.md).
+A variety of overview plots will be written to disk if you set `--plotdir <plotdir>`. Details on their content can be found [here](plotting.md).
 
 If it's taking too long, or using too much memory, try the suggestions [here](subcommands.md#partition), [here](parallel.md) and [here](https://groups.google.com/forum/#!topic/partis/1IEfLapbStw).
 
 After you've partitioned your sample, you might want to view an ascii-art representation of the resulting clusters and annotations with [view-output](subcommands.md#view-output), or calculate selection metrics to predict affinity with [get-selection-metrics](subcommands.md#get-selection-metrics).
 You might also want to use the [linearham](https://github.com/matsengrp/linearham/) package for accurate Bayesian infererence of trees and naive sequences.
-And for rich, browser-based visualization of families, trees, and annotations we recommend [Olmsted](http://www.olmstedviz.org/).
+And for rich, browser-based visualization of families, trees, and annotations we recommend [Olmsted](https://github.com/matsengrp/olmsted/).
