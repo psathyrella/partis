@@ -1,5 +1,6 @@
   - [annotate](#annotate) find most likely annotation for each sequence
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
+  - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
   - [view-output](#view-output) print the partitions and/or annotations from an existing output file
   - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, runs automatically before annotation and partitioning)
     - [germline sets](#germline-sets)
@@ -62,20 +63,6 @@ Because these optimizations (like any purely distance-based approach) know nothi
 This is nevertheless a thoroughly reasonably way to get a rough idea of the lineage structure of your sample.
 After running vsearch clustering, you can always pass families of interest (e.g. with `--seed-unique-id`) to the more accurate clustering method.
 
-##### `--get-selection-metrics` option and `get-selection-metrics` action
-
-Calculate quantities for prediction of BCR fitness/affinity.
-At the moment these are by default local branching index and ratio (lbi and lbr), and AA distance to clonal family consensus sequence.
-Constructs a phylogenetic tree and uses it to calculate lbi and lbr for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc., or restricted with --cluster-index.
-Since we want this to be fast enough to run on all the families in a large repertoire, this uses a fairly heuristic approach to calculating trees.
-If this is run in the context of partitioning (so there's a clustering path available from hierarchical agglomeration), then that clustering path is used as the starting point for the tree.
-It is then refined by replacing any subtrees stemming from large multifurcations with a subtree inferred using FastTree (for instance, the first clustering step is to merge all sequences with similar inferred naive sequences, which results in such subtrees).
-If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
-If you'd like a more accurate tree, you can infer it separately using your program of choice, and pass it as a newick file to `get-selection-metrics` using `--treefname`.
-This more accurate approach is highly recommended if you care very much about the accuracy of the tree-based metrics, although the default approach is fine for getting a general sense of the data.
-
-If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](http://www.olmstedviz.org/).
-
 ##### ignore smaller clusters
 
 If you're mostly interested in larger clonal families, you can tell it to cluster as normal for several partitition steps, then discard smaller families (for a description of partition steps, see the paper). Any large families will have accumulated appreciable size within the first few partition steps, and since most real repertoires are dominated by smaller clusters, this will dramatically decrease the remaining sample size. This is turned on by setting `--small-clusters-to-ignore <sizes>`, where `<sizes>` is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or an inclusive range of sizes (e.g. `1-10`). The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters <n>` (default 3).
@@ -131,6 +118,24 @@ The columns are:
   * total number of viterbi, forward, and naive hamming fraction calculations that have so far been made
   * total number of cluster merges that have so far been performed, broken down into hamming fraction merges and likelihood ratio (i.e. forward calculation) merges
   * a list of all cluster sizes in the current partition
+
+### get-selection-metrics (and `--get-selection-metrics` option to other actions)
+
+Calculate quantities for prediction of fitness/affinity.
+At the moment these are by default AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr).
+aa-cdist is an excellent predictor of an antibody's affinity for an antigen, but it has no information about what that antigen is, so it should be paired with some method using non-sequence information, such as vaccination or cell sorting (see selection metric paper).
+Given an antibody of interest and its inferred ancestral lineage (you should infer its ancestors separately with e.g. linearham or raxml) lbr is an excellent predictor of which branches between those ancestors are likely to contain affinity-increasing mutations.
+You can either run the `get-selection-metrics` action on an existing partis output file, or add `--get-selection-metrics` when running the `partition` action.
+The former is generally better, since you can then pass in your own separately-inferred trees with `--treefname`, and also run several different versions without having to re-partition.
+
+Both lbi and lbr need a tree, so unless you pass in your own, partis will make one.
+Since we want this to be fast enough to run on all the families in a large repertoire, this uses a fairly heuristic approach to calculating trees.
+If this is run in the context of partitioning (so there's a clustering path available from hierarchical agglomeration), then that clustering path is used as the starting point for the tree.
+It is then refined by replacing any subtrees stemming from large multifurcations with a subtree inferred using FastTree (for instance, the first clustering step is to merge all sequences with similar inferred naive sequences, which results in such subtrees).
+If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
+This will make a tree for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc., or restricted with --cluster-index.
+
+If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](http://www.olmstedviz.org/).
 
 ### view-output
 
