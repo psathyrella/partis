@@ -280,9 +280,11 @@ def process(args):
     if args.parameter_type != 'hmm':
         print '  using non-default parameter type \'%s\'' % args.parameter_type
 
-    if args.simulate_from_scratch:
+    if args.simulate_from_scratch:  # i'm not sure why this stuff isn't in the simulate block below, but i'm too chicken to change it right now
         args.rearrange_from_scratch = True
         args.mutate_from_scratch = True
+    if args.rearrange_from_scratch and not args.force_dont_generate_germline_set:  # i would probably just default to always generating germline sets when rearranging from scratch, but bin/test-germline-inference.py (and any other case where you want to dramatically restrict the germline set) really argue for a way to force just using the genes in the germline dir
+        args.generate_germline_set = True
     if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:
         assert args.mutate_from_scratch
 
