@@ -131,7 +131,7 @@ class Recombinator(object):
                 approved_genes += utils.find_replacement_genes(tmp_reco_param_dir, min_counts=self.args.min_observations_per_gene, gene_name=gene)
 
             self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, approved_genes)  # NOTE these fcns do quite different things as far as smoothing, see comments elsewhere
-            self.all_mute_counts[gene] = paramutils.read_mute_counts(self.shm_parameter_dir, gene, utils.get_locus(gene))
+            self.all_mute_counts[gene] = paramutils.read_mute_counts(self.shm_parameter_dir, gene, utils.get_locus(gene), approved_genes=approved_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):

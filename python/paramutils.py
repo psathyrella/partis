@@ -17,18 +17,35 @@ def simplify_state_name(state_name):
         return state_name
 
 # ----------------------------------------------------------------------------------------
-def read_mute_counts(indir, gene, locus, debug=False):
+def read_mute_counts(indir, gene, locus, approved_genes=None, debug=False):  # NOTE I'm adding the <approved_genes> arg in a hackish way because i need this to not crash in one specific instance (running bin/test-germline-inference.py) where the file for <gene> doesn't exist, but I don't remember/understand how this fcn and the following function work well enough to do this more sensibly
+    # NOTE also that this new hack that allows a different gene's counts to be used might break something later on if the genes have different lengths? I have no idea
+    def read_single_file(gtmp):
+        mfname = indir + '/mute-freqs/' + utils.sanitize_name(gtmp) + '.csv'
+        if not os.path.exists(mfname):
+            return None
+        observed_counts = {}
+        with open(mfname, 'r') as mutefile:
+            reader = csv.DictReader(mutefile)
+            for line in reader:
+                pos = int(line['position'])
+                assert pos not in observed_counts
+                observed_counts[pos] = {n : int(line[n + '_obs']) for n in utils.nukes}
+        if debug:
+            print '    read %d per-base mute counts from %s' % (len(observed_counts), mfname)
+        return observed_counts
+
     if gene == glutils.dummy_d_genes[locus]:
         return {}
-    observed_counts = {}
-    with open(indir + '/mute-freqs/' + utils.sanitize_name(gene) + '.csv', 'r') as mutefile:
-        reader = csv.DictReader(mutefile)
-        for line in reader:
-            pos = int(line['position'])
-            assert pos not in observed_counts
-            observed_counts[pos] = {n : int(line[n + '_obs']) for n in utils.nukes}
-    if debug:
-        print '    read %d per-base mute counts from %s' % (len(observed_counts), indir)
+
+    if approved_genes is None:
+        approved_genes = [gene]
+    elif gene not in approved_genes:  # I think it'll always be in there, but just to be sure
+        approved_genes.insert(0, gene)
+
+    for gtmp in approved_genes:
+        observed_counts = read_single_file(gtmp)
+        if observed_counts is not None:  # HACK this just uses the first one that's there (in the vast majority of cases it'll just be <gene> -- i think the only way it can be missing is if we hard code a specific gene (in bin/test-germline-inference.py) and it isn't in data/recombinator/scratch-parameters/
+            break
     return observed_counts  # raw per-{ACGT} counts for each position, summed over genes ("raw" as in not a weighted average over a bunch of genes as in read_mute_freqs_with_weights())
 
 # ----------------------------------------------------------------------------------------
