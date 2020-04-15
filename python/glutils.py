@@ -1195,7 +1195,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
             template_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(new_allele_info))  # (template) genes in <new_allele_info> should all be None
             for ig in range(len(new_allele_info)):
                 new_allele_info[ig]['gene'] = template_genes[ig]
-            _ = generate_new_alleles(glfo, new_allele_info, debug=True, remove_template_genes=not dont_remove_template_genes)
+            _ = generate_new_alleles(glfo, new_allele_info, debug=debug, remove_template_genes=not dont_remove_template_genes)
 
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq)
 
@@ -1206,7 +1206,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
         print ' %s %2d/%-2d ' % (region, n_genes, len(glfo['seqs'][region])),
     print ''
 
-    utils.separate_into_allelic_groups(glfo, allele_prevalence_freqs=allele_prevalence_freqs, debug=True)
+    utils.separate_into_allelic_groups(glfo, allele_prevalence_freqs=allele_prevalence_freqs, debug=debug)
 
     write_allele_prevalence_freqs(allele_prevalence_freqs, allele_prevalence_fname)  # NOTE lumps all the regions together, unlike in the parameter dirs
 
@@ -1214,11 +1214,10 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
 def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_region=None, debug=False):
     allele_prevalence_freqs = read_allele_prevalence_freqs(allele_prevalence_fname)
     counts = {r : {g : 0 for g in glfo['seqs'][r]} for r in utils.regions}
-    with open(outfname) as outfile:
-        reader = csv.DictReader(outfile)
-        for line in reader:
-            for region in utils.regions:
-                counts[region][line[region + '_gene']] += 1
+    _, annotation_list, _ = utils.read_output(outfname, dont_add_implicit_info=True)
+    for line in annotation_list:
+        for region in utils.regions:
+            counts[region][line[region + '_gene']] += 1
     if debug:
         print '   checking allele prevalence freqs'
     for region in utils.regions:
