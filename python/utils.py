@@ -1025,7 +1025,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
 def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
     # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
     if aa:
-        cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line)  # NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
+        cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line, aa=False, threshold=threshold)  # get the nucleotide cons seq, calculating it if it isn't already there NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
         return ltranslate(cseq)
     else:  # this is fairly slow
         return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])]) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
