@@ -44,7 +44,7 @@ if utils.getsuffix(args.input_file) == '.csv':
 
 glfo, annotation_list, cpath = utils.read_output(args.input_file, glfo=glfo)
 
-if cpath is None:
+if cpath is None or cpath.i_best is None:
     clusters_to_use = [l['unique_ids'] for l in annotation_list]
     print '  no cluster path in input file, so just using all %d sequences (in %d clusters) in annotations' % (sum(len(c) for c in clusters_to_use), len(clusters_to_use))
 else:
