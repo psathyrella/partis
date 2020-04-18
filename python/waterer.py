@@ -239,11 +239,11 @@ class Waterer(object):
             if n_removed > 0:
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
 
+        seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']])  # need to do this before removing duplicates, so the duplicate info (from waterer) can get combined with multiplicities (from input metafo)
         if not self.args.dont_remove_framework_insertions and self.args.is_data:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info (it would also screw up the purity/completeness calculation)
             self.remove_framework_insertions()
             self.remove_duplicate_sequences()
 
-        seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']])
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below
         if cachefname is not None:
             self.write_cachefile(cachefname)
@@ -1295,8 +1295,12 @@ class Waterer(object):
             kept_uid = uids[0]
             previous_duplicates = set(self.info[kept_uid]['duplicates'][0])  # probably from previous waterer run
             new_duplicates = set(uids[1:]) - pre_kept_uids  # don't actually add as duplicates uids that are in <pre_kept_uids>, since these will not have been removed from <self.info>
-            self.info[kept_uid]['duplicates'][0] = list(previous_duplicates | new_duplicates)
-            self.duplicates[kept_uid] = self.info[kept_uid]['duplicates'][0]  # copy info from previous line to <self.duplicates>, which is just so partitiondriver can pass in previous duplicates, and yes having the info in two places is dumb
+            all_duplicates = list(previous_duplicates | new_duplicates)
+            self.info[kept_uid]['duplicates'][0] = all_duplicates
+            self.duplicates[kept_uid] = all_duplicates  # copy info from previous line to <self.duplicates>, which is just so partitiondriver can pass in previous duplicates, and yes having the info in two places is dumb
+            if 'multiplicities' in self.info[kept_uid]:  # propagate input meta info from the duplicate sequences that we're now going to be ignoring
+                submults = [self.input_info[u]['multiplicities'][0] for u in [kept_uid] + all_duplicates]
+                self.info[kept_uid]['multiplicities'][0] = sum(m if m is not None else 1 for m in submults)  # i guess it's ok to assume that if they didn't give us a multiplicity for a sequence that it should be 1
 
         if len(removed_queries) > 0:
             print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (len(removed_queries), len(removed_queries) + len(self.info['queries']), len(removed_queries) / float(len(removed_queries) + len(self.info['queries'])), len(self.info['queries']))

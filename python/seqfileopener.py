@@ -30,13 +30,15 @@ def read_input_metafo(input_metafname, annotation_list, debug=False):  # read in
         for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            mvals = [None for _ in line['unique_ids']]
+            mvals = [None for _ in line['unique_ids']]  # NOTE this sets a default of None for sequences that aren't in the input meta info. Which I think makes the most sense.
             for iseq, uid in enumerate(line['unique_ids']):
                 if uid not in metafo or input_key not in metafo[uid]:
                     continue
                 mval = metafo[uid][input_key]
                 if line_key in line and mval != line[line_key][iseq]:  # the meta info shouldn't generally already be in the input file if you're also specifying a separate meta file
                     print ' %s replacing \'%s\'/\'%s\' value for \'%s\' with value from %s: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, uid, input_metafname, line[line_key][iseq], mval)
+                if input_key == 'multiplicity' and mval == 0:
+                    raise Exception('input meta info value for \'multiplicity\' must be greater than 1 (since it includes this sequence), but got %d for \'%s\'' % (mval, uid))
                 added_uids.add(uid)
                 added_keys.add(line_key)
                 mvals[iseq] = mval
@@ -45,7 +47,7 @@ def read_input_metafo(input_metafname, annotation_list, debug=False):  # read in
         print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids), input_metafname)
 
 # ----------------------------------------------------------------------------------------
-def add_input_metafo(input_info, annotation_list, debug=False):  # transfer input metafo from <input_info> to <annotation_list>
+def add_input_metafo(input_info, annotation_list, dont_overwrite_info=False, debug=False):  # transfer input metafo from <input_info> to <annotation_list>
     # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafname, from <input_info>, from <sw_info>. As it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
     added_uids, added_keys = set(), set()
     for line in annotation_list:
@@ -56,11 +58,21 @@ def add_input_metafo(input_info, annotation_list, debug=False):  # transfer inpu
             if len(mvals) == 0:
                 continue
             elif len(mvals) == len(line['unique_ids']):
-                if line_key in line and mvals != line[line_key]:
-                    print ' %s replacing input metafo \'%s\'/\'%s\' value for \'%s\' with value: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, ' '.join(line['unique_ids']), line[line_key], mvals)
-                line[line_key] = mvals
-                added_uids |= set(line['unique_ids'])
-                added_keys.add(line_key)
+                if line_key in line:
+                    if mvals == line[line_key]:
+                        continue
+                    if dont_overwrite_info:  # atm this happens if in waterer we reset 'multiplicities' to account for duplicate sequences, then when this fcn gets called by partitiondriver we need to keep those reset values
+                        if debug:
+                            print '    not overwriting non-matching info'
+                        continue
+                    else:
+                        print ' %s replacing input metafo \'%s\'/\'%s\' value for \'%s\' with value: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, ' '.join(line['unique_ids']), line[line_key], mvals)
+                        line[line_key] = mvals
+                else:
+                    line[line_key] = mvals
+                if debug:
+                    added_uids |= set(line['unique_ids'])
+                    added_keys.add(line_key)
             else:
                 raise Exception('invalid input meta info in <input_info> (%d values, but expected 0 or %d)' % (len(mvals), len(line['unique_ids'])))
     if debug:
