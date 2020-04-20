@@ -454,12 +454,31 @@ def per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresp
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
 
 # ----------------------------------------------------------------------------------------
-def n_dups(line):  # number of duplicate sequences summed over all iseqs (note: duplicates do not include the actual uids/sequences in the annotation)
+def n_dups(line):  # number of duplicate sequences summed over all iseqs (note: duplicates do not include the actual uids/sequences in the annotation) UPDATE: they also don't include 'multiplicities'
     return len([u for dlist in line['duplicates'] for u in dlist])
 
 # ----------------------------------------------------------------------------------------
-def uids_and_dups(line):
+def uids_and_dups(line):  # NOTE it's kind of weird to have this ignore 'multiplicites' (if it's set), but I'm pretty sure the places this fcn gets used in treeutils only want 'duplicates' included
     return line['unique_ids'] + [u for dlist in line['duplicates'] for u in dlist]
+
+# ----------------------------------------------------------------------------------------
+def get_multiplicity(line, uid=None, iseq=None):  # combines duplicates with any input meta info multiplicities (well, the 'multiplicities' key in <line> should already have them combined [see waterer])
+    if uid is None:
+        def ifcn(k): return line[k][iseq]
+    elif iseq is None:
+        def ifcn(k): return per_seq_val(line, k, uid)
+    else:
+        assert False
+    if 'multiplicities' in line:  # if there was input meta info passed in
+        return ifcn('multiplicities')
+    elif 'duplicates' in line:
+        return len(ifcn('duplicates')) + 1
+    else: # this can probably only happen on very old files (e.g. it didn't used to get added to simulation)
+        return 1
+
+# ----------------------------------------------------------------------------------------
+def get_multiplicities(line):  # combines duplicates with any input meta info multiplicities (well, the 'multiplicities' key in <line> should already have them combined [see waterer])
+    return [get_multiplicity(line, iseq=i) for i in range(len(line['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
 def synthesize_single_seq_line(line, iseq):
@@ -807,7 +826,7 @@ def get_airr_line(line, iseq, partition=None, debug=False):
                 continue
             aline[akey] = line[pkey][gcall]
         elif akey == 'duplicate_count':
-            aline[akey] = len(line['duplicates'][iseq]) + 1
+            aline[akey] = get_multiplicity(line, iseq=iseq)
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
     return aline
@@ -981,7 +1000,13 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 # ----------------------------------------------------------------------------------------
 def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq=None, tie_resolver_label=None):
     for iseq in range(len(seqfos)):
-        color_mutants(cons_seq, seqfos[iseq]['seq'], align=align, amino_acid=aa, print_result=True, only_print_seq=iseq>0, ref_label=' consensus ', extra_str='  ', post_str='    '+seqfos[iseq]['name'], print_n_snps=True)
+        post_ref_str, mstr =  '', ''
+        if 'multiplicity' in seqfos[iseq]:
+            mstr = '%-3d ' % seqfos[iseq]['multiplicity']
+            if seqfos[iseq]['multiplicity'] > 1:
+                mstr = color('blue', mstr)
+            post_ref_str = color('blue', ' N')
+        color_mutants(cons_seq, seqfos[iseq]['seq'], align=align, amino_acid=aa, print_result=True, only_print_seq=iseq>0, ref_label=' consensus ', extra_str='  ', post_str='    %s%s'%(mstr, seqfos[iseq]['name']), post_ref_str=post_ref_str, print_n_snps=True)
     if tie_resolver_seq is not None:
         color_mutants(cons_seq, tie_resolver_seq, align=align, amino_acid=aa, print_result=True, only_print_seq=True, seq_label=' '*len(' consensus '),
                       post_str='    tie resolver%s'%('' if tie_resolver_label is None else (' (%s)'%tie_resolver_label)), extra_str='  ', print_n_snps=True)
@@ -1004,7 +1029,11 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
     else:
         assert False
 
-    fastalist = ['>%s\n%s' % (sfo['name'], sfo['seq']) for sfo in seqfos]
+    def fstr(sfo): return '>%s\n%s' % (sfo['name'], sfo['seq'])
+    if 'multiplicity' in seqfos[0]:
+        fastalist = [fstr(sfo) for sfo in seqfos for _ in range(sfo['multiplicity'])]
+    else:
+        fastalist = [fstr(sfo) for sfo in seqfos]
     alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
     cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous=ambiguous_bases[0]))
 
@@ -1028,7 +1057,8 @@ def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general ver
         cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line, aa=False, threshold=threshold)  # get the nucleotide cons seq, calculating it if it isn't already there NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
         return ltranslate(cseq)
     else:  # this is fairly slow
-        return cons_seq(threshold, aligned_seqfos=[{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'])]) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+        aligned_seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'], get_multiplicities(line))]
+        return cons_seq(threshold, aligned_seqfos=aligned_seqfos, debug=True) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
 
 # ----------------------------------------------------------------------------------------
 def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=None, threshold=0.01, debug=False):  # yeah yeah the name is too long, but it's clear, isn't it?
@@ -1086,7 +1116,7 @@ def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=
     return info
 
 # ----------------------------------------------------------------------------------------
-def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='',
+def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', seq_label='', post_str='', post_ref_str='',
                   print_hfrac=False, print_isnps=False, return_isnps=False, print_n_snps=False, emphasis_positions=None, use_min_len=False,
                   only_print_seq=False, align=False, align_if_necessary=False, return_ref=False, amino_acid=False):  # NOTE if <return_ref> is set, the order isn't the same as the input sequence order
     """ default: return <seq> string with colored mutations with respect to <ref_seq> """
@@ -1142,7 +1172,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if print_result:
         lwidth = max(len_excluding_colors(ref_label), len_excluding_colors(seq_label))
         if not only_print_seq:
-            print '%s%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq, '  hdist' if print_n_snps else '')
+            print '%s%s%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq, '  hdist' if print_n_snps else '', post_ref_str)
         print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + n_snp_str + post_str + isnp_str + hfrac_str)
 
     return_list = [extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str]

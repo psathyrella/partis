@@ -65,7 +65,7 @@ def add_cons_dists(line, aa=False, debug=False):
         # don't need this unless we turn the tie resolver stuff back on:
         # if aa:  # we have to add this by hand since we don't actually use it to calculate the aa cons seq -- we get that by just translating the nuc cons seq
         #     utils.add_naive_seq_aa(line)
-        utils.print_cons_seq_dbg([{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['seqs'+tstr])], line['consensus_seq'+tstr], align=False, aa=aa)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
+        utils.print_cons_seq_dbg([{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'+tstr], utils.get_multiplicities(line))], line['consensus_seq'+tstr], align=False, aa=aa)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
 
 # ----------------------------------------------------------------------------------------
 def add_cdists_to_lbfo(line, lbfo, cdist, debug=False):  # it's kind of dumb to store them both in <line> and in <lbfo> (and thus in <line['tree-info']['lb']>), but I think it's ultimately the most sensible thing, given the inherent contradiction that a) we want to *treat* the cons dists like lbi/lbr tree metrics in almost every way, but b) they're *not* actually tree metrics in the sense that they don't use a tree (also, we want the minus sign in lbfo)
@@ -673,7 +673,11 @@ def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multi
         for node in dtree.preorder_node_iter():
             if dummy_str in node.taxon.label:
                 continue
-            multi_str = str(getmulti(node)) if multifo is not None else ''
+            multi_str = ''
+            if multifo is not None:
+                multi_str = str(getmulti(node))
+                if getmulti(node) > 1:
+                    multi_str = utils.color('blue', multi_str, width=3)
             lbstrs = ['%8.3f' % returnfo[m][node.taxon.label] for m in metrics_to_calc]
             if 'lbr' in metrics_to_calc:
                 lbstrs += [' = %-5.3f / %-5.3f' % (returnfo['lbr'][node.taxon.label] * node.down_polarizer, node.down_polarizer)]
@@ -688,31 +692,6 @@ def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multi
     remove_dummy_branches(dtree, initial_labels)
 
     return returnfo
-
-# ----------------------------------------------------------------------------------------
-def set_multiplicities(dtree, annotation, input_metafo, debug=False):
-    def get_multi(uid):
-        if input_metafo is None:  # NOTE the input meta file key 'multiplicities' *could* be in the annotation but we *don't* want to use it (at least at the moment, since we haven't yet established rules for precedence with 'duplicates')
-            if uid not in annotation['unique_ids']:  # could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
-                return 1
-            if 'duplicates' not in annotation: # if 'duplicates' isn't in the annotation, it's probably simulation, but even if not, if there's no duplicate info then assuming multiplicities of 1 should be fine (maybe should add duplicate info to simulation? it wouldn't really make sense though, since we don't collapse duplicates in simulation info)
-                return 1
-            return len(utils.per_seq_val(annotation, 'duplicates', uid)) + 1
-        elif annotation is None:
-            if uid not in input_metafo:
-                return 1
-            return input_metafo[uid]['multiplicity']
-        else:
-            assert False  # doesn't make sense to set both of 'em
-
-    if annotation is None and input_metafo is None:
-        raise Exception('have to get the multiplicity info from somewhere')
-
-
-    multifo = {}
-    for node in dtree.postorder_node_iter():
-        multifo[node.taxon.label] = get_multi(node.taxon.label)
-    return multifo
 
 # ----------------------------------------------------------------------------------------
 def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_leaves=False, debug=False): # add long branches above root and/or below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
@@ -839,14 +818,11 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, min_warn_
         utils.print_reco_event(annotation)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, input_metafo=None, use_multiplicities=False, extra_str=None, iclust=None, debug=False):
+def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, extra_str=None, iclust=None, debug=False):
     # if <only_calc_metric> is None, we use <tau> and <lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
     #   - whereas if <only_calc_metric> is set, we use <tau> to calculate only the given metric
     # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
     # <iclust> is just to give a little more granularity in dbg
-
-    if use_multiplicities:
-        print '  %s <use_multiplicities> is turned on in lb metric calculation, which is ok, but you should make sure that you really believe the multiplicity values' % utils.color('red', 'warning')
 
     # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes)
     # if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
@@ -862,9 +838,9 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
         print '   calculating %s%s with tree:' % (' and '.join(lb_metrics if only_calc_metric is None else [only_calc_metric]), '' if extra_str is None else ' for %s' % extra_str)
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
-    multifo = None
-    if use_multiplicities:
-        multifo = set_multiplicities(dtree, annotation, input_metafo, debug=debug)
+    multifo = {}  # NOTE now that I'm always doing this, it might make sense to rearrange things a bit, but i don't want to look at it right now
+    for node in dtree.postorder_node_iter():
+        multifo[node.taxon.label] = utils.get_multiplicity(annotation, uid=node.taxon.label) if node.taxon.label in annotation['unique_ids'] else 1  # if it's not in there, it could be from wonky names from lonr.r, also could be from FastTree tree where we don't get inferred intermediate sequences
 
     treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
     normstr = 'unnormalized' if dont_normalize else 'normalized'
