@@ -228,7 +228,7 @@ There are two simulation modes (as well as options below for running hybrids bet
 If you did not specify a parameter directory during inference, then by default if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`.
 You could thus for instance simulate based on this parameter dir with:
 
-```partis simulate --parameter-dir _output/_path_to_sample --outfname simu.yaml --n-sim-events 3 --debug 1```,
+`partis simulate --parameter-dir _output/_path_to_sample --outfname simu.yaml --n-sim-events 3 --debug 1`
 
 where `--debug 1` prints to stdout what the rearrangement events look like as they're being made.
 The resulting output file follows regular output [format](output-formats.md), with an additional column `reco_id` to identify clonal families (it's a hash of the rearrangement parameters).
@@ -338,9 +338,9 @@ For more details run `./bin/get-naive-probabilities.py --help`.
 
 ##### input meta info
 
-In many cases partis input consists only of a list of sequences and sequence names.
+In many cases partis input will consist of only sequences and names.
 In other cases, however, there is additional information associated with each sequence, which we refer to as meta info.
-Because the fasta format only naturally includes sequence name, most implementations of additional info are mutually incompatible.
+Because the fasta format only specifies how to write sequences and names, most ways in which people add additional information to fasta files are mutually incompatible.
 This meta info is thus specified in partis via a separate yaml file with `--input-metafname`, for example:
 
 ```
@@ -354,5 +354,5 @@ seq-2:
   timepoint: +7d
 ```
 
-Currently accept keys are multiplicity, affinity, and timepoint, and values will be propagated through to any output files (with the key names changed to plural, e.g. to multiplicities).
-When caching parameters, partis by default removes constant regions (5' of v and 3' of j) and collapses any resulting duplicate sequences into the duplicates key, and these are also added to the value under multiplicities (see `--dont-remove-framework-insertions`).
+Currently accepted keys are multiplicity, affinity, and timepoint; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities).
+When caching parameters, partis by default removes constant regions (5' of v and 3' of j) and collapses any resulting duplicate sequences into the duplicates key; the number of such sequences is then added to any multiplicities from `--input-metafname` (see `--dont-remove-framework-insertions`).
