@@ -7,6 +7,7 @@
   - [simulate](#simulate) make simulated sequences
   - [miscellany](#miscellany)
     - [naive probability estimates](#naive-probability-estimates)
+    - [input meta info](#input-meta-info)
 
 ### Subcommands
 
@@ -128,6 +129,7 @@ Given an antibody of interest and its inferred ancestral lineage lbr is an excel
 In order to infer ancestral sequences, you should run a separate program that includes actual phylogenetic inference, such as [linearham](https://github.com/matsengrp/linearham/) or [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html).
 You can either run the `get-selection-metrics` action on an existing partis output file, or add `--get-selection-metrics` when running the `partition` action.
 The former is generally better, since you can then pass in your own separately-inferred trees with `--treefname`, and also run several different versions without having to re-partition.
+Both lbi and aa-cdist can include multiplicity information for each sequence (e.g. from expression levels), see [below](#input-meta-info).
 
 Both lbi and lbr need a tree, so unless you pass in your own, partis will make one.
 Since we want this to be fast enough to run on all the families in a large repertoire, this uses a fairly heuristic approach to calculating trees.
@@ -334,3 +336,23 @@ It uses the `all-probs.csv` file that is written to each parameter directory, wh
 Using a yaml config file, you can have the script use a variety of criteria, for instance, find the probability of rearrangements that use any IGHV1 family gene, and that have CDR3 length of 60, 63, or 66.
 For more details run `./bin/get-naive-probabilities.py --help`.
 
+##### input meta info
+
+In many cases partis input consists only of a list of sequences and sequence names.
+In other cases, however, there is additional information associated with each sequence, which we refer to as meta info.
+Because the fasta format only naturally includes sequence name, most implementations of additional info are mutually incompatible.
+This meta info is thus specified in partis via a separate yaml file with `--input-metafname`, for example:
+
+```
+seq-1:
+  multiplicity: 1
+  affinity: 0.04
+  timepoint: -1d
+seq-2:
+  multiplicity: 3
+  affinity: 0.1
+  timepoint: +7d
+```
+
+Currently accept keys are multiplicity, affinity, and timepoint, and values will be propagated through to any output files (with the key names changed to plural, e.g. to multiplicities).
+When caching parameters, partis by default removes constant regions (5' of v and 3' of j) and collapses any resulting duplicate sequences into the duplicates key, and these are also added to the value under multiplicities (see `--dont-remove-framework-insertions`).
