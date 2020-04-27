@@ -124,7 +124,7 @@ The columns are:
 
 Calculate quantities for prediction of fitness/affinity.
 At the moment these are: AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr).
-aa-cdist is an excellent predictor of an antibody's affinity for an antigen, but it has no information about what that antigen is, so it should be paired with some method using non-sequence information, such as vaccination or cell sorting (see selection metric [paper](TODO link)).
+aa-cdist is an excellent predictor of an antibody's affinity for an antigen, but it has no information about what that antigen is, so it should be paired with some method using non-sequence information, such as vaccination or cell sorting (see Discussion in selection metric [paper](https://arxiv.org/abs/2004.11868)).
 Given an antibody of interest and its inferred ancestral lineage lbr is an excellent predictor of which branches between those ancestors are likely to contain affinity-increasing mutations.
 In order to infer ancestral sequences, you should run a separate program that includes actual phylogenetic inference, such as [linearham](https://github.com/matsengrp/linearham/) or [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html).
 You can either run the `get-selection-metrics` action on an existing partis output file, or add `--get-selection-metrics` when running the `partition` action.
