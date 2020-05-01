@@ -25,6 +25,6 @@ The manual is divided into the following pages:
 Details of the multitude of flags not vital enough to document here, but which can be used to control many aspects of behavior can be found by running each subcommand's help, for instance `partis cache-parameters --help` or `partis simulate --help`.
 
 To ask questions about how to run or how things work, please use the [google group](https://groups.google.com/forum/#!forum/partis).
-For specific issues with the software, e.g. bug reports or feature requests, on the other hand, [submit an issue](https://github.com/psathyrella/partis/issues?utf8=%E2%9C%93&q=) on github.
+For specific issues with the software, e.g. bug reports or feature requests, on the other hand, [submit an issue](https://github.com/psathyrella/partis/issues/new) on github.
 You can also search through past discussion both on the google group and in [closed issues](https://github.com/psathyrella/partis/issues?q=is%3Aissue+is%3Aclosed).
 If you'd like to be notified when something important changes, please subscribe to the google group.
