@@ -355,4 +355,4 @@ seq-2:
 ```
 
 Currently accepted keys are multiplicity, affinity, and timepoint; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities).
-When caching parameters, partis by default removes constant regions (5' of v and 3' of j) and collapses any resulting duplicate sequences into the duplicates key; the number of such sequences is then added to any multiplicities from `--input-metafname` (see `--dont-remove-framework-insertions`).
+When caching parameters, partis by default removes constant regions (5' of v and 3' of j) and collapses any resulting duplicate sequences into the [duplicates key](output-formats.md); the number of such sequences is then added to any multiplicities from `--input-metafname` (see `--dont-remove-framework-insertions`).

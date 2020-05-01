@@ -22,7 +22,7 @@ The manual is divided into the following pages:
   * [Germline inference confidence](docs/germline-inference.md)
   * [Parallelization](docs/parallel.md)
 
-Details of the multitude of flags not vital enough to document here, but which can be used to control many aspects of behavior can be found by running each subcommand's help, for instance `partis cache-parameters --help` or `partis simulate --help`.
+Details on the many options not documented here may be found by running each subcommand's help, for instance `partis cache-parameters --help` or `partis simulate --help`.
 
 To ask questions about how to run or how things work, please use the [google group](https://groups.google.com/forum/#!forum/partis).
 For specific issues with the software, e.g. bug reports or feature requests, on the other hand, [submit an issue](https://github.com/psathyrella/partis/issues/new) on github.
