@@ -375,7 +375,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         alpha = 1.
         if alphas is not None:
             alpha = alphas[ih]
-        htmp.mpl_plot(ax, color=tmpcolors[ih], linewidth=linewidth, linestyle=tmplinestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize, remove_empty_bins=remove_empty_bins, square_bins=square_bins)
+        # i'm not sure why the linewidths get to here as strings, I guess that used to work, but now it kicks this really opaque error TypeError: Cannot cast array data from dtype('<U1') to dtype('float64') according to the rule 'safe'
+        htmp.mpl_plot(ax, color=tmpcolors[ih], linewidth=int(linewidth), linestyle=tmplinestyles[ih], ignore_overflows=True, errors=errors, alpha=alpha, markersize=markersize, remove_empty_bins=remove_empty_bins, square_bins=square_bins)
 
     # NOTE it would be nice to combine xline, yline, and xyline (I don't want to go find everwhere that calls this right now)
     if xline is not None:
