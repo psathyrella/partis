@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--fname', default=partis_dir + '/test/reference-results/partition-new-simu.yaml')
 parser.add_argument('--glfo-dir', default=partis_dir + '/data/germlines/human')
 parser.add_argument('--locus', default='igh')
+parser.add_argument('--plotdir', help='if set, plot annotation parameters from --fname to --plotdir and exit')
 args = parser.parse_args()
 
 glfo = None
@@ -25,6 +26,15 @@ if utils.getsuffix(args.fname) == '.csv':
     glfo = glutils.read_glfo(args.glfo_dir, locus=args.locus)
 
 glfo, annotation_list, cpath = utils.read_output(args.fname, glfo=glfo)
+
+if args.plotdir is not None:
+    from parametercounter import ParameterCounter
+    setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})
+    pcounter = ParameterCounter(glfo, args)
+    for line in annotation_list:
+        pcounter.increment(line)
+    pcounter.plot(args.plotdir, make_per_base_plots=True) #, only_overall=not self.args.make_per_gene_plots, make_per_base_plots=self.args.make_per_gene_per_base_plots)
+    sys.exit(0)
 
 if cpath is None or len(cpath.partitions) == 0:
     print 'no partitions read from %s, so just printing first annotation:' % args.fname
