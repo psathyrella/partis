@@ -4,6 +4,7 @@ from collections import OrderedDict
 import os
 import glob
 import sys
+import colored_traceback.always
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 if not os.path.exists(current_script_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
@@ -162,7 +163,7 @@ args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
 args.names = utils.get_arg_list(args.names)
 args.colors = utils.get_arg_list(args.colors)
-args.linewidths = utils.get_arg_list(args.linewidths)
+args.linewidths = utils.get_arg_list(args.linewidths, intify=True)
 args.gldirs = utils.get_arg_list(args.gldirs)
 args.translegend = utils.get_arg_list(args.translegend, floatify=True)
 for iname in range(len(args.names)):
