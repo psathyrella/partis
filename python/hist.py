@@ -329,6 +329,9 @@ class Hist(object):
 
     # ----------------------------------------------------------------------------------------
     def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False, square_bins=False):
+        if linewidth is not None:  # i'd really rather this wasn't here, but the error message mpl kicks is spectacularly uninformative so you have to catch it beforehand (when writing the svg file, it throws TypeError: Cannot cast array data from dtype('<U1') to dtype('float64') according to the rule 'safe')
+            if not isinstance(linewidth, int):
+                raise Exception('have to pass linewidth as int, not %s' % type(linewidth))
         # note: bin labels are/have to be handled elsewhere
         if self.integral(include_overflows=(not ignore_overflows)) == 0.0:
             # print '   integral is zero in hist::mpl_plot'
