@@ -156,7 +156,9 @@ class TreeGenerator(object):
 
         # rescale branch lengths (TreeSim lets you specify the number of leaves and the height at the same time, but TreeSimGM doesn't, and TreeSim's numbers are usually a little off anyway... so we rescale everybody)
         for itree in range(len(ages)):
+            treestrs[itree] = '(%s):0.0;' % treestrs[itree].rstrip(';')  # the trees it spits out have non-zero branch length above root (or at least that's what the newick strings turn into when dendropy reads them), which is fucked up and annoying, so here we add a new/real root at the top of the original root's branch
             treestrs[itree] = treeutils.rescale_tree(ages[itree], treestr=treestrs[itree])
+
 
         return ages, treestrs
 
