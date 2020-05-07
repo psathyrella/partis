@@ -273,6 +273,9 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
             print '     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace])
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True, rooting='force-rooted')  # make sure the tree is rooted, to avoid nodes disappearing in remove_dummy_branches() (and proably other places as well)
+    if dtree.seed_node.edge_length > 0:
+        # this would be easy to fix, but i think it only happens from simulation trees from treegenerator
+        print '  %s seed/root node has non-zero edge length (i.e. there\'s a branch above it)' % utils.color('red', 'warning')
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
 
     # # uncomment for more verbosity:
@@ -523,7 +526,8 @@ def rescale_tree(new_mean_height, dtree=None, treestr=None, debug=False):
         if debug:
             print '     %5s  %7e  -->  %7e' % (edge.head_node.taxon.label if edge.head_node.taxon is not None else 'None', edge.length, edge.length * new_mean_height / mean_height)
         edge.length *= new_mean_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
-    dtree.update_bipartitions()  # probably doesn't really need to be done
+    if not treestr:  # i'm really pretty sure there's no point in doing this if we're just going to immediately convert to string (and it just caused huge fucking problems because it was missing the suppress unifurcations arg. I'm so *!$@(($@ing tired of that shit this is like the fourth time I've wasted hours chasing down weirdness that stems from that)
+        dtree.update_bipartitions(suppress_unifurcations=False)  # probably doesn't really need to be done
     if debug:
         print '    final mean: %.4f' % get_mean_leaf_height(tree=dtree)
     if treestr:
