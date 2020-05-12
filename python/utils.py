@@ -3319,7 +3319,11 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         return 'restart'
     else:
         failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
-        failstr += getlogstrs(['err'])
+        tmpstr = getlogstrs(['err'])
+        if len(tmpstr.strip()) == 0:  # bppseqgen puts it in stdout, so we have to look there
+            tmpstr += 'std out tail (err was empty):\n'
+            tmpstr += '\n'.join(getlogstrs(['out']).split('\n')[-10:])
+        failstr += tmpstr
         if allow_failure:
             print '      %s\n      not raising exception for failed process' % failstr
             procs[iproc] = None  # let it keep running any other processes
