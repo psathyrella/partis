@@ -77,6 +77,8 @@ def run_simulation(args):
         for ievt in range(n_events):
             event = reco.combine(random_ints[ievt])
             events.append(event)
+        if args.check_tree_depths:
+            reco.print_validation_values()
         utils.write_annotations(outfname, glfo, events, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), synth_single_seqs=utils.getsuffix(outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading) NOTE list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
 
     def get_workdir(iproc):
@@ -417,6 +419,7 @@ subargs['simulate'].append({'name' : '--n-leaf-distribution', 'kwargs' : {'defau
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})  # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and value passed as the parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})
 subargs['simulate'].append({'name' : '--input-simulation-treefname', 'kwargs' : {'help' : 'file with newick-formatted lines corresponding to trees to use for simulation. Note that a) the tree depths are rescaled according to the shm rates requested by other command line arguments, i.e. the depths in the tree file are ignored, and b) the resulting sequences do not use the leaf names from the trees.'}})
+subargs['simulate'].append({'name' : '--check-tree-depths', 'kwargs' : {'action' : 'store_true', 'help' : 'check how close the fraction of mutated bases that we get from bppseqgen is to the depth of the trees that we passed in.'}})
 # shm indels:
 subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' : 0., 'type' : float, 'help' : 'fraction of simulated sequences with SHM indels'}})
 subargs['simulate'].append({'name' : '--n-indels-per-indeld-seq', 'kwargs' : {'default' : '1:2', 'help' : 'list of integers from which to choose the number of SHM indels in each sequence that we\'ve already decided has indels'}})

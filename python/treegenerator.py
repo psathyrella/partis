@@ -6,6 +6,7 @@ import random
 import numpy
 import math
 import tempfile
+import json
 from subprocess import check_call
 
 from hist import Hist
@@ -22,6 +23,8 @@ class TreeGenerator(object):
 
     #----------------------------------------------------------------------------------------
     def convert_observed_changes_to_branch_length(self, mute_freq):
+        if self.args.per_base_mutation:  # in this case we set the per-base freq (equilibrium freq) for the germline base to zero, so don't need to account for this
+            return mute_freq
         # for consistency with the rest of the code base, we call it <mute_freq> instead of "fraction of observed changes"
         # JC69 formula, from wikipedia
         # NOTE this helps, but is not sufficient, because the mutation rate is super dominated by a relative few very highly mutated positions
@@ -120,8 +123,8 @@ class TreeGenerator(object):
             n_leaves = self.choose_n_leaves()
             age = self.choose_full_sequence_branch_length()
             ages.append(age)
-            if n_leaves == 1:
-                treestrs.append('t1:%f;\n' % age)
+            if n_leaves == 1:  # add singleton trees by hand
+                treestrs.append('t1:%f;' % age)
                 continue
             treestrs.append(None)
 
@@ -158,7 +161,6 @@ class TreeGenerator(object):
         for itree in range(len(ages)):
             treestrs[itree] = '(%s):0.0;' % treestrs[itree].rstrip(';')  # the trees it spits out have non-zero branch length above root (or at least that's what the newick strings turn into when dendropy reads them), which is fucked up and annoying, so here we add a new/real root at the top of the original root's branch
             treestrs[itree] = treeutils.rescale_tree(ages[itree], treestr=treestrs[itree])
-
 
         return ages, treestrs
 
@@ -202,21 +204,13 @@ class TreeGenerator(object):
         os.remove(outfname)  # remove it here, just to make clear that we *re*write it in self.post_process_trees() so that recombinator can later read it
 
         if self.args.debug:
-            mean_leaf_height_list = [treeutils.get_mean_leaf_height(treestr=tstr) for tstr in treestrs]
-            n_leaf_list = [treeutils.get_n_leaves(treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)) for tstr in treestrs]
+            dtreelist = [treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True) for tstr in treestrs]
+            mean_leaf_height_list = [treeutils.get_mean_leaf_height(tree=dt) for dt in dtreelist]
+            n_leaf_list = [treeutils.get_n_leaves(dt) for dt in dtreelist]
             print '    mean over %d trees:   depth %.5f   leaves %.2f' % (len(mean_leaf_height_list), numpy.mean(mean_leaf_height_list), numpy.mean(n_leaf_list))
 
-        # Each tree is written with branch length the mean branch length over the whole sequence, so we need to add the length for each region afterward,
-        #   so each line looks e.g. like (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87
-
-        # add the region-specific branch info as an extra string tacked onto the right of the newick tree (so the output file isn't newick any more, sigh)
-        length_list = ['%s:%f' % (region, self.branch_lengths[region]['mean'] / self.branch_lengths['all']['mean']) for region in utils.regions]
-        for itree in range(len(ages)):
-            if treestrs[itree].count(';') != 1 or treestrs[itree][-1] != ';':
-                raise Exception('malformatted newick string:\n  %s' % treestrs[itree])
-            treestrs[itree] = treestrs[itree].replace(';', ';%s' % ','.join(length_list))
-
-        # then write the modified lines for recombinator to read
-        with open(outfname, 'w') as treefile:
-            for tstr in treestrs:
-                treefile.write('%s\n' % tstr)
+        # each tree is written with branch length the mean branch length over the whole sequence (which is different for each tree), but recombinator also needs the relative length for each region (which is the same, it's an average over the whole repertoire)
+        with open(outfname, 'w') as yfile:
+            yamlfo = {'branch-length-ratios' : {r : self.branch_lengths[r]['mean'] / self.branch_lengths['all']['mean'] for r in utils.regions},
+                      'trees' : treestrs}
+            json.dump(yamlfo, yfile)

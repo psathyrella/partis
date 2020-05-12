@@ -534,23 +534,25 @@ def rescale_tree(new_mean_height, dtree=None, treestr=None, debug=False):
         return dtree.as_string(schema='newick').strip()
 
 # ----------------------------------------------------------------------------------------
-def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq, debug=False):
+def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq):
     taxon_namespace = dendropy.TaxonNamespace()  # in order to compare two trees with the metrics below, the trees have to have the same taxon namespace
-    in_dtree = get_dendro_tree(treestr=in_treestr, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
+    in_dtree = get_dendro_tree(treestr=in_treestr, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True)
     seqfos = [{'name' : 't%d' % (iseq + 1), 'seq' : seq} for iseq, seq in enumerate(leafseqs)]
-    out_dtree = get_fasttree_tree(seqfos, naive_seq=naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True, debug=debug)
+    out_dtree = get_fasttree_tree(seqfos, naive_seq=naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True)
     in_height = get_mean_leaf_height(tree=in_dtree)
     out_height = get_mean_leaf_height(tree=out_dtree)
     base_width = 100
-    print '  %s: comparing chosen and bppseqgen output trees for' % (utils.color('green', 'full sequence' if region == 'all' else region))
-    print '    %s' % utils.color('blue', 'input:')
-    print get_ascii_tree(dendro_tree=in_dtree, extra_str='      ', width=base_width)
-    print '    %s' % utils.color('blue', 'output:')
-    print get_ascii_tree(dendro_tree=out_dtree, extra_str='        ', width=int(base_width*out_height/in_height))
+    in_ascii_str = get_ascii_tree(dendro_tree=in_dtree, extra_str='      ', width=base_width)  # make copies before the following functions mess the trees up
+    out_ascii_str = get_ascii_tree(dendro_tree=out_dtree, extra_str='        ', width=int(base_width*out_height/in_height))
+    print '  comparing input and bppseqgen output trees:'
     print '                   heights: %.3f   %.3f' % (in_height, out_height)
-    print '      symmetric difference: %d' % dendropy.calculate.treecompare.symmetric_difference(in_dtree, out_dtree)
+    print '      symmetric difference: %d' % dendropy.calculate.treecompare.symmetric_difference(in_dtree, out_dtree)  # WARNING these functions modify the tree (i think by removing unifurcations) becuase OF COURSE THEY DO, wtf
     print '        euclidean distance: %f' % dendropy.calculate.treecompare.euclidean_distance(in_dtree, out_dtree)
     print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
+    print '    %s' % utils.color('blue', 'input:')
+    print in_ascii_str
+    print '    %s' % utils.color('blue', 'output:')
+    print out_ascii_str
 
 # ----------------------------------------------------------------------------------------
 def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence_uids> is uids for which we have actual sequences (i.e. not internal nodes inferred by the tree program without sequences)

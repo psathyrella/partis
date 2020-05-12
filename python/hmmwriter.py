@@ -282,7 +282,7 @@ class HmmWriter(object):
         self.erosion_probs = self.read_erosion_info(approved_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(approved_genes)
         self.mute_freqs = paramutils.read_mute_freqs_with_weights(self.indir, approved_genes, debug=self.debug)  # weighted averages over genes
-        self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus, debug=self.debug)  # raw per-{ACGT} counts
+        self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus, debug=self.debug)  # raw per-{ACGT} counts NOTE do *not* set <approved_genes> here (see note in paramutils)
         self.process_mutation_info()  # smooth/interpolation/whatnot for <self.mute_freqs> and <self.mute_counts>
         # NOTE i'm using a hybrid approach with mute_freqs and mute_counts -- the only thing I get from mute_counts is the ratios of the different bases, whereas the actual freq comes from mute_freqs (which has all the corrections/smooth/bullshit)
 

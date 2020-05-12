@@ -9,6 +9,7 @@ import random
 import numpy
 import os
 import re
+import math
 import subprocess
 
 import paramutils
@@ -39,7 +40,7 @@ class Recombinator(object):
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
-        # self.treeinfo = []  # list of newick-formatted tree strings with region-specific branch info tacked at the end
+        # self.treeinfo = []  # list of newick-formatted tree strings plus region-specific branch length info (initialized below)
         for region in utils.regions:
             self.mute_models[region] = {}
             for model in ['gtr', 'gamma']:
@@ -63,10 +64,10 @@ class Recombinator(object):
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
         treegen = treegenerator.TreeGenerator(args, self.shm_parameter_dir, seed=seed)
-        self.treefname = self.workdir + '/trees.tre'
+        self.treefname = self.workdir + '/trees.yaml'
         treegen.generate_trees(seed, self.treefname, self.workdir)  # NOTE not really a newick file, since I hack on the per-region branch length info at the end of each line
         with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
-            self.treeinfo = treefile.readlines()
+            self.treeinfo = json.load(treefile)
         os.remove(self.treefname)
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
@@ -122,16 +123,18 @@ class Recombinator(object):
             self.all_mute_freqs[gene] = {'overall_mean' : self.args.scratch_mute_freq}
             # self.all_mute_counts[gene] = {'overall_mean' : } TODO see TODOs further down, but at the moment we don't use these if --mutate-from-scratch is set
         else:
-            approved_genes = [gene]
-
+            extra_genes = []
             # ok this is kind of dumb, but I need to figure out how many counts there are for this gene, even when we have only an shm parameter dir
             tmp_reco_param_dir = self.reco_parameter_dir if self.reco_parameter_dir is not None else self.shm_parameter_dir  # will crash if the shm parameter dir doesn't have gene count info... but we should only end up using it on data/recombinator/scratch-parameters
             gene_counts = utils.read_overall_gene_probs(tmp_reco_param_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
             if gene_counts < self.args.min_observations_per_gene:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's in <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
-                approved_genes += utils.find_replacement_genes(tmp_reco_param_dir, min_counts=self.args.min_observations_per_gene, gene_name=gene)
+                extra_genes = utils.find_replacement_genes(tmp_reco_param_dir, min_counts=self.args.min_observations_per_gene, gene_name=gene)
 
-            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, approved_genes)  # NOTE these fcns do quite different things as far as smoothing, see comments elsewhere
-            self.all_mute_counts[gene] = paramutils.read_mute_counts(self.shm_parameter_dir, gene, utils.get_locus(gene), approved_genes=approved_genes)
+            self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, list(set([gene] + extra_genes)))  # NOTE these fcns do quite different things as far as smoothing (see comments elsewhere)
+            per_base_extra_genes = None
+            if len(extra_genes) > 0 and gene_counts == 0:  # if we have even one count for the gene we want, we want to use it, since the per-base counts will be wrong for even other alleles at any positions at which they differe
+                per_base_extra_genes = list(set(extra_genes) - set([gene]))
+            self.all_mute_counts[gene] = paramutils.read_mute_counts(self.shm_parameter_dir, gene, utils.get_locus(gene), extra_genes=per_base_extra_genes)
 
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom):
@@ -418,36 +421,108 @@ class Recombinator(object):
         reco_event.set_post_erosion_codon_positions()
 
     # ----------------------------------------------------------------------------------------
-    def write_mute_freqs(self, gene, seq, reco_event, reco_seq_fname):  # unsurprisingly, this function profiles out to be kind of a dumb way to do it, in terms of run time
-        """ Read position-by-position mute freqs from disk for <gene>, renormalize, then write to a file for bppseqgen. """
-        mute_freqs = self.get_mute_freqs(gene)
+    def write_mute_freqs(self, reco_event, reco_seq_fname, per_base_freqs=None, debug=False):  # unsurprisingly, this function profiles out to be kind of a dumb way to do it, in terms of run time
+        # write per-position mute freqs, but also collects per-base (per-ACGT) freqs (<per_base_freqs>) and returns them if they're needed
+        # ----------------------------------------------------------------------------------------
+        def get_pbfreqs(naive_base, pbcounts=None, inuke=None, rgene=None):
+            def def_count(base, count=None):  # default, i.e. if we have no other information (this is used twice, first to set all bases if we have no info, and second [if <count> is set] to set pseudocount values if we don't have enough counts for some/all bases)
+                if base == naive_base:  # this is an important parameter -- it determines if it's possible to mutate back to the original naive base. If it's 0, then it's not possible, which I think is what we want, since while that isn't really right, if it's greater than 0 then we'll get the much more common occurrence that we *really* don't want of the original/naive base "mutating" to itself with an initial mutation (whereas if it's 0, that's only wrong like 1/4 of the times the position mutations twice, which we don't care about at all)
+                    return 0.01  # bppseqgen barfs if it's too small (and it gets normalized after this so ends up smaller): ParameterException: ConstraintException: Parameter::setValue(0)]1e-06; 0.999999[(HKY85.theta1)
+                else:  # but for the other three we just want to set 1 if there's no info or zero counts
+                    return 1 if count is None else max(count, 1)
+            if pbcounts is None:
+                pbcounts = {n : def_count(n) for n in utils.nukes}
+            else:  # just to check that we have the right position in the gene and counts
+                # ok now that i've actually run with this check, it picks up quite a few cases where I'm presuming we have the wrong germline gene, in which case it's probably better that it's "wrong"? jeez i dunno, doesn't matter
+                if sum(pbcounts.values()) > 10 and any(c > pbcounts[naive_base] for n, c in pbcounts.items() if n != naive_base):
+                    print '    %s non-germline base has more counts than germline base (%s) at ipos %s in %s: %s' % (utils.color('red', 'warning'), naive_base, inuke, utils.color_gene(rgene), pbcounts)  # formatting inuke as string on the off chance we get here when the calling fcn doesn't pass it
+            pbcounts = {n : def_count(n, count=c) for n, c in pbcounts.items()}  # add pseudocounts (NOTE this is quite a bit less involved than in hmmwriter.py process_mutation_info() and get_emission_prob())
+            tmptot = sum(pbcounts.values())
+            pbcounts = {n : pbcounts[n] / float(tmptot) for n, c in pbcounts.items()}
+            return pbcounts
+        # ----------------------------------------------------------------------------------------
+        def get_region_freqs(region):
+            # ----------------------------------------------------------------------------------------
+            rfreqs[region] = []  # list with a relative mutation rate for each position in <rseq>
+            rtotals[region] = 0.
+            rseq = reco_event.eroded_seqs[region]
+            rgene = reco_event.genes[region]
+            if len(rseq) == 0:  # i think this is how it handles light chain d? not checking right now, just copying how it did it below
+                return
+            mute_freqs = self.get_mute_freqs(rgene)
+            if self.args.per_base_mutation:
+                mute_counts = self.get_mute_counts(rgene)
+                per_base_freqs[region] = []
+            all_erosions = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())  # arg, this is hackey, but I don't want to change Event right now
+            cposlist = None
+            if region in utils.conserved_codons[self.args.locus]:
+                codon = utils.conserved_codons[self.args.locus][region]
+                cpos = self.glfo[codon + '-positions'][rgene]
+                cposlist = list(range(cpos, cpos + 3))
 
-        rates = []  # list with a relative mutation rate for each position in <seq>
-        total = 0.0
-        # assert len(mute_freqs) == len(seq)  # only equal length if no erosions NO oh right but mute_freqs only covers areas we could align to...
-        # NOTE <inuke> is position/index in the *eroded* sequence that we're dealing with, while <position> is in the uneroded germline gene
-        left_erosion_length = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())[utils.get_region(gene) + '_5p']
-        for inuke in range(len(seq)):  # append a freq for each nuke
-            position = inuke + left_erosion_length
-            freq = 0.0
-            if position in mute_freqs:
-                freq = mute_freqs[position]
-            else:
-                freq = mute_freqs['overall_mean']
-            rates.append(freq)
-            total += freq
+            # NOTE <inuke> is position/index in the *eroded* sequence that we're dealing with, while <position> is in the uneroded germline gene
+            for inuke in range(len(rseq)):  # append a freq for each nuke
+                position = inuke + all_erosions[region + '_5p']
+                freq = 0.0
+                if position in mute_freqs:
+                    freq = mute_freqs[position]
+                else:
+                    freq = mute_freqs['overall_mean']
+                if cposlist is not None and position in cposlist:  # set freq for conserved codons to zero
+                    freq = 0.0
+                rfreqs[region].append(freq)
+                rtotals[region] += freq
+                if self.args.per_base_mutation:
+                    per_base_freqs[region].append(get_pbfreqs(rseq[inuke], pbcounts=mute_counts.get(position), inuke=inuke, rgene=rgene))
+
+            # normalize to the number of sites in this region, i.e. so an average site is given value 1.0 (I'm not sure that this really needs to be done, but it might not be exactly normalized before this)
+            assert rtotals[region] != 0.0
+            for inuke in range(len(rseq)):
+                rfreqs[region][inuke] *= float(len(rseq)) / rtotals[region]
+            rtotals[region] = float(len(rseq))  # dammit i keep forgetting this: if you're going to use the total later, you obviously have to reset it after normalizing
+
+            # then rescale by regional branch lengths
+            rlength_ratio = self.treeinfo['branch-length-ratios'][region]
+            for inuke in range(len(rseq)):
+                rfreqs[region][inuke] *= rlength_ratio  # so it's no longer normalized after this -- we renormalize over all regions afterward
+            rtotals[region] *= rlength_ratio
+
+            if debug:
+                print '    %s: read freqs for %d positions: %d to %d' % (region, len(rfreqs[region]), all_erosions[region + '_5p'], len(rseq) - 1 + all_erosions[region + '_5p'])
+                print '          normalized to 1, then multiplied by %.3f (total %.3f)' % (rlength_ratio, rtotals[region])
+
+        # ----------------------------------------------------------------------------------------
+        rfreqs, rtotals = {}, {}
+        # first add each region
+        for region in utils.regions:
+            get_region_freqs(region)
+        # then add insertions
+        mean_freq = numpy.mean(rfreqs['d' if utils.has_d_gene(self.args.locus) else 'v'])  # use mute freq from d for heavy chain, v for light chain (i wish i had the cdr3 mute freq here, but i don't)
+        for bound in utils.boundaries:
+            rfreqs[bound] = [mean_freq for _ in range(len(reco_event.insertions[bound]))]
+            rtotals[bound] = mean_freq * len(reco_event.insertions[bound])
+            if debug:
+                print '    %s: added %d positions with freq %.3f from %s' % (bound, len(rfreqs[bound]), mean_freq, 'd' if utils.has_d_gene(self.args.locus) else 'v')
+            if self.args.per_base_mutation:
+                per_base_freqs[bound] = [get_pbfreqs(nb) for nb in reco_event.insertions[bound]]
+
+        final_freqs = [f for r in ['v', 'vd', 'd', 'dj', 'j'] for f in rfreqs[r]]
+        final_seq = reco_event.recombined_seq
+        assert len(final_freqs) == len(final_seq)
+        if self.args.per_base_mutation:
+            per_base_freqs['final'] = [f for r in ['v', 'vd', 'd', 'dj', 'j'] for f in per_base_freqs[r]]
+            assert len(per_base_freqs['final']) == len(final_seq)
 
         # normalize to the number of sites (i.e. so an average site is given value 1.0)
-        assert total != 0.0  # I am not hip enough to divide by zero
-        for inuke in range(len(seq)):
-            rates[inuke] *= float(len(seq)) / total
-        total = 0.0
+        final_total = sum(rtotals.values())
+        for inuke in range(len(final_seq)):
+            final_freqs[inuke] *= float(len(final_seq)) / final_total
 
-        # and... double check it, just for shits and giggles
-        for inuke in range(len(seq)):
-            total += rates[inuke]
-        assert utils.is_normed(total / float(len(seq)))
-        assert len(rates) == len(seq)  # you just can't be too careful. what if gremlins ate a few while python wasn't looking?
+        # you might think you can remove this, but i can tell you from experience that you really, really shouldn't
+        final_total = 0.0
+        for inuke in range(len(final_seq)):
+            final_total += final_freqs[inuke]
+        assert utils.is_normed(final_total / float(len(final_seq)))
 
         # write the input file for bppseqgen, one base per line
         with open(reco_seq_fname, 'w') as reco_seq_file:
@@ -456,86 +531,95 @@ class Recombinator(object):
             if not self.args.mutate_from_scratch:
                 headstr += '\trate'
             reco_seq_file.write(headstr + '\n')
-            for inuke in range(len(seq)):
-                linestr = seq[inuke]
+            for inuke in range(len(final_seq)):
+                linestr = final_seq[inuke]
                 if not self.args.mutate_from_scratch:
-                    linestr += '\t%f' % rates[inuke]
+                    linestr += '\t%f' % final_freqs[inuke]
                 reco_seq_file.write(linestr + '\n')
+        if debug:
+            print '    wrote %d positions%s to %s' % (len(final_seq), '' if self.args.mutate_from_scratch else ' with per-position rates', reco_seq_fname)
 
     # ----------------------------------------------------------------------------------------
-    def prepare_bppseqgen(self, seq, chosen_tree, n_leaf_nodes, gene, reco_event, seed):
+    def prepare_bppseqgen(self, cmdfos, reco_event, seed):
         """ write input files and get command line options necessary to run bppseqgen on <seq> (which is a part of the full query sequence) """
-        if len(seq) == 0:
-            return None
+        tmptree = copy.deepcopy(reco_event.tree)  # we really don't want to modify the tree in the event
+        for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
+            node.taxon = None
+        chosen_tree = tmptree.as_string(schema='newick').strip()
+        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))  # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen; see https://github.com/BioPP/bppsuite/issues/3)
 
-        # write the tree to a tmp file
-        workdir = self.workdir + '/' + utils.get_region(gene)
-        os.makedirs(workdir)
+        workdir = self.workdir + '/bpp'
         treefname = workdir + '/tree.tre'
         reco_seq_fname = workdir + '/start-seq.txt'
-        leaf_seq_fname = '%s/%s-leaf-seqs.fa' % (self.workdir, utils.get_region(gene))
-        # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen; see https://github.com/BioPP/bppsuite/issues/3)
-        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))
+        leaf_seq_fname = '%s/leaf-seqs.fa' % self.workdir
+        workfnames = [reco_seq_fname, treefname]
+
+        os.makedirs(workdir)
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
-        workfnames = [reco_seq_fname, treefname]
-        self.write_mute_freqs(gene, seq, reco_event, reco_seq_fname)
+        per_base_freqs = {} if self.args.per_base_mutation else None
+        self.write_mute_freqs(reco_event, reco_seq_fname, per_base_freqs=per_base_freqs)
 
-        if self.args.per_base_mutation:
-            bpp_path = '%s/packages/bpp-src/_build' % self.args.partis_dir
-        else:
-            bpp_path = '%s/packages/bpp' % self.args.partis_dir
-
-        env = os.environ.copy()
-        env['LD_LIBRARY_PATH'] = '%s/lib%s' % (bpp_path, (':' + env.get('LD_LIBRARY_PATH')) if env.get('LD_LIBRARY_PATH') is not None else '')
-
-        # build up the command line
-        # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/classbpp_1_1GTR.html that page is too darn hard to google
+        bpp_path = '%s/packages/%s' % (self.args.partis_dir, 'bpp-src/_build' if self.args.per_base_mutation else 'bpp')
         bpp_binary = '%s/bin/bppseqgen' % bpp_path
         if not os.path.exists(bpp_binary):
             raise Exception('bppseqgen binary not found: %s' % bpp_binary)
+        env = os.environ.copy()
+        env['LD_LIBRARY_PATH'] = '%s/lib%s' % (bpp_path, (':' + env.get('LD_LIBRARY_PATH')) if env.get('LD_LIBRARY_PATH') is not None else '')
 
+        full_seq = reco_event.recombined_seq
         if self.args.per_base_mutation:
-            # NOTE/TODO this successfully gets us per-base mutation rates, but the overall mutation isn't right -- the more asymmetric the rates to the four bases, the higher the tree depth bppseqgen gives back. Not sure why yet
-            assert not self.args.mutate_from_scratch  # TODO
-            assert not self.args.flat_mute_freq  # TODO
-            paramfname = workdir + '/cfg.bpp'
+            paramfname = workdir + '/cfg.bpp'  # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/index.html that page is too darn hard to google
             workfnames.append(paramfname)
             plines = ['alphabet = DNA']
-            plines += ['number_of_sites = %d' % len(seq)]
+            plines += ['number_of_sites = %d' % len(full_seq)]
             plines += ['input.tree1 = user(file=%s)' % treefname]
-            plines += ['rate_distribution1 = Constant()']
-            plines += ['input.infos = %s' % reco_seq_fname]
-            plines += ['input.infos.states = state']
-            plines += ['input.infos.rates = rate']
-            plines += ['']
+            plines += ['input.tree1.format = Newick']  # this is the default, but adding this keeps it from printing a warning
+            plines += ['input.infos = %s' % reco_seq_fname]  # init state (i.e. naive base) and rate for each position
+            plines += ['input.infos.states = state']  # column name for reco_seq_fname
 
-            left_erosion_length = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())[utils.get_region(gene) + '_5p']
-            # NOTE <inuke> is position/index in the *eroded* sequence that we're dealing with, while <position> is in the uneroded germline gene
-            mute_counts = self.get_mute_counts(gene)
-            for inuke in range(len(seq)):
-                position = inuke + left_erosion_length
-                mcounts = mute_counts.get(position, {n : 1 for n in utils.nukes})
-                mcounts = {n : max(c, 1) for n, c in mcounts.items()}  # add pseudocounts (NOTE this is quite a bit less involved than in hmmwriter.py process_mutation_info() and get_emission_prob())
-                total = sum(mcounts.values())
-                init_freqs = [mcounts[n] / float(total) for n in sorted(utils.nukes)]  # NOTE bio++ manual says the alphabet is always in alphabetical order, so we assume here it's ACGT (if it isn't, this is all wrong)
-                plines += ['model%d = HKY85(kappa=1., initFreqs=values(%s))' % (inuke + 1, ', '.join(['%f' % f for f in init_freqs]))]
-            plines += ['']
+            if self.args.mutate_from_scratch:  # this isn't per-base mutation, it's non-per-base but using the newlik branch, but i can't get it to work (it's crashing because i'm not quite specifying parameters right, but there's no damn docs, or i can't find them, and i'm tired of guessing), so I'm just going back to the old version. It sucks to carry two bpp versions, but oh well
+                # raise Exception('can\'t yet mutate from scratch with per-base mutation')
+                plines += ['input.infos.rates = none']  # column name for reco_seq_fname  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
+                plines += ['model1 = JC69']
+                if self.args.flat_mute_freq:
+                    plines += ['rate_distribution1 = Constant']
+                else:
+                    plines += ['rate_distribution1 = Gamma(n=4,alpha=' + self.mute_models['v']['gamma']['alpha'] + ')']  # eh, maybe just use v, it was probably inferred more accurately, i don't think this really varies over regions, and I don't really care about this bit much any more since the per-base stuff will soon be default. Plus, this inference was just taken from that old connor paper so i have no idea how good it is
+                plines += ['process1 = Homogeneous(model=model1, tree=1, rate=1)']  # not really sure what the rate does here
+                plines += ['simul1 = Single(process=%d, output.sequence.file=%s)' % (len(full_seq) + 1, leaf_seq_fname)]
+            else:  # default: per-position read from parameter file
+                # NOTE/TODO this successfully gets us per-base mutation rates, but the overall mutation isn't right -- the more asymmetric the rates to the four bases, the higher the tree depth bppseqgen gives back. Not sure why yet
+                # updating bio++ to (mostly) newlik branch, maybe roughly the same as v2.4.0?
+                # https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/biopp-devel-forum/cX-Q9aks7CA/mW1uQfCy-nUJ
+                # general philosophy here: download + compile a specific version of bio++, test it *thoroughly* to make sure it's doing *exactly* the mutation we need, and then only allow use of that specific version (this probably screws people on other operating systems, or at least they'll have to recompile)
+                #  - this is needed cause bpp does lots of weird undocumented stuff (e.g. undocumented default values, if you pass it a nonsense/unknown parameter it just ignores it silently instead of telling you)
+                plines += ['input.infos.rates = rate']  # column name for reco_seq_fname
+                plines += ['rate_distribution1 = Constant()']  # every site has a totally different model, so no point in having a non-constant rates-across-sites
+                plines += ['']
 
-            for inuke in range(len(seq)):
-                plines += ['process%d = Homogeneous(model=%d, tree=1, rate=1)' % tuple(inuke + 1 for _ in range(2))]  # NOTE I"m not really sure that the rate does anything, since I"m passing input.infos
-            plines += ['']
+                # make a model for each site, with per-base rates (equilibrium/init freqs) as the observed fraction of times we saw each base at that position
+                for inuke in range(len(full_seq)):
+                    plines += ['model%d = HKY85(kappa=1., initFreqs=values(%s))' % (inuke + 1, ', '.join(['%f' % per_base_freqs['final'][inuke][n] for n in sorted(utils.nukes)]))]  # NOTE bio++ manual says the alphabet is always in alphabetical order, so we assume here it's ACGT (if it isn't, this is all wrong)
+                plines += ['']
 
-            plines += ['process%d = Partition( \\' % (len(seq) + 1)]
-            for inuke in range(len(seq)):
-                plines += ['                     process%d=%d, process%d.sites=%d, \\' % tuple(inuke + 1 for _ in range(4))]
-            plines += [')', '']
+                # make a homogeneous (same rate for entire tree) process for each site, all with the same tree and rate
+                for inuke in range(len(full_seq)):
+                    plines += ['process%d = Homogeneous(model=%d, tree=1, rate=1)' % tuple(inuke + 1 for _ in range(2))]  # NOTE I"m not really sure that the rate does anything, since I"m passing input.infos (homogeneous: same rate for whole tree)
+                plines += ['']
 
-            plines += ['simul1 = Single(process=%d, output.sequence.file=%s)' % (len(seq) + 1, leaf_seq_fname)]
+                # make a final combination process incorporating all the previous ones
+                plines += ['process%d = Partition( \\' % (len(full_seq) + 1)]
+                for inuke in range(len(full_seq)):
+                    plines += ['                     process%d=%d, process%d.sites=%d, \\' % tuple(inuke + 1 for _ in range(4))]
+                plines += [')', '']
+
+                # simulation with the final process
+                plines += ['simul1 = Single(process=%d, output.sequence.file=%s)' % (len(full_seq) + 1, leaf_seq_fname)]
 
             with open(paramfname, 'w') as pfile:
                 pfile.write('\n'.join(plines))
-            command = '%s param=%s' % (bpp_binary, paramfname)
+            command = '%s param=%s --seed=%d' % (bpp_binary, paramfname, seed)  # not sure how to set the seed in the param file, but this works, so oh well
         else:
             command = bpp_binary  # NOTE should I use the "equilibrium frequencies" option?
             command += ' alphabet=DNA'
@@ -552,16 +636,16 @@ class Recombinator(object):
                 if self.args.flat_mute_freq:
                     command += ' rate_distribution=Constant'
                 else:
-                    command += ' rate_distribution=Gamma(n=4,alpha=' + self.mute_models[utils.get_region(gene)]['gamma']['alpha']+ ')'
+                    command += ' rate_distribution=Gamma(n=4,alpha=' + self.mute_models['v']['gamma']['alpha'] + ')'  # eh, maybe just use v, it was probably inferred more accurately, i don't think this really varies over regions, and I don't really care about this bit much any more since the per-base stuff will soon be default. Plus, this inference was just taken from that old connor paper so i have no idea how good it is
             else:
                 command += ' input.infos.rates=rate'  # column name in input file
-                pvpairs = [p + '=' + v for p, v in self.mute_models[utils.get_region(gene)]['gtr'].items()]
+                pvpairs = [p + '=' + v for p, v in self.mute_models['v']['gtr'].items()]  # see note about using only v a couple lines above
                 command += ' model=GTR(' + ','.join(pvpairs) + ')'
 
-        return {'cmd_str' : command, 'outfname' : leaf_seq_fname, 'workdir' : workdir, 'workfnames' : workfnames, 'env' : env}
+        cmdfos.append({'cmd_str' : command, 'outfname' : leaf_seq_fname, 'workdir' : workdir, 'workfnames' : workfnames, 'env' : env})  # used to run each region separately so it made more sense as a list
 
     # ----------------------------------------------------------------------------------------
-    def read_bppseqgen_output(self, cmdfo, n_leaf_nodes):
+    def read_bppseqgen_output(self, cmdfo, reco_event):
         mutated_seqs = {}
         for seqfo in utils.read_fastx(cmdfo['outfname']):  # get the leaf node sequences from the file that bppseqgen wrote
             if seqfo['name'] == dummy_name_so_bppseqgen_doesnt_break:  # in the unlikely (impossible unless we change tree generators and don't tell them to use the same leaf names) event that we get a non-dummy leaf with this name, it'll fail at the assertion just below
@@ -571,9 +655,16 @@ class Recombinator(object):
             names_seqs = [('t' + str(iseq + 1), mutated_seqs['t' + str(iseq + 1)]) for iseq in range(len(mutated_seqs))]
         except KeyError as ke:
             raise Exception('leaf name %s not as expected in bppseqgen output %s' % (ke, cmdfo['outfname']))
-        assert n_leaf_nodes == len(names_seqs)
+        assert treeutils.get_n_leaves(reco_event.tree) == len(names_seqs)
         os.remove(cmdfo['outfname'])
-        return zip(*names_seqs)
+
+        assert len(reco_event.final_seqs) == 0
+        reco_event.leaf_names = []  # i'm pretty sure there's a good reason this starts as None but the seqs start as a length zero list, but I don't remember it
+        for name, seq in names_seqs:
+            seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with UPDATE should really remove this now that we're setting the rates for these positions to zero
+            reco_event.final_seqs.append(seq)
+            reco_event.leaf_names.append(name)
+            reco_event.final_codon_positions.append(copy.deepcopy(reco_event.post_erosion_codon_positions))  # separate codon positions for each sequence, because of shm indels
 
     # ----------------------------------------------------------------------------------------
     def add_shm_indels(self, reco_event):
@@ -603,75 +694,34 @@ class Recombinator(object):
             return
 
         # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)
-        # This chosen depth corresponds to the sequence-wide mutation frequency.
-        # In order to account for varying mutation rates in v, d, and j we simulate these regions separately, by appropriately rescaling the tree for each region.
-        # i.e.: here we get the sequence-wide mute freq from the tree, and rescale it by the repertoire-wide ratios from data (which are stored in the tree file).
-        # looks like e.g.: (t2:0.003751736951,t1:0.003751736951):0.001248262937;v:0.98,d:1.8,j:0.87, where the newick trees has branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j)
-        # NOTE a.t.m (and probably permanently) the mean branch lengths for each region are the same for all the trees in the file, I just don't have a better place to put them while I'm passing from TreeGenerator to here than at the end of each line in the file
-        treefostr = self.treeinfo[random.randint(0, len(self.treeinfo)-1)]  # per-region mutation info is tacked on after the tree... sigh. kind of hackey but works ok.
-        assert treefostr.count(';') == 1
-        isplit = treefostr.find(';') + 1
-        chosen_treestr = treefostr[:isplit]  # includes semi-colon
+        # This chosen depth corresponds to the sequence-wide mutation frequency (the newick trees have branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j))
+        # In order to account for varying mutation rates in v, d, and j we also get the repertoire-wide ratio of mutation freqs for each region from treegenerator
+        # We used to make a separate tree for each region, and rescale that tree by the appropriate ratio and simulate with three separate bppseqgen processes, but now we use one tree for the whole sequence, and do the rescaling when we write the per-position mutation rates for each region
+        chosen_treestr = self.treeinfo['trees'][random.randint(0, len(self.treeinfo['trees'])-1)]  # per-region mutation info is tacked on after the tree... sigh. kind of hackey but works ok.
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)
-        mutefo = [rstr for rstr in treefostr[isplit:].split(',')]
-        mean_total_height = treeutils.get_mean_leaf_height(tree=reco_event.tree)
-        regional_heights = {}  # per-region height
-        for tmpstr in mutefo:
-            region, ratio = tmpstr.split(':')
-            assert region in utils.regions
-            regional_heights[region] = mean_total_height * float(ratio)
-
-        scaled_trees = {r : copy.deepcopy(reco_event.tree) for r in utils.regions}
-        for treg in utils.regions:
-            treeutils.rescale_tree(regional_heights[treg], dtree=scaled_trees[treg])
-            for node in scaled_trees[treg].preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
-                node.taxon = None
-        scaled_trees = {r : t.as_string(schema='newick').strip() for r, t in scaled_trees.items()}
 
         if self.args.debug:
-            print '  chose tree with total height %f%s' % (mean_total_height, (' (includes factor %.2f from --mutation-multiplier)' % self.args.mutation_multiplier) if self.args.mutation_multiplier is not None else '')
-            print '    regional trees rescaled to heights:  %s' % ('   '.join(['%s %.3f  (expected %.3f)' % (region, treeutils.get_mean_leaf_height(treestr=scaled_trees[region]), regional_heights[region]) for region in utils.regions]))
+            mheight = treeutils.get_mean_leaf_height(tree=reco_event.tree)
+            print '  chose tree with total height %f%s' % (mheight, (' (includes factor %.2f from --mutation-multiplier)' % self.args.mutation_multiplier) if self.args.mutation_multiplier is not None else '')
+            print '    regional heights:  %s' % ('   '.join(['%s %.3f' % (r, mheight * self.treeinfo['branch-length-ratios'][r]) for r in utils.regions]))
 
-        n_leaves = treeutils.get_n_leaves(reco_event.tree)
-        cmdfos = []
-        regional_naive_seqs = {}  # only used for tree checking
-        for region in utils.regions:
-            simstr = reco_event.eroded_seqs[region]
-            if region == 'd':
-                simstr = reco_event.insertions['vd'] + simstr + reco_event.insertions['dj']
-            cmdfos.append(self.prepare_bppseqgen(simstr, scaled_trees[region], n_leaves, reco_event.genes[region], reco_event, seed=irandom))
-            regional_naive_seqs[region] = simstr
+        cmdfos, regional_naive_seqs = [], {}  # latter is only used for tree checking
+        self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom)
+        assert len(cmdfos) == 1  # used to be one cmd for each region
 
-        utils.run_cmds([cfo for cfo in cmdfos if cfo is not None], sleep=False, clean_on_success=True)  # None shenanigan is to handle zero-length regional seqs
+        utils.run_cmds(cmdfos, sleep=False, clean_on_success=True)
 
-        mseqs = {}
-        for ireg in range(len(utils.regions)):  # NOTE kind of sketchy just using index in <utils.regions> (although it just depends on the loop immediately above a.t.m.)
-            if cmdfos[ireg] is None:
-                mseqs[utils.regions[ireg]] = ['' for _ in range(n_leaves)]  # return an empty string for each leaf node
-            else:
-                tmp_names, tmp_seqs = self.read_bppseqgen_output(cmdfos[ireg], n_leaves)
-                if reco_event.leaf_names is None:
-                    reco_event.leaf_names = tmp_names
-                assert reco_event.leaf_names == tmp_names  # enforce different regions having same name + ordering (although this is already enforced when reading bppseqgen output)
-                mseqs[utils.regions[ireg]] = tmp_seqs
-
-        assert len(reco_event.final_seqs) == 0
-
-        for iseq in range(n_leaves):
-            seq = mseqs['v'][iseq] + mseqs['d'][iseq] + mseqs['j'][iseq]
-            seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with
-            reco_event.final_seqs.append(seq)  # set final sequnce in reco_event
-            reco_event.final_codon_positions.append(copy.deepcopy(reco_event.post_erosion_codon_positions))  # separate codon positions for each sequence, because of shm indels
+        self.read_bppseqgen_output(cmdfos[0], reco_event)
 
         self.add_shm_indels(reco_event)
         reco_event.setline(irandom)  # set the line here because we use it when checking tree simulation, and want to make sure the uids are always set at the same point in the workflow
-        # self.check_tree_simulation(mean_total_height, regional_heights, reco_event.tree.as_string(schema='newick'), scaled_trees, regional_naive_seqs, mseqs, reco_event)
-        # self.print_validation_values()
+        if self.args.check_tree_depths:
+            self.check_tree_simulation(reco_event)
 
         if self.args.debug:
-            print '    tree passed to bppseqgen:'
+            print '  tree passed to bppseqgen (mean depth %.3f):' % treeutils.get_mean_leaf_height(tree=reco_event.tree)
             print treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      ')
             utils.print_reco_event(reco_event.line, extra_str='    ')
 
@@ -682,40 +732,28 @@ class Recombinator(object):
             utils.restrict_to_iseqs(line, functional_iseqs, self.glfo)
 
     # ----------------------------------------------------------------------------------------
-    def check_tree_simulation(self, mean_total_height, regional_heights, chosen_tree, scaled_trees, regional_naive_seqs, mseqs, reco_event, debug=False):
-        assert reco_event.line is not None  # make sure we already set it
-
-        # check the height for each region
-        mean_observed = {n : 0.0 for n in ['all'] + utils.regions}
-        for iseq in range(len(reco_event.final_seqs)):
-            mean_observed['all'] += reco_event.line['mut_freqs'][iseq]
-            for region in utils.regions:  # NOTE for simulating, we mash the insertions in with the D, but this isn't accounted for here
-                rrate = utils.get_mutation_rate(reco_event.line, iseq=iseq, restrict_to_region=region)
-                mean_observed[region] += rrate
+    def check_tree_simulation(self, reco_event, debug=False):  # also adds validation values for this event, so you can later print them for all of the events
+        # NOTE turning on this debug just tells you the values for this event, but if you want to average over lots of events you turn on the print_validation_values() call in bin/partis
+        ltmp = reco_event.line
+        mheight = treeutils.get_mean_leaf_height(tree=reco_event.tree)
         if debug:
-            print '             in          out'
+            print '          in       out    (input tree heights vs output fraction of positions mutated)'
         for rname in ['all'] + utils.regions:
-            mean_observed[rname] /= float(len(reco_event.final_seqs))
-            if rname == 'all':
-                input_height = mean_total_height
-            else:
-                input_height = regional_heights[rname]
+            input_height = mheight * (1 if rname=='all' else self.treeinfo['branch-length-ratios'][rname])
+            mean_obs = numpy.mean([utils.get_mutation_rate(ltmp, iseq=i, restrict_to_region='' if rname=='all' else rname) for i in range(len(ltmp['unique_ids']))])  # could use the 'mut_freqs' key to avoid recalculatation, but this is a bit cleaner
             self.validation_values['heights'][rname]['in'].append(input_height)
-            self.validation_values['heights'][rname]['out'].append(mean_observed[rname])
+            self.validation_values['heights'][rname]['out'].append(mean_obs)
             if debug:
-                print '  %4s    %7.3f     %7.3f' % (rname, input_height, mean_observed[rname])
+                print '  %4s %7.3f  %7.3f' % (rname, input_height, mean_obs)
 
-        treeutils.get_tree_difference_metrics('all', chosen_tree, reco_event.final_seqs, reco_event.line['naive_seq'])
-        # for region in utils.regions:  # sample size starts getting small for each region
-        #     treeutils.get_tree_difference_metrics(region, scaled_trees[region], mseqs[region], regional_naive_seqs[region])  # NOTE mseqs don't have codon reversion
+        if self.args.debug:  # <debug> above is for if we're debugging this function, whereas we want to print this stuff when --debug is set
+            treeutils.get_tree_difference_metrics('all', reco_event.line['tree'], reco_event.final_seqs, ltmp['naive_seq'])  # NOTE we want to pass in the treestr rather than the dendro tree because a) the stupid dendropy functions modify the dendro tree you give them b) they also need the two trees to have the same taxon namespace so we'd have to make a new one anyway
 
     # ----------------------------------------------------------------------------------------
-    def print_validation_values(self):
-        # NOTE the v, d, and all are systematically low, while j is high. Don't feel like continuing to figure out all the contributors a.t.m. though
-        print '  tree heights:'
-        print '        in      out          diff'
+    def print_validation_values(self):  # the point of having this separate from the previous function is that it's run after you've simulated lots of different events (unlike everything else in this class, the validation values aggregate over different events)
+        print '  input tree height vs output mut frac (means over leaves/seqs) averaged over %d events:' % len(self.validation_values['heights']['all']['in'])
+        print '             in      out       diff    std err   std dev'
         for vtype in ['all'] + utils.regions:
             vvals = self.validation_values['heights'][vtype]
             deltas = [(vvals['out'][i] - vvals['in'][i]) for i in range(len(vvals['in']))]
-            print '      %.3f   %.3f    %+.3f +/- %.3f      %s' % (numpy.mean(vvals['in']), numpy.mean(vvals['out']),
-                                                                   numpy.mean(deltas), numpy.std(deltas) / len(deltas), vtype)  # NOTE each delta is already the mean of <n_leaves> independent measurements
+            print '       %3s  %.3f   %.3f    %+.3f +/- %.3f     %.3f' % (vtype, numpy.mean(vvals['in']), numpy.mean(vvals['out']), numpy.mean(deltas), numpy.std(deltas, ddof=1) / math.sqrt(len(deltas)), numpy.std(deltas, ddof=1))  # NOTE each delta is already the mean of <n_leaves> (non-independent) measurements
