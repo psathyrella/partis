@@ -4728,6 +4728,8 @@ def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_
     for line in yamlfo['events']:
         if not line['invalid']:
             transfer_indel_reversed_seqs(line)
+            if 'all_matches' in line and isinstance(line['all_matches'], dict):  # it used to be per-family, but then I realized it should be per-sequence, so any old cache files lying around have it as per-family
+                line['all_matches'] = [line['all_matches']]  # also, yes, it makes me VERY ANGRY that this needs to be here, but i just ran into a couple of these old files and otherwise they cause crashes
             if not dont_add_implicit_info:  # it's kind of slow, although most of the time you probably want all the extra info
                 add_implicit_info(glfo, line)  # don't use the germline info in <yamlfo>, in case we decide we want to modify it in the calling fcn
         if synth_single_seqs and len(line['unique_ids']) > 1:
