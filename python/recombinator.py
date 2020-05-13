@@ -70,7 +70,7 @@ class Recombinator(object):
             self.treeinfo = json.load(treefile)
         os.remove(self.treefname)
 
-        self.per_base_mutation_multiplier = 2./3  # no, i don't know why i have to multiply the tree depth by this before passing to the newlik/per-base bppseqgen version, but i'm tired of trying to work it out. This makes the distributions look pretty darn good, so i'm going with it
+        self.per_base_mutation_multiplier = 0.5  # no, i don't know why i have to multiply the tree depth by this before passing to the newlik/per-base bppseqgen version, but i'm tired of trying to work it out. This makes the distributions look pretty darn good, so i'm going with it
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
 
@@ -544,6 +544,10 @@ class Recombinator(object):
     def prepare_bppseqgen(self, cmdfos, reco_event, seed):
         """ write input files and get command line options necessary to run bppseqgen on <seq> (which is a part of the full query sequence) """
         tmptree = copy.deepcopy(reco_event.tree)  # we really don't want to modify the tree in the event
+        if self.args.per_base_mutation:
+            if self.args.debug:
+                print '      rescaling tree by %.2f to account for per-base mutation weirdness' % self.per_base_mutation_multiplier
+            tmptree.scale_edges(self.per_base_mutation_multiplier)
         for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
             node.taxon = None
         chosen_tree = tmptree.as_string(schema='newick').strip()
@@ -580,6 +584,7 @@ class Recombinator(object):
             plines += ['input.infos.states = state']  # column name for reco_seq_fname
 
             if self.args.mutate_from_scratch:  # this isn't per-base mutation, it's non-per-base but using the newlik branch, but i can't get it to work (it's crashing because i'm not quite specifying parameters right, but there's no damn docs, or i can't find them, and i'm tired of guessing), so I'm just going back to the old version. It sucks to carry two bpp versions, but oh well
+                # NOTE if you implement this, you'll have to check all the places where self.args.per_base_mutation is used to see if it should be self.args.newlik or something
                 raise Exception('can\'t yet mutate from scratch with per-base mutation')
                 plines += ['input.infos.rates = none']  # column name for reco_seq_fname  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
                 plines += ['model1 = JC69']
@@ -702,10 +707,6 @@ class Recombinator(object):
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)
-        if self.args.per_base_mutation:  # NOTE even with this bppseqgen of course still gives us sequences that are mutated more than the tree (so the tree depth checks still look bad), but the mutation rate in those seqs actually matches the input rate in the parameter dir
-            if self.args.debug:
-                print '      rescaling tree by %.2f to account for per-base mutation weirdness' % self.per_base_mutation_multiplier
-            reco_event.tree.scale_edges(self.per_base_mutation_multiplier)
 
         if self.args.debug:
             mheight = treeutils.get_mean_leaf_height(tree=reco_event.tree)

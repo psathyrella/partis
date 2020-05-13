@@ -44,9 +44,16 @@ cfglist = [
 # ./bin/partis simulate --n-sim-events 100 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1 --mutation-multiplier 1 --per-base-mutation --parameter-dir _output/per-base-test/cache-parameters-from-tmp-test-v0 --outfname _output/per-base-test/simu-from-cache-parameters-from-tmp-test-v0/simu.yaml
 # ./bin/example-parse-output.py --fname _output/per-base-test/simu-from-cache-parameters-from-tmp-test-v0/simu.yaml --plotdir _output/per-base-test/simu-from-cache-parameters-from-tmp-test-v0/plots
 
-    ('qa013-mar-8-old', ['--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # all the stuff using test/reference-results has a big super-high-mutation tail, which isn't a part of parameter space i care a lot about
-    ('qa013-mar-8-v0', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),
-    ('qa013-mar-8-v1', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # add self.per_base_mutation_multiplier
+    # ('qa013-mar-8-old', ['--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # all the stuff using test/reference-results has a big super-high-mutation tail, which isn't a part of parameter space i care a lot about
+    # # ('qa013-mar-8-v0', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),
+    # # ('qa013-mar-8-v1', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # add self.per_base_mutation_multiplier, set to 2./3
+    # ('qa013-mar-8-v2', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # change self.per_base_mutation_multiplier to 0.5
+
+    # NOTE that this stuff is parameters from an old simulation file that was made *without* per-base mutation, which is probably the reason for it (the overall mutation rate seems to be off for per-base more the more unbalanced the equilibrium freqs are)
+    ('ref-results-old', ['--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),  # the qa013 stuff just above looks good, but i want to look again at the high mutation tails here
+    ('ref-results-v0', ['--per-base-mutation', '--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),  # the qa013 stuff just above looks good, but i want to look again at the high mutation tails here
+    ('ref-results-v1', ['--per-base-mutation', '--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),  # fuck it looks terrble, try it without the factor
+
 ]
 simcmd = './bin/partis simulate --n-sim-events 250 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1'  #  --check-tree-depths
 
@@ -61,8 +68,8 @@ simcmd = './bin/partis simulate --n-sim-events 250 --n-procs 8 --only-genes IGHV
 # subd = 'mute-freqs/per-gene-per-position/v'
 subd = 'mute-freqs/overall'
 
-# cfglist.insert(0, ('original', [None]))  # this is from just running example-parse-output plotting on the reference simulation file (most everybody's trying to look like this)
-cfglist.insert(0, ('original-qa013-mar-8-sw-cache', [None]))
+cfglist.insert(0, ('original', [None]))  # this is from just running example-parse-output plotting on the reference simulation file (most everybody's trying to look like this)
+# cfglist.insert(0, ('original-qa013-mar-8-sw-cache', [None]))
 
 pdirs = ['%s/%s/plots/%s' % (outdir, l, subd) for l, _ in cfglist]
 names = [l for l, _ in cfglist]
