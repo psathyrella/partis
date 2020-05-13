@@ -202,6 +202,8 @@ def cdn_pos(glfo, region, gene):
     if cdn(glfo, region) is None:
         return None
     return cdn_positions(glfo, region)[gene]
+def gseq(glfo, gene):  # adding this fcn very late in the game, i could really stand to use it in a lot more places (grep for "glfo\['seqs'\]\[.*\]\[")
+    return glfo['seqs'][get_region(gene)][gene]
 def remove_gaps(seq):
     return ''.join([c for c in seq if c not in gap_chars])
 def gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
