@@ -162,7 +162,8 @@ class RecombinationEvent(object):
         for region, pos in self.post_erosion_codon_positions.items():  #  NOTE this happens *before* shm indels, i.e. we use self.post_erosion_codon_positions rather than self.final_codon_positions
             if seq[pos : pos + 3] != self.unmutated_codons[region]:
                 assert len(self.unmutated_codons[region]) == 3
-                print '    %s reverting %s --> %s (this shouldn\'t happen any more, since we\'re now setting the relative rates to zero before bppseqgen)' % (utils.color('red', 'warning'), seq[pos : pos + 3], self.unmutated_codons[region])
+                if debug:
+                    print '    reverting %s --> %s' % (seq[pos : pos + 3], self.unmutated_codons[region])  # this doesn't happen *much* any more, but bppseqgen barfs if we pass it rates that are exactly zero, so it still happens sometimes
                 seq = seq[:pos] + self.unmutated_codons[region] + seq[pos + 3 :]
             assert utils.codon_unmutated(utils.conserved_codons[self.glfo['locus']][region], seq, pos)
         return seq

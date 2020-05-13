@@ -70,6 +70,8 @@ class Recombinator(object):
             self.treeinfo = json.load(treefile)
         os.remove(self.treefname)
 
+        self.per_base_mutation_multiplier = 2./3  # no, i don't know why i have to multiply the tree depth by this before passing to the newlik/per-base bppseqgen version, but i'm tired of trying to work it out. This makes the distributions look pretty darn good, so i'm going with it
+
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
 
     # ----------------------------------------------------------------------------------------
@@ -700,6 +702,10 @@ class Recombinator(object):
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)
+        if self.args.per_base_mutation:  # NOTE even with this bppseqgen of course still gives us sequences that are mutated more than the tree (so the tree depth checks still look bad), but the mutation rate in those seqs actually matches the input rate in the parameter dir
+            if self.args.debug:
+                print '      rescaling tree by %.2f to account for per-base mutation weirdness' % self.per_base_mutation_multiplier
+            reco_event.tree.scale_edges(self.per_base_mutation_multiplier)
 
         if self.args.debug:
             mheight = treeutils.get_mean_leaf_height(tree=reco_event.tree)

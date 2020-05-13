@@ -46,6 +46,7 @@ cfglist = [
 
     ('qa013-mar-8-old', ['--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # all the stuff using test/reference-results has a big super-high-mutation tail, which isn't a part of parameter space i care a lot about
     ('qa013-mar-8-v0', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),
+    ('qa013-mar-8-v1', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # add self.per_base_mutation_multiplier
 ]
 simcmd = './bin/partis simulate --n-sim-events 250 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1'  #  --check-tree-depths
 
