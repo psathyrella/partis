@@ -988,8 +988,7 @@ class Waterer(object):
         try:
             utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
         except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            elines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            elines = traceback.format_exception(*sys.exc_info())
             print utils.pad_lines(''.join(elines))
             print '      rerun: implicit info adding failed for %s (see above), rerunning' % qname  # shouldn't be able to happen, so print even if debug isn't set
             return dbgfcn('see above')

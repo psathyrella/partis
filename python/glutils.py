@@ -182,8 +182,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
         try:
             utils.split_gene(gene)  # just to check if it's a valid gene name
         except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            lines = traceback.format_exception(*sys.exc_info())
             print utils.pad_lines(''.join(lines))
             raise Exception('Unhandled gene name \'%s \' in %s (see above). If you don\'t mind us renaming your genes (we just add locus and dummy allele, e.g. IGH<your stuff>*x), you can set --sanitize-input-germlines.' % (gene, fname))
         if skip_other_region and utils.get_region(gene) != region:

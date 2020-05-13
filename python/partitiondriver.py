@@ -1894,8 +1894,7 @@ class PartitionDriver(object):
                 try:
                     utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
                 except:  # I really don't like just swallowing it, but it's crashing deep in the new[ish] indel code on an extraordinarily rare and I think super screwed up sequence, and I can't replicate it without running on the entire stupid huge sample
-                    exc_type, exc_value, exc_traceback = sys.exc_info()
-                    lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+                    lines = traceback.format_exception(*sys.exc_info())
                     print '      %s implicit info adding failed for %s when reading hmm output (so adding to failed queries):' % (utils.color('red', 'warning'), uidstr)
                     print utils.pad_lines(''.join(lines))
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
