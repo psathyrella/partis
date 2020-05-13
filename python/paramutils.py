@@ -2,7 +2,6 @@ import os
 import csv
 import operator
 import sys
-import traceback
 
 import glutils
 import utils

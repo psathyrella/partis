@@ -165,8 +165,7 @@ def write_pmml(pmmlfname, dmodel, varlist, targetvar):
         pmml_pipeline = sys.modules['sklearn2pmml'].make_pmml_pipeline(dmodel, active_fields=varlist, target_fields=targetvar)
         sys.modules['sklearn2pmml'].sklearn2pmml(pmml_pipeline, pmmlfname)
     except:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        elines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        elines = traceback.format_exception(*sys.exc_info())
         print utils.pad_lines(''.join(elines))
         print '  %s pmml conversion failed (see above), but continuing' % utils.color('red', 'error')
 

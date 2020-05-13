@@ -226,7 +226,7 @@ class Recombinator(object):
                 version_freq_table[index] = float(line['count'])
 
         if len(version_freq_table) == 0:
-            raise Exception('didn\'t find any gene combinations in %s' % fname)
+            raise Exception('didn\'t find any gene combinations in %s' % self.reco_parameter_dir + '/' + utils.get_parameter_fname('all', 'r'))
 
         # then normalize
         test_total = 0.0
@@ -430,12 +430,11 @@ class Recombinator(object):
                     return 0.01  # bppseqgen barfs if it's too small (and it gets normalized after this so ends up smaller): ParameterException: ConstraintException: Parameter::setValue(0)]1e-06; 0.999999[(HKY85.theta1)
                 else:  # but for the other three we just want to set 1 if there's no info or zero counts
                     return 1 if count is None else max(count, 1)
+            if debug and pbcounts is not None:  # originally just to check that we have the right position in the gene and counts (but it happens too much just from random stuff to be worth printing unless debug is one)
+                if sum(pbcounts.values()) > 10 and any(c > pbcounts[naive_base] for n, c in pbcounts.items() if n != naive_base):  # ok now that i've actually run with this check, it picks up quite a few cases where I'm presuming we have the wrong germline gene, in which case it's probably better that it's "wrong"? jeez i dunno, doesn't matter
+                    print '    %s non-germline base has more counts than germline base (%s) at ipos %s in %s: %s' % (utils.color('red', 'warning'), naive_base, inuke, utils.color_gene(rgene), pbcounts)  # formatting inuke as string on the off chance we get here when the calling fcn doesn't pass it
             if pbcounts is None:
                 pbcounts = {n : def_count(n) for n in utils.nukes}
-            else:  # just to check that we have the right position in the gene and counts
-                # ok now that i've actually run with this check, it picks up quite a few cases where I'm presuming we have the wrong germline gene, in which case it's probably better that it's "wrong"? jeez i dunno, doesn't matter
-                if sum(pbcounts.values()) > 10 and any(c > pbcounts[naive_base] for n, c in pbcounts.items() if n != naive_base):
-                    print '    %s non-germline base has more counts than germline base (%s) at ipos %s in %s: %s' % (utils.color('red', 'warning'), naive_base, inuke, utils.color_gene(rgene), pbcounts)  # formatting inuke as string on the off chance we get here when the calling fcn doesn't pass it
             pbcounts = {n : def_count(n, count=c) for n, c in pbcounts.items()}  # add pseudocounts (NOTE this is quite a bit less involved than in hmmwriter.py process_mutation_info() and get_emission_prob())
             tmptot = sum(pbcounts.values())
             pbcounts = {n : pbcounts[n] / float(tmptot) for n, c in pbcounts.items()}
@@ -579,7 +578,7 @@ class Recombinator(object):
             plines += ['input.infos.states = state']  # column name for reco_seq_fname
 
             if self.args.mutate_from_scratch:  # this isn't per-base mutation, it's non-per-base but using the newlik branch, but i can't get it to work (it's crashing because i'm not quite specifying parameters right, but there's no damn docs, or i can't find them, and i'm tired of guessing), so I'm just going back to the old version. It sucks to carry two bpp versions, but oh well
-                # raise Exception('can\'t yet mutate from scratch with per-base mutation')
+                raise Exception('can\'t yet mutate from scratch with per-base mutation')
                 plines += ['input.infos.rates = none']  # column name for reco_seq_fname  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
                 plines += ['model1 = JC69']
                 if self.args.flat_mute_freq:
@@ -707,7 +706,7 @@ class Recombinator(object):
             print '  chose tree with total height %f%s' % (mheight, (' (includes factor %.2f from --mutation-multiplier)' % self.args.mutation_multiplier) if self.args.mutation_multiplier is not None else '')
             print '    regional heights:  %s' % ('   '.join(['%s %.3f' % (r, mheight * self.treeinfo['branch-length-ratios'][r]) for r in utils.regions]))
 
-        cmdfos, regional_naive_seqs = [], {}  # latter is only used for tree checking
+        cmdfos = []
         self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom)
         assert len(cmdfos) == 1  # used to be one cmd for each region
 
