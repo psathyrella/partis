@@ -349,14 +349,17 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         tmplinestyles += [availstyles[itmp % len(availstyles)] for _ in range(n_different_colors)]
         itmp += 1
 
+    def floatstr(val):
+        ndig = 1 if val > 1 else 3
+        return ('%.'+str(ndig)+'f') % val
     for ih in range(len(hists)):
         htmp = hists[ih]
         if stats == 'mean':
-            htmp.title += ' (mean %.2f)' % htmp.get_mean()
+            htmp.title += ' (mean %s)' % floatstr(htmp.get_mean())
         elif stats == 'absmean':
-            htmp.title += ' (abs av %.2f)' % htmp.get_mean(absval=True)
+            htmp.title += ' (abs av %s)' % floatstr(htmp.get_mean(absval=True))
         elif stats == '0-bin':
-            htmp.title += ' (right %.2f)' % htmp.bin_contents[1]
+            htmp.title += ' (right %s)' % floatstr(htmp.bin_contents[1])
         elif stats is not None and stats != '':  # damnit, I ended up with both of the damn things as possible defaults
             raise Exception('unexpected stats str %s' % stats)
         markersize = None
