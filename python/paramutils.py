@@ -1,6 +1,8 @@
 import os
 import csv
 import operator
+import sys
+import traceback
 
 import glutils
 import utils
@@ -145,12 +147,17 @@ def make_mutefreq_plot(plotdir, gene_name, positions, debug=False):
     for info in positions:
         posname = info['name']
 
-        # make label below bin
+        # make label below bin for position and germline nuke
         ax.text(-0.5 + ibin, -0.075, simplify_state_name(posname), rotation='vertical', size=8)
+        ax.text(-0.5 + ibin, -0.15, info.get('gl_nuke', '?'), fontsize=10, fontweight='bold')
+        sorted_nukes, _ = zip(*sorted(info['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True))
+        if 'gl_nuke' in info and info['gl_nuke'] in info['nuke_freqs']:  # put the germline nuke first if we have it (second clause is for states with germline N))
+            sorted_nukes = [info['gl_nuke']] + [n for n in sorted_nukes if n != info['gl_nuke']]
 
         total = 0.0
         alpha = 0.6
-        for nuke, prob in sorted(info['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True):
+        for nuke in sorted_nukes:
+            prob = info['nuke_freqs'][nuke]
             color = nuke_colors[nuke]
 
             label_to_use = None

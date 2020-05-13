@@ -120,6 +120,7 @@ class ModelPlotter(object):
             plotting_info.append({
                 'name' : state.name,
                 'nuke_freqs' : state.emissions['probs'],
+                'gl_nuke' : state.extras['germline'] if 'germline' in state.extras else None
             })
 
         paramutils.make_mutefreq_plot(self.base_plotdir + '/emissions', gene_name, plotting_info, debug=True)
@@ -127,8 +128,8 @@ class ModelPlotter(object):
     # ----------------------------------------------------------------------------------------
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--hmmdir')
-parser.add_argument('--infiles')
+parser.add_argument('--hmmdir', help='directory with .yaml hmm model files, e.g. test/reference-results/test/parameters/simu/hmm/hmms')
+parser.add_argument('--infiles', help='colon-separated list of .yaml hmm model files (either set this, or set --hmmdir)')
 parser.add_argument('--outdir', required=True)
 args = parser.parse_args()
 

@@ -170,6 +170,7 @@ class MuteFreqer(object):
                     plotting_info.append({
                         'name' : str(pos),  # not sure if this is right, but I think so
                         'nuke_freqs' : {n : freqs[pos][n] for n in utils.nukes},
+                        'gl_nuke' : utils.gseq(self.glfo, gene)[pos],
                     })
                 paramutils.make_mutefreq_plot(plotdir + '/' + utils.get_region(gene) + '-per-base', utils.sanitize_name(gene), plotting_info)
 
