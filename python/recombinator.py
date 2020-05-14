@@ -70,7 +70,7 @@ class Recombinator(object):
             self.treeinfo = json.load(treefile)
         os.remove(self.treefname)
 
-        self.per_base_mutation_multiplier = 0.5  # no, i don't know why i have to multiply the tree depth by this before passing to the newlik/per-base bppseqgen version, but i'm tired of trying to work it out. This makes the distributions look pretty darn good, so i'm going with it
+        self.per_base_mutation_multiplier = 0.6  # no, i don't know why i have to multiply the tree depth by this before passing to the newlik/per-base bppseqgen version, but i'm tired of trying to work it out. This makes the distributions look pretty darn good, so i'm going with it. Note that this effect seems to be worse the more asymmetric i make the init freqs, e.g. if i artificially make all mutation go to one base, this effect gets way worse.
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
 
