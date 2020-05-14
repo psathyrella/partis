@@ -45,7 +45,7 @@ cfglist = [
 # ./bin/example-parse-output.py --fname _output/per-base-test/simu-from-cache-parameters-from-tmp-test-v0/simu.yaml --plotdir _output/per-base-test/simu-from-cache-parameters-from-tmp-test-v0/plots
 
     ('qa013-mar-8-old', ['--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # all the stuff using test/reference-results has a big super-high-mutation tail, which isn't a part of parameter space i care a lot about
-    # ('qa013-mar-8-v0', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),
+    ('qa013-mar-8-v0', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),
     # ('qa013-mar-8-v1', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # add self.per_base_mutation_multiplier, set to 2./3
     # ('qa013-mar-8-v2', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # change self.per_base_mutation_multiplier to 0.5
     ('qa013-mar-8-v2', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # change self.per_base_mutation_multiplier to 0.6
