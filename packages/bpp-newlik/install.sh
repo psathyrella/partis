@@ -1,3 +1,5 @@
+# this should install the newlik branch of bpp, which you need to run simulation with --per-base-mutation set
+
 bd=$PWD #/fh/fast/matsen_e/dralph/code/partis-dev/packages/bpp-src
 
 cd $bd
