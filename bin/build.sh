@@ -7,6 +7,10 @@ else
     basedir=$PWD
 fi
 
+echo -e "\n--> building bpp-newlik"
+cd $basedir/packages/bpp-newlik/ && ./install.sh
+cd $basedir/
+
 echo -e "\n--> building ig-sw"
 cd $basedir/packages/ig-sw/src/ig_align/ && scons
 cd $basedir/
