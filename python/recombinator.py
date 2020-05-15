@@ -565,7 +565,7 @@ class Recombinator(object):
         per_base_freqs = {} if self.args.per_base_mutation else None
         self.write_mute_freqs(reco_event, reco_seq_fname, per_base_freqs=per_base_freqs)
 
-        bpp_path = '%s/packages/%s' % (self.args.partis_dir, 'bpp-src/_build' if self.args.per_base_mutation else 'bpp')
+        bpp_path = '%s/packages/%s' % (self.args.partis_dir, 'bpp-newlik/_build' if self.args.per_base_mutation else 'bpp')
         bpp_binary = '%s/bin/bppseqgen' % bpp_path
         if not os.path.exists(bpp_binary):
             raise Exception('bppseqgen binary not found: %s' % bpp_binary)
