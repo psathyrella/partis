@@ -53,7 +53,6 @@ for pack in $packs; do
     # configure/compile
     mkdir -p _build
     cd _build
-    echo $PWD
     cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=$bppdir/_build ..  # -DCMAKE_PREFIX_PATH=/home/dralph/work/partis/packages/bpp-src/bpp-core
     make install
     if ! [ $? -eq 0 ]; then  # don't want to keep going if one compile failed
