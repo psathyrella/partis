@@ -30,6 +30,7 @@ To then reattach to this running container, run `docker attach container-1`.
 To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile) (ignoring the `FROM` and `COPY` lines).
 If you're on a debian variant, run the apt-get install as written.
 On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/brew for apt-get.
+If you don't care about running simulation, you can ignore the parts that are indicated as simulation-specific.
 
 If you don't have conda installed, follow the full installation instructions [here](https://docs.anaconda.com/anaconda/install/).
 Any time you're using conda, it needs to be in your path, for example with `export PATH=<path_to_conda>:$PATH`.
@@ -60,15 +61,3 @@ R --vanilla --slave -e 'install.packages(c("bios2mds"), repos="http://cran.rstud
 mkdir -p packages/RPANDA/lib
 R CMD INSTALL -l packages/RPANDA/lib packages/RPANDA/
 ```
-
-#### Simulation
-
-If you want to run the `simulate` action, partis needs R installed along with some tree simulation packages (although this can be avoided if you specify your own trees with --input-simulation-treefname)
-
-```
-conda install -y r-essentials  # this is simpler than the instructions under Plotting above because we don't need the x11 cruft
-unset R_LIBS_SITE
-R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM"), repos="http://cran.rstudio.com/")'
-```
-
-note that the above ^ process will likely screw up environment variables related to where your system looks for gcc, so after running this in a terminal you'll likely need to specify full paths.

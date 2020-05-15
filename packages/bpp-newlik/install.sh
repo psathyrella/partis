@@ -1,15 +1,21 @@
 #!/bin/bash
 
-# this should install the newlik branch of bpp, which you need to run simulation with --per-base-mutation set
+if [ -f /.dockerenv ]; then  # if we're in docker TODO this file may go away in the future, so it'd probably be better to switch to the "grep docker /proc/1/cgroup" method
+    basedir=/partis
+else
+    basedir=$PWD
+    echo "using PWD as base partis dir: $PWD"
+fi
 
-bd=$PWD #/fh/fast/matsen_e/dralph/code/partis-dev/packages/bpp-src
+# install the newlik branch of bpp (another, older version is also pre-installed in partis/packages/bpp/, and unfortunately we do really need both, at least for now), which you need to run simulation with --per-base-mutation set
+bppdir=$basedir/packages/bpp-newlik
 clone="false"  # if this is false, we assume the source for each subpackage is already here because git submodule was already run; if this is true, we clone each subpackage and then checkout the proper branch (which shouldn't need to happen any more unless i want to update versions or something)
 
-cd $bd
+cd $bppdir
 
 packs="eigen3 bpp-core bpp-seq bpp-phyl bpp-popgen bppsuite"
 for pack in $packs; do 
-    export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$bd/$pack/_build
+    export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$bppdir/$pack/_build
 done
 
 for pack in $packs; do
@@ -40,14 +46,15 @@ for pack in $packs; do
 	fi
     fi
 
-    if [ -f ../$pack.patch ]; then  # the version i checkout out was missing a couple includes
+    if [ -f ../$pack.patch ]; then  # the version i checked out was missing a couple includes
 	git apply --verbose ../$pack.patch
     fi
 
     # configure/compile
     mkdir -p _build
     cd _build
-    cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=$bd/_build ..  # -DCMAKE_PREFIX_PATH=/home/dralph/work/partis/packages/bpp-src/bpp-core
+    echo $PWD
+    cmake -Wno-dev -DCMAKE_INSTALL_PREFIX=$bppdir/_build ..  # -DCMAKE_PREFIX_PATH=/home/dralph/work/partis/packages/bpp-src/bpp-core
     make install
     if ! [ $? -eq 0 ]; then  # don't want to keep going if one compile failed
 	echo "$pack installation failed"
