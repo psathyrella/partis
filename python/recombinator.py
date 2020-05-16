@@ -85,8 +85,13 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self):
+        # ----------------------------------------------------------------------------------------
+        def default_content():
+            return {n : 1./len(utils.nukes) for n in utils.nukes}
+
+        # ----------------------------------------------------------------------------------------
         if self.args.rearrange_from_scratch:
-            return {b : {n : 1./len(utils.nukes) for n in utils.nukes} for b in utils.boundaries}
+            return {b : default_content() for b in utils.boundaries}
 
         insertion_content_probs = {}
         for bound in utils.boundaries:
@@ -97,11 +102,14 @@ class Recombinator(object):
                 for line in reader:
                     insertion_content_probs[bound][line[bound + '_insertion_content']] = int(line['count'])
                     total += int(line['count'])
-                for nuke in utils.nukes:
-                    if nuke not in insertion_content_probs[bound]:
-                        print '    %s not in insertion content probs, adding with zero' % nuke
-                        insertion_content_probs[bound][nuke] = 0
-                    insertion_content_probs[bound][nuke] /= float(total)
+                if total > 0:
+                    for nuke in utils.nukes:
+                        if nuke not in insertion_content_probs[bound]:
+                            print '    %s not in insertion content probs, adding with zero' % nuke
+                            insertion_content_probs[bound][nuke] = 0
+                        insertion_content_probs[bound][nuke] /= float(total)
+                else:  # i think this will only happen for light chain (i.e. when one of the bounds has all-zero counts)
+                    insertion_content_probs[bound] = default_content()
 
             assert utils.is_normed(insertion_content_probs[bound])
 
@@ -450,12 +458,13 @@ class Recombinator(object):
             rtotals[region] = 0.
             rseq = reco_event.eroded_seqs[region]
             rgene = reco_event.genes[region]
+            if not self.args.no_per_base_mutation:
+                per_base_freqs[region] = []
             if len(rseq) == 0:  # i think this is how it handles light chain d? not checking right now, just copying how it did it below
                 return
             mute_freqs = self.get_mute_freqs(rgene)
             if not self.args.no_per_base_mutation:
                 mute_counts = self.get_mute_counts(rgene)
-                per_base_freqs[region] = []
             all_erosions = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())  # arg, this is hackey, but I don't want to change Event right now
             cposlist = None
             if region in utils.conserved_codons[self.args.locus]:
