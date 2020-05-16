@@ -1,17 +1,8 @@
 #!/bin/bash
 
-if [ -f /.dockerenv ]; then  # if we're in docker TODO this file may go away in the future, so it'd probably be better to switch to the "grep docker /proc/1/cgroup" method
-    basedir=/partis
-else
-    basedir=$PWD
-    echo "using PWD as base partis dir: $PWD"
-fi
-
-# install the newlik branch of bpp (another, older version is also pre-installed in partis/packages/bpp/, and unfortunately we do really need both, at least for now), which you need to run simulation with --per-base-mutation set
-bppdir=$basedir/packages/bpp-newlik
+# install the newlik branch [update: newlik has been merged to master] of bpp (another, older version is also pre-installed in partis/packages/bpp/, and unfortunately we do really need both, at least for now), which you need to run simulation with --per-base-mutation set
 action="compile"  # choices: "compile", "clone", "pull" NOTE clone and pull need updating
-
-cd $bppdir
+bppdir=$PWD  # NOTE must be run from within partis/packages/bpp-newlik (well, otherwise partis won't find it afterwards)
 
 packs="eigen3 bpp-core bpp-seq bpp-phyl bpp-popgen bppsuite"
 for pack in $packs; do 
