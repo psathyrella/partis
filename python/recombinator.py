@@ -438,16 +438,20 @@ class Recombinator(object):
         # ----------------------------------------------------------------------------------------
         def get_pbfreqs(naive_base, pbcounts=None, inuke=None, rgene=None):
             def def_count(base, count=None):  # default, i.e. if we have no other information (this is used twice, first to set all bases if we have no info, and second [if <count> is set] to set pseudocount values if we don't have enough counts for some/all bases)
-                if base == naive_base:  # this is an important parameter -- it determines if it's possible to mutate back to the original naive base. If it's 0, then it's not possible, which I think is what we want, since while that isn't really right, if it's greater than 0 then we'll get the much more common occurrence that we *really* don't want of the original/naive base "mutating" to itself with an initial mutation (whereas if it's 0, that's only wrong like 1/4 of the times the position mutations twice, which we don't care about at all)
-                    return 0.01  # bppseqgen barfs if it's too small (and it gets normalized after this so ends up smaller): ParameterException: ConstraintException: Parameter::setValue(0)]1e-06; 0.999999[(HKY85.theta1)
+                if base == naive_base:
+                    return 0
                 else:  # but for the other three we just want to set 1 if there's no info or zero counts
                     return 1 if count is None else max(count, 1)
+            def min_count(count, tot_counts):  # bppseqgen barfs if any count is too small (and it gets normalized after this so ends up smaller): ParameterException: ConstraintException: Parameter::setValue(0)]1e-06; 0.999999[(HKY85.theta1)
+                min_fraction = 0.01  # this is an important parameter -- it determines if it's possible to mutate back to the original naive base. If it's 0, then it's not possible, which I think is what we want, since while that isn't really right, if it's greater than 0 then we'll get the much more common occurrence that we *really* don't want of the original/naive base "mutating" to itself with an initial mutation (whereas if it's 0, that's only wrong like 1/4 of the times the position mutations twice, which we don't care about at all)
+                return max(count, min_fraction * tot_counts)  # if count/tot_counts is less than min_fraction, return min_fraction
             if debug and pbcounts is not None:  # originally just to check that we have the right position in the gene and counts (but it happens too much just from random stuff to be worth printing unless debug is one)
                 if sum(pbcounts.values()) > 10 and any(c > pbcounts[naive_base] for n, c in pbcounts.items() if n != naive_base):  # ok now that i've actually run with this check, it picks up quite a few cases where I'm presuming we have the wrong germline gene, in which case it's probably better that it's "wrong"? jeez i dunno, doesn't matter
                     print '    %s non-germline base has more counts than germline base (%s) at ipos %s in %s: %s' % (utils.color('red', 'warning'), naive_base, inuke, utils.color_gene(rgene), pbcounts)  # formatting inuke as string on the off chance we get here when the calling fcn doesn't pass it
             if pbcounts is None:
                 pbcounts = {n : def_count(n) for n in utils.nukes}
             pbcounts = {n : def_count(n, count=c) for n, c in pbcounts.items()}  # add pseudocounts (NOTE this is quite a bit less involved than in hmmwriter.py process_mutation_info() and get_emission_prob())
+            pbcounts = {n : min_count(c, sum(pbcounts.values())) for n, c in pbcounts.items()}  # make sure none of them are too small
             tmptot = sum(pbcounts.values())
             pbcounts = {n : pbcounts[n] / float(tmptot) for n, c in pbcounts.items()}
             return pbcounts
