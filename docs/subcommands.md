@@ -235,7 +235,8 @@ When subsequently running inference on this simulation, you typically want to pa
 During parameter caching, this will write a separate parameter directory with the true parameters (in a addition to `sw/` and `hmm/`).
 During annotation and partitioning, with `--debug 1` it will print the true rearrangements and partitions along with the inferred ones.
 
-There are a wide variety of options for manipulating how the characteristics of the simulation deviate from the template data sample (for information on defaults, run `partis simulate --help`).
+There are a wide variety of options for manipulating how the characteristics of the simulation deviate from the template data sample.
+This is an incomplete list, and is not always up to date, so for better information run `partis simulate --help`.
 
 **Miscellaneous:**
 
@@ -274,10 +275,14 @@ In order to deviate more profoundly from the template data sample (or to use no 
 
 | option                            | description
 |-----------------------------------|-----------------------------------------------------------------
-| `--rearrange-from-scratch`        | instead of taking rearrangement-level (i.e. non-SHM) parameters from --parameter-dir, make up some reasonable values from scratch (e.g. geometric insertion lengths, etc.)
-| `--scratch-mute-freq-dir <path>`  | parameter directory with only SHM-level information, which allows --rearrange-from-scratch to create realistic mutation distributions for any specified germline set (the default, in data/recombinator/scratch-parameters/ shouldn't need to be changed)
-| `--mutate-from-scratch`           | instead of taking realistic SHM-level (i.e. non-rearrangement level) parameters from --parameter-dir or --scratch-mute-freq-dir, use a simple flat rate across positions and genes (value is specified by --flat-mute-freq)
-| `--flat-mute-freq`                | see --mutate-from-scratch
+| `--rearrange-from-scratch`        |  Don't use an existing parameter directory for rearrangement-level parameters, and instead make up some plausible stuff from scratch. Have to also set --shm-parameter-dir.
+| `--mutate-from-scratch`           |  Don't use an existing parameter directory for shm-level (mutation) parameters, and instead make up stuff from scratch (by default this means shm rate varies over positions and sequences, but is the same for all regions). Have to also set --reco-parameter-dir.
+| `--simulate-from-scratch`         |  same as setting both --rearrange-from-scratch and --mutate-from-scratch
+| `--shm-parameter-dir`             |  parameter directory from which to retrieve shm-level info when --rearrange-from-scratch is set (to set germline info, use --initial-germline-dir).
+| `--reco-parameter-dir`            |  parameter directory from which to retrieve rearrangement-level info when --mutate-from-scratch is set (to set germline info, use --initial-germline-dir).
+| `--scratch-mute-freq`             |  shm rate used by --mutate-from-scratch
+| `--flat-mute-freq`                |  use the same shm rate (--scratch-mute-freq) for all positions (in practice it's not that much flatter than the Gamma that is used by default --mutate-from-scratch). For use with --mutate-from-scratch.
+| `--same-mute-freq-for-all-seqs`   |  use the same shm rate (--scratch-mute-freq) for all sequences. For use with --mutate-from-scratch. NOTE: this means we tell bppseqgen to use the same expected rate for every sequence -- there's still variance in the resulting number of output mutation per sequence.
 
 **Germline set control:**
 
