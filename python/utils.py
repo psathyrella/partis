@@ -3324,7 +3324,7 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         tmpstr = getlogstrs(['err'])
         if len(tmpstr.strip()) == 0:  # bppseqgen puts it in stdout, so we have to look there
             tmpstr += 'std out tail (err was empty):\n'
-            tmpstr += '\n'.join(getlogstrs(['out']).split('\n')[-10:])
+            tmpstr += '\n'.join(getlogstrs(['out']).split('\n')[-30:])
         failstr += tmpstr
         if allow_failure:
             print '      %s\n      not raising exception for failed process' % failstr
