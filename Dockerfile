@@ -26,5 +26,5 @@ RUN R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM"), repos="h
 # ----------------------------------------------------------------------------------------
 COPY . /partis
 WORKDIR /partis
-RUN ./bin/build.sh with-simulation  # run with no arguments if you don't care about simulation, and it'll skip a compilation step
+RUN ./bin/build.sh with-simulation  # run with no arguments if you don't care about simulation, and it'll skip a compilation step (which is SLOOOOOOOOOOOW)
 CMD ./test/test.py --quick
