@@ -23,7 +23,7 @@ class TreeGenerator(object):
 
     #----------------------------------------------------------------------------------------
     def convert_observed_changes_to_branch_length(self, mute_freq):
-        if self.args.per_base_mutation:  # in this case we set the per-base freq (equilibrium freq) for the germline base to zero, so don't need to account for this
+        if not self.args.no_per_base_mutation:  # in this case we set the per-base freq (equilibrium freq) for the germline base to zero, so don't need to account for this
             return mute_freq
         # for consistency with the rest of the code base, we call it <mute_freq> instead of "fraction of observed changes"
         # JC69 formula, from wikipedia

@@ -219,12 +219,11 @@ There is, however, a wealth of information that can be used to get a good sense 
 
 ### simulate
 
-Note that in order to run simulation, you have to have R installed, along with several [extra packages](install.md#simulation).
-
 There are two simulation modes (as well as options below for running hybrids between the two):
-  1. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `./bin/partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
-  2. you pass it an inferred parameter directory with `--parameter-dir` and it mimics the data sample from which those parameters were inferred
+  1. you pass it an inferred parameter directory with `--parameter-dir` (e.g. `test/reference-results/test/parameters/simu`) and it mimics the sample from which those parameters were inferred
+  2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `./bin/partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
 
+Using 1. is generally preferred, since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire.
 If you did not specify a parameter directory during inference, then by default if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`.
 You could thus for instance simulate based on this parameter dir with:
 
@@ -246,6 +245,9 @@ There are a wide variety of options for manipulating how the characteristics of 
 | `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J. This tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the template data sample.
 
 **Tree control:**
+
+Even when mimicking parameters from a sample, it does not mimic the inferred clonal family size distribution, i.e. number of leaves/trees (although this would be easy to implement if someone asked for it).
+There are, however, several options to manipulate this:
 
 | option                                        | description
 |-----------------------------------------------|-----------------------------------------------------------------

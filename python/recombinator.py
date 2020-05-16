@@ -70,7 +70,9 @@ class Recombinator(object):
             self.treeinfo = json.load(treefile)
         os.remove(self.treefname)
 
-        self.per_base_mutation_multiplier = 0.6  # no, i don't know why i have to multiply the tree depth by this before passing to the newlik/per-base bppseqgen version, but i'm tired of trying to work it out. This makes the distributions look pretty darn good, so i'm going with it. Note that this effect seems to be worse the more asymmetric i make the init freqs, e.g. if i artificially make all mutation go to one base, this effect gets way worse.
+        # because when writing bppseqgen input we carefully adjust the per-base rates based on the germline base (so that the prob to go from germline to germline is zero, i.e. we're not at equilibrium) bppseqgen makes too many mutations (since it assumes we're at equilibrium/assumes the rate matrix and initial state are uncorrelated)
+        # we correct for this by multiplying by this heuristic factor, although andy has some corrections that we could calculate, see data/recombinator/andy-bpp-per-base-correction.txt
+        self.per_base_mutation_multiplier = 0.6
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
 
@@ -451,7 +453,7 @@ class Recombinator(object):
             if len(rseq) == 0:  # i think this is how it handles light chain d? not checking right now, just copying how it did it below
                 return
             mute_freqs = self.get_mute_freqs(rgene)
-            if self.args.per_base_mutation:
+            if not self.args.no_per_base_mutation:
                 mute_counts = self.get_mute_counts(rgene)
                 per_base_freqs[region] = []
             all_erosions = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())  # arg, this is hackey, but I don't want to change Event right now
@@ -473,7 +475,7 @@ class Recombinator(object):
                     freq = 0.0
                 rfreqs[region].append(freq)
                 rtotals[region] += freq
-                if self.args.per_base_mutation:
+                if not self.args.no_per_base_mutation:
                     per_base_freqs[region].append(get_pbfreqs(rseq[inuke], pbcounts=mute_counts.get(position), inuke=inuke, rgene=rgene))
 
             # normalize to the number of sites in this region, i.e. so an average site is given value 1.0 (I'm not sure that this really needs to be done, but it might not be exactly normalized before this)
@@ -504,13 +506,13 @@ class Recombinator(object):
             rtotals[bound] = mean_freq * len(reco_event.insertions[bound])
             if debug:
                 print '    %s: added %d positions with freq %.3f from %s' % (bound, len(rfreqs[bound]), mean_freq, 'd' if utils.has_d_gene(self.args.locus) else 'v')
-            if self.args.per_base_mutation:
+            if not self.args.no_per_base_mutation:
                 per_base_freqs[bound] = [get_pbfreqs(nb) for nb in reco_event.insertions[bound]]
 
         final_freqs = [f for r in ['v', 'vd', 'd', 'dj', 'j'] for f in rfreqs[r]]
         final_seq = reco_event.recombined_seq
         assert len(final_freqs) == len(final_seq)
-        if self.args.per_base_mutation:
+        if not self.args.no_per_base_mutation:
             per_base_freqs['final'] = [f for r in ['v', 'vd', 'd', 'dj', 'j'] for f in per_base_freqs[r]]
             assert len(per_base_freqs['final']) == len(final_seq)
 
@@ -544,9 +546,9 @@ class Recombinator(object):
     def prepare_bppseqgen(self, cmdfos, reco_event, seed):
         """ write input files and get command line options necessary to run bppseqgen on <seq> (which is a part of the full query sequence) """
         tmptree = copy.deepcopy(reco_event.tree)  # we really don't want to modify the tree in the event
-        if self.args.per_base_mutation:
+        if not self.args.no_per_base_mutation:
             if self.args.debug:
-                print '      rescaling tree by %.2f to account for per-base mutation weirdness' % self.per_base_mutation_multiplier
+                print '      rescaling tree by %.2f to account for non-equilibrium per-base mutation' % self.per_base_mutation_multiplier
             tmptree.scale_edges(self.per_base_mutation_multiplier)
         for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
             node.taxon = None
@@ -562,10 +564,10 @@ class Recombinator(object):
         os.makedirs(workdir)
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
-        per_base_freqs = {} if self.args.per_base_mutation else None
+        per_base_freqs = {} if not self.args.no_per_base_mutation else None
         self.write_mute_freqs(reco_event, reco_seq_fname, per_base_freqs=per_base_freqs)
 
-        bpp_path = '%s/packages/%s' % (self.args.partis_dir, 'bpp-newlik/_build' if self.args.per_base_mutation else 'bpp')
+        bpp_path = '%s/packages/%s' % (self.args.partis_dir, 'bpp-newlik/_build' if not self.args.no_per_base_mutation else 'bpp')
         bpp_binary = '%s/bin/bppseqgen' % bpp_path
         if not os.path.exists(bpp_binary):
             raise Exception('bppseqgen binary not found: %s' % bpp_binary)
@@ -573,7 +575,7 @@ class Recombinator(object):
         env['LD_LIBRARY_PATH'] = '%s/lib%s' % (bpp_path, (':' + env.get('LD_LIBRARY_PATH')) if env.get('LD_LIBRARY_PATH') is not None else '')
 
         full_seq = reco_event.recombined_seq
-        if self.args.per_base_mutation:
+        if not self.args.no_per_base_mutation:
             paramfname = workdir + '/cfg.bpp'  # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/index.html that page is too darn hard to google
             workfnames.append(paramfname)
             plines = ['alphabet = DNA']
@@ -584,7 +586,7 @@ class Recombinator(object):
             plines += ['input.infos.states = state']  # column name for reco_seq_fname
 
             if self.args.mutate_from_scratch:  # this isn't per-base mutation, it's non-per-base but using the newlik branch, but i can't get it to work (it's crashing because i'm not quite specifying parameters right, but there's no damn docs, or i can't find them, and i'm tired of guessing), so I'm just going back to the old version. It sucks to carry two bpp versions, but oh well
-                # NOTE if you implement this, you'll have to check all the places where self.args.per_base_mutation is used to see if it should be self.args.newlik or something
+                # NOTE if you implement this, you'll have to check all the places where not self.args.no_per_base_mutation is used to see if it should be self.args.newlik or something
                 raise Exception('can\'t yet mutate from scratch with per-base mutation')
                 plines += ['input.infos.rates = none']  # column name for reco_seq_fname  # BEWARE bio++ undocumented defaults (i.e. look in the source code)
                 plines += ['model1 = JC69']
