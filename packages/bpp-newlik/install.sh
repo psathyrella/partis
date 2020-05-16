@@ -23,7 +23,7 @@ for pack in $packs; do
     fi
 
     if ! [ -d $pack ]; then  # don't want to keep going if the dir isn't there
-	echo "dir $pack doesn't exist"
+	echo "dir $pack doesn't exist in $PWD (run this script from packages/bpp-newlik/)"
 	exit 1
     fi
 
