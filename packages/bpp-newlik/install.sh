@@ -15,7 +15,7 @@ for pack in $packs; do
     if [ $pack == "eigen3" ]; then
     	repo=eigenteam/eigen-git-mirror
     else
-    	repo=BioPP/$pack
+    	repo=psathyrella/$pack  # BioPP
     fi
 
     if [ "$action" == "clone" ]; then
@@ -36,10 +36,14 @@ for pack in $packs; do
 	branch=newlik
     fi
     if [ "$action" == "clone" ]; then
+	echo "need to switch to branch name with tmp- in front for new forks in psathyrella"
+	exit 1
     	git branch --track $branch origin/$branch
     	git checkout $branch
     fi
     if [ "$action" == "pull" ]; then
+	echo "need to switch to branch name with tmp- in front for new forks in psathyrella"
+	exit 1
     	git checkout $branch
 	git pull origin $branch
     fi
@@ -50,6 +54,11 @@ for pack in $packs; do
     # 	git apply --verbose ../$pack.patch
     # fi
 
+    # cd $pack
+    # # git checkout -b tmp-$branch
+    # # git push origin tmp-$branch
+    # cd ..
+    # continue
 
     if [ "$action" == "compile" ]; then
 	mkdir -p _build/$pack
