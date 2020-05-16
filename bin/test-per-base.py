@@ -37,9 +37,9 @@ cfglist = [
     # simcmd = './bin/partis simulate --n-sim-events 100 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1 --mutation-multiplier 5' #  --check-tree-depths
     # ('tmp-test-old', ['--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),
     # ('tmp-test-v0', ['--per-base-mutation', '--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),
-# added these lines to recombinator at l444 and l473, then cached parameters, then simulated with those parameters, then plotted. It looked as expected, per-base is definitely per-basing
-# pbcounts = {n : 0.97 if n=='C' else 0.01 for n in utils.nukes}
-# freq = 1. if rseq[inuke] != 'A' else 0.001
+# added these lines to recombinator, then cached parameters, then simulated with those parameters, then plotted. It looked as expected, per-base is definitely per-basing
+# pbcounts = {n : 0.97 if n=='C' else 0.01 for n in utils.nukes}  # at the end of get_pbfreqs()
+# freq = 1. if rseq[inuke] != 'A' else 0.001  # just before the line: rfreqs[region].append(freq)
 # ./bin/partis cache-parameters --infname _output/per-base-test/tmp-test-v0/simu.yaml --parameter-dir _output/per-base-test/cache-parameters-from-tmp-test-v0 --only-genes IGHV1-2*02:IGHJ4*02 --n-procs 8 --plotdir _output/per-base-test/cache-parameters-from-tmp-test-v0/plots --make-per-gene-per-base-plots
 # ./bin/partis simulate --n-sim-events 100 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1 --mutation-multiplier 1 --per-base-mutation --parameter-dir _output/per-base-test/cache-parameters-from-tmp-test-v0 --outfname _output/per-base-test/simu-from-cache-parameters-from-tmp-test-v0/simu.yaml
 # ./bin/example-parse-output.py --fname _output/per-base-test/simu-from-cache-parameters-from-tmp-test-v0/simu.yaml --plotdir _output/per-base-test/simu-from-cache-parameters-from-tmp-test-v0/plots
@@ -59,12 +59,14 @@ cfglist = [
 
     # double check things after trying to update to the may 2020 bpp versions, realizing they were broken, and reverting (but now on my remote forks):
     # simcmd = './bin/partis simulate --n-sim-events 100 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1 --mutation-multiplier 5' #  --check-tree-depths
-    # ('tmp-master-old', ['--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),
-    # ('tmp-master-v0', ['--per-base-mutation', '--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),
+    ('tmp-master-old', ['--no-per-base-mutation', '--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),
+    ('tmp-master-v0', ['--parameter-dir', '%s/test/reference-results/test/parameters/simu' % os.getenv('PWD')]),
     # simcmd = './bin/partis simulate --n-sim-events 250 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1'  #  --check-tree-depths
-    ('qa013-mar-8-tmp-master-v0', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # change self.per_base_mutation_multiplier to 0.6
+    # ('qa013-mar-8-tmp-master-v0', ['--per-base-mutation', '--parameter-dir', '_output/per-base-test/qa013-mar-8/QA013-g-merged']),  # change self.per_base_mutation_multiplier to 0.6
+# NOTE most of these need --per-base-mutation swapped for --no-per-base-mutation in the other command
 ]
-simcmd = './bin/partis simulate --n-sim-events 250 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1'  #  --check-tree-depths
+# simcmd = './bin/partis simulate --n-sim-events 250 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1'  #  --check-tree-depths
+simcmd = './bin/partis simulate --n-sim-events 100 --n-procs 8 --only-genes IGHV1-2*02:IGHJ4*02 --n-leaves 10 --constant-number-of-leaves --seed 1 --mutation-multiplier 5' #  --check-tree-depths
 
 for label, xtra_args in cfglist:
     utils.simplerun('%s %s --outfname %s/%s/simu.yaml' % (simcmd, ' '.join(xtra_args), outdir, label)) #, dryrun=True)
