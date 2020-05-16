@@ -19,7 +19,7 @@ cd $basedir/
 
 if [ "$*" == "with-simulation" ]; then
     echo -e "\n--> building bpp-newlik (only used for simulation)"
-    cd $basedir/packages/bpp-newlik/ && ./install.sh
+    cd $basedir/packages/bpp-newlik/ && ./install.sh  # the bpp-phyl step is really really incredibly slow
     cd $basedir/
 fi
 

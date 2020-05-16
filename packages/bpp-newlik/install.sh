@@ -38,16 +38,21 @@ for pack in $packs; do
 
     # i think i don't need any of this any more, as of now (may 2020) they've merged newlik into master pretty recently, so i think i can just use the master branch
     # i'll need to change this if i want to update versions, of course, but that shouldn't be for a while
-    # cd $pack
-    # if [ "$action" == "clone" ]; then
-    # 	# switch branches
-    # 	if [ $pack != "eigen3" ]; then  # crashes on one of the bio repos, which doesn't have a newlik branch
-    # 	    branch=newlik #
-    # 	    git branch --track $branch origin/$branch
-    # 	    git checkout $branch
-    # 	fi
-    # fi
-    # cd ..
+    cd $pack
+    if [ $pack == "eigen3" ] || [ $pack == "bpp-popgen" ]; then  # crashes on one of the bio repos, which doesn't have a newlik branch
+    	branch=master
+    else
+	branch=newlik
+    fi
+    if [ "$action" == "clone" ]; then
+    	git branch --track $branch origin/$branch
+    	git checkout $branch
+    fi
+    if [ "$action" == "pull" ]; then
+    	git checkout $branch
+	git pull origin $branch
+    fi
+    cd ..
 
     # this was necessary for the ~may 2019 version of the newlik branch, which was missing a couple includes
     # if [ -f ../$pack.patch ]; then
