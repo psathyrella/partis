@@ -224,7 +224,7 @@ There are two main partis-only simulation modes (with options for running hybrid
   2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `./bin/partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
   3. partis simulates a naive rearrangement, then passes it to bcr-phylo for mutation (as used in the [selection metric paper](https://arxiv.org/abs/2004.11868))
 
-Using 1. is generally preferred, since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire.
+Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire, while 3. is preferred if you want to manipulate the details of the GC selection process (rather than crude output parameters like the number of leaves or tree depth).
 If you did not specify a parameter directory during inference, then by default if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`.
 You could thus for instance simulate based on this parameter dir with:
 
@@ -237,11 +237,12 @@ During parameter caching, this will write a separate parameter directory with th
 During annotation and partitioning, with `--debug 1` it will print the true rearrangements and partitions along with the inferred ones.
 
 Running bcr-phylo for 3. is handled by running `./bin/bcr-phylo-run.py`.
-This should work fine with no arguments, but in order to change the script's many options run with `--help`, and also look at the corresponding options in `packages/bcr-phylo-benchmark/bin/simulator.py`
+This should work fine with no arguments, but in order to change the script's many options run with `--help`, and also look at the corresponding options in [packages/bcr-phylo-benchmark/bin/simulator.py](packages/bcr-phylo-benchmark/bin/simulator.py).
+Note that by default bcr-phylo-run.py turns off context-dependent mutation in bcr-phylo, since this is much faster, but if you want it to mutate with the S5F model you can set `--context-depend`.
 
-Partly because the simulation is so easy to parallelize (use `--n-procs N` and see [here](docs/parallel.md)), its run time is not usually a limiting factor.
+Partly because the simulation is so easy to parallelize (use `--n-procs N` and see [here](parallel.md)), its run time is not usually a limiting factor.
 With default parameters, 10,000 sequences takes about 8 minutes with one core (so a million sequences on ten cores would take an hour and a half), although this depends a lot on the family size distribution and mutation levels you specify.
-However, if you don't care very much about the details of the mutation model, you can get a factor of ten speedup by setting `--no-per-base-mutation`, which uses a simpler model in bppseqgen that doesn't account for different rates to different bases (e.g. A->T vs A->G).
+If you don't care very much about the details of the mutation model, you can get a factor of ten speedup by setting `--no-per-base-mutation`, which uses a simpler model in bppseqgen that doesn't account for different rates to different bases (e.g. A->T vs A->G).
 
 There are a wide variety of options for manipulating how the characteristics of the simulation deviate from the template data sample.
 This is an incomplete list, and is not always up to date, so for better information run `partis simulate --help`.
