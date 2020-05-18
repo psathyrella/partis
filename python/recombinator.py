@@ -75,6 +75,7 @@ class Recombinator(object):
         self.per_base_mutation_multiplier = 0.6
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
+        self.validation_values['bpp-times'] = []
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
@@ -732,7 +733,9 @@ class Recombinator(object):
         self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom)
         assert len(cmdfos) == 1  # used to be one cmd for each region
 
+        start = time.time()
         utils.run_cmds(cmdfos, sleep=False, clean_on_success=True)
+        self.validation_values['bpp-times'].append(time.time()-start)
 
         self.read_bppseqgen_output(cmdfos[0], reco_event)
 
@@ -742,7 +745,7 @@ class Recombinator(object):
             self.check_tree_simulation(reco_event)
 
         if self.args.debug:
-            print '  tree passed to bppseqgen (mean depth %.3f):' % treeutils.get_mean_leaf_height(tree=reco_event.tree)
+            print '  bppseqgen ran on the following tree (mean depth %.3f) in %.2fs:' % (treeutils.get_mean_leaf_height(tree=reco_event.tree), self.validation_values['bpp-times'][-1])
             print treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      ')
             utils.print_reco_event(reco_event.line, extra_str='    ')
 
@@ -778,3 +781,5 @@ class Recombinator(object):
             vvals = self.validation_values['heights'][vtype]
             deltas = [(vvals['out'][i] - vvals['in'][i]) for i in range(len(vvals['in']))]
             print '       %3s  %.3f   %.3f    %+.3f +/- %.3f     %.3f' % (vtype, numpy.mean(vvals['in']), numpy.mean(vvals['out']), numpy.mean(deltas), numpy.std(deltas, ddof=1) / math.sqrt(len(deltas)), numpy.std(deltas, ddof=1))  # NOTE each delta is already the mean of <n_leaves> (non-independent) measurements
+        tlist = self.validation_values['bpp-times']
+        print '  total bppseqgen run time: %.1fs  (per even %.1fs +/-%.1fs)' % (sum(tlist), numpy.mean(tlist), numpy.std(tlist, ddof=1) / math.sqrt(len(tlist)))
