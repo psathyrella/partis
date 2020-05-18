@@ -134,7 +134,9 @@ class Recombinator(object):
         assert gene[:2] not in utils.boundaries  # make sure <gene> isn't actually an insertion (we used to pass insertions in here separately, but now they're smooshed onto either end of d)
         if self.args.mutate_from_scratch:
             self.all_mute_freqs[gene] = {'overall_mean' : self.args.scratch_mute_freq}
-            # self.all_mute_counts[gene] = {'overall_mean' : } TODO see TODOs further down, but at the moment we don't use these if --mutate-from-scratch is set
+            if not self.args.no_per_base_mutation:
+                raise Exception('can\'t yet mutate from scratch with per-base mutation')
+            # self.all_mute_counts[gene] = {'overall_mean' : self.args.scratch_mute_freq} # TODO see TODOs further down, but at the moment we don't use these if --mutate-from-scratch is set
         else:
             extra_genes = []
             # ok this is kind of dumb, but I need to figure out how many counts there are for this gene, even when we have only an shm parameter dir
@@ -741,7 +743,7 @@ class Recombinator(object):
 
         self.add_shm_indels(reco_event)
         reco_event.setline(irandom)  # set the line here because we use it when checking tree simulation, and want to make sure the uids are always set at the same point in the workflow
-        if self.args.check_tree_depths:
+        if self.args.check_tree_depths or self.args.debug:
             self.check_tree_simulation(reco_event)
 
         if self.args.debug:
@@ -780,6 +782,5 @@ class Recombinator(object):
         for vtype in ['all'] + utils.regions:
             vvals = self.validation_values['heights'][vtype]
             deltas = [(vvals['out'][i] - vvals['in'][i]) for i in range(len(vvals['in']))]
-            print '       %3s  %.3f   %.3f    %+.3f +/- %.3f     %.3f' % (vtype, numpy.mean(vvals['in']), numpy.mean(vvals['out']), numpy.mean(deltas), numpy.std(deltas, ddof=1) / math.sqrt(len(deltas)), numpy.std(deltas, ddof=1))  # NOTE each delta is already the mean of <n_leaves> (non-independent) measurements
-        tlist = self.validation_values['bpp-times']
-        print '  total bppseqgen run time: %.1fs  (per even %.1fs +/-%.1fs)' % (sum(tlist), numpy.mean(tlist), numpy.std(tlist, ddof=1) / math.sqrt(len(tlist)))
+            std_val = numpy.std(deltas, ddof=1) if len(deltas) > 1 else float('nan')
+            print '       %3s  %.3f   %.3f    %+.3f +/- %.3f     %.3f' % (vtype, numpy.mean(vvals['in']), numpy.mean(vvals['out']), numpy.mean(deltas), std_val / math.sqrt(len(deltas)), std_val)  # NOTE each delta is already the mean of <n_leaves> (non-independent) measurements

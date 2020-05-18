@@ -1060,7 +1060,7 @@ def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general ver
         return ltranslate(cseq)
     else:  # this is fairly slow
         aligned_seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'], get_multiplicities(line))]
-        return cons_seq(threshold, aligned_seqfos=aligned_seqfos, debug=True) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+        return cons_seq(threshold, aligned_seqfos=aligned_seqfos) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
 
 # ----------------------------------------------------------------------------------------
 def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=None, threshold=0.01, debug=False):  # yeah yeah the name is too long, but it's clear, isn't it?
@@ -2689,13 +2689,13 @@ def get_line_for_output(headers, info, glfo=None):
 # ----------------------------------------------------------------------------------------
 def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_expected=None, n_per_proc_expected=None, use_pyyaml=False):
     if getsuffix(outfname) == '.csv':  # old way
-        n_event_list = merge_csvs(outfname, file_list)
+        n_event_list, n_seq_list = merge_csvs(outfname, file_list)
     elif getsuffix(outfname) == '.yaml':  # new way
-        n_event_list = merge_yamls(outfname, file_list, headers, use_pyyaml=use_pyyaml)
+        n_event_list, n_seq_list = merge_yamls(outfname, file_list, headers, use_pyyaml=use_pyyaml)
     else:
         raise Exception('unhandled annotation file suffix %s' % args.outfname)
 
-    print '   read %d events from %d %s files' % (sum(n_event_list), len(file_list), getsuffix(outfname))
+    print '   read %d event%s with %d seqs from %d %s files' % (sum(n_event_list), plural(len(n_event_list)), sum(n_seq_list), len(file_list), getsuffix(outfname))
     if n_total_expected is not None:
         if isinstance(n_per_proc_expected, list):  # different number for each proc
             if n_event_list != n_per_proc_expected:
@@ -2711,7 +2711,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
     """ NOTE copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
     header = None
     outfo = []
-    n_event_list = []
+    n_event_list, n_seq_list = [], []
     for infname in csv_list:
         if getsuffix(infname) != '.csv':
             raise Exception('unhandled suffix, expected .csv: %s' % infname)
@@ -2719,9 +2719,11 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             reader = csv.DictReader(sub_outfile)
             header = reader.fieldnames
             n_event_list.append(0)
+            n_seq_list.append(0)
             last_reco_id = None
             for line in reader:
                 outfo.append(line)
+                n_seq_list[-1] += 1
                 if last_reco_id is None or line['reco_id'] != last_reco_id:
                     last_reco_id = line['reco_id']
                     n_event_list[-1] += 1
@@ -2738,17 +2740,18 @@ def merge_csvs(outfname, csv_list, cleanup=True):
         for line in outfo:
             writer.writerow(line)
 
-    return n_event_list
+    return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
 def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False):
     """ NOTE copy of merge_csvs(), which is (apparently) a copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
     merged_annotation_list = []
     ref_glfo = None
-    n_event_list = []
+    n_event_list, n_seq_list = [], []
     for infname in yaml_list:
         glfo, annotation_list, cpath = read_yaml_output(infname, dont_add_implicit_info=True)
         n_event_list.append(len(annotation_list))
+        n_seq_list.append(sum(len(l['unique_ids']) for l in annotation_list))
         if len(cpath.partitions) > 0:  # only used for simulation file merging a.t.m. (which obviously only have one partition [the right one], so they don't need to write the partitions)
             raise Exception('can\'t yet handle partition merging (use glomerator.py)')
         if ref_glfo is None:
@@ -2768,7 +2771,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False):
 
     write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml)
 
-    return n_event_list
+    return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
 def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):

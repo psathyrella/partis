@@ -280,14 +280,6 @@ def process(args):
     if args.parameter_type != 'hmm':
         print '  using non-default parameter type \'%s\'' % args.parameter_type
 
-    if args.simulate_from_scratch:  # i'm not sure why this stuff isn't in the simulate block below, but i'm too chicken to change it right now
-        args.rearrange_from_scratch = True
-        args.mutate_from_scratch = True
-    if args.rearrange_from_scratch and not args.force_dont_generate_germline_set:  # i would probably just default to always generating germline sets when rearranging from scratch, but bin/test-germline-inference.py (and any other case where you want to dramatically restrict the germline set) really argue for a way to force just using the genes in the germline dir
-        args.generate_germline_set = True
-    if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:
-        assert args.mutate_from_scratch
-
     if args.action == 'simulate':
         if len(args.loci) != 1:
             raise Exception('needs to be implemented')
@@ -301,6 +293,17 @@ def process(args):
             args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the wole run_simulation() in bin/partis to handle None type outfname
         if args.n_max_queries != -1:
             print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
+
+        if args.simulate_from_scratch:
+            args.rearrange_from_scratch = True
+            args.mutate_from_scratch = True
+        if args.rearrange_from_scratch and not args.force_dont_generate_germline_set:  # i would probably just default to always generating germline sets when rearranging from scratch, but bin/test-germline-inference.py (and any other case where you want to dramatically restrict the germline set) really argue for a way to force just using the genes in the germline dir
+            args.generate_germline_set = True
+        if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:
+            assert args.mutate_from_scratch
+        if args.mutate_from_scratch and not args.no_per_base_mutation:
+            print '  note: setting --no-per-base-mutation since --mutate-from-scratch was set'
+            args.no_per_base_mutation = True
 
         # end result of this block: shm/reco parameter dirs are set (unless we're doing their bit from scratch), --parameter-dir is set to None (and if --parameter-dir was set but shm/reco were _not_ set, we've just used --parameter-dir for either/both as needed)
         if args.parameter_dir is not None:
