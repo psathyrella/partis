@@ -6,8 +6,8 @@ label=v0
 testlabel=test-old
 testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times 100 --carry-cap 1000 --n-generations-list 4:5"
 
-# $bin get-lb-bounds --label $label  #--make-plots
-# $bin get-lb-bounds --label $testlabel $testargs --make-plots
+# $bin --actions get-lb-bounds --label $label  #--make-plots
+# $bin --actions get-lb-bounds --label $testlabel $testargs --make-plots
 # exit 0
 
 # echo $bin --label $testlabel $testargs --only-csv-plots
@@ -17,7 +17,7 @@ dtv=3; nest=100; depth=10  # dtv=3; nest=30; depth=10  # dtv=2; nest=100; depth=
 # dtr_args="--metric-method dtr --dtr-path /fh/fast/matsen_e/dralph/partis/tree-metrics/dtr-train-v$dtv/seed-0/dtr/train_n-estimators_${nest}_max-depth_${depth}-dtr-models --extra-plotstr v$dtv-$nest-$depth"
 # dtr_args="--actions plot --plot-metrics dtr --plot-metric-extra-strs v3-100-10"  # :dtr:dtr  # :v2-100-5:v3-30-10
 
-# common="--actions get-tree-metrics --only-csv-plots  --metric-method delta-lbi --n-max-procs 25" # $dtr_args"  # --no-tree-plots --slurm
+common="--actions get-tree-metrics --only-csv-plots  --metric-method delta-lbi --n-max-procs 25" # $dtr_args"  # --no-tree-plots --slurm
 # common="--actions plot --plot-metrics cons-dist-nuc:cons-dist-aa"
 # common="--actions plot --plot-metrics shm:delta-lbi:lbi:lbr:cons-dist-aa:cons-dist-nuc" # --plot-metric-extra-strs ::::"
 # common="--actions combine-plots --plot-metrics shm:delta-lbi:lbi:lbr:cons-dist-aa:cons-dist-nuc:dtr --plot-metric-extra-strs ::::::v3-100-10 --dont-plot-extra-str"
@@ -42,7 +42,7 @@ dtv=3; nest=100; depth=10  # dtv=3; nest=30; depth=10  # dtv=2; nest=100; depth=
 # echo $bin --label vary-context-dependence-v0 --n-replicates 5 --n-sim-events-per-proc 10 --carry-cap-list 350 --obs-times-list 100 --n-sim-seqs-per-gen-list 30 --context-depend-list 0:1 --lb-tau-list 0.0025 $common --n-sub-procs 10
 # ----------------------------------------------------------------------------------------
 # echo $bin --label vary-metric-v2 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 500 --obs-times-list 50:100:500 --n-sim-seqs-per-gen-list 100 --metric-for-target-distance-list aa:aa-sim-blosum --lb-tau-list 0.0025 --final-plot-xvar obs-times --include-relative-affy-plots $common --pvks-to-plot aa-sim-blosum
-# echo $bin --label tau-vs-obs-frac-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 30:50:100:200 --legend-var obs_frac $common  # rerun of "v2" (at top), but redoing things since plots look a bit weird on v2 when I remake them
+echo $bin --label tau-vs-obs-frac-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 30:50:100:200 --legend-var obs_frac $common  # rerun of "v2" (at top), but redoing things since plots look a bit weird on v2 when I remake them
 # echo $bin --label vary-selection-strength-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 100 --selection-strength-list 0.1:0.4:0.7:0.8:0.9:1.0 --lb-tau-list 0.0025 --final-plot-xvar selection-strength $common  # all the other tau values are also there, but I decided I wanted selection strength on the x axis NOTE the other tau values will have lbr-tau-factor 1 and non-normalized lbi, so you *really* need to not mix them with 0.0025
 # echo $bin --label carry-cap-vs-n-obs-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 500:1000:3000 --obs-times-list 150 --n-sim-seqs-per-gen-list 30:75:150:500 --lb-tau-list 0.0025 --final-plot-xvar carry-cap $common --pvks-to-plot 30  # full carry cap: 250:500:1000:3000 and n/gen: 15:30:75:150:500 lists (not plotting them all)
 # echo $bin --label vary-obs-times-v2 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 350:1000:2000 --obs-times-list 50:100:250:500:1000:3000 --n-sim-seqs-per-gen-list 100 --lb-tau-list 0.0025 --final-plot-xvar obs-times $common --pvks-to-plot 350  # full carry-cap-list 250:350:500:1000:2000
@@ -50,7 +50,7 @@ dtv=3; nest=100; depth=10  # dtv=3; nest=30; depth=10  # dtv=2; nest=100; depth=
 # echo $bin --label vary-sampling-scheme-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 150 --n-sim-seqs-per-gen-list 30:50:100:200 --leaf-sampling-scheme-list uniform-random:affinity-biased:high-affinity --lb-tau-list 0.0025 --final-plot-xvar n-sim-seqs-per-gen $common #  --pvks-to-plot high-affinity
 # echo $bin --label vary-n-targets-v0 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 50:100:250:500 --n-sim-seqs-per-gen-list 100 --target-count-list 1:2:4 --lb-tau-list 0.0025 --final-plot-xvar obs-times $common --pvks-to-plot 4
 # echo $bin --label vary-n-targets-v1 --n-replicates 30 --n-sim-events-per-proc 10 --carry-cap-list 1000 --obs-times-list 50:100:250:500 --n-sim-seqs-per-gen-list 100 --target-count-list 4:8:16 --n-target-clusters-list 1:2:4 --zip-vars target-count:n-target-clusters --lb-tau-list 0.0025 --final-plot-xvar obs-times $common --pvks-to-plot="4; 16"
-echo $bin --label vary-context-dependence-v1 --n-replicates 5 --n-sim-events-per-proc 50 --carry-cap-list 350 --obs-times-list 100:350 --n-sim-seqs-per-gen-list 100 --context-depend-list 0:1 --lb-tau-list 0.0025 $common --n-sub-procs 10 &
+# echo $bin --label vary-context-dependence-v1 --n-replicates 5 --n-sim-events-per-proc 50 --carry-cap-list 350 --obs-times-list 100:350 --n-sim-seqs-per-gen-list 100 --context-depend-list 0:1 --lb-tau-list 0.0025 $common --n-sub-procs 10 &
 # echo $bin --label true-vs-inferred-v0 --n-replicates 2 --n-sim-events-per-proc 30 --carry-cap-list 500 --obs-times-list 150:1500 --n-sim-seqs-per-gen-list 100 --lb-tau-list 0.0025
 # echo $bin --label true-vs-inferred-v1 --n-replicates 2 --n-sim-events-per-proc 50 --carry-cap-list 500:2000 --obs-times-list 150:1500 --n-sim-seqs-per-gen-list 100 --lb-tau-list 0.0025
 # and use dtr-train-v3 below with --iseed 1

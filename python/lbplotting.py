@@ -29,7 +29,7 @@ def lb_metric_axis_cfg(metric_method, final_plots=False):  # x axis variables ag
     if metric_method in base_cfg:
         return [(m, cfg) for m, cfg in base_cfg.items() if m == metric_method]
     else:  # shm, delta-lbi, cons-dist-*, etc
-        xv = 'n-ancestor' if metric_method == 'delta-lbi' else 'affinity'  # also hack hack hack
+        xv = 'n-ancestor' if metric_method in ['delta-lbi', 'aa-lbr'] else 'affinity'  # also hack hack hack
         return [[metric_method, [(xv, xv.replace('n-a', 'N a'))]]]
 
 # ----------------------------------------------------------------------------------------
@@ -58,7 +58,7 @@ def mean_of_top_quintile(vals):  # yeah, yeah could name it xtile and have anoth
     frac = 0.2  # i.e. top quintile
     n_to_take = int(frac * len(vals))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which causes bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
     return numpy.mean(sorted(vals)[len(vals) - n_to_take:])
-mean_max_metrics = ['lbi', 'lbr', 'shm', 'lbi-cons-aa', 'lbi-cons-nuc'] + treeutils.dtr_metrics
+mean_max_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'lbi-cons-aa', 'lbi-cons-nuc'] + treeutils.dtr_metrics
 cluster_summary_cfg = collections.OrderedDict()
 for k in mean_max_metrics:
     cluster_summary_cfg[k] = meanmaxfcns()
@@ -73,7 +73,7 @@ def getptvar(xvar): return xvar if xvar == 'affinity' else 'n-ancestor'  # NOTE 
 def ungetptvar(xvar): return xvar if xvar == 'affinity' else 'delta-affinity'  # ok this name sucks, and these two functions are anyway shitty hacks
 def ungetptlabel(xvar): return xvar if xvar == 'affinity' else 'affinity change'
 
-per_seq_metrics = ['lbi', 'lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons-aa', 'lbi-cons-nuc'] + treeutils.dtr_metrics
+per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons-aa', 'lbi-cons-nuc'] + treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
 mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
                            'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'in-family dtr', 'within-families-delta-affinity-dtr' : 'in-family dtr', 'among-families-affinity-dtr' : 'among-families dtr', 'among-families-delta-affinity-dtr' : 'among-families dtr'},
@@ -302,7 +302,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
     utils.prep_dir(plotdir, wildlings='*.svg')
     plotvals = {x : [] for x in vtypes}
     basetitle = '%s %s vs %s' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', yvar, short=True), mtitlestr('per-seq', xvar, short=True).replace('- N', 'N'))  # here 'shm' the plain number of mutations, not 'shm' the non-lb metric, so we have to fiddle with the label in mtitle_cfg
-    scatter_kwargs = {'xvar' : xvar, 'xlabel' : xlabel, 'colorvar' : colorvar, 'leg_loc' : (0.55, 0.75), 'log' : 'y' if yvar == 'lbr' else ''}
+    scatter_kwargs = {'xvar' : xvar, 'xlabel' : xlabel, 'colorvar' : colorvar, 'leg_loc' : (0.55, 0.75), 'log' : 'y' if 'lbr' in yvar else ''}
     if use_relative_affy:
         scatter_kwargs['warn_text'] = 'relative affinity'
     sorted_lines = sorted(lines_to_use, key=lambda l: len(l['unique_ids']), reverse=True)
@@ -326,6 +326,8 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             treeutils.add_cons_dists(line, aa='aa-' in xvar)
             tkey = xvar.replace('cons-dist-', 'cons_dists_')
             def xvalfcn(i): return -line[tkey][i]
+        elif xvar in ['aa-lbi', 'aa-lbr']:
+            def xvalfcn(i): return line['tree-info']['lb'][xvar].get(line['unique_ids'][i], None)
         elif xvar == 'edge-dist':
             def xvalfcn(i): return treeutils.edge_dist_fcn(dtree, line['unique_ids'][i])
         elif xvar == 'affinity-ptile':
@@ -362,7 +364,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             if xvar == 'affinity-ptile' and '-ptile' in yvar and xvalfcn(iseq) < min_ptile:  # and yvalfcn(iseq) < min_ptile:  the number of cells with high lbi but low affinity (last, commented criterion) is just too small to bother plotting -- all our errors come from the other direction
                 continue
             yval = yvalfcn(iseq)
-            if yvar == 'lbr' and yval == 0:
+            if 'lbr' in yvar and yval == 0:
                 continue
             if None in (xval, yval):
                 continue
@@ -451,7 +453,7 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
         else:
             iclust_plotvals = lbfo.values()  # whereas for real data, we want to include the inferred ancestor nodes for which we don't have sequences (although I guess in most cases where we're really interested in them, we would've used a phylogenetics program that also inferred their sequences, so they'd presumably have been added to <line['unique_ids']>)
         cluster_size = len(iclust_plotvals)  # i.e. including leaves
-        if lb_metric == 'lbr':
+        if 'lbr' in lb_metric:
             iclust_plotvals = [v for v in iclust_plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable
         if not only_overall:
             affinities = line[affy_key] if affy_key in line else None
@@ -854,7 +856,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             if node is dtree.seed_node:  # root doesn't have any ancestors
                 continue
             lbval = line['tree-info']['lb'][lb_metric][uid]  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
-            if lb_metric == 'lbr' and lbval == 0:  # lbr equals 0 should really be treated as None/missing
+            if 'lbr' in lb_metric and lbval == 0:  # lbr equals 0 should really be treated as None/missing
                 continue
             n_steps, branch_len = treeutils.get_n_ancestors_to_affy_change(node, dtree, line, affinity_changes=affinity_changes, also_return_branch_len=True, debug=debug)  # also adds to <affinity_changes>
             if n_steps is None:
@@ -876,7 +878,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         if len(plotvals[xvar]) == 0 or len(plotvals[xvar]) > max_scatter_plot_size:
             return
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
-        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if lb_metric == 'lbr' else '')
+        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if 'lbr' in lb_metric else '')
         add_fn(tfns, fn=fn)
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(xvar, iclust, extra_str=None):
@@ -999,7 +1001,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     cmdstr += ' --lb-metric %s' % lb_metric
     cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
     # cmdstr += ' --lb-tau %f' % lb_tau
-    if lb_metric == 'lbr':
+    if 'lbr' in lb_metric:
         cmdstr += ' --log-lbr'
     if tree_style is not None:
         cmdstr += ' --tree-style %s' % tree_style

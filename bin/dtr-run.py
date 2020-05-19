@@ -15,8 +15,8 @@ import treeutils
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--infname', required=True)
 parser.add_argument('--base-plotdir', required=True)
-parser.add_argument('--lb-tau', required=True, type=float)
-parser.add_argument('--lbr-tau-factor', type=int, default=treeutils.default_lbr_tau_factor)
+parser.add_argument('--lb-tau', default=treeutils.default_lb_tau)
+parser.add_argument('--lbr-tau-factor', default=treeutils.default_lbr_tau_factor)
 parser.add_argument('--dont-normalize-lbi', action='store_true')
 parser.add_argument('--action', choices=['train', 'test'])
 parser.add_argument('--dtr-path')
@@ -47,6 +47,6 @@ if args.metric_method == 'dtr':
                                      dtr_path=args.dtr_path, train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, include_relative_affy_plots=args.include_relative_affy_plots,
                                      dont_normalize_lbi=args.dont_normalize_lbi)  # ete_path=args.ete_path, workdir=args.workdir,
 else:
-    treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, only_csv=args.only_csv_plots,
+    treeutils.calculate_non_lb_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, lbr_tau_factor=lbr_tau_factor, only_csv=args.only_csv_plots,
                                             min_cluster_size=args.min_selection_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots,
                                             dont_normalize_lbi=args.dont_normalize_lbi)  # ete_path=args.ete_path, workdir=args.workdir,

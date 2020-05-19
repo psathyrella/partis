@@ -16,7 +16,7 @@ import multiprocessing
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
 linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
 def metric_color(metric):  # as a fcn to avoid import if we're not plotting
-    mstrlist = ['shm:lbi:cons-dist-aa:cons-dist-nuc:dtr', 'delta-lbi:lbr:dtr']
+    mstrlist = ['shm:lbi:cons-dist-aa:cons-dist-nuc:dtr:aa-lbi', 'delta-lbi:lbr:dtr:aa-lbr']
     metric_colors = {m : plotting.frozen_pltcolors[i % len(plotting.frozen_pltcolors)] for mstrs in mstrlist for i, m in enumerate(mstrs.split(':'))}
     return metric_colors.get(metric, 'red')
 
@@ -69,22 +69,32 @@ def make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=
 def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_results=False):
     print_results = True
     btypes = ['min', 'max']
+    if args.amino_acid_bounds:
+# ----------------------------------------------------------------------------------------
+# TODO
+        lbt_bounds = [3. * b for b in lbt_bounds]
+        lbt_bounds = [0, 0.1]
+        print '  setting --seq-len to 400./3 = 133 for aa'
+        args.seq_len = 133
+# ----------------------------------------------------------------------------------------
 
     outdir = '%s/lb-tau-normalization/%s' % (args.base_outdir, args.label)
 
     parsed_info = {m : {b : {} for b in btypes} for m in args.only_metrics}
     for lbt in args.lb_tau_list:
         if lbt < lbt_bounds[0] or lbt > lbt_bounds[1]:
-            print '    skipping tau outside of bounds for bound plotting'
+            print '    skipping tau %.4f outside of bounds [%.4f, %.4f] for bound plotting' % (lbt, lbt_bounds[0], lbt_bounds[1])
             continue
 
         gen_list = args.n_generations_list
         if gen_list is None:
             gen_list = [get_n_generations(ntl, lbt) for ntl in args.n_tau_lengths_list]
         if args.lb_tau_list.index(lbt) == 0 or args.n_tau_lengths_list is not None:  # if --n-tau-lengths-list is set, they could be different for each tau
-            print '      n gen: %s' % ' '.join(str(n) for n in gen_list)
-        print '   lb tau %.4f' % lbt
+            print ' N gen list: %s' % ' '.join(str(n) for n in gen_list)
+        print '   %s %.4f' % (utils.color('green', 'lb tau'), lbt)
         for n_gen in gen_list:
+            if args.debug:
+                print '     %s %d  %s %.4f' % (utils.color('purple', 'N gen'), n_gen, utils.color('purple', 'lb tau'), lbt)
 
             this_outdir = '%s/n_gen-%d-lbt-%.4f' % (outdir, n_gen, lbt)  # if for some reason I want to specify --n-tau-lengths-list instead of --n-generations-list, this makes the output path structure still correspond to n generations, but that's ok since that's what the trees do
 
@@ -100,7 +110,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
             elif utils.output_exists(args, get_outfname(this_outdir)):
                 continue
 
-            print '         running %d' % n_gen
+            print '         running n gen %d' % n_gen
 
             if not os.path.exists(this_outdir):
                 os.makedirs(this_outdir)
@@ -127,7 +137,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
     if args.make_plots:
         for metric in args.only_metrics:
             for btype in btypes:
-                if metric == 'lbr' and btype == 'min':  # it's just zero, and confuses the log plots
+                if 'lbr' in metric and btype == 'min':  # it's just zero, and confuses the log plots
                     continue
                 if len(parsed_info[metric][btype]) == 0:
                     print 'nothing to do (<parsed_info> empty)'
@@ -217,7 +227,7 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None, extra_str=''):
         else:  # testing
             return [get_tm_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv, use_relative_affy=use_relative_affy, extra_str=extra_str) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg] for use_relative_affy in ura_vals(tv)]
     else:
-        return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method == 'delta-lbi' else 'affinity', extra_str=extra_str)]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
+        return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method in ['delta-lbi', 'aa-lbr'] else 'affinity', extra_str=extra_str)]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
 
 # ----------------------------------------------------------------------------------------
 def get_comparison_plotdir(metric, per_x, extra_str=''):  # both <metric> and <per_x> can be None, in which case we return the parent dir
@@ -726,6 +736,7 @@ def get_tree_metrics(args):
             if not os.path.isdir(tmpoutdir):
                 os.makedirs(tmpoutdir)
 
+        # it would probably be better to use dtr-run.py for everything, but then i'd be nervous i wasn't testing the partitiondriver version of the code enough
         if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
             cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs, extra_str=args.extra_plotstr),
                                                                                                                                    get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
@@ -790,7 +801,7 @@ parser.add_argument('--leaf-sampling-scheme-list', default='uniform-random')
 parser.add_argument('--target-count-list', default='1')
 parser.add_argument('--n-target-clusters-list')  # NOTE do *not* set a default here, since in bcr-phylo simulator.py the default is None
 parser.add_argument('--context-depend-list')
-parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi-cons-aa', 'lbi-cons-nuc', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
+parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'aa-lbi', 'aa-lbr', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
@@ -831,6 +842,7 @@ parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generat
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
+parser.add_argument('--amino-acid-bounds', action='store_true', help='get bounds for aa tree, i.e. for sequence of length 400./3 instead of 400 (tau 0.0025 --> 0.0075)')
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
