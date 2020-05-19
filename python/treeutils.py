@@ -1787,7 +1787,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             #     lb_tau *= 3.
             # seq_len = int(seq_len / 3.)
 # ----------------------------------------------------------------------------------------
-        tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, seq_len=seq_len, extra_str='true tree', iclust=iclust)
+        tmp_lb_info = calculate_lb_values(dtree, lb_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust)  # , seq_len=seq_len
         for lbm in [m for m in lb_metrics if m in varlist]:  # this skips the tree, which I guess isn't a big deal
             lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
         return dtree, lbfo
