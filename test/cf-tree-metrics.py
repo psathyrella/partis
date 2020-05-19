@@ -608,8 +608,10 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             pvk_list = list(pvks_from_file)[0]
         if args.pvks_to_plot is not None:
             # pvk_list = [p for p in list(pvks_from_file)[0] if p in pvks_from_args]  # don't do it this way since if you only ask it to plot one value it'll get the wrong file path (since it'll no longer make a subdir level for that variable)
-            pvk_list = [p for p in pvk_list if p in args.pvks_to_plot]
-            assert len(pvk_list) > 0
+            ptmp = [p for p in pvk_list if p in args.pvks_to_plot]
+            if len(ptmp) == 0:
+                raise Exception('requirement in --pvks-to-plot \'%s\' didn\'t give us any from the list %s' % (args.pvks_to_plot, pvk_list))
+            pvk_list = ptmp
         for ipv, pvkey in enumerate(pvk_list):
             for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
