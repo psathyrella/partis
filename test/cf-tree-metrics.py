@@ -69,20 +69,12 @@ def make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=
 def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_results=False):
     print_results = True
     btypes = ['min', 'max']
-    if args.amino_acid_bounds:
-# ----------------------------------------------------------------------------------------
-# TODO
-        lbt_bounds = [3. * b for b in lbt_bounds]
-        lbt_bounds = [0, 0.1]
-        print '  setting --seq-len to 400./3 = 133 for aa'
-        args.seq_len = 133
-# ----------------------------------------------------------------------------------------
 
     outdir = '%s/lb-tau-normalization/%s' % (args.base_outdir, args.label)
 
     parsed_info = {m : {b : {} for b in btypes} for m in args.only_metrics}
     for lbt in args.lb_tau_list:
-        if lbt < lbt_bounds[0] or lbt > lbt_bounds[1]:
+        if args.make_plots and (lbt < lbt_bounds[0] or lbt > lbt_bounds[1]):
             print '    skipping tau %.4f outside of bounds [%.4f, %.4f] for bound plotting' % (lbt, lbt_bounds[0], lbt_bounds[1])
             continue
 
@@ -90,7 +82,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
         if gen_list is None:
             gen_list = [get_n_generations(ntl, lbt) for ntl in args.n_tau_lengths_list]
         if args.lb_tau_list.index(lbt) == 0 or args.n_tau_lengths_list is not None:  # if --n-tau-lengths-list is set, they could be different for each tau
-            print ' N gen list: %s' % ' '.join(str(n) for n in gen_list)
+            print ' seq len: %d   N gen list: %s' % (args.seq_len, ' '.join(str(n) for n in gen_list))
         print '   %s %.4f' % (utils.color('green', 'lb tau'), lbt)
         for n_gen in gen_list:
             if args.debug:
@@ -135,6 +127,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
                     utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
 
     if args.make_plots:
+        print '  writing plots to %s' % outdir
         for metric in args.only_metrics:
             for btype in btypes:
                 if 'lbr' in metric and btype == 'min':  # it's just zero, and confuses the log plots
@@ -844,7 +837,6 @@ parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generat
 parser.add_argument('--n-generations-list', default='4:5:6:7:8:9:10:12', help='set either this or --n-tau-lengths-list')  # going to 20 uses a ton of memory, not really worth waiting for
 parser.add_argument('--max-lb-n-offspring', default=2, type=int, help='multifurcation number for max lb calculation')
 parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lbr) metrics to do lb bound calculation')
-parser.add_argument('--amino-acid-bounds', action='store_true', help='get bounds for aa tree, i.e. for sequence of length 400./3 instead of 400 (tau 0.0025 --> 0.0075)')
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 

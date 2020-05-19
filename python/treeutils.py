@@ -239,11 +239,13 @@ lb_bounds = {  # calculated to 17 generations, which is quite close to the asymp
         0.0010: (0.0010, 0.0033),
         0.0005: (0.0005, 0.0015),
     },
-#     int(typical_bcr_seq_len / 3.) : {  # amino acid
-# # ----------------------------------------------------------------------------------------
-# # TODO placeholder, i don't think these are right
-#         0.0075: (0.0075, 0.0504),
-#     }
+    int(typical_bcr_seq_len / 3.) : {  # amino acid (133)
+        0.0030: (0.0030, 0.0099),
+        0.0025: (0.0025, 0.0079),
+        0.0020: (0.0020, 0.0061),
+        0.0010: (0.0010, 0.0030),
+        0.0005: (0.0005, 0.0015),
+    }
 }
 
 # ----------------------------------------------------------------------------------------
@@ -914,7 +916,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
         lbvals['lbr'] = tmpvals['lbr']
     else:
         if iclust is None or iclust == 0:
-            print '    calculating %s %s with tau %.4f' % (normstr, only_calc_metric, tau)
+            print '    calculating %s %s with tau %.4f' % (normstr, lb_metrics[only_calc_metric], tau)
         lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 

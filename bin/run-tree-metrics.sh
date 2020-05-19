@@ -8,6 +8,8 @@ testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times
 
 # $bin --actions get-lb-bounds --label $label  #--make-plots
 # $bin --actions get-lb-bounds --label $testlabel $testargs --make-plots
+# echo $bin --actions get-lb-bounds --seq-len 133 --label aa-lb-bounds-v0 --make-plots
+# echo $bin --actions get-lb-bounds --seq-len 133 --label $testlabel $testargs --make-plots
 # exit 0
 
 # echo $bin --label $testlabel $testargs --only-csv-plots
