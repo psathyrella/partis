@@ -12,10 +12,29 @@ import math
 import subprocess
 import multiprocessing
 
+legtexts = {
+    'metric-for-target-distance' : 'target dist. metric',
+    'leaf-sampling-scheme' : 'sampling scheme',
+    'target-count' : 'N target seqs',
+    'n-target-clusters' : 'N target clust.',
+    'uniform-random' : 'unif. random',
+    'affinity-biased' : 'affinity biased',
+    'high-affinity' : 'perf. affinity',
+    'cons-dist-aa' : 'aa-cdist',  # surely these are supposed to be somewhere else?
+    'cons-dist-nuc' : 'nuc-cdist',
+    'shm' : 'n-shm',
+    'aa-lbi' : 'aa-lbi',
+    'aa-lbr' : 'aa-lbr',
+}
+
 # ----------------------------------------------------------------------------------------
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
 linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
+hard_colors = {'aa-lbi' : '#e043b9',
+               'aa-lbr' : '#e043b9'}  # don't like the cycle colors these end up with
 def metric_color(metric):  # as a fcn to avoid import if we're not plotting
+    if metric in hard_colors:
+        return hard_colors[metric]
     mstrlist = ['shm:lbi:cons-dist-aa:cons-dist-nuc:dtr:aa-lbi', 'delta-lbi:lbr:dtr:aa-lbr']
     metric_colors = {m : plotting.frozen_pltcolors[i % len(plotting.frozen_pltcolors)] for mstrs in mstrlist for i, m in enumerate(mstrs.split(':'))}
     return metric_colors.get(metric, 'red')
@@ -309,7 +328,6 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         'obs-times' : 't obs',
         'carry-cap' : 'carry cap',
     }
-    legtexts = {'metric-for-target-distance' : 'target dist. metric', 'leaf-sampling-scheme' : 'sampling scheme', 'target-count' : 'N target seqs', 'n-target-clusters' : 'N target clust.', 'uniform-random' : 'unif. random', 'affinity-biased' : 'affinity biased', 'high-affinity' : 'perf. affinity'}
     legtexts.update(lbplotting.metric_for_target_distance_labels)
     def legstr(label, title=False):
         if label is None: return None
