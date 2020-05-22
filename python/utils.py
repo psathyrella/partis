@@ -472,7 +472,7 @@ def get_multiplicity(line, uid=None, iseq=None):  # combines duplicates with any
     else:
         assert False
     if 'multiplicities' in line:  # if there was input meta info passed in
-        return ifcn('multiplicities')
+        return None if ifcn('multiplicities') == 'None' else ifcn('multiplicities')  # stupid old style csv files not converting correctly (i know i could fix it in the conversion function but i don't want to touch that stupid old code)
     elif 'duplicates' in line:
         return len(ifcn('duplicates')) + 1
     else: # this can probably only happen on very old files (e.g. it didn't used to get added to simulation)
@@ -507,6 +507,52 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
         assert [len(reco_info[uid][col]) for uid in uids].count(1) == len(uids)  # make sure every uid's info for this column is of length 1
         multifo[col] = [copy.deepcopy(reco_info[uid][col][0]) for uid in uids]
     return multifo
+
+# ----------------------------------------------------------------------------------------
+def add_seqs_to_line(line, new_seqfos, glfo, debug=True):
+    # ----------------------------------------------------------------------------------------
+    def align_sfo_seq(sfo):
+        if debug:
+            print '  seq different length for %s, aligning:' % sfo['name']
+            color_mutants(line['naive_seq'], sfo['seq'], print_result=True, ref_label='naive seq ', seq_label='new seq ', extra_str='        ', align=True)
+        aligned_seq, aligned_naive_seq = align_seqs(line['naive_seq'], sfo['seq'])
+        trimmed_seq = []  # it could be padded too, but probably it'll mostly be trimmed, so we just call it that
+        for naive_nuc, new_nuc in zip(aligned_seq, aligned_naive_seq):
+            if naive_nuc in gap_chars:
+                continue
+            elif new_nuc in gap_chars:  # naive seq probably has some N padding
+                trimmed_seq.append(ambiguous_bases[0])
+            else:
+                trimmed_seq.append(new_nuc)
+        sfo['seq'] = ''.join(trimmed_seq)
+        assert len(sfo['seq']) == len(line['naive_seq'])
+
+    # ----------------------------------------------------------------------------------------
+    for sfo in new_seqfos:
+        if len(sfo['seq']) != len(line['naive_seq']):  # implicit info adding enforces that the naive seq is the same length as all the seqs
+            align_sfo_seq(sfo)
+
+    if debug:
+        print_reco_event(line, label='before adding %d seqs:'%len(new_seqfos), extra_str='      ')
+
+    remove_all_implicit_info(line)
+
+    for key in list(set(line) & set(linekeys['per_seq'])):
+        if key == 'unique_ids':
+            line[key] += [s['name'] for s in new_seqfos]
+        elif key == 'input_seqs' or key == 'seqs':  # i think elsewhere these end up pointing to the same list of string objects, but i think that doesn't matter?
+            line[key] += [s['seq'] for s in new_seqfos]
+        elif key == 'duplicates':
+            line[key] += [[] for _ in new_seqfos]
+        elif key == 'indelfos':
+            line[key] += [indelutils.get_empty_indel() for _ in new_seqfos]
+        else:  # I think this should only be for input meta keys like multiplicities, affinities, and timepoints, and hopefully they can all handle None?
+            line[key] += [None for _ in new_seqfos]
+
+    add_implicit_info(glfo, line)
+
+    if debug:
+        print_reco_event(line, label='after:', extra_str='      ')
 
 # ----------------------------------------------------------------------------------------
 def get_repfracstr(csize, repertoire_size):  # return a concise string representing <csize> / <repertoire_size>
@@ -4748,7 +4794,7 @@ def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_
     return annotation_list
 
 # ----------------------------------------------------------------------------------------
-def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, debug=False):
+def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, debug=False):
     annotation_list = None
 
     if getsuffix(fname) == '.csv':
@@ -4760,7 +4806,10 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
 
         if not skip_annotations:
             if not dont_add_implicit_info and glfo is None:
-                raise Exception('glfo is None, but we were asked to add implicit info for an (old-style) csv output file')
+                if glfo_dir is not None:
+                    glfo = glutils.read_glfo(glfo_dir, locus)
+                else:
+                    raise Exception('glfo is None, but we were asked to add implicit info for an (old-style) csv output file')
             n_queries_read = 0
             annotation_list = []
             with open(fname) as csvfile:
