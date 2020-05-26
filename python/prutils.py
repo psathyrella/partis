@@ -16,12 +16,16 @@ def get_uid_str(line, iseq, queries_to_emphasize, duplicated_uids=None):
     return uidstr
 
 # ----------------------------------------------------------------------------------------
-def check_outsr_lengths(line, outstrs, fix=False):
+def check_outsr_lengths(line, outstrs, fix=False, debug=False):
     if len(set([len(ostr) for ostr in outstrs])) == 1:  # could put this in a bunch of different places, but things're probably most likely to get screwed up either when initally building the four lines, or dealing with the stupid gaps
+        if debug:
+            print '    outstr lengths ok'
         return
 
     if fix:
         max_len = max([len(ostr) for ostr in outstrs])
+        if debug:
+            print '      fixing outstr lengths: %s --> %d' % (' '.join(str(len(ostr)) for ostr in outstrs), max_len)
         for istr in range(len(outstrs)):
             if len(outstrs[istr]) < max_len:
                 outstrs[istr] += ' ' * (max_len - len(outstrs[istr]))
@@ -31,6 +35,10 @@ def check_outsr_lengths(line, outstrs, fix=False):
     for ostr in outstrs:
         print '%s%s%s' % (utils.color('red', 'x'), ostr, utils.color('red', 'x'))
     raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
+
+# ----------------------------------------------------------------------------------------
+def vj_ostr(ostrs):  # it would be nice to add a general fcn incorporating also the fcn below, rather than adding this, but whatever
+    return ostrs[2]
 
 # ----------------------------------------------------------------------------------------
 def is_qr(index):
@@ -75,7 +83,7 @@ def old_indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE sim
     return outstrs, colors
 
 # ----------------------------------------------------------------------------------------
-def indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
+def indel_shenanigans(line, iseq, outstrs, colors, delstrs, debug=False):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
     if debug:
         print '%s' % utils.color('blue', 'shenanigans')
 
@@ -88,13 +96,13 @@ def indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE similar
             return 'insertion'
         else:
             return 'uh'  # i guess it's possible if there's overlapping indels, but I don't want to think about that a.t.m.
-    def choose_char(ostrchar, istr, qrchar, glchar):  # <char> is the character that's there already
+    def choose_char(ostrchar, istr, qrchar, glchar):  # <ostrchar> is the character that's there already
         if ostrchar not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
             return ' '
         elif use_stars(get_itype(qrchar, glchar), istr):
             return '*'
         elif qrchar not in utils.gap_chars and glchar not in utils.gap_chars:
-            return char
+            return ostrchar
         elif glchar not in utils.gap_chars:
             return glchar
         elif qrchar not in utils.gap_chars:
@@ -121,7 +129,7 @@ def indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE similar
     new_outstrs, new_colors = [[] for _ in outstrs], [[] for _ in colors]
     while ipos < istop:
         outchars = [ostr[ipos] for ostr in outstrs]
-        if ipos < line['v_5p_del'] or ipos >= istop - line['j_3p_del'] or '-' in outchars or ' ' in outchars[-1]:  # '-' is to check for no-extra-space fix, and ' ' is in case we fixed length problems with check_outsr_lengths()
+        if ipos < len(delstrs['v_5p']) or ipos >= istop - line['j_3p_del'] or '-' in outchars or ' ' in outchars[-1]:  # '-' is to check for no-extra-space fix, and ' ' is in case we fixed length problems with check_outsr_lengths()
             for istr in range(len(outstrs)):
                 new_outstrs[istr] += [outstrs[istr][ipos]]
                 new_colors[istr] += [[]]
@@ -148,6 +156,11 @@ def indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE similar
         else:
             for istr in range(len(outstrs)):
                 new_char = choose_char(outstrs[istr][ipos], istr, ifo['qr_gap_seq'][iqrgap], ifo['gl_gap_seq'][iglgap])
+                # it would be nice to have a way to double check that we're at the right position here, but I can't figure one out (i think i'd have to totally rewrite this stuff so the indels got incorporated before constructing outstrs or something)
+                # anyway, the below doesn't work if iseq > 0 or if there's more than one indel
+                # if iseq == 0 and is_qr(istr) and new_char == '*':  # if this is a deletion, we can check that the bases in the gl gap seq are the same as in the germline (outstr) seq (this used to happen because i was using the v_5p len rather than the length in delstrs['v_5p'] above) (we can't check it if iseq > 0 since we don't expect the vj line to match up in that case)
+                #     if vj_ostr(outstrs)[ipos] != vj_ostr(new_outstrs)[ipos]:  # i guess just call it a 'warning', since i think it might get triggered in d or j when things are ok
+                #         print '    %s base at %d from gl gap seq %s different to base in gl outstr seq %s (indel is probably at wrong position) when printing ascii dbg' % (utils.color('red', 'warning'), ipos, vj_ostr(new_outstrs)[ipos], vj_ostr(outstrs)[ipos])
                 new_outstrs[istr] += [new_char]
                 new_colors[istr] += [[]]
                 if iseq > 0 and is_qr(istr):  # the germline lines are printed based on the *first* query sequence in a multi-seq alignment, and it'd be kinda hard to really account for all subsequent sequences' indels, so we compromise by blueing the insertions in the subsequent query sequences (deletions are already blue stars). Note that they still don't line up right.
@@ -288,7 +301,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     colors = [[[] for _ in range(len(ostr))] for ostr in outstrs]
     if indelutils.has_indels(line['indelfos'][iseq]):
         # outstrs, colors = old_indel_shenanigans(line, iseq, outstrs, colors)
-        outstrs, colors = indel_shenanigans(line, iseq, outstrs, colors)
+        outstrs, colors = indel_shenanigans(line, iseq, outstrs, colors, delstrs)
     outstrs = add_colors(outstrs, colors, line)
 
     multipy = utils.get_multiplicity(line, None, iseq)

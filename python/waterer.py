@@ -772,6 +772,8 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
+        if debug:
+            print '  looking for spurious v_5p and j_3p deletions'
         for erosion in utils.effective_erosions:
             region = erosion[0]
             if region == 'v':
@@ -782,6 +784,9 @@ class Waterer(object):
                 insertion = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
             else:
                 assert False
+
+            if debug:
+                print '      %s   deletion len: %3d   insertion: %s' % (erosion, d_len, insertion)
 
             if d_len == 0 or len(insertion) == 0:
                 continue
