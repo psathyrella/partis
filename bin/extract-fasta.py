@@ -34,15 +34,11 @@ parser.add_argument('--glfo-dir', help='Directory with germline info. Only neces
 parser.add_argument('--locus', default='igh', help='only used for old-style csv output files')
 args = parser.parse_args()
 
-glfo = None
-if utils.getsuffix(args.input_file) == '.csv':
-    default_glfo_dir = partis_dir + '/data/germlines/human'
-    if args.glfo_dir is None:
-        print '  note: reading deprecated csv format, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir
-        args.glfo_dir = default_glfo_dir
-    glfo = glutils.read_glfo(args.glfo_dir, locus=args.locus)
-
-glfo, annotation_list, cpath = utils.read_output(args.input_file, glfo=glfo)
+default_glfo_dir = partis_dir + '/data/germlines/human'
+if utils.getsuffix(args.input_file) == '.csv' and args.glfo_dir is None:
+    print '  note: reading deprecated csv format, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir
+    args.glfo_dir = default_glfo_dir
+glfo, annotation_list, cpath = utils.read_output(args.input_file, glfo_dir=args.glfo_dir, locus=args.locus)
 
 if cpath is None or cpath.i_best is None:
     clusters_to_use = [l['unique_ids'] for l in annotation_list]

@@ -297,8 +297,8 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     tmppad = utils.len_excluding_colors(uidstr) - utils.len_excluding_colors(vjlabelstr)
     suffixes = ['insert%s\n'       % ('s' if utils.has_d_gene(utils.get_locus(line['v_gene'])) else ''),
                 '%s%s\n'             % (utils.color_gene(line['d_gene']), vj_delstr),
-                '%s%s  %%shm  %s\n'        % (vjlabelstr, tmppad * ' ', utils.color('blue', 'N') if any(m > 1 for m in utils.get_multiplicities(line)) else ''),
-                '%s  %4.1f  %s  %s\n' % (uidstr, 100*line['mut_freqs'][iseq], ' ' if multipy == 1 else utils.color('blue', str(multipy)), utils.color('red', utils.is_functional_dbg_str(line, iseq)))]
+                '%s%s  %%shm  %s\n'        % (vjlabelstr, tmppad * ' ', utils.color('blue', 'N') if any((m is not None and m > 1) for m in utils.get_multiplicities(line)) else ''),
+                '%s  %4.1f  %s  %s\n' % (uidstr, 100*line['mut_freqs'][iseq], ' ' if (multipy == 1 or multipy is None) else utils.color('blue', str(multipy)), utils.color('red', utils.is_functional_dbg_str(line, iseq)))]
     outstrs = ['%s%s   %s' % (extra_str, ostr, suf) for ostr, suf in zip(outstrs, suffixes)]
 
     if label != '':  # this doesn't really work if the edge of the removed string is the middle of a color code... but oh well, it doesn't really happen any more since I shortened the kbound label from waterer.py

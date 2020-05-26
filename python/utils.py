@@ -96,9 +96,9 @@ import prutils
 eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment
 def is_normed(probs, this_eps=eps):
     if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
-        return is_normed([val for val in probs.values()])
+        return is_normed([val for val in probs.values()], this_eps=this_eps)
     elif hasattr(probs, '__iter__'):  # if it's a list call yourself with their sum
-        return is_normed(sum(probs))
+        return is_normed(sum(probs), this_eps=this_eps)
     else:  # and if it's a float actually do what you're supposed to do
         return math.fabs(probs - 1.0) < this_eps
 
@@ -191,6 +191,13 @@ expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the g
 conserved_codons = {l : {'v' : 'cyst',
                           'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
                      for l in loci}
+def get_all_codons():  # i'm only make these two fcns rather than globals since they use fcns that aren't defined til way down below
+    return [''.join(c) for c in itertools.product('ACGT', repeat=3)]
+def get_all_amino_acids(no_stop=False):
+    all_aas = set(ltranslate(c) for c in get_all_codons())  # note: includes stop codons (*)
+    if no_stop:
+        all_aas.remove('*')
+    return all_aas
 
 def cdn(glfo, region):  # returns None for d
     return conserved_codons[glfo['locus']].get(region, None)
@@ -509,7 +516,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
     return multifo
 
 # ----------------------------------------------------------------------------------------
-def add_seqs_to_line(line, new_seqfos, glfo, debug=True):
+def add_seqs_to_line(line, new_seqfos, glfo, debug=False):
     # ----------------------------------------------------------------------------------------
     def align_sfo_seq(sfo):
         if debug:
@@ -537,7 +544,7 @@ def add_seqs_to_line(line, new_seqfos, glfo, debug=True):
 
     remove_all_implicit_info(line)
 
-    for key in list(set(line) & set(linekeys['per_seq'])):
+    for key in set(line) & set(linekeys['per_seq']):
         if key == 'unique_ids':
             line[key] += [s['name'] for s in new_seqfos]
         elif key == 'input_seqs' or key == 'seqs':  # i think elsewhere these end up pointing to the same list of string objects, but i think that doesn't matter?
@@ -552,7 +559,7 @@ def add_seqs_to_line(line, new_seqfos, glfo, debug=True):
     add_implicit_info(glfo, line)
 
     if debug:
-        print_reco_event(line, label='after:', extra_str='      ')
+        print_reco_event(line, label='after:', extra_str='      ', queries_to_emphasize=[s['name'] for s in new_seqfos])
 
 # ----------------------------------------------------------------------------------------
 def get_repfracstr(csize, repertoire_size):  # return a concise string representing <csize> / <repertoire_size>

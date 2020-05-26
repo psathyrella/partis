@@ -25,7 +25,7 @@ if utils.getsuffix(args.fname) == '.csv':
     print '  reading deprecated csv format, so need to read germline info from somewhere else, using --glfo-dir %s, hopefully it works' % args.glfo_dir
     glfo = glutils.read_glfo(args.glfo_dir, locus=args.locus)
 
-glfo, annotation_list, cpath = utils.read_output(args.fname, glfo=glfo)
+glfo, annotation_list, cpath = utils.read_output(args.fname, glfo_dir=glfo_dir, locus=args.locus)
 
 if args.plotdir is not None:
     from parametercounter import ParameterCounter

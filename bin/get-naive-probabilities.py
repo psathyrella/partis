@@ -27,7 +27,7 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter)
 parser.add_argument('--infname', default='test/reference-results/test/parameters/data/hmm/all-probs.csv', help='input all-probs.csv file from a previously-inferred partis parameter directory, for instance: test/reference-results/test/parameters/data/hmm/all-probs.csv')
-parser.add_argument('--config-fname', help='yaml file with info on columns for which we want to specify particular values (and skip others). See default/example set below. To create a yaml config file to start from, uncomment the yaml.dump() line below.')
+parser.add_argument('--config-fname', help='yaml file with info on columns for which we want to specify particular values (and skip others). See default/example set below. To create a yaml config file to start from, uncomment the yaml.dump() line below and rerun with no arguments.')
 parser.add_argument('--outfname')
 parser.add_argument('--any-allele', action='store_true', help='if set, also include any other alleles of any of the genes specified in \'skip_column_vals\' (note: can also set it in the cfg file).')
 parser.add_argument('--debug', action='store_true', default=True)  # it's kind of confusing without the debug printout
