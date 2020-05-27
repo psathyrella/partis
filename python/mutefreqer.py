@@ -32,25 +32,22 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info, iseq):
-        singlefo = utils.synthesize_single_seq_line(info, iseq)
-        dummy_iseq = 0
-
-        freq, n_muted = utils.get_mutation_rate_and_n_muted(singlefo, dummy_iseq)
+        freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq)
         self.mean_rates['all'].fill(freq)  # mean freq over whole sequence (excluding insertions)
         self.mean_n_muted['all'].fill(n_muted)
 
-        freq, n_muted = utils.get_mutation_rate_and_n_muted(singlefo, dummy_iseq, restrict_to_region='cdr3')
+        freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region='cdr3')
         self.mean_rates['cdr3'].fill(freq)
         self.mean_n_muted['cdr3'].fill(n_muted)
 
         for region in utils.regions:
             # first do mean freqs
-            regional_freq, regional_n_muted  = utils.get_mutation_rate_and_n_muted(singlefo, dummy_iseq, restrict_to_region=region)
+            regional_freq, regional_n_muted  = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region=region)
             self.mean_rates[region].fill(regional_freq)  # per-region mean freq
             self.mean_n_muted[region].fill(regional_n_muted)
 
             # then do per-gene and per-gene-per-position freqs
-            gene = singlefo[region + '_gene']
+            gene = info[region + '_gene']
             if gene not in self.counts:
                 self.counts[gene] = {}
                 self.per_gene_mean_rates[gene] = Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title=gene)
@@ -58,15 +55,14 @@ class MuteFreqer(object):
 
             gcts = self.counts[gene]  # shorthand name
 
-            assert len(singlefo[region + '_qr_seqs']) == 1  # don't really need this anymore since we're using utils.synthesize_single_seq_line(), but it's nice to have some explicit check immediatley before using [0] below
-            germline_seq = singlefo[region + '_gl_seq']
-            query_seq = singlefo[region + '_qr_seqs'][0]
+            germline_seq = info[region + '_gl_seq']
+            query_seq = info[region + '_qr_seqs'][iseq]
             assert len(germline_seq) == len(query_seq)
 
             istart = self.exclusions[region][0]
             istop = len(germline_seq) - self.exclusions[region][1]
             for ipos in range(istart, istop):  # NOTE this is similar to the stuff in allelefinder, except in allelefinder we need every single sequence to be the same length (so they go in the correct [comparable?] bin), whereas here we do not
-                igl = ipos + int(singlefo[region + '_5p_del'])  # account for left-side deletions in the indexing
+                igl = ipos + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
 
                 if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
                     continue
