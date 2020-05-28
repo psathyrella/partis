@@ -38,8 +38,9 @@ def read_mute_counts(indir, gene, locus, extra_genes=None, debug=False):  # NOTE
 
     # ----------------------------------------------------------------------------------------
     if extra_genes is not None:  # I don't want to fix it cause it'd be kinda hard, and also I don't think it ever happens under normal circumstances -- it's only called with this arg from simulation, in which case you should always have parameters for the gene you're asking for
-        print '%s Reading per-base mutation counts for genes (%s) in addition to the desired one (%s), which doesn\'t really make sense, since the counts will be totally wrong at the positions at which the genes differ.' % (utils.color('red', 'warning'), utils.color_genes(extra_genes), utils.color_gene(gene))
-        print '   This should only happen if you\'re doing something really weird, like running simulation asking for genes for which you don\'t have parameters, in which case hopefully you only care that it doesn\'t crash, and not that the mutation model is very good.'
+        print '%s Reading per-base mutation counts for genes (%s) in addition to the desired one (%s), which doesn\'t really make sense, since the counts will be wrong at the positions at which the genes differ.' % (utils.color('red', 'warning'), utils.color_genes(extra_genes), utils.color_gene(gene))
+        print '   This should only happen if you\'re doing something weird, probably running simulation asking for genes for which you don\'t have parameters.'
+        print '   If this is the case and you only care that it doesn\'t crash, and not that the mutation model is particularly accurate, this is fine.'
     if gene == glutils.dummy_d_genes[locus]:
         return {}
 
@@ -51,7 +52,7 @@ def read_mute_counts(indir, gene, locus, extra_genes=None, debug=False):  # NOTE
 
     for gtmp in approved_genes:
         observed_counts = read_single_file(gtmp)
-        if observed_counts is not None:  # HACK this just uses the first one that's there (in the vast majority of cases it'll just be <gene> -- i think the only way it can be missing is if we hard code a specific gene (in bin/test-germline-inference.py) and it isn't in data/recombinator/scratch-parameters/
+        if observed_counts is not None:  # HACK this just uses the first one that's there (in the vast majority of cases it'll just be <gene> -- i think the only way it can be missing is if you hard code a specific gene (e.g. in bin/test-germline-inference.py) and it isn't in the parameter directory you passed
             break
     return observed_counts  # raw per-{ACGT} counts for each position, summed over genes ("raw" as in not a weighted average over a bunch of genes as in read_mute_freqs_with_weights())
 

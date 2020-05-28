@@ -34,9 +34,9 @@ class Recombinator(object):
         self.workdir = tempfile.mkdtemp()
         utils.prep_dir(self.workdir)
 
-        assert self.args.parameter_dir is None
-        self.reco_parameter_dir = self.args.reco_parameter_dir + '/' + self.args.parameter_type if self.args.reco_parameter_dir is not None else None
-        self.shm_parameter_dir = self.args.shm_parameter_dir + '/' + self.args.parameter_type if self.args.shm_parameter_dir is not None else None
+        assert self.args.parameter_dir is None  # we don't use the overall dir anywhere here, only reco_ and shm_
+        self.reco_parameter_dir = (self.args.reco_parameter_dir + '/' + self.args.parameter_type) if self.args.reco_parameter_dir is not None else None  # only used if not rearranging from scratch
+        self.shm_parameter_dir = (self.args.shm_parameter_dir + '/' + self.args.parameter_type) if self.args.shm_parameter_dir is not None else None  # only used if not mutating from scratch
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -139,11 +139,9 @@ class Recombinator(object):
             # self.all_mute_counts[gene] = {'overall_mean' : self.args.scratch_mute_freq} # TODO see TODOs further down, but at the moment we don't use these if --mutate-from-scratch is set
         else:
             extra_genes = []
-            # ok this is kind of dumb, but I need to figure out how many counts there are for this gene, even when we have only an shm parameter dir
-            tmp_reco_param_dir = self.reco_parameter_dir if self.reco_parameter_dir is not None else self.shm_parameter_dir  # will crash if the shm parameter dir doesn't have gene count info... but we should only end up using it on data/recombinator/scratch-parameters
-            gene_counts = utils.read_overall_gene_probs(tmp_reco_param_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
+            gene_counts = utils.read_overall_gene_probs(self.shm_parameter_dir, only_gene=gene, normalize=False, expect_zero_counts=True)
             if gene_counts < self.args.min_observations_per_gene:  # if we didn't see it enough, average over all the genes that find_replacement_genes() gives us NOTE if <gene> isn't in the dict, it's because it's in <args.datadir> but not in the parameter dir UPDATE not using datadir like this any more, so previous statement may not be true
-                extra_genes = utils.find_replacement_genes(tmp_reco_param_dir, min_counts=self.args.min_observations_per_gene, gene_name=gene)
+                extra_genes = utils.find_replacement_genes(self.shm_parameter_dir, min_counts=self.args.min_observations_per_gene, gene_name=gene)
 
             self.all_mute_freqs[gene] = paramutils.read_mute_freqs_with_weights(self.shm_parameter_dir, list(set([gene] + extra_genes)))  # NOTE these fcns do quite different things as far as smoothing (see comments elsewhere)
             per_base_extra_genes = None
