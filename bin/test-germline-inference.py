@@ -342,8 +342,8 @@ parser.add_argument('--snp-positions', help='colon-separated list (length must e
 parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes> unless --gls-gen) of the number of snps to generate for each gene (each snp at a random position). If --gls-gen, then this still gives the number of snpd genes, but it isn\'t assumed to be the same length as anything [i.e. we don\'t yet know how many v genes there\'ll be]')
 parser.add_argument('--indel-positions', help='see --snp-positions (a.t.m. the indel length distributions are hardcoded)')
 parser.add_argument('--nindel-list', help='see --nsnp-list')
-parser.add_argument('--n-genes-per-region', default=glutils.default_n_genes_per_region, help='see bin/partis --help')
-parser.add_argument('--n-sim-alleles-per-gene', default=glutils.default_n_alleles_per_gene, help='see bin/partis --help')
+parser.add_argument('--n-genes-per-region', help='see bin/partis --help (default set in glutils.process_gls_gen_args() below)')
+parser.add_argument('--n-sim-alleles-per-gene', help='see bin/partis --help (default set in glutils.process_gls_gen_args() below)')
 parser.add_argument('--min-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float, help='see bin/partis --help')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--dont-remove-template-genes', action='store_true', help='when generating snps, *don\'t* remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
@@ -373,7 +373,6 @@ args.methods = utils.get_arg_list(args.methods)
 available_methods = set(['simu', 'partis', 'full', 'tigger-default', 'tigger-tuned', 'igdiscover'])
 if len(set(args.methods) - available_methods) > 0:
     raise Exception('unexpected --methods: %s' % ' '.join(set(args.methods) - available_methods))
-
 # args.default_germline_dir = 'old-glfo/%s' % args.species  # 'data/germlines/%s' % args.species  # NOTE gad damnit, I just deleted old-glfo, had no idea what it was for
 print '  %s hopefully old-glfo/ isn\'t needed to recreate old results (see comment)' % utils.color('yellow', 'note:')
 args.default_germline_dir = 'data/germlines/%s' % args.species  # 'data/germlines/%s' % args.species

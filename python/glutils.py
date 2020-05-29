@@ -19,8 +19,13 @@ import indelutils
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name
 
 # setting defaults here so that bin/test-germline-inference.py and bin/partis don't have to both have defaults in them
-default_n_genes_per_region = '42:18:6'
-default_n_alleles_per_gene = '1.33:1.2:1.2'
+# these numbers should really be updated at some point with numbers from corey's and gur's papers
+default_n_genes_per_region = {'igh' : '42:18:6',
+                              'igk' : '11:1:3',  # light chain d has to be 1, but it's just for the dummy d gene
+                              'igl' : '11:1:2'}
+default_n_alleles_per_gene = {'igh' : '1.33:1.2:1.2',
+                              'igk' : '1.1:1:1.1',
+                              'igl' : '1.1:1:1.1'}
 default_min_allele_prevalence_freq = 0.1
 
 dummy_d_genes = {l : l.upper() + 'Dx-x*x' if not utils.has_d_gene(l) else None for l in utils.loci}  # e.g. IGKDx-x*x for igk, None for igh
@@ -1174,9 +1179,9 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
     """ NOTE removes genes from  <glfo> """
 
     if n_genes_per_region is None:
-        n_genes_per_region = default_n_genes_per_region
+        n_genes_per_region = default_n_genes_per_region[glfo['locus']]
     if n_alleles_per_gene is None:
-        n_alleles_per_gene = default_n_alleles_per_gene
+        n_alleles_per_gene = default_n_alleles_per_gene[glfo['locus']]
     if min_allele_prevalence_freq is None:
         min_allele_prevalence_freq = default_min_allele_prevalence_freq
 
@@ -1194,7 +1199,7 @@ def generate_germline_set(glfo, n_genes_per_region, n_alleles_per_gene, min_alle
             template_genes = numpy.random.choice(glfo['seqs'][region].keys(), size=len(new_allele_info))  # (template) genes in <new_allele_info> should all be None
             for ig in range(len(new_allele_info)):
                 new_allele_info[ig]['gene'] = template_genes[ig]
-            _ = generate_new_alleles(glfo, new_allele_info, debug=debug, remove_template_genes=not dont_remove_template_genes)
+            _ = generate_new_alleles(glfo, new_allele_info, remove_template_genes=not dont_remove_template_genes, debug=debug)
 
         choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_allele_prevalence_freq)
 

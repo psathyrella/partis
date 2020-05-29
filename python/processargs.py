@@ -4,6 +4,7 @@ import sys
 import subprocess
 
 import utils
+import glutils
 
 def get_dummy_outfname(workdir):
     return '%s/XXX-dummy-simu.yaml' % workdir
@@ -13,6 +14,10 @@ parameter_type_choices = ('sw', 'hmm', 'multi-hmm')
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
 def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
+    if args.n_genes_per_region is None:
+        args.n_genes_per_region = glutils.default_n_genes_per_region[args.locus]
+    if args.n_sim_alleles_per_gene is None:
+        args.n_sim_alleles_per_gene = glutils.default_n_alleles_per_gene[args.locus]
     positions = {
         'snp' : utils.get_arg_list(args.snp_positions),
         'indel' : utils.get_arg_list(args.indel_positions),

@@ -165,12 +165,12 @@ def add_lists(list_a, list_b):  # add two lists together, except if one is None 
         return list_a + list_b
 
 # ----------------------------------------------------------------------------------------
-# values used when simulating from scratch
-# scratch_mean_mute_freqs = {'v' : 0.03, 'd' : 0.8, 'j' : 0.06}
-# scratch_mean_mute_freqs['all'] = numpy.mean([v for v in scratch_mean_mute_freqs.values()])
-scratch_mean_erosion_lengths = {'v_3p' : 2, 'd_5p' : 3, 'd_3p' : 3, 'j_5p' : 4}
-scratch_mean_insertion_lengths = {l : {'vd' : 4 if has_d_gene(l) else 0,  # e.g. light chain gets no vd insertion
-                                       'dj' : 4 if has_d_gene(l) else 8}  # ...but a longer dj insertion
+# values used when simulating from scratch (mutation stuff is controlled by command line args, e.g. --scratch-mute-freq)
+scratch_mean_erosion_lengths = {'igh' : {'v_3p' : 1.3, 'd_5p' : 5.6, 'd_3p' : 4.7, 'j_5p' : 5.1},
+                                'igk' : {'v_3p' : 2.8, 'd_5p' : 1.0, 'd_3p' : 0.0, 'j_5p' : 1.5},
+                                'igl' : {'v_3p' : 2.8, 'd_5p' : 1.0, 'd_3p' : 0.0, 'j_5p' : 1.8}}
+scratch_mean_insertion_lengths = {l : {'vd' : 5.9 if has_d_gene(l) else 0.,
+                                       'dj' : 5.1 if has_d_gene(l) else 1.6}
                                   for l in loci}
 
 real_erosions = ['v_3p', 'd_5p', 'd_3p', 'j_5p']
