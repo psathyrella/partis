@@ -32,6 +32,13 @@ def run_simulation(args):
 
     utils.prep_dir(args.workdir)
 
+    if args.generate_trees:  # note that if we're not simulating from scratch we kind of don't need this (we can just set --choose-trees-in-order and heavy and light will use the same trees in the same order), but for scratch simulation they end up different (I think just from generating the germline set below). It anyway seems safer to really specify the same trees.
+        import treegenerator
+        tmp_shm_parameter_dir = (args.shm_parameter_dir + '/' + args.parameter_type) if args.shm_parameter_dir is not None else None
+        treegen = treegenerator.TreeGenerator(args, tmp_shm_parameter_dir)
+        treegen.generate_trees(args.seed, args.outfname, args.workdir)
+        return
+
     default_prevalence_fname = args.workdir + '/allele-prevalence.csv'
     if args.generate_germline_set and args.allele_prevalence_fname is None:
         args.allele_prevalence_fname = default_prevalence_fname
@@ -76,7 +83,7 @@ def run_simulation(args):
         start = time.time()
         events = []
         for ievt in range(n_events):
-            event = reco.combine(random_ints[ievt])
+            event = reco.combine(random_ints[ievt], itree=ievt if args.choose_trees_in_order else None)
             events.append(event)
         if args.check_tree_depths or args.debug:
             reco.print_validation_values()
@@ -405,7 +412,7 @@ subargs['partition'].append({'name' : '--calculate-alternative-annotations', 'kw
 subargs['partition'].append({'name' : '--calculate-alternative-naive-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'DEPRECATED use --calculate-alternative-annotations'}})
 subargs['partition'].append({'name' : '--max-cluster-size', 'kwargs' : {'type' : int, 'help' : 'stop clustering immediately if any cluster grows larger than this (useful for limiting memory usage, which can become a problem when the final partition contains very large clusters)'}})
 subargs['partition'].append({'name' : '--write-additional-cluster-annotations', 'kwargs' : {'help' : 'in addition to writing annotations for each cluster in the best partition, also write annotations for all the clusters in several partitions on either side of the best partition. Specified as a pair of numbers \'m:n\' for m partitions before, and n partitions after, the best partition.'}})
-subargs['partition'].append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname.'}})
+subargs['partition'].append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname (unrelated to --input-simulation-treefname).'}})
 subargs['partition'].append({'name' : '--get-tree-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'DEPRECATED use --get-selection-metrics'}})
 
 # ----------------------------------------------------------------------------------------
@@ -420,7 +427,9 @@ subargs['simulate'].append({'name' : '--remove-nonfunctional-seqs', 'kwargs' : {
 subargs['simulate'].append({'name' : '--n-leaf-distribution', 'kwargs' : {'default' : 'geometric', 'choices' : ['geometric', 'box', 'zipf'], 'help' : 'distribution from which to draw the number of leaves for each tree (the parameter comes from --n-leaves)'}})
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})  # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and value passed as the parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})
-subargs['simulate'].append({'name' : '--input-simulation-treefname', 'kwargs' : {'help' : 'file with newick-formatted lines corresponding to trees to use for simulation. Note that a) the tree depths are rescaled according to the shm rates requested by other command line arguments, i.e. the depths in the tree file are ignored, and b) the resulting sequences do not use the leaf names from the trees.'}})
+subargs['simulate'].append({'name' : '--input-simulation-treefname', 'kwargs' : {'help' : 'file with newick-formatted lines corresponding to trees to use for simulation. Note that a) the tree depths are rescaled according to the shm rates requested by other command line arguments, i.e. the depths in the tree file are ignored, and b) the resulting sequences do not use the leaf names from the trees (unrelated to --treefname).'}})
+subargs['simulate'].append({'name' : '--choose-trees-in-order', 'kwargs' : {'action' : 'store_true', 'help' : 'Instead of the default of choosing a tree at random from the list of trees (which is either generated at the start of the simulation run, or passed in with --input-simulation-treefname), instead choose trees sequentially. Used for paired simulation.'}})
+subargs['simulate'].append({'name' : '--generate-trees', 'kwargs' : {'action' : 'store_true', 'help' : 'Run the initial tree-generation step of simulation (writing to --outfname), without then proceeding to actually generate the sequences. Used for paired heavy/light simulation so we can pass the same list of trees to both.'}})
 subargs['simulate'].append({'name' : '--check-tree-depths', 'kwargs' : {'action' : 'store_true', 'help' : 'check how close the fraction of mutated bases that we get from bppseqgen is to the depth of the trees that we passed in.'}})
 subargs['simulate'].append({'name' : '--no-per-base-mutation', 'kwargs' : {'action' : 'store_true', 'help' : 'By default the simulation uses both a different SHM rate for each position in each gene, and also a different rate to each base for each of these positions (e.g. position 37 in IGHV1-2*02 might mutate 3x as much as neighboring bases, and it might mutate to T twice as often as G). This option turns off the per-base part of that, so while each position in each gene still has a different overall rate, the rate to each base is the same (e.g. A->T is the same as A->G). Run time with this option set is about 10 times faster than the default.'}})
 # shm indels:

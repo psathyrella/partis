@@ -63,9 +63,9 @@ class Recombinator(object):
                 parameter_name = parameters[2]
                 assert model in self.mute_models[region]
                 self.mute_models[region][model][parameter_name] = line['value']
-        treegen = treegenerator.TreeGenerator(args, self.shm_parameter_dir, seed=seed)
-        self.treefname = self.workdir + '/trees.yaml'
-        treegen.generate_trees(seed, self.treefname, self.workdir)  # NOTE not really a newick file, since I hack on the per-region branch length info at the end of each line
+        treegen = treegenerator.TreeGenerator(args, self.shm_parameter_dir)
+        self.treefname = self.workdir + '/trees.yaml'  # yaml file contains a list of tree strings (like a multi-line newick file), as well as some mutation info
+        treegen.generate_trees(seed, self.treefname, self.workdir)
         with open(self.treefname, 'r') as treefile:  # read in the trees (and other info) that we just generated
             self.treeinfo = json.load(treefile)
         os.remove(self.treefname)
@@ -150,21 +150,21 @@ class Recombinator(object):
             self.all_mute_counts[gene] = paramutils.read_mute_counts(self.shm_parameter_dir, gene, utils.get_locus(gene), extra_genes=per_base_extra_genes)
 
     # ----------------------------------------------------------------------------------------
-    def combine(self, initial_irandom):
+    def combine(self, initial_irandom, itree=None):
         """ keep running self.try_to_combine() until you get a good event """
         line = None
         itry = 0
         while line is None:
             if itry > 0 and self.args.debug:
                 print '    unproductive event -- rerunning (try %d)  ' % itry  # probably a weirdly long v_3p or j_5p deletion
-            line = self.try_to_combine(initial_irandom + itry)
+            line = self.try_to_combine(initial_irandom + itry, itree=itree)
             itry += 1
             if itry > 9999:
                 raise Exception('too many tries %d in recombinator' % itry)
         return line
 
     # ----------------------------------------------------------------------------------------
-    def try_to_combine(self, irandom):
+    def try_to_combine(self, irandom, itree=None):
         """
         Create a recombination event and write it to disk
         <irandom> is used as the seed for the myriad random number calls.
@@ -197,7 +197,7 @@ class Recombinator(object):
             raise Exception('out of frame rearrangement, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return None
 
-        self.add_mutants(reco_event, irandom)
+        self.add_mutants(reco_event, irandom, itree=itree)
 
         line = reco_event.line
         # NOTE don't use reco_event after here, since we don't modify it when we remove non-functional sequences (as noted elsewhere, it would be nice to eventually update to just using <line>s instead of <reco_event> now that that's possible)
@@ -709,7 +709,7 @@ class Recombinator(object):
             reco_event.indelfos[iseq] = indelfo
 
     # ----------------------------------------------------------------------------------------
-    def add_mutants(self, reco_event, irandom):
+    def add_mutants(self, reco_event, irandom, itree=None):
         if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # some of the stuff below fails if mut mult is actually 0.
             reco_event.final_seqs.append(reco_event.recombined_seq)  # set final sequnce in reco_event
             reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
@@ -719,7 +719,17 @@ class Recombinator(object):
         # This chosen depth corresponds to the sequence-wide mutation frequency (the newick trees have branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j))
         # In order to account for varying mutation rates in v, d, and j we also get the repertoire-wide ratio of mutation freqs for each region from treegenerator
         # We used to make a separate tree for each region, and rescale that tree by the appropriate ratio and simulate with three separate bppseqgen processes, but now we use one tree for the whole sequence, and do the rescaling when we write the per-position mutation rates for each region
-        chosen_treestr = self.treeinfo['trees'][random.randint(0, len(self.treeinfo['trees'])-1)]  # per-region mutation info is tacked on after the tree... sigh. kind of hackey but works ok.
+        if itree is not None:  # self.args.choose_trees_in_order:
+            if self.args.debug:
+                print '    choosing itree %d (of %d)' % (itree, len(self.treeinfo['trees']))
+            if itree >= len(self.treeinfo['trees']):
+                itree = itree % len(self.treeinfo['trees'])
+                if self.args.debug:
+                    print '      %%\'d down to %d' % itree
+            assert itree < len(self.treeinfo['trees'])
+            chosen_treestr = self.treeinfo['trees'][itree]
+        else:
+            chosen_treestr = self.treeinfo['trees'][random.randint(0, len(self.treeinfo['trees'])-1)]
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)

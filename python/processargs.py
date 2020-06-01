@@ -224,7 +224,7 @@ def process(args):
         if '-e' in args.batch_options or '-o' in args.batch_options:
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
 
-    if args.outfname is not None and not args.presto_output and not args.airr_output:
+    if args.outfname is not None and not args.presto_output and not args.airr_output and not args.generate_trees:
         if utils.getsuffix(args.outfname) not in ['.csv', '.yaml']:
             raise Exception('unhandled --outfname suffix %s' % utils.getsuffix(args.outfname))
         if utils.getsuffix(args.outfname) != '.yaml':
@@ -335,6 +335,12 @@ def process(args):
             args.snp_positions = None  # if you want to control the exact positions, you have to use bin/test-germline-inference.py
             args.indel_positions = None
             process_gls_gen_args(args)
+
+        if args.generate_trees:
+            assert args.n_procs == 1  # not set up to handle output, and also no need
+
+        if args.treefname is not None:
+            raise Exception('--treefname was set for simulation action (probably meant to use --input-simulation-treefname)')
 
     if args.parameter_dir is not None:
         args.parameter_dir = args.parameter_dir.rstrip('/')

@@ -15,7 +15,7 @@ import treeutils
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):
-    def __init__(self, args, parameter_dir, seed):
+    def __init__(self, args, parameter_dir):
         self.args = args
         self.parameter_dir = parameter_dir
         self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
@@ -181,12 +181,12 @@ class TreeGenerator(object):
                 old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
                 age = self.choose_full_sequence_branch_length()
-                if self.args.debug:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height
+                if self.args.debug > 1:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height
                     print '    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age)
                 treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
                 ages.append(age)
                 treestrs.append(dtree.as_string(schema='newick').strip())
-                if self.args.debug:
+                if self.args.debug > 1:
                     print utils.pad_lines(treeutils.get_ascii_tree(dtree))
         if any(a > 1. for a in ages):
             raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
@@ -211,6 +211,12 @@ class TreeGenerator(object):
 
         # each tree is written with branch length the mean branch length over the whole sequence (which is different for each tree), but recombinator also needs the relative length for each region (which is the same, it's an average over the whole repertoire)
         with open(outfname, 'w') as yfile:
-            yamlfo = {'branch-length-ratios' : {r : self.branch_lengths[r]['mean'] / self.branch_lengths['all']['mean'] for r in utils.regions},
-                      'trees' : treestrs}
-            json.dump(yamlfo, yfile)
+            if utils.getsuffix(outfname) == '.yaml':
+                yamlfo = {'branch-length-ratios' : {r : self.branch_lengths[r]['mean'] / self.branch_lengths['all']['mean'] for r in utils.regions},
+                          'trees' : treestrs}
+                json.dump(yamlfo, yfile)
+            elif utils.getsuffix(outfname) == '.nwk':
+                for treestr in treestrs:
+                    yfile.write(treestr + '\n')
+            else:
+                assert False
