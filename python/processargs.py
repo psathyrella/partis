@@ -14,7 +14,7 @@ parameter_type_choices = ('sw', 'hmm', 'multi-hmm')
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
 def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
-    if args.locus is not None:  # if --paired-loci is set
+    if args.locus is not None:  # if --paired-loci is not set
         if args.n_genes_per_region is None:
             args.n_genes_per_region = glutils.default_n_genes_per_region[args.locus]
         if args.n_sim_alleles_per_gene is None:
@@ -282,9 +282,6 @@ def process(args):
         print '  using non-default parameter type \'%s\'' % args.parameter_type
 
     if args.action == 'simulate':
-        if args.batch_system is not None and args.n_procs > 1 and not args.subsimproc:
-            print '  %s setting subsimproc' % utils.color('red', 'warning')
-            args.subsimproc = True
         if args.n_trees is None:
             args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
         if args.n_max_queries != -1:

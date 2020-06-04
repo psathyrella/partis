@@ -46,7 +46,7 @@ def simulate(args):
 
     cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.slurm:
-        cmd_str += ' --batch-system slurm --subsimproc'
+        cmd_str += ' --batch-system slurm'
 
     allele_prevalence_fname = args.workdir + '/allele-prevalence-freqs.csv'
 
