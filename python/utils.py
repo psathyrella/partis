@@ -4153,6 +4153,8 @@ def get_val_from_arglist(clist, argstr):
 def remove_from_arglist(clist, argstr, has_arg=False):
     if argstr not in clist:
         return
+    if clist.count(argstr) > 1:
+        raise Exception('multiple occurrences of argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist)))
     if has_arg:
         clist.pop(clist.index(argstr) + 1)
     clist.remove(argstr)
@@ -4163,6 +4165,8 @@ def replace_in_arglist(clist, argstr, replace_with):  # or add it if it isn't al
         clist.append(argstr)
         clist.append(replace_with)
     else:
+        if clist.count(argstr) > 1:
+            raise Exception('multiple occurrences of argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist)))
         clist[clist.index(argstr) + 1] = replace_with
 
 # ----------------------------------------------------------------------------------------
