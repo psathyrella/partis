@@ -203,7 +203,7 @@ class TreeGenerator(object):
             ages, treestrs = self.read_input_tree_file(outfname)
         os.remove(outfname)  # remove it here, just to make clear that we *re*write it in self.post_process_trees() so that recombinator can later read it
 
-        if self.args.debug:
+        if self.args.debug or utils.getsuffix(outfname) == '.nwk':
             dtreelist = [treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True) for tstr in treestrs]
             mean_leaf_height_list = [treeutils.get_mean_leaf_height(tree=dt) for dt in dtreelist]
             n_leaf_list = [treeutils.get_n_leaves(dt) for dt in dtreelist]
@@ -216,6 +216,7 @@ class TreeGenerator(object):
                           'trees' : treestrs}
                 json.dump(yamlfo, yfile)
             elif utils.getsuffix(outfname) == '.nwk':
+                print '    writing trees to %s' % outfname
                 for treestr in treestrs:
                     yfile.write(treestr + '\n')
             else:

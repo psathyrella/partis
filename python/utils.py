@@ -189,7 +189,7 @@ alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinct
 gap_chars = ['.', '-']
 expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the greatest naming distinction, but note difference to <alphabet>
 conserved_codons = {l : {'v' : 'cyst',
-                          'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
+                         'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
                      for l in loci}
 def get_all_codons():  # i'm only make these two fcns rather than globals since they use fcns that aren't defined til way down below
     return [''.join(c) for c in itertools.product('ACGT', repeat=3)]
@@ -2545,6 +2545,19 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
         os.makedirs(dirname)
 
 # ----------------------------------------------------------------------------------------
+def rmdir(dname, fnames=None):
+    if fnames is not None:
+        for fn in fnames:
+            if os.path.exists(fn):
+                os.remove(fn)
+            else:
+                print '  %s expected to clean up file, but it\'s missing: %s' % (color('yellow', 'warning'), fn)
+    remaining_files = os.listdir(dname)
+    if len(remaining_files) > 0:
+        raise Exception('files remain in %s, so can\'t rm dir: %s' % (dname, ' '.join(remaining_files)))
+    os.rmdir(dname)
+
+# ----------------------------------------------------------------------------------------
 def process_input_line(info, skip_literal_eval=False):
     """
     Attempt to convert all the keys and values in <info> according to the specifications in <io_column_configs> (e.g. splitting lists, casting to int/float, etc).
@@ -4145,7 +4158,7 @@ def remove_from_arglist(clist, argstr, has_arg=False):
     clist.remove(argstr)
 
 # ----------------------------------------------------------------------------------------
-def replace_in_arglist(clist, argstr, replace_with):
+def replace_in_arglist(clist, argstr, replace_with):  # or add it if it isn't already there
     if argstr not in clist:
         clist.append(argstr)
         clist.append(replace_with)

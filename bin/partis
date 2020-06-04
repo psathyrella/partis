@@ -28,11 +28,15 @@ from partitiondriver import PartitionDriver
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
+    if args.paired_loci is not None:
+        run_paired_heavy_light(args)
+        return
+
     from recombinator import Recombinator
 
     utils.prep_dir(args.workdir)
 
-    if args.generate_trees:  # note that if we're not simulating from scratch we kind of don't need this (we can just set --choose-trees-in-order and heavy and light will use the same trees in the same order), but for scratch simulation they end up different (I think just from generating the germline set below). It anyway seems safer to really specify the same trees.
+    if args.generate_trees:  # note that if we're not simulating from scratch we kind of don't need to generate trees in a separate step (we can just set --choose-trees-in-order and heavy and light will use the same trees in the same order), but for scratch simulation they end up different (I think just from generating the germline set below). It anyway seems safer to really specify the same trees.
         import treegenerator
         tmp_shm_parameter_dir = (args.shm_parameter_dir + '/' + args.parameter_type) if args.shm_parameter_dir is not None else None
         treegen = treegenerator.TreeGenerator(args, tmp_shm_parameter_dir)
@@ -137,13 +141,9 @@ def run_simulation(args):
         for iproc in range(args.n_procs):
             os.rmdir(cmdfos[iproc]['logdir'])
 
-    if not args.im_a_subproc:
-        try:
-            if args.outfname == processargs.get_dummy_outfname(args.workdir) and os.path.exists(processargs.get_dummy_outfname(args.workdir)):
-                os.remove(processargs.get_dummy_outfname(args.workdir))
-            os.rmdir(args.workdir)
-        except OSError:
-            raise Exception('workdir (%s) not empty: %s' % (args.workdir, ' '.join(os.listdir(args.workdir))))  # hm... you get weird recursive exceptions if you get here. Oh, well, it still works
+    if not args.im_a_subproc:  # remove the dummy output file if necessary (if --outfname isn't set on the command line, we still write to a temporary output file so we can do some checks)
+        dfn = processargs.get_dummy_outfname(args.workdir)  # note that we *don't* want to use the light_chain arg here, that's only used in the parent process that calls the heavy and light subprocesses. In the parent process we don't want anything removed here since we still need to read both files, and in the subprocesses we want light_chain to be False
+        utils.rmdir(args.workdir, fnames=[args.outfname] if args.outfname==dfn else None)
 
 # ----------------------------------------------------------------------------------------
 def read_inputs(args, actions):
@@ -212,6 +212,10 @@ def read_inputs(args, actions):
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
+    if args.paired_loci is not None:
+        run_paired_heavy_light(args)
+        return
+
     if args.parameter_dir is None:
         args.parameter_dir = '_output/' + args.infname[ : args.infname.rfind('.')].replace('/', '_') if args.infname is not None else 'xxx-dummy-xxx'  # the latter is a shitty convention, but I code further on crashes if I let the parameter dir be None
 
@@ -231,6 +235,63 @@ def run_partitiondriver(args):
         parter.clean()
 
 # ----------------------------------------------------------------------------------------
+def run_paired_heavy_light(args):
+    # ----------------------------------------------------------------------------------------
+    def run_step(tmpaction, locus=None):
+        clist = copy.deepcopy(sys.argv)
+        utils.remove_from_arglist(clist, '--paired-loci', has_arg=True)
+        treefname = '%s/trees.nwk' % args.workdir
+        if tmpaction == 'generate-trees':
+            clist += ['--generate-trees']  # NOTE this will use the heavy chain parameter dir and ignore the light chain one, which I think is ok (it's just used for tree scaling, and it would be better to eventually have different scaling for light chain, but it should be fine)
+            work_fnames.append(treefname)
+            utils.replace_in_arglist(clist, '--outfname', treefname)
+            utils.remove_from_arglist(clist, '--light-chain-outfname', has_arg=True)
+            utils.remove_from_arglist(clist, '--light-chain-parameter-dir', has_arg=True)  # may as well remove it to make more clear that it's not being used (see comment above)
+            utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
+        else:
+            clist += ['--locus', locus]
+            clist += ['--choose-trees-in-order', '--input-simulation-treefname', treefname]
+            lstr = '' if utils.has_d_gene(locus) else 'light-chain-'
+            tmp_pdir = None
+            if '--%sparameter-dir'%lstr in clist:
+                tmp_pdir = utils.get_val_from_arglist(clist, '--%sparameter-dir' % lstr)
+            for tmpstr in ['outfname', 'parameter-dir']:
+                utils.remove_from_arglist(clist, '--%s'%tmpstr, has_arg=True)
+                utils.remove_from_arglist(clist, '--light-chain-%s'%tmpstr, has_arg=True)
+            ofn = getattr(args, '%soutfname' % lstr.replace('-', '_'))
+            clist += ['--outfname', ofn]  # need to get from <args> rather than <sys.argv> in order to pick up any modifications made in processargs
+            if tmp_pdir is not None:
+                clist += ['--parameter-dir', tmp_pdir]  # whereas parameter dir has to come from <sys.argv> (not <args>) since it's set to None in processargs (in favor of the reco- and shm- ones)
+            if ofn == processargs.get_dummy_outfname(args.workdir, light_chain=not utils.has_d_gene(locus)):
+                work_fnames.append(ofn)
+        utils.simplerun(' '.join(clist)) #, dryrun=True)
+    # ----------------------------------------------------------------------------------------
+    def combine_chains():  # synchronize uids and check that trees are compatible
+        print '  rewriting output files with synchronized trees'
+        hglfo, heavy_annotations, _ = utils.read_output(args.outfname, dont_add_implicit_info=not args.debug)
+        lglfo, light_annotations, _ = utils.read_output(args.light_chain_outfname, dont_add_implicit_info=not args.debug)
+        assert len(heavy_annotations) == len(light_annotations)
+        for hline, lline in zip(heavy_annotations, light_annotations):
+            treeutils.merge_heavy_light_trees(hline, lline)
+        headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
+        utils.write_annotations(args.outfname, hglfo, heavy_annotations, headers, synth_single_seqs=utils.getsuffix(args.outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
+        utils.write_annotations(args.light_chain_outfname, lglfo, light_annotations, headers, synth_single_seqs=utils.getsuffix(args.light_chain_outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
+    # ----------------------------------------------------------------------------------------
+    utils.prep_dir(args.workdir)
+    work_fnames = []
+    if args.action == 'simulate':
+        run_step('generate-trees')
+        for locus in args.paired_loci:
+            run_step(None, locus=locus)
+        combine_chains()
+    elif args.action == 'partition':
+        assert False
+    else:
+        assert False
+
+    utils.rmdir(args.workdir, fnames=work_fnames)
+
+# ----------------------------------------------------------------------------------------
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass
 formatter_class = MultiplyInheritedFormatter
@@ -240,8 +301,7 @@ subparsers = parser.add_subparsers(dest='action')
 parent_parser = argparse.ArgumentParser(add_help=False)
 
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
-parent_parser.add_argument('--loci', help='which immunoglobulin or t-cell receptor loci?')
-parent_parser.add_argument('--chain', choices=('h', 'k', 'l'), help='DEPRECATED in favor of --locus, exists only for backwards compatibility')
+parent_parser.add_argument('--paired-loci', help='Instead of the default single chain, run on these two paired loci (colon-separated list of length 2). Have to also set --light-chain-infname or --light-chain-outfname.')
 parent_parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which to restrict the analysis')
 parent_parser.add_argument('--queries-to-include', help='When reading the input file, look for and include these additional uids when --n-random-queries is set (*not* compatible with --n-max-queries). Contrast with --queries, which includes *only* the indicated uids. Additionally, these queries are treated differently e.g. when partition plotting or removing duplicate sequences.')
@@ -296,10 +356,12 @@ parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true
 parent_parser.add_argument('--mimic-data-read-length', action='store_true', help='In simulation, trim V 5\' and D 3\' to mimic read lengths seen in data (must also be set when caching parameters)')
 
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
+parent_parser.add_argument('--light-chain-infname', help='Separate input file with light chain sequences for when --paired-loci is set (heavy chain sequences should go in --infname)')
 parent_parser.add_argument('--name-column', help='column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\'). If set to \'fasta-info-index-N\' for an integer N, it will take the Nth (zero-indexed) value from a fasta files uid line.')
 parent_parser.add_argument('--seq-column', help='column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')')
 parent_parser.add_argument('--input-metafname', help='yaml file with meta information for the sequences in --infname (and --queries-to-include-fname), keyed by sequence id. Currently accepted keys/columns are \'timepoint\', \'affinity\', and \'multiplicity\'.')
 parent_parser.add_argument('--outfname', help='output file name')
+parent_parser.add_argument('--light-chain-outfname', help='output file name for light chain sequences when --paired-loci is set (heavy chain sequences are written to --outfname).')
 parent_parser.add_argument('--write-full-yaml-output', action='store_true', help='By default, we write yaml output files using the json subset of yaml, since it\'s much faster. If this is set, we instead write full yaml, which is more human-readable (but also much slower).')
 parent_parser.add_argument('--presto-output', action='store_true', help='Write output file(s) in presto/changeo format. Since this format depends on a particular IMGT alignment, this depends on a fasta file with imgt-gapped alignments for all the V, D, and J germline genes. The default in data/germlines/<species>/imgt-alignments/, is probably fine for most cases. For the \'annotate\' action, a single .tsv file is written with annotations (so --outfname suffix must be .tsv). For the \'partition\' action, a fasta file is written with cluster information (so --outfname suffix must be .fa or .fasta), as well as a .tsv in the same directory with the corresponding annotations.')
 parent_parser.add_argument('--airr-output', action='store_true', help='Write output file(s) in AIRR-C format (thus --outfname must have suffix .tsv).')
@@ -307,6 +369,7 @@ parent_parser.add_argument('--airr-input', action='store_true', help='Read --inf
 parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the (fairly minimal) set of information written by default to annotation output files (choose from: %s' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
 parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.<suffix>)')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, a default location is used (and printed to std out). If it does not exist, we infer parameters before proceeding to the desired action.')
+parent_parser.add_argument('--light-chain-parameter-dir', help='directory for light chain parameters when --paired-loci is set')
 parent_parser.add_argument('--parameter-type', default='hmm', choices=processargs.parameter_type_choices, help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you should almost certainly use the hmm ones, but sw is occasionally useful for debugging)')
 parent_parser.add_argument('--parameter-out-dir', help='Special parameter dir for writing multi-hmm parameters, i.e. when running annotate or partition with --count-parameters set (if not set, defaults to <--parameter-dir>/multi-hmm).')
 parent_parser.add_argument('--refuse-to-cache-parameters', action='store_true', help='Disables auto parameter caching, i.e. if --parameter-dir doesn\'t exist, instead of inferring parameters, raise an exception. Useful for batch/production use where you want to make sure you\'re caching parameters in a separate step.')
@@ -428,8 +491,8 @@ subargs['simulate'].append({'name' : '--n-leaf-distribution', 'kwargs' : {'defau
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})  # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and value passed as the parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})
 subargs['simulate'].append({'name' : '--input-simulation-treefname', 'kwargs' : {'help' : 'file with newick-formatted lines corresponding to trees to use for simulation. Note that a) the tree depths are rescaled according to the shm rates requested by other command line arguments, i.e. the depths in the tree file are ignored, and b) the resulting sequences do not use the leaf names from the trees (unrelated to --treefname).'}})
-subargs['simulate'].append({'name' : '--choose-trees-in-order', 'kwargs' : {'action' : 'store_true', 'help' : 'Instead of the default of choosing a tree at random from the list of trees (which is either generated at the start of the simulation run, or passed in with --input-simulation-treefname), instead choose trees sequentially. Used for paired simulation.'}})
 subargs['simulate'].append({'name' : '--generate-trees', 'kwargs' : {'action' : 'store_true', 'help' : 'Run the initial tree-generation step of simulation (writing to --outfname), without then proceeding to actually generate the sequences. Used for paired heavy/light simulation so we can pass the same list of trees to both.'}})
+subargs['simulate'].append({'name' : '--choose-trees-in-order', 'kwargs' : {'action' : 'store_true', 'help' : 'Instead of the default of choosing a tree at random from the list of trees (which is either generated at the start of the simulation run, or passed in with --input-simulation-treefname), instead choose trees sequentially. If there\'s more events than trees, it cycles through the list again. Used for paired heavy/light simulation.'}})
 subargs['simulate'].append({'name' : '--check-tree-depths', 'kwargs' : {'action' : 'store_true', 'help' : 'check how close the fraction of mutated bases that we get from bppseqgen is to the depth of the trees that we passed in.'}})
 subargs['simulate'].append({'name' : '--no-per-base-mutation', 'kwargs' : {'action' : 'store_true', 'help' : 'By default the simulation uses both a different SHM rate for each position in each gene, and also a different rate to each base for each of these positions (e.g. position 37 in IGHV1-2*02 might mutate 3x as much as neighboring bases, and it might mutate to T twice as often as G). This option turns off the per-base part of that, so while each position in each gene still has a different overall rate, the rate to each base is the same (e.g. A->T is the same as A->G). Run time with this option set is about 10 times faster than the default.'}})
 # shm indels:
@@ -456,7 +519,7 @@ subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'h
 subargs['simulate'].append({'name' : '--nsnp-list', 'kwargs' : {'help' : 'When --generate-germline-set is set, this is a colon-separated list whose length gives the number of novel alleles to add to the germline set. Each entry in the list is the number of SNPs to generate for the corresponding new allele. If both --nsnp-list and --nindel-list are set, they must be the same length; if one is unset, it is assumed to be all zeroes.'}})
 subargs['simulate'].append({'name' : '--nindel-list', 'kwargs' : {'help' : 'When --generate-germline-set is set, this is a colon-separated list whose length gives the number of novel alleles to add to the germline set. Each entry in the list is the number of indels to generate for the corresponding new allele. If both --nsnp-list and --nindel-list are set, they must be the same length; if one is unset, it is assumed to be all zeroes.'}})
 
-subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'Internal use only. This is set to true if this process has subsidiary simulation processes handled by Popen.'}})
+subargs['simulate'].append({'name' : '--subsimproc', 'kwargs' : {'action' : 'store_true', 'help' : 'Internal use only. This is set to true if this process has subsidiary simulation processes handled by Popen, which is necessary if a batch system is specified.'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'Internal use only. This is set to true if this is a sub-process handled by --subsimproc'}})
 
 subargs['view-alternative-annotations'].append({'name' : '--print-all-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to printing each alternative naive seq and gene call, with information on which clusters support its correctness, also print the annotations for all of these clusters below each naive sequence and gene call.'}})

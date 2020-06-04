@@ -6,18 +6,19 @@ import subprocess
 import utils
 import glutils
 
-def get_dummy_outfname(workdir):
-    return '%s/XXX-dummy-simu.yaml' % workdir
+def get_dummy_outfname(workdir, light_chain=False):
+    return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-light' if light_chain else '')
 
 parameter_type_choices = ('sw', 'hmm', 'multi-hmm')
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
 def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
-    if args.n_genes_per_region is None:
-        args.n_genes_per_region = glutils.default_n_genes_per_region[args.locus]
-    if args.n_sim_alleles_per_gene is None:
-        args.n_sim_alleles_per_gene = glutils.default_n_alleles_per_gene[args.locus]
+    if args.locus is not None:  # if --paired-loci is set
+        if args.n_genes_per_region is None:
+            args.n_genes_per_region = glutils.default_n_genes_per_region[args.locus]
+        if args.n_sim_alleles_per_gene is None:
+            args.n_sim_alleles_per_gene = glutils.default_n_alleles_per_gene[args.locus]
     positions = {
         'snp' : utils.get_arg_list(args.snp_positions),
         'indel' : utils.get_arg_list(args.indel_positions),
@@ -90,15 +91,9 @@ def process(args):
         args.calculate_alternative_annotations = True
         delattr(args, 'calculate_alternative_naive_seqs')
 
-    if args.chain is not None:
-        print '    note: transferring argument from deprecated option \'--chain %s\' to new option \'--locus %s\'' % (args.chain, 'ig' + args.chain)
-        args.locus = 'ig' + args.chain
-        args.chain = None
-    args.loci = utils.get_arg_list(args.loci, choices=utils.loci)
-    if args.loci is None:  # in principle I should check that at least one of 'em isn't None, but if that's the case it'll crash soon enough
-        args.loci = [args.locus]
-    else:
-        args.locus = args.loci[0]
+    args.paired_loci = utils.get_arg_list(args.paired_loci, choices=utils.loci)
+    if args.paired_loci is not None:
+        args.locus = None
 
     args.only_genes = utils.get_arg_list(args.only_genes)
     args.queries = utils.get_arg_list(args.queries)
@@ -210,7 +205,7 @@ def process(args):
         else:
             raise Exception('--indel-location \'%s\' neither one of None, \'v\' or \'cdr3\', nor an integer less than 500' % args.indel_location)
 
-    if 'tr' in args.locus and args.mutation_multiplier is None:
+    if args.locus is not None and 'tr' in args.locus and args.mutation_multiplier is None:
         args.mutation_multiplier = 0.
 
     if args.workdir is None:  # set default here so we know whether it was set by hand or not
@@ -240,6 +235,7 @@ def process(args):
         if args.action == 'partition' and utils.getsuffix(args.outfname) not in ['.fa', '.fasta']:
             raise Exception('--outfname suffix has to be .fa or .fasta for partitioning with --presto-output (got %s)' % utils.getsuffix(args.outfname))
         if args.aligned_germline_fname is None:
+            assert args.locus is not None
             args.aligned_germline_fname = '%s/%s/imgt-alignments/%s.fa' % (args.default_initial_germline_dir, args.species, args.locus)
         if not os.path.exists(args.aligned_germline_fname):
             raise Exception('--aligned-germline-fname %s doesn\'t exist, but we need it in order to write presto output' % args.aligned_germline_fname)
@@ -286,18 +282,33 @@ def process(args):
         print '  using non-default parameter type \'%s\'' % args.parameter_type
 
     if args.action == 'simulate':
-        if len(args.loci) != 1:
-            raise Exception('needs to be implemented')
         if args.batch_system is not None and args.n_procs > 1 and not args.subsimproc:
             print '  %s setting subsimproc' % utils.color('red', 'warning')
             args.subsimproc = True
         if args.n_trees is None:
             args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
+        if args.n_max_queries != -1:
+            print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
+
         if args.outfname is None:
             print '  note: no --outfname specified, so nothing will be written to disk'
             args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the wole run_simulation() in bin/partis to handle None type outfname
-        if args.n_max_queries != -1:
-            print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
+            if args.paired_loci is not None:
+                assert args.light_chain_outfname is None  # wouldn't make sense to set this but not the plain one
+                args.light_chain_outfname = get_dummy_outfname(args.workdir, light_chain=True)
+        else:
+            if args.paired_loci is not None:
+                if args.light_chain_outfname is None:
+                    raise Exception('if --paired-loci and --outfname are set, you must also set --light-chain-outfname')
+                if any(utils.getsuffix(f)=='.csv' for f in [args.outfname, args.light_chain_outfname]):
+                    raise Exception('can\'t write paired heavy/light to deprecated .csv output files since pairing requires multi-sequence annotations, but simulation writes .csv files as single-sequence annotations. Use .yaml (really json) output files.')
+
+        if args.paired_loci is not None:
+            if args.rearrange_from_scratch or args.mutate_from_scratch:
+                raise Exception('--rearrange-from-scratch and --mutate-from-scratch are too complicated to propagate through the automatic --paired-loci infrastructure. You should run the three steps by hand instead (tree generation, heavy simulation, and light simulation -- run --paired-loci with default parameters to see what these three commands should look like)')
+            if args.parameter_dir is not None:
+                if args.light_chain_parameter_dir is None:
+                    raise Exception('if --paired-loci and --parameter-dir are set, --light-chain-parameter-dir must also be set')
 
         if args.simulate_from_scratch:
             args.rearrange_from_scratch = True

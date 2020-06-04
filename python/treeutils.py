@@ -261,9 +261,22 @@ def normalize_lb_val(metric, lbval, tau, seq_len=typical_bcr_seq_len):
     return (lbval - lbmin) / (lbmax - lbmin)
 
 # ----------------------------------------------------------------------------------------
-def get_treestr(treefname):
+def get_treestr_from_file(treefname):
     with open(treefname) as treefile:
         return '\n'.join(treefile.readlines())
+
+# ----------------------------------------------------------------------------------------
+def as_str(dtree):  # just a shortand (adding this very late, so could stand to add this to a lot of paces that use dtree.as_string())
+    return dtree.as_string(schema='newick').strip()
+
+# ----------------------------------------------------------------------------------------
+def cycle_through_ascii_conversion(dtree=None, treestr=None, taxon_namespace=None):  # run once through the cycle of str -> dtree -> str (or dtree -> str -> dtree)
+    if dtree is not None:
+        return get_dendro_tree(treestr=as_str(dtree), taxon_namespace=taxon_namespace)
+    elif treestr is not None:
+        return as_str(get_dendro_tree(treestr=treestr))
+    else:
+        assert False
 
 # ----------------------------------------------------------------------------------------
 def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False, suppress_internal_node_taxa=False, debug=False):  # specify either <treestr> or <treefname>
@@ -273,7 +286,7 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     if ignore_existing_internal_node_labels and suppress_internal_node_taxa:
         raise Exception('doesn\'t make sense to specify both')
     if treestr is None:
-        treestr = get_treestr(treefname)
+        treestr = get_treestr_from_file(treefname)
     if debug:
         print '   getting dendro tree from string:\n     %s' % treestr
         if taxon_namespace is not None:
@@ -487,7 +500,7 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
     if dendro_tree is None:
         assert treestr is None or treefname is None
         if treestr is None:
-            treestr = get_treestr(treefname)
+            treestr = get_treestr_from_file(treefname)
         dendro_tree = get_dendro_tree(treestr=treestr, schema=schema)
     if get_mean_leaf_height(dendro_tree) == 0.:  # we really want the max height, but since we only care whether it's zero or not this is the same
         return '%szero height' % extra_str
@@ -560,6 +573,41 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq):
     print in_ascii_str
     print '    %s' % utils.color('blue', 'output:')
     print out_ascii_str
+
+# ----------------------------------------------------------------------------------------
+def merge_heavy_light_trees(hline, lline, debug=False):
+    if debug:
+        print utils.pad_lines(get_ascii_tree(treestr=hline['tree']))
+        print utils.pad_lines(get_ascii_tree(treestr=lline['tree']))
+
+    assert len(hline['unique_ids']) == len(lline['unique_ids'])
+    hdtree = get_dendro_tree(treestr=hline['tree'])
+    ldtree = get_dendro_tree(treestr=lline['tree'])
+    for iuid, (huid, luid) in enumerate(zip(hline['unique_ids'], lline['unique_ids'])):
+        joint_uid = str(hash(huid + luid))
+        hline['unique_ids'][iuid] = joint_uid
+        lline['unique_ids'][iuid] = joint_uid
+        hdtree.find_node_with_taxon_label(huid).taxon = dendropy.Taxon(joint_uid)  # don't need to update the taxon namespace since we don't use it afterward
+        ldtree.find_node_with_taxon_label(luid).taxon = dendropy.Taxon(joint_uid)
+
+    final_htreestr = as_str(hdtree)  # have to make a separate tree to actually put in the <line>s, since the symmetric difference function screws up the tree
+    final_ltreestr = as_str(ldtree)
+
+    tns = dendropy.TaxonNamespace()
+    hdtree = cycle_through_ascii_conversion(dtree=hdtree, taxon_namespace=tns)  # have to recreate from str before calculating symmetric difference to avoid the taxon namespace being screwed up (I tried a bunch to avoid this, I don't know what it's changing, the tns looks fine, but something's wrong)
+    ldtree = cycle_through_ascii_conversion(dtree=ldtree, taxon_namespace=tns)
+    sym_diff = dendropy.calculate.treecompare.symmetric_difference(hdtree, ldtree)  # WARNING this function modifies the tree (i think by removing unifurcations) becuase OF COURSE THEY DO, wtf
+    if debug:
+        print '      symmetric difference: %d' % sym_diff
+    if sym_diff != 0:  # i guess in principle we could turn this off after we've run a fair bit, but it seems really dangerous, since if the heavy and light trees get out of sync the whole simulation is ruined
+        raise Exception('trees differ for heavy and light chains')
+
+    hline['tree'] = final_htreestr
+    lline['tree'] = final_ltreestr
+
+    if debug:
+        print utils.pad_lines(get_ascii_tree(treestr=hline['tree']))
+        print utils.pad_lines(get_ascii_tree(treestr=lline['tree']))
 
 # ----------------------------------------------------------------------------------------
 def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence_uids> is uids for which we have actual sequences (i.e. not internal nodes inferred by the tree program without sequences)
