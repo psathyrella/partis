@@ -3467,7 +3467,8 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
     elif len(err_str) + len(logstrs['out']) > 0:
         if debug == 'print':
             if extra_str != '':
-                print '      --> proc %s' % extra_str
+                tmpcolor = 'red_bkg' if len(err_str + logstrs['out']) != len_excluding_colors(err_str + logstrs['out']) else None  # if there's color in the out/err strs, make the 'proc 0' str colored as well
+                print '      --> %s' % color(tmpcolor, 'proc %s' % extra_str)
             print err_str + logstrs['out']
         elif 'write' in debug:
             if debug == 'write':

@@ -57,79 +57,107 @@ def run_simulation(args):
         else:  # otherwise assume we're supposed to use the glfo in --reco-parameter-dir
             input_gldir = args.reco_parameter_dir + '/' + args.parameter_type + '/' + glutils.glfo_dir
     glfo = glutils.read_glfo(input_gldir, args.locus, only_genes=args.only_genes)
-    if not args.im_a_subproc and args.rearrange_from_scratch and args.generate_germline_set:
+
+    working_gldir = None  # if we generate a germline set and we're also going to run subprocesses, we need to write that glfo to disk so the subprocs can see it
+    if not args.im_a_subproc and args.generate_germline_set:
         glutils.generate_germline_set(glfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_sim_allele_prevalence_freq, args.allele_prevalence_fname, new_allele_info=args.new_allele_info, debug=args.debug>1)  # NOTE removes unwanted genes from <glfo>
         if utils.getsuffix(args.outfname) == '.csv':
             print '  writing generated germline set to %s/' % args.outfname.replace('.csv', '-glfo')
             glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
-    if args.n_procs > 1:
-        working_gldir = args.workdir + '/' + glutils.glfo_dir
-        glutils.write_glfo(working_gldir, glfo)
+        if args.n_procs > 1:
+            working_gldir = args.workdir + '/' + glutils.glfo_dir
+            glutils.write_glfo(working_gldir, glfo)
 
     # ----------------------------------------------------------------------------------------
-    def get_subproc_cmd_str(n_events, iproc, workdir, outfname):
-        clist = copy.deepcopy(sys.argv)
-        utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
-        clist.append('--im-a-subproc')
-        utils.replace_in_arglist(clist, '--seed', str(args.seed + iproc))
-        utils.replace_in_arglist(clist, '--workdir', workdir)
-        utils.replace_in_arglist(clist, '--outfname', outfname)
-        utils.replace_in_arglist(clist, '--n-sim-events', str(n_events))
-        utils.replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
-        if args.allele_prevalence_fname is not None:
-            utils.replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
-        return ' '.join(clist)
-
-    # ----------------------------------------------------------------------------------------
-    def make_events(n_events, iproc, workdir, outfname, random_ints):
-        reco = Recombinator(args, glfo, seed=args.seed+iproc, workdir=workdir)
+    def make_events(n_events, workdir, outfname, random_ints):
+        reco = Recombinator(args, glfo, seed=args.seed, workdir=workdir)
         start = time.time()
         events = []
         for ievt in range(n_events):
-            event = reco.combine(random_ints[ievt], itree=ievt if args.choose_trees_in_order else None)
+            event = reco.combine(random_ints[ievt], i_choose_tree=ievt if args.choose_trees_in_order else None)
             events.append(event)
         if args.check_tree_depths or args.debug:
             reco.print_validation_values()
         utils.write_annotations(outfname, glfo, events, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), synth_single_seqs=utils.getsuffix(outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading) NOTE list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
-        print '    %smade %d event%s with %d seqs in %.1fs (%.1fs of which was running bppseqgen)' % ('proc %d: '%iproc if args.n_procs > 1 else '', len(events), utils.plural(len(events)), sum(len(l['unique_ids']) for l in events), time.time()-start, sum(reco.validation_values['bpp-times']))
-
-    def get_workdir(iproc):
-        return args.workdir + '/sub-' + str(iproc)
-    def get_outfname(iproc):
-        return get_workdir(iproc) + '/' + os.path.basename(args.outfname)
+        print '    made %d event%s with %d seqs in %.1fs (%.1fs of which was running bppseqgen)' % (len(events), utils.plural(len(events)), sum(len(l['unique_ids']) for l in events), time.time()-start, sum(reco.validation_values['bpp-times']))
 
     if not args.im_a_subproc:
         print 'simulating'
 
-    n_per_proc_list = [args.n_sim_events / args.n_procs for _ in range(args.n_procs)]
-    n_per_proc_list[0] += args.n_sim_events % args.n_procs  # do any extra ones in the first proc
-
+    n_per_proc_list, work_fnames = [], []
     if args.n_procs == 1:
-        random_ints = [random.randint(0, numpy.iinfo(numpy.int32).max) for i in range(n_per_proc_list[0])]
-        make_events(n_per_proc_list[0], 0, args.workdir, args.outfname, random_ints)
-    else:  # start the processes and wait for 'em to finish
-        cmdfos = [{'cmd_str' : get_subproc_cmd_str(n_per_proc_list[iproc], iproc, get_workdir(iproc), get_outfname(iproc)),
-                   'workdir' : get_workdir(iproc),
-                   'logdir' : args.workdir + '/log-' + str(iproc),  # have to be different than <workdirs> since ./bin/partis barfs if its workdir already exists (as it should)
-                   'outfname' : get_outfname(iproc)}
-                  for iproc in range(args.n_procs)]
+        make_events(args.n_sim_events, args.workdir, args.outfname, [random.randint(0, numpy.iinfo(numpy.int32).max) for _ in range(args.n_sim_events)])
+    else:
+        # ----------------------------------------------------------------------------------------
+        def get_workdir(iproc):
+            return args.workdir + '/sub-' + str(iproc)
+        # ----------------------------------------------------------------------------------------
+        def get_outfname(iproc):
+            return get_workdir(iproc) + '/' + os.path.basename(args.outfname)
+        # ----------------------------------------------------------------------------------------
+        if args.input_simulation_treefname is not None:  # split up the input trees among the sub procs
+            with open(args.input_simulation_treefname) as tfile:
+                treelines = tfile.readlines()
+            if len(treelines) < args.n_sim_events:
+                print '  note: total number of trees %d less than --n-sim-events %d' % (len(treelines), args.n_sim_events)
+        cmdfos = []
+        for iproc in range(args.n_procs):
+            n_sub_events = args.n_sim_events / args.n_procs
+            if iproc == 0 and args.n_sim_events % args.n_procs > 0:  # do any extra ones in the first proc
+                n_sub_events += args.n_sim_events % args.n_procs
+            n_per_proc_list.append(n_sub_events)
+
+            clist = copy.deepcopy(sys.argv)
+            utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
+            clist.append('--im-a-subproc')
+            utils.replace_in_arglist(clist, '--seed', str(args.seed + iproc))
+            utils.replace_in_arglist(clist, '--workdir', get_workdir(iproc))
+            utils.replace_in_arglist(clist, '--outfname', get_outfname(iproc))
+            utils.replace_in_arglist(clist, '--n-sim-events', str(n_sub_events))
+            if working_gldir is not None:
+                utils.replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
+            if args.allele_prevalence_fname is not None:
+                utils.replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
+
+            if args.input_simulation_treefname is not None:
+                subtreefname = '%s/trees-sub-%d.nwk' % (args.workdir, iproc)
+                utils.replace_in_arglist(clist, '--input-simulation-treefname', subtreefname)
+                n_sub_trees = len(treelines) / args.n_procs
+                sub_tree_lines = treelines[iproc * n_sub_trees : (iproc + 1) * n_sub_trees]
+                if iproc == 0 and len(treelines) % args.n_procs > 0:  # add any extra ones to the first proc
+                    sub_tree_lines += treelines[args.n_procs * n_sub_trees : ]
+                if len(sub_tree_lines) == 0:
+                    raise Exception('couldn\'t split up %d trees among %d procs' % (len(treelines), args.n_procs))
+                if len(sub_tree_lines) < n_sub_events:
+                    print '  note: number of trees %d smaller than number of events %d for sub proc %d (of %d)' % (len(sub_tree_lines), n_sub_events, iproc, args.n_procs)
+                work_fnames.append(subtreefname)
+                with open(subtreefname, 'w') as stfile:
+                    stfile.writelines(sub_tree_lines)
+
+            cmdstr = ' '.join(clist)
+            if args.debug:
+                print '  %s %s' % (utils.color('red', 'run'), cmdstr)
+            cmdfos.append({'cmd_str' : cmdstr, 'workdir' : get_workdir(iproc), 'logdir' : args.workdir + '/log-' + str(iproc),'outfname' : get_outfname(iproc)})  # logdirs have to be different than <workdirs> since ./bin/partis (rightfully) barfs if its workdir already exists
+
         utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, batch_config_fname=args.batch_config_fname, debug='print')
         file_list = [cmdfos[i]['outfname'] for i in range(args.n_procs)]
-        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc_list, use_pyyaml=args.write_full_yaml_output)  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
+        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns),  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
+                                      n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc_list, use_pyyaml=args.write_full_yaml_output)
 
     if not args.im_a_subproc and args.allele_prevalence_fname is not None:  # check final prevalence freqs
         glutils.check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname, only_region='v', debug=args.debug>1)
         if args.allele_prevalence_fname == default_prevalence_fname:
             os.remove(default_prevalence_fname)
 
-    if args.n_procs > 1:
+    if working_gldir is not None:
         glutils.remove_glfo_files(working_gldir, args.locus)
+    if args.n_procs > 1:
         for iproc in range(args.n_procs):
             os.rmdir(cmdfos[iproc]['logdir'])
-
     if not args.im_a_subproc:  # remove the dummy output file if necessary (if --outfname isn't set on the command line, we still write to a temporary output file so we can do some checks)
-        dfn = processargs.get_dummy_outfname(args.workdir)  # note that we *don't* want to use the light_chain arg here, that's only used in the parent process that calls the heavy and light subprocesses. In the parent process we don't want anything removed here since we still need to read both files, and in the subprocesses we want light_chain to be False
-        utils.rmdir(args.workdir, fnames=[args.outfname] if args.outfname==dfn else None)
+        if args.outfname == processargs.get_dummy_outfname(args.workdir):  # note that we *don't* want to use the light_chain arg here, that's only used in the parent process that calls the heavy and light subprocesses. In the parent process we don't want anything removed here since we still need to read both files, and in the subprocesses we want light_chain to be False
+            work_fnames.append(args.outfname)
+        utils.rmdir(args.workdir, fnames=work_fnames)
 
 # ----------------------------------------------------------------------------------------
 def read_inputs(args, actions):

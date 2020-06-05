@@ -101,15 +101,16 @@ class TreeGenerator(object):
 
     # ----------------------------------------------------------------------------------------
     def run_treesim(self, seed, outfname, workdir):
-        if self.args.debug:
+        if self.args.debug or utils.getsuffix(outfname) == '.nwk':
             print '  generating %d trees,' % self.args.n_trees,
             if self.args.constant_number_of_leaves:
                 print 'all with %s leaves' % str(self.args.n_leaves)
             else:
                 print 'n-leaves from %s distribution with parameter %s' % (self.args.n_leaf_distribution, str(self.args.n_leaves))
-            print '        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch')
-            for mtype in ['all',] + utils.regions:
-                print '         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
+            if self.args.debug:
+                print '        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch')
+                for mtype in ['all',] + utils.regions:
+                    print '         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
 
         ages, treestrs = [], []
 
@@ -190,7 +191,8 @@ class TreeGenerator(object):
                     print utils.pad_lines(treeutils.get_ascii_tree(dtree))
         if any(a > 1. for a in ages):
             raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
-        print '    setting --n-trees to %d to match trees read from %s' % (len(ages), self.args.input_simulation_treefname)
+        if len(ages) != self.args.n_trees:
+            print '    resetting --n-trees from %d to %d to match trees read from %s' % (self.args.n_trees, len(ages), self.args.input_simulation_treefname)
         self.args.n_trees = len(ages)
 
         return ages, treestrs

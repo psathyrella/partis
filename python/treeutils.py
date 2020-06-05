@@ -577,7 +577,10 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq):
 # ----------------------------------------------------------------------------------------
 def merge_heavy_light_trees(hline, lline, debug=False):
     if debug:
+        print '    before:'
+        print '      heavy:'
         print utils.pad_lines(get_ascii_tree(treestr=hline['tree']))
+        print '      light:'
         print utils.pad_lines(get_ascii_tree(treestr=lline['tree']))
 
     assert len(hline['unique_ids']) == len(lline['unique_ids'])
@@ -597,16 +600,18 @@ def merge_heavy_light_trees(hline, lline, debug=False):
     hdtree = cycle_through_ascii_conversion(dtree=hdtree, taxon_namespace=tns)  # have to recreate from str before calculating symmetric difference to avoid the taxon namespace being screwed up (I tried a bunch to avoid this, I don't know what it's changing, the tns looks fine, but something's wrong)
     ldtree = cycle_through_ascii_conversion(dtree=ldtree, taxon_namespace=tns)
     sym_diff = dendropy.calculate.treecompare.symmetric_difference(hdtree, ldtree)  # WARNING this function modifies the tree (i think by removing unifurcations) becuase OF COURSE THEY DO, wtf
-    if debug:
-        print '      symmetric difference: %d' % sym_diff
     if sym_diff != 0:  # i guess in principle we could turn this off after we've run a fair bit, but it seems really dangerous, since if the heavy and light trees get out of sync the whole simulation is ruined
-        raise Exception('trees differ for heavy and light chains')
+        raise Exception('trees differ (symmetric difference %d) for heavy and light chains' % sym_diff)
 
     hline['tree'] = final_htreestr
     lline['tree'] = final_ltreestr
 
     if debug:
+        print '    after:'
+        print '      symmetric difference: %d' % sym_diff
+        print '      heavy:'
         print utils.pad_lines(get_ascii_tree(treestr=hline['tree']))
+        print '      light:'
         print utils.pad_lines(get_ascii_tree(treestr=lline['tree']))
 
 # ----------------------------------------------------------------------------------------

@@ -150,21 +150,21 @@ class Recombinator(object):
             self.all_mute_counts[gene] = paramutils.read_mute_counts(self.shm_parameter_dir, gene, utils.get_locus(gene), extra_genes=per_base_extra_genes)
 
     # ----------------------------------------------------------------------------------------
-    def combine(self, initial_irandom, itree=None):
+    def combine(self, initial_irandom, i_choose_tree=None):
         """ keep running self.try_to_combine() until you get a good event """
         line = None
         itry = 0
         while line is None:
             if itry > 0 and self.args.debug:
                 print '    unproductive event -- rerunning (try %d)  ' % itry  # probably a weirdly long v_3p or j_5p deletion
-            line = self.try_to_combine(initial_irandom + itry, itree=itree)
+            line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree)
             itry += 1
             if itry > 9999:
                 raise Exception('too many tries %d in recombinator' % itry)
         return line
 
     # ----------------------------------------------------------------------------------------
-    def try_to_combine(self, irandom, itree=None):
+    def try_to_combine(self, irandom, i_choose_tree=None):
         """
         Create a recombination event and write it to disk
         <irandom> is used as the seed for the myriad random number calls.
@@ -197,7 +197,7 @@ class Recombinator(object):
             raise Exception('out of frame rearrangement, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return None
 
-        self.add_mutants(reco_event, irandom, itree=itree)
+        self.add_mutants(reco_event, irandom, i_choose_tree=i_choose_tree)
 
         line = reco_event.line
         # NOTE don't use reco_event after here, since we don't modify it when we remove non-functional sequences (as noted elsewhere, it would be nice to eventually update to just using <line>s instead of <reco_event> now that that's possible)
@@ -709,7 +709,7 @@ class Recombinator(object):
             reco_event.indelfos[iseq] = indelfo
 
     # ----------------------------------------------------------------------------------------
-    def add_mutants(self, reco_event, irandom, itree=None):
+    def add_mutants(self, reco_event, irandom, i_choose_tree=None):
         if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # some of the stuff below fails if mut mult is actually 0.
             reco_event.final_seqs.append(reco_event.recombined_seq)  # set final sequnce in reco_event
             reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
@@ -719,17 +719,17 @@ class Recombinator(object):
         # This chosen depth corresponds to the sequence-wide mutation frequency (the newick trees have branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j))
         # In order to account for varying mutation rates in v, d, and j we also get the repertoire-wide ratio of mutation freqs for each region from treegenerator
         # We used to make a separate tree for each region, and rescale that tree by the appropriate ratio and simulate with three separate bppseqgen processes, but now we use one tree for the whole sequence, and do the rescaling when we write the per-position mutation rates for each region
-        if itree is not None:  # self.args.choose_trees_in_order:
-            if self.args.debug:
-                print '    choosing itree %d (of %d)' % (itree, len(self.treeinfo['trees']))
-            if itree >= len(self.treeinfo['trees']):
-                itree = itree % len(self.treeinfo['trees'])
-                if self.args.debug:
-                    print '      %%\'d down to %d' % itree
-            assert itree < len(self.treeinfo['trees'])
-            chosen_treestr = self.treeinfo['trees'][itree]
+        if i_choose_tree is not None:
+            if i_choose_tree >= len(self.treeinfo['trees']):
+                if self.args.debug:  # it should have warned about this (well, more events than trees) already when first dealing with trees, before running anything
+                    print '      i_choose_tree %d larger than n trees %d, %%\'ing down to %d' % (i_choose_tree, len(self.treeinfo['trees']), i_choose_tree % len(self.treeinfo['trees']))
+                i_choose_tree = i_choose_tree % len(self.treeinfo['trees'])
+            itree = i_choose_tree
         else:
-            chosen_treestr = self.treeinfo['trees'][random.randint(0, len(self.treeinfo['trees'])-1)]
+            itree = random.randint(0, len(self.treeinfo['trees'])-1)
+        chosen_treestr = self.treeinfo['trees'][itree]
+        if self.args.debug:
+            print '    choosing itree %d (of %d)' % (itree, len(self.treeinfo['trees']))
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)
