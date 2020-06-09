@@ -22,8 +22,8 @@ smith-waterman  (writing parameters)
       removed 23 / 1370 = 0.02 duplicate sequences after trimming framework insertions (leaving 1347)
         writing sw results to test/new-results/test/parameters/data/sw-cache.yaml
     writing parameters to test/new-results/test/parameters/data/sw (2.1 sec)
-    water time: 4.8  (ig-sw 2.9  processing 0.2)
-  writing hmms (0.5 sec)
+    water time: 4.8  (ig-sw 3.0  processing 0.2)
+  writing hmms (0.4 sec)
 hmm
     skipping matches from 4 genes without enough counts: [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m
     prepare_for_hmm: (0.1 sec)
@@ -31,67 +31,57 @@ hmm
                     calcd:         vtb 1347        fwd    0
              min-max time:  4.2 - 10.9 sec
     read output
-    writing parameters to test/new-results/test/parameters/data/hmm (2.0 sec)
+    writing parameters to test/new-results/test/parameters/data/hmm (2.1 sec)
         processed 1347 hmm output lines with 1343 sequences in 1343 events  (4 failures)
             [91mwarning[0m skipped 4 invalid events
-         infra time: 3.1
+         infra time: 3.2
       hmm step time: 14.1
   writing hmms (0.4 sec)
       total time: 22.5
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --parameter-dir test/new-results/test/parameters/data --n-sim-events 500 --n-trees 500 --n-leaves 5 --seed 1 --n-procs 10 --outfname test/new-results/test/simu.yaml --indel-frequency 0.01 --indel-location v
 simulating
-      --> proc 1
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 187 seqs in 8.4s (7.7s of which was running bppseqgen)
-      total time: 10.0
-
-      --> proc 8
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 249 seqs in 8.9s (8.2s of which was running bppseqgen)
-      total time: 10.4
-
-      --> proc 9
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 241 seqs in 8.9s (8.1s of which was running bppseqgen)
-      total time: 10.4
-
       --> proc 4
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 192 seqs in 9.1s (8.3s of which was running bppseqgen)
-      total time: 10.6
+    made 50 events with 192 seqs in 8.6s (7.8s of which was running bppseqgen)
+      total time: 10.1
+
+      --> proc 1
+    made 50 events with 187 seqs in 8.7s (8.0s of which was running bppseqgen)
+      total time: 10.3
 
       --> proc 7
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 212 seqs in 9.2s (8.4s of which was running bppseqgen)
-      total time: 10.7
+    made 50 events with 212 seqs in 8.8s (8.0s of which was running bppseqgen)
+      total time: 10.3
 
       --> proc 5
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 185 seqs in 9.2s (8.5s of which was running bppseqgen)
-      total time: 10.7
+    made 50 events with 185 seqs in 9.0s (8.2s of which was running bppseqgen)
+      total time: 10.5
+
+      --> proc 9
+    made 50 events with 241 seqs in 9.5s (8.8s of which was running bppseqgen)
+      total time: 11.0
+
+      --> proc 8
+    made 50 events with 249 seqs in 9.6s (8.9s of which was running bppseqgen)
+      total time: 11.1
+
+      --> proc 6
+    made 50 events with 283 seqs in 9.7s (9.0s of which was running bppseqgen)
+      total time: 11.2
+
+      --> proc 0
+    made 50 events with 218 seqs in 9.8s (9.1s of which was running bppseqgen)
+      total time: 11.3
 
       --> proc 2
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 235 seqs in 9.7s (8.8s of which was running bppseqgen)
+    made 50 events with 235 seqs in 9.8s (9.0s of which was running bppseqgen)
       total time: 11.3
 
       --> proc 3
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 271 seqs in 9.7s (9.1s of which was running bppseqgen)
-      total time: 11.3
-
-      --> proc 0
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 218 seqs in 10.0s (9.4s of which was running bppseqgen)
-      total time: 11.6
-
-      --> proc 6
-  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set
-    made 50 events with 283 seqs in 10.3s (9.5s of which was running bppseqgen)
-      total time: 11.8
+    made 50 events with 271 seqs in 9.8s (9.2s of which was running bppseqgen)
+      total time: 11.4
 
    read 500 events with 2273 seqs from 10 .yaml files
-      total time: 12.4
+      total time: 11.9
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --is-simu --seed 1 --n-procs 10
   note: running on a lot of sequences (2273) without setting --outfname. Which is ok, but there will be no persistent record of the results (except the parameter directory).
 caching parameters
@@ -105,7 +95,7 @@ smith-waterman  (new-allele fitting)
     running 13 procs for 9 seqs
       info for 2273 / 2273 = 1.000   (0 failed)
       kept 1209 (0.532) unproductive
-    water time: 3.8  (ig-sw 0.1  processing 0.1)
+    water time: 3.7  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 2271 / 2273 v annotations (2 failed) with 42 v genes in 0.4 sec
     running 10 procs for 2273 seqs
@@ -174,7 +164,7 @@ hmm
         processed 491 hmm output lines with 2273 sequences in 491 events  (0 failures)
          infra time: 1.8
       hmm step time: 4.7
-      total time: 7.4
+      total time: 7.5
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --plotdir test/new-results/partition-new-simu-annotation-performance --only-csv-plots --seed 1 --n-procs 10 --outfname test/new-results/partition-new-simu.yaml
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
@@ -253,7 +243,7 @@ caching all 500 naive sequences
          infra time: 0.1
       hmm step time: 1.9
 119 clusters with 1 proc
-    prepare_for_hmm: (0.0 sec)
+    prepare_for_hmm: (0.1 sec)
     running 1 proc
           read from cache:  naive-seqs 729   logprobs 416
                     calcd:         vtb   4        fwd 100
@@ -272,7 +262,7 @@ getting annotations for final partition
   plotting performance (0.0 sec)
         processed 115 hmm output lines with 500 sequences in 115 events  (0 failures)
   --only-csv-plots not implemented for partition plots, so returning without plotting
-      total time: 23.4
+      total time: 23.5
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --n-max-queries 500 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed-unique-id 8127121293230795625 --seed 1 --n-procs 10 --outfname test/new-results/seed-partition-new-simu.yaml
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning
@@ -301,7 +291,7 @@ hmm
                     calcd:         vtb   0        fwd   0
                    merged:       hfrac   0     lratio   0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/951354/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/191582/hmm_cached_info.csv
       hmm step time: 0.1
 23 clusters with 5 procs
     prepare_for_hmm: (0.0 sec)
@@ -310,7 +300,7 @@ hmm
                     calcd:         vtb   0        fwd   0
                    merged:       hfrac   0     lratio   0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/951354/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/191582/hmm_cached_info.csv
       hmm step time: 0.1
       removed 31 sequences in unseeded clusters, split 5 seeded clusters into 11 singletons, and merged these into 4 clusters with identical naive seqs
         new n_procs 1 (initial seqs/proc: 4.20   new seqs/proc: 4.00
@@ -321,7 +311,7 @@ hmm
                     calcd:         vtb   3        fwd   7
                    merged:       hfrac   3     lratio   0
                      time:  0.3 sec
-      hmm step time: 0.3
+      hmm step time: 0.4
       loop time: 1.0
 getting annotations for final partition
     prepare_for_hmm: (0.0 sec)
@@ -356,4 +346,4 @@ getting annotations for final partition
       hmm step time: 1.1
     read output
         processed 123 hmm output lines with 500 sequences in 123 events  (0 failures)
-      total time: 3.3
+      total time: 3.4
