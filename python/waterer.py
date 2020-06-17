@@ -1303,6 +1303,8 @@ class Waterer(object):
             self.info[kept_uid]['duplicates'][0] = all_duplicates
             self.duplicates[kept_uid] = all_duplicates  # copy info from previous line to <self.duplicates>, which is just so partitiondriver can pass in previous duplicates, and yes having the info in two places is dumb
             if 'multiplicities' in self.info[kept_uid]:  # propagate input meta info from the duplicate sequences that we're now going to be ignoring
+                if any('multiplicities' not in self.input_info[u] for u in [kept_uid] + all_duplicates):
+                    raise Exception('\'multiplicities\' found in sw info, but not in <input_info> (maybe because --input-metafname was set for parameter caching but not when reading those parameters?) which means multiplicities will probably be wrong.')
                 submults = [self.input_info[u]['multiplicities'][0] for u in [kept_uid] + all_duplicates]
                 self.info[kept_uid]['multiplicities'][0] = sum(m if m is not None else 1 for m in submults)  # i guess it's ok to assume that if they didn't give us a multiplicity for a sequence that it should be 1
 
