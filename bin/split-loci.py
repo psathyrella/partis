@@ -21,9 +21,13 @@ parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines')
 parser.add_argument('--workdir', default=utils.choose_random_subdir('/tmp/%s/partis' % os.getenv('USER', default='partis-work')))
 parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch binaries for linux and darwin are pre-installed in bin/, but for other systems you need to get your own)')
 parser.add_argument('--debug', action='store_true')
+parser.add_argument('--fasta-info-index', type=int, help='index in fasta info of sequence name string')
 args = parser.parse_args()
 
 seqfos = utils.read_fastx(args.fname)
+if args.fasta_info_index is not None:
+    for sfo in seqfos:
+        sfo['name'] = sfo['infostrs'][args.fasta_info_index]
 
 if os.path.exists(args.germline_dir + '/' + args.species):  # ick that is hackey
     args.germline_dir += '/' + args.species
