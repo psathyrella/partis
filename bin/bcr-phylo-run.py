@@ -97,6 +97,8 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
         cmd += ' --obs_times %s' % ' '.join(['%d' % get_vpar_val('obs-times', t) for t in args.obs_times])
         cmd += ' --n_to_sample %s' % ' '.join('%d' % get_vpar_val('n-sim-seqs-per-generation', n) for n in args.n_sim_seqs_per_generation)
         cmd += ' --metric_for_target_dist %s' % args.metric_for_target_distance
+        if args.paratope_positions is not None:
+            cmd += ' --paratope_positions %s' % args.paratope_positions
         cmd += ' --target_dist %d' % args.target_distance
         cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % get_vpar_val('carry-cap', args.carry_cap)
@@ -302,6 +304,7 @@ parser.add_argument('--branching-parameter', type=float, default=2., help='see b
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--context-depend', type=int, default=0, choices=[0, 1])  # i wish this could be a boolean, but having it int makes it much much easier to interface with the scan infrastructure in cf-tree-metrics.py
+parser.add_argument('--paratope-positions', help='see bcr-phylo docs')
 parser.add_argument('--restrict-available-genes', action='store_true', help='restrict v and j gene choice to one each (so context dependence is easier to plot)')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
