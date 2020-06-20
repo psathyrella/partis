@@ -6,6 +6,7 @@
     - [germline sets](#germline-sets)
   - [simulate](#simulate) make simulated sequences
   - [miscellany](#miscellany)
+    - [paired heavy and light chains](#paired-heavy-and-light-chains)
     - [naive probability estimates](#naive-probability-estimates)
     - [input meta info](#input-meta-info)
 
@@ -253,6 +254,7 @@ This is an incomplete list, and is not always up to date, so for better informat
 |----------------------------------|-----------------------------------------------------------------
 | `--mutation-multiplier <factor>` | multiply the observed SHM rate by `<factor>`
 | `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J. This tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the template data sample.
+| `--paired-loci <igx:igy>`        | simulate paired heavy and light chain sequences [see below](#paired-heavy-and-light-chains).
 
 **Tree control:**
 
@@ -344,6 +346,18 @@ You can then add novel alleles to the germline set by telling it how many novel 
 
 
 ### Miscellany
+
+##### paired heavy and light chains
+
+At the moment, paired sequences are only supported in simulation.
+To simulated paired data set the `--paired-loci` option, e.g.:
+
+```
+./bin/partis simulate --paired-loci igh:igk --parameter-dir /path/to/igh/parameters --light-chain-parameter-dir /path/to/igk/parameters --outfname simu-igh.yaml --light-chain-outfname simu-igk.yaml
+```
+
+This first generates a series of trees (as normal), then for each locus simulates a rearrangement event for each tree in order.
+The result is that each of the events in the heavy chain output file corresponds (in order) to an event in the light chain output file with the same sequence ids and stemming from the same tree.
 
 ##### naive probability estimates
 

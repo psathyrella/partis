@@ -93,6 +93,8 @@ def process(args):
 
     args.paired_loci = utils.get_arg_list(args.paired_loci, choices=utils.loci)
     if args.paired_loci is not None:
+        if len(args.paired_loci) != 2:
+            raise Exception('--paired-loci must be length two: can only do either igh:igk or igh:igl, not arbitrary mixtures or k and l')
         args.locus = None
 
     args.only_genes = utils.get_arg_list(args.only_genes)
@@ -293,7 +295,7 @@ def process(args):
 
         if args.outfname is None:
             print '  note: no --outfname specified, so nothing will be written to disk'
-            args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the wole run_simulation() in bin/partis to handle None type outfname
+            args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the whole run_simulation() in bin/partis to handle None type outfname
             if args.paired_loci is not None:
                 assert args.light_chain_outfname is None  # wouldn't make sense to set this but not the plain one
                 args.light_chain_outfname = get_dummy_outfname(args.workdir, light_chain=True)
