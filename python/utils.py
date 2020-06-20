@@ -721,6 +721,7 @@ presto_headers = OrderedDict([  # enforce this ordering so the output files are 
     ('SEQUENCE_IMGT', 'aligned_v_plus_unaligned_dj'),
 ])
 
+# reference: https://docs.airr-community.org/en/stable/datarep/rearrangements.html#fields
 airr_headers = OrderedDict([  # enforce this ordering so the output files are easier to read
     # required:
     ('sequence_id', 'unique_ids'),
@@ -732,7 +733,7 @@ airr_headers = OrderedDict([  # enforce this ordering so the output files are ea
     ('j_call', 'j_gene'),
     ('sequence_alignment', None),
     ('germline_alignment', None),
-    ('junction', None),
+    ('junction', None),  # NOTE this is *actually* the junction, whereas what partis calls the cdr3 is also actually the junction (which is terrible, but i swear it's not entirely my fault, but either way it's just too hard to change now)
     ('junction_aa', None),
     ('v_cigar', None),
     ('d_cigar', None),
@@ -744,11 +745,15 @@ airr_headers = OrderedDict([  # enforce this ordering so the output files are ea
     ('locus', None),
     ('np1', 'vd_insertion'),
     ('np2', 'dj_insertion'),
-    ('v_support', None),  # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
-    ('d_support', None),
-    ('j_support', None),
     ('duplicate_count', None),
+    ('cdr3_start', None),
+    ('cdr3_end', None),
 ])
+for rtmp in regions:
+    airr_headers[rtmp+'_support'] = None      # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
+    airr_headers[rtmp+'_identity'] = None
+    airr_headers[rtmp+'_sequence_start'] = None
+    airr_headers[rtmp+'_sequence_end'] = None
 
 linearham_headers = OrderedDict((
     ('Iteration', None),
@@ -847,7 +852,7 @@ def get_airr_line(line, iseq, partition=None, debug=False):
 
     aline = {}
     for akey, pkey in airr_headers.items():
-        if pkey is not None:
+        if pkey is not None:  # if there's a direct correspondence to a partis key
             aline[akey] = line[pkey][iseq] if pkey in linekeys['per_seq'] else line[pkey]
         elif akey == 'rev_comp':
             aline[akey] = False
@@ -883,8 +888,19 @@ def get_airr_line(line, iseq, partition=None, debug=False):
             aline[akey] = line[pkey][gcall]
         elif akey == 'duplicate_count':
             aline[akey] = get_multiplicity(line, iseq=iseq)
+        elif '_identity' in akey:
+            aline[akey] = 1. - get_mutation_rate(line, iseq, restrict_to_region=akey.split('_')[0])
+        elif any(akey == r+'_sequence_start' for r in regions):
+            aline[akey] = line['regional_bounds'][akey.split('_')[0]][0] + 1  # +1 to switch to 1-based indexing
+        elif any(akey == r+'_sequence_end' for r in regions):
+            aline[akey] = line['regional_bounds'][akey.split('_')[0]][1]  # +1 to switch to 1-based indexing, -1 to switch to closed intervals, so net zero
+        elif akey == 'cdr3_start':  # airr uses the imgt (correct) cdr3 definition, which excludes both conserved codons, so we add 3 (then add 1 to switch to 1-based indexing)
+            aline[akey] = line['codon_positions']['v'] + 3 + 1
+        elif akey == 'cdr3_end':
+            aline[akey] = line['codon_positions']['j']
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
+
     return aline
 
 # ----------------------------------------------------------------------------------------
@@ -2627,7 +2643,7 @@ def ltranslate(nuc_seq):  # local file translation function
 
 # ----------------------------------------------------------------------------------------
 def get_cdr3_seq(info, iseq):  # NOTE includeds both codons, i.e. not the same as imgt definition
-    return info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3]    
+    return info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3]
 
 # ----------------------------------------------------------------------------------------
 def add_naive_seq_aa(line):  # NOTE similarity to block in add_extra_column()
