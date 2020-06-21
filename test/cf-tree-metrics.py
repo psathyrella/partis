@@ -556,7 +556,22 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         return '%s/%s.yaml' % (get_comparison_plotdir(mtmp, per_x, extra_str=estr), getplotname(mtmp))
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
-        if isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
+        xlabel = xvar.replace('-', ' ')
+        if xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
+            xticks, xticklabels = [], []
+            pv_var = None  # make sure they all have the same variable (can't really vary multiple variables at once a.t.m. if we're scanning vars)
+            for pvpair in xvals:
+                assert '..' in pvpair  # don't handle the uniform-distribution-with-variance method a.t.m.
+                pvar, pvals = pvpair.split(',')
+                if pv_var is None:
+                    pv_var = pvar
+                if pvar != pv_var:
+                    raise Exception('parameter variances have to all be on the same variable if we\'re scanning vars, but got: %s %s' % (pvar, pv_var))
+                pvlist = [float(pv) for pv in pvals.split('..')]
+                xticks.append(numpy.mean(pvlist))
+                xticklabels.append('%d-%d'%(min(pvlist), max(pvlist)))
+            xlabel = '%s (varying)' % pv_var.replace('-', ' ')
+        elif isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
             def tickstr(t):
                 if len(t) < 4:
                     return ', '.join(str(v) for v in t)
@@ -567,13 +582,13 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         else:
             xticks = xvals
             xticklabels = [str(t) for t in xvals]
-        return xticks, xticklabels
+        return xticks, xticklabels, xlabel
 
     # ----------------------------------------------------------------------------------------
     _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     fig, ax = plotting.mpl_init()
-    xticks = None
+    xticks, xlabel = None, None
     if action == 'plot':
         read_plot_info()
         outfo = []
@@ -582,7 +597,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             return
         for ipv, pvkey in enumerate(plotvals):
             xvals, diffs_to_perfect = zip(*plotvals[pvkey])
-            xticks, xticklabels = getxticks(xvals)
+            xticks, xticklabels, xlabel = getxticks(xvals)
             # assert xvals == tuple(sorted(xvals))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove this
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
             plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
@@ -626,7 +641,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         for ipv, pvkey in enumerate(pvk_list):
             for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
-                xticks, xticklabels = getxticks(pfo[pvkey]['xvals'])
+                xticks, xticklabels, xlabel = getxticks(pfo[pvkey]['xvals'])
                 plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if (imtmp == 0 and len(pvk_list) > 1) else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
         # if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
         #     title = '+'.join(plotfos) + ': '
@@ -671,7 +686,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     # if metric != 'lbi' and len(title) < 17:
     #     leg_loc[0] = 0.7
     plotting.mpl_finish(ax, plotdir, getplotname(metric),
-                        xlabel=xvar.replace('-', ' '),
+                        xlabel=xlabel,
                         # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
                         ylabel='%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel),
                         title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
