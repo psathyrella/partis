@@ -501,7 +501,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 mean_vals, err_vals = [], []
                 ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
                 n_used = []  # just for dbg
-                tmpvaldict = {}  # rearrange them into a dict keyed by the appropriate tau/xval
+                tmpvaldict = collections.OrderedDict()  # rearrange them into a dict keyed by the appropriate tau/xval
                 for ikey in ofvals:  # <ikey> is an amalgamation of iseeds and icluster, e.g. '20-0'
                     for pairvals in ofvals[ikey]:
                         tau, tval = pairvals  # reminder: tau is not in general (any more) tau, but is the variable values fulfilling the original purpose of tau (i think x values?) in the plot
@@ -509,7 +509,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                         if tkey not in tmpvaldict:  # these will usually get added in order, except when there's missing ones in some ikeys
                             tmpvaldict[tkey] = []
                         tmpvaldict[tkey].append(tval)
-                for tau in sorted(tmpvaldict):  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
+                tvd_keys = sorted(tmpvaldict) if xvar != 'parameter-variances' else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
+                for tau in tvd_keys:  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
                     ltmp = tmpvaldict[tau]
                     mean_vals.append((tau, numpy.mean(ltmp)))
                     err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))  # standard error on mean (for standard deviation, comment out denominator)
@@ -560,7 +561,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         if xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
             xticks, xticklabels = [], []
             pv_var = None  # make sure they all have the same variable (can't really vary multiple variables at once a.t.m. if we're scanning vars)
-            for pvpair in xvals:
+            for ipv, pvpair in enumerate(xvals):
                 assert '..' in pvpair  # don't handle the uniform-distribution-with-variance method a.t.m.
                 pvar, pvals = pvpair.split(',')
                 if pv_var is None:
@@ -568,9 +569,9 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 if pvar != pv_var:
                     raise Exception('parameter variances have to all be on the same variable if we\'re scanning vars, but got: %s %s' % (pvar, pv_var))
                 pvlist = [float(pv) for pv in pvals.split('..')]
-                xticks.append(numpy.mean(pvlist))
-                xticklabels.append('%d-%d'%(min(pvlist), max(pvlist)))
-            xlabel = '%s (varying)' % pv_var.replace('-', ' ')
+                xticks.append(ipv)
+                xticklabels.append('%d-%d'%(min(pvlist), max(pvlist)) if min(pvlist) != max(pvlist) else '%d'%pvlist[0])
+            xlabel = '%s' % pv_var.replace('-', ' ')
         elif isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
             def tickstr(t):
                 if len(t) < 4:
