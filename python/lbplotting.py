@@ -141,7 +141,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
                 xtralabels.append(None)
                 continue
             bin_contents, bin_edges = nphist
-            assert len(bin_contents) == len(bin_edges) - 1
+            assert len(bin_contents) == len(bin_edges) - 1  # one time this failed because they were both length zero, but i'm not bothering to fix it since it shouldn't really happen again
             # print ' '.join('%5.1f' % c for c in bin_contents)
             # print ' '.join('%5.1f' % c for c in bin_edges)
             hist = Hist(len(bin_edges) - 1, bin_edges[0], bin_edges[-1])

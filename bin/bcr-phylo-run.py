@@ -314,7 +314,7 @@ parser.add_argument('--restrict-available-genes', action='store_true', help='res
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')
-parser.add_argument('--parameter-variances', help='if set, the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family, rather than having the same value for all families. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75')
+parser.add_argument('--parameter-variances', help='if set, parameters vary from family to family in one of two ways 1) the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75, or 2) parameters for each family are chosen from a \'..\'-separated list, e.g. obs-times,75..100..150')
 parser.add_argument('--slurm', action='store_true')
 
 args = parser.parse_args()

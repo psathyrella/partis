@@ -277,7 +277,7 @@ def get_vlval(vlists, varnames, vname):  # ok this name also sucks, but they're 
 # ----------------------------------------------------------------------------------------
 def get_var_info(args, scan_vars):
     def handle_var(svar, val_lists, valstrs):
-        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'paratope-positions', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
+        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'paratope-positions', 'parameter-variances', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
         sargv = getsargval(svar)
         if sargv is None:  # no default value, and it wasn't set on the command line
             pass
@@ -700,8 +700,8 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --%s %s' % (vname, vstr)
             if 'context' in vname:
                 cmd += ' --restrict-available-genes'
-        if args.parameter_variances is not None:
-            cmd += ' --parameter-variances %s' % args.parameter_variances  # we don't parse through this at all here, which means it's the same for all combos of variables (which I think makes sense -- we probably don't even really want to vary most variables if this is set)
+        if args.no_scan_parameter_variances is not None:
+            cmd += ' --parameter-variances %s' % args.no_scan_parameter_variances  # we don't parse through this at all here, which means it's the same for all combos of variables (which I think makes sense -- we probably don't even really want to vary most variables if this is set)
         if args.n_sim_events_per_proc is not None:
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
         if args.n_max_queries is not None:
@@ -827,7 +827,8 @@ parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
 parser.add_argument('--selection-strength-list', default='1.0')
-parser.add_argument('--parameter-variances', help='see bcr-phylo-run.py help')
+parser.add_argument('--no-scan-parameter-variances', help='Configures parameter variance among families (see bcr-phylo-run.py help for details). Use this version if you only want *one* combination, i.e. if you\'re not scanning across variable combinations. This is the only version that can handle multiple parameters with variances at each time.')
+parser.add_argument('--parameter-variances-list', help='Configures parameter variance among families (see bcr-phylo-run.py help for details). Use this version for scanning several combinations (each combo can in this case only handle one parameter with variances, and this is also why we need the two different versions of this arg).')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--seq-len', default=400, type=int)
@@ -861,7 +862,7 @@ parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lb
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
-args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'context-depend', 'paratope-positions'],}
+args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'context-depend', 'paratope-positions', 'parameter-variances'],}
 args.scan_vars['get-tree-metrics'] = args.scan_vars['simu'] + ['lb-tau']
 
 sys.path.insert(1, args.partis_dir + '/python')
@@ -886,6 +887,7 @@ args.target_count_list = utils.get_arg_list(args.target_count_list, forbid_dupli
 args.n_target_clusters_list = utils.get_arg_list(args.n_target_clusters_list, forbid_duplicates=True)
 args.context_depend_list = utils.get_arg_list(args.context_depend_list, forbid_duplicates=True)
 args.paratope_positions_list = utils.get_arg_list(args.paratope_positions_list, forbid_duplicates=True, choices=['all', 'cdrs'])
+args.parameter_variances_list = utils.get_arg_list(args.parameter_variances_list, forbid_duplicates=True)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:
