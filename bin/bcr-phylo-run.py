@@ -255,6 +255,8 @@ def cache_parameters():
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
         cmd += ' --batch-system slurm'
+    if args.n_max_queries is not None:
+        cmd += ' --n-max-queries %d' % args.n_max_queries
     utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
@@ -271,6 +273,8 @@ def partition():
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
         cmd += ' --batch-system slurm'
+    if args.n_max_queries is not None:
+        cmd += ' --n-max-queries %d' % args.n_max_queries
     utils.simplerun(cmd, debug=True) #, dryrun=True)
     # cmd = './bin/partis get-tree-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
@@ -294,6 +298,7 @@ parser.add_argument('--n-procs', type=int, default=1)
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo')
 parser.add_argument('--n-sim-seqs-per-generation', default='100', help='Number of sequences to sample at each time in --obs-times.')
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
+parser.add_argument('--n-max-queries', type=int, help='during parameter caching and partitioning, stop after reading this many queries from simulation file (useful for dtr training samples where we need massive samples to actually train the dtr, but for testing various metrics need far smaller samples).')
 parser.add_argument('--obs-times', default='100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
