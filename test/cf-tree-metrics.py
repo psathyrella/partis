@@ -30,7 +30,8 @@ legtexts = {
 # ----------------------------------------------------------------------------------------
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
 linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
-hard_colors = {'aa-lbi' : '#e043b9',
+hard_colors = {'dtr' : '#626262',
+               'aa-lbi' : '#e043b9',
                'aa-lbr' : '#e043b9'}  # don't like the cycle colors these end up with
 def metric_color(metric):  # as a fcn to avoid import if we're not plotting
     if metric in hard_colors:
@@ -570,7 +571,14 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     raise Exception('parameter variances have to all be on the same variable if we\'re scanning vars, but got: %s %s' % (pvar, pv_var))
                 pvlist = [float(pv) for pv in pvals.split('..')]
                 xticks.append(ipv)
-                xticklabels.append('%d-%d'%(min(pvlist), max(pvlist)) if min(pvlist) != max(pvlist) else '%d'%pvlist[0])
+                def fmt(v, single=False):
+                    if pv_var == 'selection-strength':
+                        if v == 1.: fstr = '%.0f'
+                        else: fstr = '%.2f' if single else '%.1f'
+                    else:
+                        fstr = '%d'
+                    return fstr % v
+                xticklabels.append('%s-%s'%(fmt(min(pvlist)), fmt(max(pvlist))) if min(pvlist) != max(pvlist) else fmt(pvlist[0], single=True))
             xlabel = '%s' % pv_var.replace('-', ' ')
         elif isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
             def tickstr(t):
@@ -908,7 +916,8 @@ args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:
     args.plot_metric_extra_strs = ['' for _ in args.plot_metrics]
-assert len(args.plot_metrics) == len(args.plot_metric_extra_strs)
+if len(args.plot_metrics) != len(args.plot_metric_extra_strs):
+    raise Exception('--plot-metrics %d not same length as --plot-metric-extra-strs %d' % (len(args.plot_metrics), len(args.plot_metric_extra_strs)))
 args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
 args.selection_strength_list = utils.get_arg_list(args.selection_strength_list, floatify=True, forbid_duplicates=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
