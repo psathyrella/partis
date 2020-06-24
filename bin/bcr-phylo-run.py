@@ -109,6 +109,8 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
         if args.n_target_clusters is not None:
             cmd += ' --n_target_clusters %d' % args.n_target_clusters
         # cmd += ' --target_cluster_distance 1'
+        if args.min_target_distance is not None:
+            cmd += ' --min_target_distance %d' % args.min_target_distance
     else:
         assert False
 
@@ -305,6 +307,7 @@ parser.add_argument('--target-distance', type=int, default=15, help='Desired dis
 parser.add_argument('--metric-for-target-distance', default='aa', choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'], help='see bcr-phylo docs')
 parser.add_argument('--target-count', type=int, default=1, help='Number of target sequences to generate.')
 parser.add_argument('--n-target-clusters', type=int, help='number of cluster into which to divide the --target-count target seqs (see bcr-phylo docs)')
+parser.add_argument('--min-target-distance', type=int, help='see bcr-phylo docs')
 parser.add_argument('--branching-parameter', type=float, default=2., help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
@@ -324,7 +327,7 @@ if args.seed is not None:
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
 args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generation, intify=True)
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
-args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
+args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap', 'metric-for-target-distance'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 

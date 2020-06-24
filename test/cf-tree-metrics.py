@@ -17,6 +17,7 @@ legtexts = {
     'leaf-sampling-scheme' : 'sampling scheme',
     'target-count' : 'N target seqs',
     'n-target-clusters' : 'N target clust.',
+    'min-target-distance' : 'min target dist.',
     'uniform-random' : 'unif. random',
     'affinity-biased' : 'affinity biased',
     'high-affinity' : 'perf. affinity',
@@ -278,7 +279,7 @@ def get_vlval(vlists, varnames, vname):  # ok this name also sucks, but they're 
 # ----------------------------------------------------------------------------------------
 def get_var_info(args, scan_vars):
     def handle_var(svar, val_lists, valstrs):
-        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'paratope-positions', 'parameter-variances', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
+        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'paratope-positions', 'parameter-variances', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
         sargv = getsargval(svar)
         if sargv is None:  # no default value, and it wasn't set on the command line
             pass
@@ -839,6 +840,7 @@ parser.add_argument('--metric-for-target-distance-list', default='aa')  # it wou
 parser.add_argument('--leaf-sampling-scheme-list', default='uniform-random')
 parser.add_argument('--target-count-list', default='1')
 parser.add_argument('--n-target-clusters-list')  # NOTE do *not* set a default here, since in bcr-phylo simulator.py the default is None
+parser.add_argument('--min-target-distance-list')
 parser.add_argument('--context-depend-list')
 parser.add_argument('--paratope-positions-list')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'aa-lbi', 'aa-lbr', 'dtr'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics.')
@@ -886,7 +888,7 @@ parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lb
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
-args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'context-depend', 'paratope-positions', 'parameter-variances'],}
+args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'context-depend', 'paratope-positions', 'parameter-variances'],}
 args.scan_vars['get-tree-metrics'] = args.scan_vars['simu'] + ['lb-tau']
 
 sys.path.insert(1, args.partis_dir + '/python')
@@ -909,6 +911,7 @@ args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target
 args.leaf_sampling_scheme_list = utils.get_arg_list(args.leaf_sampling_scheme_list, forbid_duplicates=True, choices=['uniform-random', 'affinity-biased', 'high-affinity'])  # WARNING 'high-affinity' gets called 'perfect' in the legends and 'affinity-biased' gets called 'high affinity'
 args.target_count_list = utils.get_arg_list(args.target_count_list, forbid_duplicates=True)
 args.n_target_clusters_list = utils.get_arg_list(args.n_target_clusters_list, forbid_duplicates=True)
+args.min_target_distance_list = utils.get_arg_list(args.min_target_distance_list, forbid_duplicates=True)
 args.context_depend_list = utils.get_arg_list(args.context_depend_list, forbid_duplicates=True)
 args.paratope_positions_list = utils.get_arg_list(args.paratope_positions_list, forbid_duplicates=True, choices=['all', 'cdrs'])
 args.parameter_variances_list = utils.get_arg_list(args.parameter_variances_list, forbid_duplicates=True)
