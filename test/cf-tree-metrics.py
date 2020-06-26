@@ -14,6 +14,7 @@ import multiprocessing
 
 legtexts = {
     'metric-for-target-distance' : 'target dist. metric',
+    'n-sim-seqs-per-generation' : 'N sampled',
     'leaf-sampling-scheme' : 'sampling scheme',
     'target-count' : 'N target seqs',
     'n-target-clusters' : 'N target clust.',
@@ -559,28 +560,33 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         return '%s/%s.yaml' % (get_comparison_plotdir(mtmp, per_x, extra_str=estr), getplotname(mtmp))
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
-        xlabel = xvar.replace('-', ' ')
+        xlabel = legtexts.get(xvar, xvar.replace('-', ' '))
         if xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
             xticks, xticklabels = [], []
-            pv_var = None  # make sure they all have the same variable (can't really vary multiple variables at once a.t.m. if we're scanning vars)
-            for ipv, pvpair in enumerate(xvals):
-                assert '..' in pvpair  # don't handle the uniform-distribution-with-variance method a.t.m.
-                pvar, pvals = pvpair.split(',')
-                if pv_var is None:
-                    pv_var = pvar
-                if pvar != pv_var:
-                    raise Exception('parameter variances have to all be on the same variable if we\'re scanning vars, but got: %s %s' % (pvar, pv_var))
-                pvlist = [float(pv) for pv in pvals.split('..')]
+            global_pv_vars = None
+            for ipv, pv_cft_str in enumerate(xvals):  # <pv_cft_str> corresponds to one bcr-phylo run, but can contain more than one parameter variance specification
                 xticks.append(ipv)
-                def fmt(v, single=False):
-                    if pv_var == 'selection-strength':
-                        if v == 1.: fstr = '%.0f'
-                        else: fstr = '%.2f' if single else '%.1f'
-                    else:
-                        fstr = '%d'
-                    return fstr % v
-                xticklabels.append('%s-%s'%(fmt(min(pvlist)), fmt(max(pvlist))) if min(pvlist) != max(pvlist) else fmt(pvlist[0], single=True))
-            xlabel = '%s' % pv_var.replace('-', ' ')
+                pv_vars, xtl_strs = [], []
+                for pvar_str in pv_cft_str.split('_c_'):
+                    assert '..' in pvar_str  # don't handle the uniform-distribution-with-variance method a.t.m.
+                    pvar, pvals = pvar_str.split(',')
+                    def fmt(v, single=False):
+                        if pvar == 'selection-strength':
+                            if v == 1.: fstr = '%.0f'
+                            else: fstr = '%.2f' if single else '%.1f'
+                        else:
+                            fstr = '%d'
+                        return fstr % v
+                    pv_vars.append(pvar)
+                    pvlist = [float(pv) for pv in pvals.split('..')]
+                    xtlstr = '%s-%s'%(fmt(min(pvlist)), fmt(max(pvlist))) if min(pvlist) != max(pvlist) else fmt(pvlist[0], single=True)
+                    xtl_strs.append(xtlstr)
+                xticklabels.append('\n'.join(xtl_strs))
+                if global_pv_vars is None:
+                    global_pv_vars = pv_vars
+                if pv_vars != global_pv_vars:
+                    raise Exception('each bcr-phylo run has to have the same variables with parameter variances, but got %s and %s' % (global_pv_vars, pv_vars))
+            xlabel = ', '.join(legtexts.get(p, p.replace('-', ' ')) for p in global_pv_vars)
         elif isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
             def tickstr(t):
                 if len(t) < 4:
@@ -722,7 +728,10 @@ def run_bcr_phylo(args):  # also caches parameters
             continue
         cmd = './bin/bcr-phylo-run.py --actions %s --dont-get-tree-metrics --base-outdir %s %s' % (args.bcr_phylo_actions, outdir, ' '.join(base_args))
         for vname, vstr in zip(varnames, vstrs):
-            cmd += ' --%s %s' % (vname, vstr)
+            vstr_for_cmd = vstr
+            if vname == 'parameter-variances':
+                vstr_for_cmd = vstr_for_cmd.replace('_c_', ':')  # necessary so we can have multiple different parameters with variances for each bcr-phylo-run.py cmd
+            cmd += ' --%s %s' % (vname, vstr_for_cmd)
             if 'context' in vname:
                 cmd += ' --restrict-available-genes'
         if args.no_scan_parameter_variances is not None:
@@ -853,8 +862,8 @@ parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
 parser.add_argument('--selection-strength-list', default='1.0')
-parser.add_argument('--no-scan-parameter-variances', help='Configures parameter variance among families (see bcr-phylo-run.py help for details). Use this version if you only want *one* combination, i.e. if you\'re not scanning across variable combinations. This is the only version that can handle multiple parameters with variances at each time.')
-parser.add_argument('--parameter-variances-list', help='Configures parameter variance among families (see bcr-phylo-run.py help for details). Use this version for scanning several combinations (each combo can in this case only handle one parameter with variances, and this is also why we need the two different versions of this arg).')
+parser.add_argument('--no-scan-parameter-variances', help='Configures parameter variance among families (see bcr-phylo-run.py help for details). Use this version if you only want *one* combination, i.e. if you\'re not scanning across variable combinations: all the different variances go into one bcr-phylo-run.py run (this could be subsumed into the next arg, but for backwards compatibility/cmd line readability it\'s nice to keep it).')
+parser.add_argument('--parameter-variances-list', help='Configures parameter variance among families (see bcr-phylo-run.py help for details). Use this version for scanning several combinations. Colons \':\' separate different bcr-phylo-run.py runs, while \'_c_\' separate parameter-variances for multiple variables within each bcr-phylo-run.py run.')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--seq-len', default=400, type=int)
