@@ -818,7 +818,6 @@ def mpl_init(figsize=None, fontsize=20):
         # 'legend.fontweight': 900,
         'legend.fontsize': fsize,
         'axes.titlesize': fsize,
-        # 'axes.labelsize': fsize,
         'xtick.labelsize': fsize,
         'ytick.labelsize': fsize,
         'axes.labelsize': fsize

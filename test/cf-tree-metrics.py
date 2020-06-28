@@ -687,6 +687,10 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         adjust['left'] = 0.26
     adjust['bottom'] = 0.25
     adjust['top'] = 0.9
+    if xticklabels is not None and '\n' in xticklabels[0]:
+        adjust['bottom'] = 0.3
+        import matplotlib.pyplot as plt
+        plt.xlabel('xlabel', fontsize=14)
 
     n_ticks = 4
     dy = (ymax - ymin) / float(n_ticks - 1)
@@ -706,7 +710,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                         # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
                         ylabel='%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel),
                         title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
-                        xticks=xticks, xticklabels=xticklabels, xticklabelsize=16,
+                        xticks=xticks, xticklabels=xticklabels, xticklabelsize=12 if xticklabels is not None and '\n' in xticklabels[0] else 16,
                         yticks=yticks, yticklabels=yticklabels,
                         ybounds=(ymin, ymax), log=log, adjust=adjust,
     )
