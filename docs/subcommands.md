@@ -369,9 +369,9 @@ For more details run `./bin/get-naive-probabilities.py --help`.
 ##### input meta info
 
 In many cases partis input will consist of only sequences and names.
-In other cases, however, there is additional information associated with each sequence, which we refer to as meta info.
+In others, however, there is additional information associated with each sequence, which we refer to as meta info.
 Because the fasta format only specifies how to write sequences and names, most ways in which people add additional information to fasta files are mutually incompatible.
-This meta info is thus specified in partis via a separate yaml file with `--input-metafname`, for example:
+This meta info is thus specified in partis via a separate yaml file with the argument `--input-metafname <meta.yaml>`, which for example might contain:
 
 ```
 seq-1:
@@ -384,5 +384,5 @@ seq-2:
   timepoint: +7d
 ```
 
-Currently accepted keys are multiplicity, affinity, and timepoint; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities).
+Currently accepted keys are multiplicity, affinity, subject, and timepoint; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities, to accomodate multi-sequence annotations).
 When caching parameters, partis by default removes constant regions (5' of v and 3' of j) and collapses any resulting duplicate sequences into the [duplicates key](output-formats.md); the number of such sequences is then added to any multiplicities from `--input-metafname` (see `--dont-remove-framework-insertions`).
