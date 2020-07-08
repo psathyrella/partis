@@ -2652,10 +2652,23 @@ def add_naive_seq_aa(line):  # NOTE similarity to block in add_extra_column()
     line['naive_seq_aa'] = ltranslate(line['naive_seq'])
 
 # ----------------------------------------------------------------------------------------
-def add_seqs_aa(line):  # NOTE similarity to block in add_extra_column()
+def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_column()
     if 'seqs_aa' in line:
         return
-    line['seqs_aa'] = [ltranslate(s) for s in line['seqs']]
+    def tmpseq(tseq):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
+        fv_xtra, v_5p_xtra = 0, 0
+        if len(line['fv_insertion']) % 3 != 0:
+            fv_xtra = 3 - len(line['fv_insertion']) % 3
+            tseq = fv_xtra * ambiguous_bases[0] + tseq
+        if line['v_5p_del'] % 3 != 0:
+            v_5p_xtra = line['v_5p_del'] % 3
+            tseq = v_5p_xtra * ambiguous_bases[0] + tseq
+        if debug:
+            print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
+        return tseq
+    line['seqs_aa'] = [ltranslate(tmpseq(s)) for s in line['seqs']]
+    if debug:
+        print pad_lines('\n'.join(line['seqs_aa']))
 
 # ----------------------------------------------------------------------------------------
 def pad_nuc_seq(nseq):  # if length not multiple of three, pad on right with Ns
