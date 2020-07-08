@@ -4745,6 +4745,32 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
     return imax, max_abs_diff  # <imax> is break point
 
 # ----------------------------------------------------------------------------------------
+def get_version_info(debug=False):
+    git_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/.git')
+    vinfo = {}
+    vinfo['commit'] = subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD']).strip()
+    if debug:
+        print '  commit: %s' % vinfo['commit']
+    cmd = 'git --git-dir %s describe --always --tags' % git_dir
+    out, err = simplerun(cmd, return_out_err=True, debug=False)
+    if '-' in out:
+        if out.count('-') == 2:
+            vinfo['tag'], vinfo['n_ahead_of_tag'], commit_hash_abbrev = out.strip().split('-')
+            if debug:
+                ahead_str = ''
+                if int(vinfo['n_ahead_of_tag']) > 0:
+                    ahead_str = '  (well, %d commits ahead of)' % int(vinfo['n_ahead_of_tag'])
+                print '     tag: %s%s' % (vinfo['tag'], ahead_str)
+        else:
+            vinfo['tag'] = '?'
+            print '    %s utils.get_version_info() couldn\'t figure out tag from \'%s\' output: %s' % (color('red', 'error'), cmd, out)
+    else:
+        vinfo['tag'] = out.strip()
+        print '     tag: %s' % vinfo['tag']
+
+    return vinfo
+
+# ----------------------------------------------------------------------------------------
 def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False):
     if os.path.exists(fname):
         os.remove(fname)
@@ -4799,7 +4825,7 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
     if partition_lines is None:
         partition_lines = []
 
-    version_info = {'partis-yaml' : 0.1}
+    version_info = {'partis-yaml' : 0.1, 'partis-git' : get_version_info()}
     yaml_annotations = [get_yamlfo_for_output(l, headers, glfo=glfo) for l in annotation_list]
     if failed_queries is not None:
         yaml_annotations += failed_queries

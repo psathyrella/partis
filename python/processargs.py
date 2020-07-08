@@ -158,23 +158,7 @@ def process(args):
             utils.split_gene(gene)
 
     if args.print_git_commit or args.action == 'version':
-        git_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/.git')
-        print '  commit: %s' % subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD']).strip()
-        cmd = 'git --git-dir %s describe --always --tags' % git_dir
-        out, err = utils.simplerun(cmd, return_out_err=True, debug=False)
-        if '-' in out:
-            if out.count('-') == 2:
-                tag, n_ahead, commit_hash_abbrev = out.strip().split('-')
-                ahead_str = ''
-                if int(n_ahead) > 0:
-                    ahead_str = '  (well, %d commits ahead of)' % int(n_ahead)
-                print '     tag: %s%s' % (tag, ahead_str)
-            else:
-                print '    couldn\'t figure out tag from \'%s\' output: %s' % (cmd, out)
-        else:
-            tag = out.strip()
-            print '     tag: %s' % tag
-
+        utils.get_version_info(debug=True)
         if args.action == 'version':
             sys.exit(0)
 
