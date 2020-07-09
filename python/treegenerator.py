@@ -115,7 +115,7 @@ class TreeGenerator(object):
         ages, treestrs = [], []
 
         cmd_lines = []
-        pkgname = 'TreeSim'
+        pkgname = 'TreeSim'  # TreeSimGM when root_mrca_weibull_parameter is set, otherwise TreeSim
         if self.args.root_mrca_weibull_parameter is not None:
             pkgname += 'GM'
         cmd_lines += ['require(%s, quietly=TRUE)' % pkgname]
