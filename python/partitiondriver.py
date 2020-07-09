@@ -855,7 +855,7 @@ class PartitionDriver(object):
                 self.get_subcluster_naive_seqs(cluster, all_annotations, clusters_in_partitions, debug=self.args.debug)  # NOTE modifies the annotations (adds 'alternative-annotations' key)
 
         if self.args.outfname is not None:
-            self.write_output(all_annotations.values(), hmm_failures, cpath=cpath, dont_write_failed_queries=True)
+            self.write_output(all_annotations.values(), hmm_failures, cpath=cpath)
 
         if self.args.count_parameters and not self.args.dont_write_parameters:  # not sure this is absolutely the most sensible place to put this, but I'm trying to kind of mimic where we write the hmms in self.cache_parameters()
             self.write_hmms(self.multi_hmm_param_dir)  # note that this modifies <self.glfo>
