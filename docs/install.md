@@ -30,7 +30,6 @@ To then reattach to this running container, run `docker attach container-1`.
 To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile) (ignoring the `FROM` and `COPY` lines).
 If you're on a debian variant, run the apt-get install as written.
 On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/brew for apt-get.
-If you don't care about running simulation, you can ignore the parts that are indicated as simulation-specific.
 
 If you don't have conda installed, follow the full installation instructions [here](https://docs.anaconda.com/anaconda/install/).
 Any time you're using conda, it needs to be in your path, for example with `export PATH=<path_to_conda>:$PATH`.
@@ -45,6 +44,30 @@ Once conda is installed, run the rest of the commands in the Dockerfile whose li
 
 In order to avoid polluting your environment, we do not automatically add partis to your path.
 Several methods of accomplishing this are described [here](subcommands.md#subcommands).
+
+#### Simulation
+
+The default simulation uses the R packages TreeSim and TreeSimGM to generate trees, so you'll need to install these if you don't already have them.
+Alternatively, if you have a list of your own newick trees in a file you can instead use --input-simulation-treefname, in which case you can avoid R installation entirely.
+One way to install R on debian/ubuntu is:
+
+```
+apt-get install -y dirmngr apt-transport-https ca-certificates software-properties-common gnupg2
+apt-key adv --keyserver keys.gnupg.net --recv-key 'E19F5F87128899B192B1A2C2AD5F960A256A04AF'  # this R installation stuff was in the Dockerfile for a while, but this line was crashing on dockerhub, and it appears that keyservers are just too flakey to use in docker files
+add-apt-repository 'deb https://cloud.r-project.org/bin/linux/debian stretch-cran35/'  # this will have to change when anaconda changes debian releases, but the tree sim packages require a more recent version of r than is in the debian repos
+apt-get update && apt-get install -y r-base
+```
+Note that TreeSim/TreeSimGM require a much more recent R version than is in the default repos.
+Note also that if you instead install R with conda, it replaces your entire compiler toolchain (e.g. screws up where your system looks for gcc) so you probably won't be able to compile anything afterwards.
+
+You can then install the required R packages with:
+```
+R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM"), repos="http://cran.rstudio.com/")'
+```
+You also need to compile an updated version of bpp:
+```
+./bin/build.sh with-simulation  # this is really slow
+```
 
 #### Plotting
 

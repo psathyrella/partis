@@ -220,6 +220,8 @@ There is, however, a wealth of information that can be used to get a good sense 
 
 ### simulate
 
+Default simulation [requires installation](install.md#simulation) of two additional R packages (and R, if you don't have it).
+
 There are two main partis-only simulation modes (with options for running hybrids between the two), plus you can combine partis with the [bcr-phylo](http://dx.doi.org/10.3389/fimmu.2018.02451) package (which is included, although you may need to run `git submodule update`):
   1. you pass it an inferred parameter directory with `--parameter-dir` (e.g. `test/reference-results/test/parameters/simu`) and it mimics the sample from which those parameters were inferred
   2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `./bin/partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
