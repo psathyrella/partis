@@ -23,8 +23,9 @@ Only the first few of these slug plots (with the biggest clusters) are shown in 
 The rest of the top row is occupied by log and non-log scatter plots showing the size vs mean SHM rate for each family.
 
 Below this, there is a "multi-dimensional scaling" (MDS) plot for each clonal family, where each sequence in each family is a point on that family's plot.
-For a good description of MDS, you should go to the google, but it's essentially an improved version of principal component analysis (PCA).
+For a good description of MDS, you should consult google, but it's essentially an improved version of principal component analysis (PCA).
 For our purposes, MDS takes each family (as a cluster in 400-odd dimensional sequence/hamming distance space) and squishes it out into two dimensions, choosing axes such as to maximize how squished out the family gets, while as nearly as possible preserving each inter-sequence distance from the real, 400-odd dimensional space.
+Note that we use the [bios2mds R package](https://cran.r-project.org/web/packages/bios2mds/bios2mds.pdf), and ambiguous bases are *not* treated correctly, i.e. Ns show up as mutations (at least we can't figure out how to change this).
 This means that while there is no easy biological interpretation for the various directions on these plots, they do a good job of giving, at a glance, an overview of the basic structure of each family.
 The inferred naive sequence for each cluster is shown as a red point on these plots (as are any queries specified with `--queries-to-include`), and the SHM rate of each sequence is given by its transparency (darker is more mutated).
 So in cases where dots get uniformly less transparent as they get further from the red naive dot, this tells you that the dimension reduction is not losing very much information.
