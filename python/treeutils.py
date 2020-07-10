@@ -1622,6 +1622,21 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+# ----------------------------------------------------------------------------------------
+            # # this isn't functional, but it points the way to how I'd start calculating aa-lb metrics in this fcn, so i don't want to remove it
+            # if True: #calc_aa_lb:
+            #     utils.add_seqs_aa(true_line)
+            #     aa_dtree = get_aa_tree(true_dtree, true_line, debug=2)
+            #     sys.exit()  # only actually ran it up to this point
+            #     aa_lb_info = {'nuc-tree' : true_dtree, 'aa-tree' : aa_dtree}
+            #     aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
+            #     # for nuc_metric in tree_metrics:
+            #     #     line['tree-info']['lb']['aa-'+nmetric] = aa_lb_info[nuc_metric],
+            #     #     metric_method : lbfo[nuc_metric],
+            #     #     'tree' : aa_lb_info['nuc-tree'].as_string(schema='newick'),
+            #     #     'aa-tree' : aa_lb_info['aa-tree'].as_string(schema='newick'),
+            #     # }}
+# ----------------------------------------------------------------------------------------
             if add_aa_consensus_distance:
                 add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above
             if dtr_path is not None:
@@ -1809,10 +1824,10 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 
 # ----------------------------------------------------------------------------------------
 # differences to calculate_tree_metrics(): this fcn
-#    1) runs a bunch of metrics that the other can't
+#    1) can run a bunch of metrics that the other can't
 #    2) mosty focuses on running one metric at a time (as opposed to running all the ones that we typically want on data)
 #    3) doesn't plot as many things
-#    4) only runs on simulation (as opposed to making two sets things, for simulation and data)
+#    4) only runs on simulation (as opposed to making two sets of things, for simulation and data)
 def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, lbr_tau_factor=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False, dont_normalize_lbi=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_combo_lbfo(varlist, iclust, line, aa_lb_info=None):
@@ -1890,7 +1905,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         elif 'aa-lb' in metric_method:  # aa versions of lbi and lbr
             nuc_metric = metric_method.lstrip('aa-')
             aa_lb_info = {}
-            _, lbfo = get_combo_lbfo([nuc_metric], iclust, line, aa_lb_info=aa_lb_info)  # ignoring the returned dtree just so we don't foget there's two different trees
+            _, lbfo = get_combo_lbfo([nuc_metric], iclust, line, aa_lb_info=aa_lb_info)  # ignoring the returned dtree just so we don't forget there's two different trees
             line['tree-info'] = {'lb' : {
                 metric_method : lbfo[nuc_metric],
                 'tree' : aa_lb_info['nuc-tree'].as_string(schema='newick'),
