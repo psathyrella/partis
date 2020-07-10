@@ -575,6 +575,7 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq):
     print out_ascii_str
 
 # ----------------------------------------------------------------------------------------
+# loops over uids in <hline> and <lline> (which, in order, must correspond to each other), chooses a new joint uid and applies it to both h and l trees, then checks to make sure the trees are identical
 def merge_heavy_light_trees(hline, lline, debug=False):
     if debug:
         print '    before:'
