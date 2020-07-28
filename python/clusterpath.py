@@ -5,6 +5,8 @@ import math
 import csv
 import copy
 import collections
+import itertools
+import numpy
 
 import utils
 import treeutils
@@ -181,18 +183,18 @@ class ClusterPath(object):
         return ccf_str
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None, print_cluster_indices=False, right_extrastr=''):  # NOTE <highlight_cluster_indices> and <print_cluster_indices> are quite different despite sounding similar, but I can't think of something else to call the latter that makes more sense
-        #  NOTE it's nicer to *not* sort by cluster size here, since preserving the order tends to frequently make it obvious which clusters are merging as your eye scans downwards through the output
+    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None, print_partition_indices=False, right_extrastr='', sort_by_size=True):  # NOTE <highlight_cluster_indices> and <print_partition_indices> are quite different despite sounding similar, but I can't think of something else to call the latter that makes more sense
         if ip > 0:  # delta between this logprob and the previous one
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
         else:
             delta_str = ''
-        print '      %s  %-12.2f%-7s   %s%-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, ('%-5d  ' % ip) if print_cluster_indices else '', len(self.partitions[ip]), self.n_procs[ip]),
+        print '      %s  %-12.2f%-7s   %s%-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, ('%-5d  ' % ip) if print_partition_indices else '', len(self.partitions[ip]), self.n_procs[ip]),
 
         print '    ' + self.get_ccf_str(ip),
 
-        # clusters
-        sorted_clusters = sorted(self.partitions[ip], key=lambda c: len(c), reverse=True)
+        sorted_clusters = self.partitions[ip]
+        if sort_by_size:  # it's often nicer to *not* sort by cluster size here, since preserving the order frequently makes it obvious which clusters are merging as your eye scans downward through the output
+            sorted_clusters = sorted(sorted_clusters, key=lambda c: len(c), reverse=True)
         for iclust in range(len(sorted_clusters)):
             cluster = sorted_clusters[iclust]
             if abbreviate:
@@ -218,18 +220,18 @@ class ClusterPath(object):
         print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, calc_missing_values='none', highlight_cluster_indices=None, print_cluster_indices=False):
+    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, calc_missing_values='none', highlight_cluster_indices=None, print_partition_indices=False, ipart_center=None, sort_by_size=True):
         assert calc_missing_values in ['none', 'all', 'best']
         if reco_info is not None and calc_missing_values == 'all':
             self.calculate_missing_values(reco_info)
 
         if print_header:
-            print '    %7s %10s   %-7s %s%5s  %4s' % ('', 'logprob', 'delta', 'index  ' if print_cluster_indices else '', 'clusters', 'n_procs'),
+            print '    %s%7s %10s   %-7s %s%5s  %4s' % (' '*utils.len_excluding_colors(extrastr), '', 'logprob', 'delta', 'index  ' if print_partition_indices else '', 'clusters', 'n_procs'),
             if reco_info is not None or self.we_have_a_ccf:
                 print ' %5s %5s' % ('purity', 'completeness'),
             print ''
 
-        for ip in self.get_surrounding_partitions(n_partitions=n_to_print):
+        for ip in self.get_surrounding_partitions(n_to_print, i_center=ipart_center):
             if reco_info is not None and calc_missing_values == 'best' and ip == self.i_best:
                 self.calculate_missing_values(reco_info, only_ip=ip)
             mark = '      '
@@ -240,18 +242,20 @@ class ClusterPath(object):
             if mark.count(' ') < len(mark):
                 mark = utils.color('yellow', mark)
             right_extrastr = '' if self.n_seqs() < 200 else mark  # if line is going to be really long, put the yellow stuff also on the right side
-            self.print_partition(ip, reco_info, extrastr=mark+extrastr, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices, print_cluster_indices=print_cluster_indices, right_extrastr=right_extrastr)
+            self.print_partition(ip, reco_info, extrastr=extrastr+mark, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices, print_partition_indices=print_partition_indices, right_extrastr=right_extrastr, sort_by_size=sort_by_size)
 
     # ----------------------------------------------------------------------------------------
-    def get_surrounding_partitions(self, n_partitions):
+    def get_surrounding_partitions(self, n_partitions, i_center=None):
         """ return a list of partition indices centered on <self.i_best> of length <n_partitions> """
+        if i_center is None:
+            i_center = self.i_best
         if n_partitions is None:  # print all partitions
             ilist = range(len(self.partitions))
-        else:  # print the specified number surrounding the maximum logprob
+        else:  # print the specified number surrounding (by default) the maximum logprob
             if n_partitions < 0 or n_partitions >= len(self.partitions):
                 n_partitions = len(self.partitions)
-            ilist = [self.i_best, ]
-            while len(ilist) < n_partitions:  # add partition numbers before and after <i_best> until we get to <n_partitions>
+            ilist = [i_center, ]
+            while len(ilist) < n_partitions:  # add partition numbers before and after <i_center> until we get to <n_partitions>
                 if ilist[0] > 0:  # stop adding them beforehand if we've hit the first partition
                     ilist.insert(0, ilist[0] - 1)
                 if len(ilist) < n_partitions and ilist[-1] < len(self.partitions) - 1:  # don't add them afterward if we already have enough, or if we're already at the end
@@ -319,7 +323,7 @@ class ClusterPath(object):
 
         headers = self.get_headers(is_data)
         lines = []
-        for ipart in self.get_surrounding_partitions(n_partitions=n_to_write):
+        for ipart in self.get_surrounding_partitions(n_to_write):
             part = self.partitions[ipart]
 
             row = {'logprob' : self.logprobs[ipart],
@@ -563,6 +567,21 @@ class ClusterPath(object):
         return new_partitions
 
     # ----------------------------------------------------------------------------------------
+    def get_sub_path(self, uid_set, partitions=None, annotations=None):  # get list of partitions (from 0 to self.i_best+1) restricted to clusters that overlap with uid_set
+        if partitions is None:
+            partitions = self.partitions
+        sub_partitions = [[] for _ in range(self.i_best + 1)]  # new list of partitions, but only including clusters that overlap with uid_set
+        sub_annotations = {}
+        for ipart in range(self.i_best + 1):
+            for tmpclust in partitions[ipart]:
+                if len(set(tmpclust) & uid_set) == 0:
+                    continue
+                sub_partitions[ipart].append(tmpclust)  # note that many of these adjacent sub-partitions can be identical, if the merges happened between clusters that correspond to a different final cluster
+                if annotations is not None and ':'.join(tmpclust) in annotations:
+                    sub_annotations[':'.join(tmpclust)] = annotations[':'.join(tmpclust)]
+        return sub_partitions, sub_annotations
+
+    # ----------------------------------------------------------------------------------------
     def make_trees(self, annotations, i_only_cluster=None, get_fasttrees=False, naive_seq_name='XnaiveX', debug=False):  # makes a tree for each cluster in the most likely (not final) partition
         # i_only_cluster: only make the tree corresponding to the <i_only_cluster>th cluster in the best partition
         if self.i_best is None:
@@ -581,15 +600,162 @@ class ClusterPath(object):
         for i_cluster in range(len(partitions[self.i_best])):
             if i_only_cluster is not None and i_cluster != i_only_cluster:
                 continue
-            final_cluster = partitions[self.i_best][i_cluster]
-            uid_set = set(final_cluster)  # usually the set() isn't doing anything, but sometimes I think we have uids duplicated between clusters, e.g. I think when seed partitioning (or even within a cluster, because order matters within a cluster because of bcrham caching)
-            sub_partitions = [[] for _ in range(self.i_best + 1)]  # new list of partitions, but only including clusters that overlap with <final_cluster>
-            sub_annotations = {}
-            for ipart in range(self.i_best + 1):
-                for tmpclust in partitions[ipart]:
-                    if len(set(tmpclust) & uid_set) == 0:
-                        continue
-                    sub_partitions[ipart].append(tmpclust)  # note that many of these adjacent sub-partitions can be identical, if the merges happened between clusters that correspond to a different final cluster
-                    if ':'.join(tmpclust) in annotations:
-                        sub_annotations[':'.join(tmpclust)] = annotations[':'.join(tmpclust)]
+            uid_set = set(partitions[self.i_best][i_cluster])  # usually the set() isn't doing anything, but sometimes I think we have uids duplicated between clusters, e.g. I think when seed partitioning (or even within a cluster, because order matters within a cluster because of bcrham caching)
+            sub_partitions, sub_annotations = self.get_sub_path(uid_set, partitions=partitions, annotations=annotations)
             self.trees[i_cluster] = self.make_single_tree(sub_partitions, sub_annotations, uid_set, naive_seq_name, get_fasttrees=get_fasttrees, debug=debug)
+
+    # ----------------------------------------------------------------------------------------
+    def merge_light_chain(self, lcpath, heavy_annotations, light_annotations, h_ipart=None, l_ipart=None, check_partitions=False, debug=False):  # this assumes <self> is the heavy chain path, but it doesn't really need to be NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+        # ----------------------------------------------------------------------------------------
+        def akey(klist):
+            return ':'.join(klist)
+        # ----------------------------------------------------------------------------------------
+        def any_in_common(l1, l2):  # true if any uids in any cluster in l1 are found in any clusters in l2
+            for tclust in l1:
+                tset = set(tclust)
+                if any(len(tset & set(tc)) > 0 for tc in l2):
+                    return True
+            return False
+        # ----------------------------------------------------------------------------------------
+        def common_clusters(tclust, tlist, return_indices=False):  # return all clusters in tlist that have uids in common with tclust
+            tset = set(tclust)
+            return [(i if return_indices else c) for i, c in enumerate(tlist) if len(set(c) & tset) > 0]
+        # ----------------------------------------------------------------------------------------
+        def is_clean_partition(putative_partition):  # make sure the list of clusters is actually disjoint
+            return not any(len(set(c1) & set(c2)) > 0 for c1, c2 in itertools.combinations(putative_partition, 2))
+        # ----------------------------------------------------------------------------------------
+        def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, tdbg=False):  # reapportions all uids from single_cluster and cluster_list into return_clusts (splitting first by cdr3 and then by naive hamming distance)
+            # NOTE single_cluster and cluster_list in general have quite different sets of uids, and that's fine. All that matters here is we're trying to find all the clusters that should be split from one another (without doing some all against all horror)
+            if len(cluster_list) == 1:  # nothing to do
+                return [single_cluster]
+            adict = utils.get_annotation_dict(annotation_list)
+            cdr3_groups = utils.group_seqs_by_value(cluster_list, lambda c: adict[akey(c)]['cdr3_length'])  # there's already utils.split_clusters_by_cdr3(), but it uses different inputs (e.g. sw_info) so i think it makes sense to not use it here
+            if tdbg:
+                print '   %s one cluster vs %d clusters' % (utils.color('blue', 'syncing'), len(cluster_list))
+                print '     split into %d cdr3 groups' % len(cdr3_groups)
+            lo_hbound, hi_hbound = utils.get_naive_hamming_bounds('likelihood', overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))  # these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
+            return_clusts = []
+            for icdr, cdrgroup in enumerate(cdr3_groups):  # within each cdr3 group, split (i.e. use the cluster boundaries from cluster_list rather than single_cluster) if naive hfrac is > hi_hbound (but then there's shenanigans to adjudicate between different possibilities)
+                if tdbg: print utils.color('purple', '      icdr %d' % icdr)
+
+                # first figure out who needs to be split from whom
+                clusters_to_split = {akey(c) : [] for c in cdrgroup}  # map from each cluster ('s key) to a list of clusters from which it should be split
+                for c1, c2 in itertools.combinations(cdrgroup, 2):  # we could take account of the hfrac of both chains at this point, but looking at only the "split" one rather than the "merged" one, as we do here, is i think equivalent to assuming the merged one has zero hfrac, which is probably fine, since we only split if the split chain is very strongly suggesting we split
+                    hfrac = utils.hamming_fraction(adict[akey(c1)]['naive_seq'], adict[akey(c2)]['naive_seq'])  # all clusters with the same cdr3 len have been padded in waterer so their naive seqs are the same length
+                    if hfrac > hi_hbound:
+                        clusters_to_split[akey(c1)].append(c2)
+                        clusters_to_split[akey(c2)].append(c1)
+
+                # then do the splitting
+                if tdbg:
+                    print '                  N to     new'
+                    print '          size    split   cluster?'
+                tmpclusts_for_return = []  # final (return) clusters for this cdr3 class
+                for cclust in cdrgroup:
+                    split_clusts = clusters_to_split[akey(cclust)]
+                    if tdbg: print '         %4d    %3d' % (len(cclust), len(split_clusts)),
+                    found_one = False
+                    for rclust in tmpclusts_for_return:  # look for an existing return cluster to which we can merge cclust, i.e. that doesn't have any uids from which we want to split
+                        if any_in_common([rclust], split_clusts):  # if any uid in rclust is in a cluster from which we want to be split, skip it, i.e. don't merge with that cluster (note that we have to do it by uid because the rclusts are already merged so don't necessarily correspond to any existing cluster)
+                            continue
+                        if found_one: print 'it happened!'  # TODO remove this. i'm just kind of curious if it ever happens in practice
+                        if tdbg: print '     merging with size %d' % len(rclust)
+                        rclust += cclust
+                        found_one = True
+                        break  # i.e. we just merge with the first one we find and stop looking; if there's more than one, it means we could merge all three together if we wanted (see diagram on some paper somewhere [triangle inequality]), but i doubt it'll matter either way, and this is easier
+                    if not found_one:
+                        if tdbg: print '      y'
+                        tmpclusts_for_return.append(cclust)  # if we didn't find an existing cluster that we can add it to, add it as a new cluster
+
+                return_clusts += tmpclusts_for_return
+
+            if debug:
+                print '      returning: %s' % ' '.join([str(len(c)) for c in return_clusts])
+                # ClusterPath(partition=return_clusts).print_partitions(abbreviate=True)
+            return return_clusts
+
+        # ----------------------------------------------------------------------------------------
+        if h_ipart is None:
+            h_ipart = self.i_best
+        if l_ipart is None:
+            l_ipart = lcpath.i_best
+        if debug:
+            self.print_partitions(extrastr=utils.color('blue', 'heavy  '), print_partition_indices=True, ipart_center=h_ipart, n_to_print=1, sort_by_size=False)
+            lcpath.print_partitions(extrastr=utils.color('blue', 'light  '), print_partition_indices=True, ipart_center=l_ipart, n_to_print=1, sort_by_size=False, print_header=False)
+        if h_ipart != self.i_best or l_ipart != lcpath.i_best:
+            print '  %s using non-best partition index for%s%s' % (utils.color('red', 'note'), (' heavy: %d'%h_ipart) if h_ipart != self.i_best else '', (' light: %d'%l_ipart) if l_ipart != lcpath.i_best else '')
+
+        init_partitions = {'h' : self.partitions[h_ipart], 'l' : lcpath.partitions[l_ipart]}
+        annotation_dict = {'h' : utils.get_annotation_dict(heavy_annotations), 'l' : utils.get_annotation_dict(light_annotations)}
+
+        final_partition = []
+        if debug:
+            print '    N        N       hclusts     lclusts       h/l'
+            print '  hclusts  lclusts    sizes       sizes      overlaps'
+        for h_initclust, l_initclust in [(c, None) for c in init_partitions['h']] + [(None, c) for c in init_partitions['l']]:  # just loops over each single cluster in h and l partitions, but in a way that we know whether the single cluster is from h or l
+            single_chain, list_chain = 'h' if l_initclust is None else 'l', 'l' if l_initclust is None else 'h'
+            single_cluster = h_initclust if single_chain == 'h' else l_initclust
+            cluster_list = common_clusters(single_cluster, init_partitions[list_chain])
+            single_annotation = annotation_dict[single_chain][akey(single_cluster)]
+            annotation_list = [annotation_dict[list_chain][akey(c)] for c in cluster_list]
+
+            if debug:
+                hclusts, lclusts = ([single_cluster], cluster_list) if single_chain == 'h' else (cluster_list, [single_cluster])
+                overlaps = [[len(set(hc) & set(lc)) for lc in lclusts] for hc in hclusts]
+                overlapstr = '   '.join([' '.join(str(ov) for ov in ovlist) for ovlist in overlaps])
+                def getcstr(clist): return ' '.join(str(len(c)) for c in clist)
+                hcstr, lcstr = getcstr(hclusts), getcstr(lclusts)
+                cw = 10
+                if len(hcstr) < cw and len(lcstr) < cw:  # fits on a single line
+                    print ('    %2d      %2d         %-'+str(cw)+'s  %-'+str(cw)+'s  %s') % (len(hclusts), len(lclusts), hcstr, lcstr, overlapstr)
+                else:  # split the last few columns over multiple lines
+                    print ('    %2d      %2d         %-s') % (len(hclusts), len(lclusts), hcstr)
+                    print ('    %2s      %2s         %-'+str(cw)+'s%-s') % ('', '', '', lcstr)
+                    print ('    %2s      %2s         %-'+str(cw)+'s%-'+str(cw)+'s   %s') % ('', '', '', '', overlapstr)
+
+            resolved_clusters = resolve_discordant_clusters(copy.deepcopy(single_cluster), single_annotation, copy.deepcopy(cluster_list), annotation_list)
+            if check_partitions:
+                assert is_clean_partition(resolved_clusters)
+            if debug:
+                print '    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition))
+                print '      ifclust N rclusts'
+            n_clean = 0
+            for ifclust in range(len(final_partition)):  # iteration won't get as far as any clusters that we're just adding, which is what we want
+                fclust = final_partition[ifclust]
+                if not any_in_common([fclust], resolved_clusters):  # this is probably faster than combining it with getting the common cluster indices below, but maybe not
+                    n_clean += 1
+                    continue
+                irclusts = common_clusters(fclust, resolved_clusters, return_indices=True)  # indices of any resolved_clusters that overlap with this fclust
+                if debug: dbgstr = []
+                new_fset = set(fclust)  # we'll remove uids from this, and then replace fclust with its remains
+                for irclust in irclusts:  # resolve any discrepancies between these newly-resolved clusters and fclust
+                    rset = set(resolved_clusters[irclust])
+                    common_uids = new_fset & rset
+                    if len(new_fset) > len(rset):  # remove the common ids from the larger one (effectively splitting according to the splittier one)
+                        new_fset -= common_uids
+                        if debug: dbgstr.append('  fclust %d --> %d' % (len(new_fset) + len(common_uids), len(new_fset)))
+                    else:
+                        rset -= common_uids
+                        if debug: dbgstr.append('  rclust %d --> %d' % (len(rset) + len(common_uids), len(rset)))
+                    resolved_clusters[irclust] = list(rset)
+                if debug:
+                    print '       %4d  %4d  %s' % (ifclust, len(irclusts), ''.join(dbgstr))
+                final_partition[ifclust] = list(new_fset)
+            if debug:
+                print '       %d fclusts clean' % n_clean
+            assert is_clean_partition(resolved_clusters)
+            final_partition += resolved_clusters
+
+        if debug:
+            print '    removing %d/%d empty clusters' % (final_partition.count([]), len(final_partition))
+        final_partition = [c for c in final_partition if len(c) > 0]
+        # if debug:
+        #     print '    final: %s' % ' '.join([str(len(c)) for c in final_partition])
+
+        if check_partitions:
+            assert is_clean_partition(final_partition)
+            for initpart in init_partitions.values():
+                assert len(set([u for c in initpart for u in c]) - set([u for c in final_partition for u in c])) == 0  # everybody from both initial partitions is in final_partition
+            assert len(set([u for c in final_partition for u in c]) - set([u for c in init_partitions['h'] for u in c]) - set([u for c in init_partitions['l'] for u in c])) == 0  # nobody extra got added (i don't see how this could happen, but maybe it's just checking that I didnt' modify the initial partitions)
+
+        return final_partition

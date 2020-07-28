@@ -254,6 +254,7 @@ def run_paired_heavy_light(args):
     def run_step(tmpaction, locus=None):
         clist = copy.deepcopy(sys.argv)
         utils.remove_from_arglist(clist, '--paired-loci', has_arg=True)
+        utils.remove_from_arglist(clist, '--dry-run')
         treefname = '%s/trees.nwk' % args.workdir
         if tmpaction == 'generate-trees':
             clist += ['--generate-trees']  # NOTE this will use the heavy chain parameter dir and ignore the light chain one, which I think is ok (it's just used for tree scaling, and it would be better to eventually have different scaling for light chain, but it should be fine)
@@ -264,32 +265,85 @@ def run_paired_heavy_light(args):
             utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
         else:
             clist += ['--locus', locus]
-            clist += ['--choose-trees-in-order', '--input-simulation-treefname', treefname]
+            if args.action == 'simulate':
+                clist += ['--choose-trees-in-order', '--input-simulation-treefname', treefname]
+
             lstr = '' if utils.has_d_gene(locus) else 'light-chain-'
             tmp_pdir = None
-            if '--%sparameter-dir'%lstr in clist:
-                tmp_pdir = utils.get_val_from_arglist(clist, '--%sparameter-dir' % lstr)
-            for tmpstr in ['outfname', 'parameter-dir']:
+            if '--%sparameter-dir'%lstr in clist:  # you might think it'd be easier to also add to clist here, but it turns out no
+                tmp_pdir = utils.get_val_from_arglist(clist, '--%sparameter-dir' % lstr)  # this has to come from <sys.argv>/<clist> (not <args>) since for simulation it's set to None in processargs (in favor of the reco- and shm- ones)
+            ofn = getattr(args, '%soutfname' % lstr.replace('-', '_'))  # whereas this needs to come from <args> rather than <sys.argv>/<clist> in order to pick up any modifications made in processargs
+            ifn = getattr(args, '%sinfname' % lstr.replace('-', '_'))  # i don't think it matters for this where it comes from
+
+            for tmpstr in ['infname', 'parameter-dir', 'outfname']:
                 utils.remove_from_arglist(clist, '--%s'%tmpstr, has_arg=True)
                 utils.remove_from_arglist(clist, '--light-chain-%s'%tmpstr, has_arg=True)
-            ofn = getattr(args, '%soutfname' % lstr.replace('-', '_'))
-            clist += ['--outfname', ofn]  # need to get from <args> rather than <sys.argv> in order to pick up any modifications made in processargs
+
+            if ifn is not None:
+                clist += ['--infname', ifn]
             if tmp_pdir is not None:
-                clist += ['--parameter-dir', tmp_pdir]  # whereas parameter dir has to come from <sys.argv> (not <args>) since it's set to None in processargs (in favor of the reco- and shm- ones)
+                clist += ['--parameter-dir', tmp_pdir]
+            clist += ['--outfname', ofn]  # note that each locus's subprocess needs an outfname even if there's no final outfname from the command line
+
+            if not args.dry_run and os.path.exists(ofn):
+                print '    removing existing %s locus output file %s' % (locus, ofn)
+                os.remove(ofn)
             if ofn == processargs.get_dummy_outfname(args.workdir, light_chain=not utils.has_d_gene(locus)):
                 work_fnames.append(ofn)
-        utils.simplerun(' '.join(clist)) #, dryrun=True)
+        utils.simplerun(' '.join(clist), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
     def combine_chains():  # synchronize uids and check that trees are compatible
-        print '  rewriting output files with synchronized trees'
-        hglfo, heavy_annotations, _ = utils.read_output(args.outfname, dont_add_implicit_info=not args.debug)
-        lglfo, light_annotations, _ = utils.read_output(args.light_chain_outfname, dont_add_implicit_info=not args.debug)
-        assert len(heavy_annotations) == len(light_annotations)
-        for hline, lline in zip(heavy_annotations, light_annotations):
-            treeutils.merge_heavy_light_trees(hline, lline)
-        headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
-        utils.write_annotations(args.outfname, hglfo, heavy_annotations, headers, synth_single_seqs=utils.getsuffix(args.outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
-        utils.write_annotations(args.light_chain_outfname, lglfo, light_annotations, headers, synth_single_seqs=utils.getsuffix(args.light_chain_outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
+        hglfo, heavy_annotations, hcpath = utils.read_output(args.outfname, dont_add_implicit_info=not args.debug)
+        lglfo, light_annotations, lcpath = utils.read_output(args.light_chain_outfname, dont_add_implicit_info=not args.debug)
+        if args.action == 'simulate':
+            print '  rewriting output files with synchronized trees'
+            assert len(heavy_annotations) == len(light_annotations)
+            for hline, lline in zip(heavy_annotations, light_annotations):
+                treeutils.merge_heavy_light_trees(hline, lline)
+            headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
+            utils.write_annotations(args.outfname, hglfo, heavy_annotations, headers, synth_single_seqs=utils.getsuffix(args.outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
+            utils.write_annotations(args.light_chain_outfname, lglfo, light_annotations, headers, synth_single_seqs=utils.getsuffix(args.light_chain_outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
+        else:
+            print '  synchronizing heavy and light chain cluster paths'
+            h_true_partition, l_true_partition = None, None
+            if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
+                _, h_true_annotations, h_true_cpath = utils.read_output(args.infname, dont_add_implicit_info=True) #skip_annotations=True) #
+                _, l_true_annotations, l_true_cpath = utils.read_output(args.light_chain_infname, dont_add_implicit_info=True) #skip_annotations=True) #
+                if len(h_true_cpath.partitions) == 0:
+                    h_true_partition = utils.get_true_partition(None, true_annotation_list=h_true_annotations)
+                    l_true_partition = utils.get_true_partition(None, true_annotation_list=l_true_annotations)
+                else:
+                    assert False  # can't happen until i start writing the true partitions to the simulation files TODO
+                    h_true_partition = h_true_cpath.partitions[h_true_cpath.i_best]
+                    l_true_partition = l_true_cpath.partitions[l_true_cpath.i_best]
+                # print utils.new_ccfs_that_need_better_names(h_true_partition, l_true_partition, None)
+                # assert h_true_partition == l_true_partition  # wtf, this fails (i think because i'm not syncing reco_ids in treeutils.merge_heavy_light_trees()
+# TODO see if check_partitions is slow
+# TODO loop over chains rather than duplicating all the code
+            joint_partition = hcpath.merge_light_chain(lcpath, heavy_annotations, light_annotations, check_partitions=True, debug=False)  # , h_ipart=5
+            # print set([u for c in hcpath.partitions[hcpath.i_best] for u in c]) - set([u for c in h_true_partition for u in c])
+
+            def incorporate_duplicates(tpart, dup_dict):
+                for tclust in tpart:
+                    for uid in tclust:
+                        if uid in dup_dict:
+                            tclust += dup_dict[uid]
+            h_part = hcpath.partitions[hcpath.i_best]
+            h_duplicates = {u : l['duplicates'][i] for l in heavy_annotations for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
+            incorporate_duplicates(h_part, h_duplicates)
+            print '    h: ', utils.new_ccfs_that_need_better_names(h_part, h_true_partition, None)
+
+            l_part = lcpath.partitions[lcpath.i_best]
+            l_duplicates = {u : l['duplicates'][i] for l in light_annotations for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
+            incorporate_duplicates(l_part, l_duplicates)
+            print '    l: ', utils.new_ccfs_that_need_better_names(l_part, l_true_partition, None)
+
+            incorporate_duplicates(joint_partition, h_duplicates)
+            incorporate_duplicates(joint_partition, l_duplicates)
+            j_part = utils.get_deduplicated_partitions([joint_partition])[0]  # TODO why do i need this?
+            print 'joint (h true): ', utils.new_ccfs_that_need_better_names(j_part, h_true_partition, None)
+            print 'joint (l true): ', utils.new_ccfs_that_need_better_names(j_part, l_true_partition, None)
+
     # ----------------------------------------------------------------------------------------
     utils.prep_dir(args.workdir)
     work_fnames = []
@@ -297,13 +351,20 @@ def run_paired_heavy_light(args):
         run_step('generate-trees')
         for locus in args.paired_loci:
             run_step(None, locus=locus)
-        combine_chains()
+        if not args.dry_run:
+            combine_chains()
     elif args.action == 'partition':
-        assert False
+        for locus in args.paired_loci:
+            run_step(None, locus=locus)
+        if not args.dry_run:
+            combine_chains()
+    elif args.action == 'merge-paired-partitions':
+        combine_chains()
     else:
         assert False
 
-    utils.rmdir(args.workdir, fnames=work_fnames)
+    if not args.dry_run:
+        utils.rmdir(args.workdir, fnames=work_fnames)
 
 # ----------------------------------------------------------------------------------------
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
@@ -316,6 +377,7 @@ parent_parser = argparse.ArgumentParser(add_help=False)
 
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
 parent_parser.add_argument('--paired-loci', help='Instead of the default single chain, run on these two paired loci (colon-separated list of length 2). Have to also set --light-chain-infname or --light-chain-outfname.')
+parent_parser.add_argument('--dry-run', action='store_true', help='Just print subprocess commands that would be run without actually running them (only implemented for --paired-loci).')
 parent_parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which to restrict the analysis')
 parent_parser.add_argument('--queries-to-include', help='When reading the input file, look for and include these additional uids when --n-random-queries is set (*not* compatible with --n-max-queries). Contrast with --queries, which includes *only* the indicated uids. Additionally, these queries are treated differently e.g. when partition plotting or removing duplicate sequences.')
@@ -444,6 +506,7 @@ subconfig = collections.OrderedDict((
     ('partition'        , {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'}),
     ('simulate'         , {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'}),
     ('view-output'      , {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'}),
+    ('merge-paired-partitions', {'func' : run_partitiondriver, 'help' : 'Merge the heavy and light chain partition paths in two existing output files.'}),
     ('view-alternative-annotations' , {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs in a previous partition step so that this information was saved.'}),
     ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
     ('get-selection-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate selection metrics using existing output.'}),
@@ -457,7 +520,7 @@ subconfig = collections.OrderedDict((
 ))
 
 def runs_on_existing_output(actionstr):
-    return actionstr.split('-')[0] in ['view', 'plot', 'get']
+    return actionstr.split('-')[0] in ['view', 'plot', 'get', 'merge']
 
 subargs = {subname : [] for subname in subconfig}
 
@@ -471,7 +534,7 @@ subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : '
 subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same effect as --seed-unique-id, but specifies the sequence instead of that sequence\'s id (so that it doesn\'t have to be in the original input file)'}})
 subargs['partition'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'choose a sequence at random from the input file, and use it as the seed for seed partitioning (as if it had been set as the --seed-unique-id)'}})
 subargs['partition'].append({'name' : '--annotation-clustering', 'kwargs' : {'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
-subargs['partition'].append({'name' : '--annotation-clustering-thresholds', 'kwargs' : {'default' : '0.9', 'help' : 'colon-separated list of thresholds for annotation-based (e.g. vollmers) clustering'}})
+subargs['partition'].append({'name' : '--annotation-clustering-thresholds', 'kwargs' : {'default' : '0.9', 'help' : 'colon-separated list of thresholds for annotation-based clustering (i.e. a cluster is defined as the same v and j gene plus this threshold on cdr3 nucleotide hamming distance)'}})
 subargs['partition'].append({'name' : '--naive-hamming-bounds', 'kwargs' : {'help' : 'Clustering bounds (lo:hi colon-separated pair) on naive sequence hamming distance. If not specified, the bounds are set based on the per-dataset mutation levels. For most purposes should be left at the defaults.'}})
 subargs['partition'].append({'name' : '--logprob-ratio-threshold', 'kwargs' : {'type' : float, 'default' : 18., 'help' : 'reaches a min value of <this> minus five for large clusters.'}})
 subargs['partition'].append({'name' : '--synthetic-distance-based-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'Use simulation truth info to create a synthetic distance-based partition (for validation).'}})
@@ -508,7 +571,7 @@ subargs['simulate'].append({'name' : '--input-simulation-treefname', 'kwargs' : 
 subargs['simulate'].append({'name' : '--generate-trees', 'kwargs' : {'action' : 'store_true', 'help' : 'Run the initial tree-generation step of simulation (writing to --outfname), without then proceeding to actually generate the sequences. Used for paired heavy/light simulation so we can pass the same list of trees to both.'}})
 subargs['simulate'].append({'name' : '--choose-trees-in-order', 'kwargs' : {'action' : 'store_true', 'help' : 'Instead of the default of choosing a tree at random from the list of trees (which is either generated at the start of the simulation run, or passed in with --input-simulation-treefname), instead choose trees sequentially. If there\'s more events than trees, it cycles through the list again. Used for paired heavy/light simulation.'}})
 subargs['simulate'].append({'name' : '--check-tree-depths', 'kwargs' : {'action' : 'store_true', 'help' : 'check how close the fraction of mutated bases that we get from bppseqgen is to the depth of the trees that we passed in.'}})
-subargs['simulate'].append({'name' : '--no-per-base-mutation', 'kwargs' : {'action' : 'store_true', 'help' : 'By default the simulation uses both a different SHM rate for each position in each gene, and also a different rate to each base for each of these positions (e.g. position 37 in IGHV1-2*02 might mutate 3x as much as neighboring bases, and it might mutate to T twice as often as G). This option turns off the per-base part of that, so while each position in each gene still has a different overall rate, the rate to each base is the same (e.g. A->T is the same as A->G). Run time with this option set is about 10 times faster than the default.'}})
+subargs['simulate'].append({'name' : '--no-per-base-mutation', 'kwargs' : {'action' : 'store_true', 'help' : 'By default the simulation uses both a different SHM rate for each position in each gene, and also a different rate to each base for each of these positions (e.g. position 37 in IGHV1-2*02 might mutate 3x as much as neighboring bases, and it might mutate to T twice as often as G). This option turns off the per-base part of that, so while each position in each gene still has a different overall rate, the rate to each base is the same (e.g. A->T is the same as A->G). Run time with this option set is about 10 times faster than the default. NOTE also --no-per-base-mfreqs'}})
 # shm indels:
 subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' : 0., 'type' : float, 'help' : 'fraction of simulated sequences with SHM indels'}})
 subargs['simulate'].append({'name' : '--n-indels-per-indeld-seq', 'kwargs' : {'default' : '1:2', 'help' : 'list of integers from which to choose the number of SHM indels in each sequence that we\'ve already decided has indels'}})

@@ -402,7 +402,7 @@ class PartitionDriver(object):
                 print '  %s seed uids from args and cpath don\'t match %s %s ' % (utils.color('red', 'error'), self.args.seed_unique_id, cpath.seed_unique_id)
             seed_uid = cpath.seed_unique_id
             print utils.color('green', 'partitions:')
-            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices, calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'), print_cluster_indices=True)
+            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices, calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'), print_partition_indices=True)
             if not self.args.is_data and self.reco_info is not None:  # if we're reading existing output, it's pretty common to not have the reco info even when it's simulation, since you have to also pass in the simulation input file on the command line
                 true_partition = utils.get_true_partition(self.reco_info)
                 true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
@@ -914,7 +914,7 @@ class PartitionDriver(object):
 
         naive_seq_list = []
         assert parameter_dir is not None
-        threshold = self.get_naive_hamming_bounds(parameter_dir)[0]  # lo and hi are the same
+        threshold = self.get_hfrac_bounds(parameter_dir)[0]  # lo and hi are the same
         cached_naive_seqs = self.get_cached_hmm_naive_seqs()
         for uid in self.sw_info['queries']:
             if uid not in cached_naive_seqs:
@@ -949,37 +949,19 @@ class PartitionDriver(object):
         return cpath
 
     # ----------------------------------------------------------------------------------------
-    def get_naive_hamming_bounds(self, parameter_dir=None, overall_mute_freq=None):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
+    def get_hfrac_bounds(self, parameter_dir):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
         if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
             return self.cached_naive_hamming_bounds
 
-        if parameter_dir is not None:
-            assert overall_mute_freq is None
-            mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-            mute_freq = mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
-        else:
-            assert overall_mute_freq is not None
-            mute_freq = overall_mute_freq
-
-        # just use a line based on two points (mute_freq, threshold)
-        x1, x2 = 0.05, 0.2  # 0.5x, 3x (for 10 leaves)
-
-        if self.args.naive_hamming:  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
-            y1, y2 = 0.035, 0.06
-            lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)
-            hi = lo
+        # this is a bit weird and messy because i just split out the guts into a fcn in utils (long after writing it), and i don't want to fiddle with this too much
+        if self.args.naive_hamming:
+            pmethod = 'naive-hamming'
         elif self.args.naive_vsearch:  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
-            y1, y2 = 0.02, 0.05
-            lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)
-            hi = lo
+            pmethod = 'naive-vsearch'
         else:  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
-            y1, y2 = 0.015, 0.015  # would be nice to get better numbers for this
-            lo = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
-            y1, y2 = 0.08, 0.15
-            hi = utils.intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
-
-        print '       naive hfrac bounds: %.3f %.3f   (%.3f mean mutation in parameter dir %s)' % (lo, hi, mute_freq, parameter_dir)
-        self.cached_naive_hamming_bounds = (lo, hi)
+            pmethod = 'likelihood'
+        self.cached_naive_hamming_bounds = utils.get_naive_hamming_bounds(pmethod, parameter_dir=parameter_dir)
+        print '       naive hfrac bounds: %.3f %.3f' % self.cached_naive_hamming_bounds
         return self.cached_naive_hamming_bounds
 
     # ----------------------------------------------------------------------------------------
@@ -1012,7 +994,7 @@ class PartitionDriver(object):
                 cmd_str += ' --partition'
                 cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
 
-                hfrac_bounds = self.get_naive_hamming_bounds(parameter_dir)
+                hfrac_bounds = self.get_hfrac_bounds(parameter_dir)
                 if self.args.naive_hamming:  # shouldn't be able to happen, but...
                     assert hfrac_bounds[0] == hfrac_bounds[1]
                 cmd_str += ' --hamming-fraction-bound-lo ' + str(hfrac_bounds[0])

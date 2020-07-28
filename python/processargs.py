@@ -94,8 +94,14 @@ def process(args):
     args.paired_loci = utils.get_arg_list(args.paired_loci, choices=utils.loci)
     if args.paired_loci is not None:
         if len(args.paired_loci) != 2:
-            raise Exception('--paired-loci must be length two: can only do either igh:igk or igh:igl, not arbitrary mixtures or k and l')
+            raise Exception('--paired-loci must be length two: can only do either igh:igk or igh:igl, not arbitrary mixtures of k and l')
         args.locus = None
+        for argstr in ['infname', 'outfname', 'parameter-dir']:
+            argvals = [getattr(args, (lstr+argstr).replace('-', '_')) for lstr in ['', 'light-chain-']]
+            if argvals.count(None) == 1:
+                raise Exception('--paired-loci is set, so either both or neither of --%s and --light-chain-%s must be set (exactly one was set)' % (argstr, argstr))
+    if args.action == 'merge-paired-partitions':
+        assert args.paired_loci is not None
 
     args.only_genes = utils.get_arg_list(args.only_genes)
     args.queries = utils.get_arg_list(args.queries)
@@ -201,6 +207,11 @@ def process(args):
     if os.path.exists(args.workdir):
         raise Exception('workdir %s already exists' % args.workdir)
 
+    if args.paired_loci is not None:
+        if args.outfname is None:  # need to write each locus's output to disk so we can merge their partition paths
+            args.outfname = get_dummy_outfname(args.workdir)
+            args.light_chain_outfname = get_dummy_outfname(args.workdir, light_chain=True)
+
     if args.batch_system == 'sge' and args.batch_options is not None:
         if '-e' in args.batch_options or '-o' in args.batch_options:
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
@@ -279,7 +290,7 @@ def process(args):
 
         if args.outfname is None:
             print '  note: no --outfname specified, so nothing will be written to disk'
-            args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the whole run_simulation() in bin/partis to handle None type outfname
+            args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the whole run_simulation() in bin/partis to handle None type outfname UPDATE also if --paired-loci is set, we need the output files for each locus written to disk so we can merge the trees
             if args.paired_loci is not None:
                 assert args.light_chain_outfname is None  # wouldn't make sense to set this but not the plain one
                 args.light_chain_outfname = get_dummy_outfname(args.workdir, light_chain=True)
@@ -292,7 +303,7 @@ def process(args):
 
         if args.paired_loci is not None:
             if args.rearrange_from_scratch or args.mutate_from_scratch:
-                raise Exception('--rearrange-from-scratch and --mutate-from-scratch are too complicated to propagate through the automatic --paired-loci infrastructure. You should run the three steps by hand instead (tree generation, heavy simulation, and light simulation -- run --paired-loci with default parameters to see what these three commands should look like)')
+                raise Exception('--rearrange-from-scratch and --mutate-from-scratch are too complicated to propagate through the automatic --paired-loci infrastructure. If you need these two scratch args, you should run the three steps by hand instead (tree generation, heavy simulation, and light simulation -- run --paired-loci with default parameters to see what these three commands should look like)')
             if args.parameter_dir is not None:
                 if args.light_chain_parameter_dir is None:
                     raise Exception('if --paired-loci and --parameter-dir are set, --light-chain-parameter-dir must also be set')
@@ -363,7 +374,7 @@ def process(args):
         args.allele_cluster = False
         args.dont_find_new_alleles = True
 
-    if args.infname is None and args.action not in ['simulate', 'view-output', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info']:
+    if args.infname is None and args.action not in ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info']:
         raise Exception('--infname is required for action \'%s\'' % args.action)
 
     if args.action == 'get-linearham-info':

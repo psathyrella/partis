@@ -3588,7 +3588,7 @@ def split_clusters_by_cdr3(partition, sw_info, warn=False):
             new_partition.append(cluster)
         else:
             n_split += 1
-            split_clusters = [list(group) for _, group in itertools.groupby(sorted(cluster, key=lambda q: sw_info[q]['cdr3_length']), key=lambda q: sw_info[q]['cdr3_length'])]
+            split_clusters = [list(group) for _, group in itertools.groupby(sorted(cluster, key=lambda q: sw_info[q]['cdr3_length']), key=lambda q: sw_info[q]['cdr3_length'])]  # TODO i think this should really be using group_seqs_by_value()
             for sclust in split_clusters:
                 new_partition.append(sclust)
     if warn and n_split > 0:
@@ -3596,10 +3596,14 @@ def split_clusters_by_cdr3(partition, sw_info, warn=False):
     return new_partition
 
 # ----------------------------------------------------------------------------------------
-def get_true_partition(reco_info, ids=None):
+def get_true_partition(reco_info, ids=None, true_annotation_list=None):
     # Two modes:
     #  - if <ids> is None, it returns the actual, complete, true partition.
     #  - if <ids> is set, it groups them into the clusters dictated by the true partition in/implied by <reco_info> NOTE these are not, in general, complete clusters
+    # Can also specify either reco_info (dict keyed by id) or true_annotation_list (list of annotations)
+    if true_annotation_list is not None:
+        assert reco_info is None
+        reco_info = {u : {'reco_id' : l['reco_id']} for l in true_annotation_list for u in l['unique_ids']}  # reco_info is always single-sequence (for historical reasons)
     if ids is None:
         ids = reco_info.keys()
     def keyfunc(q):
@@ -3635,9 +3639,14 @@ def get_cluster_ids(uids, partition):
 
 # ----------------------------------------------------------------------------------------
 # return a new list of partitions that has no duplicate uids (choice as to which cluster gets to keep a duplicate id is entirely random [well, it's the first one that has it, so not uniform random, but you can't specify it])
-def get_deduplicated_partitions(partitions):  # not using this atm since i wrote it for use in clusterpath, but then ended up not needing it
+def get_deduplicated_partitions(partitions, debug=False):  # not using this atm since i wrote it for use in clusterpath, but then ended up not needing it UPDATE now using it during paired clustering resolution, but maybe only temporarily
+    if debug:
+        print '    deduplicating %d partitions' % len(partitions)
     new_partitions = [[] for _ in partitions]
     for ipart in range(len(partitions)):
+        if debug:
+            print '      ipart %d: %d clusters: %d unique vs %d total uids (sum of cluster sizes)' % (ipart, len(partitions[ipart]), len(set(u for c in partitions[ipart] for u in c)), sum(len(c) for c in partitions[ipart]))
+            duplicated_uids = set()
         previously_encountered_uids = set()
         for cluster in partitions[ipart]:
             new_cluster = copy.deepcopy(cluster)  # need to make sure not to modify the existing partitions
@@ -3645,13 +3654,22 @@ def get_deduplicated_partitions(partitions):  # not using this atm since i wrote
             previously_encountered_uids |= set(new_cluster)
             if len(new_cluster) > 0:
                 new_partitions[ipart].append(new_cluster)
+            if debug and len(new_cluster) < len(cluster):
+                print '         removed %d uids from cluster of size %d' % (len(cluster) - len(new_cluster), len(cluster))
+                duplicated_uids |= set(cluster) - set(new_cluster)
+        if debug:
+            print '      %d uids appeared more than once%s' % (len(duplicated_uids), (':  ' + ' '.join(duplicated_uids)) if len(duplicated_uids) < 10 else '')
     return new_partitions
 
 # ----------------------------------------------------------------------------------------
 def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None, debug=False):
     if seed_unique_id is None:
         check_intersection_and_complement(partition, true_partition)
-    reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # just a teensy lil' optimization
+    if reco_info is None:  # build a dummy reco_info that just has reco ids
+        def tkey(c): return ':'.join(c)
+        chashes = {tkey(tc) : hash(tkey(tc)) for tc in true_partition}
+        reco_info = {u : {'reco_id' : chashes[tkey(tc)]} for tc in true_partition for u in tc}
+    reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # speed optimization
     uids = set([uid for cluster in partition for uid in cluster])
     clids = get_cluster_ids(uids, partition)  # map of {uid : (index of cluster in <partition> in which that uid occurs)} (well, list of indices, in case there's duplicates)
 
@@ -3823,13 +3841,12 @@ def find_uid_in_partition(uid, partition):
 # ----------------------------------------------------------------------------------------
 def check_intersection_and_complement(part_a, part_b):
     """ make sure two partitions have identical uid lists """
-
     uids_a = set([uid for cluster in part_a for uid in cluster])
     uids_b = set([uid for cluster in part_b for uid in cluster])
     a_not_b = uids_a - uids_b
     b_not_a = uids_b - uids_a
-    if len(a_not_b) > 0 or len(b_not_a) > 0:
-        raise Exception('partitions don\'t have the same uids')
+    if len(a_not_b) > 0 or len(b_not_a) > 0:  # NOTE this should probably also warn/pring if either of 'em has duplicate uids on their own
+        raise Exception('partition a (%d total) and partition b (%d total) don\'t have the same uids:   only a %d    only b %d    common %d' % (sum(len(c) for c in part_a), sum(len(c) for c in part_b), len(a_not_b), len(b_not_a), len(uids_a & uids_b)))
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_list_for_sklearn(part_a, part_b):
@@ -4126,6 +4143,38 @@ def intexterpolate(x1, y1, x2, y2, x):
     return m * x + b
 
 # ----------------------------------------------------------------------------------------
+def get_naive_hamming_bounds(partition_method, parameter_dir=None, overall_mute_freq=None):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
+    if parameter_dir is not None:
+        assert overall_mute_freq is None
+        from hist import Hist
+        mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
+        mute_freq = mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
+    else:
+        assert overall_mute_freq is not None
+        mute_freq = overall_mute_freq
+
+    # just use a line based on two points (mute_freq, threshold)
+    x1, x2 = 0.05, 0.2  # 0.5x, 3x (for 10 leaves)
+
+    if partition_method == 'naive-hamming':  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
+        y1, y2 = 0.035, 0.06
+        lo = intexterpolate(x1, y1, x2, y2, mute_freq)
+        hi = lo
+    elif partition_method == 'naive-vsearch':  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
+        y1, y2 = 0.02, 0.05
+        lo = intexterpolate(x1, y1, x2, y2, mute_freq)
+        hi = lo
+    elif partition_method == 'likelihood':  # these should almost never merge non-clonal sequences or split clonal ones, i.e. they're appropriate for naive hamming preclustering if you're going to then run the full likelihood (i.e. anything less than lo is almost certainly clonal, anything greater than hi is almost certainly not)
+        y1, y2 = 0.015, 0.015  # would be nice to get better numbers for this
+        lo = intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
+        y1, y2 = 0.08, 0.15
+        hi = intexterpolate(x1, y1, x2, y2, mute_freq)  # ...and never merge 'em if it's bigger than this
+    else:
+        assert False
+
+    return lo, hi
+
+# ----------------------------------------------------------------------------------------
 def find_genes_that_have_hmms(parameter_dir):
     yamels = glob.glob(parameter_dir + '/hmms/*.yaml')
     if len(yamels) == 0:
@@ -4219,7 +4268,7 @@ def split_partition_with_criterion(partition, criterion_fcn):  # this would prob
     return true_clusters, false_clusters
 
 # ----------------------------------------------------------------------------------------
-def group_seqs_by_value(queries, keyfunc):
+def group_seqs_by_value(queries, keyfunc):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
     return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
 
 # ----------------------------------------------------------------------------------------
@@ -4242,7 +4291,7 @@ def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  #
     return partition
 
 # ----------------------------------------------------------------------------------------
-def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):
+def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is (atm) only used for naive vsearch clustering
     naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
     naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
     for uid, naive_seq in naive_seq_list:
@@ -4910,7 +4959,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
-    return glfo, annotation_list, cpath
+    return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 
 # ----------------------------------------------------------------------------------------
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
@@ -4935,7 +4984,7 @@ def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_
     if len(partition_lines) > 0:  # *don't* combine this with the cluster path constructor, since then we won't modify the path passed in the arguments
         cpath.readlines(partition_lines)
 
-    return glfo, annotation_list, cpath
+    return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 
 # ----------------------------------------------------------------------------------------
 def get_gene_counts_from_annotations(annotations, only_regions=None):
