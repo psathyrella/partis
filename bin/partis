@@ -304,45 +304,42 @@ def run_paired_heavy_light(args):
             utils.write_annotations(args.outfname, hglfo, heavy_annotations, headers, synth_single_seqs=utils.getsuffix(args.outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
             utils.write_annotations(args.light_chain_outfname, lglfo, light_annotations, headers, synth_single_seqs=utils.getsuffix(args.light_chain_outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
         else:
+            cpaths = {'h' : hcpath, 'l' : lcpath}  # TODO combine this with the above
+            annotation_lists = {'h' : heavy_annotations, 'l' : light_annotations}
             print '  synchronizing heavy and light chain cluster paths'
-            h_true_partition, l_true_partition = None, None
-            if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-                _, h_true_annotations, h_true_cpath = utils.read_output(args.infname, dont_add_implicit_info=True) #skip_annotations=True) #
-                _, l_true_annotations, l_true_cpath = utils.read_output(args.light_chain_infname, dont_add_implicit_info=True) #skip_annotations=True) #
-                if len(h_true_cpath.partitions) == 0:
-                    h_true_partition = utils.get_true_partition(None, true_annotation_list=h_true_annotations)
-                    l_true_partition = utils.get_true_partition(None, true_annotation_list=l_true_annotations)
-                else:
-                    assert False  # can't happen until i start writing the true partitions to the simulation files TODO
-                    h_true_partition = h_true_cpath.partitions[h_true_cpath.i_best]
-                    l_true_partition = l_true_cpath.partitions[l_true_cpath.i_best]
-                # print utils.new_ccfs_that_need_better_names(h_true_partition, l_true_partition, None)
-                # assert h_true_partition == l_true_partition  # wtf, this fails (i think because i'm not syncing reco_ids in treeutils.merge_heavy_light_trees()
-# TODO see if check_partitions is slow
-# TODO loop over chains rather than duplicating all the code
             joint_partition = hcpath.merge_light_chain(lcpath, heavy_annotations, light_annotations, check_partitions=True, debug=False)  # , h_ipart=5
-            # print set([u for c in hcpath.partitions[hcpath.i_best] for u in c]) - set([u for c in h_true_partition for u in c])
 
-            def incorporate_duplicates(tpart, dup_dict):
-                for tclust in tpart:
-                    for uid in tclust:
-                        if uid in dup_dict:
-                            tclust += dup_dict[uid]
-            h_part = hcpath.partitions[hcpath.i_best]
-            h_duplicates = {u : l['duplicates'][i] for l in heavy_annotations for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
-            incorporate_duplicates(h_part, h_duplicates)
-            print '    h: ', utils.new_ccfs_that_need_better_names(h_part, h_true_partition, None)
+            h_true_partition, l_true_partition = None, None
+# TODO stop reading true annotations here after you start writing true partitions to simulation files
+            if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
+                # ----------------------------------------------------------------------------------------
+                def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
+                    for tclust in tpart:
+                        for uid in tclust:
+                            if uid in dup_dict:
+                                tclust += dup_dict[uid]
 
-            l_part = lcpath.partitions[lcpath.i_best]
-            l_duplicates = {u : l['duplicates'][i] for l in light_annotations for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
-            incorporate_duplicates(l_part, l_duplicates)
-            print '    l: ', utils.new_ccfs_that_need_better_names(l_part, l_true_partition, None)
+                # ----------------------------------------------------------------------------------------
+                true_partitions = {}
+                cmp_partitions = {}  # (potentially) modified versions of the heav/light partitions
+                for chain, ifn in (('h', args.infname), ('l', args.light_chain_infname)):
+                    _, true_annotations, true_cpath = utils.read_output(ifn, dont_add_implicit_info=True) #skip_annotations=True) #
+                    if len(true_cpath.partitions) == 0:
+                        true_partitions[chain] = utils.get_true_partition(None, true_annotation_list=true_annotations)
+                    else:
+                        assert False  # can't happen until i start writing the true partitions to the simulation files TODO
+                        true_partitions[chain] = true_cpath.partitions[true_cpath.i_best]
 
-            incorporate_duplicates(joint_partition, h_duplicates)
-            incorporate_duplicates(joint_partition, l_duplicates)
-            j_part = utils.get_deduplicated_partitions([joint_partition])[0]  # TODO why do i need this?
-            print 'joint (h true): ', utils.new_ccfs_that_need_better_names(j_part, h_true_partition, None)
-            print 'joint (l true): ', utils.new_ccfs_that_need_better_names(j_part, l_true_partition, None)
+                    cmp_partitions[chain] = cpaths[chain].partitions[cpaths[chain].i_best]
+                    dup_dict = {u : l['duplicates'][i] for l in annotation_lists[chain] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
+                    incorporate_duplicates(cmp_partitions[chain], dup_dict)
+                    pur, compl = utils.new_ccfs_that_need_better_names(cmp_partitions[chain], true_partitions[chain], None)
+                    print '    %s: %6.3f %6.3f' % (chain, pur, compl)
+
+                    incorporate_duplicates(joint_partition, dup_dict)  # NOTE this modifies joint_partition, so it's different for the second chain than for the first one
+                    j_part = utils.get_deduplicated_partitions([joint_partition])[0]  # TODO why do i need this?
+                    pur, compl = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain], None)
+                    print 'joint (%s true): %6.3f %6.3f' % (chain, pur, compl)
 
     # ----------------------------------------------------------------------------------------
     utils.prep_dir(args.workdir)
