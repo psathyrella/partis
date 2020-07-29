@@ -587,6 +587,9 @@ def merge_heavy_light_trees(hline, lline, debug=False):
     assert len(hline['unique_ids']) == len(lline['unique_ids'])
     hdtree = get_dendro_tree(treestr=hline['tree'])
     ldtree = get_dendro_tree(treestr=lline['tree'])
+    joint_reco_id = str(hash(hline['reco_id'] + lline['reco_id']))
+    hline['reco_id'] = joint_reco_id
+    lline['reco_id'] = joint_reco_id
     for iuid, (huid, luid) in enumerate(zip(hline['unique_ids'], lline['unique_ids'])):
         joint_uid = str(hash(huid + luid))
         hline['unique_ids'][iuid] = joint_uid
