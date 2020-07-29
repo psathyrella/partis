@@ -220,23 +220,32 @@ class Recombinator(object):
             return None
 
         version_freq_table = {}
+        n_skipped_gene, n_skipped_cdr3, n_used = 0, 0, 0
+        cdr3_counts = {}
         with open(self.reco_parameter_dir + '/' + utils.get_parameter_fname('all', 'r')) as infile:
             in_data = csv.DictReader(infile)
             total = 0.0
             for line in in_data:  # NOTE do *not* assume the file is sorted
-                skip = False
-                for region in utils.regions:
-                    if line[region + '_gene'] not in self.glfo['seqs'][region]:
-                        skip = True
-                        break
+                if any(line[region + '_gene'] not in self.glfo['seqs'][region] for region in utils.regions):
+                    n_skipped_gene += float(line['count'])
+                    continue
                 if self.args.allowed_cdr3_lengths is not None and int(line['cdr3_length']) not in self.args.allowed_cdr3_lengths:
-                    skip = True
-                if skip:
+                    n_skipped_cdr3 += float(line['count'])  #  NOTE this isn't really right if we're also skipping genes above, but whatever (well it's not really wrong, but it'd be different if we did it before the gene skipping rather than after)
                     continue
                 total += float(line['count'])
                 index = self.freqtable_index(line)
                 assert index not in version_freq_table
                 version_freq_table[index] = float(line['count'])
+                n_used += float(line['count'])
+                if self.args.allowed_cdr3_lengths is not None:  # maybe it's worth printing what the final cdr3 length breakdown is? (so it's obvious if e.g. you asked for 27, 30, 33 but only got 33)
+                    if int(line['cdr3_length']) not in cdr3_counts:
+                        cdr3_counts[int(line['cdr3_length'])] = 0
+                    cdr3_counts[int(line['cdr3_length'])] += float(line['count'])
+            if n_skipped_gene > 0:
+                print '    skipped %.0f / %.0f (%.3f) vdj freq counts with genes not in glfo (used %.0f)' % (n_skipped_gene, n_skipped_gene + n_used, n_skipped_gene / (n_skipped_gene + n_used), n_used)
+            if n_skipped_cdr3 > 0:
+                print '    skipped %.0f / %.0f (%.3f) vdj freq counts with cdr3 lengths not among [%s] (used %.0f)' % (n_skipped_cdr3, n_skipped_cdr3 + n_used, n_skipped_cdr3 / (n_skipped_cdr3 + n_used), ' '.join(str(c) for c in self.args.allowed_cdr3_lengths), n_used)
+                print '       final cdr3 lengths: %s' % '   '.join(('%d: %.0f'%(l, cdr3_counts[l])) for l in sorted(cdr3_counts))
 
         if len(version_freq_table) == 0:
             raise Exception('didn\'t find any gene combinations in %s' % self.reco_parameter_dir + '/' + utils.get_parameter_fname('all', 'r'))
