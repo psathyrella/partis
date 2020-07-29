@@ -496,16 +496,10 @@ def synthesize_single_seq_line(line, iseq):
     singlefo = {}
     for key in line:
         if key in linekeys['per_seq']:
-            singlefo[key] = [copy.deepcopy(line[key][iseq]), ]
+            singlefo[key] = [line[key][iseq], ]  # used to also deepcopy the per-seq value, but it's really slow and i really think there's no reason to
         else:
             singlefo[key] = copy.deepcopy(line[key])
     return singlefo
-
-# # ----------------------------------------------------------------------------------------
-# # what the fuck was the point of this function? Isn't <multifo> just what you'd get out of it?
-# def synthesize_multi_seq_line(uids, multifo):  # assumes you already added all the implicit info
-#     reco_info = {multifo['unique_ids'][iseq] : synthesize_single_seq_line(multifo, iseq) for iseq in range(len(multifo['unique_ids']))}
-#     return synthesize_multi_seq_line_from_reco_info(uids, reco_info)
 
 # ----------------------------------------------------------------------------------------
 def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you already added all the implicit info

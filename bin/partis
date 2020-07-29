@@ -309,7 +309,6 @@ def run_paired_heavy_light(args):
             print '  synchronizing heavy and light chain cluster paths'
             joint_partition = hcpath.merge_light_chain(lcpath, heavy_annotations, light_annotations, check_partitions=True, debug=False)  # , h_ipart=5
 
-            h_true_partition, l_true_partition = None, None
 # TODO stop reading true annotations here after you start writing true partitions to simulation files
             if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
                 # ----------------------------------------------------------------------------------------

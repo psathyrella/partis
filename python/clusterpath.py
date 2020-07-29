@@ -605,6 +605,7 @@ class ClusterPath(object):
             self.trees[i_cluster] = self.make_single_tree(sub_partitions, sub_annotations, uid_set, naive_seq_name, get_fasttrees=get_fasttrees, debug=debug)
 
     # ----------------------------------------------------------------------------------------
+    # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
     def merge_light_chain(self, lcpath, heavy_annotations, light_annotations, h_ipart=None, l_ipart=None, check_partitions=False, debug=False):  # this assumes <self> is the heavy chain path, but it doesn't really need to be NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
         # ----------------------------------------------------------------------------------------
         def akey(klist):

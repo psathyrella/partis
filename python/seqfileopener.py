@@ -245,7 +245,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         if not is_data:
             if 'v_gene' not in line:
                 raise Exception('simulation info not found in %s' % infname)
-            reco_info[uid] = copy.deepcopy(line)
+            reco_info[uid] = line  # this used to be deepcopy'd, but it's really slow and i'm really pretty sure it's not necessary
             if uid != line['unique_ids'][0] and not printed_simu_mismatch_warning:
                 print '     note: uid in simulation info %s doesn\'t match input file uid %s (latter was probably changed above). Simulation info will be internally consistent, but the key indexing that info in <reco_info> will be different, since it corresponds to the newly chosen uid above.' % (uid, line['unique_ids'][0])
                 printed_simu_mismatch_warning = True
