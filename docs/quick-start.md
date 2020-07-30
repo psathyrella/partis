@@ -8,6 +8,7 @@ Assuming you don't pass it a parameter dir, it will also first infer parameters,
 
 Note that all input must be plus strand sequences, and if this isn't human igh you must set the `--species {human,mouse,macaque}` and/or `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
 If your input file has a mix of different loci (e.g. igk and igl are together), you'll need to run `./bin/split-loci.py` to split them into separate files.
+If you have heavy/light pairing information, you can incorporate it as described [here](subcommands.md#paired-heavy-and-light-chains).
 If you're using Docker, and you mounted your host filesystem as described [here](install.md#installation-with-docker), you should replace `/path/to` with the appropriate host mount point within Docker.
 To parallelize on your local machine, add `--n-procs N`; to paralellize over many machines, the slurm and sge batch systems are currently supported (details [here](parallel.md)).
 

@@ -1,5 +1,6 @@
   - [annotate](#annotate) find most likely annotation for each sequence
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
+  - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to synchronize/improve partitions from heavy and light chains
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
   - [view-output](#view-output) print the partitions and/or annotations from an existing output file
   - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, runs automatically before annotation and partitioning)
@@ -120,6 +121,34 @@ The columns are:
   * total number of viterbi, forward, and naive hamming fraction calculations that have so far been made
   * total number of cluster merges that have so far been performed, broken down into hamming fraction merges and likelihood ratio (i.e. forward calculation) merges
   * a list of all cluster sizes in the current partition
+
+### merge-paired-partitions
+
+In order to partition data that has heavy/light chain pairing information, each locus must first be split into separate files.
+One quick way to do this is by running `./bin/split-loci.py`.
+Each pair of heavy/light sequences must also have the same unique id: this is how partis determines which sequences in the heavy and light files go together.
+The paired clustering entails two steps: first clustering each locus individually, and then merging the information from each locus pairing to create a joint partition.
+In many cases, for example, the second step simply involves splitting light chain clusters that have different heavy chain cdr3 lengths.
+Since light chains are many orders of magnitude less diverse, this results in a vastly more accurate light chain partition.
+
+If you were only running igh/igk pairing, you could do both steps with one command:
+```
+partis partition --paired-loci igh:igk --infname <igh-input-file> --light-chain-infname <igk-input-file> --outfname <igh-output-file> --light-chain-outfname <igk-output-file>
+```
+Alternatively, you can partition each locus separately:
+```
+for locus in igh igk igl; do
+	partis partition --locus --infname <$locus-input-file> --outfname <$locus-output-file>
+done
+```
+then merge each heavy/light pairing
+```
+for hlpair in igh:igk igh:igl; do
+	partis merge-paired-partitions --paired-loci $hlpair --outfname <heavy-partition-file> --light-chain-outfname <light-partition-file> --paired-outfname <$hlpair-joint-output-file>
+done
+```
+
+You can also simulate paired heavy/light repertoires (see below).
 
 ### get-selection-metrics
 
@@ -243,6 +272,13 @@ Running bcr-phylo for 3. is handled by running `./bin/bcr-phylo-run.py`.
 This should work fine with no arguments, but in order to change the script's many options run with `--help`, and also look at the corresponding options in [packages/bcr-phylo-benchmark/bin/simulator.py](packages/bcr-phylo-benchmark/bin/simulator.py).
 Note that by default bcr-phylo-run.py turns off context-dependent mutation in bcr-phylo, since this is much faster, but if you want it to mutate with the S5F model you can set `--context-depend`.
 
+You can also simulate paired heavy/light repertoires, for example:
+```
+partis simulate --paired-loci igh:igk --parameter-dir /path/to/igh/parameters --light-chain-parameter-dir /path/to/igk/parameters --outfname simu-igh.yaml --light-chain-outfname simu-igk.yaml
+```
+This first generates a series of trees (as normal), then for each locus simulates a rearrangement event for each tree in order.
+The result is that each of the events in the heavy chain output file corresponds (in order) to an event in the light chain output file with the same sequence ids and stemming from the same tree.
+
 Partly because the simulation is so easy to parallelize (use `--n-procs N` and see [here](parallel.md)), its run time is not usually a limiting factor.
 With default parameters, 10,000 sequences takes about 8 minutes with one core (so a million sequences on ten cores would take an hour and a half), although this depends a lot on the family size distribution and mutation levels you specify.
 If you don't care very much about the details of the mutation model, you can get a factor of ten speedup by setting `--no-per-base-mutation`, which uses a simpler model in bppseqgen that doesn't account for different rates to different bases (e.g. A->T vs A->G).
@@ -349,18 +385,6 @@ You can then add novel alleles to the germline set by telling it how many novel 
 
 ### Miscellany
 
-##### paired heavy and light chains
-
-At the moment, paired sequences are only supported in simulation.
-To simulated paired data set the `--paired-loci` option, e.g.:
-
-```
-./bin/partis simulate --paired-loci igh:igk --parameter-dir /path/to/igh/parameters --light-chain-parameter-dir /path/to/igk/parameters --outfname simu-igh.yaml --light-chain-outfname simu-igk.yaml
-```
-
-This first generates a series of trees (as normal), then for each locus simulates a rearrangement event for each tree in order.
-The result is that each of the events in the heavy chain output file corresponds (in order) to an event in the light chain output file with the same sequence ids and stemming from the same tree.
-
 ##### naive probability estimates
 
 The script `bin/get-naive-probabilities.py` is designed to answer the question "What is the probability of a particular rearrangement in this sample?".
@@ -386,5 +410,6 @@ seq-2:
   timepoint: +7d
 ```
 
-Currently accepted keys are multiplicity, affinity, subject, and timepoint; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities, to accomodate multi-sequence annotations).
-When caching parameters, partis by default removes constant regions (5' of v and 3' of j) and collapses any resulting duplicate sequences into the [duplicates key](output-formats.md); the number of such sequences is then added to any multiplicities from `--input-metafname` (see `--dont-remove-framework-insertions`).
+Currently accepted keys are multiplicity, affinity, subject, timepoint, and constant-region; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities, to accomodate multi-sequence annotations).
+When caching parameters, partis by default removes constant regions (5' of v and 3' of j).
+If --collapse-duplicate-sequences is set, it then collapses any duplicate sequences into the [duplicates key](output-formats.md); the number of such sequences is then added to any multiplicities from `--input-metafname` (see also `--dont-remove-framework-insertions`).

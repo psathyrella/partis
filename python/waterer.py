@@ -240,8 +240,9 @@ class Waterer(object):
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
 
         seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']], dont_overwrite_info=just_read_cachefile)  # need to do this before removing duplicates, so the duplicate info (from waterer) can get combined with multiplicities (from input metafo). And, if we just read the cache file, then we already collapsed duplicate so we don't want to overwrite multiplicity info
-        if not self.args.dont_remove_framework_insertions and self.args.is_data:  # don't want to do this on simulation -- it's too much trouble to keep things consistent with the simulation info (it would also screw up the purity/completeness calculation)
+        if not self.args.dont_remove_framework_insertions:
             self.remove_framework_insertions()
+        if self.args.collapse_duplicate_sequences:
             self.remove_duplicate_sequences()
 
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below

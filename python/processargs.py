@@ -170,6 +170,9 @@ def process(args):
 
     args.is_data = not args.is_simu  # whole code base uses is_data, this is better than changing all of that
 
+    if args.collapse_duplicate_sequences and not args.is_data:
+        print '  %s collapsing duplicates on simulation, which is often not a good idea since it makes keeping track of performance harder (e.g. purity/completeness of partitions is harder to calculate)' % utils.color('red', 'warning')
+
     if args.simultaneous_true_clonal_seqs:
         if args.is_data:
             raise Exception('can only pass true clonal families to multi-hmm together on simulation and with --is-simu set')
