@@ -3656,7 +3656,7 @@ def get_deduplicated_partitions(partitions, debug=False):  # not using this atm 
     return new_partitions
 
 # ----------------------------------------------------------------------------------------
-def new_ccfs_that_need_better_names(partition, true_partition, reco_info, seed_unique_id=None, debug=False):
+def new_ccfs_that_need_better_names(partition, true_partition, reco_info=None, seed_unique_id=None, debug=False):
     if seed_unique_id is None:
         check_intersection_and_complement(partition, true_partition)
     if reco_info is None:  # build a dummy reco_info that just has reco ids

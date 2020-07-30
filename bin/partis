@@ -309,7 +309,6 @@ def run_paired_heavy_light(args):
             print '  synchronizing heavy and light chain cluster paths'
             joint_partition = hcpath.merge_light_chain(lcpath, heavy_annotations, light_annotations, check_partitions=True, debug=False)  # , h_ipart=5
 
-# TODO stop reading true annotations here after you start writing true partitions to simulation files
             if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
                 # ----------------------------------------------------------------------------------------
                 def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
@@ -332,12 +331,12 @@ def run_paired_heavy_light(args):
                     cmp_partitions[chain] = cpaths[chain].partitions[cpaths[chain].i_best]
                     dup_dict = {u : l['duplicates'][i] for l in annotation_lists[chain] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
                     incorporate_duplicates(cmp_partitions[chain], dup_dict)
-                    pur, compl = utils.new_ccfs_that_need_better_names(cmp_partitions[chain], true_partitions[chain], None)
+                    pur, compl = utils.new_ccfs_that_need_better_names(cmp_partitions[chain], true_partitions[chain])
                     print '    %s: %6.3f %6.3f' % (chain, pur, compl)
 
                     incorporate_duplicates(joint_partition, dup_dict)  # NOTE this modifies joint_partition, so it's different for the second chain than for the first one
                     j_part = utils.get_deduplicated_partitions([joint_partition])[0]  # TODO why do i need this?
-                    pur, compl = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain], None)
+                    pur, compl = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
                     print 'joint (%s true): %6.3f %6.3f' % (chain, pur, compl)
 
     # ----------------------------------------------------------------------------------------
