@@ -4970,6 +4970,9 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
+    if len(cpath.partitions) == 0 and not skip_annotations:  # old simulation files didn't write the partition separately, but we may as well get it
+        cpath.add_partition(get_true_partition(None, true_annotation_list=annotation_list), -1., 1)
+
     return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 
 # ----------------------------------------------------------------------------------------

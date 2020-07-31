@@ -755,6 +755,11 @@ class ClusterPath(object):
         final_partition = [c for c in final_partition if len(c) > 0]
         # if debug:
         #     print '    final: %s' % ' '.join([str(len(c)) for c in final_partition])
+        def chstr(n_before, n_after):
+            if n_before == n_after: return ''
+            else: return ' ' + utils.color('red', '%+d' % (n_after - n_before))
+        print '   N clusters:\n        h %4d --> %-4d%s\n        l %4d --> %-4d%s'  % (len(init_partitions['h']), len(final_partition), chstr(len(init_partitions['h']), len(final_partition)),
+                                                                                       len(init_partitions['l']), len(final_partition), chstr(len(init_partitions['l']), len(final_partition)))
 
         if check_partitions:
             assert is_clean_partition(final_partition)
