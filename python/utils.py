@@ -2837,14 +2837,22 @@ def merge_csvs(outfname, csv_list, cleanup=True):
 def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False):
     """ NOTE copy of merge_csvs(), which is (apparently) a copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
     merged_annotation_list = []
+    merged_cpath = None
     ref_glfo = None
     n_event_list, n_seq_list = [], []
     for infname in yaml_list:
         glfo, annotation_list, cpath = read_yaml_output(infname, dont_add_implicit_info=True)
         n_event_list.append(len(annotation_list))
         n_seq_list.append(sum(len(l['unique_ids']) for l in annotation_list))
-        if len(cpath.partitions) > 0:  # only used for simulation file merging a.t.m. (which obviously only have one partition [the right one], so they don't need to write the partitions)
-            raise Exception('can\'t yet handle partition merging (use glomerator.py)')
+        if merged_cpath is None:
+            merged_cpath = cpath
+        else:
+            assert len(cpath.partitions) == len(merged_cpath.partitions)
+            assert cpath.i_best == merged_cpath.i_best  # not sure what to do otherwise (and a.t.m. i'm only using this  to merge simulation files, which only ever have one partition)
+            for ip in range(len(cpath.partitions)):
+                merged_cpath.partitions[ip] += cpath.partitions[ip]  # NOTE this assumes there's no overlap between files, e.g. if it's simulation and the files are totally separate
+                merged_cpath.logprobs[ip] += cpath.logprobs[ip]  # they'll be 0 for simulation, but may as well handle it
+                # NOTE i think i don't need to mess with these, but not totally sure: self.n_procs, self.ccfs, self.we_have_a_ccf
         if ref_glfo is None:
             ref_glfo = glfo
         if glfo != ref_glfo:
@@ -2860,7 +2868,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml)
+    write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, partition_lines=merged_cpath.get_partition_lines(True))  # set is_data to True since we can't pass in reco_info and whatnot anyway
 
     return n_event_list, n_seq_list
 
@@ -3834,14 +3842,20 @@ def find_uid_in_partition(uid, partition):
         raise Exception('couldn\'t find %s in %s\n' % (uid, partition))
 
 # ----------------------------------------------------------------------------------------
-def check_intersection_and_complement(part_a, part_b):
+def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='a', b_label='b'):
     """ make sure two partitions have identical uid lists """
     uids_a = set([uid for cluster in part_a for uid in cluster])
     uids_b = set([uid for cluster in part_b for uid in cluster])
+    a_and_b = uids_a & uids_b
     a_not_b = uids_a - uids_b
     b_not_a = uids_b - uids_a
     if len(a_not_b) > 0 or len(b_not_a) > 0:  # NOTE this should probably also warn/pring if either of 'em has duplicate uids on their own
-        raise Exception('partition a (%d total) and partition b (%d total) don\'t have the same uids:   only a %d    only b %d    common %d' % (sum(len(c) for c in part_a), sum(len(c) for c in part_b), len(a_not_b), len(b_not_a), len(uids_a & uids_b)))
+        failstr = '\'%s\' partition (%d total) and \'%s\' partition (%d total) don\'t have the same uids:   only %s %d    only %s %d    common %d' % (a_label, sum(len(c) for c in part_a), b_label, sum(len(c) for c in part_b), a_label, len(a_not_b), b_label, len(b_not_a), len(a_and_b))
+        if only_warn:
+            print '  %s %s' % (color('red', 'warning'), failstr)
+        else:
+            raise Exception(failstr)
+    return a_and_b, a_not_b, b_not_a
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_list_for_sklearn(part_a, part_b):
@@ -4838,6 +4852,8 @@ def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=F
         assert partition_lines is None
         write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs, glfo=glfo, failed_queries=failed_queries)
     elif getsuffix(fname) == '.yaml':
+        if partition_lines is None:
+            partition_lines = clusterpath.ClusterPath(partition=get_partition_from_annotation_list(annotation_list)).get_partition_lines(True)  # setting is_data to True here since we can't pass in reco_info and whatnot anyway
         write_yaml_output(fname, headers, glfo=glfo, annotation_list=annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=use_pyyaml)
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))

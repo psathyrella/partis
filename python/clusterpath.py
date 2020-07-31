@@ -687,6 +687,9 @@ class ClusterPath(object):
             print '  %s using non-best partition index for%s%s' % (utils.color('red', 'note'), (' heavy: %d'%h_ipart) if h_ipart != self.i_best else '', (' light: %d'%l_ipart) if l_ipart != lcpath.i_best else '')
 
         init_partitions = {'h' : self.partitions[h_ipart], 'l' : lcpath.partitions[l_ipart]}
+        common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
+        if len(common_uids) == 0:
+            raise Exception('no uids in common between heavy and light')
         annotation_dict = {'h' : utils.get_annotation_dict(heavy_annotations), 'l' : utils.get_annotation_dict(light_annotations)}
 
         final_partition = []

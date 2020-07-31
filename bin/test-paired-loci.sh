@@ -11,4 +11,4 @@ echo ./bin/partis simulate --parameter-dir $param_dir/igh --light-chain-paramete
 # ./bin/partis simulate --simulate-from-scratch $common --outfname $outdir/simu-igh.yaml --light-chain-outfname $outdir/simu-igk.yaml
 
 common="$ploci --n-procs 10"
-echo ./bin/partis partition --parameter-dir $param_dir/igh --light-chain-parameter-dir $param_dir/igk $common --infname $outdir/simu-igh.yaml --light-chain-infname $outdir/simu-igk.yaml --outfname $outdir/partitions-igh.yaml --light-chain-outfname $outdir/partitions-igk.yaml # --abbreviate
+echo ./bin/partis partition --is-simu --parameter-dir $param_dir/igh --light-chain-parameter-dir $param_dir/igk $common --infname $outdir/simu-igh.yaml --light-chain-infname $outdir/simu-igk.yaml --outfname $outdir/partitions-igh.yaml --light-chain-outfname $outdir/partitions-igk.yaml # --abbreviate
