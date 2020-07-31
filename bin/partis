@@ -294,7 +294,7 @@ def run_paired_heavy_light(args):
     # ----------------------------------------------------------------------------------------
     def combine_chains():  # simulation: synchronize uids and check that trees are compatible, partitioning: merge/synchronize partitions
         # ----------------------------------------------------------------------------------------
-        def get_ccfs():
+        def get_ccfs(joint_partition):
             def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
                 for tclust in tpart:
                     for uid in tclust:
@@ -318,9 +318,9 @@ def run_paired_heavy_light(args):
                 ccfs[chain]['joint'] = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
 
             print '             purity  completeness'
-            for chain, ifn in (('h', args.infname), ('l', args.light_chain_infname)):
+            for chain in ['h', 'l']:
                 print '   %s before  %6.3f %6.3f' % (chain, ccfs[chain]['before'][0], ccfs[chain]['before'][1])
-            for chain, ifn in (('h', args.infname), ('l', args.light_chain_infname)):
+            for chain in ['h', 'l']:
                 print '    joint    %6.3f %6.3f   (%s true)' % (ccfs[chain]['joint'][0], ccfs[chain]['joint'][1], chain)
         # ----------------------------------------------------------------------------------------
         hglfo, heavy_annotations, hcpath = utils.read_output(args.outfname, dont_add_implicit_info=not args.debug)
@@ -339,7 +339,11 @@ def run_paired_heavy_light(args):
             print 'synchronizing heavy and light chain cluster paths'
             joint_partition = hcpath.merge_light_chain(lcpath, heavy_annotations, light_annotations, check_partitions=True, debug=False)  # , h_ipart=5
             if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-                get_ccfs()
+                get_ccfs(joint_partition)
+            if args.outfname is not None:
+                # TODO write joint partition + newly-subsetted annotations to --outfname and --light-chain-outfname
+                pass
+
     # ----------------------------------------------------------------------------------------
     utils.prep_dir(args.workdir)
     work_fnames = []
@@ -435,7 +439,6 @@ parent_parser.add_argument('--seq-column', help='column/key name for nucleotide 
 parent_parser.add_argument('--input-metafname', help='yaml file with meta information for the sequences in --infname (and --queries-to-include-fname), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. Currently accepted keys/columns are \'timepoint\', \'affinity\', \'subject\' and \'multiplicity\'. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parent_parser.add_argument('--outfname', help='output file name')
 parent_parser.add_argument('--light-chain-outfname', help='output file name for light chain sequences when --paired-loci is set (heavy chain sequences are written to --outfname).')
-parent_parser.add_argument('--paired-outfname', help='output file for \'merge-paired-partitions\' action')
 parent_parser.add_argument('--write-full-yaml-output', action='store_true', help='By default, we write yaml output files using the json subset of yaml, since it\'s much faster. If this is set, we instead write full yaml, which is more human-readable (but also much slower).')
 parent_parser.add_argument('--presto-output', action='store_true', help='Write output file(s) in presto/changeo format. Since this format depends on a particular IMGT alignment, this depends on a fasta file with imgt-gapped alignments for all the V, D, and J germline genes. The default in data/germlines/<species>/imgt-alignments/, is probably fine for most cases. For the \'annotate\' action, a single .tsv file is written with annotations (so --outfname suffix must be .tsv). For the \'partition\' action, a fasta file is written with cluster information (so --outfname suffix must be .fa or .fasta), as well as a .tsv in the same directory with the corresponding annotations.')
 parent_parser.add_argument('--airr-output', action='store_true', help='Write output file(s) in AIRR-C format (if --outfname has suffix .tsv, only the airr .tsv is written; however if --outfname has suffix .yaml, both the standard partis .yaml file and an airr .tsv are written). A description of the airr columns can be found here https://docs.airr-community.org/en/stable/datarep/rearrangements.html#fields.')
