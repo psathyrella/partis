@@ -64,14 +64,15 @@ def timeprinter(fcn):
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
 regions = ['v', 'd', 'j']
 constant_regions = ['c', 'm', 'g', 'a', 'd', 'e']  # NOTE d is in here, which is stupid but necessary, so use is_constant_gene()
-loci = {'igh' : 'vdj',
-        'igk' : 'vj',
-        'igl' : 'vj',
-        'tra' : 'vj',
-        'trb' : 'vdj',
-        'trg' : 'vj',
-        'trd' : 'vdj',
-}
+loci = collections.OrderedDict((
+    ('igh', 'vdj'),
+    ('igk', 'vj'),
+    ('igl', 'vj'),
+    ('tra', 'vj'),
+    ('trb', 'vdj'),
+    ('trg', 'vj'),
+    ('trd', 'vdj'),
+))
 isotypes = ['m', 'g', 'k', 'l']
 
 def getregions(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
@@ -4494,13 +4495,13 @@ def read_vsearch_cluster_file(fname):
     return partition
 
 # ----------------------------------------------------------------------------------------
-def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotations=False, debug=False):
+def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annotations=False, debug=False):
     def get_mutation_info(query, matchfo, indelfo):
         tmpgl = glfo['seqs'][region][matchfo['gene']][matchfo['glbounds'][0] : matchfo['glbounds'][1]]
         if indelutils.has_indels(indelfo):
             tmpqr = indelfo['reversed_seq'][matchfo['qrbounds'][0] : matchfo['qrbounds'][1] - indelutils.net_length(indelfo)]
         else:
-            tmpqr = seqs[query][matchfo['qrbounds'][0] : matchfo['qrbounds'][1]]
+            tmpqr = seqdict[query][matchfo['qrbounds'][0] : matchfo['qrbounds'][1]]
         # color_mutants(tmpgl, tmpqr, print_result=True, align=True)
         return hamming_distance(tmpgl, tmpqr, return_len_excluding_ambig=True, return_mutated_positions=True)
 
@@ -4520,7 +4521,7 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
             })
 
     # then we throw out all the matches (genes) that have id/score lower than the best one
-    failed_queries = list(set(seqs) - set(query_info))
+    failed_queries = list(set(seqdict) - set(query_info))
     for query in query_info:
         if len(query_info[query]) == 0:
             print '%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query)
@@ -4545,28 +4546,28 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
     if get_annotations:  # it probably wouldn't really be much slower to just always do this
         for query in query_info:
             matchfo = query_info[query][imatch]
-            v_indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqs[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], {'v' : matchfo['gene']}, vsearch_conventions=True, uid=query)
+            v_indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqdict[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], {'v' : matchfo['gene']}, vsearch_conventions=True, uid=query)
             n_mutations, len_excluding_ambig, mutated_positions = get_mutation_info(query, matchfo, v_indelfo)  # not sure this needs to just be the v_indelfo, but I'm leaving it that way for now
             combined_indelfo = indelutils.get_empty_indel()
             if indelutils.has_indels(v_indelfo):
                 # huh, it actually works fine with zero-length d and j matches, so I don't need this any more
                 # # arbitrarily give the d one base, and the j the rest of the sequence (I think they shouldn't affect anything as long as there's no d or j indels here)
-                # if matchfo['qrbounds'][1] <= len(seqs[query]) - 2:  # if we've got room to give 1 base to d and 1 base to j
+                # if matchfo['qrbounds'][1] <= len(seqdict[query]) - 2:  # if we've got room to give 1 base to d and 1 base to j
                 #     d_start = matchfo['qrbounds'][1]
                 # else:  # ...but if we don't, then truncate the v match
-                #     d_start = len(seqs[query]) - 2
+                #     d_start = len(seqdict[query]) - 2
                 # j_start = d_start + 1
                 # tmpbounds = {
                 #     'v' : (matchfo['qrbounds'][0], d_start),
                 #     'd' : (d_start, j_start),
-                #     'j' : (j_start, len(seqs[query])),
+                #     'j' : (j_start, len(seqdict[query])),
                 # }
                 tmpbounds = {  # add zero-length d and j matches
                     'v' : matchfo['qrbounds'],
                     'd' : (matchfo['qrbounds'][1], matchfo['qrbounds'][1]),
                     'j' : (matchfo['qrbounds'][1], matchfo['qrbounds'][1]),
                 }
-                combined_indelfo = indelutils.combine_indels({'v' : v_indelfo}, seqs[query], tmpbounds)
+                combined_indelfo = indelutils.combine_indels({'v' : v_indelfo}, seqdict[query], tmpbounds)
             annotations[query] = {
                 region + '_gene' : matchfo['gene'],  # only works for v now, though
                 'score' : matchfo['ids'],
@@ -4581,7 +4582,8 @@ def read_vsearch_search_file(fname, userfields, seqs, glfo, region, get_annotati
     return {'gene-counts' : gene_counts, 'annotations' : annotations, 'failures' : failed_queries}
 
 # ----------------------------------------------------------------------------------------
-def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False):  # '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
+def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:'):
+    # note: '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
     #  - pairwise identity definition <--iddef> defaults to: number of (matching columns) / (alignment length - terminal gaps)
@@ -4668,7 +4670,7 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_inde
     if action == 'cluster':
         returnfo = read_vsearch_cluster_file(outfname)
     elif action == 'search':
-        returnfo = read_vsearch_search_file(outfname, userfields, seqs, glfo, region, get_annotations=get_annotations)
+        returnfo = read_vsearch_search_file(outfname, userfields, seqdict, glfo, region, get_annotations=get_annotations)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
         if sum(returnfo['gene-counts'].values()) == 0 and not expect_failure:
             print '%s vsearch couldn\'t align anything to input sequences (cmd below)   %s\n  %s' % (color('yellow', 'warning'), reverse_complement_warning(), cmd)
@@ -4682,7 +4684,9 @@ def run_vsearch(action, seqs, workdir, threshold, match_mismatch='2:-4', no_inde
         if action == 'search':
             # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
             n_passed = int(round(sum(returnfo['gene-counts'].values())))
-            print '  vsearch: %d / %d %s annotations (%d failed) with %d %s gene%s in %.1f sec' % (n_passed, len(seqs), region, len(seqs) - n_passed, len(returnfo['gene-counts']), region, plural(len(returnfo['gene-counts'])), time.time() - start)
+            tw = str(len(str(len(seqlist))))  # width of format str from number of digits in N seqs
+            print ('%s %'+tw+'d / %-'+tw+'d %s annotations (%d failed) with %d %s gene%s in %.1f sec') % (extra_str, n_passed, len(seqlist), region, len(seqlist) - n_passed, len(returnfo['gene-counts']),
+                                                                                                          region, plural(len(returnfo['gene-counts'])), time.time() - start)
         else:
             print 'can\'t yet print time for clustering'
 
