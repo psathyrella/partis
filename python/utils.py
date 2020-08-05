@@ -1969,9 +1969,9 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):
 def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_partition=None, extra_str='    '):
     """ print the true events which contain the seqs in <line> """
     true_naive_seqs = []
-    true_partition_of_line_uids = get_true_partition(reco_info, ids=line['unique_ids'])  # *not* in general the same clusters as in the complete true partition, since <line['unique_ids']> may not contain all uids from all clusters from which it contains representatives
+    true_partition_of_line_uids = get_partition_from_reco_info(reco_info, ids=line['unique_ids'])  # *not* in general the same clusters as in the complete true partition, since <line['unique_ids']> may not contain all uids from all clusters from which it contains representatives
     if full_true_partition is None:
-        full_true_partition = get_true_partition(reco_info)
+        full_true_partition = get_partition_from_reco_info(reco_info)
     for uids in true_partition_of_line_uids:  # make a multi-seq line that has all the seqs from this clonal family
         full_true_clusters = [c for c in full_true_partition if len(set(c) & set(uids_and_dups(line))) > 0]
         assert len(full_true_clusters) == 1
@@ -3600,14 +3600,14 @@ def split_clusters_by_cdr3(partition, sw_info, warn=False):
     return new_partition
 
 # ----------------------------------------------------------------------------------------
-def get_true_partition(reco_info, ids=None, true_annotation_list=None):
+def get_partition_from_annotation_list(annotation_list):
+    return [copy.deepcopy(l['unique_ids']) for l in annotation_list]
+
+# ----------------------------------------------------------------------------------------
+def get_partition_from_reco_info(reco_info, ids=None):
     # Two modes:
     #  - if <ids> is None, it returns the actual, complete, true partition.
     #  - if <ids> is set, it groups them into the clusters dictated by the true partition in/implied by <reco_info> NOTE these are not, in general, complete clusters
-    # Can also specify either reco_info (dict keyed by id) or true_annotation_list (list of annotations)
-    if true_annotation_list is not None:
-        assert reco_info is None
-        reco_info = {u : {'reco_id' : l['reco_id']} for l in true_annotation_list for u in l['unique_ids']}  # reco_info is always single-sequence (for historical reasons)
     if ids is None:
         ids = reco_info.keys()
     def keyfunc(q):
@@ -3620,10 +3620,6 @@ def get_partition_from_str(partition_str):
     clusters = partition_str.split(';')
     partition = [cl.split(':') for cl in clusters]
     return partition
-
-# ----------------------------------------------------------------------------------------
-def get_partition_from_annotation_list(annotation_list):  # I'm adding this pretty late, so there might be code doing this already in a bunch of other places
-    return [copy.deepcopy(l['unique_ids']) for l in annotation_list]
 
 # ----------------------------------------------------------------------------------------
 def get_str_from_partition(partition):
@@ -5004,7 +5000,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
     if len(cpath.partitions) == 0 and not skip_annotations:  # old simulation files didn't write the partition separately, but we may as well get it
-        cpath.add_partition(get_true_partition(None, true_annotation_list=annotation_list), -1., 1)
+        cpath.add_partition(get_partition_from_annotation_list(annotation_list), -1., 1)
 
     return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 

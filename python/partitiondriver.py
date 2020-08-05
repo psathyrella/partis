@@ -404,7 +404,7 @@ class PartitionDriver(object):
             print utils.color('green', 'partitions:')
             cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices, calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'), print_partition_indices=True)
             if not self.args.is_data and self.reco_info is not None:  # if we're reading existing output, it's pretty common to not have the reco info even when it's simulation, since you have to also pass in the simulation input file on the command line
-                true_partition = utils.get_true_partition(self.reco_info)
+                true_partition = utils.get_partition_from_reco_info(self.reco_info)
                 true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
                 true_cp.add_partition(true_partition, -1., 1)
                 print 'true:'
@@ -520,7 +520,7 @@ class PartitionDriver(object):
 
         if self.args.simultaneous_true_clonal_seqs:
             print '    using true clusters instead of partitioning'
-            true_partition = [[uid for uid in cluster if uid in self.sw_info] for cluster in utils.get_true_partition(self.reco_info)]  # mostly just to remove duplicates, although I think there might be other reasons why a uid would be missing
+            true_partition = [[uid for uid in cluster if uid in self.sw_info] for cluster in utils.get_partition_from_reco_info(self.reco_info)]  # mostly just to remove duplicates, although I think there might be other reasons why a uid would be missing
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=true_partition)
         elif self.args.naive_vsearch or self.args.naive_swarm:
             cpath = self.cluster_with_naive_vsearch_or_swarm(parameter_dir=self.sub_param_dir)
@@ -940,7 +940,7 @@ class PartitionDriver(object):
             queries_without_annotations = set(self.input_info) - set(self.sw_info['queries'])
             tmp_partition = copy.deepcopy(partition) + [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
             self.check_partition(tmp_partition)
-            true_partition = utils.get_true_partition(self.reco_info)
+            true_partition = utils.get_partition_from_reco_info(self.reco_info)
             ccfs = utils.new_ccfs_that_need_better_names(tmp_partition, true_partition, reco_info=self.reco_info)
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
@@ -1124,7 +1124,7 @@ class PartitionDriver(object):
             if self.current_action == 'partition' or n_procs > 1:
                 cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
                 if cpath is not None:
-                    cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data, reco_info=self.reco_info, true_partition=utils.get_true_partition(self.reco_info) if not self.args.is_data else None)
+                    cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data, reco_info=self.reco_info, true_partition=utils.get_partition_from_reco_info(self.reco_info) if not self.args.is_data else None)
 
             if algorithm == 'viterbi' and not precache_all_naive_seqs:
                 annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug)
@@ -1682,7 +1682,7 @@ class PartitionDriver(object):
             qlist = self.sw_info['queries']  # shorthand
 
             if self.args.simultaneous_true_clonal_seqs:  # NOTE this arg can now also be set when partitioning, but it's dealt with elsewhere
-                nsets = utils.get_true_partition(self.reco_info, ids=qlist)
+                nsets = utils.get_partition_from_reco_info(self.reco_info, ids=qlist)
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)  # arg, have to split some clusters apart by cdr3, for rare cases where we call an shm indel in j within the cdr3
             elif self.args.all_seqs_simultaneous:  # everybody together
                 nsets = [qlist]
@@ -1923,7 +1923,7 @@ class PartitionDriver(object):
                         perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
 
         if true_pcounter is not None:
-            for uids in utils.get_true_partition(self.reco_info, ids=self.sw_info['queries']):  # NOTE this'll include queries that passed sw but failed the hmm... there aren't usually really any of those
+            for uids in utils.get_partition_from_reco_info(self.reco_info, ids=self.sw_info['queries']):  # NOTE this'll include queries that passed sw but failed the hmm... there aren't usually really any of those
                 true_pcounter.increment(utils.synthesize_multi_seq_line_from_reco_info(uids, self.reco_info))
 
         # parameter and performance writing/plotting
@@ -1990,7 +1990,7 @@ class PartitionDriver(object):
             if outfname is not None:
                 row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
                 if not self.args.is_data:
-                    true_partition = utils.get_true_partition(self.reco_info)
+                    true_partition = utils.get_partition_from_reco_info(self.reco_info)
                     ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info=self.reco_info)
                     row['ccf_under'] = ccfs[0]
                     row['ccf_over'] = ccfs[1]
@@ -2026,7 +2026,7 @@ class PartitionDriver(object):
 
         partition_lines = None
         if cpath is not None:
-            true_partition = utils.get_true_partition(self.reco_info) if not self.args.is_data else None
+            true_partition = utils.get_partition_from_reco_info(self.reco_info) if not self.args.is_data else None
             partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure

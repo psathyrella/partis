@@ -285,7 +285,7 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
     _, reco_info = seqfileopener.get_seqfile_info(seqfname, is_data=False)
     print 'using igh!'
     glfo = glutils.read_glfo(args.gldir, locus='igh')
-    true_partition = utils.get_true_partition(reco_info)
+    true_partition = utils.get_partition_from_reco_info(reco_info)
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
         vname = stype
@@ -600,7 +600,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
 
     true_partition = None
     if args.is_simu:
-        true_partition = utils.get_true_partition(reco_info)
+        true_partition = utils.get_partition_from_reco_info(reco_info)
         parse_true(args, this_info, csvdir, true_partition)
         if 'synthetic' in args.expected_methods:
             parse_synthetic(args, this_info, csvdir, true_partition, get_outputname(args, label, 'synthetic', seqfname, hfrac_bounds))
@@ -857,11 +857,11 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
 #             istart = irep * nseqs
 #             istop = istart + nseqs
 #             uids = uid_list[istart : istop]
-#             true_partition = utils.get_true_partition(reco_info, ids=uids)
+#             true_partition = utils.get_partition_from_reco_info(reco_info, ids=uids)
 #             new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction, error_type=error_type)
 #             # new_partition = utils.generate_incorrect_partition(true_partition, misassign_fraction, error_type='singletons')
 #             new_partitions[nseqs] = new_partition
-#     return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_true_partition(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
+#     return {nseqs : utils.adjusted_mutual_information(new_partitions[nseqs], utils.get_partition_from_reco_info(reco_info, ids=new_partitions[nseqs].keys())) for nseqs in nseq_list}
 
 # ----------------------------------------------------------------------------------------
 def run_changeo(args, label, n_leaves, mut_mult, seqfname):
@@ -953,7 +953,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     adj_mi, ccfs = None, [None, None]
     true_partition = None
     if args.is_simu:
-        true_partition = utils.get_true_partition(reco_info)
+        true_partition = utils.get_partition_from_reco_info(reco_info)
         # subset_of_true_partition = utils.remove_missing_uids_from_true_partition(true_partition, partition)
         # print 'removed from true: %.3f' % utils.adjusted_mutual_information(subset_of_true_partition, partition)
 

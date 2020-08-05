@@ -115,7 +115,7 @@ class Glomerator(object):
     def print_true_partition(self):
         print '  true partition'
         print '   clonal?   ids'
-        true_partition = utils.get_true_partition(self.reco_info)
+        true_partition = utils.get_partition_from_reco_info(self.reco_info)
         for cluster in true_partition:
             print '     %d    %s' % (utils.from_same_event(self.reco_info, cluster),
                                      ':'.join([str(uid) for uid in cluster]))

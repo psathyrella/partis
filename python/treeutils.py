@@ -1357,7 +1357,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
     inf_lines_to_use, true_lines_to_use = None, None
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
         assert reco_info is not None
-        true_partition = utils.get_true_partition(reco_info)
+        true_partition = utils.get_partition_from_reco_info(reco_info)
         print '    using %d true clusters to calculate inferred selection metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True)))
         if debug:
             print '      choosing    N        N       N         frac       (N chosen)'
