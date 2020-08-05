@@ -4582,6 +4582,35 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
     return {'gene-counts' : gene_counts, 'annotations' : annotations, 'failures' : failed_queries}
 
 # ----------------------------------------------------------------------------------------
+# ok this sucks, but the original function below is used in a bunch of places that pass in a dict of seqs, and i don't want to mess with them since they're complicated, but now i also want it to be able to run on inputs with duplicate sequence ids
+def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwargs):
+    # NOTE this is weird but necessary basically because in the normal partis workflows input always goes through seqfileopener, which renames duplicates, but now i want to be able to run this vsearch stuff without that (for bin/split-loci.py), which has .fa input files that i want to allow to have duplicates
+    def get_trid(uid, seq):
+        return '%s-DUP-%d' % (uid, abs(hash(seq)))
+    seqdict = collections.OrderedDict()  # doesn't really need to be ordered here, but oh well
+    for sfo in seqlist:
+        uid = get_trid(sfo['name'], sfo['seq'])
+        if uid in seqdict:
+            raise Exception('can\'t handle multiple entries with both sequence and uid the same')
+        seqdict[uid] = sfo['seq']
+    returnfo = run_vsearch(action, seqdict, workdir, threshold, **kwargs)
+    if set(returnfo) != set(['gene-counts', 'annotations', 'failures']):
+        raise Exception('needs to be updated')
+    annotation_list = []
+    for sfo in seqlist:
+        uid = sfo['name']
+        trid = get_trid(uid, sfo['seq'])
+        if trid not in returnfo['annotations']:
+            assert trid in returnfo['failures']
+            line = {'invalid' : True}
+        else:
+            line = returnfo['annotations'][trid]  # these aren't really annotations, they just have a few random keys. I should've called them something else
+        assert 'unique_ids' not in line  # make sure it wasn't added, since if it was we'd need to change it
+        line['unique_ids'] = [uid]
+        annotation_list.append(line)
+    return annotation_list  # eh, probably don't need this:, returnfo['gene-counts']  # NOTE both annotation_list and <failures> can have duplicate uids in them
+
+# ----------------------------------------------------------------------------------------
 def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:'):
     # note: '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
     # single-pass, greedy, star-clustering algorithm with
@@ -4609,7 +4638,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_i
 
     # write input
     with open(infname, 'w') as fastafile:
-        for name, seq in seqs.items():
+        for name, seq in seqdict.items():
             fastafile.write('>' + name + '\n' + seq + '\n')
 
     # figure out which vsearch binary to use
@@ -4684,8 +4713,8 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_i
         if action == 'search':
             # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
             n_passed = int(round(sum(returnfo['gene-counts'].values())))
-            tw = str(len(str(len(seqlist))))  # width of format str from number of digits in N seqs
-            print ('%s %'+tw+'d / %-'+tw+'d %s annotations (%d failed) with %d %s gene%s in %.1f sec') % (extra_str, n_passed, len(seqlist), region, len(seqlist) - n_passed, len(returnfo['gene-counts']),
+            tw = str(len(str(len(seqdict))))  # width of format str from number of digits in N seqs
+            print ('%s %'+tw+'d / %-'+tw+'d %s annotations (%d failed) with %d %s gene%s in %.1f sec') % (extra_str, n_passed, len(seqdict), region, len(seqdict) - n_passed, len(returnfo['gene-counts']),
                                                                                                           region, plural(len(returnfo['gene-counts'])), time.time() - start)
         else:
             print 'can\'t yet print time for clustering'
