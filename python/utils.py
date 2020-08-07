@@ -2779,11 +2779,11 @@ def get_line_for_output(headers, info, glfo=None):
     return outfo
 
 # ----------------------------------------------------------------------------------------
-def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_expected=None, n_per_proc_expected=None, use_pyyaml=False):
+def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_expected=None, n_per_proc_expected=None, use_pyyaml=False, dont_write_git_info=False):
     if getsuffix(outfname) == '.csv':  # old way
         n_event_list, n_seq_list = merge_csvs(outfname, file_list)
     elif getsuffix(outfname) == '.yaml':  # new way
-        n_event_list, n_seq_list = merge_yamls(outfname, file_list, headers, use_pyyaml=use_pyyaml)
+        n_event_list, n_seq_list = merge_yamls(outfname, file_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
     else:
         raise Exception('unhandled annotation file suffix %s' % args.outfname)
 
@@ -2835,7 +2835,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
     return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False, dont_write_git_info=False):
     """ NOTE copy of merge_csvs(), which is (apparently) a copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
     merged_annotation_list = []
     merged_cpath = None
@@ -2869,7 +2869,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, partition_lines=merged_cpath.get_partition_lines(True))  # set is_data to True since we can't pass in reco_info and whatnot anyway
+    write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines(True))  # set is_data to True since we can't pass in reco_info and whatnot anyway
 
     return n_event_list, n_seq_list
 
@@ -4871,7 +4871,7 @@ def get_version_info(debug=False):
     return vinfo
 
 # ----------------------------------------------------------------------------------------
-def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False):
+def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
@@ -4883,7 +4883,7 @@ def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=F
     elif getsuffix(fname) == '.yaml':
         if partition_lines is None:
             partition_lines = clusterpath.ClusterPath(partition=get_partition_from_annotation_list(annotation_list)).get_partition_lines(True)  # setting is_data to True here since we can't pass in reco_info and whatnot anyway
-        write_yaml_output(fname, headers, glfo=glfo, annotation_list=annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=use_pyyaml)
+        write_yaml_output(fname, headers, glfo=glfo, annotation_list=annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
@@ -4921,13 +4921,13 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False):
+def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):
     if annotation_list is None:
         annotation_list = []
     if partition_lines is None:
         partition_lines = []
 
-    version_info = {'partis-yaml' : 0.1, 'partis-git' : get_version_info()}
+    version_info = {'partis-yaml' : 0.1, 'partis-git' : '' if dont_write_git_info else get_version_info()}
     yaml_annotations = [get_yamlfo_for_output(l, headers, glfo=glfo) for l in annotation_list]
     if failed_queries is not None:
         yaml_annotations += failed_queries

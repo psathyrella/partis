@@ -176,7 +176,7 @@ class Waterer(object):
 
         # NOTE do _not_ add extra headers here since if they're in the sw cache file I'd have to deal with removing them when I read it
         # NOTE does *not* write failed queries
-        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], utils.sw_cache_headers, use_pyyaml=self.args.write_full_yaml_output)
+        utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], utils.sw_cache_headers, use_pyyaml=self.args.write_full_yaml_output, dont_write_git_info=self.args.dont_write_git_info)
 
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False):

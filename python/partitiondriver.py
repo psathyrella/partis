@@ -2039,6 +2039,6 @@ class PartitionDriver(object):
             annotation_fname = outfname if cpath is None else self.args.cluster_annotation_fname
             utils.write_annotations(annotation_fname, self.glfo, annotation_list, headers, failed_queries=failed_queries)
         elif utils.getsuffix(outfname) == '.yaml':
-            utils.write_annotations(outfname, self.glfo, annotation_list, headers, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=self.args.write_full_yaml_output)
+            utils.write_annotations(outfname, self.glfo, annotation_list, headers, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=self.args.write_full_yaml_output, dont_write_git_info=self.args.dont_write_git_info)
         else:
             raise Exception('unhandled annotation file suffix %s' % outfname)

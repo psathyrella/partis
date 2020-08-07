@@ -194,7 +194,7 @@ class Tester(object):
             self.prepare_to_run(args, name, info)
 
             action = info['action']
-            cmd_str = info['bin'] + ' ' + action
+            cmd_str = info['bin'] + ' ' + action + ' --dont-write-git-info'
             if 'infname' in info:
                 cmd_str += ' --infname %s' % info['infname']
             cmd_str += ' --parameter-dir %s' % info['parameter-dir']
