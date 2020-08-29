@@ -18,77 +18,155 @@ import glutils
 from clusterpath import ClusterPath
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--basedir', default='/fh/fast/matsen_e/dralph/partis/mmshipley-bg505-naive-seeds-only')
-parser.add_argument('--locus', required=True)
-parser.add_argument('--prob-to-ignore', default=0.15)
+parser.add_argument('--partis-file', required=True, help='partis yaml partition output file that includes alternative annotation information')
+parser.add_argument('--linearham-dir', required=True, help='linearham output dir')
+parser.add_argument('--prob-to-ignore', default=0.15, help='don\'t print sequences with probabilities smaller than this')
 args = parser.parse_args()
 
 # ----------------------------------------------------------------------------------------
 def read_linearham_output():
     lh_info = {}
-    clusterdirs = glob.glob('%s/linearham/%s/cluster*' % (args.basedir, args.locus))  # /mcmciter10000_mcmcthin10_tuneiter5000_tunethin100_numrates4_seed0/burninfrac0.1_subsampfrac0.05/aa_naive_seqs.dnamap'
+    clusterdirs = glob.glob('%s/cluster*' % args.linearham_dir)  # works for old style 'clusterN' and new-style 'cluster-N'
+    print '  reading linearham info for %d cluster%s: %s' % (len(clusterdirs), utils.plural(len(clusterdirs)),' '.join(os.path.basename(cd) for cd in clusterdirs))
     for cdir in clusterdirs:
         input_seqfos = utils.read_fastx('%s/input_seqs.fasta' % cdir)
         input_uids = [sfo['name'] for sfo in input_seqfos if sfo['name'] != 'naive']
-        outfnames = subprocess.check_output(['find', cdir, '-name', 'aa_naive_seqs.dnamap']).strip().split()
-        if len(outfnames) == 0:
+        # aa_naive_seqs.fasta:   prob of each aa naive seq
+        # aa_naive_seqs.dnamap:  prob of each nuc naive seq contributing to each of those aa naive seqs
+        flist = glob.glob('%s/*/*/aa_naive_seqs.fasta' % cdir)
+        if len(flist) == 0:
             print '  no linearham output for %s in %s' % (os.path.basename(cdir), cdir)
             continue
-        elif len(outfnames) != 1:
-            raise Exception('too many outfnames %s' % outfnames)
-        clusterfo = []
-        with open(outfnames[0]) as outfile:
+        elif len(flist) != 1:
+            raise Exception('too many linearham output dirs:\n %s' % '\n      '.join(flist))
+        aa_seq_infos = utils.read_fastx(flist[0])
+        for iseq, sfo in enumerate(aa_seq_infos):
+            tlist = sfo['name'].split('_')
+            assert len(tlist) == 3
+            assert int(tlist[1]) == iseq
+            sfo['prob'] = float(tlist[2])
+        with open(flist[0].replace('.fasta', '.dnamap')) as outfile:  # this is some weird bastardization of a fasta file
+            iseq = -1
             for line in outfile:
-                if line[0] == '>':  # just skip these for now, we're just printing nucleotide level stuff, not aa
+                if line[0] == '>':
+                    iseq += 1
+                    assert line.strip().lstrip('>') == aa_seq_infos[iseq]['name']
+                    aa_seq_infos[iseq]['nuc_seqs_probs'] = []
                     continue
-                prob, naive_seq = line.strip().split(',')
-                clusterfo.append((naive_seq, float(prob)))
-        clusterfo = sorted(clusterfo, key=operator.itemgetter(1), reverse=True)  # it's sorted by aa naive seq in the file, and within that I think by nuc naive seq? Anyway, we need to make sure
-        lh_info[':'.join(input_uids)] = clusterfo
+                prob, naive_nuc_seq = line.strip().split(',')
+                aa_seq_infos[iseq]['nuc_seqs_probs'].append((naive_nuc_seq, float(prob)))
+        lh_info[':'.join(input_uids)] = aa_seq_infos
     return lh_info
 
 # ----------------------------------------------------------------------------------------
-def print_lines(nseq_info, ref_seq, namestr, namecolor):
-    assert nseq_info == sorted(nseq_info, key=operator.itemgetter(1), reverse=True)
+def print_naive_seq_lines(nseq_info, namestr, namecolor, ref_seq=None, amino_acid=False):
+    def i_aa_color(i_aa):
+        tmpcolors = ['purple', 'yellow', 'red', 'blue', 'green']
+        return tmpcolors[i_aa % len(tmpcolors)]
     total_prob = 0.
-    for naive_seq, prob in nseq_info:
-        print '  %s   %5.2f  %s' % (utils.color_mutants(naive_seq if ref_seq is None else ref_seq, naive_seq), prob, utils.color(namecolor, namestr))
+    breaking = False
+    for naive_seq, prob, i_aa_seq in sorted(nseq_info, key=operator.itemgetter(1), reverse=True):
         if ref_seq is None:
             ref_seq = naive_seq
+        breakstr = ''
         if 1. - total_prob < args.prob_to_ignore:
+            breaking = True
+            breakstr = 'total: %5.2f (breaking after %.2f)' % (prob+total_prob, 1. - args.prob_to_ignore)
+        print '    %s %s    %5.2f    %s   %s' % (utils.color_mutants(ref_seq, naive_seq, amino_acid=amino_acid, align_if_necessary=True),
+                                                 utils.color(i_aa_color(i_aa_seq), str(i_aa_seq), width=2), prob, utils.color(namecolor, namestr, width=9, padside='right'), breakstr)
+        if breaking:
             break
         total_prob += prob
     return ref_seq
 
-glfo, annotation_list, cpath = utils.read_output('%s/%s/partition-with-alternative-annotations.yaml' % (args.basedir, args.locus))
+# ----------------------------------------------------------------------------------------
+def print_all_lines(lh_aa_seq_infos, pline, amino_acid=False):
+    seq_len = len(lh_aa_seq_infos[0]['seq'] if amino_acid else pline['naive_seq'])
+    anstr = '%s naive seqs' % ('amino acid' if amino_acid else 'nucleotide')
+    print '  %s:%s aa seq' % (anstr, (seq_len - len(anstr)) * ' ')
+    if amino_acid:
+        codon_str = utils.color('reverse_video', 'X')
+        vpos, jpos = [pline['codon_positions'][r] / 3 for r in ['v', 'j']]
+        cdstr = '%s%s%s%s%s' % (' '*vpos, codon_str, '-'*(jpos - vpos - 1), codon_str, ' '*(seq_len - jpos - 1))
+    else:
+        cdstr = seq_len*' '
+    print '    %s index  prob' % cdstr
+    ref_seq = print_naive_seq_lines(get_lh_nsinfo(lh_aa_seq_infos, amino_acid=amino_acid), 'linearham', 'green', amino_acid=amino_acid)
+    _ = print_naive_seq_lines(get_partis_nsinfo(pline, amino_acid=amino_acid), 'partis', 'blue', ref_seq=ref_seq, amino_acid=amino_acid)  # use the linearham naive seq as ref_seq also for partis
+
+# ----------------------------------------------------------------------------------------
+def print_gene_calls(pline):
+    print '  partis gene calls (linearham only considers one gene combo):'
+    print '      prob   gene'
+    for region in utils.regions:
+        print '    %s' % utils.color('green', region)
+        for gene, prob in pline['alternative-annotations']['gene-calls'][region]:
+            print '      %4.2f  %s' % (prob, utils.color_gene(gene, width=15))
+
+# ----------------------------------------------------------------------------------------
+def get_lh_nsinfo(lh_aa_seq_infos, amino_acid=False):
+    if amino_acid:
+        return [(s['seq'], s['prob'], i) for i, s in enumerate(lh_aa_seq_infos)]
+    else:
+        return [(ns, np, i) for i, s in enumerate(lh_aa_seq_infos) for ns, np in s['nuc_seqs_probs']]
+
+# ----------------------------------------------------------------------------------------
+def get_partis_nsinfo(pline, amino_acid=False):
+    nuc_naive_seqs = pline['alternative-annotations']['naive-seqs'] if 'alternative-annotations' in pline else [(pline['naive_seq'], 1.), ]
+    pdict, sdict = {}, {}
+    for aseq, nseq, prob in [(utils.ltranslate(nseq, remove_partial_j_codon=True), nseq, prob) for nseq, prob in nuc_naive_seqs]:  # add up the probs for any nuc seqs that code for the same aa seq
+        if aseq not in pdict:
+            pdict[aseq] = 0.
+            sdict[aseq] = []
+        pdict[aseq] += prob
+        sdict[aseq].append(nseq)
+    aa_naive_seqs = sorted(pdict.items(), key=operator.itemgetter(1), reverse=True)
+    if amino_acid:
+        return [(s, p, i) for i, (s, p) in enumerate(aa_naive_seqs)]
+    else:
+        nuc_seq_aa_indices = {}
+        for iseq, (aseq, _) in enumerate(aa_naive_seqs):
+            for nseq in sdict[aseq]:
+                nuc_seq_aa_indices[nseq] = iseq
+        return [(s, p, nuc_seq_aa_indices[s]) for s, p in nuc_naive_seqs]
+
+# ----------------------------------------------------------------------------------------
+glfo, annotation_list, cpath = utils.read_output(args.partis_file)
 lh_info = read_linearham_output()
 
-# print annotations for the biggest cluster in the most likely partition
 annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
 most_likely_partition = cpath.partitions[cpath.i_best]  # a partition is represented as a list of lists of strings, with each string a sequence id
+print '  %d (of %d) clusters from partis file share uids with %d linearham cluster%s' % (len([c for c in most_likely_partition if any(len(set(c) & set(lc.split(':'))) > 0 for lc in lh_info)]), len(most_likely_partition), len(lh_info), utils.plural(len(lh_info)))
 sorted_clusters = sorted(most_likely_partition, key=len, reverse=True)
 for cluster in sorted_clusters:
-    line = annotations[':'.join(cluster)]
-    print ':'.join(line['unique_ids'])
-    utils.print_reco_event(line, extra_str='  ')
-    print ''
+    pline = annotations[':'.join(cluster)]
+    if 'alternative-annotations' not in pline:
+        print '  note: no alternative annotations in %s, so can\'t print partis alternative naive sequences' % args.partis_file
 
-    lh_clusters = [(uidstr, cfo) for uidstr, cfo in lh_info.items() if set(uidstr.split(':')) & set(line['unique_ids'])]
-    lh_naive_seqs = []
+    p_uids = set(pline['unique_ids'])
+    lh_clusters = [(uidstr, cfo) for uidstr, cfo in lh_info.items() if set(uidstr.split(':')) & p_uids]  # lh clusters with any uids in common iwth this partis <cluster> (there should only be 1)
+    lh_aa_seq_infos = []
     if len(lh_clusters) == 0:
         print '  %s zero linearham clusters with any of these uids' % utils.color('red', 'error')
+        continue
     elif len(lh_clusters) != 1:
-        raise Exception('expected 1 linearham cluster but found %d' % len(lh_clusters))
+        raise Exception('should have only one linearham cluster with uids in common with this cluster, but found %d' % len(lh_clusters))
     else:
-        lh_uidstr, lh_naive_seqs = lh_clusters[0]
-        if set(lh_uidstr.split(':')) != set(line['unique_ids']):
-            print '  %s different uids\n       extra in linearham: %s\n   missing from linearham: %s' % (utils.color('red', 'error'), set(lh_uidstr.split(':')) - set(line['unique_ids']), set(line['unique_ids']) - set(lh_uidstr.split(':')))
-
-    ref_seq = None
-    if len(lh_naive_seqs) == 0:
+        lh_uidstr, lh_aa_seq_infos = lh_clusters[0]
+        lh_uids = set(lh_uidstr.split(':'))
+        print '%s with sizes: partis %d   linearham %d (%d in common)' % (utils.color('blue', 'starting clusters'), len(pline['unique_ids']), len(lh_uids), len(lh_uids & p_uids))
+        if len(lh_uids - p_uids) > 0:
+            print '  %s %d extra uids in linearham cluster' % (utils.color('yellow', 'warning'), len(lh_uids - p_uids))
+        if len(p_uids - lh_uids) > 0:
+            print '  %s %d extra uids in partis cluster' % (utils.color('yellow', 'warning'), len(p_uids - lh_uids))
+    if len(lh_aa_seq_infos) == 0:
         print '  %s no prob/naive_seq pairs in linearham for this cluster' % utils.color('red', 'error')
 
-    ref_seq = print_lines(lh_naive_seqs, ref_seq, 'linearham', 'green')
-    ref_seq = print_lines(sorted(line['alternative-annotations']['naive-seqs'], key=operator.itemgetter(1), reverse=True), ref_seq, 'partis', 'blue')
+    print_all_lines(lh_aa_seq_infos, pline, amino_acid=True)
+    utils.print_reco_event(utils.synthesize_single_seq_line(pline, iseq=0), extra_str='    ', label='annotation for a single (arbitrary) sequence from the cluster:')
+    print_all_lines(lh_aa_seq_infos, pline, amino_acid=False)
+
+    if 'alternative-annotations' in pline:
+        print_gene_calls(pline)
 
     print ''
