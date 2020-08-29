@@ -72,6 +72,7 @@ def print_naive_seq_lines(nseq_info, namestr, namecolor, ref_seq=None, amino_aci
         if 1. - total_prob < args.prob_to_ignore:
             breaking = True
             breakstr = 'total: %5.2f (breaking after %.2f)' % (prob+total_prob, 1. - args.prob_to_ignore)
+        naive_seq = naive_seq.strip(utils.ambiguous_bases[0])  # arg, this shouldn't be necessary, but sometimes e.g. partis has N padding but linearham doesn't
         print '    %s %s    %5.2f    %s   %s' % (utils.color_mutants(ref_seq, naive_seq, amino_acid=amino_acid, align_if_necessary=True),
                                                  utils.color(i_aa_color(i_aa_seq), str(i_aa_seq), width=2), prob, utils.color(namecolor, namestr, width=9, padside='right'), breakstr)
         if breaking:
@@ -114,7 +115,7 @@ def get_lh_nsinfo(lh_aa_seq_infos, amino_acid=False):
 def get_partis_nsinfo(pline, amino_acid=False):
     nuc_naive_seqs = pline['alternative-annotations']['naive-seqs'] if 'alternative-annotations' in pline else [(pline['naive_seq'], 1.), ]
     pdict, sdict = {}, {}
-    for aseq, nseq, prob in [(utils.ltranslate(nseq, remove_partial_j_codon=True), nseq, prob) for nseq, prob in nuc_naive_seqs]:  # add up the probs for any nuc seqs that code for the same aa seq
+    for aseq, nseq, prob in [(utils.ltranslate(nseq, trim=True), nseq, prob) for nseq, prob in nuc_naive_seqs]:  # add up the probs for any nuc seqs that code for the same aa seq
         if aseq not in pdict:
             pdict[aseq] = 0.
             sdict[aseq] = []
@@ -147,7 +148,7 @@ for cluster in sorted_clusters:
     lh_clusters = [(uidstr, cfo) for uidstr, cfo in lh_info.items() if set(uidstr.split(':')) & p_uids]  # lh clusters with any uids in common iwth this partis <cluster> (there should only be 1)
     lh_aa_seq_infos = []
     if len(lh_clusters) == 0:
-        print '  %s zero linearham clusters with any of these uids' % utils.color('red', 'error')
+        # print '  no linearham clusters with any of these uids' % utils.color('red', 'error')
         continue
     elif len(lh_clusters) != 1:
         raise Exception('should have only one linearham cluster with uids in common with this cluster, but found %d' % len(lh_clusters))

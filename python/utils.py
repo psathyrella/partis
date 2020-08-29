@@ -2631,10 +2631,12 @@ def process_input_line(info, skip_literal_eval=False):
             raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
 
 # ----------------------------------------------------------------------------------------
-def ltranslate(nuc_seq):  # local file translation function
+def ltranslate(nuc_seq, trim=False):  # local file translation function
     if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
         from Bio.Seq import Seq
     bseq = sys.modules['Bio.Seq']
+    if trim:  # this should probably be the default, but i don't want to change anything that's using the padding (even though it probably wouldn't matter)
+        nuc_seq = trim_nuc_seq(nuc_seq.strip(ambiguous_bases[0]))
     return str(bseq.Seq(pad_nuc_seq(nuc_seq)).translate())  # the padding is annoying, but it's extremely common for bcr sequences to have lengths not a multiple of three (e.g. because out out of frame rearrangements), so easier to just always check for it
 
 # ----------------------------------------------------------------------------------------
@@ -2670,6 +2672,12 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
 def pad_nuc_seq(nseq):  # if length not multiple of three, pad on right with Ns
     if len(nseq) % 3 != 0:
         nseq += 'N' * (3 - (len(nseq) % 3))
+    return nseq
+
+# ----------------------------------------------------------------------------------------
+def trim_nuc_seq(nseq):  # if length not multiple of three, trim extras from the right side
+    if len(nseq) % 3 != 0:
+        nseq = nseq[ : len(nseq) - (len(nseq) % 3)]
     return nseq
 
 # ----------------------------------------------------------------------------------------
