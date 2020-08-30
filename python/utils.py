@@ -1464,6 +1464,38 @@ def disambiguate_effective_insertions(bound, line, iseq, debug=False):
     return final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
+# modify <line> so it has no 'fwk' insertions to left of v or right of j
+def trim_fwk_insertions(glfo, line, modify_alternative_annotations=False, debug=False):  # NOTE this is *different* to reset_effective_erosions_and_effective_insertions() (i think kind of, but not entirely, the opposite?)
+    # NOTE duplicates code in waterer.remove_framework_insertions(), and should really be combined with that fcn
+    fv_len = len(line['fv_insertion'])
+    jf_len = len(line['jf_insertion'])
+    if debug:
+        print 'trimming fwk insertions: fv %d  jv %d' % (fv_len, jf_len)
+        print_reco_event(line, label='before trimming:', extra_str='    ')
+
+    if fv_len == 0 and jf_len == 0:
+        return
+
+    remove_all_implicit_info(line)
+
+    for seqkey in ['seqs', 'input_seqs']:
+        line[seqkey] = [seq[fv_len : len(seq) - jf_len] for i, seq in enumerate(line[seqkey])]
+    for iseq in range(len(line['unique_ids'])):
+        if indelutils.has_indels(line['indelfos'][iseq]):
+            indelutils.trim_indel_info(line, iseq, line['fv_insertion'], line['jf_insertion'], 0, 0)
+    line['fv_insertion'] = ''
+    line['jf_insertion'] = ''
+
+    if modify_alternative_annotations and 'alternative-annotations' in line:  # in principle it'd be nice to also generate these alternative naive seqs when we re-add implicit info, but we don't keep around near enough information to be able to do that
+        for iseq, (seq, prob) in enumerate(line['alternative-annotations']['naive-seqs']):
+            line['alternative-annotations']['naive-seqs'][iseq] = [seq[fv_len : len(seq) - jf_len], prob]
+
+    add_implicit_info(glfo, line)
+
+    if debug:
+        print_reco_event(line, label='after trimming:', extra_str='    ')
+
+# ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned_gl_seqs=None, debug=False):  # , padfo=None
     """
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.

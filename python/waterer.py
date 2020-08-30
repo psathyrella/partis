@@ -1181,6 +1181,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_framework_insertions(self, debug=False):  # note that we modify non-implicit info here because it's faster than removing and re-adding it (although it makes this fcn more complicated)
+        # NOTE duplicates code in utils.trim_fwk_insertions() (but they're enough different I don't want to deal with merging them, e.g. this has extra sw-specific keys, plus i care way more about speed here so don't really want to have to re-add implicit info)
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
