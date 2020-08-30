@@ -18,8 +18,8 @@ import glutils
 from clusterpath import ClusterPath
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--partis-file', required=True, help='partis yaml partition output file that includes alternative annotation information')
-parser.add_argument('--linearham-dir', required=True, help='linearham output dir')
+parser.add_argument('--partis-file', required=True, help='partis yaml partition output file that includes alternative annotation information (i.e. --calculate-alternative-annotations was set while partitioning)')
+parser.add_argument('--linearham-dir', required=True, help='linearham output dir (the main/parent dir))')
 parser.add_argument('--prob-to-ignore', default=0.15, help='don\'t print sequences with probabilities smaller than this')
 args = parser.parse_args()
 

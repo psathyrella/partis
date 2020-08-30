@@ -10,6 +10,7 @@
     - [paired heavy and light chains](#paired-heavy-and-light-chains)
     - [naive probability estimates](#naive-probability-estimates)
     - [input meta info](#input-meta-info)
+	- [naive sequence comparison with linearham](#naive-sequence-comparison-with-linearham)
 
 ### Subcommands
 
@@ -87,7 +88,7 @@ partis partition --infname test/example.fa --outfname _output/example.yaml --cal
 partis view-alternative-annotations --outfname _output/example.yaml  # pipe this to less by adding "| less -RS"
 ```
 
-If you only care about one cluster, you can print only the cluster corresponding to a given set of queries by setting `--queries <queries of interest>` in the second step.
+If you only care about one cluster, you can print only the cluster corresponding to a given set of queries by setting `--queries <queries:of:interest>` in the second step.
 This second command prints an ascii representation of the various naive sequences and gene calls, as well as summaries of how many unique sequences and clusters of various sizes voted for each naive sequence and gene call.
 
 ##### progress file
@@ -385,6 +386,9 @@ You can then add novel alleles to the germline set by telling it how many novel 
 
 ### Miscellany
 
+##### paired heavy and light chains
+TODO
+
 ##### naive probability estimates
 
 The script `bin/get-naive-probabilities.py` is designed to answer the question "What is the probability of a particular rearrangement in this sample?".
@@ -413,3 +417,13 @@ seq-2:
 Currently accepted keys are multiplicity, affinity, subject, timepoint, and constant-region; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities, to accomodate multi-sequence annotations).
 When caching parameters, partis by default removes constant regions (5' of v and 3' of j).
 If --collapse-duplicate-sequences is set, it then collapses any duplicate sequences into the [duplicates key](output-formats.md); the number of such sequences is then added to any multiplicities from `--input-metafname` (see also `--dont-remove-framework-insertions`).
+
+##### naive sequence comparison with linearham
+
+While partis's inferred naive sequences are much more accurate than those from single-sequence annotations, its use of a star tree assumption for computational tractability limits achievable accuracy for highly unbalanced trees.
+The [linearham](https://github.com/matsengrp/linearham/) package is designed to solve this by performing full phylogenetic and rearrangement inference on single families.
+As described above, you can use partis's `--calculate-alternative-annotations` option to have it output some (heuristic) probabilities of alternative annotations, including naive sequences.
+If you've run linearham, you thus have collections of naive sequences and their probabilities from both programs.
+You can compare them with the script `bin/cf-linearham.py`, which prints (view with `less -RS`) first a comparison of the amino acid naive sequences from each program, then a comparison of the nucleotide naive sequences contributing to each of the amino acid ones.
+It also prints a comparison of partis's alternative gene calls and associated "probabilities" (linearham will have only use the one, best, set of gene calls with which it was called).
+
