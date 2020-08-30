@@ -7,7 +7,7 @@ Partis is free software under the GPL v3.
 The various components are described in the following papers.
 Since they do quite different things, it's best if you can cite the specific paper(s) that describe the components that you're using.
 
-  * [Selection metrics](https://arxiv.org/abs/2004.11868) Ralph, DK, & Matsen IV, FA (2020). _Using B cell receptor lineage structures to predict affinity._ Submitted to PLOS Computational Biology.
+  * [Selection metrics](https://arxiv.org/abs/2004.11868) Ralph, DK, & Matsen IV, FA (2020). _Using B cell receptor lineage structures to predict affinity._ Accepted at PLOS Computational Biology.
   * [Germline inference](https://doi.org/10.1371/journal.pcbi.1007133) Ralph, DK, & Matsen IV, FA (2019). _Per-sample immunoglobulin germline inference \[...\]._ PLOS Computational Biology, 15(7), e1007133.
   * [Clonal family inference](http://dx.doi.org/10.1371/journal.pcbi.1005086) Ralph, DK, & Matsen IV, FA (2016). _Likelihood-based Inference of B-cell Clonal Families._ PLOS Computational Biology, 12(10), e1005086.
   * [HMM framework and BCR annotation](http://doi.org/10.1371/journal.pcbi.1004409) Ralph, DK, & Matsen IV, FA (2016). _Consistency of \[...\] Enables Accurate B Cell Receptor Sequence Annotation._ PLOS Computational Biology, 12(1), e1004409.

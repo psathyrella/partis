@@ -421,9 +421,8 @@ If --collapse-duplicate-sequences is set, it then collapses any duplicate sequen
 ##### naive sequence comparison with linearham
 
 While partis's inferred naive sequences are much more accurate than those from single-sequence annotations, its use of a star tree assumption for computational tractability limits achievable accuracy for highly unbalanced trees.
-The [linearham](https://github.com/matsengrp/linearham/) package is designed to solve this by performing full phylogenetic and rearrangement inference on single families.
+The [linearham](https://github.com/matsengrp/linearham/) package is designed to solve this by performing simultaneous phylogenetic and rearrangement inference on single families.
 As described above, you can use partis's `--calculate-alternative-annotations` option to have it output some (heuristic) probabilities of alternative annotations, including naive sequences.
 If you've run linearham, you thus have collections of naive sequences and their probabilities from both programs.
 You can compare them with the script `bin/cf-linearham.py`, which prints (view with `less -RS`) first a comparison of the amino acid naive sequences from each program, then a comparison of the nucleotide naive sequences contributing to each of the amino acid ones.
-It also prints a comparison of partis's alternative gene calls and associated "probabilities" (linearham will have only use the one, best, set of gene calls with which it was called).
-
+It also prints a comparison of partis's alternative gene calls and associated "probabilities" (linearham will have only used the one, best, set of gene calls with which it was called).
