@@ -72,19 +72,19 @@ def print_naive_seq_lines(nseq_info, namestr, namecolor, ref_seq=None, amino_aci
         if 1. - total_prob < args.prob_to_ignore:
             breaking = True
             breakstr = 'total: %5.2f (breaking after %.2f)' % (prob+total_prob, 1. - args.prob_to_ignore)
-        naive_seq = naive_seq.strip(utils.ambiguous_bases[0])  # arg, this shouldn't be necessary, but sometimes e.g. partis has N padding but linearham doesn't
-        print '    %s %s    %5.2f    %s   %s' % (utils.color_mutants(ref_seq, naive_seq, amino_acid=amino_acid, align_if_necessary=True),
-                                                 utils.color(i_aa_color(i_aa_seq), str(i_aa_seq), width=2), prob, utils.color(namecolor, namestr, width=9, padside='right'), breakstr)
+        print '     %s %s    %5.2f    %s   %s' % (utils.color_mutants(ref_seq, naive_seq, amino_acid=amino_acid), #, align_if_necessary=True),
+                                                  utils.color(i_aa_color(i_aa_seq), str(i_aa_seq), width=2), prob, utils.color(namecolor, namestr, width=9, padside='right'), breakstr)
         if breaking:
             break
         total_prob += prob
+    print ''
     return ref_seq
 
 # ----------------------------------------------------------------------------------------
 def print_all_lines(lh_aa_seq_infos, pline, amino_acid=False):
     seq_len = len(lh_aa_seq_infos[0]['seq'] if amino_acid else pline['naive_seq'])
-    anstr = '%s naive seqs' % ('amino acid' if amino_acid else 'nucleotide')
-    print '  %s:%s aa seq' % (anstr, (seq_len - len(anstr)) * ' ')
+    anstr = '%s %s naive seqs' % (headstr('1.' if amino_acid else '3.'), 'amino acid' if amino_acid else 'nucleotide')
+    print '  %s:%s aa seq' % (anstr, (seq_len - utils.len_excluding_colors(anstr)) * ' ')
     if amino_acid:
         codon_str = utils.color('reverse_video', 'X')
         vpos, jpos = [pline['codon_positions'][r] / 3 for r in ['v', 'j']]
@@ -97,12 +97,12 @@ def print_all_lines(lh_aa_seq_infos, pline, amino_acid=False):
 
 # ----------------------------------------------------------------------------------------
 def print_gene_calls(pline):
-    print '  partis gene calls (linearham only considers one gene combo):'
-    print '      prob   gene'
+    print '  %s partis gene calls (linearham only considers one gene combo):' % headstr('4.')
+    print '        prob   gene'
     for region in utils.regions:
-        print '    %s' % utils.color('green', region)
+        print '      %s' % utils.color('blue', region)
         for gene, prob in pline['alternative-annotations']['gene-calls'][region]:
-            print '      %4.2f  %s' % (prob, utils.color_gene(gene, width=15))
+            print '        %4.2f  %s' % (prob, utils.color_gene(gene, width=15))
 
 # ----------------------------------------------------------------------------------------
 def get_lh_nsinfo(lh_aa_seq_infos, amino_acid=False):
@@ -132,6 +132,10 @@ def get_partis_nsinfo(pline, amino_acid=False):
         return [(s, p, nuc_seq_aa_indices[s]) for s, p in nuc_naive_seqs]
 
 # ----------------------------------------------------------------------------------------
+def headstr(hstr):
+    return utils.color('green', hstr)
+
+# ----------------------------------------------------------------------------------------
 glfo, annotation_list, cpath = utils.read_output(args.partis_file)
 lh_info = read_linearham_output()
 
@@ -141,6 +145,7 @@ print '  %d (of %d) clusters from partis file share uids with %d linearham clust
 sorted_clusters = sorted(most_likely_partition, key=len, reverse=True)
 for cluster in sorted_clusters:
     pline = annotations[':'.join(cluster)]
+    utils.trim_fwk_insertions(glfo, pline, modify_alternative_annotations=True)  # linearham probably won't have them, so we need to remove them so things line up
     if 'alternative-annotations' not in pline:
         print '  note: no alternative annotations in %s, so can\'t print partis alternative naive sequences' % args.partis_file
 
@@ -164,7 +169,7 @@ for cluster in sorted_clusters:
         print '  %s no prob/naive_seq pairs in linearham for this cluster' % utils.color('red', 'error')
 
     print_all_lines(lh_aa_seq_infos, pline, amino_acid=True)
-    utils.print_reco_event(utils.synthesize_single_seq_line(pline, iseq=0), extra_str='    ', label='annotation for a single (arbitrary) sequence from the cluster:')
+    utils.print_reco_event(utils.synthesize_single_seq_line(pline, iseq=0), extra_str='    ', label='%s annotation for a single (arbitrary) sequence from the cluster:'%headstr('2.'))
     print_all_lines(lh_aa_seq_infos, pline, amino_acid=False)
 
     if 'alternative-annotations' in pline:
