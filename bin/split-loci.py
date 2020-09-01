@@ -15,14 +15,20 @@ import utils
 import glutils
 from clusterpath import ClusterPath
 
-parser = argparse.ArgumentParser(description='split the sequences in the input fasta <fname> according to their ig loci, writing to fasta output files <fname>-<locus>.fa', formatter_class=argparse.ArgumentDefaultsHelpFormatter)  # why tf isn't this printing the defaults?
+dstr = """
+use vsearch to split the sequences in <fname> according to their ig loci, either writing each locus to its own fasta file <fname>-<locus>.fa (by default), 
+or additionally splitting the igh sequences according to the light chain locus with which they\'re paired, thus resulting in two directories igh+igk/ and igh+igl/ (if --paired-output-dirs is set).
+"""
+parser = argparse.ArgumentParser(description=dstr,
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)  # why tf isn't this printing the defaults?
 parser.add_argument('fname', help='fasta input file')
 parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')
 parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines', help='doesn\'t need to be the germlines corresponding to this sample since it\'s just so it can figure out which is igh vs igk vs igl, so the default is probably fine')
-parser.add_argument('--workdir', default=utils.choose_random_subdir('/tmp/%s/partis' % os.getenv('USER', default='partis-work')))
-parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch binaries for linux and darwin are pre-installed in bin/, so leaving this unset should work, but for other systems you need to get your own)')
+parser.add_argument('--workdir', default=utils.choose_random_subdir('/tmp/%s/partis' % os.getenv('USER', default='partis-work')), help='working directory for vsearch')
+parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch binaries for linux and darwin are included in partis/bin/, so leaving this unset should work, but for other systems you need to get your own)')
 parser.add_argument('--debug', action='store_true')
-parser.add_argument('--fasta-info-index', type=int, help='index in fasta info of sequence name string')
+parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info of sequence name string (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
+parser.add_argument('--paired-output-dirs', action='store_true', help='instead of the default of writing each locus to its own .fa file, split igh into separate dirs for those sequences paired with igk and igl (i.e. so each of the two dirs is ready for partis --paired-loci)')
 args = parser.parse_args()
 
 seqfos = utils.read_fastx(args.fname)
@@ -33,8 +39,11 @@ if args.fasta_info_index is not None:
 if os.path.exists(args.germline_dir + '/' + args.species):  # ick that is hackey
     args.germline_dir += '/' + args.species
 
-# run vsearch to see if you can get a match for each locus for every sequence
 tmploci = [l for l in utils.loci if 'ig' in l]
+h_locus = [l for l in tmploci if utils.has_d_gene(l)][0]
+l_loci = [l for l in tmploci if not utils.has_d_gene(l)]
+
+# run vsearch to see if you can get a match for each locus for every sequence
 for locus in tmploci:
     lglfo = glutils.read_glfo(args.germline_dir, locus)
     annotations = utils.run_vsearch_with_duplicate_uids('search', seqfos, args.workdir + '/vsearch', 0.3, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='   %s: '%locus)
@@ -59,12 +68,27 @@ for sfo in seqfos:
 
 print 'totals: %s' % ' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items())
 
-print 'writing:'
-for locus in outfos:
-    if len(outfos[locus]) == 0:
-        continue
-    lfname = '%s-%s.fa' % (utils.getprefix(args.fname), locus)
-    print '    %s: %d to %s' % (locus, len(outfos[locus]), lfname)
-    with open(lfname, 'w') as lfile:
+# ----------------------------------------------------------------------------------------
+def write_locus_file(ofn, ofos):
+    print '    %s: %d to %s' % (locus, len(outfos[locus]), ofn)
+    with open(ofn, 'w') as lfile:
         for sfo in outfos[locus]:
             lfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
+
+# ----------------------------------------------------------------------------------------
+print 'writing:'
+if args.paired_output_dirs:
+    for l_locus in l_loci:
+        l_uids = set(sfo['name'] for sfo in outfos[l_locus])
+        h_outfo = [sfo for sfo in outfos[h_locus] if sfo['name'] in l_uids]  # heavy chain seqs corresponding to this light chain
+        ldir = '%s-%s+%s' % (utils.getprefix(args.fname), h_locus, l_locus)
+        print '  %d/%d %s seqs pair with %s' % (len(h_outfo), len(outfos[h_locus]), h_locus, l_locus)
+        if not os.path.exists(ldir):
+            os.makedirs(ldir)
+        write_locus_file('%s/%s.fa' % (ldir, h_locus), h_outfo)
+        write_locus_file('%s/%s.fa' % (ldir, l_locus), outfos[l_locus])
+else:
+    for locus in outfos:
+        if len(outfos[locus]) == 0:
+            continue
+        write_locus_file('%s-%s.fa' % (utils.getprefix(args.fname), locus), outfos[locus])
