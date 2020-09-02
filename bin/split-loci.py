@@ -87,15 +87,15 @@ else:
     outbase = args.outdir  # but if they did set --outdir, it's nicer to have plain locus file/path names
     tmp_sep = '/'
 if args.split_heavy_seqs:
-    for l_locus in l_loci:
+    for h_locus, l_locus in utils.locus_pairs[args.ig_or_tr]:
         l_uids = set(sfo['name'] for sfo in outfos[l_locus])
         h_outfo = [sfo for sfo in outfos[h_locus] if sfo['name'] in l_uids]  # heavy chain seqs corresponding to this light chain
         ldir = '%s%s%s+%s' % (outbase, tmp_sep, h_locus, l_locus)
         print '  %d/%d %s seqs pair with %s' % (len(h_outfo), len(outfos[h_locus]), h_locus, l_locus)
-        write_locus_file('%s/%s.fa' % (ldir, h_locus), h_outfo)
-        write_locus_file('%s/%s.fa' % (ldir, l_locus), outfos[l_locus])
+        write_locus_file(h_locus, '%s/%s.fa' % (ldir, h_locus), h_outfo)
+        write_locus_file(l_locus, '%s/%s.fa' % (ldir, l_locus), outfos[l_locus])
 else:
     for locus in outfos:
         if len(outfos[locus]) == 0:
             continue
-        write_locus_file('%s%s%s.fa' % (outbase, tmp_sep, locus), outfos[locus])
+        write_locus_file(locus, '%s%s%s.fa' % (outbase, tmp_sep, locus), outfos[locus])
