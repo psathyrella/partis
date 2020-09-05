@@ -101,7 +101,15 @@ def process(args):
             if argvals.count(None) == 1:
                 raise Exception('--paired-loci is set, so either both or neither of --%s and --light-chain-%s must be set (exactly one was set)' % (argstr, argstr))
     if args.action == 'merge-paired-partitions':
-        assert args.paired_loci is not None
+        assert args.paired_loci is not None or args.split_loci
+    if args.split_loci:
+        assert args.paired_loci is None
+        if [args.light_chain_infname, args.light_chain_outfname, args.light_chain_parameter_dir] != [None, None, None]:
+            raise Exception('none of the --light-chain-<stuff> arguments should be set when --split-loci is set')  # they get set in the subprocesses we start
+        if args.paired_loci_output_dir is None:
+            raise Exception('have to set --paired-loci-output-dir if --split-loci is set')
+        if args.outfname is not None:
+            raise Exception('can\'t set --outfname if --split-loci is set (use --paired-loci-output-dir)')
 
     args.only_genes = utils.get_arg_list(args.only_genes)
     args.queries = utils.get_arg_list(args.queries)
@@ -214,6 +222,8 @@ def process(args):
         if args.outfname is None:  # need to write each locus's output to disk so we can merge their partition paths
             args.outfname = get_dummy_outfname(args.workdir)
             args.light_chain_outfname = get_dummy_outfname(args.workdir, light_chain=True)
+    elif [args.light_chain_infname, args.light_chain_outfname, args.light_chain_parameter_dir] != [None, None, None]:
+        raise Exception('doesn\'t make sense to set one of the --light-chain-<stuff> options unless --paired-loci is also set')
 
     if args.batch_system == 'sge' and args.batch_options is not None:
         if '-e' in args.batch_options or '-o' in args.batch_options:
@@ -255,7 +265,7 @@ def process(args):
     if args.cluster_annotation_fname is None and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':  # if it wasn't set on the command line (<outfname> _was_ set), _and_ if we were asked for a csv, then use the old file name format
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
 
-    if args.calculate_alternative_annotations and args.outfname is None:
+    if args.calculate_alternative_annotations and args.outfname is None and args.paired_loci_output_dir is None:
         raise Exception('have to specify --outfname in order to calculate alternative annotations')
     if args.action == 'view-alternative-annotations' and args.persistent_cachefname is None:  # handle existing old-style output
         assert args.outfname is not None
@@ -354,7 +364,7 @@ def process(args):
         if args.treefname is not None:
             raise Exception('--treefname was set for simulation action (probably meant to use --input-simulation-treefname)')
 
-    if args.parameter_dir is not None:
+    if args.parameter_dir is not None and not args.split_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')
         if os.path.exists(args.parameter_dir):
             pdirs = [d for d in os.listdir(args.parameter_dir) if os.path.isdir(d)]

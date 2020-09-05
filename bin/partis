@@ -226,6 +226,9 @@ def read_inputs(args, actions):
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
+    if args.split_loci:
+        run_all_loci(args)
+        return
     if args.paired_loci is not None:
         run_paired_heavy_light(args)
         return
@@ -238,7 +241,7 @@ def run_partitiondriver(args):
         if args.refuse_to_cache_parameters:
             raise Exception('--parameter-dir %s doesn\'t exist, and --refuse-to-cache-parameters was set' % args.parameter_dir)
         actions = ['cache-parameters'] + actions
-        print '  parameter dir \'%s\' does not exist, so caching a new set of parameters before running action \'%s\'' % (args.parameter_dir, actions[1])
+        print '  parameter dir does not exist, so caching a new set of parameters before running action \'%s\': %s' % (actions[1], args.parameter_dir)
         if args.seed_unique_id is not None or args.seed_seq is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
             raise Exception('if setting --seed-unique-id or --seed-seq for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
 
@@ -247,6 +250,86 @@ def run_partitiondriver(args):
     parter.run(actions)
     if not runs_on_existing_output(args.action):  # mostly wanted to avoid rewriting the persistent hmm cache file
         parter.clean()
+
+# ----------------------------------------------------------------------------------------
+# it would be really nice if this didn't need to exist, it's complicated (but it's necessitated by needing to auto-cache parameters on the full un-split igh seqs when splitting loci)
+# note that i could also just stop having action-specific arguments, but oh well this seems better for now at least
+def remove_action_specific_args(clist, action, debug=True):
+    if action not in subargs:  # nothing to do
+        return
+    act_args = set(afo['name'] for afo in subargs[action])
+    iarg = 0
+    removed_strs = []
+    while iarg < len(clist):
+        if clist[iarg][:2] != '--':  # skip arg values
+            iarg += 1
+            continue
+        if any(astr.find(clist[iarg]) == 0 for astr in act_args):  # have to allow for incompletely-written args, since argparser handles those
+            removed_strs.append(clist[iarg])
+            clist.pop(iarg)
+            if iarg < len(clist) and clist[iarg][:2] != '--':  # if it has an arg value, also remove that
+                removed_strs.append(clist[iarg])
+                clist.pop(iarg)
+        else:
+            iarg += 1
+    if debug and len(removed_strs) > 0:
+        print '    removed %d arg strs that were specific to action \'%s\': %s' % (len(removed_strs), action, ' '.join(removed_strs))
+
+# ----------------------------------------------------------------------------------------
+def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
+    # ----------------------------------------------------------------------------------------
+    def init_clist():
+        clist = copy.deepcopy(sys.argv)
+        utils.remove_from_arglist(clist, '--split-loci')
+        utils.remove_from_arglist(clist, '--paired-loci-output-dir', has_arg=True)
+        return clist
+    # ----------------------------------------------------------------------------------------
+    def getpdir(ltmp):
+        return '%s/parameters/%s' % (utils.non_none([args.parameter_dir, args.paired_loci_output_dir]), ltmp)
+    # ----------------------------------------------------------------------------------------
+    def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
+        if runs_on_existing_output(args.action):  # don't need a parameter dir to merge existing paired partitions
+            return False
+        return any(not os.path.exists(getpdir(l)) for l in utils.sub_loci(ig_or_tr))
+    # ----------------------------------------------------------------------------------------
+    utils.prep_dir(args.workdir)  # NOTE it's kind of weird to have workdir and paired_loci_output_dir, but workdir is for stuff we throw out by default, whereas paired_loci_output_dir is for stuff we save
+    tmpfns = ['%s/%s.fa'%(args.paired_loci_output_dir, l) for l in utils.sub_loci(ig_or_tr)]
+    if [os.path.exists(f) for f in tmpfns].count(True) == len(tmpfns):  # this isn't all its outputs, but it's a bunch of them
+        print '  split input .fa files already exist, so not re-running split-loci.py'
+    else:
+        utils.simplerun('./bin/split-loci.py %s --split-heavy-seqs --outdir %s' % (args.infname, args.paired_loci_output_dir), dryrun=args.dry_run)
+
+    if args.action == 'cache-parameters' or auto_cache_params():  # ick. we can't just let the normal auto-parameter caching happen within each locus pair below, since it'll infer separately on the igh seqs paired with igk vs igl
+        for ltmp in utils.sub_loci(ig_or_tr):
+            clist = init_clist()
+            if args.action != 'cache-parameters':
+                print '  parameter dir does not exist, so caching a new set of parameters before running action \'%s\':  %s' % (args.action, getpdir(ltmp))
+                clist[clist.index(args.action)] = 'cache-parameters'
+                utils.remove_from_arglist(clist, '--outfname', has_arg=True)
+                remove_action_specific_args(clist, args.action)
+            utils.insert_in_arglist(clist, ['--locus', ltmp], 'cache-parameters')
+            utils.replace_in_arglist(clist, '--infname', '%s/%s.fa'%(args.paired_loci_output_dir, ltmp))  # for caching parameters, we want the .fa in the parent dir with *all* igh sequences (but for other actions we want the one in the igh+igX/ subdir)
+            utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
+            utils.simplerun(' '.join(clist), dryrun=args.dry_run)
+
+    if args.action in ['partition', 'merge-paired-partitions']:
+        for h_locus, l_locus in utils.locus_pairs[ig_or_tr]:
+            clist = init_clist()
+            utils.insert_in_arglist(clist, ['--paired-loci', '%s:%s' % (h_locus, l_locus)], args.action)
+            lpair_workdir = '%s/%s+%s' % (args.paired_loci_output_dir, h_locus, l_locus)
+            for lstr, ltmp in [('', h_locus), ('light-chain-', l_locus)]:
+                if args.action == 'partition':
+                    utils.replace_in_arglist(clist, '--%sinfname'%lstr, '%s/%s.fa'%(lpair_workdir, ltmp), insert_after='--infname')
+                    utils.replace_in_arglist(clist, '--%sparameter-dir'%lstr, getpdir(ltmp), insert_after='--parameter-dir')  # note that this'll rerun sw for igh, since the sw cache file in the parameter dir corresponds to all seqs (i.e. both igk and igl paired ones). Which i think is fine, the whole reaosn it's set up that way is that sw annotations depend on the other seqs in the repertoire
+                elif args.action == 'merge-paired-partitions':
+                    utils.remove_from_arglist(clist, '--infname', has_arg=True)
+                utils.replace_in_arglist(clist, '--%soutfname'%lstr, '%s/%s-%s.yaml'%(lpair_workdir, args.action if args.action!='merge-paired-partitions' else 'partition', ltmp))  # also adds it if it isn't there: we definitely need the output so we can proceed with later steps, even if --outfname was set on the command line
+            utils.simplerun(' '.join(clist), dryrun=args.dry_run)
+    else:
+        assert args.action in ['cache-parameters']
+
+    if not args.dry_run:
+        utils.rmdir(args.workdir)
 
 # ----------------------------------------------------------------------------------------
 def run_paired_heavy_light(args):
@@ -283,7 +366,7 @@ def run_paired_heavy_light(args):
                 clist += ['--infname', ifn]
             if tmp_pdir is not None:
                 clist += ['--parameter-dir', tmp_pdir]
-            clist += ['--outfname', ofn]  # note that each locus's subprocess needs an outfname even if there's no final outfname from the command line
+            clist += ['--outfname', ofn]  # note that each locus's subprocess needs an outfname even if there's no final outfname from the command line (well, we don't need it for parameter caching, which we're also now doing here, but oh well)
 
             if not args.dry_run and os.path.exists(ofn):
                 print '    removing existing %s locus output file %s' % (locus, ofn)
@@ -291,6 +374,7 @@ def run_paired_heavy_light(args):
             if ofn == processargs.get_dummy_outfname(args.workdir, light_chain=not utils.has_d_gene(locus)):
                 work_fnames.append(ofn)
         utils.simplerun(' '.join(clist), dryrun=args.dry_run)
+
     # ----------------------------------------------------------------------------------------
     def combine_chains():  # simulation: synchronize uids and check that trees are compatible, partitioning: merge/synchronize partitions
         # ----------------------------------------------------------------------------------------
@@ -336,7 +420,7 @@ def run_paired_heavy_light(args):
         else:
             cpaths = {'h' : hcpath, 'l' : lcpath}  # TODO combine this with the above
             annotation_lists = {'h' : heavy_annotations, 'l' : light_annotations}
-            print 'synchronizing heavy and light chain cluster paths'
+            print '%s heavy and light chain cluster paths' % utils.color('red', 'synchronizing')
             joint_partition = hcpath.merge_light_chain(lcpath, heavy_annotations, light_annotations, check_partitions=True, debug=False)  # , h_ipart=5
             if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
                 get_ccfs(joint_partition)
@@ -376,6 +460,7 @@ subparsers = parser.add_subparsers(dest='action')
 parent_parser = argparse.ArgumentParser(add_help=False)
 
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
+parent_parser.add_argument('--split-loci', action='store_true', help='This must be set if --infname contains sequences from more than one locus (igh, igk, igl all together). It will first split the loci into separate input files, run the specified action on each of these, and (if specified) merge the resulting partitions.')
 parent_parser.add_argument('--paired-loci', help='Instead of the default single chain, run on these two paired loci (colon-separated list of length 2). Have to also set --light-chain-infname or --light-chain-outfname.')
 parent_parser.add_argument('--dry-run', action='store_true', help='Just print subprocess commands that would be run without actually running them (only implemented for --paired-loci).')
 parent_parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')
@@ -439,6 +524,7 @@ parent_parser.add_argument('--name-column', help='column/key name for sequence i
 parent_parser.add_argument('--seq-column', help='column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')')
 parent_parser.add_argument('--input-metafname', help='yaml file with meta information for the sequences in --infname (and --queries-to-include-fname), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. Currently accepted keys/columns are \'timepoint\', \'affinity\', \'subject\' and \'multiplicity\'. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parent_parser.add_argument('--outfname', help='output file name')
+parent_parser.add_argument('--paired-loci-output-dir', help='collective output directory for all output files involved in paired heavy/light sequences, i.e. involving --paired-loci or --split-loci.')
 parent_parser.add_argument('--light-chain-outfname', help='output file name for light chain sequences when --paired-loci is set (heavy chain sequences are written to --outfname).')
 parent_parser.add_argument('--write-full-yaml-output', action='store_true', help='By default, we write yaml output files using the json subset of yaml, since it\'s much faster. If this is set, we instead write full yaml, which is more human-readable (but also much slower).')
 parent_parser.add_argument('--presto-output', action='store_true', help='Write output file(s) in presto/changeo format. Since this format depends on a particular IMGT alignment, this depends on a fasta file with imgt-gapped alignments for all the V, D, and J germline genes. The default in data/germlines/<species>/imgt-alignments/, is probably fine for most cases. For the \'annotate\' action, a single .tsv file is written with annotations (so --outfname suffix must be .tsv). For the \'partition\' action, a fasta file is written with cluster information (so --outfname suffix must be .fa or .fasta), as well as a .tsv in the same directory with the corresponding annotations.')
@@ -508,7 +594,7 @@ subconfig = collections.OrderedDict((
     ('partition'        , {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'}),
     ('simulate'         , {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'}),
     ('view-output'      , {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'}),
-    ('merge-paired-partitions', {'func' : run_partitiondriver, 'help' : 'Merge the heavy and light chain partition paths from two existing output files into --paired-outfname (if set).'}),
+    ('merge-paired-partitions', {'func' : run_partitiondriver, 'help' : 'Merge the heavy and light chain partition paths from two existing output files.'}),
     ('view-alternative-annotations' , {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-naive-seqs in a previous partition step so that this information was saved.'}),
     ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
     ('get-selection-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate selection metrics using existing output.'}),
@@ -613,10 +699,11 @@ def get_arg_names(actions):  # return set of all arg names (in the form they app
         actions = subconfig.keys()
     return set([actionconf['name'][2:].replace('-', '_') for action in actions for actionconf in subargs[action]])
 
+# above we just made a dict with lists of args, here we actually make the sub parsers
 subparsermap = {}
 for name, vals in subconfig.items():
     subparsermap[name] = subparsers.add_parser(name, parents=[parent_parser], help=vals['help'], formatter_class=MultiplyInheritedFormatter)
-    subparsermap[name].set_defaults(func=vals['func'])
+    subparsermap[name].set_defaults(func=vals['func'])  # set the default fcn to run for <name> (i.e. action)
     for argconf in subargs[name]:
         subparsermap[name].add_argument(argconf['name'], **argconf['kwargs'])
 
@@ -624,10 +711,10 @@ for name, vals in subconfig.items():
 args = parser.parse_args()
 
 # add OR of all arguments to all subparsers to <args>, as None (to avoid having to rewrite a *##!(%ton of other code)
-for missing_arg in get_arg_names('all') - set(args.__dict__):
+for missing_arg in get_arg_names('all') - set(args.__dict__):  # NOTE see also remove_action_specific_args() above, which kind of does similar things, at least if i rewrote this all from scratch only one (or neither...) would exist
     args.__dict__[missing_arg] = None
 
-if args.outfname is None and runs_on_existing_output(args.action):  # would be better to have this in processargs.py like everything else, but then I'd have to import the function somehow
+if args.outfname is None and args.paired_loci_output_dir is None and runs_on_existing_output(args.action):  # would be better to have this in processargs.py like everything else, but then I'd have to import the function somehow
     raise Exception('--outfname required for %s' % args.action)
 
 processargs.process(args)

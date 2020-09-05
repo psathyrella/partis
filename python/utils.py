@@ -74,6 +74,11 @@ loci = collections.OrderedDict((
     ('trd', 'vdj'),
 ))
 isotypes = ['m', 'g', 'k', 'l']
+locus_pairs = {'ig' : [['igh', 'igk'], ['igh', 'igl']],
+               'tr' : [['trb', 'tra'], ['trd', 'trg']]}
+# ----------------------------------------------------------------------------------------
+def sub_loci(ig_or_tr):  # ok i probably should have just split <loci> by ig/tr, but too late now
+    return [l for l in loci if ig_or_tr in l]
 
 def getregions(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
     return list(loci[locus])  # doesn't really need to be a list, but it's more clearly analagous to regions & co that way
@@ -3162,7 +3167,7 @@ def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None, dryr
         os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):
+def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):  # NOTE it doesn't make sense to add a <logdir=> option, since if you write log files to logdir you need to also print part of them if it crashes, in which case you really need to be running run_cmds()
     if cmdfname is not None:
         with open(cmdfname, 'w') as cmdfile:
             cmdfile.write(cmd_str)
@@ -3176,6 +3181,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
         return '', '' if return_out_err else None
     if print_time is not None:
         start = time.time()
+
     if return_out_err:
         with tempfile.TemporaryFile() as fout, tempfile.TemporaryFile() as ferr:
             subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)
@@ -3185,6 +3191,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             errstr = ''.join(ferr.readlines())
     else:
         subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+
     if cmdfname is not None:
         os.remove(cmdfname)
     if print_time is not None:
@@ -4265,6 +4272,12 @@ def add_in_log_space(first, second):
         return second + math.log(1 + math.exp(first - second))
 
 # ----------------------------------------------------------------------------------------
+def non_none(vlist):  # return the first non-None value in vlist (there are many, many places where i could go back and use this) [this avoids hard-to-read if/else statements that require writing the first val twice]
+    for val in vlist:
+        if val is not None:
+            return val
+
+# ----------------------------------------------------------------------------------------
 def get_val_from_arglist(clist, argstr):
     if argstr not in clist:
         raise Exception('could\'t find %s in clist %s' % (argstr, clist))
@@ -4286,14 +4299,22 @@ def remove_from_arglist(clist, argstr, has_arg=False):
     clist.remove(argstr)
 
 # ----------------------------------------------------------------------------------------
-def replace_in_arglist(clist, argstr, replace_with):  # or add it if it isn't already there
+def replace_in_arglist(clist, argstr, replace_with, insert_after=None):  # or add it if it isn't already there
     if argstr not in clist:
-        clist.append(argstr)
-        clist.append(replace_with)
+        if insert_after is None or insert_after not in clist:  # just append it
+            clist.append(argstr)
+            clist.append(replace_with)
+        else:  # insert after the arg <insert_after>
+            insert_in_arglist(clist, [argstr, replace_with], insert_after, has_arg=True)
     else:
         if clist.count(argstr) > 1:
             raise Exception('multiple occurrences of argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist)))
         clist[clist.index(argstr) + 1] = replace_with
+
+# ----------------------------------------------------------------------------------------
+def insert_in_arglist(clist, new_arg_strs, argstr, has_arg=False, before=False):  # insert list new_arg_strs after/before argstr (and, if has_arg, after argstr's argument)
+    i_insert = clist.index(argstr) + (2 if has_arg else 1)
+    clist[i_insert : i_insert] = new_arg_strs
 
 # ----------------------------------------------------------------------------------------
 def kbound_str(kbounds):
@@ -4466,8 +4487,9 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
     return finfo
 
 # ----------------------------------------------------------------------------------------
-def output_exists(args, outfname, outlabel=None, offset=22, debug=True):
+def output_exists(args, outfname, outlabel=None, offset=None, debug=True):
     outlabel = '' if outlabel is None else ('%s ' % outlabel)
+    if offset is None: offset = 22  # weird default setting method so we can call it also with the fcn below
     if os.path.exists(outfname):
         if os.stat(outfname).st_size == 0:
             if debug:

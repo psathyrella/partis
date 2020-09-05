@@ -28,8 +28,10 @@ parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines', he
 parser.add_argument('--workdir', default=utils.choose_random_subdir('/tmp/%s/partis' % os.getenv('USER', default='partis-work')), help='working directory for vsearch')
 parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch binaries for linux and darwin are included in partis/bin/, so leaving this unset should work, but for other systems you need to get your own)')
 parser.add_argument('--debug', action='store_true')
+parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info of sequence name string (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
 parser.add_argument('--split-heavy-seqs', action='store_true', help='instead of the default of writing each locus to its own .fa file, split igh into separate dirs for those sequences paired with igk and igl (i.e. so each of the two dirs is ready for partis --paired-loci)')
+parser.add_argument('--ig-or-tr', default='ig', choices=utils.locus_pairs.keys(), help='antibodies or TCRs?')
 args = parser.parse_args()
 
 seqfos = utils.read_fastx(args.fname)
@@ -40,9 +42,7 @@ if args.fasta_info_index is not None:
 if os.path.exists(args.germline_dir + '/' + args.species):  # ick that is hackey
     args.germline_dir += '/' + args.species
 
-tmploci = [l for l in utils.loci if 'ig' in l]
-h_locus = [l for l in tmploci if utils.has_d_gene(l)][0]
-l_loci = [l for l in tmploci if not utils.has_d_gene(l)]
+tmploci = [l for l in utils.loci if args.ig_or_tr in l]
 
 # run vsearch to see if you can get a match for each locus for every sequence
 for locus in tmploci:
@@ -70,12 +70,16 @@ for sfo in seqfos:
 print 'totals: %s' % ' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items())
 
 # ----------------------------------------------------------------------------------------
-def write_locus_file(ofn, ofos):
-    print '    %s: %d to %s' % (locus, len(outfos[locus]), ofn)
+def write_locus_file(locus, ofn, ofos):
+    if len(ofos) == 0:
+        return
+    if utils.output_exists(args, ofn, offset=4):
+        return
+    print '    %s: %d to %s' % (locus, len(ofos), ofn)
     if not os.path.exists(os.path.dirname(ofn)):
         os.makedirs(os.path.dirname(ofn))
     with open(ofn, 'w') as lfile:
-        for sfo in outfos[locus]:
+        for sfo in ofos:
             lfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
 
 # ----------------------------------------------------------------------------------------
@@ -86,7 +90,9 @@ if args.outdir is None:
 else:
     outbase = args.outdir  # but if they did set --outdir, it's nicer to have plain locus file/path names
     tmp_sep = '/'
-if args.split_heavy_seqs:
+for locus in outfos:  # first write the single files with all seqs for each locus
+    write_locus_file(locus, '%s%s%s.fa' % (outbase, tmp_sep, locus), outfos[locus])
+if args.split_heavy_seqs:  # then, if necessary, write the ones that're split by pairing
     for h_locus, l_locus in utils.locus_pairs[args.ig_or_tr]:
         l_uids = set(sfo['name'] for sfo in outfos[l_locus])
         h_outfo = [sfo for sfo in outfos[h_locus] if sfo['name'] in l_uids]  # heavy chain seqs corresponding to this light chain
@@ -94,8 +100,3 @@ if args.split_heavy_seqs:
         print '  %d/%d %s seqs pair with %s' % (len(h_outfo), len(outfos[h_locus]), h_locus, l_locus)
         write_locus_file(h_locus, '%s/%s.fa' % (ldir, h_locus), h_outfo)
         write_locus_file(l_locus, '%s/%s.fa' % (ldir, l_locus), outfos[l_locus])
-else:
-    for locus in outfos:
-        if len(outfos[locus]) == 0:
-            continue
-        write_locus_file(locus, '%s%s%s.fa' % (outbase, tmp_sep, locus), outfos[locus])
