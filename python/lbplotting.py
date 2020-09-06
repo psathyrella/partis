@@ -262,7 +262,9 @@ def get_tree_from_line(line, is_true_line):
 
 # ----------------------------------------------------------------------------------------
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
-                          add_jitter=False, min_ptile=80., iclust_fnames=None, use_relative_affy=False):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+                          add_jitter=False, min_ptile=80., iclust_fnames=None, use_relative_affy=False, queries_to_include=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+    if queries_to_include is not None:
+        add_uids = True
     cdist_pt_keys = [s+'-ptile' for s in cdist_keys]
     if yvar is None:
         yvar = lb_metric
@@ -382,7 +384,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                     assert False
                 iclust_plotvals[colorvar].append(colorval)  # I think any uid in <line> should be in the tree, but may as well handle the case where it isn't
             if add_uids:
-                iclust_plotvals['uids'].append(uid)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
+                iclust_plotvals['uids'].append(uid if queries_to_include is None or uid in queries_to_include else None)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
         if add_jitter: #xvar == 'affinity-ptile' and '-ptile' in yvar:
             def jitter(frac=0.02):
                 # delta = max(3, max(iclust_plotvals[xvar]) - min(iclust_plotvals[xvar]))
@@ -509,13 +511,15 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         for xval, yval, uid in zip(plotvals[xvar], plotvals[yvar], plotvals['uids']):  # note: two ways to signal not to do this: sometimes we have 'uids' in the dict, but don't fill it (so the zip() gives an empty list), but sometimes we populate 'uids' with None values
             if uid is None:
                 continue
-            ax.plot([xval], [yval], color='red', marker='.', markersize=markersize)
+            # ax.plot([xval], [yval], color='red', marker='.', markersize=markersize)
             ax.text(xval, yval, uid, color='red', fontsize=8)
 
     if warn_text is not None:
         ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], warn_text, fontsize=30, fontweight='bold', color='red')
     xmin, xmax = [mfcn(plotvals[xvar]) for mfcn in [min, max]]
     ymin, ymax = [mfcn(plotvals[yvar]) for mfcn in [min, max]]
+    # if xvar == 'cons-dist-aa':
+    #     xmin = max(-15, xmin)
     xbounds = xmin - 0.02 * (xmax - xmin), xmax + 0.02 * (xmax - xmin)
     if 'y' in log:
         ybounds = 0.75 * ymin, 1.3 * ymax

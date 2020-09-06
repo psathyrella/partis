@@ -1431,7 +1431,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
             lbplotting.plot_lb_vs_affinity(inf_plotdir, inf_lines_to_use, 'cons-dist-aa', only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
         if not only_csv:  # all the various scatter plots are really slow
             lbplotting.plot_lb_distributions('cons-dist-aa', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
-            lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8)
+            lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
             lbplotting.plot_lb_distributions('lbr', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
             if ete_path is not None:
                 lbplotting.plot_lb_trees(['lbi', 'lbr', 'cons-dist-aa'], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
