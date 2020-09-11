@@ -171,6 +171,11 @@ def add_lists(list_a, list_b):  # add two lists together, except if one is None 
         return list_a + list_b
 
 # ----------------------------------------------------------------------------------------
+def get_single_entry(tl):  # adding this very late, so there's a lot of places it could be used
+    assert len(tl) == 1
+    return tl[0]
+
+# ----------------------------------------------------------------------------------------
 # values used when simulating from scratch (mutation stuff is controlled by command line args, e.g. --scratch-mute-freq)
 scratch_mean_erosion_lengths = {'igh' : {'v_3p' : 1.3, 'd_5p' : 5.6, 'd_3p' : 4.7, 'j_5p' : 5.1},
                                 'igk' : {'v_3p' : 2.8, 'd_5p' : 1.0, 'd_3p' : 0.0, 'j_5p' : 1.5},
@@ -521,51 +526,57 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
     return multifo
 
 # ----------------------------------------------------------------------------------------
-# add seqs in <new_seqfos> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary
-def add_seqs_to_line(line, new_seqfos, glfo, debug=False):
+# add seqs in <seqfos_to_add> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary
+def add_seqs_to_line(line, seqfos_to_add, glfo, debug=False):
     # ----------------------------------------------------------------------------------------
-    def align_sfo_seq(sfo):
+    def align_sfo_seqs(sfos_to_align):
+        sfos_to_align['naive_seq'] = line['naive_seq']
+        msa_info = align_many_seqs([{'name' : n, 'seq' : s} for n, s in sfos_to_align.items()])
+        aligned_naive_seq = get_single_entry([sfo['seq'] for sfo in msa_info if sfo['name'] == 'naive_seq'])
+        msa_info = [sfo for sfo in msa_info if sfo['name'] != 'naive_seq']
         if debug:
-            print '  seq different length for %s, aligning:' % sfo['name']
-            color_mutants(line['naive_seq'], sfo['seq'], print_result=True, ref_label='naive seq ', seq_label='new seq ', extra_str='        ', align=True)
-        aligned_seq, aligned_naive_seq = align_seqs(line['naive_seq'], sfo['seq'])
-        trimmed_seq = []  # it could be padded too, but probably it'll mostly be trimmed, so we just call it that
-        for naive_nuc, new_nuc in zip(aligned_seq, aligned_naive_seq):
-            if naive_nuc in gap_chars:
-                continue
-            elif new_nuc in gap_chars:  # naive seq probably has some N padding
-                trimmed_seq.append(ambig_base)
-            else:
-                trimmed_seq.append(new_nuc)
-        sfo['seq'] = ''.join(trimmed_seq)
-        assert len(sfo['seq']) == len(line['naive_seq'])
+            print '  aligned %d seqs with length different to naive sequence:' % (len(sfos_to_align) - 1)
+            for iseq, sfo in enumerate(msa_info):
+                color_mutants(aligned_naive_seq, sfo['seq'], print_result=True, ref_label='naive seq ', seq_label=sfo['name']+' ', extra_str='        ', only_print_seq=iseq>0)
+        for sfo in msa_info:
+            trimmed_seq = []  # it could be padded too, but probably it'll mostly be trimmed, so we just call it that
+            for naive_nuc, new_nuc in zip(aligned_naive_seq, sfo['seq']):
+                if naive_nuc in gap_chars:  # probably extra crap on the ends of the new sequence
+                    continue
+                elif new_nuc in gap_chars:  # naive seq probably has some N padding
+                    trimmed_seq.append(ambig_base)
+                else:
+                    trimmed_seq.append(new_nuc)
+            sfos_to_align[sfo['name']] = ''.join(trimmed_seq)
+            assert len(sfos_to_align[sfo['name']]) == len(line['naive_seq'])
 
     # ----------------------------------------------------------------------------------------
-    for sfo in new_seqfos:
-        if len(sfo['seq']) != len(line['naive_seq']):  # implicit info adding enforces that the naive seq is the same length as all the seqs
-            align_sfo_seq(sfo)
+    sfos_to_align = {sfo['name'] : sfo['seq'] for sfo in seqfos_to_add if len(sfo['seq']) != len(line['naive_seq'])}  # implicit info adding enforces that the naive seq is the same length as all the seqs
+    if len(sfos_to_align) > 0:
+        align_sfo_seqs(sfos_to_align)
+    aligned_seqfos = [{'name' : sfo['name'], 'seq' : sfos_to_align.get(sfo['name'], sfo['seq'])} for sfo in seqfos_to_add]
 
     if debug:
-        print_reco_event(line, label='before adding %d seqs:'%len(new_seqfos), extra_str='      ')
+        print_reco_event(line, label='before adding %d seqs:'%len(aligned_seqfos), extra_str='      ')
 
     remove_all_implicit_info(line)
 
     for key in set(line) & set(linekeys['per_seq']):
         if key == 'unique_ids':
-            line[key] += [s['name'] for s in new_seqfos]
+            line[key] += [s['name'] for s in aligned_seqfos]
         elif key == 'input_seqs' or key == 'seqs':  # i think elsewhere these end up pointing to the same list of string objects, but i think that doesn't matter?
-            line[key] += [s['seq'] for s in new_seqfos]
+            line[key] += [s['seq'] for s in aligned_seqfos]
         elif key == 'duplicates':
-            line[key] += [[] for _ in new_seqfos]
+            line[key] += [[] for _ in aligned_seqfos]
         elif key == 'indelfos':
-            line[key] += [indelutils.get_empty_indel() for _ in new_seqfos]
+            line[key] += [indelutils.get_empty_indel() for _ in aligned_seqfos]
         else:  # I think this should only be for input meta keys like multiplicities, affinities, and timepoints, and hopefully they can all handle None?
-            line[key] += [None for _ in new_seqfos]
+            line[key] += [None for _ in aligned_seqfos]
 
     add_implicit_info(glfo, line)
 
     if debug:
-        print_reco_event(line, label='after:', extra_str='      ', queries_to_emphasize=[s['name'] for s in new_seqfos])
+        print_reco_event(line, label='after:', extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 
 # ----------------------------------------------------------------------------------------
 def get_repfracstr(csize, repertoire_size):  # return a concise string representing <csize> / <repertoire_size>
