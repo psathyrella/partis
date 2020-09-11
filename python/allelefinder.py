@@ -315,7 +315,7 @@ class AlleleFinder(object):
         for ipos in range(len(germline_seq)):
             igl = ipos + self.n_bases_to_exclude['5p'][gene]  # position in original (i.e. complete) germline gene
 
-            if germline_seq[ipos] in utils.all_ambiguous_bases or query_seq[ipos] in utils.all_ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
+            if germline_seq[ipos] == utils.ambig_base or query_seq[ipos] == utils.ambig_base:  # skip if either germline or query sequence is ambiguous at this position
                 continue
 
             self.counts[gene][igl][n_mutes]['total'] += 1
