@@ -176,7 +176,7 @@ class PartitionDriver(object):
                         if line['v_gene'] == '':  # failed
                             continue
                         utils.process_input_line(line)
-                        outrow = {'unique_ids' : line['unique_ids'], 'naive_seq' : line['padlefts'][0] * utils.ambiguous_bases[0] + line['naive_seq'] + line['padrights'][0] * utils.ambiguous_bases[0]}
+                        outrow = {'unique_ids' : line['unique_ids'], 'naive_seq' : line['padlefts'][0] * utils.ambig_base + line['naive_seq'] + line['padrights'][0] * utils.ambig_base}
                         writer.writerow(outrow)
             elif set(reader.fieldnames) == set(utils.partition_cachefile_headers):  # headers are ok, so can just copy straight over
                 check_call(['cp', self.args.persistent_cachefname, self.hmm_cachefname])
@@ -1018,8 +1018,7 @@ class PartitionDriver(object):
                 if self.args.max_cluster_size is not None:
                     cmd_str += ' --max-cluster-size ' + str(self.args.max_cluster_size)
 
-        assert len(utils.ambiguous_bases) == 1  # could allow more than one, but it's not implemented a.t.m.
-        cmd_str += ' --ambig-base ' + utils.ambiguous_bases[0]
+        cmd_str += ' --ambig-base ' + utils.ambig_base
 
         return cmd_str
 
@@ -1338,7 +1337,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
         assert len(self.sw_info[qry]['padlefts']) == 1
-        return self.sw_info[qry]['padlefts'][0] * utils.ambiguous_bases[0] + self.reco_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambiguous_bases[0]
+        return self.sw_info[qry]['padlefts'][0] * utils.ambig_base + self.reco_info[qry]['naive_seq'] + self.sw_info[qry]['padrights'][0] * utils.ambig_base
 
     # ----------------------------------------------------------------------------------------
     def split_input(self, n_procs, infname):

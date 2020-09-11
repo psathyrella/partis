@@ -64,7 +64,7 @@ class MuteFreqer(object):
             for ipos in range(istart, istop):  # NOTE this is similar to the stuff in allelefinder, except in allelefinder we need every single sequence to be the same length (so they go in the correct [comparable?] bin), whereas here we do not
                 igl = ipos + int(info[region + '_5p_del'])  # account for left-side deletions in the indexing
 
-                if germline_seq[ipos] in utils.ambiguous_bases or query_seq[ipos] in utils.ambiguous_bases:  # skip if either germline or query sequence is ambiguous at this position
+                if germline_seq[ipos] == utils.ambig_base or query_seq[ipos] == utils.ambig_base:  # skip if either germline or query sequence is ambiguous at this position
                     continue
 
                 if igl not in gcts:  # if we have not yet observed this position in a query sequence, initialize it

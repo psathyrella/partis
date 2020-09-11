@@ -64,7 +64,7 @@ class RecombinationEvent(object):
     # ----------------------------------------------------------------------------------------
     def set_naive_seq(self, use_dummy_insertions=False):
         if use_dummy_insertions:
-            vd_str, dj_str = utils.ambiguous_bases[0] * self.insertion_lengths['vd'], utils.ambiguous_bases[0] * self.insertion_lengths['dj']
+            vd_str, dj_str = utils.ambig_base * self.insertion_lengths['vd'], utils.ambig_base * self.insertion_lengths['dj']
         else:
             vd_str, dj_str = self.insertions['vd'], self.insertions['dj']
         self.recombined_seq = self.eroded_seqs['v'] + vd_str + self.eroded_seqs['d'] + dj_str + self.eroded_seqs['j']

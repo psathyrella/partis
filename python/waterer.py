@@ -795,7 +795,7 @@ class Waterer(object):
                 spurious_bases = insertion[len(insertion) - d_len:]  # i.e. the last <v_5p_del> bases of the fv insertion (or first <j_3p_del> bases of the jf insertion)
             else:
                 spurious_bases = insertion  # the whole damn thing
-            if spurious_bases.count(utils.ambiguous_bases[0]) == len(spurious_bases):  # don't do it if it's all Ns
+            if spurious_bases.count(utils.ambig_base) == len(spurious_bases):  # don't do it if it's all Ns
                 continue
             if debug:
                 print 'EXPANDING %s %s d_len: %d   insertion: %s (len %d)   spurious: %s (len %d)' % (qinfo['name'], region, d_len, insertion, len(insertion), spurious_bases, len(spurious_bases))
@@ -1392,8 +1392,8 @@ class Waterer(object):
             if padleft < 0 or padright < 0:
                 raise Exception('bad padding %d %d for %s' % (padleft, padright, query))
 
-            leftstr = padleft * utils.ambiguous_bases[0]
-            rightstr = padright * utils.ambiguous_bases[0]
+            leftstr = padleft * utils.ambig_base
+            rightstr = padright * utils.ambig_base
             swfo['fv_insertion'] = leftstr + swfo['fv_insertion']
             swfo['jf_insertion'] = swfo['jf_insertion'] + rightstr
             for seqkey in ['seqs', 'input_seqs']:

@@ -59,7 +59,7 @@ def old_indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE sim
     def reinstate(ifo, istr):
         indelstr = ifo['seqstr']
 
-        if outstrs[istr][ifo['pos']] not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
+        if outstrs[istr][ifo['pos']] not in utils.nukes + utils.all_ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
             indelstr = ' ' * len(ifo['seqstr'])
         elif use_stars(ifo['type'], istr):
             indelstr = '*' * len(ifo['seqstr'])
@@ -97,7 +97,7 @@ def indel_shenanigans(line, iseq, outstrs, colors, delstrs, debug=False):  # NOT
         else:
             return 'uh'  # i guess it's possible if there's overlapping indels, but I don't want to think about that a.t.m.
     def choose_char(ostrchar, istr, qrchar, glchar):  # <ostrchar> is the character that's there already
-        if ostrchar not in utils.nukes + utils.ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
+        if ostrchar not in utils.nukes + utils.all_ambiguous_bases:  # if this bit of the sequences is spaces, dots, or dashes, then we only want to insert spaces (note that this adds some arbitrariness on boundaries as to who gets the actual inserted string)
             return ' '
         elif use_stars(get_itype(qrchar, glchar), istr):
             return '*'
@@ -183,7 +183,7 @@ def indel_shenanigans(line, iseq, outstrs, colors, delstrs, debug=False):  # NOT
 # ----------------------------------------------------------------------------------------
 def add_colors(outstrs, colors, line):  # NOTE do *not* modify <line>
     # <outstrs> convention: [indels, d, vj, query]
-    bluechars = utils.ambiguous_bases + ['*', '-']
+    bluechars = utils.all_ambiguous_bases + ['*', '-']
 
     def ismuted(ch1, ch2):
         if ch1 in bluechars or ch2 in bluechars:

@@ -217,9 +217,9 @@ def get_dbg_str(indelfo):
         if qrb in utils.gap_chars or glb in utils.gap_chars:
             qrcolor = 'light_blue'
             glcolor = 'light_blue'
-        elif qrb in utils.ambiguous_bases:
+        elif qrb in utils.all_ambiguous_bases:
             qrcolor = 'light_blue'
-        elif glb in utils.ambiguous_bases:
+        elif glb in utils.all_ambiguous_bases:
             glcolor = 'light_blue'
         elif qrb != glb:
             qrcolor = 'red'
@@ -659,7 +659,7 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
             joint_indelfo['indels'] += reg_indel_list
         else:
             qr_gap_seq += [full_qrseq[qrbounds[region][0] : qrbounds[region][1]]]
-            gl_gap_seq += [utils.ambiguous_bases[0] * (qrbounds[region][1] - qrbounds[region][0])]
+            gl_gap_seq += [utils.ambig_base * (qrbounds[region][1] - qrbounds[region][0])]
         if debug > 1:
             print '    %s\n    %s' % (qr_gap_seq[-1].replace(utils.gap_chars[0], utils.color('red', utils.gap_chars[0])), gl_gap_seq[-1].replace(utils.gap_chars[0], utils.color('red', utils.gap_chars[0])))
 
@@ -667,10 +667,10 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
             next_reg = utils.regions[ireg + 1]
             assert region + next_reg in utils.boundaries
             qr_gap_seq += [full_qrseq[qrbounds[region][1] : qrbounds[next_reg][0]]]
-            gl_gap_seq += [utils.ambiguous_bases[0] * (qrbounds[next_reg][0] - qrbounds[region][1])]
+            gl_gap_seq += [utils.ambig_base * (qrbounds[next_reg][0] - qrbounds[region][1])]
             if debug > 1:
                 print '  %s%s' % (region, next_reg)
-                print '    %s\n    %s' % (full_qrseq[qrbounds[region][1] : qrbounds[next_reg][0]], utils.ambiguous_bases[0] * (qrbounds[next_reg][0] - qrbounds[region][1]))
+                print '    %s\n    %s' % (full_qrseq[qrbounds[region][1] : qrbounds[next_reg][0]], utils.ambig_base * (qrbounds[next_reg][0] - qrbounds[region][1]))
 
     if debug > 1:
         print 'combined gap seqs:'
@@ -684,7 +684,7 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
     # assert 'N' not in joint_indelfo['reversed_seq']  # this happens if there's Ns in the initial sequence
 
     joint_indelfo['qr_gap_seq'] = full_qrseq[ : qrbounds['v'][0]] + joint_indelfo['qr_gap_seq'] + full_qrseq[qrbounds['j'][1] : ]
-    joint_indelfo['gl_gap_seq'] = utils.ambiguous_bases[0] * qrbounds['v'][0] + joint_indelfo['gl_gap_seq'] + utils.ambiguous_bases[0] * (len(full_qrseq) - qrbounds['j'][1])
+    joint_indelfo['gl_gap_seq'] = utils.ambig_base * qrbounds['v'][0] + joint_indelfo['gl_gap_seq'] + utils.ambig_base * (len(full_qrseq) - qrbounds['j'][1])
 
     if debug:
         print 'combined'

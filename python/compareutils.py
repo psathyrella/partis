@@ -1100,7 +1100,7 @@ def slice_file(args, csv_infname, csv_outfname):  # not necessarily csv
             assert '/dralph/' in csv_infname
             os.remove(csv_infname)
     elif '.fa' in csv_infname:
-        input_info = utils.read_fastx(csv_infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize=True, istartstop=args.istartstop)
+        input_info = utils.read_fastx(csv_infname, name_key='unique_ids', seq_key='input_seqs', add_info=False, sanitize_uids=True, istartstop=args.istartstop)
         with open(csv_outfname, 'w') as outfile:
             writer = csv.DictWriter(outfile, ('unique_ids', 'input_seqs'))
             writer.writeheader()

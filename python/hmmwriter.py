@@ -265,8 +265,6 @@ class HmmWriter(object):
             self.insertions.append('dj')
             self.insertions.append('jf')
 
-        assert len(utils.ambiguous_bases) == 1 and utils.ambiguous_bases[0] == 'N'  # maybe need to update some stuff below if this changes
-
         if self.debug:
             print '%s   %d positions' % (utils.color_gene(gene_name), len(self.germline_seq))
             print '  reading info from %s' % self.indir
@@ -839,7 +837,7 @@ class HmmWriter(object):
 
     # ----------------------------------------------------------------------------------------
     def get_emission_prob(self, nuke1, is_insert=True, inuke=-1, germline_nuke='', insertion=''):
-        if nuke1 not in utils.nukes + utils.ambiguous_bases:
+        if nuke1 not in utils.nukes + [utils.ambig_base]:
             raise Exception('bad nuke (%s)' % nuke1)
         if is_insert:
             if germline_nuke == '' or germline_nuke == 'N':
@@ -855,7 +853,7 @@ class HmmWriter(object):
         else:
             assert inuke >= 0 and germline_nuke != ''
 
-            if germline_nuke in utils.ambiguous_bases:
+            if germline_nuke == utils.ambig_base:
                 return 1. / len(utils.nukes)
             else:
                 mute_freq = self.mute_freqs[inuke]  # if it isn't there, that means we want to make an hmm state for a position that wasn't observed... which I think'll happen mostly with shorter read lengths
@@ -909,8 +907,6 @@ class HmmWriter(object):
         if math.fabs(total - 1.0) >= self.eps:
             raise Exception('emission not normalized in state %s (total %f)   %s' % (state.name, total, emission_probs))
         state.add_emission(self.track, emission_probs)
-        if len(utils.ambiguous_bases) > 0:  # and 'insert' not in state.name:
-            state.extras['ambiguous_emission_prob'] = self.get_ambiguos_emission_prob(inuke)
-            assert len(utils.ambiguous_bases) == 1
-            state.extras['ambiguous_char'] = utils.ambiguous_bases[0]
-            # print '%30s, %4d %f' % (state.name, inuke, self.get_ambiguos_emission_prob(inuke))
+        state.extras['ambiguous_emission_prob'] = self.get_ambiguos_emission_prob(inuke)
+        state.extras['ambiguous_char'] = utils.ambig_base
+        # print '%30s, %4d %f' % (state.name, inuke, self.get_ambiguos_emission_prob(inuke))

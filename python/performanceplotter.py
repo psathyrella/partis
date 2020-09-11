@@ -70,7 +70,7 @@ class PerformancePlotter(object):
                     continue
                 elif cinf in utils.gap_chars:
                     true_list += [ctrue]
-                    inf_list += [utils.ambiguous_bases[0]]
+                    inf_list += [utils.ambig_base]
                 else:
                     true_list += [ctrue]
                     inf_list += [cinf]

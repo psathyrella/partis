@@ -189,11 +189,12 @@ boundaries = ['vd', 'dj']  # NOTE needs to be updated to be consistent with eros
 effective_boundaries = ['fv', 'jf']
 all_boundaries = boundaries + effective_boundaries
 nukes = ['A', 'C', 'G', 'T']
-ambiguous_bases = ['N', ]
+ambig_base = 'N'  # this is the only ambiguous base that we allow/use internally
+all_ambiguous_bases = list('NRYKMSWBDHV')  # but the other ones are sometimes handled when parsing input, often just by turning them into Ns
 ambiguous_amino_acids = ['X', ]
-alphabet = set(nukes + ambiguous_bases)  # NOTE not the greatest naming distinction, but note difference to <expected_characters>
+alphabet = set(nukes + [ambig_base])  # NOTE not the greatest naming distinction, but note difference to <expected_characters>
 gap_chars = ['.', '-']
-expected_characters = set(nukes + ambiguous_bases + gap_chars)  # NOTE not the greatest naming distinction, but note difference to <alphabet>
+expected_characters = set(nukes + [ambig_base] + gap_chars)  # NOTE not the greatest naming distinction, but note difference to <alphabet>
 conserved_codons = {l : {'v' : 'cyst',
                          'j' : 'tryp' if l == 'igh' else 'phen'}  # e.g. heavy chain has tryp, light chain has phen
                      for l in loci}
@@ -224,8 +225,9 @@ def gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
 def non_gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
     return len(seq) - gap_len(seq)
 def ambig_frac(seq):
-    ambig_seq = filter(ambiguous_bases.__contains__, seq)
-    return float(len(ambig_seq)) / len(seq)
+    # ambig_seq = filter(all_ambiguous_bases.__contains__, seq)
+    # return float(len(ambig_seq)) / len(seq)
+    return float(seq.count(ambig_base)) / len(seq)
 
 # ----------------------------------------------------------------------------------------
 def reverse_complement_warning():
@@ -300,6 +302,7 @@ adaptive_headers = {
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 forbidden_character_translations = string.maketrans(':;,', 'csm')
+ambig_translations = string.maketrans(''.join(all_ambiguous_bases), ambig_base * len(all_ambiguous_bases))
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
@@ -518,6 +521,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
     return multifo
 
 # ----------------------------------------------------------------------------------------
+# add seqs in <new_seqfos> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary
 def add_seqs_to_line(line, new_seqfos, glfo, debug=False):
     # ----------------------------------------------------------------------------------------
     def align_sfo_seq(sfo):
@@ -530,7 +534,7 @@ def add_seqs_to_line(line, new_seqfos, glfo, debug=False):
             if naive_nuc in gap_chars:
                 continue
             elif new_nuc in gap_chars:  # naive seq probably has some N padding
-                trimmed_seq.append(ambiguous_bases[0])
+                trimmed_seq.append(ambig_base)
             else:
                 trimmed_seq.append(new_nuc)
         sfo['seq'] = ''.join(trimmed_seq)
@@ -1108,13 +1112,13 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
     else:
         fastalist = [fstr(sfo) for sfo in seqfos]
     alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
-    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous=ambiguous_bases[0]))
+    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous=ambig_base))
 
     if tie_resolver_seq is not None:  # huh, maybe it'd make more sense to just pass in the tie-breaker sequence to the consensus fcn?
         assert len(tie_resolver_seq) == len(cons_seq)
         cons_seq = list(cons_seq)
         for ipos in range(len(cons_seq)):
-            if cons_seq[ipos] in ambiguous_bases:
+            if cons_seq[ipos] in all_ambiguous_bases:
                 cons_seq[ipos] = tie_resolver_seq[ipos]
         cons_seq = ''.join(cons_seq)
 
@@ -1211,7 +1215,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         tmp_ambigs = ambiguous_amino_acids
         tmp_gaps = []
     else:
-        tmp_ambigs = ambiguous_bases
+        tmp_ambigs = all_ambiguous_bases
         tmp_gaps = gap_chars
 
     return_str, isnps = [], []
@@ -1923,7 +1927,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
     line['cdr3_length'] = line['codon_positions']['j'] - line['codon_positions']['v'] + 3  # i.e. first base of cysteine to last base of tryptophan inclusive
 
     # add naive seq stuff
-    line['naive_seq'] = len(line['fv_insertion']) * ambiguous_bases[0] + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + len(line['jf_insertion']) * ambiguous_bases[0]
+    line['naive_seq'] = len(line['fv_insertion']) * ambig_base + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + len(line['jf_insertion']) * ambig_base
     for iseq in range(len(line['seqs'])):
         if len(line['naive_seq']) != len(line['seqs'][iseq]):
             raise Exception('naive and mature sequences different lengths %d %d for %s:\n    %s\n    %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids']), line['naive_seq'], line['seqs'][iseq]))
@@ -2400,7 +2404,7 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
     if amino_acid:
         skip_chars = set(ambiguous_amino_acids + gap_chars)
     else:
-        skip_chars = set(ambiguous_bases + gap_chars)
+        skip_chars = set(all_ambiguous_bases + gap_chars)
 
     distance, len_excluding_ambig = 0, 0
     mutated_positions = []
@@ -2673,7 +2677,7 @@ def ltranslate(nuc_seq, trim=False):  # local file translation function
         from Bio.Seq import Seq
     bseq = sys.modules['Bio.Seq']
     if trim:  # this should probably be the default, but i don't want to change anything that's using the padding (even though it probably wouldn't matter)
-        nuc_seq = trim_nuc_seq(nuc_seq.strip(ambiguous_bases[0]))
+        nuc_seq = trim_nuc_seq(nuc_seq.strip(ambig_base))
     return str(bseq.Seq(pad_nuc_seq(nuc_seq)).translate())  # the padding is annoying, but it's extremely common for bcr sequences to have lengths not a multiple of three (e.g. because out out of frame rearrangements), so easier to just always check for it
 
 # ----------------------------------------------------------------------------------------
@@ -2694,10 +2698,10 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
         fv_xtra, v_5p_xtra = 0, 0
         if len(line['fv_insertion']) % 3 != 0:
             fv_xtra = 3 - len(line['fv_insertion']) % 3
-            tseq = fv_xtra * ambiguous_bases[0] + tseq
+            tseq = fv_xtra * ambig_base + tseq
         if line['v_5p_del'] % 3 != 0:
             v_5p_xtra = line['v_5p_del'] % 3
-            tseq = v_5p_xtra * ambiguous_bases[0] + tseq
+            tseq = v_5p_xtra * ambig_base + tseq
         if debug:
             print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
         return tseq
@@ -2732,7 +2736,7 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         # print outfo['unique_ids']
         # color_mutants(info['naive_seq'], outfo[key], print_result=True, align=True, extra_str='  ')
     elif key == 'full_coding_input_seqs':
-        full_coding_input_seqs = [info['v_5p_del'] * ambiguous_bases[0] + info['input_seqs'][iseq] + info['j_3p_del'] * ambiguous_bases[0] for iseq in range(len(info['unique_ids']))]
+        full_coding_input_seqs = [info['v_5p_del'] * ambig_base + info['input_seqs'][iseq] + info['j_3p_del'] * ambig_base for iseq in range(len(info['unique_ids']))]
         outfo[key] = full_coding_input_seqs
         # for iseq in range(len(info['unique_ids'])):
         #     print info['unique_ids'][iseq]
@@ -3610,14 +3614,14 @@ def summarize_bcrham_dbgstrs(dbgfos, action):
 def find_first_non_ambiguous_base(seq):
     """ return index of first non-ambiguous base """
     for ib in range(len(seq)):
-        if seq[ib] not in ambiguous_bases:
+        if seq[ib] not in all_ambiguous_bases:
             return ib
     assert False  # whole sequence was ambiguous... probably shouldn't get here
 
 # ----------------------------------------------------------------------------------------
 def find_last_non_ambiguous_base_plus_one(seq):
     for ib in range(len(seq) - 1, -1, -1):  # count backwards from the end
-        if seq[ib] not in ambiguous_bases:  # find first non-ambiguous base
+        if seq[ib] not in all_ambiguous_bases:  # find first non-ambiguous base
             return ib + 1  # add one for easy slicing
 
     assert False  # whole sequence was ambiguous... probably shouldn't get here
@@ -4382,7 +4386,7 @@ def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have w
             seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):
     if ftype is None:
         suffix = getsuffix(fname)
         if suffix == '.fa' or suffix == '.fasta':
@@ -4459,7 +4463,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 else:
                     infostrs = [s3.strip() for s1 in headline.split(' ') for s2 in s1.split('\t') for s3 in s2.split('|')]  # NOTE the uid is left untranslated in here
                     uid = infostrs[0]
-            if sanitize and any(fc in uid for fc in forbidden_characters):
+            if sanitize_uids and any(fc in uid for fc in forbidden_characters):
                 if not already_printed_forbidden_character_warning:
                     print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand. You may also be able to fix it by setting --parse-fasta-info.' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in forbidden_characters]), uid, uid.translate(forbidden_character_translations))
                     already_printed_forbidden_character_warning = True
@@ -4473,6 +4477,11 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             seqfo = {name_key : uid, seq_key : seqline.strip().upper()}
             if add_info:
                 seqfo['infostrs'] = infostrs
+            if sanitize_seqs:
+                seqfo[seq_key] = seqfo[seq_key].translate(ambig_translations)
+                if any(c not in alphabet for c in seqfo[seq_key]):
+                    unexpected_chars = set([ch for ch in seqfo[seq_key] if ch not in alphabet])
+                    raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s:\n  %s' % (plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), alphabet, seqfo[name_key], seqfo[seq_key]))
             finfo.append(seqfo)
 
             n_fasta_queries += 1
@@ -4828,7 +4837,7 @@ def compare_vsearch_to_sw(sw_info, vs_info):
             continue
         if not indelutils.has_indels(vs_info['annotations'][query]['indelfo']):
             continue
-        indelutils.pad_indelfo(vs_info['annotations'][query]['indelfo'], ambiguous_bases[0] * sw_info[query]['padlefts'][0], ambiguous_bases[0] * sw_info[query]['padrights'][0])
+        indelutils.pad_indelfo(vs_info['annotations'][query]['indelfo'], ambig_base * sw_info[query]['padlefts'][0], ambig_base * sw_info[query]['padrights'][0])
 
     from hist import Hist
     hists = {

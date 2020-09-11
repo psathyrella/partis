@@ -73,11 +73,11 @@ class ParameterCounter(object):
         # aa seq content stuff
         nseq = info['seqs'][iseq]
         if info['v_5p_del'] > 0:
-            nseq = info['v_5p_del'] * utils.ambiguous_bases[0] + nseq
+            nseq = info['v_5p_del'] * utils.ambig_base + nseq
         if len(info['fv_insertion']) > 0:
             nseq = nseq[len(info['fv_insertion']) :]
         if len(nseq) % 3 != 0:
-            nseq += utils.ambiguous_bases[0] * (3 - (len(nseq) % 3))  # I think I could replace this with the new utils.pad_nuc_seq()
+            nseq += utils.ambig_base * (3 - (len(nseq) % 3))  # I think I could replace this with the new utils.pad_nuc_seq()
         aaseq = utils.ltranslate(nseq)
         for aa in self.all_aa:
             self.counts['seq_aa_content'][aa] += aaseq.count(aa)
@@ -107,7 +107,7 @@ class ParameterCounter(object):
 
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:
-                if nuke in utils.ambiguous_bases:
+                if nuke == utils.ambig_base:
                     continue
                 self.counts[bound + '_insertion_content'][nuke] += 1
 
