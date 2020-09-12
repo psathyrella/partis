@@ -526,7 +526,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
     return multifo
 
 # ----------------------------------------------------------------------------------------
-# add seqs in <seqfos_to_add> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary
+# add seqs in <seqfos_to_add> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary (see bin/add-seqs-to-outputs.py)
 def add_seqs_to_line(line, seqfos_to_add, glfo, debug=False):
     # ----------------------------------------------------------------------------------------
     def align_sfo_seqs(sfos_to_align):
@@ -556,9 +556,6 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, debug=False):
         align_sfo_seqs(sfos_to_align)
     aligned_seqfos = [{'name' : sfo['name'], 'seq' : sfos_to_align.get(sfo['name'], sfo['seq'])} for sfo in seqfos_to_add]
 
-    if debug:
-        print_reco_event(line, label='before adding %d seqs:'%len(aligned_seqfos), extra_str='      ')
-
     remove_all_implicit_info(line)
 
     for key in set(line) & set(linekeys['per_seq']):
@@ -576,7 +573,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, debug=False):
     add_implicit_info(glfo, line)
 
     if debug:
-        print_reco_event(line, label='after:', extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
+        print_reco_event(line, label='after adding %d seqs:'%len(aligned_seqfos), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 
 # ----------------------------------------------------------------------------------------
 def get_repfracstr(csize, repertoire_size):  # return a concise string representing <csize> / <repertoire_size>
@@ -1100,7 +1097,8 @@ def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq
                       post_str='    tie resolver%s'%('' if tie_resolver_label is None else (' (%s)'%tie_resolver_label)), extra_str='  ', print_n_snps=True)
 
 # ----------------------------------------------------------------------------------------
-def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver_seq=None, tie_resolver_label=None, debug=False):
+# NOTE only handles nucleotide sequences (use cons_seq_of_line() for aa seqs)
+def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, tie_resolver_seq=None, tie_resolver_label=None, debug=False):
     """ return consensus sequence from either aligned or unaligned seqfos """
     # <threshold>: If the percentage*0.01 of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added. e.g. 0.1 means if fewer than 10% of sequences have the most common base, it gets an N.
     # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (for us, this is usually the naive sequence) NOTE if you *don't* set this argument, all tied bases will be Ns
@@ -1113,6 +1111,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
         seqfos = aligned_seqfos
     elif unaligned_seqfos is not None:
         assert aligned_seqfos is None
+        assert not aa  # not sure if the alignment fcn can handle aa seqs as it is (and i don't need it a.t.m.)
         seqfos = align_many_seqs(unaligned_seqfos)
     else:
         assert False
@@ -1123,7 +1122,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
     else:
         fastalist = [fstr(sfo) for sfo in seqfos]
     alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
-    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous=ambig_base))
+    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous=ambiguous_amino_acids[0] if aa else ambig_base))
 
     if tie_resolver_seq is not None:  # huh, maybe it'd make more sense to just pass in the tie-breaker sequence to the consensus fcn?
         assert len(tie_resolver_seq) == len(cons_seq)
@@ -1134,19 +1133,29 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, tie_resolver
         cons_seq = ''.join(cons_seq)
 
     if debug:
-        print_cons_seq_dbg(seqfos, cons_seq, align=aligned_seqfos is None, tie_resolver_seq=tie_resolver_seq, tie_resolver_label=tie_resolver_label)
+        print_cons_seq_dbg(seqfos, cons_seq, aa=aa, align=aligned_seqfos is None, tie_resolver_seq=tie_resolver_seq, tie_resolver_label=tie_resolver_label)
 
     return cons_seq
 
 # ----------------------------------------------------------------------------------------
+def seqfos_from_line(line, aa=False):
+    tstr = '_aa' if aa else ''
+    return [{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'+tstr], get_multiplicities(line))]
+
+# ----------------------------------------------------------------------------------------
+# NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
 def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
-    # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
-    if aa:
-        cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line, aa=False, threshold=threshold)  # get the nucleotide cons seq, calculating it if it isn't already there NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
-        return ltranslate(cseq)
-    else:  # this is fairly slow
-        aligned_seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'], get_multiplicities(line))]
-        return cons_seq(threshold, aligned_seqfos=aligned_seqfos) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+    return cons_seq(threshold, aligned_seqfos=seqfos_from_line(line, aa=aa), aa=aa) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+# ----------------------------------------------------------------------------------------
+    # Leaving the old version below for the moment just for reference.
+    # It got the aa cons seq just by translating the nuc one, which is *not* what we want, since it can give you spurious ambiguous bases in the aa cons seq, e.g. if A and C tie at a position (so nuc cons seq has N there), but with either base it still codes for the same aa.
+    # if aa:
+    #     cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line, aa=False, threshold=threshold)  # get the nucleotide cons seq, calculating it if it isn't already there NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
+    #     return ltranslate(cseq)
+    # else:  # this is fairly slow
+    #     aligned_seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'], get_multiplicities(line))]
+    #     return cons_seq(threshold, aligned_seqfos=aligned_seqfos) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+# ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
 def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=None, threshold=0.01, debug=False):  # yeah yeah the name is too long, but it's clear, isn't it?

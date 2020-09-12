@@ -46,14 +46,11 @@ def add_cons_seqs(line, aa=False):
 
 # ----------------------------------------------------------------------------------------
 def lb_cons_dist(line, iseq, aa=False):  # at every point where this can add something to <line> (i.e. consensus seqs and aa seqs) it checks that they're not already there, so it will never do those calculations twice. But the final hamming calculation is *not* cached so will get redone if you call more than once
+    if aa and 'seqs_aa' not in line:
+        utils.add_seqs_aa(line)
     add_cons_seqs(line, aa=aa)
-    tseq = line['seqs'][iseq]
-    if aa:
-        if 'seqs_aa' not in line:
-            utils.add_seqs_aa(line)
-        tseq = line['seqs_aa'][iseq]
     tstr = '_aa' if aa else ''
-    return utils.hamming_distance(line['consensus_seq'+tstr], tseq, amino_acid=aa)
+    return utils.hamming_distance(line['consensus_seq'+tstr], line['seqs'+tstr][iseq], amino_acid=aa)
 
 # ----------------------------------------------------------------------------------------
 def add_cons_dists(line, aa=False, debug=False):
@@ -65,7 +62,7 @@ def add_cons_dists(line, aa=False, debug=False):
         # don't need this unless we turn the tie resolver stuff back on:
         # if aa:  # we have to add this by hand since we don't actually use it to calculate the aa cons seq -- we get that by just translating the nuc cons seq
         #     utils.add_naive_seq_aa(line)
-        utils.print_cons_seq_dbg([{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'+tstr], utils.get_multiplicities(line))], line['consensus_seq'+tstr], align=False, aa=aa)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
+        utils.print_cons_seq_dbg(utils.seqfos_from_line(line, aa=aa), line['consensus_seq'+tstr], align=False, aa=aa)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
 
 # ----------------------------------------------------------------------------------------
 def add_cdists_to_lbfo(line, lbfo, cdist, debug=False):  # it's kind of dumb to store them both in <line> and in <lbfo> (and thus in <line['tree-info']['lb']>), but I think it's ultimately the most sensible thing, given the inherent contradiction that a) we want to *treat* the cons dists like lbi/lbr tree metrics in almost every way, but b) they're *not* actually tree metrics in the sense that they don't use a tree (also, we want the minus sign in lbfo)
