@@ -1097,7 +1097,6 @@ def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq
                       post_str='    tie resolver%s'%('' if tie_resolver_label is None else (' (%s)'%tie_resolver_label)), extra_str='  ', print_n_snps=True)
 
 # ----------------------------------------------------------------------------------------
-# NOTE only handles nucleotide sequences (use cons_seq_of_line() for aa seqs)
 def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, tie_resolver_seq=None, tie_resolver_label=None, debug=False):
     """ return consensus sequence from either aligned or unaligned seqfos """
     # <threshold>: If the percentage*0.01 of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added. e.g. 0.1 means if fewer than 10% of sequences have the most common base, it gets an N.

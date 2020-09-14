@@ -11,6 +11,7 @@ import utils
 import treeutils
 
 # NOTE not just to run dtr, also to run other non-lb metrics
+# also note, this only really works on simulation, although it maybe wouldn't take much work to get it working on data
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--infname', required=True)

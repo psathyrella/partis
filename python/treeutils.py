@@ -341,7 +341,7 @@ def get_n_nodes(tree):
 
 # ----------------------------------------------------------------------------------------
 def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_name_node=None, debug=False):  # collapse edge between <keep_name> and <remove_name>, leaving remaining node with name <keep_name>
-    # NOTE I wrote this to try to fix the phylip trees from lonr.r, but it ends up they're kind of unfixable... but this fcn may be useful in the future, I guess, and it works
+    # NOTE I wrote this to try to fix the phylip trees from lonr.r, but it ends up they're kind of unfixable... but this fcn may be useful in the future, I guess, and it works UPDATE yep using it now for something else
     if debug:
         print '    collapsing %s and %s (the former will be the label for the surviving node)' % (keep_name, remove_name)
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
@@ -836,16 +836,18 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
 # ----------------------------------------------------------------------------------------
-def get_aa_tree(dtree, annotation, debug=False):
+def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
+    very_different_frac = 0.5
     if debug:
         print '    converting nuc tree (mean depth %.3f) to aa' % get_mean_leaf_height(dtree)
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
+        # print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
         changes = {}
 
     aa_dtree = copy.deepcopy(dtree)
     nuc_seqs = {uid : seq for uid, seq in zip(annotation['unique_ids'], annotation['seqs'])}
     aa_seqs = {uid : seq for uid, seq in zip(annotation['unique_ids'], annotation['seqs_aa'])}
 
+    skipped_edges = []
     if debug > 1:
         print '          N mutations        branch length'
         print '           nuc    aa          nuc      aa       child node'
@@ -853,30 +855,36 @@ def get_aa_tree(dtree, annotation, debug=False):
         if edge.tail_node is None:  # edge above root (no, i don't know why root has an edge above it, but that's how it is)
             continue
         cnode = edge.head_node  # child of this edge
-        nuc_branch_length = edge.length  # nucleotide distance from parent node
-        clabel = cnode.taxon.label
-        plabel = cnode.parent_node.taxon.label  # turns out there's also a .tail_node attribute of the edge that isn't listed properly in the docs
-        nuc_mut_frac, nuc_n_muts = utils.hamming_fraction(nuc_seqs[plabel], nuc_seqs[clabel], also_return_distance=True)
+        clabel, plabel = cnode.taxon.label, cnode.parent_node.taxon.label  # turns out there's also a .tail_node attribute of the edge that isn't listed properly in the docs
+        if clabel not in aa_seqs or plabel not in aa_seqs:  # if either of the seqs are missing, leave the existing (presumably nucleotide-based) branch length unchanged
+            skipped_edges.append(edge)
+            continue
+        nuc_branch_length = edge.length  # nucleotide distance from parent node (only used for debug, but we have to grab it before we change the edge length)
         aa_mut_frac, aa_n_muts = utils.hamming_fraction(aa_seqs[plabel], aa_seqs[clabel], amino_acid=True, also_return_distance=True)
-        if nuc_mut_frac > 0 and abs(nuc_branch_length - nuc_mut_frac) / nuc_mut_frac > 0.1:
-            print '  %s nuc branch length %.4f and mut frac %.4f very different for branch between %s --> %s' % (utils.color('red', 'warning'), nuc_branch_length, nuc_mut_frac, clabel, plabel)
         edge.length = aa_mut_frac
         if debug:
-            changes[clabel] = (nuc_n_muts, aa_n_muts)
-        if debug > 1:
-            print '          %3d   %3d        %.3f     %.3f      %s' % (nuc_n_muts, aa_n_muts, nuc_branch_length, aa_mut_frac, clabel)
+            nuc_mut_frac, nuc_n_muts = utils.hamming_fraction(nuc_seqs[plabel], nuc_seqs[clabel], also_return_distance=True)
+            if nuc_mut_frac > 0 and abs(nuc_branch_length - nuc_mut_frac) / nuc_mut_frac > very_different_frac:
+                print '  %s nuc branch length %.4f and mut frac %.4f very different for branch between %s --> %s' % (utils.color('red', 'warning'), nuc_branch_length, nuc_mut_frac, clabel, plabel)
+            changes[edge] = (nuc_n_muts, aa_n_muts)
+            if debug > 1:
+                print '          %3d   %3d        %.3f     %.3f      %s' % (nuc_n_muts, aa_n_muts, nuc_branch_length, aa_mut_frac, clabel)
 
     aa_dtree.update_bipartitions(suppress_unifurcations=False)
 
+    if len(skipped_edges) > 0:
+        print '      %s get_aa_tree()%s: skipped %d/%d edges for which we didn\'t have sequences for both nodes (i.e. left the original branch length unmodified)' % (utils.color('yellow', 'warning'), '' if extra_str is None else ' %s'%extra_str, len(skipped_edges), len(list(aa_dtree.preorder_edge_iter())))
     if debug:
+        assert len(changes) + len(skipped_edges) + 1 == len(list(aa_dtree.preorder_edge_iter()))  # +1 is for root edge
+        print '    rescaled %d/%d edges' % (len(changes), len(list(aa_dtree.preorder_edge_iter())))
         print '      aa tree mean depth: %.3f' % get_mean_leaf_height(aa_dtree)
         n_to_print = 10
         print '       child nodes with %d largest differences between N nuc and N aa changes' % n_to_print
-        print '          nuc    aa   child node'
-        for clabel in sorted(changes, key=lambda k: changes[k][1] - changes[k][0])[:n_to_print]:
-            nuc_n_muts, aa_n_muts = changes[clabel]
-            print '         %3d    %3d    %s' % (nuc_n_muts, aa_n_muts, clabel)
-        print utils.pad_lines(get_ascii_tree(dendro_tree=aa_dtree, width=400))
+        print '          nuc    aa   parent node    child node'
+        for edge in sorted(changes, key=lambda k: changes[k][1] - changes[k][0])[:n_to_print]:
+            nuc_n_muts, aa_n_muts = changes[edge]
+            print '         %3d    %3d     %-15s %s' % (nuc_n_muts, aa_n_muts, edge.tail_node.taxon.label, edge.head_node.taxon.label)
+        # print utils.pad_lines(get_ascii_tree(dendro_tree=aa_dtree, width=400))
 
     return aa_dtree
 
@@ -962,7 +970,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     if only_calc_metric is None:
         assert lbr_tau_factor is not None  # has to be set if we're calculating both metrics
         if iclust is None or iclust == 0:
-            print '    calculating %s lb metrics%s with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % (normstr, '' if extra_str is None else ' for %s' % extra_str, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
+            print '    %scalculating %s lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % ('' if extra_str is None else '%s: '%extra_str, normstr, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
         lbvals = set_lb_values(dtree, tau, only_calc_metric='lbi', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, only_calc_metric='lbr', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
@@ -1421,17 +1429,19 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
         utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
         fnames = []
         if has_affinities:
-            lbplotting.plot_lb_vs_affinity(inf_plotdir, inf_lines_to_use, 'lbi', only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
+            lbplotting.plot_lb_vs_affinity(inf_plotdir, inf_lines_to_use, 'aa-lbi', only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
         if not only_csv:
-            lbplotting.plot_lb_distributions('lbi', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
+            lbplotting.plot_lb_distributions('aa-lbi', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
         if has_affinities:
             lbplotting.plot_lb_vs_affinity(inf_plotdir, inf_lines_to_use, 'cons-dist-aa', only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
         if not only_csv:  # all the various scatter plots are really slow
             lbplotting.plot_lb_distributions('cons-dist-aa', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
-            lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
+            lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
+            # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which means we didn't have any of the internal nodes):
+            lbplotting.make_lb_scatter_plots('aa-lbi', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
             lbplotting.plot_lb_distributions('lbr', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
             if ete_path is not None:
-                lbplotting.plot_lb_trees(['lbi', 'lbr', 'cons-dist-aa'], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
+                lbplotting.plot_lb_trees(['aa-lbi', 'lbr', 'cons-dist-aa'], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
             subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
             plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
@@ -1445,9 +1455,10 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
         fnames = []
         for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
-            lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'lbi', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
+            lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'aa-lbi', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
-            lbplotting.make_lb_scatter_plots('cons-dist-aa', true_plotdir, 'lbi', true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
+            lbplotting.make_lb_scatter_plots('cons-dist-aa', true_plotdir, 'aa-lbi', true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
+            lbplotting.make_lb_scatter_plots('aa-lbi', true_plotdir, 'lbi', true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True, add_jitter=False, add_stats='correlation')
         lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
             # mtmp = 'lbi'
@@ -1460,7 +1471,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
             # lbplotting.plot_lb_distributions('lbi', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             # lbplotting.plot_lb_distributions('lbr', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             if ete_path is not None:
-                lbplotting.plot_lb_trees(['lbi', 'lbr', 'cons-dist-aa'], true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
+                lbplotting.plot_lb_trees(['aa-lbi', 'lbr', 'cons-dist-aa'], true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
             # for lb_metric in lb_metrics:
             #     lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, inf_lines_to_use, lb_metric, fnames=fnames)
             # lbplotting.plot_cons_seq_accuracy(true_plotdir, true_lines_to_use, fnames=fnames)
@@ -1546,8 +1557,17 @@ def check_lb_values(line, lbvals):
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, true_lines_to_use=None, include_relative_affy_plots=False,
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, add_aa_lb_metrics=False, true_lines_to_use=None, include_relative_affy_plots=False,
                            cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def get_aa_lb_metrics(line, nuc_dtree, iclust, extra_str):  # NOTE duplicates code in calculate_individual_tree_metrics()
+        utils.add_seqs_aa(line)
+        aa_dtree = get_aa_tree(nuc_dtree, line, extra_str='(%s iclust %d)'%(extra_str, iclust), debug=debug)
+        aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, debug=debug)
+        line['tree-info']['lb']['aa-tree'] = aa_dtree.as_string(schema='newick')
+        for nuc_metric in lb_metrics:
+            line['tree-info']['lb']['aa-'+nuc_metric] = aa_lb_info[nuc_metric]
+    # ----------------------------------------------------------------------------------------
     print 'getting selection metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1598,6 +1618,8 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
             if add_aa_consensus_distance:
                 add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
+            if add_aa_lb_metrics:
+                get_aa_lb_metrics(line, treefo['tree'], iclust, 'AA inf tree')
             if dtr_path is not None and not train_dtr:  # don't want to train on data
                 calc_dtr(False, line, line['tree-info']['lb'], treefo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
             final_inf_lines.append(line)
@@ -1623,21 +1645,8 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
-# ----------------------------------------------------------------------------------------
-            # # this isn't functional, but it points the way to how I'd start calculating aa-lb metrics in this fcn, so i don't want to remove it
-            # if True: #calc_aa_lb:
-            #     utils.add_seqs_aa(true_line)
-            #     aa_dtree = get_aa_tree(true_dtree, true_line, debug=2)
-            #     sys.exit()  # only actually ran it up to this point
-            #     aa_lb_info = {'nuc-tree' : true_dtree, 'aa-tree' : aa_dtree}
-            #     aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
-            #     # for nuc_metric in tree_metrics:
-            #     #     line['tree-info']['lb']['aa-'+nmetric] = aa_lb_info[nuc_metric],
-            #     #     metric_method : lbfo[nuc_metric],
-            #     #     'tree' : aa_lb_info['nuc-tree'].as_string(schema='newick'),
-            #     #     'aa-tree' : aa_lb_info['aa-tree'].as_string(schema='newick'),
-            #     # }}
-# ----------------------------------------------------------------------------------------
+            if add_aa_lb_metrics:
+                get_aa_lb_metrics(true_line, true_dtree, iclust, 'AA true tree')
             if add_aa_consensus_distance:
                 add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above
             if dtr_path is not None:
