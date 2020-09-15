@@ -1139,7 +1139,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, ti
 # ----------------------------------------------------------------------------------------
 def seqfos_from_line(line, aa=False):
     tstr = '_aa' if aa else ''
-    return [{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'+tstr], get_multiplicities(line))]
+    return [{'name' : u, 'seq' : s, 'multiplicity' : m if m is not None else 1} for u, s, m in zip(line['unique_ids'], line['seqs'+tstr], get_multiplicities(line))]
 
 # ----------------------------------------------------------------------------------------
 # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
@@ -3190,7 +3190,7 @@ def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None, dryr
         os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
-def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', debug=True):  # NOTE it doesn't make sense to add a <logdir=> option, since if you write log files to logdir you need to also print part of them if it crashes, in which case you really need to be running run_cmds()
+def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', logfname=None, debug=True):
     if cmdfname is not None:
         with open(cmdfname, 'w') as cmdfile:
             cmdfile.write(cmd_str)
@@ -3213,6 +3213,10 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             outstr = ''.join(fout.readlines())
             errstr = ''.join(ferr.readlines())
     else:
+        if logfname is not None:  # write cmd_str to logfname, then redirect stdout to it as well
+            subprocess.check_call('echo %s >%s'%(cmd_str, logfname), shell=True)
+            cmd_str = '%s >>%s' % (cmd_str, logfname)
+            shell = True
         subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
 
     if cmdfname is not None:
