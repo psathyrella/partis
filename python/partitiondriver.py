@@ -2000,6 +2000,13 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_output(self, annotation_list, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False, outfname=None):
+# ----------------------------------------------------------------------------------------
+# _, al, _ = utils.read_output(args.outfile)
+# htmp = set(al[0].keys())
+# print 'extra in file:', ' '.join(sorted(htmp - set(utils.annotation_headers)))
+# print 'extra in annotation_headers:', ' '.join(sorted(set(utils.annotation_headers) - htmp))
+# sys.exit()
+# ----------------------------------------------------------------------------------------
         if outfname is None:
             outfname = self.args.outfname
 
