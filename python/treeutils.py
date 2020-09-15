@@ -681,7 +681,6 @@ def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multi
         if multifo is None or node.taxon.label not in multifo or multifo[node.taxon.label] is None:  # most all of them should be in there, but for instance I'm not adding the dummy branch nodes
             return 1
         return multifo[node.taxon.label]
-        # return multifo.get(node.taxon.label, 1) if multifo is not None else 1  # most all of them should be in there, but for instance I'm not adding the dummy branch nodes
 
     metrics_to_calc = lb_metrics.keys() if only_calc_metric is None else [only_calc_metric]
     if debug:
