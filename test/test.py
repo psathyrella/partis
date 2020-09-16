@@ -12,6 +12,7 @@ from subprocess import Popen, PIPE, check_call, check_output, CalledProcessError
 import colored_traceback.always
 import sys
 sys.path.insert(1, './python')
+import yaml
 
 from baseutils import get_extra_str
 import utils
@@ -50,6 +51,9 @@ class Tester(object):
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
 
+        self.selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'aa-lbi', 'aa-lbr']
+        self.expected_trees = ['tree', 'aa-tree']  # TODO might be worthwhile comparing the actual trees, although if they change the metrics will also change so maybe not
+
         self.n_partition_queries = 500
         self.n_sim_events = 500
         self.n_data_queries = -1
@@ -71,6 +75,7 @@ class Tester(object):
             ]}
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', str(self.n_partition_queries)]}
             self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', str(self.n_partition_queries)]}
+            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : []}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
         if args.quick:
             self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.n_quick_queries)]}
@@ -141,6 +146,8 @@ class Tester(object):
         elif 'partition' in ptest:
             argfo['action'] = 'partition'
             argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]
+        elif 'get-selection-metrics' in ptest:
+            argfo['action'] = 'get-selection-metrics'  # could really remove almost all of the arguments, mostly just need --outfname
         elif 'cache-parameters-' in ptest:
             argfo['action'] = 'cache-parameters'
             # if True:  #args.make_plots:
@@ -161,8 +168,10 @@ class Tester(object):
         for version_stype in self.stypes:  # <version_stype> is the code version, i.e. 'ref' is the reference results, 'new' is the results we just made with the new code
             self.read_annotation_performance(version_stype, input_stype)
             self.read_partition_performance(version_stype, input_stype)  # NOTE also calls read_annotation_performance()
+            self.read_selection_metric_performance(version_stype, input_stype)
         self.compare_performance(input_stype)
         self.compare_partition_cachefiles(input_stype)
+        self.compare_selection_metrics(input_stype)
 
     # ----------------------------------------------------------------------------------------
     def prepare_to_run(self, args, name, info):
@@ -205,8 +214,17 @@ class Tester(object):
             if name == 'simulate':
                 cmd_str += ' --outfname ' + self.infnames['new']['simu']
                 cmd_str += ' --indel-frequency 0.01 --indel-location v'
+            elif 'get-selection-metrics-' in name:
+                cmd_str += ' --outfname %s/%s.yaml --selection-metric-fname %s/%s.yaml' % (self.dirs['new'], name.replace('get-selection-metrics-', 'partition-'), self.dirs['new'], name)
+                clist = cmd_str.split()
+                utils.remove_from_arglist(clist, '--infname', has_arg=True)
+                utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)
+                utils.remove_from_arglist(clist, '--sw-cachefname', has_arg=True)
+                utils.remove_from_arglist(clist, '--is-simu')
+                cmd_str = ' '.join(clist)
             elif 'cache-parameters-' not in name:
                 cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.yaml'
+
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
             print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
@@ -323,61 +341,83 @@ class Tester(object):
             #     perffo[method][region + '_call'] = fraction_correct
 
     # ----------------------------------------------------------------------------------------
+    def do_this_test(self, tstr, input_stype, pt):
+        if tstr not in pt:
+            return False
+        if input_stype not in pt:
+            return False
+        if args.quick and pt not in self.quick_tests:
+            return False
+        return True
+
+    # ----------------------------------------------------------------------------------------
     def read_partition_performance(self, version_stype, input_stype, debug=False):
         """ Read new partitions from self.dirs['new'], and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
-        def do_this_test(pt):
-            if 'partition' not in pt:
-                return False
-            if input_stype not in pt:
-                return False
-            if args.quick and pt not in self.quick_tests:
-                return False
-            return True
 
-        ptest_list = [k for k in self.tests.keys() if do_this_test(k)]
+        ptest_list = [k for k in self.tests.keys() if self.do_this_test('partition', input_stype, k)]
         if len(ptest_list) == 0:
             return
         if input_stype not in self.perf_info[version_stype]:
             self.perf_info[version_stype][input_stype] = OrderedDict()
+        pinfo = self.perf_info[version_stype][input_stype]
         if debug:
             print '  version %s input %s partitioning' % (version_stype, input_stype)
             print '  purity         completeness        test                    description'
         for ptest in ptest_list:
-            if ptest not in self.perf_info[version_stype][input_stype]:
-                self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
+            if ptest not in pinfo:
+                pinfo[ptest] = OrderedDict()
             _, _, cpath = utils.read_yaml_output(fname=self.dirs[version_stype] + '/' + ptest + '.yaml', skip_annotations=True)
             ccfs = cpath.ccfs[cpath.i_best]
             if None in ccfs:
                 raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.yaml')
-            self.perf_info[version_stype][input_stype][ptest]['purity'], self.perf_info[version_stype][input_stype][ptest]['completeness'] = ccfs
+            pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = ccfs
             if debug:
-                print '    %5.2f          %5.2f      %-28s   to true partition' % (self.perf_info[version_stype][input_stype][ptest]['purity'], self.perf_info[version_stype][input_stype][ptest]['completeness'], ptest)
+                print '    %5.2f          %5.2f      %-28s   to true partition' % (pinfo[ptest]['purity'], pinfo[ptest]['completeness'], ptest)
 
             if ptest in self.perfdirs:
                 self.read_each_annotation_performance('single', version_stype, input_stype, these_are_cluster_annotations=True)
 
     # ----------------------------------------------------------------------------------------
-    def compare_performance(self, input_stype):
+    def read_selection_metric_performance(self, version_stype, input_stype, debug=False):
+        pinfo = self.perf_info[version_stype][input_stype]
+        if debug:
+            print '  version %s input %s selection metrics' % (version_stype, input_stype)
+            print '  purity         completeness        test                    description'
+        ptest_list = [k for k in self.tests.keys() if self.do_this_test('get-selection', input_stype, k)]
+        for ptest in ptest_list:
+            if ptest not in pinfo:  # perf_info should already have all the parent keys cause we run read_partition_performance() first
+                pinfo[ptest] = OrderedDict([(m, []) for m in self.selection_metrics])
+            with open(self.dirs[version_stype] + '/' + ptest + '.yaml') as yfile:
+                lbfos = yaml.load(yfile, Loader=yaml.Loader)
+            for lbfo in lbfos:  # one lbfo for each cluster
+                for metric in self.selection_metrics:
+                    pinfo[ptest][metric] += lbfo['lb'][metric].values()
 
-        def print_comparison_str(ref_val, new_val, epsval):
-            printstr = '%-5.3f' % ref_val
+    # ----------------------------------------------------------------------------------------
+    def compare_performance(self, input_stype):
+        # ----------------------------------------------------------------------------------------
+        def print_comparison_str(ref_val, new_val, epsval, fw=7, dp=3, pm=False):
             fractional_change = 0. if ref_val == 0. else (new_val - ref_val) / ref_val  # NOTE not the abs value yet
-            color = None
             if abs(fractional_change) > epsval:
                 color = 'red'
             elif abs(fractional_change) > self.tiny_eps:
                 color = 'yellow'
-            if color is None:
-                printstr += '          '
             else:
-                printstr += utils.color(color, ' --> %-5.3f' % new_val)
-            print '    %-s' % printstr,
+                color = None
+            def floatstr(v):
+                fmstr = '%%-%d.%df' % (fw, dp)
+                if pm:
+                    fmstr = fmstr.replace('%', '%+')
+                return fmstr % v
+            print '  %s%s  ' % (floatstr(ref_val), (fw+4)*' ' if color is None else utils.color(color, '--> %s'%floatstr(new_val))),
 
+        # ----------------------------------------------------------------------------------------
         print '  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype
         all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'multi-annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
         all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
         annotation_ptests = [pt for pt in all_annotation_ptests if pt in self.perf_info['ref'][input_stype]]
         partition_ptests = [pt for pt in all_partition_ptests if pt in self.perf_info['ref'][input_stype]]
+        selection_metric_tests = ['get-selection-metrics-'+input_stype+'-simu']
         metricstrs = {
             'mean_hamming' : 'hamming',
             'v_hamming' : 'v  ',
@@ -389,6 +429,7 @@ class Tester(object):
             'd_call' : 'd  ',
             'j_call' : 'j  ',
             'completeness' : 'compl.',
+            'cons-dist-aa' : 'aa-cdist',
         }
 
 
@@ -417,9 +458,9 @@ class Tester(object):
             print ''
 
         # print partition header
-        print '%8s %7s' % ('', ''),
+        print '%8s %5s' % ('', ''),
         for ptest in partition_ptests:
-            print '    %-15s' % ptest.split('-')[0],
+            print '    %-18s' % ptest.split('-')[0],
         print ''
         for metric in ['purity', 'completeness']:
             alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
@@ -431,6 +472,19 @@ class Tester(object):
                 if metric != 'purity':
                     method = ''
                 print_comparison_str(self.perf_info['ref'][input_stype][ptest][metric], self.perf_info['new'][input_stype][ptest][metric], self.eps_vals.get(metric, 0.1))
+            print ''
+
+        # selection metrics
+        print '                      %s' % ''.join(['%-23s'%metricstrs.get(m, m) for m in self.selection_metrics])
+        for mfname, mfcn in [('mean', numpy.mean), ('min', min), ('max', max), ('len', len)]:
+            print '             %5s' % mfname,
+            for metric in self.selection_metrics:
+                for ptest in selection_metric_tests:  # this'll break if there's more than one selection metric ptest
+                    if set(self.perf_info['ref'][input_stype][ptest]) != set(self.perf_info['new'][input_stype][ptest]):
+                        raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(self.perf_info['ref'][input_stype][ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
+                    ref_list, new_list = [self.perf_info[rn][input_stype][ptest][metric] for rn in ['ref', 'new']]
+                    dp = 1 if metric=='cons-dist-aa' or mfname=='len' else 3
+                    print_comparison_str(mfcn(ref_list), mfcn(new_list), self.eps_vals.get(metric, 0.1), dp=dp, pm=metric=='cons-dist-aa')
             print ''
 
     # ----------------------------------------------------------------------------------------
@@ -541,7 +595,7 @@ class Tester(object):
 #            # env.Command('test/_results/%s.passed' % name, out,
 #            #             './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
         
-            # ----------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype):
         """ NOTE only writing this for the ref input_stype a.t.m. """
 
