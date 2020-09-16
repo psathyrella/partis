@@ -470,6 +470,7 @@ class PartitionDriver(object):
 
         annotation_list = self.parse_existing_annotations(annotation_list, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')  # NOTE modifies <annotation_list>
         annotation_dict = utils.get_annotation_dict(annotation_list)  # returns none type if there's duplicate annotations
+        extra_headers = [h for h in annotation_list[0].keys() if h not in utils.annotation_headers]
 
         if tmpact == 'get-linearham-info':
             self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotation_list for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok (note that the order won't be the same as it would've been before)
@@ -481,13 +482,13 @@ class PartitionDriver(object):
                     self.sw_info[uid] = self.sw_info[dup_dict[uid]]  # it would be proper to fix the duplicates in here, and probably some other things
                 else:
                     pass  # switching this to pass: even though I think it can ony happen if people are running with options that don't really make sense, I don't think there's really a pressing need to crash here raise Exception('no sw info for query %s' % uid)  # I can't really do anything else, it makes no sense to go remove it from <annotation_list> when the underlying problem is (probably) that sw info was just run with different options
-            self.write_output(annotation_list, set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
+            self.write_output(annotation_list, set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'get-selection-metrics':
             self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list, cpath=cpath)  # adds tree metrics to <annotations>
             if self.args.add_selection_metrics_to_outfname:
                 print '  rewriting output file with newly-calculated selection metrics: %s' % outfname
-                self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
+                self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
@@ -1999,14 +2000,7 @@ class PartitionDriver(object):
             outfile.close()
 
     # ----------------------------------------------------------------------------------------
-    def write_output(self, annotation_list, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False, outfname=None):
-# # ----------------------------------------------------------------------------------------
-# # _, al, _ = utils.read_output(args.outfile)
-# # htmp = set(al[0].keys())
-# # print 'extra in file:', ' '.join(sorted(htmp - set(utils.annotation_headers)))
-# # print 'extra in annotation_headers:', ' '.join(sorted(set(utils.annotation_headers) - htmp))
-# # sys.exit()
-# # ----------------------------------------------------------------------------------------
+    def write_output(self, annotation_list, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False, outfname=None, extra_headers=None):
         if outfname is None:
             outfname = self.args.outfname
 
@@ -2038,7 +2032,10 @@ class PartitionDriver(object):
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
             utils.add_linearham_info(self.sw_info, annotation_list, self.args.min_selection_metric_cluster_size)
 
-        headers = utils.add_lists(utils.annotation_headers if not write_sw else utils.sw_cache_headers, self.args.extra_annotation_columns)
+        headers = utils.sw_cache_headers if write_sw else utils.annotation_headers
+        if extra_headers is not None:
+            headers += extra_headers
+        headers = utils.add_lists(headers, self.args.extra_annotation_columns)
         if utils.getsuffix(outfname) == '.csv':
             if cpath is not None:
                 cpath.write(outfname, self.args.is_data, partition_lines=partition_lines)  # don't need to pass in reco_info/true_partition since we passed them when we got the partition lines
