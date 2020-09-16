@@ -171,7 +171,6 @@ class Tester(object):
             self.read_selection_metric_performance(version_stype, input_stype)
         self.compare_performance(input_stype)
         self.compare_partition_cachefiles(input_stype)
-        self.compare_selection_metrics(input_stype)
 
     # ----------------------------------------------------------------------------------------
     def prepare_to_run(self, args, name, info):
