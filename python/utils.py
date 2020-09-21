@@ -2691,6 +2691,13 @@ def process_input_line(info, skip_literal_eval=False):
             raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
 
 # ----------------------------------------------------------------------------------------
+def revcomp(nuc_seq):
+    if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
+        from Bio.Seq import Seq
+    bseq = sys.modules['Bio.Seq']
+    return str(bseq.Seq(nuc_seq).reverse_complement())
+
+# ----------------------------------------------------------------------------------------
 def ltranslate(nuc_seq, trim=False):  # local file translation function
     if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
         from Bio.Seq import Seq
@@ -4701,6 +4708,7 @@ def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwarg
     return annotation_list  # eh, probably don't need this:, returnfo['gene-counts']  # NOTE both annotation_list and <failures> can have duplicate uids in them
 
 # ----------------------------------------------------------------------------------------
+# NOTE use the previous fcn if you expect duplicate uids
 def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:'):
     # note: '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
     # single-pass, greedy, star-clustering algorithm with
