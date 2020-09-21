@@ -281,6 +281,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
     def init_clist():
         clist = copy.deepcopy(sys.argv)
         utils.remove_from_arglist(clist, '--split-loci')
+        utils.remove_from_arglist(clist, '--reverse-negative-strands')
         utils.remove_from_arglist(clist, '--paired-loci-output-dir', has_arg=True)
         return clist
     # ----------------------------------------------------------------------------------------
@@ -290,17 +291,27 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
     def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
         if runs_on_existing_output(args.action):  # don't need a parameter dir to merge existing paired partitions
             return False
-        return any(not os.path.exists(getpdir(l)) for l in utils.sub_loci(ig_or_tr))
+        existing_pdir_loci = [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(getpdir(l))]
+        if len(existing_pdir_loci) == 0:
+            return True  # all missing, so auto cache parameters
+        elif len(existing_pdir_loci) == len(utils.sub_loci(ig_or_tr)):
+            return False  # all there, don't auto-cache
+        else:
+            print '  %s parameters exist for some but not all loci, so not auto-caching parameters (missing: %s, present: %s) in %s' % (utils.color('yellow', 'warning'), ' '.join(set(utils.sub_loci(ig_or_tr)) - set(existing_pdir_loci)), ' '.join(existing_pdir_loci), getpdir(''))
+            return False
     # ----------------------------------------------------------------------------------------
     utils.prep_dir(args.workdir)  # NOTE it's kind of weird to have workdir and paired_loci_output_dir, but workdir is for stuff we throw out by default, whereas paired_loci_output_dir is for stuff we save
     tmpfns = ['%s/%s.fa'%(args.paired_loci_output_dir, l) for l in utils.sub_loci(ig_or_tr)]
-    if [os.path.exists(f) for f in tmpfns].count(True) == len(tmpfns):  # this isn't all its outputs, but it's a bunch of them
+    if [os.path.exists(f) for f in tmpfns].count(True) == len(tmpfns):  # this isn't all its outputs, but it's a bunch of them (also note that if the input file has e.g. igh + igk but no igl, this'll rerun since it sees one is missing)
         print '  split input .fa files already exist, so not re-running split-loci.py'
     else:
-        utils.simplerun('./bin/split-loci.py %s --split-heavy-seqs --outdir %s' % (args.infname, args.paired_loci_output_dir), dryrun=args.dry_run)
+        utils.simplerun('./bin/split-loci.py %s --split-heavy-seqs%s --outdir %s' % (args.infname, ' --reverse-negative-strands' if args.reverse_negative_strands else '', args.paired_loci_output_dir), dryrun=args.dry_run)
 
     if args.action == 'cache-parameters' or auto_cache_params():  # ick. we can't just let the normal auto-parameter caching happen within each locus pair below, since it'll infer separately on the igh seqs paired with igk vs igl
         for ltmp in utils.sub_loci(ig_or_tr):
+            if not os.path.exists('%s/%s.fa'%(args.paired_loci_output_dir, ltmp)):
+                print '%s: no input file, skipping' % utils.color('blue', ltmp)
+                continue
             clist = init_clist()
             if args.action != 'cache-parameters':
                 print '  parameter dir does not exist, so caching a new set of parameters before running action \'%s\':  %s' % (args.action, getpdir(ltmp))
@@ -314,6 +325,9 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
 
     if args.action in ['partition', 'merge-paired-partitions']:
         for h_locus, l_locus in utils.locus_pairs[ig_or_tr]:
+            if any(not os.path.exists('%s/%s.fa'%(args.paired_loci_output_dir, l)) for l in [h_locus, l_locus]):
+                print '%s+%s: missing input file(s) in %s, skipping' % (utils.color('blue', h_locus), utils.color('blue', l_locus), args.paired_loci_output_dir)
+                continue
             clist = init_clist()
             utils.insert_in_arglist(clist, ['--paired-loci', '%s:%s' % (h_locus, l_locus)], args.action)
             lpair_workdir = '%s/%s+%s' % (args.paired_loci_output_dir, h_locus, l_locus)
@@ -461,6 +475,7 @@ parent_parser = argparse.ArgumentParser(add_help=False)
 
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
 parent_parser.add_argument('--split-loci', action='store_true', help='This must be set if --infname contains sequences from more than one locus (igh, igk, igl all together). It will first split the loci into separate input files, run the specified action on each of these, and (if specified) merge the resulting partitions.')
+parent_parser.add_argument('--reverse-negative-strands', action='store_true', help='If --split-loci is set, align every sequence both forwards and revcomp\'d, then for each sequence keep the sense with better alignment. If *not* running with --split-loci, then first run bin/split-loci.py separately with --reverse-negative-strands.')
 parent_parser.add_argument('--paired-loci', help='Instead of the default single chain, run on these two paired loci (colon-separated list of length 2). Have to also set --light-chain-infname or --light-chain-outfname.')
 parent_parser.add_argument('--dry-run', action='store_true', help='Just print subprocess commands that would be run without actually running them (only implemented for --paired-loci).')
 parent_parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')

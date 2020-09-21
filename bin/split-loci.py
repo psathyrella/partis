@@ -86,11 +86,12 @@ if args.reverse_negative_strands:
 
 # then, for each sequence, choose the locus with the best-scoring match (in practice i doubt you ever really get multiple loci with matches)
 outfos = collections.OrderedDict(((l, []) for l in tmploci))
+failed_ids = set()
 for sfo in seqfos:
     lscores = {l : sfo[l]['score'] if 'invalid' not in sfo[l] else 0 for l in tmploci}
     locus, max_score = sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)[0]
     if max_score == 0:
-        raise Exception('max score for locus %s is zero' % locus)
+        failed_ids.add(sfo['name'])
     outfos[locus].append(sfo)
     if args.debug:
         def lpstr(spair):
@@ -98,7 +99,7 @@ for sfo in seqfos:
             return '%s %d' % (utils.color('blue' if l==locus else None, l), s)
         print '   %s: %s' % (sfo['name'], '  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)))
 
-print 'totals: %s' % ' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items())
+print 'totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_ids) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_ids)))
 
 # ----------------------------------------------------------------------------------------
 def write_locus_file(locus, ofn, ofos, extra_str='  '):

@@ -110,6 +110,8 @@ def process(args):
             raise Exception('have to set --paired-loci-output-dir if --split-loci is set')
         if args.outfname is not None:
             raise Exception('can\'t set --outfname if --split-loci is set (use --paired-loci-output-dir)')
+    if args.reverse_negative_strands and not args.split_loci:
+        raise Exception('--reverse-negative-strands has no effect unless --split-loci is set (maybe need to run bin/split-loci.py separately?)')
 
     args.only_genes = utils.get_arg_list(args.only_genes)
     args.queries = utils.get_arg_list(args.queries)
