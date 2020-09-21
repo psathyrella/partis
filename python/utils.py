@@ -236,7 +236,7 @@ def ambig_frac(seq):
 
 # ----------------------------------------------------------------------------------------
 def reverse_complement_warning():
-    return '%s maybe need to take reverse complement (partis only searches in forward direction) or set --locus (default is igh)' % color('red', 'note:')
+    return '%s maybe need to take reverse complement (partis only searches in forward direction) or set --locus (default is igh). Both of these can be fixed using bin/split-loci.py.' % color('red', 'note:')
 
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
@@ -4729,6 +4729,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_i
         'ids',
         'caln',  # cigar string
     ]
+    expected_success_fraction = 0.75  # if we get alignments for fewer than this, print a warning cause something's probably wrong
 
     start = time.time()
     prep_dir(workdir)
@@ -4799,8 +4800,9 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_i
     elif action == 'search':
         returnfo = read_vsearch_search_file(outfname, userfields, seqdict, glfo, region, get_annotations=get_annotations)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
-        if sum(returnfo['gene-counts'].values()) == 0 and not expect_failure:
-            print '%s vsearch couldn\'t align anything to input sequences (cmd below)   %s\n  %s' % (color('yellow', 'warning'), reverse_complement_warning(), cmd)
+        succ_frac = sum(returnfo['gene-counts'].values()) / float(len(seqdict))
+        if succ_frac < expected_success_fraction and not expect_failure:
+            print '%s vsearch couldn\'t align much to the input sequences (cmd below)   %s\n  %s' % (color('yellow', 'warning'), reverse_complement_warning(), cmd)
     else:
         assert False
     os.remove(infname)
