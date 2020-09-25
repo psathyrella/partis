@@ -4802,7 +4802,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_i
         glutils.remove_glfo_files(dbdir, glfo['locus'])
         succ_frac = sum(returnfo['gene-counts'].values()) / float(len(seqdict))
         if succ_frac < expected_success_fraction and not expect_failure:
-            print '%s vsearch couldn\'t align much to the input sequences (cmd below)   %s\n  %s' % (color('yellow', 'warning'), reverse_complement_warning(), cmd)
+            print '%s vsearch only managed to align %d / %d = %.3f of the input sequences (cmd below)   %s\n  %s' % (color('yellow', 'warning'), sum(returnfo['gene-counts'].values()), len(seqdict), sum(returnfo['gene-counts'].values()) / float(len(seqdict)), reverse_complement_warning(), cmd)
     else:
         assert False
     os.remove(infname)
