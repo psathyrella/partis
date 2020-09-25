@@ -481,7 +481,7 @@ class Recombinator(object):
                 mute_counts = self.get_mute_counts(rgene)
             all_erosions = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())  # arg, this is hackey, but I don't want to change Event right now
             cposlist = None
-            if region in utils.conserved_codons[self.args.locus]:
+            if not self.args.mutate_conserved_codons and region in utils.conserved_codons[self.args.locus]:
                 codon = utils.conserved_codons[self.args.locus][region]
                 cpos = self.glfo[codon + '-positions'][rgene]
                 cposlist = list(range(cpos, cpos + 3))
@@ -692,7 +692,8 @@ class Recombinator(object):
         assert len(reco_event.final_seqs) == 0
         reco_event.leaf_names = []  # i'm pretty sure there's a good reason this starts as None but the seqs start as a length zero list, but I don't remember it
         for name, seq in names_seqs:
-            seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with UPDATE should really remove this now that we're setting the rates for these positions to zero
+            if not self.args.mutate_conserved_codons:
+                seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with UPDATE should really remove this now that we're setting the rates for these positions to zero
             reco_event.final_seqs.append(seq)
             reco_event.leaf_names.append(name)
             reco_event.final_codon_positions.append(copy.deepcopy(reco_event.post_erosion_codon_positions))  # separate codon positions for each sequence, because of shm indels
