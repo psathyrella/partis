@@ -40,27 +40,36 @@ class PerformancePlotter(object):
         self.v_3p_exclusion = 3
 
     # ----------------------------------------------------------------------------------------
-    def harmonize_naive_seq_lengths(self, true_line, line):
+    def harmonize_naive_seq_lengths(self, true_line, line, debug=False):
         def tpos_to_j_end(tmpline):
             return len(tmpline['naive_seq']) - tmpline['codon_positions']['j']  # not quite sure it's best to use the naive seq, but I think it is
 
+        if debug:
+            print '  harmonizing naive seq lengths for %s' % ':'.join(line['unique_ids'])
         true_naive_seq = true_line['naive_seq']
         inferred_naive_seq = line['naive_seq']
         if len(line['fv_insertion']) > 0:
             inferred_naive_seq = inferred_naive_seq[len(line['fv_insertion']) :]
-        if len(true_naive_seq) != len(inferred_naive_seq) and len(line['jf_insertion']) > 0:  # some j genes are very similar, except differ by one base in length, so shit is complicated
+            if debug:
+                print '    removed inf fv insertion of len %d: %s' % (len(line['fv_insertion']), line['fv_insertion'])
+        if len(inferred_naive_seq) > len(true_naive_seq)  and len(line['jf_insertion']) > 0:  # some j genes are very similar, except differ by one base in length, so shit is complicated
             inferred_naive_seq = inferred_naive_seq[: len(inferred_naive_seq) - len(line['jf_insertion'])]
+            if debug:
+                print '    removed %d inferred jf insertion bases' % len(line['jf_insertion'])
         if len(true_naive_seq) != len(inferred_naive_seq) and tpos_to_j_end(true_line) != tpos_to_j_end(line):
             extra_true_bases = tpos_to_j_end(true_line) - tpos_to_j_end(line)
+            max_diff = abs(len(true_naive_seq) - len(inferred_naive_seq))
             if extra_true_bases > 0:  # add Ns to the inferred line if the true line is longer
-                inferred_naive_seq += extra_true_bases * 'N'
+                inferred_naive_seq += min(extra_true_bases, max_diff) * 'N'
             else:  # otherwise add 'em to the true line
-                true_naive_seq += (-extra_true_bases) * 'N'
+                true_naive_seq += min(-extra_true_bases, max_diff) * 'N'
+            if debug:
+                print '    tpos to j end %d inf vs %d true, so added %d / %d extra bases to %s naive seq' % (tpos_to_j_end(line), tpos_to_j_end(true_line), min(abs(extra_true_bases), max_diff), abs(extra_true_bases), 'true' if extra_true_bases < 0 else 'inferred')
         if len(true_naive_seq) != len(inferred_naive_seq):
             # all this stuff gets printed four times, since we're calling this fcn for each region. sigh.
             utils.print_reco_event(true_line, label='true')
             utils.print_reco_event(line, label='inf')
-            print '%s different length true and inferred naive seqs for %s (see above)\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
+            print '%s different length true and inferred naive seqs for %s, proceeding to align, which is very slow (see above):\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
 
             # I'd rather just give up and skip it at this point, but that involves passing knowledge of the failure through too many functions so it's hard, so... align 'em, which isn't right, but oh well
             aligned_true, aligned_inferred = utils.align_seqs(true_naive_seq, inferred_naive_seq)
