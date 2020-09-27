@@ -359,9 +359,9 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         elif stats == 'absmean':
             htmp.title += ' (abs av %s)' % floatstr(htmp.get_mean(absval=True))
         elif stats == '0-bin':
-            htmp.title += ' (right %s)' % floatstr(htmp.bin_contents[1])
+            htmp.title += ' (%s %s)' % ('0-bin' if htmp.bin_labels[1]=='' else htmp.bin_labels[1], floatstr(htmp.bin_contents[1]))
         elif stats is not None and stats != '':  # damnit, I ended up with both of the damn things as possible defaults
-            raise Exception('unexpected stats str %s' % stats)
+            raise Exception('unexpected stats str \'%s\'' % stats)
         markersize = None
         if markersizes is not None:
             imark = ih if len(markersizes) > 1 else 0

@@ -72,7 +72,8 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if varname in plotconfig.gene_usage_columns:
         xtitle = 'allele'
         if hlist[0].n_bins == 2:
-            stats = ' 0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+            stats = '0-bin'  # print the fraction of entries in the zero bin into the legend (i.e. the fraction correct)
+            xtitle = None
     # elif hlist[0].bin_labels.count('') == hlist[0].n_bins + 2:
     #     xtitle = '???'
 
@@ -98,7 +99,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         if bounds is None and 'insertion' in varname:
             bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
         if varname in plotconfig.gene_usage_columns:
-            no_labels = True
+            # no_labels = True  # not sure why i wanted these labels turned off?
             if 'j_' not in varname:
                 figsize = (10, 5)
             line_width_override = 1
