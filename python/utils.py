@@ -3221,6 +3221,8 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             errstr = ''.join(ferr.readlines())
     else:
         if logfname is not None:  # write cmd_str to logfname, then redirect stdout to it as well
+            if not os.path.exists(os.path.dirname(logfname)):
+                os.makedirs(os.path.dirname(logfname))
             subprocess.check_call('echo %s >%s'%(cmd_str, logfname), shell=True)
             cmd_str = '%s >>%s' % (cmd_str, logfname)
             shell = True

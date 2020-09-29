@@ -250,6 +250,7 @@ class HmmWriter(object):
             'd_3p' : 9,
             'j_5p' : 20,
         }
+        self.n_conserved_codon_erosion_transitions = 0
 
         self.erosion_pseudocount_length = 10  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
 
@@ -300,6 +301,8 @@ class HmmWriter(object):
         assert os.path.exists(self.outdir)
         with open(self.outdir + '/' + self.saniname + '.yaml', 'w') as outfile:
             yaml.dump(self.hmm, outfile, width=150, Dumper=yaml.CDumper)
+        if self.n_conserved_codon_erosion_transitions > 0:
+            print '  %s added %3d transitions for conserved codon erosion for %s' % (utils.color('yellow', 'warning'), self.n_conserved_codon_erosion_transitions, utils.color_gene(self.raw_name))
 
     # ----------------------------------------------------------------------------------------
     def add_states(self):
@@ -389,6 +392,18 @@ class HmmWriter(object):
                 erosion_probs[n_eroded] += 1
 
     # ----------------------------------------------------------------------------------------
+    def would_erode_conserved_codon(self, erosion, n_eroded):
+        if self.region not in self.codon_positions:
+            return False
+        cpos = self.codon_positions[self.region][self.raw_name]
+        if self.region == 'v' and '3p' in erosion:
+            return len(self.germline_seq) - n_eroded <= cpos + 2
+        elif self.region == 'j' and '5p' in erosion:
+            return n_eroded >= cpos
+        else:
+            return False
+
+    # ----------------------------------------------------------------------------------------
     def read_erosion_info(self, approved_genes):
         if self.debug:
             print '    reading deletion probs'
@@ -410,12 +425,12 @@ class HmmWriter(object):
                     # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
                     if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
                         continue
+                    n_eroded = int(line[erosion + '_del'])
                     # then skip nonsense erosions that're too long for this gene, but were ok for another
-                    if int(line[erosion + '_del']) >= len(self.germline_seq):
+                    if n_eroded >= len(self.germline_seq):
                         continue
 
                     # then add in this erosion's counts
-                    n_eroded = int(line[erosion + '_del'])
                     if n_eroded not in eprobs[erosion]:
                         eprobs[erosion][n_eroded] = 0.0
                     eprobs[erosion][n_eroded] += float(line['count'])
@@ -431,9 +446,14 @@ class HmmWriter(object):
                 n_max = self.n_max_to_interpolate
             else:  # for fake erosions, always interpolate
                 n_max = -1
-            # print '   interpolate erosions'
-            interpolate_bins(eprobs[erosion], n_max, bin_eps=self.eps, max_bin=len(self.germline_seq))
+            if len(eprobs[erosion]) > 0:
+                interpolate_bins(eprobs[erosion], n_max, bin_eps=self.eps, max_bin=len(self.germline_seq))
             self.add_pseudocounts(eprobs[erosion])
+
+            if not self.args.allow_conserved_codon_deletion:  # we could also just not add them to start with when reading the file, but then they'd get added by the interpolation and pseudocount stuff
+                for n_eroded in eprobs[erosion].keys():
+                    if self.would_erode_conserved_codon(erosion, n_eroded):
+                        del eprobs[erosion][n_eroded]
 
             # and finally, normalize
             total = 0.0
@@ -772,6 +792,8 @@ class HmmWriter(object):
                     prob = self.erosion_probs[erosion][erosion_length]
                     total += prob * region_entry_prob
                     if region_entry_prob != 0.0:  # only add the line if there's a chance of entering the region from this state
+                        if self.would_erode_conserved_codon(erosion, erosion_length):
+                            self.n_conserved_codon_erosion_transitions += 1
                         state.add_transition('%s_%d' % (self.saniname, inuke), prob * region_entry_prob)
                         if self.smallest_entry_index == -1 or inuke < self.smallest_entry_index:  # tells us where we need to start adding internal states (the smallest internal state index we add is the first one that has nonzero transition probability here)
                             self.smallest_entry_index = inuke

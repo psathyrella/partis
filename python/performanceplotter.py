@@ -16,7 +16,7 @@ class PerformancePlotter(object):
     def __init__(self, name):
         self.name = name
         self.values, self.hists = {}, {}  # the dictionary-based approach in <self.values> is nice because you can decide your hist bounds after filling everything
-        self.skipped_queries = []
+        self.indel_len_skipped_queries, self.naive_seq_len_truncated_queries = [], []
 
         for column in plotconfig.gene_usage_columns:
             self.values[column] = {'right' : 0, 'wrong' : 0}
@@ -67,26 +67,34 @@ class PerformancePlotter(object):
                 print '    tpos to j end %d inf vs %d true, so added %d / %d extra bases to %s naive seq' % (tpos_to_j_end(line), tpos_to_j_end(true_line), min(abs(extra_true_bases), max_diff), abs(extra_true_bases), 'true' if extra_true_bases < 0 else 'inferred')
         if len(true_naive_seq) != len(inferred_naive_seq):
             # all this stuff gets printed four times, since we're calling this fcn for each region. sigh.
-            utils.print_reco_event(true_line, label='true')
-            utils.print_reco_event(line, label='inf')
-            print '%s different length true and inferred naive seqs for %s, proceeding to align, which is very slow (see above):\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
+            # utils.print_reco_event(true_line, label='true')
+            # utils.print_reco_event(line, label='inf')
 
-            # I'd rather just give up and skip it at this point, but that involves passing knowledge of the failure through too many functions so it's hard, so... align 'em, which isn't right, but oh well
-            aligned_true, aligned_inferred = utils.align_seqs(true_naive_seq, inferred_naive_seq)
-            true_list, inf_list = [], []
-            for ctrue, cinf in zip(aligned_true, aligned_inferred):  # remove bases corresponding to gaps in true, and replace gaps in inf with Ns (the goal is to end up with aligned seqs that are the same length as the true inferred sequence, so the restrict_to_region stuff still works)
-                if ctrue in utils.gap_chars:
-                    continue
-                elif cinf in utils.gap_chars:
-                    true_list += [ctrue]
-                    inf_list += [utils.ambig_base]
-                else:
-                    true_list += [ctrue]
-                    inf_list += [cinf]
-            assert len(true_list) == len(true_naive_seq)
-            true_naive_seq = ''.join(true_list)
-            inferred_naive_seq = ''.join(inf_list)
-            # utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True)
+            # print '%s different length true and inferred naive seqs for %s, truncating:\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
+            # this is kind of shitty and doesn't really make sense, but whatever
+            min_len = min(len(true_naive_seq), len(inferred_naive_seq))
+            true_naive_seq = true_naive_seq[:min_len]
+            inferred_naive_seq = inferred_naive_seq[:min_len]
+            self.naive_seq_len_truncated_queries.append(':'.join(line['unique_ids']))
+
+            # if you want to go back to aligning them, which you probably don't:
+            # print '%s different length true and inferred naive seqs for %s, proceeding to align, which is very slow (see above):\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
+            # # I'd rather just give up and skip it at this point, but that involves passing knowledge of the failure through too many functions so it's hard, so... align 'em, which isn't right, but oh well
+            # aligned_true, aligned_inferred = utils.align_seqs(true_naive_seq, inferred_naive_seq)
+            # true_list, inf_list = [], []
+            # for ctrue, cinf in zip(aligned_true, aligned_inferred):  # remove bases corresponding to gaps in true, and replace gaps in inf with Ns (the goal is to end up with aligned seqs that are the same length as the true inferred sequence, so the restrict_to_region stuff still works)
+            #     if ctrue in utils.gap_chars:
+            #         continue
+            #     elif cinf in utils.gap_chars:
+            #         true_list += [ctrue]
+            #         inf_list += [utils.ambig_base]
+            #     else:
+            #         true_list += [ctrue]
+            #         inf_list += [cinf]
+            # assert len(true_list) == len(true_naive_seq)
+            # true_naive_seq = ''.join(true_list)
+            # inferred_naive_seq = ''.join(inf_list)
+            # # utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True)
 
         return true_naive_seq, inferred_naive_seq
 
@@ -152,7 +160,7 @@ class PerformancePlotter(object):
             addval('shm_indel_length', simlen, inflen)
             if simlen != inflen:  # this is probably because the simulated shm indel was within the cdr3, so we attempt to fix it by switching the sim line to non-reversed
                 # print '    %s true and inferred shm net indel lengths different, so skipping rest of performance evaluation' % ' '.join(inf_line['unique_ids'])
-                self.skipped_queries.append(':'.join(inf_line['unique_ids']))
+                self.indel_len_skipped_queries.append(':'.join(inf_line['unique_ids']))
                 # note that you can't really evaluate the rest of the performance vars in any particularly meaningful way when the indel info is different (like I tried to do below) since you have to decide how to assign the indel'd bases (like, is it correct to assign the indel'd bases to a deletion? or to an insertion? or to the j?)
                 return
 
@@ -196,8 +204,10 @@ class PerformancePlotter(object):
         for substr in self.subplotdirs:
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
-        if len(self.skipped_queries) > 0:
-            print '\n    %s skipped annotation performance evaluation on %d queries with different true and inferred net shm indel lengths: %s' % (utils.color('yellow', 'warning'), len(self.skipped_queries), ' '.join(self.skipped_queries))
+        if len(self.indel_len_skipped_queries) > 0:
+            print '\n    %s skipped annotation performance evaluation on %d queries with different true and inferred net shm indel lengths: %s' % (utils.color('yellow', 'warning'), len(self.indel_len_skipped_queries), ' '.join(self.indel_len_skipped_queries))
+        if len(self.naive_seq_len_truncated_queries) > 0:
+            print '\n    %s true and inferred naive seqs had different lengths in annotation performance for %d queries, so truncated the longer one: %s' % (utils.color('yellow', 'warning'), len(self.naive_seq_len_truncated_queries), ' '.join(self.naive_seq_len_truncated_queries))
 
         for column in self.values:
             if column in plotconfig.gene_usage_columns:

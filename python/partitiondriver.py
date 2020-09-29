@@ -1716,31 +1716,46 @@ class PartitionDriver(object):
         return failed
 
     # ----------------------------------------------------------------------------------------
-    def correct_multi_hmm_boundaries(self, line, debug=False):
-        factor = 2.
+    def correct_multi_hmm_boundaries(self, line, factor=1, first_line=False, debug=False):  # tested factors between 0.5 and 2, performance was basically identical
         assert 'regional_bounds' not in line  # need to make sure implicit info isn't in there
+        n_uids_to_print = 5
+        sidestr = '5p'  # maybe should also do something with the 3p del? although seems to work fine as it is
 
+        if debug and first_line:
+            tstrs = [''.join(['                         %s                        ' % utils.color('blue', b + ' boundary') for b in utils.boundaries]),
+                     ''.join(['               sw lengths            multi-seq    err   ' for _ in utils.boundaries]),
+                     ''.join(['          min  max   mean  std     old new true old new ' for _ in utils.boundaries])]
+            print '\n'.join(tstrs), '   size     first %d uids' % n_uids_to_print
         for boundary in utils.boundaries:
-            delname = boundary[1] + '_5p_del'  # could just as well use the insertion length, but this is at least a reminder that the insertion is part of the righthand region
+            delname = '%s_%s_del' % (boundary[1], sidestr)  # could just as well use the insertion length, but this is at least a reminder that the insertion is part of the righthand region
             sw_deletion_lengths = [self.sw_info[q][delname] for q in line['unique_ids']]
-            median_single_length = numpy.median(sw_deletion_lengths)
+            mean_single_length = numpy.mean(sw_deletion_lengths)
             single_length_err = numpy.std(sw_deletion_lengths)
+            old_multi_del_len = line[delname]  # just for dbg
 
-            if line[delname] < median_single_length + factor * single_length_err:  # skip it if the multi-hmm deletion isn't much longer than the single sw deletions
-                continue
-
-            if debug:
-                true_del = None
-                if self.reco_info is not None:
-                    true_line = utils.synthesize_multi_seq_line_from_reco_info(line['unique_ids'], self.reco_info)
-                    true_del = true_line[delname]
-                print boundary
-                print '  multi %d%s' % (line[delname], ('   true %d' % true_del) if true_del is not None else '')
-                print '  %.2f +/- %.3f  (%s)' % (median_single_length, single_length_err, sw_deletion_lengths)
-
-            while line[delname] > median_single_length and len(line[boundary + '_insertion']) > 0:
+            while len(line[boundary + '_insertion']) > 0 and line[delname] > mean_single_length + factor * single_length_err:
                 line[delname] -= 1
                 line[boundary + '_insertion'] = line[boundary + '_insertion'][:-1]
+
+            if debug:
+                def errstr(ov, nv):
+                    if None in [ov, nv]:
+                        return '%3s'%''
+                    if nv == ov:
+                        return utils.color('green', '-', width=3)
+                    return utils.color('red' if abs(nv - ov) > 1 else 'yellow', '%+3d'%(nv - ov))
+                dstr, truestr = '  ', '     '
+                true_del = None
+                if self.reco_info is not None:
+                    true_dels = [self.reco_info[u][delname] for u in line['unique_ids']]
+                    true_del = utils.get_single_entry(list(set(true_dels)))
+                    truestr = '%2d' % true_del
+                if line[delname] != old_multi_del_len:
+                    dstr = utils.color('blue', '%2d'%line[delname], width=2)
+                print '          %2d   %2d   %4.1f   %3.1f      %2d %s   %s  %s %s' % (min(sw_deletion_lengths), max(sw_deletion_lengths), mean_single_length, single_length_err,
+                                                                                      old_multi_del_len, dstr, truestr, errstr(true_del, old_multi_del_len), errstr(true_del, line[delname])),
+        if debug:
+            print '    %3d       %s' % (len(line['unique_ids']), ':'.join(line['unique_ids'][:5]))
 
     # ----------------------------------------------------------------------------------------
     def process_dummy_d_hack(self, line, debug=False):
@@ -1870,8 +1885,8 @@ class PartitionDriver(object):
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
 
-                # if self.args.correct_boundaries and len(padded_line['unique_ids']) > 1:  # this does a decent job of correcting the multi-hmm's tendency to overestimate insertion and deletion lengths, but it also removes a significant portion of the multi-hmm's advantage in naive hamming distance
-                #     self.correct_multi_hmm_boundaries(padded_line)
+                if not self.args.dont_correct_multi_hmm_boundaries and len(padded_line['unique_ids']) > 1:  # lots of details/bkg here: https://github.com/psathyrella/partis/issues/308
+                    self.correct_multi_hmm_boundaries(padded_line, first_line=len(eroded_annotations)+len(padded_annotations)==0)
 
                 try:
                     utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
@@ -1909,16 +1924,6 @@ class PartitionDriver(object):
                     pcounter.increment(line_to_use)
 
                 if perfplotter is not None:
-                    messed_up = False  # this would be really nice to clean up
-                    for iseq in range(len(line_to_use['unique_ids'])):
-                        if indelutils.has_indels(self.reco_info[uids[iseq]]['indelfos'][0]) or indelutils.has_indels(line_to_use['indelfos'][iseq]):
-                            simlen = indelutils.net_length(self.reco_info[uids[iseq]]['indelfos'][0])
-                            inflen = indelutils.net_length(line_to_use['indelfos'][iseq])
-                            if simlen != inflen:  # see similar code in performanceplotter.py
-                                messed_up = True
-                                break
-                    if messed_up:
-                        continue
                     for iseq in range(len(uids)):  # NOTE this counts rearrangement-level parameters once for every mature sequence, which is inconsistent with the pcounters... but I think might make more sense here?
                         perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
 
