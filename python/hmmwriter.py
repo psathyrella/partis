@@ -302,7 +302,7 @@ class HmmWriter(object):
         with open(self.outdir + '/' + self.saniname + '.yaml', 'w') as outfile:
             yaml.dump(self.hmm, outfile, width=150, Dumper=yaml.CDumper)
         if self.n_conserved_codon_erosion_transitions > 0:
-            print '  %s added %3d transitions for conserved codon erosion for %s' % (utils.color('yellow', 'warning'), self.n_conserved_codon_erosion_transitions, utils.color_gene(self.raw_name))
+            print '  %s added %3d transition%s for conserved codon erosion for %s' % (utils.color('yellow', 'warning'), self.n_conserved_codon_erosion_transitions, utils.plural(self.n_conserved_codon_erosion_transitions), utils.color_gene(self.raw_name))
 
     # ----------------------------------------------------------------------------------------
     def add_states(self):
@@ -363,6 +363,8 @@ class HmmWriter(object):
             state.add_transition('%s_%d' % (self.saniname, inuke+1), 1.0 - exit_probability)
         if exit_probability >= utils.eps or distance_to_end == 0:  # add transitions to end and righthand insertions if there's a decent chance of eroding to here, or if we're at the end of the germline sequence
             self.add_region_exit_transitions(state, exit_probability)
+            if self.would_erode_conserved_codon(self.region + '_3p', distance_to_end):
+                self.n_conserved_codon_erosion_transitions += 1
 
         # emissions
         self.add_emissions(state, inuke=inuke, germline_nuke=germline_nuke)
