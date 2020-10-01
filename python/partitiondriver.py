@@ -1722,12 +1722,20 @@ class PartitionDriver(object):
         sidestr = '5p'  # maybe should also do something with the 3p del? although seems to work fine as it is
 
         if debug and first_line:
-            tstrs = [''.join(['                         %s                        ' % utils.color('blue', b + ' boundary') for b in utils.boundaries]),
-                     ''.join(['               sw lengths            multi-seq    err   ' for _ in utils.boundaries]),
-                     ''.join(['          min  max   mean  std     old new true old new ' for _ in utils.boundaries])]
+            tstrs = [''.join(['                         %s                           ' % utils.color('blue', b + ' boundary') for b in utils.boundaries]),
+                     ''.join(['               sw lengths            multi-seq    err      ' for _ in utils.boundaries]),
+                     ''.join(['          min  max   mean  std     old new true old new    ' for _ in utils.boundaries])]
             print '\n'.join(tstrs), '   size     first %d uids' % n_uids_to_print
         for boundary in utils.boundaries:
             delname = '%s_%s_del' % (boundary[1], sidestr)  # could just as well use the insertion length, but this is at least a reminder that the insertion is part of the righthand region
+            sw_genes = [self.sw_info[q][delname[0]+'_gene'] for q in line['unique_ids']]  # the gene on the right side of the boundary is the one we'll be affecting by decreasing the deletion/insertion sizes, so just look at that one
+            sw_gene_counts = [(g, sw_genes.count(g)) for g in set(sw_genes)]
+            most_common_sw_gene = sorted(sw_gene_counts, key=operator.itemgetter(1), reverse=True)[0][0]
+            if most_common_sw_gene != line[delname[0]+'_gene']:
+                if debug:
+                    print '           %s genes don\'t match: %s %s     ' % (delname[0], utils.color_gene(most_common_sw_gene, width=10), utils.color_gene(line[delname[0]+'_gene'], width=10)),
+                continue
+                # line[delname[0]+'_gene'] = most_common_sw_gene DONT do this, it doesn't really make any sense
             sw_deletion_lengths = [self.sw_info[q][delname] for q in line['unique_ids']]
             mean_single_length = numpy.mean(sw_deletion_lengths)
             single_length_err = numpy.std(sw_deletion_lengths)
@@ -1753,7 +1761,7 @@ class PartitionDriver(object):
                 if line[delname] != old_multi_del_len:
                     dstr = utils.color('blue', '%2d'%line[delname], width=2)
                 print '          %2d   %2d   %4.1f   %3.1f      %2d %s   %s  %s %s' % (min(sw_deletion_lengths), max(sw_deletion_lengths), mean_single_length, single_length_err,
-                                                                                      old_multi_del_len, dstr, truestr, errstr(true_del, old_multi_del_len), errstr(true_del, line[delname])),
+                                                                                       old_multi_del_len, dstr, truestr, errstr(true_del, old_multi_del_len), errstr(true_del, line[delname])),
         if debug:
             print '    %3d       %s' % (len(line['unique_ids']), ':'.join(line['unique_ids'][:5]))
 
