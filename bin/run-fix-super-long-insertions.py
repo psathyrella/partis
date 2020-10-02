@@ -6,41 +6,36 @@ sys.path.insert(1, partis_dir + '/python')
 
 import utils
 
-label = 'cleanup-check-old'
-bdir = '%s/partis/fix-super-long-insertions/%s' % (os.getenv('fs'), label)
-n_trees = 10 #300 #50
-n_procs = 10 #20
-ntseq = 1000 #10000
+label = 'subcluster-annotation-v0'
+bdir = '%s/partis/fix-super-long-insertions/%s' % ('/fh/local/dralph', label) # os.getenv('fs')
+n_trees = 300 #10 #50
+n_procs = 20 #10
+ntseq = 3000 #10000
 mmstr = '--mutation-multiplier 3' #1' # 10
 
-# for npg in [10]: #[3, 7]: #[25]: #3 7 25 50; do
-#     outdir = '%s/npg-%d' % (bdir, npg)
-#     cmd = './bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo --actions simu --n-sim-seqs-per-generation %d --carry-cap 500 --obs-times 100 --n-sim-events %d --n-procs %d --only-csv-plots' % (outdir, npg, n_trees, n_procs)
-#     # utils.simplerun(cmd, logfname='%s/bcr-phylo.log'%outdir)
-#     cmd = 'cat %s/bcr-phylo/selection/simu/event-*/simu.nwk |sed \'s/;/;\\n/g\' >%s/all-trees.nwk' % (outdir, outdir)
-#     # utils.simplerun(cmd, shell=True) #, logfname='%s/tree-cat.log'%outdir)
-#     cmd = './bin/partis simulate --n-sim-events %d --outfname %s/simu.yaml --simulate-from-scratch --mutate-conserved-codons %s --input-simulation-treefname %s/all-trees.nwk --n-procs %d' % (ntseq / npg, outdir, mmstr, outdir, n_procs)
-#     # utils.simplerun(cmd, logfname='%s/simulate.log'%outdir)
-#     for erode_codons in [True, False]:
-#         pstr = 'erode-codons' if erode_codons else 'preserve-codons'
-# 	common = ' --is-simu --infname %s/simu.yaml --parameter-dir %s/%s/parameters --only-csv-plots --n-procs %d' % (outdir, outdir, pstr, n_procs)
-#         cmd = './bin/partis cache-parameters %s --plotdir %s/%s/parameter-plots' % (common, outdir, pstr)
-#         # if not erode_codons:  # old version
-#         #     cmd += ' --dont-erode-conserved-codons'
-#         if erode_codons:
-#             cmd += ' --allow-conserved-codon-deletion'
-# 	utils.simplerun(cmd, logfname='%s/%s/cache-parameters.log'%(outdir, pstr)) #, dryrun=True)
-#         for bcf in [None, 1]: #[None, 2]:
-#             bstr = 'old-boundaries' if bcf is None else 'correct-boundaries-%.1f' % bcf
-#             cmd = './bin/partis annotate --simultaneous-true-clonal-seqs --plot-annotation-performance %s --outfname %s/%s/%s/annotations.yaml --plotdir %s/%s/%s/plots' % (common, outdir, pstr, bstr, outdir, pstr, bstr)
-#             if bcf is not None:
-#                 # cmd += ' --boundary-correction-factor %.1f' % bcf  # old version
-#                 assert bcf == 1  # would have to go back and rejigger bin/partis and partitiondriver.py
-#             else:
-#                 cmd += ' --dont-correct-multi-hmm-boundaries'
-# 	    utils.simplerun(cmd, logfname='%s/%s/annotate-%s.log'%(outdir, pstr, bstr)) #, dryrun=True)
+dryrun = False #True
 
-# sys.exit()
+for npg in [3, 25, 150]: #[3, 7]: #[25]: #3 7 25 50; do
+    outdir = '%s/npg-%d' % (bdir, npg)
+    cmd = './bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo --actions simu --n-sim-seqs-per-generation %d --carry-cap 500 --obs-times 100 --n-sim-events %d --n-procs %d --only-csv-plots' % (outdir, npg, n_trees, n_procs)
+    utils.simplerun(cmd, logfname='%s/bcr-phylo.log'%outdir, dryrun=dryrun)
+    cmd = 'cat %s/bcr-phylo/selection/simu/event-*/simu.nwk |sed \'s/;/;\\n/g\' >%s/all-trees.nwk' % (outdir, outdir)
+    utils.simplerun(cmd, shell=True, dryrun=dryrun) #, logfname='%s/tree-cat.log'%outdir)
+    cmd = './bin/partis simulate --n-sim-events %d --outfname %s/simu.yaml --simulate-from-scratch --mutate-conserved-codons %s --input-simulation-treefname %s/all-trees.nwk --n-procs %d' % (ntseq / npg, outdir, mmstr, outdir, n_procs)
+    utils.simplerun(cmd, logfname='%s/simulate.log'%outdir, dryrun=dryrun)
+    common = ' --is-simu --infname %s/simu.yaml --parameter-dir %s/parameters --only-csv-plots --n-procs %d' % (outdir, outdir, n_procs)
+    cmd = './bin/partis cache-parameters %s --plotdir %s/parameter-plots' % (common, outdir)
+    utils.simplerun(cmd, logfname='%s/cache-parameters.log'%(outdir), dryrun=dryrun)
+    for bcorr, acsize in [(True, 999999), (False, 999999), (False, 5), (False, 10), (False, 15)]:
+        bstr = 'bcorr-%s-subc-%d' % (bcorr, acsize)
+        cmd = './bin/partis annotate --simultaneous-true-clonal-seqs --plot-annotation-performance %s --outfname %s/%s/annotations.yaml --plotdir %s/%s/plots' % (common, outdir, bstr, outdir, bstr)
+        if not bcorr:
+            cmd += ' --dont-correct-multi-hmm-boundaries'
+        cmd += ' --subcluster-annotation-size %d' % acsize
+        utils.simplerun(cmd, logfname='%s/annotate-%s.log'%(outdir, bstr), dryrun=dryrun)
+    break
+
+sys.exit()
 
 npg = 10
 p_strs = ['erode-codons', 'preserve-codons']

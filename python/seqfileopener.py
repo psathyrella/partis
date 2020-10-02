@@ -25,6 +25,8 @@ def add_seed_seq(args, input_info, reco_info, is_data):
 def read_input_metafo(input_metafname, annotation_list, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info>
     with open(input_metafname) as metafile:
         metafo = yaml.load(metafile, Loader=yaml.Loader)
+        if any(isinstance(tkey, int) for tkey in metafo):  # would be better to check for not being a string, but that's harder, and this probably only happens for my simulation hash ids
+            raise Exception('meta info keys need to be string (maybe just need to add \'\' around sequence ids in yaml file), but got: %s' % ' '.join(str(type(tk)) for tk in metafo if isinstance(tk, int)))
     added_uids, added_keys = set(), set()
     for line in annotation_list:
         for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not

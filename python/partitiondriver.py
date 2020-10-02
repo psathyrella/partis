@@ -1092,7 +1092,155 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False, read_output=True):
+    def subcl_split(self, n_seqs):  # return true if we want to split cluster of size <n_seqs> into subclusters
+        return n_seqs >= 2 * self.args.subcluster_annotation_size  # don't subclusterify unless there's really enough for two clusters
+
+    # ----------------------------------------------------------------------------------------
+    def run_subcluster_annotate(self, partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', debug=True):  # NOTE nothing to do with subcluster naive seqs above
+        # ----------------------------------------------------------------------------------------
+        def skey(c):
+            return ':'.join(c)
+        # ----------------------------------------------------------------------------------------
+        def hashstr(c):
+            return 'subc_%+d' % hash(skey(c))
+        # ----------------------------------------------------------------------------------------
+        def getsubclusters(tclust, sdbg=False):  # NOTE similar to code in bin/partis simulation fcn
+            n_clusters = len(tclust) / self.args.subcluster_annotation_size  # integer division truncates the decimal
+            if n_clusters < 2:  # initially we don't call this function unless tclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
+                return [tclust]
+            n_seq_list = [len(tclust) / n_clusters for _ in range(n_clusters)]  # start with the min possible number (without remainders) for each cluster
+            if sdbg:
+                print 'len %3d  sas %2d   r %2d  %s' % (len(tclust), self.args.subcluster_annotation_size, len(tclust) % n_clusters, n_seq_list),
+            for iextra in range(len(tclust) % n_clusters):  # spread out any extra ones
+                n_seq_list[iextra] += 1
+            assert sum(n_seq_list) == len(tclust)
+            ns_sums = [sum(n_seq_list[:i]) for i in range(len(n_seq_list))]
+            return_clusts = [tclust[nsum : nsum + n] for n, nsum in zip(n_seq_list, ns_sums)]  # could do some cleverer tree-based clustering, but when partitioning they should be ordered by similarity (i.e. the order in which they got hierarchically agglomerated)
+            if sdbg:
+                print [len(c) for c in return_clusts]
+            assert sum(len(c) for c in return_clusts) == len(tclust)
+            return return_clusts
+            # old simple way:
+            # return [tclust[i : i + self.args.subcluster_annotation_size] for i in range(0, len(tclust), self.args.subcluster_annotation_size)]  # could do some cleverer tree-based clustering, but when partitioning they should be ordered by similarity (i.e. the order in which they got hierarchically agglomerated)
+
+        # ----------------------------------------------------------------------------------------
+        def add_hash_seq(line, hashid):  # need to add it also to self.sw_info and whatnot for self.combine_queries()
+            subcluster_hash_seqs[hashid] = line['naive_seq']
+            uid_to_copy = line['unique_ids'][0]
+
+            swfo_to_copy = self.sw_info[uid_to_copy]
+            swhfo = copy.deepcopy(swfo_to_copy)
+            swhfo.update({'unique_ids' : [hashid], 'seqs' : [line['naive_seq']], 'input_seqs' : [line['naive_seq']], 'cdr3_length' : line['cdr3_length'], 'naive_seq' : line['naive_seq']})
+            assert len(swhfo['all_matches']) == 1
+            for tid in line['unique_ids']:  # this duplicates code in combine_queries()
+                for region in utils.regions:
+                    swhfo['all_matches'][0][region].update(self.sw_info[tid]['all_matches'][0][region])  # this screws up/overwrites the match info (scores, etc.) but all we care about is adding any other genes
+                    if region != 'j':
+                        kn = 'k_' + region
+                        for mfcn in [min, max]:
+                            mn = mfcn.__name__
+                            swhfo[kn][mn] = mfcn(swhfo[kn][mn], self.sw_info[tid][kn][mn])
+            assert hashid not in self.sw_info
+            self.sw_info[hashid] = swhfo
+
+            self.input_info[hashid] = copy.deepcopy(self.input_info[uid_to_copy])  # i think i only need this for input meta info
+            self.input_info[hashid].update({'unique_ids' : [hashid], 'seqs' : [line['naive_seq']]})
+
+            if self.reco_info is not None:  # atm this only gets used when correcting multi hmm boundaries, which we want to immediately stop doing as soon as this fcn is working, but oh well, it's might be nice to have the hash/naive seqs in reco info
+                self.reco_info[hashid] = copy.deepcopy(self.reco_info[uid_to_copy])
+                utils.add_seqs_to_line(self.reco_info[hashid], [{'name' : hashid, 'seq' : line['naive_seq']}], self.glfo)
+                utils.restrict_to_iseqs(self.reco_info[hashid], [1], self.glfo)
+
+        # ----------------------------------------------------------------------------------------
+        final_annotations = {}
+        all_hmm_failures = set()
+        subcluster_hash_seqs = {}  # all hash-named naive seqs (i.e. that we only made as intermediate steps, but don't care about afterwards)
+
+        clusters_still_to_do = [c for c in partition]  # i think i don't need to deep copy, as long as i don't modify c
+        subclustered_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster
+        naive_ancestor_hashes = {}
+        if debug:
+            istep = 0
+            print '  subcluster annotating %d cluster%s: %s' % (len(partition), utils.plural(len(partition)), ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in partition))
+        while len(clusters_still_to_do) > 0:
+            if debug:
+                print '   %s %d cluster%s left with size%s %s' % (utils.color('green', 'istep %d:'%istep), len(clusters_still_to_do), utils.plural(len(clusters_still_to_do)), utils.plural(len(clusters_still_to_do)), ' '.join(str(len(c)) for c in clusters_still_to_do))
+                print '        init     N prior  current    N     subcluster'
+                print '        size     splits    size     subcl   sizes'
+                istep += 1
+            clusters_to_run = []
+            for tclust in clusters_still_to_do:
+                if not self.subcl_split(len(tclust)):
+                    clusters_to_run.append(tclust)
+                    if debug:
+                        print '       %4d                   ' % len(tclust)
+                else:
+                    if skey(tclust) in subclustered_clusters:
+                        subclusters = getsubclusters(naive_ancestor_hashes[skey(tclust)])
+                        del naive_ancestor_hashes[skey(tclust)]
+                    else:
+                        subclustered_clusters[skey(tclust)] = []
+                        subclusters = getsubclusters(tclust)
+                    subclustered_clusters[skey(tclust)].append(subclusters)
+                    clusters_to_run += subclusters
+                    if debug:
+                        n_prev = len(subclustered_clusters[skey(tclust)]) - 1
+                        print '       %4d      %s      %s      %3d       %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), ' '.join(str(len(c)) for c in subclusters))
+            _, annotations, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, n_procs=n_procs, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
+            all_hmm_failures |= step_failures
+            these_subd_clusters = {skey(c) : sc for sc, tlist in subclustered_clusters.items() for c in tlist[-1]}  # subclustered clusters that we just ran this time through
+            if debug:
+                print '      read %d new annotations' % len(annotations)
+                print '                  add      add to'
+                print '          size   naive    finished'
+            for uidstr, line in annotations.items():
+                uidstr = skey(line['unique_ids'])
+                if uidstr in these_subd_clusters:
+                    hashid = hashstr(line['unique_ids'])
+                    if these_subd_clusters[uidstr] not in naive_ancestor_hashes:
+                        naive_ancestor_hashes[these_subd_clusters[uidstr]] = []
+                    naive_ancestor_hashes[these_subd_clusters[uidstr]].append(hashid)  # add it to the list of "inferred ancestors" that we need to run next time through (if there is a next time)
+                    add_hash_seq(line, hashid)
+                    if debug:
+                        print '         %3d      x' % len(line['unique_ids'])
+                else:
+                    final_annotations[uidstr] = line
+                    clusters_still_to_do.remove(line['unique_ids'])
+                    if debug:
+                        print '         %3d               x' % len(line['unique_ids'])
+            for uidstr, subcluster_lists in subclustered_clusters.items():  # handle the ones that're done (at this point they're an annotation of about length self.args.subcluster_annotation_size presumably consisting of mostly "inferred ancestors"
+                if len(subcluster_lists[-1]) > 1:  # not finished yet
+                    continue
+                sclust = uidstr.split(':')
+                if debug:
+                    print '  %s cluster with original size %d and split history: %s' % (utils.color('blue', 'finishing'), len(sclust), '   '.join(' '.join(str(len(c)) for c in sclist) for sclist in subcluster_lists))
+                line = annotations[skey(subcluster_lists[-1][0])]
+                if debug:
+                    utils.print_reco_event(line, extra_str='      ', label=utils.color('purple', 'before'))
+                n_seqs_to_remove = len(line['unique_ids'])
+                sfos_to_add = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in sclust]  # original "leaf" seqs that we actually care about (i.e. not "inferred ancestors")
+                utils.add_seqs_to_line(line, sfos_to_add, self.glfo)
+                iseqs_to_keep = list(range(n_seqs_to_remove, len(line['unique_ids'])))
+                utils.restrict_to_iseqs(line, iseqs_to_keep, self.glfo)
+                if debug:
+                    utils.print_reco_event(line, extra_str='      ', label=utils.color('purple', 'after'))
+                final_annotations[uidstr] = line
+                clusters_still_to_do.remove(sclust)
+                del subclustered_clusters[uidstr]
+
+        for uid in subcluster_hash_seqs:
+            del self.sw_info[uid]
+            del self.input_info[uid]
+            if self.reco_info is not None:
+                del self.reco_info[uid]
+
+        annotation_list = [final_annotations[skey(c)] for c in partition]
+        self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug)
+
+        return None, OrderedDict([(skey(l['unique_ids']), l) for l in annotation_list]), all_hmm_failures
+
+    # ----------------------------------------------------------------------------------------
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False, read_output=True, is_subcluster_recursed=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -1105,8 +1253,16 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        self.prepare_for_hmm(algorithm, parameter_in_dir, partition, shuffle_input=shuffle_input)
+        prep_time = time.time() - start
+        nsets = self.get_nsets(algorithm, partition)
+        if self.args.subcluster_annotation_size is not None and algorithm == 'viterbi' and not is_subcluster_recursed and any(self.subcl_split(len(c)) for c in nsets):
+            assert not precache_all_naive_seqs
+            assert not shuffle_input
+            return self.run_subcluster_annotate(nsets, parameter_in_dir, n_procs, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
+
+        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_in_dir, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
         glutils.write_glfo(self.my_gldir, self.glfo)
+        print '        hmm prep time: %.1f' % prep_time
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -1127,7 +1283,7 @@ class PartitionDriver(object):
                     cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data, reco_info=self.reco_info, true_partition=utils.get_partition_from_reco_info(self.reco_info) if not self.args.is_data else None)
 
             if algorithm == 'viterbi' and not precache_all_naive_seqs:
-                annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug)
+                annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug, is_subcluster_recursed=is_subcluster_recursed)
 
             if os.path.exists(self.hmm_infname):
                 os.remove(self.hmm_infname)
@@ -1670,9 +1826,8 @@ class PartitionDriver(object):
         csvfile.close()
 
     # ----------------------------------------------------------------------------------------
-    @utils.timeprinter
-    def prepare_for_hmm(self, algorithm, parameter_dir, partition, shuffle_input=False):
-        """ Write input file for bcrham """
+    # @utils.timeprinter
+    def get_nsets(self, algorithm, partition):
 
         if partition is not None:
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
@@ -1694,7 +1849,7 @@ class PartitionDriver(object):
             else:  # plain ol' singletons
                 nsets = [[q] for q in qlist]
 
-        self.write_to_single_input_file(self.hmm_infname, nsets, parameter_dir, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
+        return nsets
 
     # ----------------------------------------------------------------------------------------
     def check_did_bcrham_fail(self, line, errorfo):
@@ -1733,7 +1888,7 @@ class PartitionDriver(object):
             most_common_sw_gene = sorted(sw_gene_counts, key=operator.itemgetter(1), reverse=True)[0][0]
             if most_common_sw_gene != line[delname[0]+'_gene']:
                 if debug:
-                    print '           %s genes don\'t match: %s %s     ' % (delname[0], utils.color_gene(most_common_sw_gene, width=10), utils.color_gene(line[delname[0]+'_gene'], width=10)),
+                    print '           %s genes don\'t match: %s %s  ' % (delname[0], utils.color_gene(most_common_sw_gene, width=10), utils.color_gene(line[delname[0]+'_gene'], width=10)),
                 continue
                 # line[delname[0]+'_gene'] = most_common_sw_gene DONT do this, it doesn't really make any sense
             sw_deletion_lengths = [self.sw_info[q][delname] for q in line['unique_ids']]
@@ -1829,9 +1984,9 @@ class PartitionDriver(object):
             utils.print_reco_event(after_line, extra_str='    ', label='after')
 
     # ----------------------------------------------------------------------------------------
-    def check_for_unexpectedly_missing_keys(self, annotations, hmm_failure_ids):
+    def check_for_unexpectedly_missing_keys(self, annotation_list, hmm_failure_ids):
         missing_input_keys = set(self.input_info)
-        missing_input_keys -= set([uid for line in  annotations.values() for uid in line['unique_ids']])  # set(self.sw_info['queries'])  # all the queries for which we had decent sw annotations (sw failures are accounted for below)
+        missing_input_keys -= set([uid for line in annotation_list for uid in line['unique_ids']])  # set(self.sw_info['queries'])  # all the queries for which we had decent sw annotations (sw failures are accounted for below)
         missing_input_keys -= self.sw_info['failed-queries']
         missing_input_keys -= self.sw_info['removed-queries']
         missing_input_keys -= set([d for dlist in self.sw_info['duplicates'].values() for d in dlist])
@@ -1846,7 +2001,46 @@ class PartitionDriver(object):
             print '  %s couldn\'t account for %d missing input uid%s%s' % (utils.color('red', 'warning'), len(missing_input_keys), utils.plural(len(missing_input_keys)), ': %s' % ' '.join(missing_input_keys) if len(missing_input_keys) < 15 else '')
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None, print_annotations=False):
+    def process_annotation_output(self, annotation_list, hmm_failures, count_parameters=False, parameter_out_dir=None, print_annotations=False):
+        pcounter = ParameterCounter(self.glfo, self.args) if count_parameters else None
+        true_pcounter = ParameterCounter(self.simglfo, self.args) if (count_parameters and not self.args.is_data) else None
+        perfplotter = PerformancePlotter('hmm') if self.args.plot_annotation_performance else None
+
+        for line_to_use in annotation_list:
+            if pcounter is not None:
+                pcounter.increment(line_to_use)
+
+            if perfplotter is not None:
+                for iseq in range(len(line_to_use['unique_ids'])):  # NOTE this counts rearrangement-level parameters once for every mature sequence, which is inconsistent with the pcounters... but I think might make more sense here?
+                    perfplotter.evaluate(self.reco_info[line_to_use['unique_ids'][iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
+
+        if true_pcounter is not None:
+            for uids in utils.get_partition_from_reco_info(self.reco_info, ids=self.sw_info['queries']):  # NOTE this'll include queries that passed sw but failed the hmm... there aren't usually really any of those
+                true_pcounter.increment(utils.synthesize_multi_seq_line_from_reco_info(uids, self.reco_info))
+
+        # parameter and performance writing/plotting
+        if pcounter is not None:
+            path_str = 'hmm' if parameter_out_dir is None else os.path.basename(parameter_out_dir)  # at the moment, this is just 'hmm' for regular parameter caching, and 'multi-hmm' for parameter caching after partitioning
+            if self.args.plotdir is not None:
+                pcounter.plot('%s/%s' % (self.args.plotdir, path_str), only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots, make_per_base_plots=self.args.make_per_gene_per_base_plots)
+                if true_pcounter is not None:
+                    true_pcounter.plot('%s/%s' % (self.args.plotdir, path_str.replace('hmm', 'true')), only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots, make_per_base_plots=self.args.make_per_gene_per_base_plots)
+            if not self.args.dont_write_parameters:
+                pcounter.write(parameter_out_dir)
+                if true_pcounter is not None:
+                    true_pcounter.write('%s/%s' % (os.path.dirname(parameter_out_dir), path_str.replace('hmm', 'true')))
+
+        if perfplotter is not None:
+            perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
+
+        if print_annotations:
+            self.print_results(None, annotation_list)
+        self.check_for_unexpectedly_missing_keys(annotation_list, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
+        if self.args.annotation_clustering is not None:  # annotation (VJ CDR3) clustering
+            self.deal_with_annotation_clustering(annotations_to_use, outfname)
+
+    # ----------------------------------------------------------------------------------------
+    def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None, print_annotations=False, is_subcluster_recursed=False):
         """ Read bcrham annotation output """
         def check_invalid(line, hmm_failures):
             if line['invalid']:
@@ -1860,10 +2054,6 @@ class PartitionDriver(object):
 
         print '    read output'
         sys.stdout.flush()
-
-        pcounter = ParameterCounter(self.glfo, self.args) if count_parameters else None
-        true_pcounter = ParameterCounter(self.simglfo, self.args) if (count_parameters and not self.args.is_data) else None
-        perfplotter = PerformancePlotter('hmm') if self.args.plot_annotation_performance else None
 
         counts = {n : 0 for n in ['n_lines_read', 'n_seqs_processed', 'n_events_processed', 'n_invalid_events']}
         eroded_annotations, padded_annotations = OrderedDict(), OrderedDict()
@@ -1928,33 +2118,9 @@ class PartitionDriver(object):
                 counts['n_events_processed'] += 1
                 counts['n_seqs_processed'] += len(uids)
 
-                if pcounter is not None:
-                    pcounter.increment(line_to_use)
+        os.remove(annotation_fname)
 
-                if perfplotter is not None:
-                    for iseq in range(len(uids)):  # NOTE this counts rearrangement-level parameters once for every mature sequence, which is inconsistent with the pcounters... but I think might make more sense here?
-                        perfplotter.evaluate(self.reco_info[uids[iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
-
-        if true_pcounter is not None:
-            for uids in utils.get_partition_from_reco_info(self.reco_info, ids=self.sw_info['queries']):  # NOTE this'll include queries that passed sw but failed the hmm... there aren't usually really any of those
-                true_pcounter.increment(utils.synthesize_multi_seq_line_from_reco_info(uids, self.reco_info))
-
-        # parameter and performance writing/plotting
-        if pcounter is not None:
-            path_str = 'hmm' if parameter_out_dir is None else os.path.basename(parameter_out_dir)  # at the moment, this is just 'hmm' for regular parameter caching, and 'multi-hmm' for parameter caching after partitioning
-            if self.args.plotdir is not None:
-                pcounter.plot('%s/%s' % (self.args.plotdir, path_str), only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots, make_per_base_plots=self.args.make_per_gene_per_base_plots)
-                if true_pcounter is not None:
-                    true_pcounter.plot('%s/%s' % (self.args.plotdir, path_str.replace('hmm', 'true')), only_csv=self.args.only_csv_plots, only_overall=not self.args.make_per_gene_plots, make_per_base_plots=self.args.make_per_gene_per_base_plots)
-            if not self.args.dont_write_parameters:
-                pcounter.write(parameter_out_dir)
-                if true_pcounter is not None:
-                    true_pcounter.write('%s/%s' % (os.path.dirname(parameter_out_dir), path_str.replace('hmm', 'true')))
-
-        if perfplotter is not None:
-            perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
-
-        print '        processed %d hmm output lines with %d sequences in %d events  (%d failures)' % (counts['n_lines_read'], counts['n_seqs_processed'], counts['n_events_processed'], len(hmm_failures))
+        print '        read %d hmm output lines with %d sequences in %d events  (%d failures)' % (counts['n_lines_read'], counts['n_seqs_processed'], counts['n_events_processed'], len(hmm_failures))
         if counts['n_invalid_events'] > 0:
             print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), counts['n_invalid_events'])
         for ecode in errorfo:
@@ -1969,20 +2135,13 @@ class PartitionDriver(object):
 
         annotations_to_use = eroded_annotations if self.args.mimic_data_read_length else padded_annotations
         seqfileopener.add_input_metafo(self.input_info, annotations_to_use.values(), dont_overwrite_info=True)  # don't overwrite any info that's already in there (presumably multiplicities) since it will have been updated in waterer after collapsing duplicates
-        if print_annotations:
-            self.print_results(None, annotations_to_use.values())
+        if not is_subcluster_recursed:
+            self.process_annotation_output(annotations_to_use.values(), hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=print_annotations)
 
-        self.check_for_unexpectedly_missing_keys(annotations_to_use, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
-
-        # annotation (VJ CDR3) clustering
-        if self.args.annotation_clustering is not None:
-            self.deal_with_annotation_clustering(annotations_to_use, outfname)
-
-        os.remove(annotation_fname)
         return annotations_to_use, hmm_failures
 
     # ----------------------------------------------------------------------------------------
-    def deal_with_annotation_clustering(self, annotations, outfname):
+    def deal_with_annotation_clustering(self, annotation_list, outfname):
         if self.args.annotation_clustering != 'vollmers':
             raise Exception('we only handle \'vollmers\' (vj cdr3 0.x) annotation clustering at the moment')
 
@@ -1998,7 +2157,7 @@ class PartitionDriver(object):
         # perform annotation clustering for each threshold and write to file
         import annotationclustering
         for thresh in self.args.annotation_clustering_thresholds:
-            partition = annotationclustering.vollmers(annotations, threshold=thresh, reco_info=self.reco_info)
+            partition = annotationclustering.vollmers({':'.join(l['unique_ids']) : l for l in annotation_list}, threshold=thresh, reco_info=self.reco_info)
             n_clusters = len(partition)
             if outfname is not None:
                 row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}

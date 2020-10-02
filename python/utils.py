@@ -2011,7 +2011,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
                 assert ikey in new_keys  # only really checks the logic of the previous few lines
 
 # ----------------------------------------------------------------------------------------
-def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):
+def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):  # could have called it subset_seqs_in_line, or at least i always seem to search for that when i'm trying to find this
     """ remove from <line> any sequences corresponding to indices not in <iseqs_to_keep>. modifies line. """
     if len(iseqs_to_keep) < 1:
         raise Exception('must be called with at least one sequence to keep (got %s)' % iseqs_to_keep)
