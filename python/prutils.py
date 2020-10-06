@@ -255,7 +255,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     if line['v_3p_del'] + line['j_5p_del'] > d_plus_inserts_length:  # if dots for v and j interior deletions will be longer than <d_plus_inserts_length>
         vj_del_strs = [('%s %d' % (d, line[d + '_del'])) for d in ['v_3p', 'j_5p'] if line[d + '_del'] > 0]
         vj_delstr = '  %s: %s' % (utils.color('blue', 'del'), ', '.join(vj_del_strs))
-        delstrs['v_3p'] = ' ' * d_plus_inserts_length
+        delstrs['v_3p'] = '.' * d_plus_inserts_length
         delstrs['j_5p'] = ''
         gapstr = ''
         gap_insert_point = None
