@@ -21,7 +21,7 @@ common="--paired-loci igh:igk --n-procs 10"
 # echo ./bin/partis merge-paired-partitions --is-simu $common --infname $outdir/simu-igh.yaml --light-chain-infname $outdir/simu-igk.yaml --outfname $outdir/partitions-igh.yaml --light-chain-outfname $outdir/partitions-igk.yaml
 
 for action in cache-parameters partition; do
-    ./bin/partis $action --split-loci --infname $outdir/simu.fa --split-loci-output-dir $outdir/split-loci-test/no-auto-cache >no-auto-cache-$action.log
+    echo ./bin/partis $action --split-loci --infname $outdir/simu.fa --paired-loci-output-dir $outdir/split-loci-test/no-auto-cache # >no-auto-cache-$action.log
 done
-# ./bin/partis partition --split-loci --infname $outdir/simu.fa --split-loci-output-dir $outdir/split-loci-test/auto-cache-no-pdir >auto-cache-no-pdir.log
-# ./bin/partis partition --split-loci --infname $outdir/simu.fa --split-loci-output-dir $outdir/split-loci-test/auto-cache-with-pdir --parameter-dir $outdir/split-loci-test/auto-cache-with-pdir/x/y/z >auto-cache-with-pdir.log
+# ./bin/partis partition --split-loci --infname $outdir/simu.fa --paired-loci-output-dir $outdir/split-loci-test/auto-cache-no-pdir >auto-cache-no-pdir.log
+# ./bin/partis partition --split-loci --infname $outdir/simu.fa --paired-loci-output-dir $outdir/split-loci-test/auto-cache-with-pdir --parameter-dir $outdir/split-loci-test/auto-cache-with-pdir/x/y/z >auto-cache-with-pdir.log
