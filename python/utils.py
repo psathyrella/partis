@@ -3666,7 +3666,7 @@ def remove_ambiguous_ends(seq):
     return seq[i_seq_start : i_seq_end]
 
 # ----------------------------------------------------------------------------------------
-def split_clusters_by_cdr3(partition, sw_info, warn=False, debug=False):
+def split_clusters_by_cdr3(partition, sw_info, warn=False):
     new_partition = []
     all_cluster_splits = []
     for cluster in partition:
