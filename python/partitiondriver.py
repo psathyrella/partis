@@ -2002,9 +2002,27 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def process_annotation_output(self, annotation_list, hmm_failures, count_parameters=False, parameter_out_dir=None, print_annotations=False):
+        # ----------------------------------------------------------------------------------------
+        def print_bad_annotations(mname, bad_annotations):  # useful for parsing resulting log file: grep -v annotations log | grep -A3 'true\|inferred\|worst'
+            worst_values, worst_annotations = zip(*sorted(bad_annotations[mname], key=lambda x: abs(x[0]), reverse=True))
+            print '\n\n%s %d by %s: %s%s%s %s' % (utils.color('red', 'printing worst'), self.args.print_n_worst_annotations, mname, utils.color('blue', '['), ' '.join(str(v) for v in worst_values[:self.args.print_n_worst_annotations]), utils.color('blue', ']'), ' '.join(str(v) for v in worst_values[self.args.print_n_worst_annotations:]))
+            def pstr(val, line):
+                vstr = ('%d'%val) if 'hamming' in mname else '%d' % (len(l[mname]) if 'insertion' in mname else l[mname])
+                return '  %s %s%s' % (mname, vstr, '' if 'hamming' in mname else ' (off by %d)'%val)
+            perf_strs = [pstr(v, l) for v, l in zip(worst_values, worst_annotations)]
+            self.print_results(None, worst_annotations[:self.args.print_n_worst_annotations], dont_sort=True, label_list=perf_strs[:self.args.print_n_worst_annotations], extra_str='  ')
+
+        # ----------------------------------------------------------------------------------------
         pcounter = ParameterCounter(self.glfo, self.args) if count_parameters else None
         true_pcounter = ParameterCounter(self.simglfo, self.args) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter('hmm') if self.args.plot_annotation_performance else None
+
+        if self.args.print_n_worst_annotations:
+            bad_annotations = OrderedDict([
+                ('v_hamming_to_true_naive', []), ('cdr3_hamming_to_true_naive', []), ('j_hamming_to_true_naive', []),
+                ('v_3p_del', []), ('d_5p_del', []), ('d_3p_del', []), ('j_5p_del', []),
+                ('vd_insertion', []), ('dj_insertion', []),
+            ])
 
         for line_to_use in annotation_list:
             if pcounter is not None:
@@ -2012,7 +2030,10 @@ class PartitionDriver(object):
 
             if perfplotter is not None:
                 for iseq in range(len(line_to_use['unique_ids'])):  # NOTE this counts rearrangement-level parameters once for every mature sequence, which is inconsistent with the pcounters... but I think might make more sense here?
-                    perfplotter.evaluate(self.reco_info[line_to_use['unique_ids'][iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
+                    pvals = perfplotter.evaluate(self.reco_info[line_to_use['unique_ids'][iseq]], utils.synthesize_single_seq_line(line_to_use, iseq), simglfo=self.simglfo)
+                    if self.args.print_n_worst_annotations and iseq == 0 and pvals is not None:
+                        for mname in bad_annotations:
+                            bad_annotations[mname].append((pvals[mname], line_to_use))
 
         if true_pcounter is not None:
             for uids in utils.get_partition_from_reco_info(self.reco_info, ids=self.sw_info['queries']):  # NOTE this'll include queries that passed sw but failed the hmm... there aren't usually really any of those
@@ -2030,11 +2051,15 @@ class PartitionDriver(object):
                 if true_pcounter is not None:
                     true_pcounter.write('%s/%s' % (os.path.dirname(parameter_out_dir), path_str.replace('hmm', 'true')))
 
-        if perfplotter is not None:
+        if perfplotter is not None and self.args.plotdir is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
-        if print_annotations:
-            self.print_results(None, annotation_list)
+        if print_annotations or self.args.print_n_worst_annotations is not None:
+            if self.args.print_n_worst_annotations is None:
+                self.print_results(None, annotation_list)
+            else:
+                for mname in bad_annotations:
+                    print_bad_annotations(mname, bad_annotations)
         self.check_for_unexpectedly_missing_keys(annotation_list, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
         if self.args.annotation_clustering is not None:  # annotation (VJ CDR3) clustering
             self.deal_with_annotation_clustering(annotations_to_use, outfname)

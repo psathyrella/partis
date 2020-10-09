@@ -280,14 +280,13 @@ def process(args):
         elif args.selection_metric_fname is None and args.action == 'get-selection-metrics' and not args.add_selection_metrics_to_outfname:
             args.selection_metric_fname = utils.insert_before_suffix('-selection-metrics', args.outfname)
 
-    if args.plot_performance:
-        print '%s encountered deprecated argument --plot-performance, moving value to --plot-annotation-performance' % utils.color('yellow', 'warning')
-        args.plot_annotation_performance = True
     if args.plot_annotation_performance:
-        if args.plotdir is None:
-            raise Exception('can\'t plot performance unless --plotdir is specified')
+        if args.plotdir is None and args.print_n_worst_annotations is None:
+            raise Exception('doesn\'t make sense to set --plot-annotation-performance but not either of --plotdir or --print-n-worst-annotations (we\'ll spend all the cycles counting things up but then they\'ll just disappear from memory without being recorded).')
         if not args.is_simu:
-            raise Exception('can\'t plot performance unless --is-simu is set')
+            raise Exception('can\'t plot performance unless --is-simu is set (and this is simulation)')
+    if args.print_n_worst_annotations is not None and not args.plot_annotation_performance:
+        raise Exception('--plot-annotation-performance must be set if you\'re setting --print-worst-annotations')
     if args.action == 'plot-partitions' and args.plotdir is None:
         raise Exception('--plotdir must be specified for plot-partitions')
 

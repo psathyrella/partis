@@ -153,6 +153,9 @@ class PerformancePlotter(object):
             if diff not in self.values[col]:
                 self.values[col][diff] = 0
             self.values[col][diff] += 1
+            return_vals[col] = diff
+
+        return_vals = {}
 
         if indelutils.has_indels(true_line['indelfos'][iseq]) or indelutils.has_indels(inf_line['indelfos'][iseq]):
             simlen = indelutils.net_length(true_line['indelfos'][iseq])
@@ -194,6 +197,8 @@ class PerformancePlotter(object):
                 self.set_per_gene_support(true_line, inf_line, region)
 
         self.hists['mute_freqs'].fill(mutfo['inf']['freq'][''] - mutfo['sim']['freq'][''])  # when we're evaluating on multi-seq hmm output, we synthesize single-sequence lines for each sequence
+
+        return return_vals
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):

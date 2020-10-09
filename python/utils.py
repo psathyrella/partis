@@ -2039,6 +2039,8 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_p
         missing_str = '' if len(missing_uids) == 0 else '   missing %d/%d sequences from actual true cluster (but includes %d duplicates not shown below)' % (len(missing_uids), len(full_true_clusters[0]), len(uids_and_dups(line)) - len(uids))
 
         multiline = synthesize_multi_seq_line_from_reco_info(uids, reco_info)
+        if line['fv_insertion'] != '' and multiline['fv_insertion'] == '':
+            extra_str = ' '*len(line['fv_insertion']) + extra_str  # aligns true + inferred vertically
         print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:') + missing_str)
         true_naive_seqs.append(multiline['naive_seq'])
 
