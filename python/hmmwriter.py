@@ -18,6 +18,8 @@ from hist import Hist
 try:
     from yaml import CLoader
 except ImportError:
+    # https://github.com/yaml/pyyaml/issues/108#issuecomment-370459912
+    # https://stackoverflow.com/questions/47715566/cannot-load-cloader-with-pyyaml
     raise Exception('missing libyaml bindings (probably need to install libyaml-dev, then reinstall pyyaml)')
 
 # ----------------------------------------------------------------------------------------

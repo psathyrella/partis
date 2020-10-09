@@ -772,6 +772,25 @@ class Waterer(object):
         return False
 
     # ----------------------------------------------------------------------------------------
+    def fix_conserved_codon_deletions(self, qinfo, best, debug=False):
+        assert False  # needs to fix indel stuff if i want to turn it on
+        for region, side in [('v', '3p'), ('j', '5p')]:
+            for _, gene in qinfo['matches'][region]:
+                qrb, glb = [qinfo[t+'bounds'] for t in ('qr', 'gl')]
+                if region == 'v' and glb[gene][1] < utils.cdn_pos(self.glfo, region, gene) + 3:
+                    n_to_expand = len(self.glfo['seqs'][region][gene]) - glb[gene][1]  # expand all the way to the end of the gl seq, since if it deleted way past the conserved codon it probably has no idea what's actually right, so we want the hmm to check everything
+                    if debug:
+                        print '      %s_%s %s match deletes conserved codon, so increasing righthand bounds: qr %d --> %d, gl %d --> %d' % (region, side, utils.color_gene(gene), qrb[gene][1], qrb[gene][1] + n_to_expand, glb[gene][1], glb[gene][1] + n_to_expand)
+                    qrb[gene] = (qrb[gene][0], qrb[gene][1] + n_to_expand)
+                    glb[gene] = (glb[gene][0], glb[gene][1] + n_to_expand)
+                elif region == 'j' and glb[gene][0] > utils.cdn_pos(self.glfo, region, gene):
+                    n_to_expand = glb[gene][0]  # i guess also extend the j all the way? this is starting to make less sense
+                    if debug:
+                        print '      %s_%s %s match deletes conserved codon, so increasing lefthand bounds: qr %d --> %d, gl %d --> %d' % (region, side, utils.color_gene(gene), qrb[gene][1], qrb[gene][1] + n_to_expand, glb[gene][1], glb[gene][1] + n_to_expand)
+                    qrb[gene] = (qrb[gene][0] - n_to_expand, qrb[gene][1])
+                    glb[gene] = (glb[gene][0] - n_to_expand, glb[gene][1])  # this just takes the start bound it to 0
+
+    # ----------------------------------------------------------------------------------------
     def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
         if debug:
             print '  looking for spurious v_5p and j_3p deletions'
@@ -933,6 +952,10 @@ class Waterer(object):
 
         best = {r : qinfo['matches'][r][0][1] for r in utils.regions}  # already made sure there's at least one match for each region
 
+        # NOTE this works ok, but if i want to use it, it would need to also fix the indel lengths (and that doesn't seem worthwhile, since a) this is already done when building hmms and b) same goal is accomplished by the new stuff in get_kbounds()
+        # if not self.args.allow_conserved_codon_deletion:
+        #     self.fix_conserved_codon_deletions(qinfo, best)
+
         # s-w allows d and j matches to overlap, so we need to apportion the disputed bases UPDATE ok it turns out ig-sw only allowed overlaps because it had a bug, and the bug is fixed (https://github.com/psathyrella/partis/commit/471e5eac6d2b0fbdbb2b6024c81af14cdc3d9399), so maybe this stuff will never get used now.
         for rpair in utils.region_pairs(self.glfo['locus']):
             overlap_status = self.check_boundaries(rpair, qinfo, best)  #, debug=self.debug>1)  # I think all this overlap fixing only adjusts the bounds for the best match, but I guess that's ok? It's certainly been like that for ages
@@ -1023,6 +1046,8 @@ class Waterer(object):
         # NOTE
         #  - k_v is index of first d/dj insert base (i.e. length of v match)
         #  - k_v + k_d is index of first j/dj insert base (i.e. length of v + vd insert + d match)
+        if debug:
+            print '%s for %s' % (utils.color('blue', 'get kbounds'), line['unique_ids'][0])
 
         best_k_v = line['regional_bounds']['v'][1]  # end of v match
         best_k_d = line['regional_bounds']['d'][1] - line['regional_bounds']['v'][1]  # end of d minus end of v
@@ -1031,6 +1056,7 @@ class Waterer(object):
         k_d_min, k_d_max = best_k_d, best_k_d
 
         n_matched_to_break = 4  # once we see this many consecutive unmutated bases, assume we're actually within a germline v/d/j match
+        typical_dj_insert_len = 5
 
         # first make sure the hmm will check for cases in which sw over-expanded v
         if debug:
@@ -1061,6 +1087,20 @@ class Waterer(object):
                 k_v_min = icheck
                 n_matched = 0
 
+        # then check if sw might've eroded too much v or j
+        if k_v_max < line['codon_positions']['v'] + 3:  # i.e. if first d/dj insert base (k_v_max) is within the three bases in the codon
+            n_to_right_of_codon = len(self.glfo['seqs']['v'][line['v_gene']]) - utils.cdn_pos(self.glfo, 'v', line['v_gene'])  # number of bases to right of first position in codon
+            if debug:
+                print 'k_v_max --- %d' % k_v_max
+                print '    set to length of v: %d' % (line['codon_positions']['v'] + n_to_right_of_codon)
+            k_v_max = line['codon_positions']['v'] + n_to_right_of_codon  # extend all the way to end of v gene
+        if k_v_min + k_d_min > line['codon_positions']['j']:  # i.e. if the first possible j base (k_v_min + k_d_min) is within the conserved codon
+            n_to_left_of_codon = utils.cdn_pos(self.glfo, 'j', line['j_gene'])
+            new_k_d_min = max(0, line['codon_positions']['j'] - n_to_left_of_codon - k_v_min - typical_dj_insert_len)
+            if debug:
+                print 'k_d_min --- %d' % k_d_min
+                print '    k_v_min + k_d_min = %d + %d = %d > j cpos = %d, so set k_d_min to %d (so sum is at start of j, minus a bit)' % (k_v_min, k_d_min, k_v_min + k_d_min, line['codon_positions']['j'], new_k_d_min)
+            k_d_min = new_k_d_min
 
         # then make sure the hmm will check for cases in which sw over-expanded j
         if debug:
@@ -1106,11 +1146,11 @@ class Waterer(object):
         qrseq, glseq = line['d_qr_seqs'][0], line['d_gl_seq']
         d_start = line['regional_bounds']['d'][0]
         icheck = k_d_min  # <icheck> is what we're considering changing k_d_min to
-        while icheck > d_start - k_v_max + 1:
+        while k_v_max < d_start and icheck > d_start - k_v_max + 1:  # i.e. icheck/k_d_min can't be smaller than the distance between d start and the furthest right possible v end (if k_v_max is larger than d_start, it's probably because we increased k_v_max above [a change which isn't reflected in d regional bounds in <line>])
             icheck -= 1
             if debug:
                 print '    check %d' % icheck
-            if qrseq[k_v_max + icheck - d_start] == glseq[k_v_max + icheck - d_start]:  # note that it's <k_v_max> here, since even with the longest k_v we want to make sure to check as short of a d as we mean to
+            if k_v_max + icheck - d_start < len(qrseq) and qrseq[k_v_max + icheck - d_start] == glseq[k_v_max + icheck - d_start]:  # note that it's <k_v_max> here, since even with the longest k_v we want to make sure to check as short of a d as we mean to
                 n_matched += 1
                 if debug:
                     print '      match number %d' % n_matched
@@ -1128,6 +1168,7 @@ class Waterer(object):
 
         # NOTE I think there isn't any reason to increase k_v_max or decrease k_d_min -- sw already pretty much expands the v and j matches as far as it can (i.e. these fuzzing algorithms are mostly trying to decide if the last region to be matched by sw (d) should've been given more bases)
         # UPDATE not so sure, maybe I should, but it's not so important
+        # SECOND UPDATE yep definitely need to expand k_v_max (and k_d_min), partly/mostly because we're now forbidding conserved codon deletion when building hmms (so now adding it above): added these above
 
         # also take the OR of k-space for the best <self.args.n_max_per_region[ireg]> matches (note that this happens after the expanding above because that expanding can break if it gets bounds from other matches)
 
