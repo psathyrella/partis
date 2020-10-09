@@ -3666,20 +3666,21 @@ def remove_ambiguous_ends(seq):
     return seq[i_seq_start : i_seq_end]
 
 # ----------------------------------------------------------------------------------------
-def split_clusters_by_cdr3(partition, sw_info, warn=False):
+def split_clusters_by_cdr3(partition, sw_info, warn=False, debug=False):
     new_partition = []
-    n_split = 0
+    all_cluster_splits = []
     for cluster in partition:
         cdr3_lengths = [sw_info[q]['cdr3_length'] for q in cluster]
         if len(set(cdr3_lengths)) == 1:
             new_partition.append(cluster)
         else:
-            n_split += 1
             split_clusters = [list(group) for _, group in itertools.groupby(sorted(cluster, key=lambda q: sw_info[q]['cdr3_length']), key=lambda q: sw_info[q]['cdr3_length'])]  # TODO i think this should really be using group_seqs_by_value()
             for sclust in split_clusters:
                 new_partition.append(sclust)
-    if warn and n_split > 0:
-        print '  %s split apart %d cluster%s that contained multiple cdr3 lengths (total clusters: %d --> %d)' % (color('yellow', 'warning'), n_split, plural(n_split), len(partition), len(new_partition))
+            all_cluster_splits.append((len(cluster), [len(c) for c in split_clusters]))
+    if warn and len(all_cluster_splits) > 0:
+        print '  %s split apart %d cluster%s that contained multiple cdr3 lengths (total clusters: %d --> %d)' % (color('yellow', 'warning'), len(all_cluster_splits), plural(len(all_cluster_splits)), len(partition), len(new_partition))
+        print '      cluster splits: %s' % ', '.join(('%3d --> %s'%(cl, ' '.join(str(l) for l in spls))) for cl, spls in all_cluster_splits)
     return new_partition
 
 # ----------------------------------------------------------------------------------------
