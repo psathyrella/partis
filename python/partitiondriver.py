@@ -1879,6 +1879,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def correct_multi_hmm_boundaries(self, line, factor=1, first_line=False, debug=False):  # tested factors between 0.5 and 2, performance was basically identical
+        debug = True
         assert 'regional_bounds' not in line  # need to make sure implicit info isn't in there
         n_uids_to_print = 5
         sidestr = '5p'  # maybe should also do something with the 3p del? although seems to work fine as it is
@@ -2026,6 +2027,7 @@ class PartitionDriver(object):
 
         if self.args.print_n_worst_annotations:
             bad_annotations = OrderedDict([
+                # NOTE that in the loop below we only count iseq=0, so (unless you change that) these have to be per-family (i.e. *not* per-sequence) variables
                 ('v_hamming_to_true_naive', []), ('cdr3_hamming_to_true_naive', []), ('j_hamming_to_true_naive', []),
                 ('v_3p_del', []), ('d_5p_del', []), ('d_3p_del', []), ('j_5p_del', []),
                 ('vd_insertion', []), ('dj_insertion', []),
@@ -2115,8 +2117,8 @@ class PartitionDriver(object):
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
 
-                if not self.args.dont_correct_multi_hmm_boundaries and len(padded_line['unique_ids']) > 1:  # lots of details/bkg here: https://github.com/psathyrella/partis/issues/308
-                    self.correct_multi_hmm_boundaries(padded_line, first_line=len(eroded_annotations)+len(padded_annotations)==0)
+                # if self.args.correct_multi_hmm_boundaries and len(padded_line['unique_ids']) > 1:  # lots of details/bkg here: https://github.com/psathyrella/partis/issues/308
+                #     self.correct_multi_hmm_boundaries(padded_line, first_line=len(eroded_annotations)+len(padded_annotations)==0)
 
                 try:
                     utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
