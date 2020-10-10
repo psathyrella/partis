@@ -62,6 +62,7 @@ def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command lin
         dbgstr = '[%s]' % pvar.replace('..', ', ')
         return_val = numpy.random.choice([float(pv) for pv in pvar.split('..')])
     else:  # actual parameter variance (i know, this is ugly)
+        parg_bounds = {'min' : {'n-sim-seqs-per-generation' : 1}, 'max' : {}}
         pmean = pval
         pvar = float(pvar)
         pmin, pmax = pmean - 0.5 * pvar, pmean + 0.5 * pvar
@@ -69,6 +70,10 @@ def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command lin
             raise Exception('min parameter value for %s less than 0 (from mean %s and half width %s)' % (parg, sfcn(pmean), sfcn(pvar)))
         if parg == 'selection-strength' and pmax > 1:
             raise Exception('max parameter value for %s greater than 1 (from mean %s and half width %s)' % (parg, sfcn(pmean), sfcn(pvar)))
+        if parg in parg_bounds['min'] and pmin < parg_bounds['min'][parg]:
+            raise Exception('min value too small for %s: %f < %f' % (parg, pmin, parg_bounds['min'][parg]))
+        if parg in parg_bounds['max'] and pmax > parg_bounds['max'][parg]:
+            raise Exception('max value too large for %s: %f > %f' % (parg, pmax, parg_bounds['max'][parg]))
         dbgstr = '[%6s, %6s]' % (sfcn(pmin), sfcn(pmax))
         return_val = numpy.random.uniform(pmin, pmax)
     if parg != 'selection-strength':
