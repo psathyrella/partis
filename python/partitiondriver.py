@@ -411,7 +411,7 @@ class PartitionDriver(object):
                 true_cp.add_partition(true_partition, -1., 1)
                 print '%strue:' % extra_str
                 # print utils.new_ccfs_that_need_better_names(cpath.partitions[cpath.i_best], true_partition, reco_info=self.reco_info, seed_unique_id=self.args.seed_unique_id)
-                true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best', extrastr=extra_str)
+                true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best', extrastr=extra_str, print_partition_indices=True)
 
         if len(annotation_list) > 0:
             print '%s%s' % (extra_str, utils.color('green', 'annotations:'))
@@ -848,10 +848,7 @@ class PartitionDriver(object):
         clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print 'getting annotations for final partition%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.partitions[cpath.i_best]) else '')
-        self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, read_output=False)
-        if n_procs > 1:
-            self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs=False)
-        all_annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
+        _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
@@ -868,8 +865,6 @@ class PartitionDriver(object):
         if self.args.count_parameters and not self.args.dont_write_parameters:  # not sure this is absolutely the most sensible place to put this, but I'm trying to kind of mimic where we write the hmms in self.cache_parameters()
             self.write_hmms(self.multi_hmm_param_dir)  # note that this modifies <self.glfo>
 
-        if os.path.exists(self.hmm_infname):
-            os.remove(self.hmm_infname)
         self.current_action = action_cache
 
         if self.args.plotdir is not None and not self.args.no_partition_plots:
@@ -1099,11 +1094,11 @@ class PartitionDriver(object):
         sys.stdout.flush()
 
     # ----------------------------------------------------------------------------------------
-    def subcl_split(self, n_seqs):  # return true if we want to split cluster of size <n_seqs> into subclusters
+    def subcl_split(self, n_seqs):  # return true if we want to split cluster of size <n_seqs> into subclusters for purposes of annotation accuracy
         return n_seqs >= 2 * self.args.subcluster_annotation_size  # don't subclusterify unless there's really enough for two clusters
 
     # ----------------------------------------------------------------------------------------
-    def run_subcluster_annotate(self, partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', debug=True):  # NOTE nothing to do with subcluster naive seqs above
+    def run_subcluster_annotate(self, partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', dont_print_annotations=False, debug=True):  # NOTE nothing to do with subcluster naive seqs above
         # ----------------------------------------------------------------------------------------
         def skey(c):
             return ':'.join(c)
@@ -1131,41 +1126,42 @@ class PartitionDriver(object):
             # return [tclust[i : i + self.args.subcluster_annotation_size] for i in range(0, len(tclust), self.args.subcluster_annotation_size)]  # could do some cleverer tree-based clustering, but when partitioning they should be ordered by similarity (i.e. the order in which they got hierarchically agglomerated)
 
         # ----------------------------------------------------------------------------------------
-        def add_hash_seq(line, hashid):  # need to add it also to self.sw_info and whatnot for self.combine_queries()
+        def add_hash_seq(line, hashid, naive_hash_ids):  # need to add it also to self.input_info and self.sw_info for self.combine_queries()
             subcluster_hash_seqs[hashid] = line['naive_seq']
-            uid_to_copy = line['unique_ids'][0]
-
+            uid_to_copy = line['unique_ids'][0]  # we copy from just this one, but then OR (more or less) info from the other ones
             swfo_to_copy = self.sw_info[uid_to_copy]
-            swhfo = copy.deepcopy(swfo_to_copy)
+            swhfo = copy.deepcopy(swfo_to_copy)  # <swhfo> is the new sw info for <hashid>
             swhfo.update({'unique_ids' : [hashid], 'seqs' : [line['naive_seq']], 'input_seqs' : [line['naive_seq']], 'cdr3_length' : line['cdr3_length'], 'naive_seq' : line['naive_seq']})
             assert len(swhfo['all_matches']) == 1
             for tid in line['unique_ids']:  # this duplicates code in combine_queries()
                 for region in utils.regions:
                     swhfo['all_matches'][0][region].update(self.sw_info[tid]['all_matches'][0][region])  # this screws up/overwrites the match info (scores, etc.) but all we care about is adding any other genes
-                    if region != 'j':
+                    if region != 'j':  # also OR kbounds
                         kn = 'k_' + region
                         for mfcn in [min, max]:
                             mn = mfcn.__name__
                             swhfo[kn][mn] = mfcn(swhfo[kn][mn], self.sw_info[tid][kn][mn])
             assert hashid not in self.sw_info
             self.sw_info[hashid] = swhfo
+            if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
+                existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
+                raise Exception('added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths)))
 
             self.input_info[hashid] = copy.deepcopy(self.input_info[uid_to_copy])  # i think i only need this for input meta info
             self.input_info[hashid].update({'unique_ids' : [hashid], 'seqs' : [line['naive_seq']]})
 
-            if self.reco_info is not None:  # atm this only gets used when correcting multi hmm boundaries, which we want to immediately stop doing as soon as this fcn is working, but oh well, it's might be nice to have the hash/naive seqs in reco info
+            if self.reco_info is not None: # and self.args_correct_multi_hmm_boundaries:  # atm this only gets used when correcting multi hmm boundaries, which we want to immediately stop doing as soon as this fcn is working, but oh well, it's might be nice to have the hash/naive seqs in reco info
                 self.reco_info[hashid] = copy.deepcopy(self.reco_info[uid_to_copy])
-                utils.add_seqs_to_line(self.reco_info[hashid], [{'name' : hashid, 'seq' : line['naive_seq']}], self.glfo)
-                utils.restrict_to_iseqs(self.reco_info[hashid], [1], self.glfo)
+                utils.replace_seqs_in_line(self.reco_info[hashid], [{'name' : hashid, 'seq' : line['naive_seq']}], self.simglfo, try_to_fix_padding=True, refuse_to_align=True)
 
         # ----------------------------------------------------------------------------------------
         final_annotations = {}
         all_hmm_failures = set()
-        subcluster_hash_seqs = {}  # all hash-named naive seqs (i.e. that we only made as intermediate steps, but don't care about afterwards)
+        subcluster_hash_seqs = {}  # all hash-named naive seqs, i.e. that we only made as intermediate steps, but don't care about afterwards (we keep track here just so we can remove them from input sw, and reco info afterwards)
 
         clusters_still_to_do = [c for c in partition]  # i think i don't need to deep copy, as long as i don't modify c
-        subclustered_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster
-        naive_ancestor_hashes = {}
+        subd_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster: for each such cluster, stores a list where each entry is the subclusters for that round (i.e. the first entry has subclusters composed of the actual seqs in the cluster, and after that it's intermediate naives/hashid seqs)
+        naive_ancestor_hashes = {}  # list of inferred naive "intermediate" (hashid) seqs, for each subclustered cluster, that we'll run on in the next step (if there is a next step)
         if debug:
             istep = 0
             print '  subcluster annotating %d cluster%s: %s' % (len(partition), utils.plural(len(partition)), ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in partition))
@@ -1177,77 +1173,80 @@ class PartitionDriver(object):
                 istep += 1
             clusters_to_run = []
             for tclust in clusters_still_to_do:
-                if not self.subcl_split(len(tclust)):
+                if not self.subcl_split(len(tclust)):  # if <tclust> is small enough we don't need to split it up
                     clusters_to_run.append(tclust)
                     if debug:
                         print '       %4d                   ' % len(tclust)
                 else:
-                    if skey(tclust) in subclustered_clusters:
+                    if skey(tclust) in subd_clusters:  # subsequent rounds: get subclusters from intermediate inferred naives (hashids) from the last round
                         subclusters = getsubclusters(naive_ancestor_hashes[skey(tclust)])
                         del naive_ancestor_hashes[skey(tclust)]
-                    else:
-                        subclustered_clusters[skey(tclust)] = []
+                    else:  # first time through: add <tclust> to subd_clusters and get initial subclusters
+                        subd_clusters[skey(tclust)] = []
                         subclusters = getsubclusters(tclust)
-                    subclustered_clusters[skey(tclust)].append(subclusters)
+                    subd_clusters[skey(tclust)].append(subclusters)
                     clusters_to_run += subclusters
                     if debug:
-                        n_prev = len(subclustered_clusters[skey(tclust)]) - 1
+                        n_prev = len(subd_clusters[skey(tclust)]) - 1
                         print '       %4d      %s      %s      %3d       %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), ' '.join(str(len(c)) for c in subclusters))
             _, annotations, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, n_procs=n_procs, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
+            read_start = time.time()
+            # make sure all missing cluster are accounted for in <step_failures>
+            missing_clusters = [c for c in clusters_to_run if skey(c) not in annotations]
+            for mclust in missing_clusters:
+                if len(set(mclust) - step_failures) > 0:
+                    raise Exception('cluster missing from output with uids not in hmm failures: %s\n    missing uids: %s' % (skey(mclust), ' '.join(set(mclust) - step_failures)))
+                if skey(mclust) in subd_clusters:
+                    del subd_clusters[skey(mclust)]
+                if mclust in clusters_still_to_do:
+                    clusters_still_to_do.remove(mclust)
             all_hmm_failures |= step_failures
-            these_subd_clusters = {skey(c) : sc for sc, tlist in subclustered_clusters.items() for c in tlist[-1]}  # subclustered clusters that we just ran this time through
-            if debug:
-                print '      read %d new annotations' % len(annotations)
-                print '                  add      add to'
-                print '          size   naive    finished'
+            # process each annotation that we just got back from bcrham: store inferred naive/hash seq if it's a subcluster, or add to final annotations if it's a simple/whole cluster
+            step_sub_clusters = {skey(c) : sc for sc, tlist in subd_clusters.items() for c in tlist[-1]}  # map from each subcluster back to its subd cluster (basically reverse of [last entry in] <subd_clusters>)
+            n_hashed, n_whole_finished = 0, 0
             for uidstr, line in annotations.items():
                 uidstr = skey(line['unique_ids'])
-                if uidstr in these_subd_clusters:
+                if uidstr in step_sub_clusters:  # subclustered clusters
                     hashid = hashstr(line['unique_ids'])
-                    if these_subd_clusters[uidstr] not in naive_ancestor_hashes:
-                        naive_ancestor_hashes[these_subd_clusters[uidstr]] = []
-                    naive_ancestor_hashes[these_subd_clusters[uidstr]].append(hashid)  # add it to the list of "inferred ancestors" that we need to run next time through (if there is a next time)
-                    add_hash_seq(line, hashid)
-                    if debug:
-                        print '         %3d      x' % len(line['unique_ids'])
-                else:
+                    if step_sub_clusters[uidstr] not in naive_ancestor_hashes:
+                        naive_ancestor_hashes[step_sub_clusters[uidstr]] = []
+                    naive_ancestor_hashes[step_sub_clusters[uidstr]].append(hashid)  # add it to the list of inferred naives that we need to run next time through (if there is a next time)
+                    add_hash_seq(line, hashid, naive_ancestor_hashes[step_sub_clusters[uidstr]])  # add it to stuff so it can get run on
+                    n_hashed += 1
+                else:  # non-subclustered/simple/whole clusters (only happens first time through)
                     final_annotations[uidstr] = line
                     clusters_still_to_do.remove(line['unique_ids'])
-                    if debug:
-                        print '         %3d               x' % len(line['unique_ids'])
-            for uidstr, subcluster_lists in subclustered_clusters.items():  # handle the ones that're done (at this point they're an annotation of about length self.args.subcluster_annotation_size presumably consisting of mostly "inferred ancestors"
+                    n_whole_finished += 1
+            # finalize any subclustered clusters that're finished (i.e. that only had one subcluster this time through)
+            n_sub_finished = 0
+            for uidstr, subcluster_lists in subd_clusters.items():  # handle the ones that're done (at this point they should be an annotation of about length self.args.subcluster_annotation_size consisting of just inferred subcluster naives)
                 if len(subcluster_lists[-1]) > 1:  # not finished yet
                     continue
                 sclust = uidstr.split(':')
                 if debug:
                     print '  %s cluster with original size %d and split history: %s' % (utils.color('blue', 'finishing'), len(sclust), '   '.join(' '.join(str(len(c)) for c in sclist) for sclist in subcluster_lists))
                 line = annotations[skey(subcluster_lists[-1][0])]
-                if debug:
-                    utils.print_reco_event(line, extra_str='      ', label=utils.color('purple', 'before'))
-                n_seqs_to_remove = len(line['unique_ids'])
-                sfos_to_add = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in sclust]  # original "leaf" seqs that we actually care about (i.e. not "inferred ancestors")
-                utils.add_seqs_to_line(line, sfos_to_add, self.glfo)
-                iseqs_to_keep = list(range(n_seqs_to_remove, len(line['unique_ids'])))
-                utils.restrict_to_iseqs(line, iseqs_to_keep, self.glfo)
-                if debug:
-                    utils.print_reco_event(line, extra_str='      ', label=utils.color('purple', 'after'))
+                sfos_to_add = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in sclust]  # original "leaf" seqs that we actually care about (i.e. not inferred hashid naive seqs)
+                utils.replace_seqs_in_line(line, sfos_to_add, self.glfo, try_to_fix_padding=True, refuse_to_align=True)  # i think aligning should be unnecessary here, and it's really slow so we don't want to do it by accident (but trimming Ns off the ends seems pretty harmless and it might be enough)
                 final_annotations[uidstr] = line
                 clusters_still_to_do.remove(sclust)
-                del subclustered_clusters[uidstr]
+                del subd_clusters[uidstr]
+                n_sub_finished += 1
+            print '    read %d new subcluster annotation%s: added hashid %d   whole finished %d   subcl finished %d  (read/process time %.1fs)' % (len(annotations), utils.plural(len(annotations)), n_hashed, n_whole_finished, n_sub_finished, time.time() - read_start)
 
         for uid in subcluster_hash_seqs:
             del self.sw_info[uid]
             del self.input_info[uid]
-            if self.reco_info is not None:
+            if self.reco_info is not None and uid in self.reco_info:
                 del self.reco_info[uid]
 
-        annotation_list = [final_annotations[skey(c)] for c in partition]
-        self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug)
+        annotation_list = [final_annotations[skey(c)] for c in partition if skey(c) in final_annotations]  # the missing ones should all be in all_hmm_failures
+        self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug and not dont_print_annotations)
 
         return None, OrderedDict([(skey(l['unique_ids']), l) for l in annotation_list]), all_hmm_failures
 
     # ----------------------------------------------------------------------------------------
-    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False, read_output=True, is_subcluster_recursed=False):
+    def run_hmm(self, algorithm, parameter_in_dir, parameter_out_dir='', count_parameters=False, n_procs=None, precache_all_naive_seqs=False, partition=None, shuffle_input=False, is_subcluster_recursed=False, dont_print_annotations=False):
         """ 
         Run bcrham, possibly with many processes, and parse and interpret the output.
         NOTE the local <n_procs>, which overrides the one from <self.args>
@@ -1265,7 +1264,7 @@ class PartitionDriver(object):
         if self.args.subcluster_annotation_size is not None and algorithm == 'viterbi' and not is_subcluster_recursed and any(self.subcl_split(len(c)) for c in nsets):
             assert not precache_all_naive_seqs
             assert not shuffle_input
-            return self.run_subcluster_annotate(nsets, parameter_in_dir, n_procs, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir)
+            return self.run_subcluster_annotate(nsets, parameter_in_dir, n_procs, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, dont_print_annotations=dont_print_annotations)
 
         self.write_to_single_input_file(self.hmm_infname, nsets, parameter_in_dir, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
         glutils.write_glfo(self.my_gldir, self.glfo)
@@ -1283,17 +1282,16 @@ class PartitionDriver(object):
         glutils.remove_glfo_files(self.my_gldir, self.args.locus)
 
         cpath, annotations, hmm_failures = None, None, None
-        if read_output:
-            if self.current_action == 'partition' or n_procs > 1:
-                cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
-                if cpath is not None:
-                    cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data, reco_info=self.reco_info, true_partition=utils.get_partition_from_reco_info(self.reco_info) if not self.args.is_data else None)
+        if self.current_action == 'partition' or n_procs > 1:
+            cpath = self.merge_all_hmm_outputs(n_procs, precache_all_naive_seqs)
+            if cpath is not None:
+                cpath.write(self.get_cpath_progress_fname(self.istep), self.args.is_data, reco_info=self.reco_info, true_partition=utils.get_partition_from_reco_info(self.reco_info) if not self.args.is_data else None)
 
-            if algorithm == 'viterbi' and not precache_all_naive_seqs:
-                annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug, is_subcluster_recursed=is_subcluster_recursed)
+        if algorithm == 'viterbi' and not precache_all_naive_seqs:
+            annotations, hmm_failures = self.read_annotation_output(self.hmm_outfname, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug and not dont_print_annotations, is_subcluster_recursed=is_subcluster_recursed)
 
-            if os.path.exists(self.hmm_infname):
-                os.remove(self.hmm_infname)
+        if os.path.exists(self.hmm_infname):
+            os.remove(self.hmm_infname)
 
         step_time = time.time() - start
         if step_time - exec_time > 0.1:

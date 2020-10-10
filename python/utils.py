@@ -527,7 +527,8 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
 
 # ----------------------------------------------------------------------------------------
 # add seqs in <seqfos_to_add> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary (see bin/add-seqs-to-outputs.py)
-def add_seqs_to_line(line, seqfos_to_add, glfo, debug=False):
+# NOTE see also replace_seqs_in_line()
+def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def align_sfo_seqs(sfos_to_align):
         sfos_to_align['naive_seq'] = line['naive_seq']
@@ -551,10 +552,29 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, debug=False):
             assert len(sfos_to_align[sfo['name']]) == len(line['naive_seq'])
 
     # ----------------------------------------------------------------------------------------
-    sfos_to_align = {sfo['name'] : sfo['seq'] for sfo in seqfos_to_add if len(sfo['seq']) != len(line['naive_seq'])}  # implicit info adding enforces that the naive seq is the same length as all the seqs
-    if len(sfos_to_align) > 0:
-        align_sfo_seqs(sfos_to_align)
-    aligned_seqfos = [{'name' : sfo['name'], 'seq' : sfos_to_align.get(sfo['name'], sfo['seq'])} for sfo in seqfos_to_add]
+    def getseq(sfo):  # could use recursive .get(, .get()), but i just feel like making it more explicit
+        # trimmed_seqfos.get(sfo['name'], sfos_to_align.get(sfo['name'], sfo['seq'])
+        if sfo['name'] in trimmed_seqfos:
+            return trimmed_seqfos[sfo['name']]
+        elif sfo['name'] in sfos_to_align:
+            return sfos_to_align[sfo['name']]
+        else:
+            return sfo['seq']
+
+    # ----------------------------------------------------------------------------------------
+    trimmed_seqfos, sfos_to_align = {}, {}
+    if try_to_fix_padding:
+        for sfo in [s for s in seqfos_to_add if len(s['seq']) > len(line['naive_seq'])]:
+            trimmed_seq = remove_ambiguous_ends(sfo['seq'])
+            if len(trimmed_seq) == len(line['naive_seq']):  # presumably the naive seq matches any seqs that are already in <line> (and inserts and deletions and whatnot), so we can probably only really fix it if the new seqs are padded but the naive seq isn't
+                trimmed_seqfos[sfo['name']] = trimmed_seq
+        if debug:
+            print '    trimmed %d seqs to same length as naive seq' % len(trimmed_seqfos)
+    if not refuse_to_align:
+        sfos_to_align = {sfo['name'] : sfo['seq'] for sfo in seqfos_to_add if sfo['name'] not in trimmed_seqfos and len(sfo['seq']) != len(line['naive_seq'])}  # implicit info adding enforces that the naive seq is the same length as all the seqs
+        if len(sfos_to_align) > 0:
+            align_sfo_seqs(sfos_to_align)
+    aligned_seqfos = [{'name' : sfo['name'], 'seq' : getseq(sfo)} for sfo in seqfos_to_add]  # NOTE needs to be in same order as <seqfos_to_add>
 
     remove_all_implicit_info(line)
 
@@ -574,6 +594,14 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, debug=False):
 
     if debug:
         print_reco_event(line, label='after adding %d seqs:'%len(aligned_seqfos), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
+
+# ----------------------------------------------------------------------------------------
+# same as add_seqs_to_line(), except this removes all existing seqs first, so the final <line> only contains the seqs in <seqfos_to_add>
+def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, debug=False):
+    n_seqs_to_remove = len(line['unique_ids'])
+    add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=try_to_fix_padding, refuse_to_align=refuse_to_align, debug=debug)
+    iseqs_to_keep = list(range(n_seqs_to_remove, len(line['unique_ids'])))
+    restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
 # ----------------------------------------------------------------------------------------
 def get_repfracstr(csize, repertoire_size):  # return a concise string representing <csize> / <repertoire_size>

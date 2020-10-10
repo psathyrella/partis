@@ -194,7 +194,7 @@ class Glomerator(object):
             if debug and len(fileinfos) > 1:
                 print 'merge path %d from %d processes:' % (ipath, len(fileinfos))
                 for ifile in range(len(fileinfos)):
-                    fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d' % (ifile)))
+                    fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d ' % (ifile)))
                     print ''
 
             # merge all the steps in each path
