@@ -1096,7 +1096,7 @@ class Waterer(object):
             k_v_max = line['codon_positions']['v'] + n_to_right_of_codon  # extend all the way to end of v gene
         if k_v_min + k_d_min > line['codon_positions']['j']:  # i.e. if the first possible j base (k_v_min + k_d_min) is within the conserved codon
             n_to_left_of_codon = utils.cdn_pos(self.glfo, 'j', line['j_gene'])
-            new_k_d_min = max(0, line['codon_positions']['j'] - n_to_left_of_codon - k_v_min - typical_dj_insert_len)
+            new_k_d_min = max(1, line['codon_positions']['j'] - n_to_left_of_codon - k_v_min - typical_dj_insert_len)
             if debug:
                 print 'k_d_min --- %d' % k_d_min
                 print '    k_v_min + k_d_min = %d + %d = %d > j cpos = %d, so set k_d_min to %d (so sum is at start of j, minus a bit)' % (k_v_min, k_d_min, k_v_min + k_d_min, line['codon_positions']['j'], new_k_d_min)
