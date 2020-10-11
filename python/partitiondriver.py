@@ -1098,7 +1098,7 @@ class PartitionDriver(object):
         return n_seqs >= 2 * self.args.subcluster_annotation_size  # don't subclusterify unless there's really enough for two clusters
 
     # ----------------------------------------------------------------------------------------
-    def run_subcluster_annotate(self, partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', dont_print_annotations=False, debug=True):  # NOTE nothing to do with subcluster naive seqs above
+    def run_subcluster_annotate(self, init_partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', dont_print_annotations=False, debug=True):  # NOTE nothing to do with subcluster naive seqs above
         # ----------------------------------------------------------------------------------------
         def skey(c):
             return ':'.join(c)
@@ -1106,7 +1106,10 @@ class PartitionDriver(object):
         def hashstr(c):
             return 'subc_%+d' % hash(skey(c))
         # ----------------------------------------------------------------------------------------
-        def getsubclusters(superclust, sdbg=False):  # NOTE similar to code in bin/partis simulation fcn
+        def getsubclusters(superclust, shuffle=False, sdbg=False):  # NOTE similar to code in bin/partis simulation fcn
+            superclust = copy.deepcopy(superclust)  # should only need this if we shuffle, but you *really* don't want to modify it since if you change the clusters in <init_partition> you'll screw up the actual partition, and if you change the ones in <clusters_still_to_do> you'll end up losing them cause the uidstrs won't be right
+            if shuffle:
+                random.shuffle(superclust)
             n_clusters = len(superclust) / self.args.subcluster_annotation_size  # integer division truncates the decimal
             if n_clusters < 2:  # initially we don't call this function unless superclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
                 return [superclust]
@@ -1176,13 +1179,10 @@ class PartitionDriver(object):
         all_hmm_failures = set()
         subcluster_hash_seqs = {}  # all hash-named naive seqs, i.e. that we only made as intermediate steps, but don't care about afterwards (we keep track here just so we can remove them from input sw, and reco info afterwards)
 
+        istep = 0
         if debug:
-            istep = 0
-            print '  subcluster annotating %d cluster%s: %s' % (len(partition), utils.plural(len(partition)), ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in partition))
-        clusters_still_to_do = [copy.deepcopy(c) for c in partition]  # i think i only need the deep copy if i'm shuffling, but oh well
-        if self.reco_info is not None:  # the order of uids in each cluster that comes out of simulation is the order of leaves in the tree (i.e. they're sorted by similarity), so it's *extremely* important to shuffle them to get a fair comparison
-            for tclust in clusters_still_to_do:
-                random.shuffle(tclust)
+            print '  subcluster annotating %d cluster%s: %s' % (len(init_partition), utils.plural(len(init_partition)), ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in init_partition))
+        clusters_still_to_do = [copy.deepcopy(c) for c in init_partition]
         subd_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster: for each such cluster, stores a list where each entry is the subclusters for that round (i.e. the first entry has subclusters composed of the actual seqs in the cluster, and after that it's intermediate naives/hashid seqs)
         naive_ancestor_hashes = {}  # list of inferred naive "intermediate" (hashid) seqs, for each subclustered cluster, that we'll run on in the next step (if there is a next step)
         while len(clusters_still_to_do) > 0:
@@ -1190,7 +1190,6 @@ class PartitionDriver(object):
                 print '   %s %d cluster%s left with size%s %s' % (utils.color('green', 'istep %d:'%istep), len(clusters_still_to_do), utils.plural(len(clusters_still_to_do)), utils.plural(len(clusters_still_to_do)), ' '.join(str(len(c)) for c in clusters_still_to_do))
                 print '        init     N prior  current    N     mean pw   subcluster'  # we call it "mean pw hfrac", but it's pairwise *within* each cluster, then the weighted average over clusters (i.e. the smaller it is the tighter/better the clusters are)
                 print '        size     splits    size     subcl   hfrac     sizes'
-                istep += 1
             clusters_to_run = []
             for tclust in clusters_still_to_do:
                 if not self.subcl_split(len(tclust)):  # if <tclust> is small enough we don't need to split it up
@@ -1203,7 +1202,7 @@ class PartitionDriver(object):
                         del naive_ancestor_hashes[skey(tclust)]
                     else:  # first time through: add <tclust> to subd_clusters and get initial subclusters
                         subd_clusters[skey(tclust)] = []
-                        subclusters = getsubclusters(tclust)
+                        subclusters = getsubclusters(tclust, shuffle=self.reco_info is not None and istep==0)  # the order of uids in each cluster that comes out of simulation is the order of leaves in the tree (i.e. they're sorted by similarity), so it's *extremely* important to shuffle them to get a fair comparison
                     subd_clusters[skey(tclust)].append(subclusters)
                     clusters_to_run += subclusters
                     if debug:
@@ -1254,6 +1253,7 @@ class PartitionDriver(object):
                 del subd_clusters[uidstr]
                 n_sub_finished += 1
             print '    read %d new subcluster annotation%s: added hashid %d   whole finished %d   subcl finished %d  (read/process time %.1fs)' % (len(annotations), utils.plural(len(annotations)), n_hashed, n_whole_finished, n_sub_finished, time.time() - read_start)
+            istep += 1
 
         for uid in subcluster_hash_seqs:
             del self.sw_info[uid]
@@ -1261,7 +1261,7 @@ class PartitionDriver(object):
             if self.reco_info is not None and uid in self.reco_info:
                 del self.reco_info[uid]
 
-        annotation_list = [final_annotations[skey(c)] for c in partition if skey(c) in final_annotations]  # the missing ones should all be in all_hmm_failures
+        annotation_list = [final_annotations[skey(c)] for c in init_partition if skey(c) in final_annotations]  # the missing ones should all be in all_hmm_failures
         self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug and not dont_print_annotations)
 
         return None, OrderedDict([(skey(l['unique_ids']), l) for l in annotation_list]), all_hmm_failures
