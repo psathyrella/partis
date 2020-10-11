@@ -1938,7 +1938,8 @@ class PartitionDriver(object):
                 true_del = None
                 if self.reco_info is not None:
                     true_dels = [self.reco_info[u][delname] for u in line['unique_ids']]
-                    true_del = utils.get_single_entry(list(set(true_dels)))
+                    # true_del = utils.get_single_entry(list(set(true_dels)))  # huh, yeah i guess if we're partitioning and the cluster is over-merged then they wouldn't all be from the same true cluster so it could be different
+                    true_del = list(set(true_dels))[0]
                     truestr = '%2d' % true_del
                 if line[delname] != old_multi_del_len:
                     dstr = utils.color('blue', '%2d'%line[delname], width=2)
