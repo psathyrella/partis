@@ -245,7 +245,10 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
     return partition
 
 # ----------------------------------------------------------------------------------------
-def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, region=None, aligned=False, n_init=4, max_iter=300, eps=1e-3, n_jobs=-1, plotdir=None):
+def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, region=None, aligned=False, n_init=4, max_iter=300, eps=1e-3, n_jobs=-1, plotdir=None, debug=False):
+    # NOTE set <n_components> to None to run plain kmeans, without mds TODO clean this up
+
+    start = time.time()
     assert n_clusters is not None
     if 'sklearn' not in sys.modules:
         from sklearn import manifold  # these are both slow af to import, even on local ssd
@@ -254,11 +257,13 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
     if len(set(sfo['name'] for sfo in seqfos)) != len(seqfos):
         raise Exception('duplicate sequence ids in <seqfos>')
 
-    print 'align'
     if not aligned:  # NOTE unlike the bios2mds version above, this modifies <seqfos>
+        if debug:
+            print 'align'
         seqfos = utils.align_many_seqs(seqfos)
 
-    print '  distances'
+    if debug:
+        print '  distances'
     # translations = string.maketrans('ACGT-', '01234')
     # def convert(seq):
     #     return [int(c) for c in seq.translate(translations)]
@@ -266,28 +271,34 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
     # similarities = scipy.spatial.distance.pdist(converted_seqs, 'hamming')
     # similarities = scipy.spatial.distance.squareform(similarities)
     similarities = scipy.spatial.distance.squareform([utils.hamming_fraction(seqfos[i]['seq'], seqfos[j]['seq']) for i in range(len(seqfos)) for j in range(i + 1, len(seqfos))])
-
-    print '  mds'
     random_state = numpy.random.RandomState(seed=seed)
-    mds = sys.modules['sklearn'].manifold.MDS(n_components=n_components, n_init=n_init, max_iter=max_iter, eps=eps, random_state=random_state, dissimilarity="precomputed", n_jobs=n_jobs)
-    pos = mds.fit_transform(similarities)
-    # pos = mds.fit(similarities).embedding_
 
-    print '  kmeans'
-    kmeans = sys.modules['sklearn'].cluster.KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos)
-    pcvals = {seqfos[iseq]['name'] : pos[iseq] for iseq in range(len(seqfos))}
+    pos = None
+    if n_components is not None:
+        if debug:
+            print '  mds'
+        mds = sys.modules['sklearn'].manifold.MDS(n_components=n_components, n_init=n_init, max_iter=max_iter, eps=eps, random_state=random_state, dissimilarity="precomputed", n_jobs=n_jobs)
+        pos = mds.fit_transform(similarities)
+        # pos = mds.fit(similarities).embedding_
+
+    if debug:
+        print '    kmeans clustering with %d clusters' % n_clusters
+    kmeans = sys.modules['sklearn'].cluster.KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos if pos is not None else similarities)
+    pcvals = {seqfos[iseq]['name'] : pos[iseq] if pos is not None else None for iseq in range(len(seqfos))}
     labels = {seqfos[iseq]['name'] : kmeans.labels_[iseq] for iseq in range(len(seqfos))}
-    def keyfunc(q):  # should really integrate this with utils.collapse_naive_seqs()/utils.split_partition_with_criterion()
-        return labels[q]
-    partition = [list(group) for _, group in itertools.groupby(sorted(pcvals, key=keyfunc), key=keyfunc)]
+    partition = utils.group_seqs_by_value(pcvals.keys(), lambda q: labels[q])
 
     if plotdir is not None:
         utils.prep_dir(plotdir, wildlings=['*.svg'])
-        print '  plot'
+        if debug:
+            print '    plot'
         plot_mds(n_components, pcvals, plotdir, 'mds', partition=partition)
 
         if reco_info is not None:
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
             plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels)
+
+    if debug:
+        print '    kmeans time %.1f' % (time.time() - start)
 
     return partition

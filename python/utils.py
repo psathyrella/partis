@@ -536,7 +536,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
         aligned_naive_seq = get_single_entry([sfo['seq'] for sfo in msa_info if sfo['name'] == 'naive_seq'])
         msa_info = [sfo for sfo in msa_info if sfo['name'] != 'naive_seq']
         if debug:
-            print '  aligned %d seqs with length different to naive sequence:' % (len(sfos_to_align) - 1)
+            print '  aligned %d seq%s with length different to naive sequence:' % (len(sfos_to_align) - 1, plural(len(sfos_to_align) - 1))
             for iseq, sfo in enumerate(msa_info):
                 color_mutants(aligned_naive_seq, sfo['seq'], print_result=True, ref_label='naive seq ', seq_label=sfo['name']+' ', extra_str='        ', only_print_seq=iseq>0)
         for sfo in msa_info:
@@ -569,7 +569,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             if len(trimmed_seq) == len(line['naive_seq']):  # presumably the naive seq matches any seqs that are already in <line> (and inserts and deletions and whatnot), so we can probably only really fix it if the new seqs are padded but the naive seq isn't
                 trimmed_seqfos[sfo['name']] = trimmed_seq
         if debug:
-            print '    trimmed %d seqs to same length as naive seq' % len(trimmed_seqfos)
+            print '    trimmed %d seq%s to same length as naive seq' % (len(trimmed_seqfos), plural(len(trimmed_seqfos)))
     if not refuse_to_align:
         sfos_to_align = {sfo['name'] : sfo['seq'] for sfo in seqfos_to_add if sfo['name'] not in trimmed_seqfos and len(sfo['seq']) != len(line['naive_seq'])}  # implicit info adding enforces that the naive seq is the same length as all the seqs
         if len(sfos_to_align) > 0:
@@ -593,7 +593,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
     add_implicit_info(glfo, line)
 
     if debug:
-        print_reco_event(line, label='after adding %d seqs:'%len(aligned_seqfos), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
+        print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 
 # ----------------------------------------------------------------------------------------
 # same as add_seqs_to_line(), except this removes all existing seqs first, so the final <line> only contains the seqs in <seqfos_to_add>
@@ -1977,7 +1977,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
     line['naive_seq'] = len(line['fv_insertion']) * ambig_base + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + len(line['jf_insertion']) * ambig_base
     for iseq in range(len(line['seqs'])):
         if len(line['naive_seq']) != len(line['seqs'][iseq]):
-            raise Exception('naive and mature sequences different lengths %d %d for %s:\n    %s\n    %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), ' '.join(line['unique_ids']), line['naive_seq'], line['seqs'][iseq]))
+            raise Exception('naive and mature sequences different lengths %d %d for %d-seq annotation %s:\n    %s\n    %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), len(line['unique_ids']), ':'.join(line['unique_ids']), line['naive_seq'], line['seqs'][iseq]))
 
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
@@ -2487,6 +2487,12 @@ def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False, a
         return fraction, distance
     else:
         return fraction
+
+# ----------------------------------------------------------------------------------------
+def mean_pairwise_hfrac(seqlist):
+    if len(seqlist) < 2:
+        return 0.
+    return numpy.mean([hamming_fraction(s1, s2) for s1, s2 in itertools.combinations(seqlist, 2)])
 
 # ----------------------------------------------------------------------------------------
 def subset_sequences(line, restrict_to_region=None, exclusion_3p=None, iseq=None):

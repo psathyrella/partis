@@ -1106,24 +1106,38 @@ class PartitionDriver(object):
         def hashstr(c):
             return 'subc_%+d' % hash(skey(c))
         # ----------------------------------------------------------------------------------------
-        def getsubclusters(tclust, sdbg=False):  # NOTE similar to code in bin/partis simulation fcn
-            n_clusters = len(tclust) / self.args.subcluster_annotation_size  # integer division truncates the decimal
-            if n_clusters < 2:  # initially we don't call this function unless tclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
-                return [tclust]
-            n_seq_list = [len(tclust) / n_clusters for _ in range(n_clusters)]  # start with the min possible number (without remainders) for each cluster
+        def getsubclusters(superclust, sdbg=False):  # NOTE similar to code in bin/partis simulation fcn
+            n_clusters = len(superclust) / self.args.subcluster_annotation_size  # integer division truncates the decimal
+            if n_clusters < 2:  # initially we don't call this function unless superclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
+                return [superclust]
+
+            if self.args.kmeans_subclusters:
+                import mds
+                seqfos = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in superclust]
+                return_clusts = mds.run_sklearn_mds(None, n_clusters, seqfos, self.args.seed, aligned=True)
+            else:
+                n_seq_list = [len(superclust) / n_clusters for _ in range(n_clusters)]  # start with the min possible number (without remainders) for each cluster
+                if sdbg:
+                    print 'len %3d  sas %2d   r %2d  %s' % (len(superclust), self.args.subcluster_annotation_size, len(superclust) % n_clusters, n_seq_list),
+                for iextra in range(len(superclust) % n_clusters):  # spread out any extra ones
+                    n_seq_list[iextra] += 1
+                assert sum(n_seq_list) == len(superclust)
+                ns_sums = [sum(n_seq_list[:i]) for i in range(len(n_seq_list))]
+                return_clusts = [superclust[nsum : nsum + n] for n, nsum in zip(n_seq_list, ns_sums)]  # could do some cleverer tree-based clustering, but when partitioning they should be ordered by similarity (i.e. the order in which they got hierarchically agglomerated)
+
             if sdbg:
-                print 'len %3d  sas %2d   r %2d  %s' % (len(tclust), self.args.subcluster_annotation_size, len(tclust) % n_clusters, n_seq_list),
-            for iextra in range(len(tclust) % n_clusters):  # spread out any extra ones
-                n_seq_list[iextra] += 1
-            assert sum(n_seq_list) == len(tclust)
-            ns_sums = [sum(n_seq_list[:i]) for i in range(len(n_seq_list))]
-            return_clusts = [tclust[nsum : nsum + n] for n, nsum in zip(n_seq_list, ns_sums)]  # could do some cleverer tree-based clustering, but when partitioning they should be ordered by similarity (i.e. the order in which they got hierarchically agglomerated)
-            if sdbg:
-                print [len(c) for c in return_clusts]
-            assert sum(len(c) for c in return_clusts) == len(tclust)
+                print ' '.join([str(len(c)) for c in return_clusts])
+                if sdbg > 1:
+                    # ClusterPath(partition=return_clusts).print_partitions()
+                    for dbclust in return_clusts:
+                        print '   len %d mean pw hfrac %.2f' % (len(dbclust), utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in dbclust]))
+                        naive_seq = self.reco_info[dbclust[0]]['naive_seq']  # it'd be nice to not have to use reco info, but at this point i think the only other naive seqs we have are the single-sequence sw ones, which won't be accurate enough (i guess i could use the consensus sequence or something)
+                        for uid in dbclust:
+                            utils.color_mutants(naive_seq, utils.remove_ambiguous_ends(self.sw_info[uid]['seqs'][0]), align_if_necessary=True, print_result=True, only_print_seq=True, extra_str='      ', post_str=' %22s'%uid)
+            assert sum(len(c) for c in return_clusts) == len(superclust)
             return return_clusts
             # old simple way:
-            # return [tclust[i : i + self.args.subcluster_annotation_size] for i in range(0, len(tclust), self.args.subcluster_annotation_size)]  # could do some cleverer tree-based clustering, but when partitioning they should be ordered by similarity (i.e. the order in which they got hierarchically agglomerated)
+            # return [superclust[i : i + self.args.subcluster_annotation_size] for i in range(0, len(superclust), self.args.subcluster_annotation_size)]  # could do some cleverer tree-based clustering, but when partitioning they should be ordered by similarity (i.e. the order in which they got hierarchically agglomerated)
 
         # ----------------------------------------------------------------------------------------
         def add_hash_seq(line, hashid, naive_hash_ids):  # need to add it also to self.input_info and self.sw_info for self.combine_queries()
@@ -1145,31 +1159,37 @@ class PartitionDriver(object):
             self.sw_info[hashid] = swhfo
             if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
                 existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
-                raise Exception('added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths)))
+                # raise Exception('added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths)))
+                print '  %s added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (utils.color('yellow', 'warning'), hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths))
+                print '      %d --> %d' % (self.sw_info[hashid]['cdr3_length'], utils.get_single_entry(existing_cdr3_lengths))  # TODO maybe this fix makes sense?
+                self.sw_info[hashid]['cdr3_length'] = utils.get_single_entry(existing_cdr3_lengths)
 
             self.input_info[hashid] = copy.deepcopy(self.input_info[uid_to_copy])  # i think i only need this for input meta info
             self.input_info[hashid].update({'unique_ids' : [hashid], 'seqs' : [line['naive_seq']]})
 
             if self.reco_info is not None: # and self.args_correct_multi_hmm_boundaries:  # atm this only gets used when correcting multi hmm boundaries, which we want to immediately stop doing as soon as this fcn is working, but oh well, it's might be nice to have the hash/naive seqs in reco info
                 self.reco_info[hashid] = copy.deepcopy(self.reco_info[uid_to_copy])
-                utils.replace_seqs_in_line(self.reco_info[hashid], [{'name' : hashid, 'seq' : line['naive_seq']}], self.simglfo, try_to_fix_padding=True, refuse_to_align=True)
+                utils.replace_seqs_in_line(self.reco_info[hashid], [{'name' : hashid, 'seq' : line['naive_seq']}], self.simglfo, try_to_fix_padding=True)  # i wish i could set refuse_to_align=True since it's slow, but sometimes it needs to align (when j length to right of tryp differs)
 
         # ----------------------------------------------------------------------------------------
         final_annotations = {}
         all_hmm_failures = set()
         subcluster_hash_seqs = {}  # all hash-named naive seqs, i.e. that we only made as intermediate steps, but don't care about afterwards (we keep track here just so we can remove them from input sw, and reco info afterwards)
 
-        clusters_still_to_do = [c for c in partition]  # i think i don't need to deep copy, as long as i don't modify c
-        subd_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster: for each such cluster, stores a list where each entry is the subclusters for that round (i.e. the first entry has subclusters composed of the actual seqs in the cluster, and after that it's intermediate naives/hashid seqs)
-        naive_ancestor_hashes = {}  # list of inferred naive "intermediate" (hashid) seqs, for each subclustered cluster, that we'll run on in the next step (if there is a next step)
         if debug:
             istep = 0
             print '  subcluster annotating %d cluster%s: %s' % (len(partition), utils.plural(len(partition)), ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in partition))
+        clusters_still_to_do = [copy.deepcopy(c) for c in partition]  # i think i only need the deep copy if i'm shuffling, but oh well
+        if self.reco_info is not None:  # the order of uids in each cluster that comes out of simulation is the order of leaves in the tree (i.e. they're sorted by similarity), so it's *extremely* important to shuffle them to get a fair comparison
+            for tclust in clusters_still_to_do:
+                random.shuffle(tclust)
+        subd_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster: for each such cluster, stores a list where each entry is the subclusters for that round (i.e. the first entry has subclusters composed of the actual seqs in the cluster, and after that it's intermediate naives/hashid seqs)
+        naive_ancestor_hashes = {}  # list of inferred naive "intermediate" (hashid) seqs, for each subclustered cluster, that we'll run on in the next step (if there is a next step)
         while len(clusters_still_to_do) > 0:
             if debug:
                 print '   %s %d cluster%s left with size%s %s' % (utils.color('green', 'istep %d:'%istep), len(clusters_still_to_do), utils.plural(len(clusters_still_to_do)), utils.plural(len(clusters_still_to_do)), ' '.join(str(len(c)) for c in clusters_still_to_do))
-                print '        init     N prior  current    N     subcluster'
-                print '        size     splits    size     subcl   sizes'
+                print '        init     N prior  current    N     mean pw   subcluster'  # we call it "mean pw hfrac", but it's pairwise *within* each cluster, then the weighted average over clusters (i.e. the smaller it is the tighter/better the clusters are)
+                print '        size     splits    size     subcl   hfrac     sizes'
                 istep += 1
             clusters_to_run = []
             for tclust in clusters_still_to_do:
@@ -1188,7 +1208,9 @@ class PartitionDriver(object):
                     clusters_to_run += subclusters
                     if debug:
                         n_prev = len(subd_clusters[skey(tclust)]) - 1
-                        print '       %4d      %s      %s      %3d       %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), ' '.join(str(len(c)) for c in subclusters))
+                        mphfracs = [utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in c]) for c in subclusters]
+                        mean_weighted_pw_hfrac = numpy.average(mphfracs, weights=[len(c) / float(len(tclust)) for c in subclusters])
+                        print '       %4d      %s      %s      %3d      %4.2f      %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), mean_weighted_pw_hfrac, ' '.join(str(len(c)) for c in subclusters))
             _, annotations, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, n_procs=n_procs, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
             read_start = time.time()
             # make sure all missing cluster are accounted for in <step_failures>
@@ -1202,21 +1224,20 @@ class PartitionDriver(object):
                     clusters_still_to_do.remove(mclust)
             all_hmm_failures |= step_failures
             # process each annotation that we just got back from bcrham: store inferred naive/hash seq if it's a subcluster, or add to final annotations if it's a simple/whole cluster
-            step_sub_clusters = {skey(c) : sc for sc, tlist in subd_clusters.items() for c in tlist[-1]}  # map from each subcluster back to its subd cluster (basically reverse of [last entry in] <subd_clusters>)
             n_hashed, n_whole_finished = 0, 0
-            for uidstr, line in annotations.items():
-                uidstr = skey(line['unique_ids'])
-                if uidstr in step_sub_clusters:  # subclustered clusters
-                    hashid = hashstr(line['unique_ids'])
-                    if step_sub_clusters[uidstr] not in naive_ancestor_hashes:
-                        naive_ancestor_hashes[step_sub_clusters[uidstr]] = []
-                    naive_ancestor_hashes[step_sub_clusters[uidstr]].append(hashid)  # add it to the list of inferred naives that we need to run next time through (if there is a next time)
-                    add_hash_seq(line, hashid, naive_ancestor_hashes[step_sub_clusters[uidstr]])  # add it to stuff so it can get run on
+            for super_uidstr, subcluster_lists in subd_clusters.items():  # we used to loop over <annotations>, which was cleaner in some ways, but then it was hard to make sure the hashid seqs stayed in the same order, which is important if we're not using kmeans
+                for sclust in subcluster_lists[-1]:
+                    sline = annotations[skey(sclust)]
+                    hashid = hashstr(sline['unique_ids'])
+                    if super_uidstr not in naive_ancestor_hashes:
+                        naive_ancestor_hashes[super_uidstr] = []
+                    naive_ancestor_hashes[super_uidstr].append(hashid)  # add it to the list of inferred naives that we need to run next time through (if there is a next time)
+                    add_hash_seq(sline, hashid, naive_ancestor_hashes[super_uidstr])  # add it to stuff so it can get run on
                     n_hashed += 1
-                else:  # non-subclustered/simple/whole clusters (only happens first time through)
-                    final_annotations[uidstr] = line
-                    clusters_still_to_do.remove(line['unique_ids'])
-                    n_whole_finished += 1
+            for sclust in [c for c in clusters_still_to_do if skey(c) in annotations]:  # non-subclustered/simple/whole clusters (only happens first time through) [there's simpler ways to get these, but we need to account for failures]
+                final_annotations[skey(sclust)] = annotations[skey(sclust)]
+                clusters_still_to_do.remove(sclust)
+                n_whole_finished += 1
             # finalize any subclustered clusters that're finished (i.e. that only had one subcluster this time through)
             n_sub_finished = 0
             for uidstr, subcluster_lists in subd_clusters.items():  # handle the ones that're done (at this point they should be an annotation of about length self.args.subcluster_annotation_size consisting of just inferred subcluster naives)
