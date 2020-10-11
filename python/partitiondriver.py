@@ -1114,8 +1114,8 @@ class PartitionDriver(object):
             if n_clusters < 2:  # initially we don't call this function unless superclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
                 return [superclust]
 
-            if self.args.kmeans_subclusters:
-                import mds
+            if False: # self.args.kmeans_subclusters:  # this gives you clusters that are "tighter" -- i.e. clusters similar sequences together
+                import mds  # this works fine, but it's not really different (sometimes a bit better, sometimes a bit worse) than the simple way. Which is weird, I would think it would help? but otoh it gives you non-equal-sized clusters, which sometimes i think is worse, although sometimes i also think is better
                 seqfos = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in superclust]
                 return_clusts = mds.run_sklearn_mds(None, n_clusters, seqfos, self.args.seed, aligned=True)
             else:
