@@ -1095,7 +1095,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def subcl_split(self, n_seqs):  # return true if we want to split cluster of size <n_seqs> into subclusters for purposes of annotation accuracy
-        return n_seqs >= 2 * self.args.subcluster_annotation_size  # don't subclusterify unless there's really enough for two clusters
+        return n_seqs > self.args.subcluster_annotation_size
+        # return n_seqs >= 2 * self.args.subcluster_annotation_size  # used to do it this way, and there's pluses and minuses to both, but it turns out it's better to split smaller clusters
 
     # ----------------------------------------------------------------------------------------
     def run_subcluster_annotate(self, init_partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', dont_print_annotations=False, debug=True):  # NOTE nothing to do with subcluster naive seqs above
@@ -1112,12 +1113,13 @@ class PartitionDriver(object):
             superclust = copy.deepcopy(superclust)  # should only need this if we shuffle, but you *really* don't want to modify it since if you change the clusters in <init_partition> you'll screw up the actual partition, and if you change the ones in <clusters_still_to_do> you'll end up losing them cause the uidstrs won't be right
             if shuffle:
                 random.shuffle(superclust)
-            n_clusters = len(superclust) / self.args.subcluster_annotation_size  # integer division truncates the decimal
+            # n_clusters = len(superclust) / self.args.subcluster_annotation_size  # old way: truncates the decimal (see note in subcl_split())
+            n_clusters = int(math.ceil(len(superclust) / float(self.args.subcluster_annotation_size)))  # taking the ceiling keeps the max un-split cluster size equal to <self.args.subcluster_annotation_size> (rather than one less than twice that)
             if n_clusters < 2:  # initially we don't call this function unless superclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
                 return [superclust]
 
             if False: # self.args.kmeans_subclusters:  # this gives you clusters that are "tighter" -- i.e. clusters similar sequences together
-                import mds  # this works fine, but it's not really different (sometimes a bit better, sometimes a bit worse) than the simple way. Which is weird, I would think it would help? but otoh it gives you non-equal-sized clusters, which sometimes i think is worse, although sometimes i also think is better
+                import mds  # this works fine, but it's not really different (on balance with kmeans is probably a bit worse) than the simple way. Which is weird, I would think it would help? but otoh it gives you non-equal-sized clusters, which sometimes i think is worse, although sometimes i also think is better
                 seqfos = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in superclust]
                 return_clusts = mds.run_sklearn_mds(None, n_clusters, seqfos, self.args.seed, aligned=True)
             else:
