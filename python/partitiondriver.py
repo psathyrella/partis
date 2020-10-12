@@ -1099,7 +1099,7 @@ class PartitionDriver(object):
         # return n_seqs >= 2 * self.args.subcluster_annotation_size  # used to do it this way, and there's pluses and minuses to both, but it turns out it's better to split smaller clusters
 
     # ----------------------------------------------------------------------------------------
-    def run_subcluster_annotate(self, init_partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', dont_print_annotations=False, debug=True):  # NOTE nothing to do with subcluster naive seqs above
+    def run_subcluster_annotate(self, init_partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', dont_print_annotations=False, debug=False):  # NOTE nothing to do with subcluster naive seqs above
         # ----------------------------------------------------------------------------------------
         def skey(c):
             return ':'.join(c)
@@ -1185,8 +1185,7 @@ class PartitionDriver(object):
         subcluster_hash_seqs = {}  # all hash-named naive seqs, i.e. that we only made as intermediate steps, but don't care about afterwards (we keep track here just so we can remove them from input sw, and reco info afterwards)
 
         istep = 0
-        if debug:
-            print '  subcluster annotating %d cluster%s: %s' % (len(init_partition), utils.plural(len(init_partition)), ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in init_partition))
+        print '  subcluster annotating %d cluster%s: %s' % (len(init_partition), utils.plural(len(init_partition)), '' if not debug else ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in init_partition))
         clusters_still_to_do = [copy.deepcopy(c) for c in init_partition]
         subd_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster: for each such cluster, stores a list where each entry is the subclusters for that round (i.e. the first entry has subclusters composed of the actual seqs in the cluster, and after that it's intermediate naives/hashid seqs)
         naive_ancestor_hashes = {}  # list of inferred naive "intermediate" (hashid) seqs, for each subclustered cluster, that we'll run on in the next step (if there is a next step)
@@ -1295,7 +1294,6 @@ class PartitionDriver(object):
         if n_procs is None:
             n_procs = self.args.n_procs
 
-        prep_time = time.time() - start
         nsets = self.get_nsets(algorithm, partition)
         if self.args.subcluster_annotation_size is not None and algorithm == 'viterbi' and not is_subcluster_recursed and any(self.subcl_split(len(c)) for c in nsets):
             assert not precache_all_naive_seqs
@@ -1304,7 +1302,8 @@ class PartitionDriver(object):
 
         self.write_to_single_input_file(self.hmm_infname, nsets, parameter_in_dir, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
         glutils.write_glfo(self.my_gldir, self.glfo)
-        print '        hmm prep time: %.1f' % prep_time
+        if time.time() - start > 0.1:
+            print '        hmm prep time: %.1f' % (time.time() - start)
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)
 
@@ -2130,7 +2129,7 @@ class PartitionDriver(object):
                 return True
             return False
 
-        print '    read output'
+        print '    reading output'
         sys.stdout.flush()
 
         counts = {n : 0 for n in ['n_lines_read', 'n_seqs_processed', 'n_events_processed', 'n_invalid_events']}
