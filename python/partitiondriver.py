@@ -1298,7 +1298,7 @@ class PartitionDriver(object):
         if self.args.subcluster_annotation_size is not None and algorithm == 'viterbi' and not is_subcluster_recursed and any(self.subcl_split(len(c)) for c in nsets):
             assert not precache_all_naive_seqs
             assert not shuffle_input
-            return self.run_subcluster_annotate(nsets, parameter_in_dir, n_procs, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, dont_print_annotations=dont_print_annotations)
+            return self.run_subcluster_annotate(nsets, parameter_in_dir, n_procs, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, dont_print_annotations=dont_print_annotations, debug=self.args.debug)
 
         self.write_to_single_input_file(self.hmm_infname, nsets, parameter_in_dir, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
         glutils.write_glfo(self.my_gldir, self.glfo)
