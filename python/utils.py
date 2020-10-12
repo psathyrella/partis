@@ -528,6 +528,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
 # ----------------------------------------------------------------------------------------
 # add seqs in <seqfos_to_add> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary (see bin/add-seqs-to-outputs.py)
 # NOTE see also replace_seqs_in_line()
+# NOTE also that there's no way to add shm indels for seqs in <seqfos_to_add>
 def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def align_sfo_seqs(sfos_to_align):
@@ -597,6 +598,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
 
 # ----------------------------------------------------------------------------------------
 # same as add_seqs_to_line(), except this removes all existing seqs first, so the final <line> only contains the seqs in <seqfos_to_add>
+# NOTE this removes any existing per-seq info in <line>, e.g. shm indels (of course, since they pertain only to seqs that we're removing)
 def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, debug=False):
     n_seqs_to_remove = len(line['unique_ids'])
     add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=try_to_fix_padding, refuse_to_align=refuse_to_align, debug=debug)

@@ -1102,6 +1102,8 @@ class PartitionDriver(object):
         # ----------------------------------------------------------------------------------------
         def skey(c):
             return ':'.join(c)
+        def skey_inverse(ustr):
+            return ustr.split(':')
         # ----------------------------------------------------------------------------------------
         def hashstr(c):
             return 'subc_%+d' % hash(skey(c))
@@ -1175,6 +1177,7 @@ class PartitionDriver(object):
                 utils.replace_seqs_in_line(self.reco_info[hashid], [{'name' : hashid, 'seq' : line['naive_seq']}], self.simglfo, try_to_fix_padding=True)  # i wish i could set refuse_to_align=True since it's slow, but sometimes it needs to align (when j length to right of tryp differs)
 
         # ----------------------------------------------------------------------------------------
+        subc_start = time.time()
         final_annotations = {}
         all_hmm_failures = set()
         subcluster_hash_seqs = {}  # all hash-named naive seqs, i.e. that we only made as intermediate steps, but don't care about afterwards (we keep track here just so we can remove them from input sw, and reco info afterwards)
@@ -1211,20 +1214,24 @@ class PartitionDriver(object):
                         mean_weighted_pw_hfrac = numpy.average(mphfracs, weights=[len(c) / float(len(tclust)) for c in subclusters])
                         print '       %4d      %s      %s      %3d      %4.2f      %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), mean_weighted_pw_hfrac, ' '.join(str(len(c)) for c in subclusters))
             _, annotations, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, n_procs=n_procs, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
-            read_start = time.time()
             # make sure all missing cluster are accounted for in <step_failures>
             missing_clusters = [c for c in clusters_to_run if skey(c) not in annotations]
+            if len(missing_clusters) > 0:
+                print '    missing %d annotations' % len(missing_clusters)
             for mclust in missing_clusters:
                 if len(set(mclust) - step_failures) > 0:
                     raise Exception('cluster missing from output with uids not in hmm failures: %s\n    missing uids: %s' % (skey(mclust), ' '.join(set(mclust) - step_failures)))
-                if skey(mclust) in subd_clusters:
-                    del subd_clusters[skey(mclust)]
-                if mclust in clusters_still_to_do:
+                if mclust in clusters_still_to_do:  # i.e. if it's a simple/whole cluster
+                    print '      removing failed cluster for %s:' % skey(mclust)
                     clusters_still_to_do.remove(mclust)
             all_hmm_failures |= step_failures
             # process each annotation that we just got back from bcrham: store inferred naive/hash seq if it's a subcluster, or add to final annotations if it's a simple/whole cluster
             n_hashed, n_whole_finished = 0, 0
+            failed_super_clusters = []
             for super_uidstr, subcluster_lists in subd_clusters.items():  # we used to loop over <annotations>, which was cleaner in some ways, but then it was hard to make sure the hashid seqs stayed in the same order, which is important if we're not using kmeans
+                if any(sclust in missing_clusters for sclust in subcluster_lists[-1]):
+                    failed_super_clusters.append(super_uidstr)
+                    continue
                 for sclust in subcluster_lists[-1]:
                     sline = annotations[skey(sclust)]
                     hashid = hashstr(sline['unique_ids'])
@@ -1233,6 +1240,10 @@ class PartitionDriver(object):
                     naive_ancestor_hashes[super_uidstr].append(hashid)  # add it to the list of inferred naives that we need to run next time through (if there is a next time)
                     add_hash_seq(sline, hashid, naive_ancestor_hashes[super_uidstr])  # add it to stuff so it can get run on
                     n_hashed += 1
+            for fsclust in failed_super_clusters:
+                print '    giving up on size %d cluster with failed seqs (was just split into %d subclusters): %s' % (len(skey_inverse(fsclust)), len(subd_clusters[fsclust][-1]), fsclust)
+                clusters_still_to_do.remove(skey_inverse(fsclust))
+                del subd_clusters[fsclust]
             for sclust in [c for c in clusters_still_to_do if skey(c) in annotations]:  # non-subclustered/simple/whole clusters (only happens first time through) [there's simpler ways to get these, but we need to account for failures]
                 final_annotations[skey(sclust)] = annotations[skey(sclust)]
                 clusters_still_to_do.remove(sclust)
@@ -1242,17 +1253,18 @@ class PartitionDriver(object):
             for uidstr, subcluster_lists in subd_clusters.items():  # handle the ones that're done (at this point they should be an annotation of about length self.args.subcluster_annotation_size consisting of just inferred subcluster naives)
                 if len(subcluster_lists[-1]) > 1:  # not finished yet
                     continue
-                sclust = uidstr.split(':')
+                sclust = skey_inverse(uidstr)
                 if debug:
                     print '  %s cluster with original size %d and split history: %s' % (utils.color('blue', 'finishing'), len(sclust), '   '.join(' '.join(str(len(c)) for c in sclist) for sclist in subcluster_lists))
                 line = annotations[skey(subcluster_lists[-1][0])]
                 sfos_to_add = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in sclust]  # original "leaf" seqs that we actually care about (i.e. not inferred hashid naive seqs)
                 utils.replace_seqs_in_line(line, sfos_to_add, self.glfo, try_to_fix_padding=True, refuse_to_align=True)  # i think aligning should be unnecessary here, and it's really slow so we don't want to do it by accident (but trimming Ns off the ends seems pretty harmless and it might be enough)
+                self.add_per_seq_sw_info(line)
                 final_annotations[uidstr] = line
                 clusters_still_to_do.remove(sclust)
                 del subd_clusters[uidstr]
                 n_sub_finished += 1
-            print '    read %d new subcluster annotation%s: added hashid %d   whole finished %d   subcl finished %d  (read/process time %.1fs)' % (len(annotations), utils.plural(len(annotations)), n_hashed, n_whole_finished, n_sub_finished, time.time() - read_start)
+            print '    read %d new subcluster annotation%s: added hashid %d   whole finished %d   subcl finished %d' % (len(annotations), utils.plural(len(annotations)), n_hashed, n_whole_finished, n_sub_finished)
             istep += 1
 
         for uid in subcluster_hash_seqs:
@@ -1263,6 +1275,7 @@ class PartitionDriver(object):
 
         annotation_list = [final_annotations[skey(c)] for c in init_partition if skey(c) in final_annotations]  # the missing ones should all be in all_hmm_failures
         self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug and not dont_print_annotations)
+        print '    subcluster annotation time %.1f' % (time.time() - subc_start)
 
         return None, OrderedDict([(skey(l['unique_ids']), l) for l in annotation_list]), all_hmm_failures
 
@@ -2094,6 +2107,15 @@ class PartitionDriver(object):
             self.deal_with_annotation_clustering(annotations_to_use, outfname)
 
     # ----------------------------------------------------------------------------------------
+    def add_per_seq_sw_info(self, line):
+        uids = line['unique_ids']
+        line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence that had any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
+        line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
+        line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
+        for lkey in [lk for lk in utils.input_metafile_keys.values() if lk in self.sw_info[uids[0]]]:  # if it's in one, it should be in all of them
+            line[lkey] = [self.sw_info[uid][lkey][0] for uid in uids]
+
+    # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None, print_annotations=False, is_subcluster_recursed=False):
         """ Read bcrham annotation output """
         def check_invalid(line, hmm_failures):
@@ -2128,11 +2150,7 @@ class PartitionDriver(object):
                 uids = padded_line['unique_ids']
                 uidstr = ':'.join(uids)
 
-                padded_line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence with any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
-                padded_line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <padded_line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
-                padded_line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
-                for lkey in [lk for lk in utils.input_metafile_keys.values() if lk in self.sw_info[uids[0]]]:  # if it's in one, it should be in all of them
-                    padded_line[lkey] = [self.sw_info[uid][lkey][0] for uid in uids]
+                self.add_per_seq_sw_info(padded_line)
 
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
