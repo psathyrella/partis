@@ -25,6 +25,7 @@ import treeutils
 import processargs
 import seqfileopener
 from partitiondriver import PartitionDriver
+from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -348,6 +349,12 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
 # ----------------------------------------------------------------------------------------
 def run_paired_heavy_light(args):
     # ----------------------------------------------------------------------------------------
+    def get_non_joint_outfname(ofn):
+        return utils.insert_before_suffix('-non-merged', ofn)
+    # ----------------------------------------------------------------------------------------
+    def get_joint_partition_infname(ofn):  # file with joint partition (but no input sequenes or annotations)
+        return utils.insert_before_suffix('-joint-partition-input', ofn.replace('-non-merged', ''))  # .replace() doesn't always do anything
+    # ----------------------------------------------------------------------------------------
     def run_step(tmpaction, locus=None):
         clist = copy.deepcopy(sys.argv)
         utils.remove_from_arglist(clist, '--paired-loci', has_arg=True)
@@ -370,7 +377,13 @@ def run_paired_heavy_light(args):
             if '--%sparameter-dir'%lstr in clist:  # you might think it'd be easier to also add to clist here, but it turns out no
                 tmp_pdir = utils.get_val_from_arglist(clist, '--%sparameter-dir' % lstr)  # this has to come from <sys.argv>/<clist> (not <args>) since for simulation it's set to None in processargs (in favor of the reco- and shm- ones)
             ofn = getattr(args, '%soutfname' % lstr.replace('-', '_'))  # whereas this needs to come from <args> rather than <sys.argv>/<clist> in order to pick up any modifications made in processargs
+            if args.action == 'partition' and tmpaction != 'merge-paired-partitions':
+                ofn = get_non_joint_outfname(ofn)
             ifn = getattr(args, '%sinfname' % lstr.replace('-', '_'))  # i don't think it matters for this where it comes from
+            if tmpaction == 'merge-paired-partitions':
+                clist += ['--input-partition-fname', get_joint_partition_infname(ofn)]
+                clist += ['--refuse-to-cache-parameters']
+                clist[clist.index(args.action)] = 'annotate'
 
             for tmpstr in ['infname', 'parameter-dir', 'outfname']:
                 utils.remove_from_arglist(clist, '--%s'%tmpstr, has_arg=True)
@@ -423,9 +436,17 @@ def run_paired_heavy_light(args):
 
     # ----------------------------------------------------------------------------------------
     def combine_chains():  # simulation: synchronize uids and check that trees are compatible, partitioning: merge/synchronize partitions
-        # ----------------------------------------------------------------------------------------
-        hglfo, heavy_annotations, hcpath = utils.read_output(args.outfname, dont_add_implicit_info=not args.debug)
-        lglfo, light_annotations, lcpath = utils.read_output(args.light_chain_outfname, dont_add_implicit_info=not args.debug)
+        def skey(c):
+            return ':'.join(c)
+        h_ofn, l_ofn = args.outfname, args.light_chain_outfname
+        if args.action != 'simulate':
+            for lstr in ['', 'light-chain-']:
+                ofn = getattr(args, '%soutfname' % lstr.replace('-', '_'))
+                if not os.path.exists(get_non_joint_outfname(ofn)) and os.path.exists(ofn):
+                    raise Exception('trying to merge heavy+light partitions, and --%soutfname %s exists, but non-joint/non-merged output file %s does not: maybe you used different --%soutfname values for \'partition\' and \'merge-paired-partitions\'? (they should be the same)' % (lstr, ofn, get_non_joint_outfname(ofn), lstr))
+            h_ofn, l_ofn = get_non_joint_outfname(h_ofn), get_non_joint_outfname(l_ofn)
+        hglfo, heavy_annotations, hcpath = utils.read_output(h_ofn, dont_add_implicit_info=not args.debug)
+        lglfo, light_annotations, lcpath = utils.read_output(l_ofn, dont_add_implicit_info=not args.debug)
         if args.action == 'simulate':
             print '  rewriting output files with synchronized trees'
             assert len(heavy_annotations) == len(light_annotations)
@@ -440,11 +461,27 @@ def run_paired_heavy_light(args):
             if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
                 evaluate_joint_partition(joint_partition, {'h' : hcpath, 'l' : lcpath}, {'h' : heavy_annotations, 'l' : light_annotations})  # TODO clean up signature
             if args.outfname is not None:
-                # TODO write joint partition + newly-subsetted annotations (well i think i actually need to re-run annotation) to --outfname and --light-chain-outfname
-                # h_adict, l_adict = [utils.get_annotation_dict(alist) for alist in [heavy_annotations, light_annotations]]
-                # for 
-                # for jclust in joint_partition:
-                #     if jclust not in 
+                for locus in args.paired_loci:
+                    annotation_list, glfo, ofn = (heavy_annotations, hglfo, args.outfname) if utils.has_d_gene(locus) else (light_annotations, lglfo, args.light_chain_outfname)
+                    annotation_dict = utils.get_annotation_dict(annotation_list)
+                    missing_clusters = []
+                    for jclust in joint_partition:
+                        if skey(jclust) not in annotation_dict:
+                            missing_clusters.append(jclust)
+                            overlap_clusters = [l['unique_ids'] for l in annotation_list if len(set(l['unique_ids']) & set(jclust)) > 0]
+                            # print '      %3d: %s' % (len(jclust), ' '.join('%3d/%3d'%(len(set(c) & set(jclust)), len(c)) for c in overlap_clusters))
+                    if len(missing_clusters) > 0:  # we also get the annotations for the non-missing ones, which should end up the same so it's a bit of a waste, but it's nice to not have to re-read the output file and rewrite it with the non-missing ones
+                        print '    missing %s annotations for %d/%d joint clusters' % (locus, len(missing_clusters), len(joint_partition))
+                    partition_lines = ClusterPath(partition=joint_partition).get_partition_lines(True)  # we could only get annotations for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
+                    headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
+                    if args.parameter_dir is None or not os.path.exists(args.parameter_dir):
+                        print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), locus)
+                        # TODO maybe just subset the existing annotations according to the joint partition?
+                        utils.write_annotations(ofn, glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
+                    else:
+                        utils.write_annotations(get_joint_partition_infname(ofn), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
+                        work_fnames.append(get_joint_partition_infname(ofn))
+                        run_step('merge-paired-partitions', locus=locus)  # it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable
 
     # ----------------------------------------------------------------------------------------
     utils.prep_dir(args.workdir)
@@ -544,6 +581,7 @@ parent_parser.add_argument('--light-chain-infname', help='Separate input file wi
 parent_parser.add_argument('--name-column', help='column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\'). If set to \'fasta-info-index-N\' for an integer N, it will take the Nth (zero-indexed) value from a fasta files uid line.')
 parent_parser.add_argument('--seq-column', help='column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')')
 parent_parser.add_argument('--input-metafname', help='yaml file with meta information for the sequences in --infname (and --queries-to-include-fname), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. Currently accepted keys/columns are \'timepoint\', \'affinity\', \'subject\' and \'multiplicity\'. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
+parent_parser.add_argument('--input-partition-fname', help='partis-style json/yaml file with a partition to use during annotation, i.e. annotate the sequences in --infname using the partition in this file, rather than the default of annotating each sequence individually. Used in \'merge-paired-partitions\' when we want to annotate a list of sequences according to a new, joint partition.')
 parent_parser.add_argument('--outfname', help='output file name')
 parent_parser.add_argument('--paired-loci-output-dir', help='collective output directory for all output files involved in paired heavy/light sequences, i.e. involving --paired-loci or --split-loci.')
 parent_parser.add_argument('--light-chain-outfname', help='output file name for light chain sequences when --paired-loci is set (heavy chain sequences are written to --outfname).')
@@ -551,7 +589,7 @@ parent_parser.add_argument('--write-full-yaml-output', action='store_true', help
 parent_parser.add_argument('--presto-output', action='store_true', help='Write output file(s) in presto/changeo format. Since this format depends on a particular IMGT alignment, this depends on a fasta file with imgt-gapped alignments for all the V, D, and J germline genes. The default in data/germlines/<species>/imgt-alignments/, is probably fine for most cases. For the \'annotate\' action, a single .tsv file is written with annotations (so --outfname suffix must be .tsv). For the \'partition\' action, a fasta file is written with cluster information (so --outfname suffix must be .fa or .fasta), as well as a .tsv in the same directory with the corresponding annotations.')
 parent_parser.add_argument('--airr-output', action='store_true', help='Write output file(s) in AIRR-C format (if --outfname has suffix .tsv, only the airr .tsv is written; however if --outfname has suffix .yaml, both the standard partis .yaml file and an airr .tsv are written). A description of the airr columns can be found here https://docs.airr-community.org/en/stable/datarep/rearrangements.html#fields.')
 parent_parser.add_argument('--airr-input', action='store_true', help='Read --infname in airr format. Equivalent to setting \'--seq-column sequence --name-column sequence_id\'.')
-parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the (fairly minimal) set of information written by default to annotation output files (choose from: %s' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
+parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the (fairly minimal) set of information written by default to annotation output files (choose from: %s)' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
 parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.<suffix>)')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, a default location is used (and printed to std out). If it does not exist, we infer parameters before proceeding to the desired action.')
 parent_parser.add_argument('--light-chain-parameter-dir', help='directory for light chain parameters when --paired-loci is set')

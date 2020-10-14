@@ -3786,7 +3786,7 @@ def get_deduplicated_partitions(partitions, debug=False):  # not using this atm 
 # ----------------------------------------------------------------------------------------
 def new_ccfs_that_need_better_names(partition, true_partition, reco_info=None, seed_unique_id=None, debug=False):
     if seed_unique_id is None:
-        check_intersection_and_complement(partition, true_partition)
+        check_intersection_and_complement(partition, true_partition, a_label='inferred', b_label='true')
     if reco_info is None:  # build a dummy reco_info that just has reco ids
         def tkey(c): return ':'.join(c)
         chashes = {tkey(tc) : hash(tkey(tc)) for tc in true_partition}

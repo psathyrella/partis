@@ -67,6 +67,12 @@ class PartitionDriver(object):
         if self.args.outfname is not None:
             utils.prep_dir(dirname=None, fname=self.args.outfname, allow_other_files=True)
 
+        self.input_partition = None
+        if self.args.input_partition_fname is not None:
+            _, _, cpath = utils.read_yaml_output(self.args.input_partition_fname, skip_annotations=True, debug=True)
+            self.input_partition = cpath.partitions[cpath.i_best]
+            print '  --input-partition-fname: read best partition with %d sequences in %d clusters from %s' % (sum(len(c) for c in self.input_partition), len(self.input_partition), self.args.input_partition_fname)
+
         self.deal_with_persistent_cachefile()
 
         self.cached_naive_hamming_bounds = self.args.naive_hamming_bounds  # just so we don't get them every iteration through the clustering loop
@@ -288,7 +294,7 @@ class PartitionDriver(object):
         # get and write hmm parameters
         print 'hmm'
         sys.stdout.flush()
-        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True)
+        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True, partition=self.input_partition)
         if self.args.outfname is not None and self.current_action == self.all_actions[-1]:
             self.write_output(annotations.values(), hmm_failures)
         self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
@@ -303,7 +309,7 @@ class PartitionDriver(object):
                 self.write_output(None, set(), write_sw=True)  # note that if you're auto-parameter caching, this will just be rewriting an sw output file that's already there from parameter caching, but oh, well. If you're setting --only-smith-waterman and not using cache-parameters, you have only yourself to blame
             return
         print 'hmm'
-        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir)
+        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir, partition=self.input_partition)
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:
