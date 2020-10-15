@@ -1,26 +1,34 @@
 #!/bin/bash
 
+label=paired-clustering-output-v2
+
 nprocs=10
-common="--n-sim-events 100 --n-leaves 15 --constant-number-of-leaves --n-procs $nprocs --no-per-base-mutation --allowed-cdr3-lengths 33" # --debug 1"
-param_dir=_output/paired-simulation/parameters
-outdir=_output/paired-clustering-output #-test
+common="--n-sim-events 30 --n-leaves 5 --n-procs $nprocs --no-per-base-mutation --allowed-cdr3-lengths 33 --mutation-multiplier 3" # --debug 1" #  --constant-number-of-leaves
+in_param_dir=_output/paired-simulation/parameters
+outdir=_output/$label
+out_param_dir=$outdir/params
+
 # these are just to test the main ways of running simulation:
-# ./bin/partis simulate --parameter-dir $param_dir/igh --light-chain-parameter-dir $param_dir/igk $common
-# ./bin/partis simulate --parameter-dir $param_dir/igh --light-chain-parameter-dir $param_dir/igk $common --outfname $outdir/simu-igh.yaml --light-chain-outfname $outdir/simu-igk.yaml
+# ./bin/partis simulate --parameter-dir $in_param_dir/igh --light-chain-parameter-dir $in_param_dir/igk $common
+# ./bin/partis simulate --parameter-dir $in_param_dir/igh --light-chain-parameter-dir $in_param_dir/igk $common --outfname $outdir/simu-igh.yaml --light-chain-outfname $outdir/simu-igk.yaml
 # ./bin/partis simulate --simulate-from-scratch $common
 # ./bin/partis simulate --simulate-from-scratch $common --outfname $outdir/simu-igh.yaml --light-chain-outfname $outdir/simu-igk.yaml
 # actually using these for partitioning:
 for lc in k l; do
-    echo ./bin/partis simulate --paired-loci igh:ig$lc --seed 1 --parameter-dir $param_dir/igh --light-chain-parameter-dir $param_dir/ig$lc $common --outfname $outdir/h$lc/simu-igh.yaml --light-chain-outfname $outdir/h$lc/simu-ig$lc.yaml
+    echo ./bin/partis simulate --paired-loci igh:ig$lc --seed 1 --parameter-dir $in_param_dir/igh --light-chain-parameter-dir $in_param_dir/ig$lc $common --outfname $outdir/h$lc/simu-igh.yaml --light-chain-outfname $outdir/h$lc/simu-ig$lc.yaml
     # echo ./bin/extract-fasta.py --input-file $outdir/h$lc/simu-igh.yaml --fasta-output-file $outdir/h$lc/simu-igh.fa
     # echo ./bin/extract-fasta.py --input-file $outdir/h$lc/simu-ig$lc.yaml --fasta-output-file $outdir/h$lc/simu-ig$lc.fa
 done
 # echo cat $outdir/h?/*.fa >$outdir/simu.fa
 
 for lc in k l; do
-    common="--paired-loci igh:ig$lc --n-procs $nprocs"
-    ./bin/partis partition --is-simu --parameter-dir $param_dir/igh --light-chain-parameter-dir $param_dir/ig$lc $common --infname $outdir/h$lc/simu-igh.yaml --light-chain-infname $outdir/h$lc/simu-ig$lc.yaml --outfname $outdir/h$lc/partitions-igh.yaml --light-chain-outfname $outdir/h$lc/partitions-ig$lc.yaml # --abbreviate
-    # echo ./bin/partis merge-paired-partitions --is-simu $common --infname $outdir/simu-igh.yaml --light-chain-infname $outdir/simu-igk.yaml --outfname $outdir/partitions-igh.yaml --light-chain-outfname $outdir/partitions-igk.yaml
+    common="--is-simu --paired-loci igh:ig$lc --n-procs $nprocs"
+    ifnstr="--infname $outdir/h$lc/simu-igh.yaml --light-chain-infname $outdir/h$lc/simu-ig$lc.yaml"
+    pdstr="--parameter-dir $out_param_dir/igh --light-chain-parameter-dir $out_param_dir/ig$lc"
+    ofnstr="--outfname $outdir/h$lc/partitions-igh.yaml --light-chain-outfname $outdir/h$lc/partitions-ig$lc.yaml"
+    echo ./bin/partis cache-parameters $pdstr $common $ifnstr
+    echo ./bin/partis partition $pdstr $common $ifnstr $ofnstr # --abbreviate
+    echo ./bin/partis merge-paired-partitions $pdstr $common $ifnstr $ofnstr
 done
 
 # testing split-loci stuff:

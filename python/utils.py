@@ -236,7 +236,7 @@ def ambig_frac(seq):
 
 # ----------------------------------------------------------------------------------------
 def reverse_complement_warning():
-    return '%s maybe need to take reverse complement (partis only searches in forward direction) or set --locus (default is igh). Both of these can be fixed using bin/split-loci.py.' % color('red', 'note:')
+    return '%s maybe need to take reverse complement (partis only searches in forward direction) or set --locus (default is igh). Both of these can be fixed using bin/split-loci.py. Or, maybe it\'s fine and your sequences just have super high mutation, which will be handled just fine in smith-waterman and the hmm.' % color('red', 'note:')
 
 codon_table = {
     'cyst' : ['TGT', 'TGC'],
@@ -5110,7 +5110,7 @@ def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_
     return annotation_list
 
 # ----------------------------------------------------------------------------------------
-def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, debug=False):
+def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, skip_failed_queries=False, debug=False):
     annotation_list = None
 
     if getsuffix(fname) == '.csv':
@@ -5146,6 +5146,19 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
 
     if len(cpath.partitions) == 0 and not skip_annotations:  # old simulation files didn't write the partition separately, but we may as well get it
         cpath.add_partition(get_partition_from_annotation_list(annotation_list), -1., 1)
+
+    if skip_failed_queries:
+        failed_queries = set([u for l in annotation_list for u in l['unique_ids'] if l['invalid']])
+        annotation_list = [l for l in annotation_list if not l['invalid']]
+        removed_queries = set()
+        for ip, partition in enumerate(cpath.partitions):
+            for cluster in partition:
+                for fq in set(cluster) & failed_queries:
+                    cluster.remove(fq)
+                    removed_queries.add(fq)
+            cpath.partitions[ip] = [c for c in partition if len(c) > 0]  # remove any empty ones (typically we'll be removing single-sequence clusters, since they failed)
+        if len(removed_queries) > 0:
+            print '      removed %d failed queries when reading partition: %s' % (len(removed_queries), ' '.join(removed_queries))
 
     return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 

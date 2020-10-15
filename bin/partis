@@ -353,7 +353,7 @@ def run_paired_heavy_light(args):
         return utils.insert_before_suffix('-non-merged', ofn)
     # ----------------------------------------------------------------------------------------
     def get_joint_partition_infname(ofn):  # file with joint partition (but no input sequenes or annotations)
-        return utils.insert_before_suffix('-joint-partition-input', ofn.replace('-non-merged', ''))  # .replace() doesn't always do anything
+        return utils.insert_before_suffix('-joint-partition-input', ofn.replace('-non-merged', ''))  # sometimes need the .replace(), sometimes don't
     # ----------------------------------------------------------------------------------------
     def run_step(tmpaction, locus=None):
         clist = copy.deepcopy(sys.argv)
@@ -418,6 +418,7 @@ def run_paired_heavy_light(args):
             _, _, true_cpath = utils.read_output(ifn, dont_add_implicit_info=True, n_max_queries=args.n_max_queries) #skip_annotations=True) # can't skip annotations since older files will need them to make annotations
             true_partitions[chain] = true_cpath.partitions[true_cpath.i_best]
             cmp_partitions[chain] = cpaths[chain].partitions[cpaths[chain].i_best]
+            true_partitions[chain] = utils.remove_missing_uids_from_true_partition(true_partitions[chain], cmp_partitions[chain], debug=False)
             dup_dict = {u : l['duplicates'][i] for l in annotation_lists[chain] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
             if len(dup_dict) > 0:
                 incorporate_duplicates(cmp_partitions[chain], dup_dict)
@@ -426,6 +427,7 @@ def run_paired_heavy_light(args):
             if len(dup_dict) > 0:
                 incorporate_duplicates(joint_partition, dup_dict)  # NOTE this modifies joint_partition, so it's different for the second chain than for the first one
             j_part = utils.get_deduplicated_partitions([joint_partition])[0]  # TODO why do i need this?
+            j_part = utils.remove_missing_uids_from_true_partition(j_part, true_partitions[chain], debug=False)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition
             ccfs[chain]['joint'] = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
 
         print '             purity  completeness'
@@ -445,8 +447,9 @@ def run_paired_heavy_light(args):
                 if not os.path.exists(get_non_joint_outfname(ofn)) and os.path.exists(ofn):
                     raise Exception('trying to merge heavy+light partitions, and --%soutfname %s exists, but non-joint/non-merged output file %s does not: maybe you used different --%soutfname values for \'partition\' and \'merge-paired-partitions\'? (they should be the same)' % (lstr, ofn, get_non_joint_outfname(ofn), lstr))
             h_ofn, l_ofn = get_non_joint_outfname(h_ofn), get_non_joint_outfname(l_ofn)
-        hglfo, heavy_annotations, hcpath = utils.read_output(h_ofn, dont_add_implicit_info=not args.debug)
-        lglfo, light_annotations, lcpath = utils.read_output(l_ofn, dont_add_implicit_info=not args.debug)
+        # TODO clean this up
+        hglfo, heavy_annotations, hcpath = utils.read_output(h_ofn, dont_add_implicit_info=not args.debug, skip_failed_queries=True)
+        lglfo, light_annotations, lcpath = utils.read_output(l_ofn, dont_add_implicit_info=not args.debug, skip_failed_queries=True)
         if args.action == 'simulate':
             print '  rewriting output files with synchronized trees'
             assert len(heavy_annotations) == len(light_annotations)
@@ -468,7 +471,8 @@ def run_paired_heavy_light(args):
                     for jclust in joint_partition:
                         if skey(jclust) not in annotation_dict:
                             missing_clusters.append(jclust)
-                            overlap_clusters = [l['unique_ids'] for l in annotation_list if len(set(l['unique_ids']) & set(jclust)) > 0]
+                            # TODO clean this up
+                            # overlap_clusters = [l['unique_ids'] for l in annotation_list if len(set(l['unique_ids']) & set(jclust)) > 0]
                             # print '      %3d: %s' % (len(jclust), ' '.join('%3d/%3d'%(len(set(c) & set(jclust)), len(c)) for c in overlap_clusters))
                     if len(missing_clusters) > 0:  # we also get the annotations for the non-missing ones, which should end up the same so it's a bit of a waste, but it's nice to not have to re-read the output file and rewrite it with the non-missing ones
                         print '    missing %s annotations for %d/%d joint clusters' % (locus, len(missing_clusters), len(joint_partition))
@@ -492,10 +496,10 @@ def run_paired_heavy_light(args):
             run_step(None, locus=locus)
         if not args.dry_run:
             combine_chains()
-    elif args.action == 'partition':
+    elif args.action in ['partition', 'cache-parameters']:
         for locus in args.paired_loci:
             run_step(None, locus=locus)
-        if not args.dry_run:
+        if args.action == 'partition' and not args.dry_run:
             combine_chains()
     elif args.action == 'merge-paired-partitions':
         combine_chains()
