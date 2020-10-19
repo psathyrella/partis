@@ -2,6 +2,7 @@
 import argparse
 import sys
 import os
+import copy
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
@@ -10,48 +11,25 @@ import utils
 import glutils
 
 parser = argparse.ArgumentParser()
-parser.add_argument('file1')
-parser.add_argument('file2')
+parser.add_argument('gldir1')
+parser.add_argument('gldir2')
+parser.add_argument('--names', default='+gl-1:+gl-2', help='colon-separated list of length 2 with labels for gldir1 and gldir2, which will be appended to each gene name in the ascii output')
+parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
+args.names = utils.get_arg_list(args.names)
 
-genes = {fn : set() for fn in (args.file1, args.file2)}
+glfo_1, glfo_2 = [glutils.read_glfo(gd, args.locus, debug=True) for gd in [args.gldir1, args.gldir2]]
+# glutils.print_glfo(glfo_1)
+# glutils.print_glfo(glfo_2)
 
-def readfile(fname):
-    with open(fname) as fastafile:
-        n_skipped_pseudogenes = 0
-        for line in fastafile:
-            line = line.strip()
-            if line == '':
-                continue
-            if line[0] != '>':
-                continue
-            linefo = [p.replace('>', '').strip() for p in line.split('|')]
-            gene = None
-            for piece in linefo:
-                if piece[:2] == 'IG' or piece[:2] == 'TR':
-                    gene = piece
-            if gene is None:
-                raise Exception('couldn\'t fine gene in %s' % line)
-
-            if len(linefo) > 1:
-                functionality = linefo[glutils.imgt_info_indices.index('functionality')]
-                if functionality not in glutils.functionalities:
-                    raise Exception('unexpected functionality %s' % functionality)
-                if functionality == 'P':
-                    n_skipped_pseudogenes += 1
-                    continue
-
-            genes[fname].add(gene)
-        if n_skipped_pseudogenes > 0:
-            print '    skipped %d pseudogenes' % n_skipped_pseudogenes
-
-readfile(args.file1)
-readfile(args.file2)
-
-print 'file1: %d' % len(genes[args.file1])
-print 'file2: %d' % len(genes[args.file2])
-print 'both: %d' % len(genes[args.file1] & genes[args.file2])
-only_file1 = genes[args.file1] - genes[args.file2]
-print 'only file1: %d  (%s)' % (len(only_file1), ' '.join([utils.color_gene(g) for g in only_file1]))
-only_file2 = genes[args.file2] - genes[args.file1]
-print 'only file2: %d  (%s)' % (len(only_file2), ' '.join([utils.color_gene(g) for g in only_file2]))
+for region in [r for r in utils.regions if r in glfo_1['seqs']]:
+    tmp_glfo = copy.deepcopy(glfo_1)  # make a new glfo that will only have non-shared genes
+    for gene, seq in tmp_glfo['seqs'][region].items():
+        if gene not in glfo_2['seqs'][region]:  # keep it, under a new name, if it's not in <glfo_2>
+            glutils.add_new_allele(tmp_glfo, {'gene' : gene+args.names[0], 'seq' : seq, 'template-gene' : gene})  # add an extra str to the name so we know which one it came from
+        glutils.remove_gene(tmp_glfo, gene)
+    for gene, seq in glfo_2['seqs'][region].items():
+        if gene not in tmp_glfo['seqs'][region]:
+            cpos = glfo_2[utils.cdn(glfo_2, region)+'-positions'][gene] if utils.cdn(glfo_2, region) is not None else None
+            glutils.add_new_allele(tmp_glfo, {'gene' : gene+args.names[1], 'seq' : seq, 'cpos' : cpos}, use_template_for_codon_info=False)  # can't use template cause we might've deleted it in the first loop
+    glutils.print_glfo(tmp_glfo, only_region=region)

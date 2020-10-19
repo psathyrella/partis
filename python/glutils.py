@@ -222,7 +222,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
 
     tmpcounts = [len(gl) for gl in seq_to_gene_map.values()]  # number of names corresponding to each sequence (should all be ones)
     if tmpcounts.count(1) != len(tmpcounts) and not dont_warn_about_duplicates:
-        print '  %s mutliple names in %s for the following sequences:' % (utils.color('red', 'warning'), fname)
+        print '  %s multiple names in %s for the following sequences:' % (utils.color('red', 'warning'), fname)
         for seq, genelist in seq_to_gene_map.items():
             if len(genelist) > 1:
                 print '    %-50s   %s' % (' '.join(genelist), seq)

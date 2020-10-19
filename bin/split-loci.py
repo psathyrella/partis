@@ -29,6 +29,7 @@ parser.add_argument('--species', default='human', choices=('human', 'macaque', '
 parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines', help='doesn\'t need to be the germlines corresponding to this sample since it\'s just so it can figure out which is igh vs igk vs igl, so the default is probably fine')
 parser.add_argument('--workdir', default=utils.choose_random_subdir('/tmp/%s/partis' % os.getenv('USER', default='partis-work')), help='working directory for vsearch')
 parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch binaries for linux and darwin are included in partis/bin/, so leaving this unset should work, but for other systems you need to get your own)')
+parser.add_argument('--vsearch-threshold', default=0.4, help='default identity threshold for vsearch')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info/meta string of sequence name/uid (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
@@ -67,10 +68,10 @@ tmploci = [l for l in utils.loci if args.ig_or_tr in l]
 n_rev_compd, n_total = 0, 0
 for locus in tmploci:
     lglfo = glutils.read_glfo(args.germline_dir, locus)
-    annotations = utils.run_vsearch_with_duplicate_uids('search', seqfos, args.workdir + '/vsearch', 0.3, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='   %s  fwd:'%utils.color('blue', locus) if args.reverse_negative_strands else '   %s: '%locus)
+    annotations = utils.run_vsearch_with_duplicate_uids('search', seqfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='   %s  fwd:'%utils.color('blue', locus) if args.reverse_negative_strands else '   %s: '%locus)
     assert len(annotations) == len(seqfos)
     if args.reverse_negative_strands:  # it might be nicer to user vsearch options to run on both senses at once, but otoh this might be nicer
-        revnotations = utils.run_vsearch_with_duplicate_uids('search', revfos, args.workdir + '/vsearch', 0.3, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='        rev:')
+        revnotations = utils.run_vsearch_with_duplicate_uids('search', revfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='        rev:')
         assert len(revnotations) == len(seqfos)
     for il, (sfo, line) in enumerate(zip(seqfos, annotations)):
         assert sfo['name'] == line['unique_ids'][0]  # note that they're not full annotations, they just have a couple keys
@@ -86,12 +87,12 @@ if args.reverse_negative_strands:
 
 # then, for each sequence, choose the locus with the best-scoring match (in practice i doubt you ever really get multiple loci with matches)
 outfos = collections.OrderedDict(((l, []) for l in tmploci))
-failed_ids = set()
+failed_seqs = []
 for sfo in seqfos:
     lscores = {l : sfo[l]['score'] if 'invalid' not in sfo[l] else 0 for l in tmploci}
     locus, max_score = sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)[0]
     if max_score == 0:
-        failed_ids.add(sfo['name'])
+        failed_seqs.append(sfo)
     outfos[locus].append(sfo)
     if args.debug:
         def lpstr(spair):
@@ -99,7 +100,7 @@ for sfo in seqfos:
             return '%s %d' % (utils.color('blue' if l==locus else None, l), s)
         print '   %s: %s' % (sfo['name'], '  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)))
 
-print 'totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_ids) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_ids)))
+print 'totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_seqs) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_seqs)))
 
 # ----------------------------------------------------------------------------------------
 def write_locus_file(locus, ofn, ofos, extra_str='  '):
@@ -123,10 +124,13 @@ if args.outdir is None:
 else:
     outbase = args.outdir  # but if they did set --outdir, it's nicer to have plain locus file/path names
     tmp_sep = '/'
+if len(failed_seqs) > 0:
+    write_locus_file('failed', '%s%s%s.fa' % (outbase, tmp_sep, 'failed'), failed_seqs)
 for locus in outfos:  # first write the single files with all seqs for each locus
     write_locus_file(locus, '%s%s%s.fa' % (outbase, tmp_sep, locus), outfos[locus])
 if args.split_heavy_seqs:  # then, if necessary, write the ones that're split by pairing
     print '  writing to paired subdirs'
+# TODO handle seqs paired with multiple others somehow
     for h_locus, l_locus in utils.locus_pairs[args.ig_or_tr]:
         l_uids = set(sfo['name'] for sfo in outfos[l_locus])
         h_outfo = [sfo for sfo in outfos[h_locus] if sfo['name'] in l_uids]  # heavy chain seqs corresponding to this light chain
