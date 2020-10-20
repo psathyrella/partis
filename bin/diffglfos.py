@@ -18,18 +18,31 @@ parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 args.names = utils.get_arg_list(args.names)
 
-glfo_1, glfo_2 = [glutils.read_glfo(gd, args.locus, debug=True) for gd in [args.gldir1, args.gldir2]]
-# glutils.print_glfo(glfo_1)
-# glutils.print_glfo(glfo_2)
+glfos = []
+for name, gldir in zip(args.names, [args.gldir1, args.gldir2]):
+    print '%s:' % utils.color('yellow', name)
+    glfos.append(glutils.read_glfo(gldir, args.locus, debug=True))
 
-for region in [r for r in utils.regions if r in glfo_1['seqs']]:
-    tmp_glfo = copy.deepcopy(glfo_1)  # make a new glfo that will only have non-shared genes
+for region in [r for r in utils.regions if r in glfos[0]['seqs']]:
+    tmp_glfo = copy.deepcopy(glfos[0])  # make a new glfo that will only have non-shared genes
+
+    # first remove any that are in both
     for gene, seq in tmp_glfo['seqs'][region].items():
-        if gene not in glfo_2['seqs'][region]:  # keep it, under a new name, if it's not in <glfo_2>
-            glutils.add_new_allele(tmp_glfo, {'gene' : gene+args.names[0], 'seq' : seq, 'template-gene' : gene})  # add an extra str to the name so we know which one it came from
+        if gene not in glfos[1]['seqs'][region]:  # keep it, under a new name, if it's not in <glfos[1]>
+            glutils.add_new_allele(tmp_glfo, {'gene' : '+'.join([gene, args.names[0]]), 'seq' : seq, 'template-gene' : gene})  # add an extra str to the name so we know which one it came from
         glutils.remove_gene(tmp_glfo, gene)
-    for gene, seq in glfo_2['seqs'][region].items():
-        if gene not in tmp_glfo['seqs'][region]:
-            cpos = glfo_2[utils.cdn(glfo_2, region)+'-positions'][gene] if utils.cdn(glfo_2, region) is not None else None
-            glutils.add_new_allele(tmp_glfo, {'gene' : gene+args.names[1], 'seq' : seq, 'cpos' : cpos}, use_template_for_codon_info=False)  # can't use template cause we might've deleted it in the first loop
-    glutils.print_glfo(tmp_glfo, only_region=region)
+
+    # then add any that are only in the second one
+    for gene, seq in glfos[1]['seqs'][region].items():
+        if gene not in glfos[0]['seqs'][region]:
+            cpos = glfos[1][utils.cdn(glfos[1], region)+'-positions'][gene] if utils.cdn(glfos[1], region) is not None else None
+            glutils.add_new_allele(tmp_glfo, {'gene' : '+'.join([gene, args.names[1]]), 'seq' : seq, 'cpos' : cpos}, use_template_for_codon_info=False)  # can't use template cause we might've deleted it in the first loop
+
+    # then add the nearest genes that they both have for comparison
+    for gene, seq in tmp_glfo['seqs'][region].items():
+        _, nearest_gene, _ = glutils.find_nearest_gene_with_same_cpos(glfos[0], seq, new_cpos=utils.cdn_pos(tmp_glfo, region, gene))  # i think it doesn't matter which glfo we get it from, so arbitrarily choose the first one
+        glutils.add_new_allele(tmp_glfo, {'gene' : '+'.join([nearest_gene, 'both']), 'seq' : glfos[0]['seqs'][region][nearest_gene], 'template-gene' : gene})
+
+    if len(tmp_glfo['seqs'][region]) > 0:
+        print ' comparing to nearest genes that were in both (labeled \'both\'):'
+        glutils.print_glfo(tmp_glfo, only_region=region)
