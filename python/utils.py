@@ -356,7 +356,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'paired-uids', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -392,6 +392,7 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'multiplicity' : 'multiplicities',
     'subject' : 'subjects',
     'constant-region' : 'constant-regions',
+    'paired-uids' : 'paired-uids',
 }
 reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
