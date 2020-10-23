@@ -5163,15 +5163,20 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
     return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 
 # ----------------------------------------------------------------------------------------
-def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
+def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), on exception fall back to yaml
     with open(fname) as yamlfile:
         try:
             yamlfo = json.load(yamlfile)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
         except ValueError:  # I wish i could think of a better way to do this, but I can't
             yamlfile.seek(0)
             yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)  # use this instead of the json version to make more human-readable files
-        if debug:
-            print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
+    return yamlfo
+
+# ----------------------------------------------------------------------------------------
+def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
+    yamlfo = read_json_yaml(fname)
+    if debug:
+        print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
 
     glfo = yamlfo['germline-info']  # it would probably be good to run the glfo through the checks that glutils.read_glfo() does, but on the other hand since we're reading from our own yaml file, those have almost certainly already been done
 

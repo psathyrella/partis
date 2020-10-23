@@ -625,7 +625,10 @@ class ClusterPath(object):
         def is_clean_partition(putative_partition):  # make sure the list of clusters is actually disjoint
             return not any(len(set(c1) & set(c2)) > 0 for c1, c2 in itertools.combinations(putative_partition, 2))
         # ----------------------------------------------------------------------------------------
-        def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, tdbg=False):  # reapportions all uids from single_cluster and cluster_list into return_clusts (splitting first by cdr3 and then by naive hamming distance)
+# TODO better comments here
+        # Starting from a cluster <single_cluster> in one chain and <cluster_list> (all clusters in the other chain that have overlap with <single_cluster>), decide which of the "splits" represented by <cluster_list> 
+        # It reapportions all uids from single_cluster and cluster_list into return_clusts (splitting first by cdr3 and then by naive hamming distance)
+        def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, tdbg=False):
             # NOTE single_cluster and cluster_list in general have quite different sets of uids, and that's fine. All that matters here is we're trying to find all the clusters that should be split from one another (without doing some all against all horror)
             if len(cluster_list) == 1:  # nothing to do
                 return [single_cluster]

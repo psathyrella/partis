@@ -22,14 +22,19 @@ def add_seed_seq(args, input_info, reco_info, is_data):
         reco_info[args.seed_unique_id] = 'unknown!'  # hopefully more obvious than a key error
 
 # ----------------------------------------------------------------------------------------
-def read_input_metafo(input_metafname, annotation_list, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info>
-    with open(input_metafname) as metafile:
-        metafo = yaml.load(metafile, Loader=yaml.Loader)
-        if any(isinstance(tkey, int) for tkey in metafo):  # would be better to check for not being a string, but that's harder, and this probably only happens for my simulation hash ids
-            raise Exception('meta info keys need to be string (maybe just need to add \'\' around sequence ids in yaml file), but got: %s' % ' '.join(str(type(tk)) for tk in metafo if isinstance(tk, int)))
+def read_input_metafo(input_metafname, annotation_list, required_keys=None, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info>
+    # NOTE <annotation_list> doesn't need to be real annotations, it only uses the 'unique_ids' key
+    metafo = utils.read_json_yaml(input_metafname)
+    if any(isinstance(tkey, int) for tkey in metafo):  # would be better to check for not being a string, but that's harder, and this probably only happens for my simulation hash ids
+        raise Exception('meta info keys need to be string (maybe just need to add \'\' around sequence ids in yaml file), but got: %s' % ' '.join(str(type(tk)) for tk in metafo if isinstance(tk, int)))
+    metafile_keys = set(k for mfo in metafo.values() for k in mfo)
+    if len(metafile_keys & set(utils.input_metafile_keys)) == 0:
+        raise Exception('no overlap between %d metafile keys and %d allowed keys:\n    %s\n    %s' % (len(metafile_keys), len(utils.input_metafile_keys), ' '.join(metafile_keys), ' '.join(utils.input_metafile_keys)))
+    if required_keys is not None and len(set(required_keys) - metafile_keys) > 0:
+        raise Exception('required metafile key(s) (%s) not found in %s' % (', '.join(set(required_keys) - metafile_keys), input_metafname))
     added_uids, added_keys = set(), set()
     for line in annotation_list:
-        for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not
+        for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not UPDATE i kind of hate this decision
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
             mvals = [None for _ in line['unique_ids']]  # NOTE this sets a default of None for sequences that aren't in the input meta info. Which I think makes the most sense.

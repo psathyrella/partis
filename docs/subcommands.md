@@ -401,7 +401,7 @@ For more details run `./bin/get-naive-probabilities.py --help`.
 In many cases partis input will consist of only sequences and names.
 In others, however, there is additional information associated with each sequence, which we refer to as meta info.
 Because the fasta format only specifies how to write sequences and names, most ways in which people add additional information to fasta files are mutually incompatible.
-This meta info is thus specified in partis via a separate yaml file with the argument `--input-metafname <meta.yaml>`, which for example might contain:
+This meta info is thus specified in partis via a separate json/yaml file with the argument `--input-metafname <meta.yaml>`, which for example might contain:
 
 ```
 seq-1:

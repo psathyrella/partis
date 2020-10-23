@@ -238,6 +238,6 @@ args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 args.metafo = None
 if args.metafname is not None:
     with open(args.metafname) as metafile:
-        args.metafo = yaml.load(metafile, Loader=yaml.Loader)
+        args.metafo = yaml.load(metafile, Loader=yaml.CLoader)
 
 plot_trees(args)

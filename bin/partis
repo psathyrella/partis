@@ -460,6 +460,7 @@ def run_paired_heavy_light(args):
             utils.write_annotations(args.light_chain_outfname, lglfo, light_annotations, headers, synth_single_seqs=utils.getsuffix(args.light_chain_outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
         else:
             print '%s heavy and light chain cluster paths' % utils.color('red', 'synchronizing')
+# TODO i think i'll need to propagate the info between k and l chains, e.g. it matters if an h chain could pair with a k and an l sequence or something
             joint_partition = hcpath.merge_light_chain(lcpath, heavy_annotations, light_annotations, check_partitions=True, debug=False)  # , h_ipart=5
             if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
                 evaluate_joint_partition(joint_partition, {'h' : hcpath, 'l' : lcpath}, {'h' : heavy_annotations, 'l' : light_annotations})  # TODO clean up signature

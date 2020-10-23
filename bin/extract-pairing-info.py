@@ -6,6 +6,7 @@ csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv field
 import argparse
 import colored_traceback.always
 import yaml
+import json
 import operator
 
 # if you move this script, you'll need to change this method of getting the imports
@@ -55,4 +56,5 @@ for sfo in seqfos:
 if not os.path.exists(os.path.dirname(args.outfname)):
     os.makedirs(os.path.dirname(args.outfname))
 with open(args.outfname, 'w') as outfile:
-    yaml.dump(metafos, outfile, Dumper=yaml.CDumper)
+    # yaml.dump(metafos, outfile, Dumper=yaml.CDumper)
+    json.dump(metafos, outfile)

@@ -387,7 +387,7 @@ class Tester(object):
             if ptest not in pinfo:  # perf_info should already have all the parent keys cause we run read_partition_performance() first
                 pinfo[ptest] = OrderedDict([(m, []) for m in self.selection_metrics])
             with open(self.dirs[version_stype] + '/' + ptest + '.yaml') as yfile:
-                lbfos = yaml.load(yfile, Loader=yaml.Loader)
+                lbfos = yaml.load(yfile, Loader=yaml.CLoader)
             for lbfo in lbfos:  # one lbfo for each cluster
                 for metric in self.selection_metrics:
                     pinfo[ptest][metric] += lbfo['lb'][metric].values()
