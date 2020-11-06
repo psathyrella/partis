@@ -414,7 +414,7 @@ seq-2:
   timepoint: +7d
 ```
 
-Currently accepted keys are multiplicity, affinity, subject, timepoint, paired-uids, and constant-region; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities, to accomodate multi-sequence annotations).
+Currently accepted keys are multiplicity, affinity, subject, timepoint, paired-uids, locus, and constant-region; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities, to accomodate multi-sequence annotations).
 When caching parameters, partis by default removes constant regions (5' of v and 3' of j).
 If --collapse-duplicate-sequences is set, it then collapses any duplicate sequences into the [duplicates key](output-formats.md); the number of such sequences is then added to any multiplicities from `--input-metafname` (see also `--dont-remove-framework-insertions`).
 

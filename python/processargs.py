@@ -6,15 +6,16 @@ import subprocess
 import utils
 import glutils
 
-def get_dummy_outfname(workdir, light_chain=False):
-    return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-light' if light_chain else '')
+def get_dummy_outfname(workdir, locus=None):
+    return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
 
+actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info']
 parameter_type_choices = ('sw', 'hmm', 'multi-hmm')
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
 def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
-    if args.locus is not None:  # if --paired-loci is not set
+    if args.locus is not None:  # if args.paired_loci is not set
         if args.n_genes_per_region is None:
             args.n_genes_per_region = glutils.default_n_genes_per_region[args.locus]
         if args.n_sim_alleles_per_gene is None:
@@ -91,27 +92,21 @@ def process(args):
         args.calculate_alternative_annotations = True
         delattr(args, 'calculate_alternative_naive_seqs')
 
-    args.paired_loci = utils.get_arg_list(args.paired_loci, choices=utils.loci)
-    if args.paired_loci is not None:
-        if len(args.paired_loci) != 2:
-            raise Exception('--paired-loci must be length two: can only do either igh:igk or igh:igl, not arbitrary mixtures of k and l')
-        args.locus = None
-        for argstr in ['infname', 'outfname', 'parameter-dir']:
-            argvals = [getattr(args, (lstr+argstr).replace('-', '_')) for lstr in ['', 'light-chain-']]
-            if argvals.count(None) == 1:
-                raise Exception('--paired-loci is set, so either both or neither of --%s and --light-chain-%s must be set (exactly one was set)' % (argstr, argstr))
+    args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True)
+    if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
+        raise Exception('--light-chain-fractions %s don\'t add to 1: %f' % (args.light_chain_fractions, sum(args.light_chain_fractions.values())))
     if args.action == 'merge-paired-partitions':
-        assert args.paired_loci is not None or args.split_loci
-    if args.split_loci:
-        assert args.paired_loci is None
-        if [args.light_chain_infname, args.light_chain_outfname, args.light_chain_parameter_dir] != [None, None, None]:
-            raise Exception('none of the --light-chain-<stuff> arguments should be set when --split-loci is set')  # they get set in the subprocesses we start
-        if args.paired_loci_output_dir is None:
-            raise Exception('have to set --paired-loci-output-dir if --split-loci is set')
+        assert args.paired_loci
+    if args.paired_loci:
+        args.locus = None
+        if [args.infname, args.paired_indir].count(None) == 0:
+            raise Exception('can\'t specify both --infname and --paired-indir')
         if args.outfname is not None:
-            raise Exception('can\'t set --outfname if --split-loci is set (use --paired-loci-output-dir)')
-    if args.reverse_negative_strands and not args.split_loci:
-        raise Exception('--reverse-negative-strands has no effect unless --split-loci is set (maybe need to run bin/split-loci.py separately?)')
+            raise Exception('can\'t set --outfname if --paired-loci is set (use --paired-outdir)')
+    else:
+        assert args.paired_indir is None
+    if args.reverse_negative_strands and not args.paired_loci:
+        raise Exception('--reverse-negative-strands has no effect unless --paired-loci is set (maybe need to run bin/split-loci.py separately?)')
 
     args.only_genes = utils.get_arg_list(args.only_genes)
     args.queries = utils.get_arg_list(args.queries)
@@ -220,13 +215,6 @@ def process(args):
     if os.path.exists(args.workdir):
         raise Exception('workdir %s already exists' % args.workdir)
 
-    if args.paired_loci is not None:
-        if args.outfname is None:  # need to write each locus's output to disk so we can merge their partition paths
-            args.outfname = get_dummy_outfname(args.workdir)
-            args.light_chain_outfname = get_dummy_outfname(args.workdir, light_chain=True)
-    elif [args.light_chain_infname, args.light_chain_outfname, args.light_chain_parameter_dir] != [None, None, None]:
-        raise Exception('doesn\'t make sense to set one of the --light-chain-<stuff> options unless --paired-loci is also set')
-
     if args.batch_system == 'sge' and args.batch_options is not None:
         if '-e' in args.batch_options or '-o' in args.batch_options:
             print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
@@ -267,7 +255,7 @@ def process(args):
     if args.cluster_annotation_fname is None and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':  # if it wasn't set on the command line (<outfname> _was_ set), _and_ if we were asked for a csv, then use the old file name format
         args.cluster_annotation_fname = utils.insert_before_suffix('-cluster-annotations', args.outfname)
 
-    if args.calculate_alternative_annotations and args.outfname is None and args.paired_loci_output_dir is None:
+    if args.calculate_alternative_annotations and args.outfname is None and args.paired_outdir is None:
         raise Exception('have to specify --outfname in order to calculate alternative annotations')
     if args.action == 'view-alternative-annotations' and args.persistent_cachefname is None:  # handle existing old-style output
         assert args.outfname is not None
@@ -297,30 +285,17 @@ def process(args):
         print '  using non-default parameter type \'%s\'' % args.parameter_type
 
     if args.action == 'simulate':
-        if args.n_trees is None:
+        if args.n_trees is None and not args.paired_loci:
             args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
+        if args.n_procs > args.n_sim_events:
+            print '  note: reducing --n-procs to %d (was %d) so it isn\'t bigger than --n-sim-events' % (args.n_sim_events, args.n_procs)
+            args.n_procs = args.n_sim_events
         if args.n_max_queries != -1:
             print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
 
-        if args.outfname is None:
-            print '  note: no --outfname specified, so nothing will be written to disk'
-            args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the whole run_simulation() in bin/partis to handle None type outfname UPDATE also if --paired-loci is set, we need the output files for each locus written to disk so we can merge the trees
-            if args.paired_loci is not None:
-                assert args.light_chain_outfname is None  # wouldn't make sense to set this but not the plain one
-                args.light_chain_outfname = get_dummy_outfname(args.workdir, light_chain=True)
-        else:
-            if args.paired_loci is not None:
-                if args.light_chain_outfname is None:
-                    raise Exception('if --paired-loci and --outfname are set, you must also set --light-chain-outfname')
-                if any(utils.getsuffix(f)=='.csv' for f in [args.outfname, args.light_chain_outfname]):
-                    raise Exception('can\'t write paired heavy/light to deprecated .csv output files since pairing requires multi-sequence annotations, but simulation writes .csv files as single-sequence annotations. Use .yaml (really json) output files.')
-
-        if args.paired_loci is not None:
-            if args.rearrange_from_scratch or args.mutate_from_scratch:
-                raise Exception('--rearrange-from-scratch and --mutate-from-scratch are too complicated to propagate through the automatic --paired-loci infrastructure. If you need these two scratch args, you should run the three steps by hand instead (tree generation, heavy simulation, and light simulation -- run --paired-loci with default parameters to see what these three commands should look like)')
-            if args.parameter_dir is not None:
-                if args.light_chain_parameter_dir is None:
-                    raise Exception('if --paired-loci and --parameter-dir are set, --light-chain-parameter-dir must also be set')
+        if args.outfname is None and args.paired_outdir is None:
+            print '  note: no %s specified, so nothing will be written to disk' % ('--paired-outdir' if args.paired_loci else '--outfname')
+            args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the whole run_simulation() in bin/partis to handle None type outfname
 
         if args.simulate_from_scratch:
             args.rearrange_from_scratch = True
@@ -347,9 +322,9 @@ def process(args):
         if args.mutate_from_scratch and args.shm_parameter_dir is not None:
             raise Exception('doesn\'t make sense to set both --mutate-from-scratch and --shm-parameter-dir')
         if args.reco_parameter_dir is None and not args.rearrange_from_scratch:
-            raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir')
+            raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir (or --simulate-from-scratch)')
         if args.shm_parameter_dir is None and not args.mutate_from_scratch:
-            raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir')
+            raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir (or --simulate-from-scratch)')
 
         if args.generate_germline_set and not args.rearrange_from_scratch:
             raise Exception('can only --generate-germline-set if also rearranging from scratch (set --rearrange-from-scratch)')
@@ -365,7 +340,7 @@ def process(args):
         if args.treefname is not None:
             raise Exception('--treefname was set for simulation action (probably meant to use --input-simulation-treefname)')
 
-    if args.parameter_dir is not None and not args.split_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
+    if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')
         if os.path.exists(args.parameter_dir):
             pdirs = [d for d in os.listdir(args.parameter_dir) if os.path.isdir(d)]
@@ -388,8 +363,11 @@ def process(args):
         args.allele_cluster = False
         args.dont_find_new_alleles = True
 
-    if args.infname is None and args.action not in ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info']:
-        raise Exception('--infname is required for action \'%s\'' % args.action)
+    if args.action not in actions_not_requiring_input and [args.infname, args.paired_indir].count(None) == 2:
+        if args.paired_loci:
+            raise Exception('--infname or --paired-indir is required for action \'%s\' with --paired-loci' % args.action)
+        else:
+            raise Exception('--infname is required for action \'%s\'' % args.action)
 
     if args.action == 'get-linearham-info':
         if args.linearham_info_fname is None:  # for some reason setting required=True isn't working

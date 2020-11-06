@@ -29,8 +29,8 @@ from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
-    if args.paired_loci is not None:
-        run_paired_heavy_light(args)
+    if args.paired_loci:
+        run_all_loci(args)
         return
 
     from recombinator import Recombinator
@@ -226,16 +226,25 @@ def read_inputs(args, actions):
     return input_info, reco_info, glfo, simglfo
 
 # ----------------------------------------------------------------------------------------
+def default_parameter_dir(args):
+    if args.paired_loci and args.paired_indir is not None:
+        instr = args.paired_indir
+    elif args.infname is not None:
+        instr = args.infname
+    else:
+        assert args.action in processargs.actions_not_requiring_input
+        return 'xxx-dummy-xxx'  # this is a shitty convention, but code further on crashes if I let the parameter dir be None
+    return '_output/%s' % instr[ : instr.rfind('.')].replace('/', '_')
+
+# ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
-    if args.split_loci:
+    if args.paired_loci:
         run_all_loci(args)
-        return
-    if args.paired_loci is not None:
-        run_paired_heavy_light(args)
         return
 
     if args.parameter_dir is None:
-        args.parameter_dir = '_output/' + args.infname[ : args.infname.rfind('.')].replace('/', '_') if args.infname is not None else 'xxx-dummy-xxx'  # the latter is a shitty convention, but I code further on crashes if I let the parameter dir be None
+        args.parameter_dir = default_parameter_dir(args)
+        print '  note: --parameter-dir not set, so using default: %s' % args.parameter_dir
 
     actions = [args.action]  # do *not* use <args.action> after this (well, for anything other than checking what was actually set on the command line)
     if args.action in ['annotate', 'partition'] and not os.path.exists(args.parameter_dir):
@@ -251,6 +260,42 @@ def run_partitiondriver(args):
     parter.run(actions)
     if not runs_on_existing_output(args.action):  # mostly wanted to avoid rewriting the persistent hmm cache file
         parter.clean()
+
+# ----------------------------------------------------------------------------------------
+def evaluate_joint_partition(args, joint_partition, infnames, cpaths, annotation_lists):
+# TODO clean up signature (and maybe move?)
+    # ----------------------------------------------------------------------------------------
+    def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
+        for tclust in tpart:
+            for uid in tclust:
+                if uid in dup_dict:
+                    tclust += dup_dict[uid]
+    # ----------------------------------------------------------------------------------------
+    true_partitions = {}
+    cmp_partitions = {}  # (potentially) modified versions of the heavy/light partitions
+    ccfs = {}
+# TODO fix infnames
+    for chain, ifn in (('h', infnames['h']), ('l', infnames['l'])):
+        _, _, true_cpath = utils.read_output(ifn, dont_add_implicit_info=True, n_max_queries=args.n_max_queries) #skip_annotations=True) # can't skip annotations since older files will need them to make annotations
+        true_partitions[chain] = true_cpath.partitions[true_cpath.i_best]
+        cmp_partitions[chain] = cpaths[chain].partitions[cpaths[chain].i_best]
+        true_partitions[chain] = utils.remove_missing_uids_from_true_partition(true_partitions[chain], cmp_partitions[chain], debug=False)
+        dup_dict = {u : l['duplicates'][i] for l in annotation_lists[chain] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
+        if len(dup_dict) > 0:
+            incorporate_duplicates(cmp_partitions[chain], dup_dict)
+        ccfs[chain] = {'before' : utils.new_ccfs_that_need_better_names(cmp_partitions[chain], true_partitions[chain])}
+
+        if len(dup_dict) > 0:
+            incorporate_duplicates(joint_partition, dup_dict)  # NOTE this modifies joint_partition, so it's different for the second chain than for the first one
+        j_part = utils.get_deduplicated_partitions([joint_partition])[0]  # TODO why do i need this?
+        j_part = utils.remove_missing_uids_from_true_partition(j_part, true_partitions[chain], debug=False)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition
+        ccfs[chain]['joint'] = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
+
+    print '             purity  completeness'
+    for chain in ['h', 'l']:
+        print '   %s before  %6.3f %6.3f' % (chain, ccfs[chain]['before'][0], ccfs[chain]['before'][1])
+    for chain in ['h', 'l']:
+        print '    joint    %6.3f %6.3f   (%s true)' % (ccfs[chain]['joint'][0], ccfs[chain]['joint'][1], chain)
 
 # ----------------------------------------------------------------------------------------
 # it would be really nice if this didn't need to exist, it's complicated (but it's necessitated by needing to auto-cache parameters on the full un-split igh seqs when splitting loci)
@@ -279,15 +324,52 @@ def remove_action_specific_args(clist, action, debug=True):
 # ----------------------------------------------------------------------------------------
 def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
     # ----------------------------------------------------------------------------------------
-    def init_clist():
-        clist = copy.deepcopy(sys.argv)
-        utils.remove_from_arglist(clist, '--split-loci')
-        utils.remove_from_arglist(clist, '--reverse-negative-strands')
-        utils.remove_from_arglist(clist, '--paired-loci-output-dir', has_arg=True)
-        return clist
+    def getpdir(ltmp, bpdir=None):
+        if bpdir is not None:
+            return '%s/%s' % (bpdir, ltmp)
+        else:
+            return '%s/parameters/%s' % (utils.non_none([args.parameter_dir, args.paired_outdir, default_parameter_dir(args)]), ltmp)  # , args.workdir
     # ----------------------------------------------------------------------------------------
-    def getpdir(ltmp):
-        return '%s/parameters/%s' % (utils.non_none([args.parameter_dir, args.paired_loci_output_dir]), ltmp)
+    def getifn(ltmp):
+        if args.paired_indir is not None:
+            yfn, ffn = [utils.paired_fn(args.paired_indir, ltmp, suffix=sx) for sx in ['.yaml', '.fa']]
+            if [os.path.exists(f) for f in [yfn, ffn]].count(True) == 2:
+                raise Exception('both %s and %s exist, not sure which to use' % (yfn, ffn))
+            return yfn if os.path.exists(yfn) else ffn
+        elif args.infname is not None:  # if we ran split-input.py on --infname
+            return '%s/%s.fa' % (utils.non_none([args.paired_outdir, args.workdir]), ltmp)
+    # ----------------------------------------------------------------------------------------
+    def getodir(lpair=None):
+        odir = utils.non_none([args.paired_outdir, args.workdir])
+        if lpair is not None:
+            odir = '%s/%s' % (odir, '+'.join(lpair))
+        return odir
+    # ----------------------------------------------------------------------------------------
+    def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None):
+        if trees:
+            bname = 'trees.nwk'
+        elif args.action == 'simulate':
+            return utils.paired_fn(getodir(), ltmp, lpair=lpair, suffix='.yaml')
+        else:
+            bname = '%s-%s.yaml' % ('simu' if args.action=='simulate' else 'partition', ltmp)
+        ofn = '%s/%s' % (getodir(lpair=lpair), bname)
+        if args.action != 'simulate':
+            if not joint:
+                ofn = utils.insert_before_suffix('-non-merged', ofn)
+            if partition_only:
+                ofn = utils.insert_before_suffix('-only-partition', ofn)
+        return ofn
+    # ----------------------------------------------------------------------------------------
+    def prep_inputs():
+        if args.infname is not None:
+            cmd = './bin/split-loci.py %s --outdir %s' % (args.infname, getodir())
+            if args.reverse_negative_strands:
+                cmd += ' --reverse-negative-strands'
+            if args.input_metafname is not None:
+                cmd += ' --input-metafname %s' % args.input_metafname
+            utils.simplerun(cmd, dryrun=args.dry_run)
+            if args.paired_outdir is None:
+                work_fnames.extend(utils.paired_dir_fnames(getodir(), no_pairing_info=args.input_metafname is None))
     # ----------------------------------------------------------------------------------------
     def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
         if runs_on_existing_output(args.action):  # don't need a parameter dir to merge existing paired partitions
@@ -298,216 +380,177 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         elif len(existing_pdir_loci) == len(utils.sub_loci(ig_or_tr)):
             return False  # all there, don't auto-cache
         else:
-            print '  %s parameters exist for some but not all loci, so not auto-caching parameters (missing: %s, present: %s) in %s' % (utils.color('yellow', 'warning'), ' '.join(set(utils.sub_loci(ig_or_tr)) - set(existing_pdir_loci)), ' '.join(existing_pdir_loci), getpdir(''))
+            print '  %s parameters exist for some (%s) but not all (%s) loci, so not auto-caching parameters (e.g. %s)' % (utils.color('yellow', 'warning'), ' '.join(existing_pdir_loci), ' '.join(set(utils.sub_loci(ig_or_tr)) - set(existing_pdir_loci)), getpdir(existing_pdir_loci[0]))
             return False
     # ----------------------------------------------------------------------------------------
-    utils.prep_dir(args.workdir)  # NOTE it's kind of weird to have workdir and paired_loci_output_dir, but workdir is for stuff we throw out by default, whereas paired_loci_output_dir is for stuff we save
-    tmpfns = ['%s/%s.fa'%(args.paired_loci_output_dir, l) for l in utils.sub_loci(ig_or_tr)]
-    if [os.path.exists(f) for f in tmpfns].count(True) == len(tmpfns):  # this isn't all its outputs, but it's a bunch of them (also note that if the input file has e.g. igh + igk but no igl, this'll rerun since it sees one is missing)
-        print '  split input .fa files already exist, so not re-running split-loci.py'
-    else:
-        utils.simplerun('./bin/split-loci.py %s --split-heavy-seqs%s --outdir %s' % (args.infname, ' --reverse-negative-strands' if args.reverse_negative_strands else '', args.paired_loci_output_dir), dryrun=args.dry_run)
-
-    if args.action == 'cache-parameters' or auto_cache_params():  # ick. we can't just let the normal auto-parameter caching happen within each locus pair below, since it'll infer separately on the igh seqs paired with igk vs igl
-        for ltmp in utils.sub_loci(ig_or_tr):
-            if not os.path.exists('%s/%s.fa'%(args.paired_loci_output_dir, ltmp)):
-                print '%s: no input file, skipping' % utils.color('blue', ltmp)
-                continue
-            clist = init_clist()
-            if args.action != 'cache-parameters':
-                print '  parameter dir does not exist, so caching a new set of parameters before running action \'%s\':  %s' % (args.action, getpdir(ltmp))
-                clist[clist.index(args.action)] = 'cache-parameters'
-                utils.remove_from_arglist(clist, '--outfname', has_arg=True)
-                remove_action_specific_args(clist, args.action)
-            utils.insert_in_arglist(clist, ['--locus', ltmp], 'cache-parameters')
-            utils.replace_in_arglist(clist, '--infname', '%s/%s.fa'%(args.paired_loci_output_dir, ltmp))  # for caching parameters, we want the .fa in the parent dir with *all* igh sequences (but for other actions we want the one in the igh+igX/ subdir)
-            utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
-            utils.simplerun(' '.join(clist), dryrun=args.dry_run)
-
-    if args.action in ['partition', 'merge-paired-partitions']:
-        for h_locus, l_locus in utils.locus_pairs[ig_or_tr]:
-            if any(not os.path.exists('%s/%s.fa'%(args.paired_loci_output_dir, l)) for l in [h_locus, l_locus]):
-                print '%s+%s: missing input file(s) in %s, skipping' % (utils.color('blue', h_locus), utils.color('blue', l_locus), args.paired_loci_output_dir)
-                continue
-            clist = init_clist()
-            utils.insert_in_arglist(clist, ['--paired-loci', '%s:%s' % (h_locus, l_locus)], args.action)
-            lpair_workdir = '%s/%s+%s' % (args.paired_loci_output_dir, h_locus, l_locus)
-            for lstr, ltmp in [('', h_locus), ('light-chain-', l_locus)]:
-                if args.action == 'partition':
-                    utils.replace_in_arglist(clist, '--%sinfname'%lstr, '%s/%s.fa'%(lpair_workdir, ltmp), insert_after='--infname')
-                    utils.replace_in_arglist(clist, '--%sparameter-dir'%lstr, getpdir(ltmp), insert_after='--parameter-dir')  # note that this'll rerun sw for igh, since the sw cache file in the parameter dir corresponds to all seqs (i.e. both igk and igl paired ones). Which i think is fine, the whole reaosn it's set up that way is that sw annotations depend on the other seqs in the repertoire
-                elif args.action == 'merge-paired-partitions':
-                    utils.remove_from_arglist(clist, '--infname', has_arg=True)
-                utils.replace_in_arglist(clist, '--%soutfname'%lstr, '%s/%s-%s.yaml'%(lpair_workdir, args.action if args.action!='merge-paired-partitions' else 'partition', ltmp))  # also adds it if it isn't there: we definitely need the output so we can proceed with later steps, even if --outfname was set on the command line
-            utils.simplerun(' '.join(clist), dryrun=args.dry_run)
-    else:
-        assert args.action in ['cache-parameters']
-
-    if not args.dry_run:
-        utils.rmdir(args.workdir)
-
-# ----------------------------------------------------------------------------------------
-def run_paired_heavy_light(args):
+    def get_n_events(l_locus, arg_events):  # l_locus has to be set
+        n_events = max(1, int(arg_events * args.light_chain_fractions[l_locus]))  # so if you don't set --n-sim-events, or if you ask for 1, you get 1 of each (i don't feel like drawing a random to see which to give you)
+        if args.light_chain_fractions[l_locus] == 0:  # if you want only igk, set igl's fraction to 0
+            n_events = 0
+        # print '  %s+%s: %d * %.2f = %d events' % (h_locus, l_locus, arg_events, args.light_chain_fractions[l_locus], n_events)
+        return n_events
     # ----------------------------------------------------------------------------------------
-    def get_non_joint_outfname(ofn):
-        return utils.insert_before_suffix('-non-merged', ofn)
-    # ----------------------------------------------------------------------------------------
-    def get_joint_partition_infname(ofn):  # file with joint partition (but no input sequenes or annotations)
-        return utils.insert_before_suffix('-joint-partition-input', ofn.replace('-non-merged', ''))  # sometimes need the .replace(), sometimes don't
-    # ----------------------------------------------------------------------------------------
-    def run_step(tmpaction, locus=None):
-        clist = copy.deepcopy(sys.argv)
-        utils.remove_from_arglist(clist, '--paired-loci', has_arg=True)
-        utils.remove_from_arglist(clist, '--dry-run')
-        treefname = '%s/trees.nwk' % args.workdir
-        if tmpaction == 'generate-trees':
-            clist += ['--generate-trees']  # NOTE this will use the heavy chain parameter dir and ignore the light chain one, which I think is ok (it's just used for tree scaling, and it would be better to eventually have different scaling for light chain, but it should be fine)
-            work_fnames.append(treefname)
-            utils.replace_in_arglist(clist, '--outfname', treefname)
-            utils.remove_from_arglist(clist, '--light-chain-outfname', has_arg=True)
-            utils.remove_from_arglist(clist, '--light-chain-parameter-dir', has_arg=True)  # may as well remove it to make more clear that it's not being used (see comment above)
-            utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
-        else:
-            clist += ['--locus', locus]
-            if args.action == 'simulate':
-                clist += ['--choose-trees-in-order', '--input-simulation-treefname', treefname]
+    def run_step(tmpaction, ltmp, auto_cache=False, skip_missing_input=False, lpair=None):
+        # ----------------------------------------------------------------------------------------
+        def prep_args(ltmp):
+            clist = copy.deepcopy(sys.argv)
+            utils.remove_from_arglist(clist, '--paired-loci')
+            utils.remove_from_arglist(clist, '--dry-run')
+            utils.remove_from_arglist(clist, '--reverse-negative-strands')
+            utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
+            utils.remove_from_arglist(clist, '--paired-outdir', has_arg=True)
+            utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
+            if tmpaction in ['generate-trees', 'simulate']:  # deal with simulation {,reco,shm}-parameter dir stuff
+                for tstr in ['', 'reco-', 'shm-']:
+                    argstr = '--%sparameter-dir' % tstr
+                    if utils.is_in_arglist(clist, argstr) > 0:
+                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr)))  # the trees aren't really associated with the locus if we're generating trees, but we just use it to get the mutation rate (and maybe that doesn't really get used?)  # NOTE this will use the heavy chain parameter dir and ignore the light chain one, which I think is ok (it's just used for tree scaling, and it would be better to eventually have different scaling for light chain, but it should be fine)
+            if tmpaction == 'generate-trees':
+                utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
+                utils.remove_from_arglist(clist, '--n-sim-events', has_arg=True)
+                clist += ['--generate-trees']
+                utils.replace_in_arglist(clist, '--outfname', getofn(ltmp, trees=True, lpair=lpair))
+                work_fnames.append(getofn(ltmp, trees=True, lpair=lpair))
+                utils.replace_in_arglist(clist, '--n-trees', str(get_n_events(lpair[1], utils.non_none([args.n_trees, args.n_sim_events]))), insert_after='--generate-trees')
+            else:
+                utils.insert_in_arglist(clist, ['--locus', ltmp], args.action)
+                if args.action == 'simulate':
+                    clist += ['--choose-trees-in-order', '--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair), '--outfname', getofn(ltmp, lpair=lpair)]
+                    utils.replace_in_arglist(clist, '--n-sim-events', str(get_n_events(lpair[1], args.n_sim_events)), insert_after='--choose-trees-in-order')
+                else:
+                    if auto_cache:
+                        clist[clist.index(args.action)] = 'cache-parameters'
+                        remove_action_specific_args(clist, args.action)
+                    elif args.action != 'cache-parameters':
+                        clist += ['--refuse-to-cache-parameters']
+                    utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
+                    utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
+                    if tmpaction != 'cache-parameters':
+                        utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=tmpaction=='merge-paired-partitions')], '--infname', has_arg=True)
+                        if args.paired_outdir is None:
+                            work_fnames.append(getofn(ltmp, joint=tmpaction=='merge-paired-partitions'))
 
-            lstr = '' if utils.has_d_gene(locus) else 'light-chain-'
-            tmp_pdir = None
-            if '--%sparameter-dir'%lstr in clist:  # you might think it'd be easier to also add to clist here, but it turns out no
-                tmp_pdir = utils.get_val_from_arglist(clist, '--%sparameter-dir' % lstr)  # this has to come from <sys.argv>/<clist> (not <args>) since for simulation it's set to None in processargs (in favor of the reco- and shm- ones)
-            ofn = getattr(args, '%soutfname' % lstr.replace('-', '_'))  # whereas this needs to come from <args> rather than <sys.argv>/<clist> in order to pick up any modifications made in processargs
-            if args.action == 'partition' and tmpaction != 'merge-paired-partitions':
-                ofn = get_non_joint_outfname(ofn)
-            ifn = getattr(args, '%sinfname' % lstr.replace('-', '_'))  # i don't think it matters for this where it comes from
             if tmpaction == 'merge-paired-partitions':
-                clist += ['--input-partition-fname', get_joint_partition_infname(ofn)]
-                clist += ['--refuse-to-cache-parameters']
+                clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True)]
                 clist[clist.index(args.action)] = 'annotate'
 
-            for tmpstr in ['infname', 'parameter-dir', 'outfname']:
-                utils.remove_from_arglist(clist, '--%s'%tmpstr, has_arg=True)
-                utils.remove_from_arglist(clist, '--light-chain-%s'%tmpstr, has_arg=True)
-
-            if ifn is not None:
-                clist += ['--infname', ifn]
-            if tmp_pdir is not None:
-                clist += ['--parameter-dir', tmp_pdir]
-            clist += ['--outfname', ofn]  # note that each locus's subprocess needs an outfname even if there's no final outfname from the command line (well, we don't need it for parameter caching, which we're also now doing here, but oh well)
-
-            if not args.dry_run and os.path.exists(ofn):
-                print '    removing existing %s locus output file %s' % (locus, ofn)
-                os.remove(ofn)
-            if ofn == processargs.get_dummy_outfname(args.workdir, light_chain=not utils.has_d_gene(locus)):
-                work_fnames.append(ofn)
-        utils.simplerun(' '.join(clist), dryrun=args.dry_run)
-
-    # ----------------------------------------------------------------------------------------
-    def evaluate_joint_partition(joint_partition, cpaths, annotation_lists):
+            return clist
         # ----------------------------------------------------------------------------------------
-        def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
-            for tclust in tpart:
-                for uid in tclust:
-                    if uid in dup_dict:
-                        tclust += dup_dict[uid]
-        # ----------------------------------------------------------------------------------------
-        true_partitions = {}
-        cmp_partitions = {}  # (potentially) modified versions of the heavy/light partitions
-        ccfs = {}
-        for chain, ifn in (('h', args.infname), ('l', args.light_chain_infname)):
-            _, _, true_cpath = utils.read_output(ifn, dont_add_implicit_info=True, n_max_queries=args.n_max_queries) #skip_annotations=True) # can't skip annotations since older files will need them to make annotations
-            true_partitions[chain] = true_cpath.partitions[true_cpath.i_best]
-            cmp_partitions[chain] = cpaths[chain].partitions[cpaths[chain].i_best]
-            true_partitions[chain] = utils.remove_missing_uids_from_true_partition(true_partitions[chain], cmp_partitions[chain], debug=False)
-            dup_dict = {u : l['duplicates'][i] for l in annotation_lists[chain] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
-            if len(dup_dict) > 0:
-                incorporate_duplicates(cmp_partitions[chain], dup_dict)
-            ccfs[chain] = {'before' : utils.new_ccfs_that_need_better_names(cmp_partitions[chain], true_partitions[chain])}
-
-            if len(dup_dict) > 0:
-                incorporate_duplicates(joint_partition, dup_dict)  # NOTE this modifies joint_partition, so it's different for the second chain than for the first one
-            j_part = utils.get_deduplicated_partitions([joint_partition])[0]  # TODO why do i need this?
-            j_part = utils.remove_missing_uids_from_true_partition(j_part, true_partitions[chain], debug=False)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition
-            ccfs[chain]['joint'] = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
-
-        print '             purity  completeness'
-        for chain in ['h', 'l']:
-            print '   %s before  %6.3f %6.3f' % (chain, ccfs[chain]['before'][0], ccfs[chain]['before'][1])
-        for chain in ['h', 'l']:
-            print '    joint    %6.3f %6.3f   (%s true)' % (ccfs[chain]['joint'][0], ccfs[chain]['joint'][1], chain)
-
+        if skip_missing_input and not os.path.exists(getifn(ltmp)):
+            print '%s: no input file, skipping' % utils.color('blue', ltmp)
+            return
+        utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
-    def combine_chains():  # simulation: synchronize uids and check that trees are compatible, partitioning: merge/synchronize partitions
-        def skey(c):
-            return ':'.join(c)
-        h_ofn, l_ofn = args.outfname, args.light_chain_outfname
-        if args.action != 'simulate':
-            for lstr in ['', 'light-chain-']:
-                ofn = getattr(args, '%soutfname' % lstr.replace('-', '_'))
-                if not os.path.exists(get_non_joint_outfname(ofn)) and os.path.exists(ofn):
-                    raise Exception('trying to merge heavy+light partitions, and --%soutfname %s exists, but non-joint/non-merged output file %s does not: maybe you used different --%soutfname values for \'partition\' and \'merge-paired-partitions\'? (they should be the same)' % (lstr, ofn, get_non_joint_outfname(ofn), lstr))
-            h_ofn, l_ofn = get_non_joint_outfname(h_ofn), get_non_joint_outfname(l_ofn)
-        # TODO clean this up
-        hglfo, heavy_annotations, hcpath = utils.read_output(h_ofn, dont_add_implicit_info=not args.debug, skip_failed_queries=True)
-        lglfo, light_annotations, lcpath = utils.read_output(l_ofn, dont_add_implicit_info=not args.debug, skip_failed_queries=True)
+    def combine_lpair(lpair):
+        # ----------------------------------------------------------------------------------------
+        def write_joint_locus(ltmp):
+            annotation_dict = utils.get_annotation_dict(annotations[ltmp])
+            missing_clusters = []
+            for jclust in joint_partition:
+                if ':'.join(jclust) not in annotation_dict:
+                    missing_clusters.append(jclust)
+                    # overlap_clusters = [l['unique_ids'] for l in annotation_list if len(set(l['unique_ids']) & set(jclust)) > 0]
+                    # print '      %3d: %s' % (len(jclust), ' '.join('%3d/%3d'%(len(set(c) & set(jclust)), len(c)) for c in overlap_clusters))
+            if len(missing_clusters) > 0:  # we also get the annotations for the non-missing ones, which should end up the same so it's a bit of a waste, but it's nice to not have to re-read the output file and rewrite it with the non-missing ones
+                print '    missing %s annotations for %d/%d joint clusters' % (ltmp, len(missing_clusters), len(joint_partition))
+            partition_lines = ClusterPath(partition=joint_partition).get_partition_lines(True)  # we could only get annotations for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
+            headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
+            if not os.path.exists(getpdir(ltmp)):
+                print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), ltmp)
+                # TODO maybe just subset the existing annotations according to the joint partition?
+                utils.write_annotations(getofn(ltmp, joint=True), glfos[ltmp], [], headers, partition_lines=partition_lines)  # only actually write the partition
+            else:
+                utils.write_annotations(getofn(ltmp, joint=True, partition_only=True), glfos[ltmp], [], headers, partition_lines=partition_lines)  # only actually write the partition
+                work_fnames.append(getofn(ltmp, joint=True, partition_only=True))
+                run_step('merge-paired-partitions', ltmp, skip_missing_input=True)  # it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable
+        # ----------------------------------------------------------------------------------------
+        glfos, annotations, cpaths = {}, {}, {}
+        h_locus, l_locus = lpair
+        lparg = lpair if args.action=='simulate' else None  # we only know who's paired with who at this point if we're simulating (well, maybe i want to keep it this way?)
+        for ltmp in lpair:  # read single-locus output files
+            if not os.path.exists(getofn(ltmp, lpair=lparg)):
+                print '%s: no %s output file, skipping %s' % (utils.color('blue', ltmp), 'simulation' if args.action=='simulate' else 'partition', '+'.join(lpair))
+                return None, None, None
+            glfos[ltmp], annotations[ltmp], cpaths[ltmp] = utils.read_output(getofn(ltmp, lpair=lparg), dont_add_implicit_info=not args.debug, skip_failed_queries=True)
         if args.action == 'simulate':
-            print '  rewriting output files with synchronized trees'
-            assert len(heavy_annotations) == len(light_annotations)
-            for hline, lline in zip(heavy_annotations, light_annotations):
+            print 'synchronizing heavy/light simulation trees (and rewriting output files)'
+            assert len(annotations[h_locus]) == len(annotations[l_locus])
+            for hline, lline in zip(annotations[h_locus], annotations[l_locus]):
                 treeutils.merge_heavy_light_trees(hline, lline)
             headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
-            utils.write_annotations(args.outfname, hglfo, heavy_annotations, headers, synth_single_seqs=utils.getsuffix(args.outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
-            utils.write_annotations(args.light_chain_outfname, lglfo, light_annotations, headers, synth_single_seqs=utils.getsuffix(args.light_chain_outfname) == '.csv', use_pyyaml=args.write_full_yaml_output)
+            for ltmp in lpair:  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
+                utils.write_annotations(getofn(ltmp, lpair=lparg), glfos[ltmp], annotations[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         else:
             print '%s heavy and light chain cluster paths' % utils.color('red', 'synchronizing')
-# TODO i think i'll need to propagate the info between k and l chains, e.g. it matters if an h chain could pair with a k and an l sequence or something
-            joint_partition = hcpath.merge_light_chain(lcpath, heavy_annotations, light_annotations, check_partitions=True, debug=False)  # , h_ipart=5
-            if not args.is_data and args.infname is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-                evaluate_joint_partition(joint_partition, {'h' : hcpath, 'l' : lcpath}, {'h' : heavy_annotations, 'l' : light_annotations})  # TODO clean up signature
-            if args.outfname is not None:
-                for locus in args.paired_loci:
-                    annotation_list, glfo, ofn = (heavy_annotations, hglfo, args.outfname) if utils.has_d_gene(locus) else (light_annotations, lglfo, args.light_chain_outfname)
-                    annotation_dict = utils.get_annotation_dict(annotation_list)
-                    missing_clusters = []
-                    for jclust in joint_partition:
-                        if skey(jclust) not in annotation_dict:
-                            missing_clusters.append(jclust)
-                            # TODO clean this up
-                            # overlap_clusters = [l['unique_ids'] for l in annotation_list if len(set(l['unique_ids']) & set(jclust)) > 0]
-                            # print '      %3d: %s' % (len(jclust), ' '.join('%3d/%3d'%(len(set(c) & set(jclust)), len(c)) for c in overlap_clusters))
-                    if len(missing_clusters) > 0:  # we also get the annotations for the non-missing ones, which should end up the same so it's a bit of a waste, but it's nice to not have to re-read the output file and rewrite it with the non-missing ones
-                        print '    missing %s annotations for %d/%d joint clusters' % (locus, len(missing_clusters), len(joint_partition))
-                    partition_lines = ClusterPath(partition=joint_partition).get_partition_lines(True)  # we could only get annotations for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
-                    headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
-                    if args.parameter_dir is None or not os.path.exists(args.parameter_dir):
-                        print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), locus)
-                        # TODO maybe just subset the existing annotations according to the joint partition?
-                        utils.write_annotations(ofn, glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
-                    else:
-                        utils.write_annotations(get_joint_partition_infname(ofn), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
-                        work_fnames.append(get_joint_partition_infname(ofn))
-                        run_step('merge-paired-partitions', locus=locus)  # it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable
+            joint_partition = cpaths[h_locus].merge_light_chain(cpaths[l_locus], annotations[h_locus], annotations[l_locus], check_partitions=True, debug=False)  # , h_ipart=5
+            if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
+                evaluate_joint_partition(args, joint_partition, {'h' : getifn(lpair[0]), 'l' : getifn(lpair[1])}, {'h' : cpaths[h_locus], 'l' : cpaths[l_locus]}, {'h' : annotations[h_locus], 'l' : annotations[l_locus]})
+            if args.paired_outdir is not None:
+                for ltmp in lpair:
+                    write_joint_locus(ltmp)
+        return glfos, annotations, cpaths
+    # ----------------------------------------------------------------------------------------
+    def combine_chains():
+        glfos, annotations, cpaths = {}, {}, {}
+        for lpair in utils.locus_pairs[ig_or_tr]:
+            lp_glfos, lp_annotations, lp_cpaths = combine_lpair(lpair)
+            if args.action != 'simulate':  # need to move the chain combination down here for partition (plus probably other stuff)
+                # TODO
+                continue
+            if lp_annotations is None:
+                continue
+            for ltmp in lpair:
+                if ltmp in glfos:  # merged heavy chain glfos from those paired with igk and with igl
+                    glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], lp_glfos[ltmp])
+                    annotations[ltmp] += lp_annotations[ltmp]
+                    assert len(cpaths[ltmp].partitions) == 1
+                    cpaths[ltmp] = ClusterPath(partition=cpaths[ltmp].best() + lp_cpaths[ltmp].best())  # TODO
+                else:
+                    glfos[ltmp] = lp_glfos[ltmp]
+                    annotations[ltmp] = lp_annotations[ltmp]
+                    cpaths[ltmp] = lp_cpaths[ltmp]
+
+        for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in annotations]:
+            assert args.action == 'simulate'  # need to update probably several things, at least the headers TODO handles headers more cleanly)
+            headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
+            print '  %s: writing %d annotation%s to %s' % (ltmp, len(annotations[ltmp]), utils.plural(len(annotations[ltmp])), getofn(ltmp))
+            utils.write_annotations(getofn(ltmp), glfos[ltmp], annotations[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
 
     # ----------------------------------------------------------------------------------------
-    utils.prep_dir(args.workdir)
+    if args.paired_outdir is None:
+        print '  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).'
+    utils.prep_dir(args.workdir)  # NOTE it's kind of weird to have workdir and paired_outdir, but workdir is for stuff we throw out by default, whereas paired_outdir is for stuff we save
     work_fnames = []
+    prep_inputs()
+
     if args.action == 'simulate':
-        run_step('generate-trees')
-        for locus in args.paired_loci:
-            run_step(None, locus=locus)
+        utils.prep_paired_dir(getodir())
+        for lpair in utils.locus_pairs[ig_or_tr]:
+            h_locus, l_locus = lpair
+            if get_n_events(l_locus, args.n_sim_events) == 0:
+                print '  %s: no events to simulate' % '+'.join(lpair)
+                continue
+            run_step('generate-trees', h_locus, lpair=lpair)
+            for ltmp in lpair:
+                run_step(args.action, ltmp, lpair=lpair)
         if not args.dry_run:
             combine_chains()
-    elif args.action in ['partition', 'cache-parameters']:
-        for locus in args.paired_loci:
-            run_step(None, locus=locus)
-        if args.action == 'partition' and not args.dry_run:
-            combine_chains()
-    elif args.action == 'merge-paired-partitions':
-        combine_chains()
+        if args.paired_outdir is None:
+            work_fnames.extend(utils.paired_dir_fnames(getodir(), suffix='.yaml'))
     else:
-        assert False
+        if args.action != 'cache-parameters' and auto_cache_params():  # ick. we can't just let the normal auto-parameter caching happen within each locus pair below, since it'll infer separately on the igh seqs paired with igk vs igl
+            missing_pdir_loci = [l for l in utils.sub_loci(ig_or_tr) if not os.path.exists(getpdir(l))]
+            print '  missing %d locus parameter dirs (%s), so caching a new set of parameters before running action \'%s\':  %s' % (len(missing_pdir_loci), ' '.join(missing_pdir_loci), args.action, ' '.join(getpdir(l) for l in missing_pdir_loci))
+            for ltmp in utils.sub_loci(ig_or_tr):
+                run_step('cache-parameters', ltmp, auto_cache=True, skip_missing_input=True)
+        if args.action != 'merge-paired-partitions':
+            for ltmp in utils.sub_loci(ig_or_tr):
+                run_step(args.action, ltmp, skip_missing_input=True)
+        if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run:
+            combine_chains()
 
     if not args.dry_run:
+        # print '\n'.join(work_fnames)
         utils.rmdir(args.workdir, fnames=work_fnames)
 
 # ----------------------------------------------------------------------------------------
@@ -520,9 +563,11 @@ subparsers = parser.add_subparsers(dest='action')
 parent_parser = argparse.ArgumentParser(add_help=False)
 
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
-parent_parser.add_argument('--split-loci', action='store_true', help='This must be set if --infname contains sequences from more than one locus (igh, igk, igl all together). It will first split the loci into separate input files, run the specified action on each of these, and (if specified) merge the resulting partitions.')
-parent_parser.add_argument('--reverse-negative-strands', action='store_true', help='If --split-loci is set, align every sequence both forwards and revcomp\'d, then for each sequence keep the sense with better alignment. If *not* running with --split-loci, then first run bin/split-loci.py separately with --reverse-negative-strands.')
-parent_parser.add_argument('--paired-loci', help='Instead of the default single chain, run on these two paired loci (colon-separated list of length 2). Have to also set --light-chain-infname or --light-chain-outfname.')
+# ----------------------------------------------------------------------------------------
+# TODO fix help msg
+parent_parser.add_argument('--paired-loci', action='store_true', help='This must be set if --infname contains sequences from more than one locus (igh, igk, igl all together). It will first split the loci into separate input files, run the specified action on each of these, and (if specified) merge the resulting partitions.')
+# ----------------------------------------------------------------------------------------
+parent_parser.add_argument('--reverse-negative-strands', action='store_true', help='If --paired-loci is set, align every sequence both forwards and revcomp\'d, then for each sequence keep the sense with better alignment. If *not* running with --paired-loci, then first run bin/split-loci.py separately with --reverse-negative-strands.')
 parent_parser.add_argument('--dry-run', action='store_true', help='Just print subprocess commands that would be run without actually running them (only implemented for --paired-loci).')
 parent_parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')
 parent_parser.add_argument('--queries', help='Colon-separated list of query names to which to restrict the analysis')
@@ -582,14 +627,19 @@ parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true
 parent_parser.add_argument('--mimic-data-read-length', action='store_true', help='In simulation, trim V 5\' and D 3\' to mimic read lengths seen in data (must also be set when caching parameters)')
 
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
-parent_parser.add_argument('--light-chain-infname', help='Separate input file with light chain sequences for when --paired-loci is set (heavy chain sequences should go in --infname)')
+# ----------------------------------------------------------------------------------------
+# TODO fix help msg
+parent_parser.add_argument('--paired-indir', help='')
+# ----------------------------------------------------------------------------------------
 parent_parser.add_argument('--name-column', help='column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\'). If set to \'fasta-info-index-N\' for an integer N, it will take the Nth (zero-indexed) value from a fasta files uid line.')
 parent_parser.add_argument('--seq-column', help='column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')')
 parent_parser.add_argument('--input-metafname', help='yaml file with meta information for the sequences in --infname (and --queries-to-include-fname), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. Currently accepted keys/columns are \'timepoint\', \'affinity\', \'subject\' and \'multiplicity\'. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parent_parser.add_argument('--input-partition-fname', help='partis-style json/yaml file with a partition to use during annotation, i.e. annotate the sequences in --infname using the partition in this file, rather than the default of annotating each sequence individually. Used in \'merge-paired-partitions\' when we want to annotate a list of sequences according to a new, joint partition.')
 parent_parser.add_argument('--outfname', help='output file name')
-parent_parser.add_argument('--paired-loci-output-dir', help='collective output directory for all output files involved in paired heavy/light sequences, i.e. involving --paired-loci or --split-loci.')
-parent_parser.add_argument('--light-chain-outfname', help='output file name for light chain sequences when --paired-loci is set (heavy chain sequences are written to --outfname).')
+# ----------------------------------------------------------------------------------------
+# TODO fix help msg
+parent_parser.add_argument('--paired-outdir', help='collective output directory for all output files involved in paired heavy/light sequences, i.e. involving --paired-loci.')
+# ----------------------------------------------------------------------------------------
 parent_parser.add_argument('--write-full-yaml-output', action='store_true', help='By default, we write yaml output files using the json subset of yaml, since it\'s much faster. If this is set, we instead write full yaml, which is more human-readable (but also much slower).')
 parent_parser.add_argument('--presto-output', action='store_true', help='Write output file(s) in presto/changeo format. Since this format depends on a particular IMGT alignment, this depends on a fasta file with imgt-gapped alignments for all the V, D, and J germline genes. The default in data/germlines/<species>/imgt-alignments/, is probably fine for most cases. For the \'annotate\' action, a single .tsv file is written with annotations (so --outfname suffix must be .tsv). For the \'partition\' action, a fasta file is written with cluster information (so --outfname suffix must be .fa or .fasta), as well as a .tsv in the same directory with the corresponding annotations.')
 parent_parser.add_argument('--airr-output', action='store_true', help='Write output file(s) in AIRR-C format (if --outfname has suffix .tsv, only the airr .tsv is written; however if --outfname has suffix .yaml, both the standard partis .yaml file and an airr .tsv are written). A description of the airr columns can be found here https://docs.airr-community.org/en/stable/datarep/rearrangements.html#fields.')
@@ -597,7 +647,6 @@ parent_parser.add_argument('--airr-input', action='store_true', help='Read --inf
 parent_parser.add_argument('--extra-annotation-columns', help='Extra columns to add to the (fairly minimal) set of information written by default to annotation output files (choose from: %s)' % ' '.join(utils.extra_annotation_headers))  # NOTE '-columns' in command line arg, but '-headers' in utils (it's more consistent that way, I swear)
 parent_parser.add_argument('--cluster-annotation-fname', help='output file for cluster annotations (default is <--outfname>-cluster-annotations.<suffix>)')
 parent_parser.add_argument('--parameter-dir', help='Directory to/from which to write/read sample-specific parameters. If not specified, a default location is used (and printed to std out). If it does not exist, we infer parameters before proceeding to the desired action.')
-parent_parser.add_argument('--light-chain-parameter-dir', help='directory for light chain parameters when --paired-loci is set')
 parent_parser.add_argument('--parameter-type', default='hmm', choices=processargs.parameter_type_choices, help='Use parameters from Smith-Waterman (sw) or the HMM (hmm) subdirectories for inference/simulation? (you should almost certainly use the hmm ones, but sw is occasionally useful for debugging)')
 parent_parser.add_argument('--parameter-out-dir', help='Special parameter dir for writing multi-hmm parameters, i.e. when running annotate or partition with --count-parameters set (if not set, defaults to <--parameter-dir>/multi-hmm).')
 parent_parser.add_argument('--refuse-to-cache-parameters', action='store_true', help='Disables auto parameter caching, i.e. if --parameter-dir doesn\'t exist, instead of inferring parameters, raise an exception. Useful for batch/production use where you want to make sure you\'re caching parameters in a separate step.')
@@ -725,6 +774,7 @@ subargs['simulate'].append({'name' : '--choose-trees-in-order', 'kwargs' : {'act
 subargs['simulate'].append({'name' : '--check-tree-depths', 'kwargs' : {'action' : 'store_true', 'help' : 'check how close the fraction of mutated bases that we get from bppseqgen is to the depth of the trees that we passed in.'}})
 subargs['simulate'].append({'name' : '--no-per-base-mutation', 'kwargs' : {'action' : 'store_true', 'help' : 'By default the simulation uses both a different SHM rate for each position in each gene, and also a different rate to each base for each of these positions (e.g. position 37 in IGHV1-2*02 might mutate 3x as much as neighboring bases, and it might mutate to T twice as often as G). This option turns off the per-base part of that, so while each position in each gene still has a different overall rate, the rate to each base is the same (e.g. A->T is the same as A->G). Run time with this option set is about 10 times faster than the default. NOTE also --no-per-base-mfreqs'}})
 subargs['simulate'].append({'name' : '--mutate-conserved-codons', 'kwargs' : {'action' : 'store_true', 'help' : 'By default we don\'t let mutations occur in conserved codons (cyst in V and tryp/phen in J), but if this option is set we let them mutate.'}})
+subargs['simulate'].append({'name' : '--light-chain-fractions', 'kwargs' : {'default' : 'igk,0.67:igl,0.33', 'help' : 'ratio of igk to igl in paired simulation'}})
 # shm indels:
 subargs['simulate'].append({'name' : '--indel-frequency', 'kwargs' : {'default' : 0., 'type' : float, 'help' : 'fraction of simulated sequences with SHM indels'}})
 subargs['simulate'].append({'name' : '--n-indels-per-indeld-seq', 'kwargs' : {'default' : '1:2', 'help' : 'list of integers from which to choose the number of SHM indels in each sequence that we\'ve already decided has indels'}})
@@ -779,7 +829,7 @@ args = parser.parse_args()
 for missing_arg in get_arg_names('all') - set(args.__dict__):  # NOTE see also remove_action_specific_args() above, which kind of does similar things, at least if i rewrote this all from scratch only one (or neither...) would exist
     args.__dict__[missing_arg] = None
 
-if args.outfname is None and args.paired_loci_output_dir is None and runs_on_existing_output(args.action):  # would be better to have this in processargs.py like everything else, but then I'd have to import the function somehow
+if args.outfname is None and args.paired_outdir is None and runs_on_existing_output(args.action):  # would be better to have this in processargs.py like everything else, but then I'd have to import the function somehow
     raise Exception('--outfname required for %s' % args.action)
 
 processargs.process(args)

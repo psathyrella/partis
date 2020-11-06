@@ -356,7 +356,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'paired-uids', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -393,6 +393,7 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'subject' : 'subjects',
     'constant-region' : 'constant-regions',
     'paired-uids' : 'paired-uids',
+    'locus' : 'loci',
 }
 reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
@@ -2621,7 +2622,7 @@ def split_key(key):
     return key.split('.')
 
 # ----------------------------------------------------------------------------------------
-def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None, allow_other_files=False):
+def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None, allow_other_files=False, only_make=False):
     """
     Make <dirname> if it d.n.e.
     Also, if shell glob <wildling> is specified, remove existing files which are thereby matched.
@@ -2644,26 +2645,67 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
                 os.rmdir(dirname + '/' + subdir)
 
     if os.path.exists(dirname):
-        for wild in wildlings:
-            for ftmp in glob.glob(dirname + '/' + wild):
-                if os.path.exists(ftmp):
-                    os.remove(ftmp)
-                else:
-                    print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), ftmp)
-        remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn not in subdirs]  # allow subdirs to still be present
-        if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
-            raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
+        if not only_make:
+            for wild in wildlings:
+                for ftmp in glob.glob(dirname + '/' + wild):
+                    if os.path.exists(ftmp):
+                        os.remove(ftmp)
+                    else:
+                        print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), ftmp)
+            remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn not in subdirs]  # allow subdirs to still be present
+            if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
+                raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
     else:
         os.makedirs(dirname)
 
 # ----------------------------------------------------------------------------------------
+# return standardized file name (including subdirs) in directory structure that we use for paired heavy/light i/o
+def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig'):  # if set, only file(s) for this <locus>, and/or only files for this <lpair> of loci. If <lpair> is set but <locus> is None, returns subdir name
+    if lpair is not None:
+        bdir = '%s/%s' % (bdir, '+'.join(lpair))
+        if locus is None:
+            return bdir
+    return '%s/%s%s' % (bdir, locus, suffix)
+
+# ----------------------------------------------------------------------------------------
+def paired_dir_fnames(bdir, no_pairing_info=False, suffix='.fa', ig_or_tr='ig'):  # return all files + dirs from previous fcn
+    fnames = [paired_fn(bdir, l, suffix=suffix) for l in sub_loci(ig_or_tr)]  # single-locus files
+    if not no_pairing_info:
+        fnames += [paired_fn(bdir, l, lpair=lp, suffix=suffix) for lp in locus_pairs[ig_or_tr] for l in lp]  # paired single-locus files
+        fnames += [paired_fn(bdir, None, lpair=lp, suffix=suffix) for lp in locus_pairs[ig_or_tr]]  # paired subdirs
+    return fnames  # return dirs after files for easier cleaning (below)
+
+# ----------------------------------------------------------------------------------------
+def prep_paired_dir(bdir, ig_or_tr='ig'):
+    for lpair in locus_pairs[ig_or_tr]:
+        prep_dir(paired_fn(bdir, None, lpair=lpair), only_make=True)
+
+# ----------------------------------------------------------------------------------------
+def clean_paired_dir(bdir, ig_or_tr='ig'):
+    print '    cleaning paired files in %s' % bdir
+    clean_files(paired_dir_fnames(bdir, ig_or_tr=ig_or_tr))
+
+# ----------------------------------------------------------------------------------------
+def clean_files(fnames):  # <fnames> can include dirs, just put them afte rthe files they contain
+    missing_files = []
+    for fn in fnames:
+        if os.path.isfile(fn):
+            os.remove(fn)
+        elif os.path.isdir(fn):
+            os.rmdir(fn)
+        elif not os.path.exists(fn):
+            missing_files.append(fn)
+        else:  # not sure if there's another possibility
+            assert False
+    if len(missing_files) > 0:
+        basedirs = sorted(set(os.path.dirname(f) for f in fnames), key=lambda x: x.count('/'))  # sort by number of slashes, i.e. most-parent dir is first
+        basedirs = [basedirs[0]] + [d for d in basedirs if basedirs[0] not in d]  # hackey way to remove any that are just subdirs (if all the files aren't under one parent dir, these shenanigans won't really work)
+        print '      %s expected to remove %d/%d files+dirs that weren\'t in %s/: %s' % (color('yellow', 'warning'), len(missing_files), len(fnames), ' '.join(basedirs), ' '.join(f.replace(basedirs[0] + '/', '') for f in missing_files))
+
+# ----------------------------------------------------------------------------------------
 def rmdir(dname, fnames=None):
     if fnames is not None:
-        for fn in fnames:
-            if os.path.exists(fn):
-                os.remove(fn)
-            else:
-                print '  %s expected to clean up file, but it\'s missing: %s' % (color('yellow', 'warning'), fn)
+        clean_files(fnames)
     remaining_files = os.listdir(dname)
     if len(remaining_files) > 0:
         raise Exception('files remain in %s, so can\'t rm dir: %s' % (dname, ' '.join(remaining_files)))
@@ -4352,44 +4394,68 @@ def non_none(vlist):  # return the first non-None value in vlist (there are many
     for val in vlist:
         if val is not None:
             return val
+    raise Exception('utils.non_none() called with all-None vlist: %s' % vlist)
+
+# ----------------------------------------------------------------------------------------
+def arglist_imatches(clist, argstr):
+    assert argstr[:2] == '--'  # this is necessary since the matching assumes that argparses has ok'd the uniqueness of an abbreviated argument
+    return [i for i, c in enumerate(clist) if argstr.find(c)==0]
+
+# ----------------------------------------------------------------------------------------
+def arglist_index(clist, argstr):
+    imatches = arglist_imatches(clist, argstr)
+    if len(imatches) == 0:
+        raise Exception('\'%s\' not found in cmd: %s' % (argstr, ' '.join(clist)))
+    elif len(imatches) > 1:
+        raise Exception('multiple matches for argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist[i] for i in imatches)))
+    return get_single_entry(imatches)
+
+# ----------------------------------------------------------------------------------------
+def is_in_arglist(clist, argstr):  # accounts for argparse unique/partial matches
+    return len(arglist_imatches(clist, argstr)) > 0
 
 # ----------------------------------------------------------------------------------------
 def get_val_from_arglist(clist, argstr):
-    if argstr not in clist:
-        raise Exception('could\'t find %s in clist %s' % (argstr, clist))
-    if clist.index(argstr) == len(clist) - 1:
+    imatch = arglist_index(clist, argstr)
+    if imatch == len(clist) - 1:
         raise Exception('no argument for %s in %s' % (argstr, clist))
-    val = clist[clist.index(argstr) + 1]
+    val = clist[imatch + 1]
     if val[:2] == '--':
         raise Exception('no value for %s in %s (next word is %s)' % (argstr, clist, val))
     return val
 
 # ----------------------------------------------------------------------------------------
 def remove_from_arglist(clist, argstr, has_arg=False):
-    if argstr not in clist:
+    imatches = arglist_imatches(clist, argstr)
+    if len(imatches) == 0:
         return
-    if clist.count(argstr) > 1:
-        raise Exception('multiple occurrences of argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist)))
+    elif len(imatches) > 1:
+        raise Exception('multiple matches for argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist[i] for i in imatches)))
+    iloc = imatches[0]
+    # if clist[iloc] != argstr:
+    #     print '  %s removing abbreviation \'%s\' from sys.argv rather than \'%s\'' % (color('yellow', 'warning'), clist[iloc], argstr)
     if has_arg:
-        clist.pop(clist.index(argstr) + 1)
-    clist.remove(argstr)
+        clist.pop(iloc + 1)
+    clist.pop(iloc)
 
 # ----------------------------------------------------------------------------------------
-def replace_in_arglist(clist, argstr, replace_with, insert_after=None):  # or add it if it isn't already there
-    if argstr not in clist:
+# replace the argument to <argstr> in <clist> with <replace_with>, or if <argstr> isn't there add it. If we need to add it and <insert_after> is set, add it after <insert_after>
+def replace_in_arglist(clist, argstr, replace_with, insert_after=None, has_arg=False):
+    if not is_in_arglist(clist, argstr):
         if insert_after is None or insert_after not in clist:  # just append it
             clist.append(argstr)
             clist.append(replace_with)
         else:  # insert after the arg <insert_after>
-            insert_in_arglist(clist, [argstr, replace_with], insert_after, has_arg=True)
+            insert_in_arglist(clist, [argstr, replace_with], insert_after, has_arg=has_arg)
     else:
-        if clist.count(argstr) > 1:
-            raise Exception('multiple occurrences of argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist)))
-        clist[clist.index(argstr) + 1] = replace_with
+        clist[arglist_index(clist, argstr) + 1] = replace_with
 
 # ----------------------------------------------------------------------------------------
-def insert_in_arglist(clist, new_arg_strs, argstr, has_arg=False, before=False):  # insert list new_arg_strs after/before argstr (and, if has_arg, after argstr's argument)
-    i_insert = clist.index(argstr) + (2 if has_arg else 1)
+# insert list <new_arg_strs> after <argstr> (unless <before> is set),  Use <has_arg> if <argstr> has an argument after which the insertion should occur
+def insert_in_arglist(clist, new_arg_strs, argstr, has_arg=False, before=False):
+    i_insert = len(clist)
+    if argstr is not None:
+        i_insert = clist.index(argstr) + (2 if has_arg else 1)
     clist[i_insert : i_insert] = new_arg_strs
 
 # ----------------------------------------------------------------------------------------
@@ -4568,11 +4634,11 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
     return finfo
 
 # ----------------------------------------------------------------------------------------
-def output_exists(args, outfname, outlabel=None, offset=None, debug=True):
+def output_exists(args, outfname, outlabel=None, leave_zero_len=False, offset=None, debug=True):
     outlabel = '' if outlabel is None else ('%s ' % outlabel)
     if offset is None: offset = 22  # weird default setting method so we can call it also with the fcn below
     if os.path.exists(outfname):
-        if os.stat(outfname).st_size == 0:
+        if not leave_zero_len and os.stat(outfname).st_size == 0:
             if debug:
                 print '%sdeleting zero length %s' % (offset * ' ', outfname)
             os.remove(outfname)
@@ -4593,9 +4659,14 @@ def output_exists(args, outfname, outlabel=None, offset=None, debug=True):
         return False
 
 # ----------------------------------------------------------------------------------------
-def all_outputs_exist(args, outfnames, outlabel=None, offset=None, debug=True):
-    o_exist_list = [output_exists(args, ofn, outlabel=outlabel, offset=offset, debug=debug) for ofn in outfnames]
+def all_outputs_exist(args, outfnames, outlabel=None, leave_zero_len=False, offset=None, debug=True):
+    o_exist_list = [output_exists(args, ofn, outlabel=outlabel, leave_zero_len=leave_zero_len, offset=offset, debug=debug) for ofn in outfnames]
     return o_exist_list.count(True) == len(o_exist_list)
+
+# NOTE/reminder probably doesn't make sense to have this fcn, since output_exists() doesn't just test for existence, it also removes stuff, looks for zero length, etc.
+# # ----------------------------------------------------------------------------------------
+# def any_output_exists(args, outfnames, outlabel=None, offset=None, debug=True):
+#     return any(output_exists(args, ofn, outlabel=outlabel, offset=offset, debug=debug) for ofn in outfnames)
 
 # ----------------------------------------------------------------------------------------
 def getprefix(fname):  # basename before the dot
