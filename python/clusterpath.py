@@ -629,15 +629,14 @@ class ClusterPath(object):
         def is_clean_partition(putative_partition):  # make sure the list of clusters is actually disjoint
             return not any(len(set(c1) & set(c2)) > 0 for c1, c2 in itertools.combinations(putative_partition, 2))
         # ----------------------------------------------------------------------------------------
-# TODO better comments here
-        # Starting from a cluster <single_cluster> in one chain and <cluster_list> (all clusters in the other chain that have overlap with <single_cluster>), decide which of the "splits" represented by <cluster_list> 
-        # It reapportions all uids from single_cluster and cluster_list into return_clusts (splitting first by cdr3 and then by naive hamming distance)
+        # Starting with <single_cluster> (from one chain) and <cluster_list> (all clusters in the other chain that overlap with <single_cluster>), decide which of the "splits" (i.e. cluster boundaries) in <cluster_list> should be applied to <single_cluster>.
+        # Reapportions all uids from <single_cluster> and <cluster_list> into <return_clusts>, splitting definitely/first by cdr3, and then (if over some threshold) by naive hamming distance.
         def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, tdbg=False):
             # NOTE single_cluster and cluster_list in general have quite different sets of uids, and that's fine. All that matters here is we're trying to find all the clusters that should be split from one another (without doing some all against all horror)
             if len(cluster_list) == 1:  # nothing to do
-                return [single_cluster]
+                return [single_cluster]  # NOTE <single_cluster> doesn't get used after here
             adict = utils.get_annotation_dict(annotation_list)
-            cdr3_groups = utils.group_seqs_by_value(cluster_list, lambda c: adict[akey(c)]['cdr3_length'])  # there's already utils.split_clusters_by_cdr3(), but it uses different inputs (e.g. sw_info) so i think it makes sense to not use it here
+            cdr3_groups = utils.group_seqs_by_value(cluster_list, lambda c: adict[akey(c)]['cdr3_length'])  # group the together clusters in <cluster_list> that have the same cdr3 (there's already utils.split_clusters_by_cdr3(), but it uses different inputs (e.g. sw_info) so i think it makes sense to not use it here)
             if tdbg:
                 print '   %s one cluster vs %d clusters' % (utils.color('blue', 'syncing'), len(cluster_list))
                 print '     split into %d cdr3 groups' % len(cdr3_groups)
@@ -654,7 +653,7 @@ class ClusterPath(object):
                         clusters_to_split[akey(c1)].append(c2)
                         clusters_to_split[akey(c2)].append(c1)
 
-                # then do the splitting
+                # then do the splitting, which is accomplished by merging each cluster in <cdrgroup> with every other cluster in <cdrgroup> from which we aren't supposed to split it (i.e. that aren't in its <clusters_to_split>)
                 if tdbg:
                     print '                  N to     new'
                     print '          size    split   cluster?'
@@ -666,11 +665,11 @@ class ClusterPath(object):
                     for rclust in tmpclusts_for_return:  # look for an existing return cluster to which we can merge cclust, i.e. that doesn't have any uids from which we want to split
                         if any_in_common([rclust], split_clusts):  # if any uid in rclust is in a cluster from which we want to be split, skip it, i.e. don't merge with that cluster (note that we have to do it by uid because the rclusts are already merged so don't necessarily correspond to any existing cluster)
                             continue
-                        if found_one: print 'it happened!'  # TODO remove this. i'm just kind of curious if it ever happens in practice
+                        # if found_one: print 'it happened!'  # can't happen any more since I switched to 'break' (although see note below)
                         if tdbg: print '     merging with size %d' % len(rclust)
                         rclust += cclust
                         found_one = True
-                        break  # i.e. we just merge with the first one we find and stop looking; if there's more than one, it means we could merge all three together if we wanted (see diagram on some paper somewhere [triangle inequality]), but i doubt it'll matter either way, and this is easier
+                        break  # i.e. we just merge with the first one we find and stop looking; if there's more than one, it means we could merge all three together if we wanted (triangle inequality-ish, see diagram linked at top of fcn), but i doubt it'll matter either way, and this is easier
                     if not found_one:
                         if tdbg: print '      y'
                         tmpclusts_for_return.append(cclust)  # if we didn't find an existing cluster that we can add it to, add it as a new cluster
@@ -703,6 +702,8 @@ class ClusterPath(object):
         if debug:
             print '    N        N       hclusts     lclusts       h/l'
             print '  hclusts  lclusts    sizes       sizes      overlaps'
+        # For each single cluster in each partition, get a list of the clusters in the other partition that have common uids
+        # Pass this cluster + list to a fcn to resolve discrepancies by splitting on the cluster boundaries in <cluster_list> that we're sure of (i.e. that have different cdr3, or very different naive hamming fraction)
         for h_initclust, l_initclust in [(c, None) for c in init_partitions['h']] + [(None, c) for c in init_partitions['l']]:  # just loops over each single cluster in h and l partitions, but in a way that we know whether the single cluster is from h or l
             single_chain, list_chain = 'h' if l_initclust is None else 'l', 'l' if l_initclust is None else 'h'
             single_cluster = h_initclust if single_chain == 'h' else l_initclust
@@ -731,7 +732,8 @@ class ClusterPath(object):
                 print '    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition))
                 print '      ifclust N rclusts'
             n_clean = 0
-            for ifclust in range(len(final_partition)):  # iteration won't get as far as any clusters that we're just adding, which is what we want
+            # for each cluster that's already in <final_partition> that has uids in common with a cluster in <resolved_clusters>, decide how to apportion the common uids (basically we remove them from the larger of the two clusters)
+            for ifclust in range(len(final_partition)):  # iteration/<ifclust> won't get as far as any clusters that we're just adding (to the end of <final_partition>), which is what we want
                 fclust = final_partition[ifclust]
                 if not any_in_common([fclust], resolved_clusters):  # this is probably faster than combining it with getting the common cluster indices below, but maybe not
                     n_clean += 1
@@ -770,7 +772,8 @@ class ClusterPath(object):
 
         if check_partitions:
             assert is_clean_partition(final_partition)
-            for initpart in init_partitions.values():
+            for tch, initpart in init_partitions.items():
+                _, _, _ = utils.check_intersection_and_complement(initpart, final_partition, only_warn=True, a_label=tch, b_label='joint')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
                 assert len(set([u for c in initpart for u in c]) - set([u for c in final_partition for u in c])) == 0  # everybody from both initial partitions is in final_partition
             assert len(set([u for c in final_partition for u in c]) - set([u for c in init_partitions['h'] for u in c]) - set([u for c in init_partitions['l'] for u in c])) == 0  # nobody extra got added (i don't see how this could happen, but maybe it's just checking that I didnt' modify the initial partitions)
 

@@ -829,7 +829,7 @@ for missing_arg in get_arg_names('all') - set(args.__dict__):  # NOTE see also r
     args.__dict__[missing_arg] = None
 
 if args.outfname is None and args.paired_outdir is None and runs_on_existing_output(args.action):  # would be better to have this in processargs.py like everything else, but then I'd have to import the function somehow
-    raise Exception('--outfname required for %s' % args.action)
+    raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
 
 processargs.process(args)
 random.seed(args.seed)
