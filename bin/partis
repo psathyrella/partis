@@ -353,11 +353,10 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         else:
             bname = '%s-%s.yaml' % ('simu' if args.action=='simulate' else 'partition', ltmp)
         ofn = '%s/%s' % (getodir(lpair=lpair), bname)
-        if args.action != 'simulate':
-            if not joint:
-                ofn = utils.insert_before_suffix('-non-merged', ofn)
-            if partition_only:
-                ofn = utils.insert_before_suffix('-only-partition', ofn)
+        if not joint:
+            ofn = utils.insert_before_suffix('-non-merged', ofn)
+        if partition_only:
+            ofn = utils.insert_before_suffix('-only-partition', ofn)
         return ofn
     # ----------------------------------------------------------------------------------------
     def prep_inputs():
