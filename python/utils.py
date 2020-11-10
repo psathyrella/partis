@@ -1,4 +1,3 @@
-import yaml
 import platform
 import resource
 import psutil
@@ -24,6 +23,11 @@ import json
 import types
 import collections
 import operator
+import yaml
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
 
 import indelutils
 import clusterpath
@@ -5154,7 +5158,7 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
                 'events' : yaml_annotations}
     with open(fname, 'w') as yamlfile:
         if use_pyyaml:  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
-            yaml.dump(yamldata, yamlfile, width=400, Dumper=yaml.CDumper, default_flow_style=False, allow_unicode=False)  # set <allow_unicode> to false so the file isn't cluttered up with !!python.unicode stuff
+            yaml.dump(yamldata, yamlfile, width=400, Dumper=Dumper, default_flow_style=False, allow_unicode=False)  # set <allow_unicode> to false so the file isn't cluttered up with !!python.unicode stuff
         else:  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
             json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)
 
@@ -5241,7 +5245,7 @@ def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), o
             yamlfo = json.load(yamlfile)  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
         except ValueError:  # I wish i could think of a better way to do this, but I can't
             yamlfile.seek(0)
-            yamlfo = yaml.load(yamlfile, Loader=yaml.CLoader)  # use this instead of the json version to make more human-readable files
+            yamlfo = yaml.load(yamlfile, Loader=Loader)  # use this instead of the json version to make more human-readable files
     return yamlfo
 
 # ----------------------------------------------------------------------------------------

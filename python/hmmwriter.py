@@ -3,24 +3,21 @@ import os
 import re
 import math
 import collections
-import yaml
 from scipy.stats import norm
 import csv
 import time
 import copy
 import numpy
+import yaml
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
 
 import utils
 import glutils
 import paramutils
 from hist import Hist
-
-try:
-    from yaml import CLoader
-except ImportError:
-    # https://github.com/yaml/pyyaml/issues/108#issuecomment-370459912
-    # https://stackoverflow.com/questions/47715566/cannot-load-cloader-with-pyyaml
-    raise Exception('missing libyaml bindings (probably need to install libyaml-dev, then reinstall pyyaml)')
 
 # ----------------------------------------------------------------------------------------
 def get_bin_list(values, bin_type):
@@ -302,7 +299,7 @@ class HmmWriter(object):
             self.hmm.prnt(self.saniname)
         assert os.path.exists(self.outdir)
         with open(self.outdir + '/' + self.saniname + '.yaml', 'w') as outfile:
-            yaml.dump(self.hmm, outfile, width=150, Dumper=yaml.CDumper)
+            yaml.dump(self.hmm, outfile, width=150, Dumper=Dumper)
         if self.n_conserved_codon_erosion_transitions > 0:
             print '  %s added %3d transition%s for conserved codon erosion for %s' % (utils.color('yellow', 'warning'), self.n_conserved_codon_erosion_transitions, utils.plural(self.n_conserved_codon_erosion_transitions), utils.color_gene(self.raw_name))
 

@@ -9,7 +9,6 @@ from collections import OrderedDict
 import random
 import re
 import string
-import yaml
 
 import utils
 

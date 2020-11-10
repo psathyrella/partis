@@ -16,13 +16,16 @@ from distutils.version import StrictVersion
 import dendropy
 import time
 import math
-import yaml
 import json
 import pickle
 import warnings
 import traceback
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
 
 import utils
 
@@ -1696,7 +1699,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
         print '  writing selection metrics to %s' % outfname
         utils.prep_dir(None, fname=outfname, allow_other_files=True)
         with open(outfname, 'w') as tfile:
-            json.dump([l['tree-info'] for l in inf_lines_to_use if 'tree-info' in l], tfile) #, width=200, Dumper=yaml.CDumper, allow_unicode=False)  # switching to json to avoid unicode bullshit
+            json.dump([l['tree-info'] for l in inf_lines_to_use if 'tree-info' in l], tfile)
 
 # ----------------------------------------------------------------------------------------
 def init_dtr(train_dtr, dtr_path, cfg_fname=None):
@@ -1706,7 +1709,7 @@ def init_dtr(train_dtr, dtr_path, cfg_fname=None):
             dtr_cfgvals = {}
         else:  # read cfg values from a file
             with open(cfg_fname) as yfile:
-                dtr_cfgvals = yaml.load(yfile, Loader=yaml.Loader)
+                dtr_cfgvals = yaml.load(yfile, Loader=Loader)
             if 'vars' in dtr_cfgvals:  # format is slightly different in the file (in the file we don't require the explicit split between per-seq and per-cluster variables)
                 allowed_vars = set(v for cg in cgroups for pc in dtr_vars[cg] for v in dtr_vars[cg][pc])
                 cfg_vars = set(v for cg in cgroups for v in dtr_cfgvals['vars'][cg])
