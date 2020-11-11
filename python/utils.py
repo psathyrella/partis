@@ -2626,7 +2626,7 @@ def split_key(key):
     return key.split('.')
 
 # ----------------------------------------------------------------------------------------
-def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None, allow_other_files=False, only_make=False):
+def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None, allow_other_files=False):
     """
     Make <dirname> if it d.n.e.
     Also, if shell glob <wildling> is specified, remove existing files which are thereby matched.
@@ -2649,16 +2649,15 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
                 os.rmdir(dirname + '/' + subdir)
 
     if os.path.exists(dirname):
-        if not only_make:
-            for wild in wildlings:
-                for ftmp in glob.glob(dirname + '/' + wild):
-                    if os.path.exists(ftmp):
-                        os.remove(ftmp)
-                    else:
-                        print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), ftmp)
-            remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn not in subdirs]  # allow subdirs to still be present
-            if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
-                raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
+        for wild in wildlings:
+            for ftmp in glob.glob(dirname + '/' + wild):
+                if os.path.exists(ftmp):
+                    os.remove(ftmp)
+                else:
+                    print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), ftmp)
+        remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn not in subdirs]  # allow subdirs to still be present
+        if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
+            raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
     else:
         os.makedirs(dirname)
 
@@ -2680,28 +2679,35 @@ def paired_dir_fnames(bdir, no_pairing_info=False, suffix='.fa', ig_or_tr='ig'):
     return fnames  # return dirs after files for easier cleaning (below)
 
 # ----------------------------------------------------------------------------------------
-def prep_paired_dir(bdir, ig_or_tr='ig'):
+def prep_paired_dir(bdir, clean=False, suffix='.fa', extra_files=None, ig_or_tr='ig'):
+    if clean and os.path.exists(bdir):
+        clean_paired_dir(bdir, suffix=suffix, extra_files=extra_files)
     for lpair in locus_pairs[ig_or_tr]:
-        prep_dir(paired_fn(bdir, None, lpair=lpair), only_make=True)
+        prep_dir(paired_fn(bdir, None, lpair=lpair))
 
 # ----------------------------------------------------------------------------------------
-def clean_paired_dir(bdir, ig_or_tr='ig'):
+def clean_paired_dir(bdir, suffix='.fa', extra_files=None, ig_or_tr='ig'):
     print '    cleaning paired files in %s' % bdir
-    clean_files(paired_dir_fnames(bdir, ig_or_tr=ig_or_tr))
+    fnames = paired_dir_fnames(bdir, suffix=suffix, ig_or_tr=ig_or_tr)
+    if extra_files is not None:
+        fnames = extra_files + fnames  # put 'em at the start, since presumably they're actual files, not dirs
+    clean_files(fnames)
 
 # ----------------------------------------------------------------------------------------
-def clean_files(fnames):  # <fnames> can include dirs, just put them afte rthe files they contain
+def clean_files(fnames, expect_missing=False):  # <fnames> can include dirs, just put them after the files they contain
     missing_files = []
     for fn in fnames:
         if os.path.isfile(fn):
             os.remove(fn)
         elif os.path.isdir(fn):
+            if len(os.listdir(fn)) > 0:
+                raise Exception('can\'t rmdir, files remain in %s (%s)' % (fn, ' '.join(os.listdir(fn))))
             os.rmdir(fn)
         elif not os.path.exists(fn):
             missing_files.append(fn)
         else:  # not sure if there's another possibility
             assert False
-    if len(missing_files) > 0:
+    if len(missing_files) > 0 and not expect_missing:
         basedirs = sorted(set(os.path.dirname(f) for f in fnames), key=lambda x: x.count('/'))  # sort by number of slashes, i.e. most-parent dir is first
         basedirs = [basedirs[0]] + [d for d in basedirs if basedirs[0] not in d]  # hackey way to remove any that are just subdirs (if all the files aren't under one parent dir, these shenanigans won't really work)
         print '      %s expected to remove %d/%d files+dirs that weren\'t in %s/: %s' % (color('yellow', 'warning'), len(missing_files), len(fnames), ' '.join(basedirs), ' '.join(f.replace(basedirs[0] + '/', '') for f in missing_files))

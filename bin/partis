@@ -324,7 +324,7 @@ def remove_action_specific_args(clist, action, debug=True):
 # ----------------------------------------------------------------------------------------
 def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
     # ----------------------------------------------------------------------------------------
-    def getpdir(ltmp, bpdir=None):
+    def getpdir(ltmp, bpdir=None):  # pass in <ltmp> of '' to get the base dir
         if bpdir is not None:
             return '%s/%s' % (bpdir, ltmp)
         else:
@@ -379,7 +379,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         elif len(existing_pdir_loci) == len(utils.sub_loci(ig_or_tr)):
             return False  # all there, don't auto-cache
         else:
-            print '  %s parameters exist for some (%s) but not all (%s) loci, so not auto-caching parameters (e.g. %s)' % (utils.color('yellow', 'warning'), ' '.join(existing_pdir_loci), ' '.join(set(utils.sub_loci(ig_or_tr)) - set(existing_pdir_loci)), getpdir(existing_pdir_loci[0]))
+            print '  %s parameters exist for some (%s) but not all (%s) loci, so not auto-caching parameters into %s' % (utils.color('yellow', 'warning'), ' '.join(existing_pdir_loci), ' '.join(set(utils.sub_loci(ig_or_tr)) - set(existing_pdir_loci)), getpdir(''))
             return False
     # ----------------------------------------------------------------------------------------
     def get_n_events(l_locus, arg_events):  # l_locus has to be set
@@ -468,19 +468,19 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         lparg = lpair if args.action=='simulate' else None  # we only know who's paired with who at this point if we're simulating (well, maybe i want to keep it this way?)
         for ltmp in lpair:  # read single-locus output files
             if not os.path.exists(getofn(ltmp, lpair=lparg)):
-                print '%s: no %s output file, skipping %s' % (utils.color('blue', ltmp), 'simulation' if args.action=='simulate' else 'partition', '+'.join(lpair))
+                print '%s: no %s %s output file, skipping' % (utils.color('blue', '+'.join(lpair)), ltmp, 'simulation' if args.action=='simulate' else 'partition')
                 return None, None, None
             glfos[ltmp], annotations[ltmp], cpaths[ltmp] = utils.read_output(getofn(ltmp, lpair=lparg), dont_add_implicit_info=not args.debug, skip_failed_queries=True)
         if args.action == 'simulate':
-            print 'synchronizing heavy/light simulation trees (and rewriting output files)'
+            print '%s synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
             assert len(annotations[h_locus]) == len(annotations[l_locus])
             for hline, lline in zip(annotations[h_locus], annotations[l_locus]):
-                treeutils.merge_heavy_light_trees(hline, lline)
+                treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
             headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
             for ltmp in lpair:  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
                 utils.write_annotations(getofn(ltmp, lpair=lparg), glfos[ltmp], annotations[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         else:
-            print '%s heavy and light chain cluster paths' % utils.color('red', 'synchronizing')
+            print '%s synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
             joint_partition = cpaths[h_locus].merge_light_chain(cpaths[l_locus], annotations[h_locus], annotations[l_locus], check_partitions=True, debug=False)  # , h_ipart=5
             if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
                 evaluate_joint_partition(args, joint_partition, {'h' : getifn(lpair[0]), 'l' : getifn(lpair[1])}, {'h' : cpaths[h_locus], 'l' : cpaths[l_locus]}, {'h' : annotations[h_locus], 'l' : annotations[l_locus]})
@@ -523,7 +523,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
     prep_inputs()
 
     if args.action == 'simulate':
-        utils.prep_paired_dir(getodir())
+        utils.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
         for lpair in utils.locus_pairs[ig_or_tr]:
             h_locus, l_locus = lpair
             if get_n_events(l_locus, args.n_sim_events) == 0:
