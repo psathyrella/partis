@@ -26,6 +26,7 @@ import processargs
 import seqfileopener
 from partitiondriver import PartitionDriver
 from clusterpath import ClusterPath
+import paircluster
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -274,7 +275,6 @@ def evaluate_joint_partition(args, joint_partition, infnames, cpaths, annotation
     true_partitions = {}
     cmp_partitions = {}  # (potentially) modified versions of the heavy/light partitions
     ccfs = {}
-# TODO fix infnames
     for chain, ifn in (('h', infnames['h']), ('l', infnames['l'])):
         _, _, true_cpath = utils.read_output(ifn, dont_add_implicit_info=True, n_max_queries=args.n_max_queries) #skip_annotations=True) # can't skip annotations since older files will need them to make annotations
         true_partitions[chain] = true_cpath.partitions[true_cpath.i_best]
@@ -472,16 +472,16 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
                 return None, None, None
             glfos[ltmp], annotations[ltmp], cpaths[ltmp] = utils.read_output(getofn(ltmp, lpair=lparg), dont_add_implicit_info=not args.debug, skip_failed_queries=True)
         if args.action == 'simulate':
-            print '%s synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
+            print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
             assert len(annotations[h_locus]) == len(annotations[l_locus])
             for hline, lline in zip(annotations[h_locus], annotations[l_locus]):
-                treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
+                treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=True)
             headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
             for ltmp in lpair:  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
                 utils.write_annotations(getofn(ltmp, lpair=lparg), glfos[ltmp], annotations[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         else:
-            print '%s synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
-            joint_partition = cpaths[h_locus].merge_light_chain(cpaths[l_locus], annotations[h_locus], annotations[l_locus], check_partitions=True, debug=False)  # , h_ipart=5
+            print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
+            joint_partition = paircluster.merge_chains(cpaths[h_locus].best(), cpaths[l_locus].best(), annotations[h_locus], annotations[l_locus], check_partitions=True)
             if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
                 evaluate_joint_partition(args, joint_partition, {'h' : getifn(lpair[0]), 'l' : getifn(lpair[1])}, {'h' : cpaths[h_locus], 'l' : cpaths[l_locus]}, {'h' : annotations[h_locus], 'l' : annotations[l_locus]})
             if args.paired_outdir is not None:
