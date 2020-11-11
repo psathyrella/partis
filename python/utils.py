@@ -2681,17 +2681,17 @@ def paired_dir_fnames(bdir, no_pairing_info=False, suffix='.fa', ig_or_tr='ig'):
 # ----------------------------------------------------------------------------------------
 def prep_paired_dir(bdir, clean=False, suffix='.fa', extra_files=None, ig_or_tr='ig'):
     if clean and os.path.exists(bdir):
-        clean_paired_dir(bdir, suffix=suffix, extra_files=extra_files)
+        clean_paired_dir(bdir, suffix=suffix, extra_files=extra_files, expect_missing=True)
     for lpair in locus_pairs[ig_or_tr]:
         prep_dir(paired_fn(bdir, None, lpair=lpair))
 
 # ----------------------------------------------------------------------------------------
-def clean_paired_dir(bdir, suffix='.fa', extra_files=None, ig_or_tr='ig'):
-    print '    cleaning paired files in %s' % bdir
+def clean_paired_dir(bdir, suffix='.fa', extra_files=None, expect_missing=False, ig_or_tr='ig'):
+    print '    cleaning paired files in %s/' % bdir
     fnames = paired_dir_fnames(bdir, suffix=suffix, ig_or_tr=ig_or_tr)
     if extra_files is not None:
         fnames = extra_files + fnames  # put 'em at the start, since presumably they're actual files, not dirs
-    clean_files(fnames)
+    clean_files(fnames, expect_missing=expect_missing)
 
 # ----------------------------------------------------------------------------------------
 def clean_files(fnames, expect_missing=False):  # <fnames> can include dirs, just put them after the files they contain
