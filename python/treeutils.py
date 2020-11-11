@@ -576,7 +576,12 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq):
 
 # ----------------------------------------------------------------------------------------
 # loops over uids in <hline> and <lline> (which, in order, must correspond to each other), chooses a new joint uid and applies it to both h and l trees, then checks to make sure the trees are identical
-def merge_heavy_light_trees(hline, lline, debug=False):
+def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=True, debug=False):
+    def ladd(uid, locus):
+        return '%s-%s' % (uid, locus)
+    def lrm(uid, locus):
+        assert '-' in uid and uid.split('-')[-1] == locus
+        return uid.replace('-%s' % locus, '')
     if debug:
         print '    before:'
         print '      heavy:'
@@ -585,30 +590,35 @@ def merge_heavy_light_trees(hline, lline, debug=False):
         print utils.pad_lines(get_ascii_tree(treestr=lline['tree']))
 
     assert len(hline['unique_ids']) == len(lline['unique_ids'])
-    hdtree = get_dendro_tree(treestr=hline['tree'])
-    ldtree = get_dendro_tree(treestr=lline['tree'])
+    lpair = [hline, lline]
     joint_reco_id = str(hash(hline['reco_id'] + lline['reco_id']))
-    hline['reco_id'] = joint_reco_id
-    lline['reco_id'] = joint_reco_id
+    for ltmp in lpair:
+        ltmp['reco_id'] = joint_reco_id
+        ltmp['paired-uids'] = []
+    dtrees = [get_dendro_tree(treestr=l['tree']) for l in lpair]
     for iuid, (huid, luid) in enumerate(zip(hline['unique_ids'], lline['unique_ids'])):
         joint_uid = str(hash(huid + luid))
-        hline['unique_ids'][iuid] = joint_uid
-        lline['unique_ids'][iuid] = joint_uid
-        hdtree.find_node_with_taxon_label(huid).taxon = dendropy.Taxon(joint_uid)  # don't need to update the taxon namespace since we don't use it afterward
-        ldtree.find_node_with_taxon_label(luid).taxon = dendropy.Taxon(joint_uid)
+        for ltmp in lpair:
+            ltmp['unique_ids'][iuid] = joint_uid
+            if not use_identical_uids:
+                ltmp['unique_ids'][iuid] = ladd(ltmp['unique_ids'][iuid], ltmp['loci'][iuid])
+        for l1, l2 in zip(lpair, reversed(lpair)):
+            l1['paired-uids'].append([l2['unique_ids'][iuid]])
+        for dt, uid, ltmp in zip(dtrees, [huid, luid], lpair):  # NOTE huid and luid here are the *old* ones
+            dt.find_node_with_taxon_label(uid).taxon = dendropy.Taxon(ltmp['unique_ids'][iuid])  # don't need to update the taxon namespace since we don't use it afterward
 
-    final_htreestr = as_str(hdtree)  # have to make a separate tree to actually put in the <line>s, since the symmetric difference function screws up the tree
-    final_ltreestr = as_str(ldtree)
+    hline['tree'], lline['tree'] = [as_str(dt) for dt in dtrees]  # have to make a separate tree to actually put in the <line>s, since the symmetric difference function screws up the tree
 
-    tns = dendropy.TaxonNamespace()
-    hdtree = cycle_through_ascii_conversion(dtree=hdtree, taxon_namespace=tns)  # have to recreate from str before calculating symmetric difference to avoid the taxon namespace being screwed up (I tried a bunch to avoid this, I don't know what it's changing, the tns looks fine, but something's wrong)
-    ldtree = cycle_through_ascii_conversion(dtree=ldtree, taxon_namespace=tns)
-    sym_diff = dendropy.calculate.treecompare.symmetric_difference(hdtree, ldtree)  # WARNING this function modifies the tree (i think by removing unifurcations) becuase OF COURSE THEY DO, wtf
-    if sym_diff != 0:  # i guess in principle we could turn this off after we've run a fair bit, but it seems really dangerous, since if the heavy and light trees get out of sync the whole simulation is ruined
-        raise Exception('trees differ (symmetric difference %d) for heavy and light chains' % sym_diff)
-
-    hline['tree'] = final_htreestr
-    lline['tree'] = final_ltreestr
+    if check_trees:
+        if not use_identical_uids:  # reset back to the plain <joint_uid> so we can compare
+            for dt, ltmp in zip(dtrees, lpair):
+                for uid, locus in zip(ltmp['unique_ids'], ltmp['loci']):  # yes, they all have the same locus, but see note in utils
+                    dt.find_node_with_taxon_label(uid).taxon = dendropy.Taxon(lrm(uid, locus))  # don't need to update the taxon namespace since we don't use it afterward
+        tns = dendropy.TaxonNamespace()
+        dtrees = [cycle_through_ascii_conversion(dtree=dt, taxon_namespace=tns) for dt in dtrees]  # have to recreate from str before calculating symmetric difference to avoid the taxon namespace being screwed up (I tried a bunch to avoid this, I don't know what it's changing, the tns looks fine, but something's wrong)
+        sym_diff = dendropy.calculate.treecompare.symmetric_difference(*dtrees)  # WARNING this function modifies the tree (i think by removing unifurcations) becuase OF COURSE THEY DO, wtf
+        if sym_diff != 0:  # i guess in principle we could turn this off after we've run a fair bit, but it seems really dangerous, since if the heavy and light trees get out of sync the whole simulation is ruined
+            raise Exception('trees differ (symmetric difference %d) for heavy and light chains' % sym_diff)
 
     if debug:
         print '    after:'
