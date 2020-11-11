@@ -31,7 +31,7 @@ parser.add_argument('--species', default='human', choices=('human', 'macaque', '
 parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines', help='doesn\'t need to be the germlines corresponding to this sample since it\'s just so it can figure out which is igh vs igk vs igl, so the default is probably fine')
 parser.add_argument('--workdir', default=utils.choose_random_subdir('/tmp/%s/partis' % os.getenv('USER', default='partis-work')), help='working directory for vsearch')
 parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch binaries for linux and darwin are included in partis/bin/, so leaving this unset should work, but for other systems you need to get your own)')
-parser.add_argument('--vsearch-threshold', default=0.4, help='default identity threshold for vsearch')
+parser.add_argument('--vsearch-threshold', type=float, default=0.4, help='default identity threshold for vsearch')
 parser.add_argument('--debug', action='store_true', default=True)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info/meta string of sequence name/uid (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')

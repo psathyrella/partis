@@ -4018,7 +4018,7 @@ def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='
     if len(a_not_b) > 0 or len(b_not_a) > 0:  # NOTE this should probably also warn/pring if either of 'em has duplicate uids on their own
         failstr = '\'%s\' partition (%d total) and \'%s\' partition (%d total) don\'t have the same uids:   only %s %d    only %s %d    common %d' % (a_label, sum(len(c) for c in part_a), b_label, sum(len(c) for c in part_b), a_label, len(a_not_b), b_label, len(b_not_a), len(a_and_b))
         if only_warn:
-            print '  %s %s' % (color('red', 'warning'), failstr)
+            print '  %s %s' % (color('yellow', 'warning'), failstr)
         else:
             raise Exception(failstr)
     return a_and_b, a_not_b, b_not_a
