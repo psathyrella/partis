@@ -7,7 +7,7 @@ from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
-def merge_chains(h_partition, l_partition, heavy_annotations, light_annotations, check_partitions=False, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
     # ----------------------------------------------------------------------------------------
     def akey(klist):
         return ':'.join(klist)
@@ -79,17 +79,22 @@ def merge_chains(h_partition, l_partition, heavy_annotations, light_annotations,
         return return_clusts
 
     # ----------------------------------------------------------------------------------------
+    init_partitions = {}
+    for tch in utils.chains:
+        if iparts is None or ploci[tch] not in iparts:
+            init_partitions[tch] = cpaths[ploci[tch]].best()
+        else:
+            init_partitions[tch] = cpaths[ploci[tch]].partitions[iparts[ploci[tch]]]
+            print '  %s using non-best partition index %d for %s (best is %d)' % (utils.color('red', 'note'), iparts[ploci[tch]], tch, cpaths[ploci[tch]].i_best)
     if debug:
-        for tstr, tpart in [('heavy', h_partition), ('light', l_partition)]:
+        for tstr, tpart in [('heavy', init_partitions['h']), ('light', init_partitions['l'])]:
             ClusterPath(partition=tpart).print_partitions(extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
-            # if h_ipart != self.i_best or l_ipart != lcpath.i_best:
-            #     print '  %s using non-best partition index for%s%s' % (utils.color('red', 'note'), (' heavy: %d'%h_ipart) if h_ipart != self.i_best else '', (' light: %d'%l_ipart) if l_ipart != lcpath.i_best else '')
 
-    init_partitions = {'h' : h_partition, 'l' : l_partition}
     common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
     if len(common_uids) == 0:
         raise Exception('no uids in common between heavy and light')
-    annotation_dict = {'h' : utils.get_annotation_dict(heavy_annotations), 'l' : utils.get_annotation_dict(light_annotations)}
+
+    antn_dict = {ch : utils.get_annotation_dict(antn_lists[ploci[ch]]) for ch in ploci}
 
     final_partition = []
     if debug:
@@ -101,8 +106,8 @@ def merge_chains(h_partition, l_partition, heavy_annotations, light_annotations,
         single_chain, list_chain = 'h' if l_initclust is None else 'l', 'l' if l_initclust is None else 'h'
         single_cluster = h_initclust if single_chain == 'h' else l_initclust
         cluster_list = common_clusters(single_cluster, init_partitions[list_chain])
-        single_annotation = annotation_dict[single_chain][akey(single_cluster)]
-        annotation_list = [annotation_dict[list_chain][akey(c)] for c in cluster_list]
+        single_annotation = antn_dict[single_chain][akey(single_cluster)]
+        annotation_list = [antn_dict[list_chain][akey(c)] for c in cluster_list]
 
         if debug:
             hclusts, lclusts = ([single_cluster], cluster_list) if single_chain == 'h' else (cluster_list, [single_cluster])

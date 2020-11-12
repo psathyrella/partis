@@ -292,9 +292,9 @@ def evaluate_joint_partition(args, joint_partition, infnames, cpaths, annotation
         ccfs[chain]['joint'] = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
 
     print '             purity  completeness'
-    for chain in ['h', 'l']:
+    for chain in utils.chains:
         print '   %s before  %6.3f %6.3f' % (chain, ccfs[chain]['before'][0], ccfs[chain]['before'][1])
-    for chain in ['h', 'l']:
+    for chain in utils.chains:
         print '    joint    %6.3f %6.3f   (%s true)' % (ccfs[chain]['joint'][0], ccfs[chain]['joint'][1], chain)
 
 # ----------------------------------------------------------------------------------------
@@ -443,10 +443,10 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
     def combine_lpair(lpair):
         # ----------------------------------------------------------------------------------------
         def write_joint_locus(ltmp):
-            annotation_dict = utils.get_annotation_dict(annotations[ltmp])
+            antn_dict = utils.get_annotation_dict(annotations[ltmp])
             missing_clusters = []
             for jclust in joint_partition:
-                if ':'.join(jclust) not in annotation_dict:
+                if ':'.join(jclust) not in antn_dict:
                     missing_clusters.append(jclust)
                     # overlap_clusters = [l['unique_ids'] for l in annotation_list if len(set(l['unique_ids']) & set(jclust)) > 0]
                     # print '      %3d: %s' % (len(jclust), ' '.join('%3d/%3d'%(len(set(c) & set(jclust)), len(c)) for c in overlap_clusters))
@@ -463,34 +463,34 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
                 work_fnames.append(getofn(ltmp, joint=True, partition_only=True))
                 run_step('merge-paired-partitions', ltmp, skip_missing_input=True)  # it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable
         # ----------------------------------------------------------------------------------------
-        glfos, annotations, cpaths = {}, {}, {}
+        glfos, antn_lists, cpaths = {}, {}, {}
         h_locus, l_locus = lpair
         lparg = lpair if args.action=='simulate' else None  # we only know who's paired with who at this point if we're simulating (well, maybe i want to keep it this way?)
         for ltmp in lpair:  # read single-locus output files
             if not os.path.exists(getofn(ltmp, lpair=lparg)):
                 print '%s: no %s %s output file, skipping' % (utils.color('blue', '+'.join(lpair)), ltmp, 'simulation' if args.action=='simulate' else 'partition')
                 return None, None, None
-            glfos[ltmp], annotations[ltmp], cpaths[ltmp] = utils.read_output(getofn(ltmp, lpair=lparg), dont_add_implicit_info=not args.debug, skip_failed_queries=True)
+            glfos[ltmp], antn_lists[ltmp], cpaths[ltmp] = utils.read_output(getofn(ltmp, lpair=lparg), dont_add_implicit_info=not args.debug, skip_failed_queries=True)
         if args.action == 'simulate':
             print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
-            assert len(annotations[h_locus]) == len(annotations[l_locus])
-            for hline, lline in zip(annotations[h_locus], annotations[l_locus]):
+            assert len(antn_lists[h_locus]) == len(antn_lists[l_locus])
+            for hline, lline in zip(antn_lists[h_locus], antn_lists[l_locus]):
                 treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=True)
             headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
             for ltmp in lpair:  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
-                utils.write_annotations(getofn(ltmp, lpair=lparg), glfos[ltmp], annotations[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
+                utils.write_annotations(getofn(ltmp, lpair=lparg), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         else:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
-            joint_partition = paircluster.merge_chains(cpaths[h_locus].best(), cpaths[l_locus].best(), annotations[h_locus], annotations[l_locus], check_partitions=True)
+            joint_partition = paircluster.merge_chains({ch : l for ch, l in zip(utils.chains, lpair)}, cpaths, antn_lists, check_partitions=True) #, debug=True)  # , iparts={'igl' : 7}
             if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-                evaluate_joint_partition(args, joint_partition, {'h' : getifn(lpair[0]), 'l' : getifn(lpair[1])}, {'h' : cpaths[h_locus], 'l' : cpaths[l_locus]}, {'h' : annotations[h_locus], 'l' : annotations[l_locus]})
+                evaluate_joint_partition(args, joint_partition, {'h' : getifn(lpair[0]), 'l' : getifn(lpair[1])}, {'h' : cpaths[h_locus], 'l' : cpaths[l_locus]}, {'h' : antn_lists[h_locus], 'l' : antn_lists[l_locus]})
             if args.paired_outdir is not None:
                 for ltmp in lpair:
                     write_joint_locus(ltmp)
-        return glfos, annotations, cpaths
+        return glfos, antn_lists, cpaths
     # ----------------------------------------------------------------------------------------
     def combine_chains():
-        glfos, annotations, cpaths = {}, {}, {}
+        glfos, antn_lists, cpaths = {}, {}, {}
         for lpair in utils.locus_pairs[ig_or_tr]:
             lp_glfos, lp_annotations, lp_cpaths = combine_lpair(lpair)
             if args.action != 'simulate':  # need to move the chain combination down here for partition (plus probably other stuff)
@@ -501,19 +501,19 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             for ltmp in lpair:
                 if ltmp in glfos:  # merged heavy chain glfos from those paired with igk and with igl
                     glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], lp_glfos[ltmp])
-                    annotations[ltmp] += lp_annotations[ltmp]
+                    antn_lists[ltmp] += lp_annotations[ltmp]
                     assert len(cpaths[ltmp].partitions) == 1
                     cpaths[ltmp] = ClusterPath(partition=cpaths[ltmp].best() + lp_cpaths[ltmp].best())  # TODO
                 else:
                     glfos[ltmp] = lp_glfos[ltmp]
-                    annotations[ltmp] = lp_annotations[ltmp]
+                    antn_lists[ltmp] = lp_annotations[ltmp]
                     cpaths[ltmp] = lp_cpaths[ltmp]
 
-        for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in annotations]:
+        for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in antn_lists]:
             assert args.action == 'simulate'  # need to update probably several things, at least the headers TODO handles headers more cleanly)
             headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
-            print '  %s: writing %d annotation%s to %s' % (ltmp, len(annotations[ltmp]), utils.plural(len(annotations[ltmp])), getofn(ltmp))
-            utils.write_annotations(getofn(ltmp), glfos[ltmp], annotations[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
+            print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
+            utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
 
     # ----------------------------------------------------------------------------------------
     if args.paired_outdir is None:

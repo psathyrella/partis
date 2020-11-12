@@ -68,6 +68,7 @@ def timeprinter(fcn):
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
 regions = ['v', 'd', 'j']
 constant_regions = ['c', 'm', 'g', 'a', 'd', 'e']  # NOTE d is in here, which is stupid but necessary, so use is_constant_gene()
+chains = ['h', 'l']
 loci = collections.OrderedDict((
     ('igh', 'vdj'),
     ('igk', 'vj'),
