@@ -12,6 +12,11 @@ import utils
 import treeutils
 
 # ----------------------------------------------------------------------------------------
+# print a single partition without having to make a cluster path
+def ptnprint(partition, **kwargs):
+    ClusterPath(partition=partition).print_partitions(**kwargs)
+
+# ----------------------------------------------------------------------------------------
 class ClusterPath(object):
     def __init__(self, initial_path_index=0, seed_unique_id=None, partition=None, fname=None, partition_lines=None):  # <partition> is a fully-formed partition, while <partition_lines> is straight from reading a file (perhaps could combine them, but I don't want to think through it now)
         # could probably remove path index since there's very little chance of doing smc in the future, but the path-merging code in glomerator was _very_ difficult to write, so I'm reluctant to nuke it

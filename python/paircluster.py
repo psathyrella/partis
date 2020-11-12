@@ -1,9 +1,38 @@
 import copy
 import itertools
 import numpy
+import sys
 
 import utils
-from clusterpath import ClusterPath
+from clusterpath import ptnprint
+
+# ----------------------------------------------------------------------------------------
+# rename all uids in the light chain partition and annotations that are paired with a heavy chain uid to that heavy chain uid (pairings must, at this stage, be unique)
+def translate_paired_uids(ploci, init_partitions, antn_lists):
+    h_paired_uids = {}  # map ot each heavy chain uid <u> from its paired light chain uid <pids[0]>
+    for hline in antn_lists[ploci['h']]:
+        for h_id, pids in zip(hline['unique_ids'], hline['paired-uids']):
+            if len(pids) > 1:
+                raise Exception('multiple paired uids %s for %s sequece %s' % (' '.join(pids), ploci['h'], h_id))
+            h_paired_uids[pids[0]] = h_id
+    l_translations = {}
+    for lline in antn_lists[ploci['l']]:
+        for iseq in range(len(lline['unique_ids'])):
+            l_id = lline['unique_ids'][iseq]
+            if l_id not in h_paired_uids:  # this <l_id> wasn't paired with any heavy chain ids
+                continue
+            lline['unique_ids'][iseq] = h_paired_uids[l_id]
+            l_translations[h_paired_uids[l_id]] = l_id  # so we can go back to <l_id> afterwards
+    if len(h_paired_uids) > 0:
+        init_partitions['l'] = [[h_paired_uids.get(u, u) for u in c] for c in init_partitions['l']]
+    return l_translations
+
+# ----------------------------------------------------------------------------------------
+# reverse action of previous fcn
+def untranslate_pids(ploci, init_partitions, antn_lists, l_translations):
+    for lline in antn_lists[ploci['l']]:
+        lline['unique_ids'] = [l_translations.get(u, u) for u in lline['unique_ids']]
+    init_partitions['l'] = [[l_translations.get(u, u) for u in c] for c in init_partitions['l']]
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
@@ -75,7 +104,7 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
 
         if debug:
             print '      returning: %s' % ' '.join([str(len(c)) for c in return_clusts])
-            # ClusterPath(partition=return_clusts).print_partitions(abbreviate=True)
+            # ptnprint(return_clusts)
         return return_clusts
 
     # ----------------------------------------------------------------------------------------
@@ -86,9 +115,10 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
         else:
             init_partitions[tch] = cpaths[ploci[tch]].partitions[iparts[ploci[tch]]]
             print '  %s using non-best partition index %d for %s (best is %d)' % (utils.color('red', 'note'), iparts[ploci[tch]], tch, cpaths[ploci[tch]].i_best)
+    l_translations = translate_paired_uids(ploci, init_partitions, antn_lists)
     if debug:
         for tstr, tpart in [('heavy', init_partitions['h']), ('light', init_partitions['l'])]:
-            ClusterPath(partition=tpart).print_partitions(extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
+            ptnprint(tpart, extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
 
     common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
     if len(common_uids) == 0:
@@ -174,5 +204,8 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
             _, _, _ = utils.check_intersection_and_complement(initpart, final_partition, only_warn=True, a_label=tch, b_label='joint')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
             assert len(set([u for c in initpart for u in c]) - set([u for c in final_partition for u in c])) == 0  # everybody from both initial partitions is in final_partition
         assert len(set([u for c in final_partition for u in c]) - set([u for c in init_partitions['h'] for u in c]) - set([u for c in init_partitions['l'] for u in c])) == 0  # nobody extra got added (i don't see how this could happen, but maybe it's just checking that I didnt' modify the initial partitions)
+
+    if len(l_translations) > 0:
+        untranslate_pids(ploci, init_partitions, antn_lists, l_translations)
 
     return final_partition
