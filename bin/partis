@@ -263,41 +263,6 @@ def run_partitiondriver(args):
         parter.clean()
 
 # ----------------------------------------------------------------------------------------
-def evaluate_joint_partition(args, joint_partition, infnames, cpaths, annotation_lists):
-# TODO clean up signature (and maybe move?)
-    # ----------------------------------------------------------------------------------------
-    def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
-        for tclust in tpart:
-            for uid in tclust:
-                if uid in dup_dict:
-                    tclust += dup_dict[uid]
-    # ----------------------------------------------------------------------------------------
-    true_partitions = {}
-    cmp_partitions = {}  # (potentially) modified versions of the heavy/light partitions
-    ccfs = {}
-    for chain, ifn in (('h', infnames['h']), ('l', infnames['l'])):
-        _, _, true_cpath = utils.read_output(ifn, dont_add_implicit_info=True, n_max_queries=args.n_max_queries) #skip_annotations=True) # can't skip annotations since older files will need them to make annotations
-        true_partitions[chain] = true_cpath.partitions[true_cpath.i_best]
-        cmp_partitions[chain] = cpaths[chain].partitions[cpaths[chain].i_best]
-        true_partitions[chain] = utils.remove_missing_uids_from_true_partition(true_partitions[chain], cmp_partitions[chain], debug=False)
-        dup_dict = {u : l['duplicates'][i] for l in annotation_lists[chain] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
-        if len(dup_dict) > 0:
-            incorporate_duplicates(cmp_partitions[chain], dup_dict)
-        ccfs[chain] = {'before' : utils.new_ccfs_that_need_better_names(cmp_partitions[chain], true_partitions[chain])}
-
-        if len(dup_dict) > 0:
-            incorporate_duplicates(joint_partition, dup_dict)  # NOTE this modifies joint_partition, so it's different for the second chain than for the first one
-        j_part = utils.get_deduplicated_partitions([joint_partition])[0]  # TODO why do i need this?
-        j_part = utils.remove_missing_uids_from_true_partition(j_part, true_partitions[chain], debug=False)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition
-        ccfs[chain]['joint'] = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
-
-    print '             purity  completeness'
-    for chain in utils.chains:
-        print '   %s before  %6.3f %6.3f' % (chain, ccfs[chain]['before'][0], ccfs[chain]['before'][1])
-    for chain in utils.chains:
-        print '    joint    %6.3f %6.3f   (%s true)' % (ccfs[chain]['joint'][0], ccfs[chain]['joint'][1], chain)
-
-# ----------------------------------------------------------------------------------------
 # it would be really nice if this didn't need to exist, it's complicated (but it's necessitated by needing to auto-cache parameters on the full un-split igh seqs when splitting loci)
 # note that i could also just stop having action-specific arguments, but oh well this seems better for now at least
 def remove_action_specific_args(clist, action, debug=True):
@@ -481,9 +446,10 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
                 utils.write_annotations(getofn(ltmp, lpair=lparg), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         else:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
-            joint_partition = paircluster.merge_chains({ch : l for ch, l in zip(utils.chains, lpair)}, cpaths, antn_lists, check_partitions=True) #, debug=True)  # , iparts={'igl' : 7}
+            true_partitions = None
             if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-                evaluate_joint_partition(args, joint_partition, {'h' : getifn(lpair[0]), 'l' : getifn(lpair[1])}, {'h' : cpaths[h_locus], 'l' : cpaths[l_locus]}, {'h' : antn_lists[h_locus], 'l' : antn_lists[l_locus]})
+                true_partitions = {ch : utils.read_cpath(getifn(l), n_max_queries=args.n_max_queries).best() for ch, l in zip(utils.chains, lpair)}
+            joint_partitions = paircluster.merge_chains({ch : l for ch, l in zip(utils.chains, lpair)}, cpaths, antn_lists, check_partitions=True, true_partitions=true_partitions) #, debug=True)  # , iparts={'igl' : 7}
             if args.paired_outdir is not None:
                 for ltmp in lpair:
                     write_joint_locus(ltmp)

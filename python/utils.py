@@ -5193,6 +5193,11 @@ def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_
     return annotation_list
 
 # ----------------------------------------------------------------------------------------
+def read_cpath(fname, n_max_queries=-1, seed_unique_id=None, skip_annotations=False):
+    _, _, cpath = read_output(fname, n_max_queries=n_max_queries, seed_unique_id=seed_unique_id, dont_add_implicit_info=True, skip_annotations=skip_annotations) # can't skip annotations by default since older (simulation, i think) files will need them to make partitions
+    return cpath
+
+# ----------------------------------------------------------------------------------------
 def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, skip_failed_queries=False, debug=False):
     annotation_list = None
 

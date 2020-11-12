@@ -35,8 +35,39 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations):
     init_partitions['l'] = [[l_translations.get(u, u) for u in c] for c in init_partitions['l']]
 
 # ----------------------------------------------------------------------------------------
+def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists):
+    # ----------------------------------------------------------------------------------------
+    def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
+        for tclust in tpart:
+            for uid in tclust:
+                if uid in dup_dict:
+                    tclust += dup_dict[uid]
+    # ----------------------------------------------------------------------------------------
+    cmp_partitions = {}  # (potentially) modified versions of the initial heavy/light partitions
+    ccfs = {}
+    for chain in utils.chains:
+        cmp_partitions[chain] = copy.deepcopy(init_partitions[chain])
+        true_partitions[chain] = utils.remove_missing_uids_from_true_partition(true_partitions[chain], cmp_partitions[chain], debug=False)  # NOTE it would probably be better to not modify the true partition, since it's getting passed in from outside
+        dup_dict = {u : l['duplicates'][i] for l in antn_lists[ploci[chain]] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
+        if len(dup_dict) > 0:
+            incorporate_duplicates(cmp_partitions[chain], dup_dict)
+        ccfs[chain] = {'before' : utils.new_ccfs_that_need_better_names(cmp_partitions[chain], true_partitions[chain])}
+
+        if len(dup_dict) > 0:
+            incorporate_duplicates(joint_partitions[chain], dup_dict)  # NOTE this modifies the joint partition
+        j_part = utils.get_deduplicated_partitions([joint_partitions[chain]])[0]  # TODO why do i need this?
+        j_part = utils.remove_missing_uids_from_true_partition(j_part, true_partitions[chain], debug=False)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition
+        ccfs[chain]['joint'] = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
+
+    print '             purity  completeness'
+    for chain in utils.chains:
+        print '   %s before  %6.3f %6.3f' % (chain, ccfs[chain]['before'][0], ccfs[chain]['before'][1])
+    for chain in utils.chains:
+        print '    joint    %6.3f %6.3f   (%s true)' % (ccfs[chain]['joint'][0], ccfs[chain]['joint'][1], chain)
+
+# ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
-def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False, true_partitions=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
     # ----------------------------------------------------------------------------------------
     def akey(klist):
         return ':'.join(klist)
@@ -205,7 +236,11 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
             assert len(set([u for c in initpart for u in c]) - set([u for c in final_partition for u in c])) == 0  # everybody from both initial partitions is in final_partition
         assert len(set([u for c in final_partition for u in c]) - set([u for c in init_partitions['h'] for u in c]) - set([u for c in init_partitions['l'] for u in c])) == 0  # nobody extra got added (i don't see how this could happen, but maybe it's just checking that I didnt' modify the initial partitions)
 
+    joint_partitions = {ch : copy.deepcopy(final_partition) for ch in utils.chains}
     if len(l_translations) > 0:
         untranslate_pids(ploci, init_partitions, antn_lists, l_translations)
+        joint_partitions['l'] = [[l_translations.get(u, u) for u in c] for c in joint_partitions['l']]
+    if true_partitions is not None:
+        evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists)
 
-    return final_partition
+    return joint_partitions

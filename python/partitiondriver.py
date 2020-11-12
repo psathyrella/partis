@@ -21,7 +21,7 @@ import glutils
 import indelutils
 import treeutils
 from glomerator import Glomerator
-from clusterpath import ClusterPath
+from clusterpath import ClusterPath, ptnprint
 from waterer import Waterer
 from parametercounter import ParameterCounter
 from alleleclusterer import AlleleClusterer
@@ -1140,7 +1140,7 @@ class PartitionDriver(object):
             if sdbg:
                 print ' '.join([str(len(c)) for c in return_clusts])
                 if sdbg > 1:
-                    # ClusterPath(partition=return_clusts).print_partitions()
+                    # ptnprint(return_clusts)
                     for dbclust in return_clusts:
                         print '   len %d mean pw hfrac %.2f' % (len(dbclust), utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in dbclust]))
                         naive_seq = self.reco_info[dbclust[0]]['naive_seq']  # it'd be nice to not have to use reco info, but at this point i think the only other naive seqs we have are the single-sequence sw ones, which won't be accurate enough (i guess i could use the consensus sequence or something)
