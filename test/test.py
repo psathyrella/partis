@@ -11,7 +11,10 @@ from collections import OrderedDict
 from subprocess import Popen, PIPE, check_call, check_output, CalledProcessError
 import colored_traceback.always
 import sys
-sys.path.insert(1, './python')
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
+sys.path.insert(1, partis_dir + '/python')
+if os.getcwd() != partis_dir:
+    raise Exception('need to run test.py from main partis dir %s' % partis_dir)
 import yaml
 
 from baseutils import get_extra_str
