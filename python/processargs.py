@@ -87,10 +87,6 @@ def process(args):
     if args.action == 'view-alternative-naive-seqs':
         print'  note: replacing deprecated action name \'view-alternative-naive-seqs\' with current name \'view-alternative-annotations\' (you don\'t need to change anything unless you want this warning message to go away)'
         args.action = 'view-alternative-annotations'
-    if args.calculate_alternative_naive_seqs:
-        print '    note: replacing deprecated option \'--calculate-alternative-naive-seqs\' with new option \'--calculate-alternative-annotations\' (you don\'t need to change anything unless you want this warning message to go away)'
-        args.calculate_alternative_annotations = True
-        delattr(args, 'calculate_alternative_naive_seqs')
 
     args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True)
     if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
@@ -257,6 +253,13 @@ def process(args):
 
     if args.calculate_alternative_annotations and args.outfname is None and args.paired_outdir is None:
         raise Exception('have to specify --outfname in order to calculate alternative annotations')
+    if args.subcluster_annotation_size == 'None':  # i want it turned on by default, but also to be able to turn it off on the command line
+        args.subcluster_annotation_size = None
+    else:
+        args.subcluster_annotation_size = int(args.subcluster_annotation_size)  # can't set it in add_argument(), sigh
+    if args.subcluster_annotation_size is not None:
+        if args.calculate_alternative_annotations or args.write_additional_cluster_annotations is not None:
+            raise Exception('can\'t set either --calculate-alternative-annotations or --write-additional-cluster-annotations if --subcluster-annotation-size is also set (you get duplicate annotations, which confuses and crashes things, plus it doesn\'t really make sense -- alternative annotations should be calculated on the subcluster annotations now)')
     if args.action == 'view-alternative-annotations' and args.persistent_cachefname is None:  # handle existing old-style output
         assert args.outfname is not None
         if os.path.exists(utils.getprefix(args.outfname) + '-hmm-cache.csv'):

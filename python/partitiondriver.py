@@ -836,11 +836,14 @@ class PartitionDriver(object):
             if self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None:  # add the clusters from the last partition
                 additional_clusters |= set([tuple(c) for c in cpath.partitions[len(cpath.partitions) - 1]])
             if len(additional_clusters) > 0:
-                cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
-                clusters_to_annotate = [list(c) for c in cluster_set]
-                print '    added %d clusters (in addition to the %d from the best partition) before running cluster annotations' % (len(clusters_to_annotate) - len(cpath.partitions[cpath.i_best]), len(cpath.partitions[cpath.i_best]))
-                if self.args.debug:
-                    print '       %s these additional clusters will also be printed below, since --debug is greater than 0' % utils.color('yellow', 'note:')
+                if self.args.subcluster_annotation_size is None:
+                    cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
+                    clusters_to_annotate = [list(c) for c in cluster_set]
+                    print '    added %d clusters (in addition to the %d from the best partition) before running cluster annotations' % (len(clusters_to_annotate) - len(cpath.partitions[cpath.i_best]), len(cpath.partitions[cpath.i_best]))
+                    if self.args.debug:
+                        print '       %s these additional clusters will also be printed below, since --debug is greater than 0' % utils.color('yellow', 'note:')
+                else:
+                    print '  %s was asked to add %d additional cluster%s before running cluster annotations, but not adding them because --subcluster-annotation-size was also set' % (utils.color('yellow', 'warning'), len(additional_clusters), utils.plural(len(additional_clusters)))  # see exception in processargs
             return clusters_to_annotate
 
         # ----------------------------------------------------------------------------------------
@@ -1167,7 +1170,8 @@ class PartitionDriver(object):
                         for mfcn in [min, max]:
                             mn = mfcn.__name__
                             swhfo[kn][mn] = mfcn(swhfo[kn][mn], self.sw_info[tid][kn][mn])
-            assert hashid not in self.sw_info
+            if hashid in self.sw_info:
+                raise Exception('hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (hashid, ':'.join(line['unique_ids'])))
             self.sw_info[hashid] = swhfo
             if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
                 existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
