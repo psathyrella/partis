@@ -243,4 +243,4 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
     if true_partitions is not None:
         evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists)
 
-    return joint_partitions
+    return {ploci[ch] : jp for ch, jp in joint_partitions.items()}
