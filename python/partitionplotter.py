@@ -355,7 +355,7 @@ class PartitionPlotter(object):
                     print '  %5.1f' % (time.time() - substart)
             self.addfname(fnames, '%s' % get_fname(iclust))
 
-        if run_in_parallel:
+        if run_in_parallel and len(cmdfos) > 0:
             utils.run_cmds(cmdfos, clean_on_success=True) #, debug='print')
 
         if debug and len(skipped_cluster_lengths) > 0:
