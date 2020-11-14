@@ -614,6 +614,8 @@ def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, re
 
 # ----------------------------------------------------------------------------------------
 def get_repfracstr(csize, repertoire_size):  # return a concise string representing <csize> / <repertoire_size>
+    if csize == 0:
+        return '0.'
     repfrac = float(csize) / repertoire_size
     denom = int(1. / repfrac)
     estimate = 1. / denom
