@@ -174,6 +174,8 @@ private:
   Partition *current_partition_;  // (a.t.m. only used for writing to status file)
   time_t last_status_write_time_;  // last time that we wrote our progress to a file
   FILE *progress_file_;
+
+  string empty_string_;  // ok this is horrible, but i need to return a reference to an empty string from GetNaiveSeq(), and it's been so long since i edited this code i can't figure out a better way to do it than this
 };
 
 }

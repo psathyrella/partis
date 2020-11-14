@@ -472,7 +472,7 @@ double Glomerator::NaiveHfrac(string key_a, string key_b) {
   string &seq_a = GetNaiveSeq(key_a);
   string &seq_b = GetNaiveSeq(key_b);
   double hfrac(INFINITY);
-  if(failed_queries_.count(key_a) || failed_queries_.count(key_b))
+  if(seq_a.size() == 0 || seq_b.size() == 0 || failed_queries_.count(key_a) || failed_queries_.count(key_b))  // size 0 means there was no valid path (this *should* get picked up by looking in failed_queries_, but it's not because of translation, and I don't remember how this stuff works nearly well enough at this point to try and fix that)
     return hfrac;
   naive_hfracs_[joint_key] = CalculateHfrac(seq_a, seq_b);
 
@@ -646,6 +646,10 @@ string &Glomerator::GetNaiveSeq(string queries, pair<string, string> *parents) {
   // actually calculate the viterbi path for whatever queries we've decided on
   if(naive_seqs_.count(queries_to_calc) == 0) {
     string tmp_nseq = CalculateNaiveSeq(queries_to_calc);  // some compilers add <queries_to_calc> to <naive_seqs_> *before* calling CalculateNaiveSeq(), which causes that function's check to fail
+    if(tmp_nseq.size() == 0) {
+      cout << "  warning: zero length naive sequence for " << queries_to_calc << endl;
+      return empty_string_;
+    }
     naive_seqs_[queries_to_calc] = tmp_nseq;
   }
 
