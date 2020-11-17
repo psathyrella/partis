@@ -69,8 +69,8 @@ class PartitionDriver(object):
         self.input_partition = None
         if self.args.input_partition_fname is not None:
             _, _, cpath = utils.read_yaml_output(self.args.input_partition_fname, skip_annotations=True)
-            self.input_partition = cpath.partitions[cpath.i_best]
-            print '  --input-partition-fname: read best partition with %d sequences in %d clusters from %s' % (sum(len(c) for c in self.input_partition), len(self.input_partition), self.args.input_partition_fname)
+            self.input_partition = cpath.partitions[cpath.i_best if self.args.input_partition_index is None else self.args.input_partition_index]
+            print '  --input-partition-fname: read %s partition with %d sequences in %d clusters from %s' % ('best' if self.args.input_partition_index is None else 'index-%d'%self.args.input_partition_index, sum(len(c) for c in self.input_partition), len(self.input_partition), self.args.input_partition_fname)
 
         self.deal_with_persistent_cachefile()
 

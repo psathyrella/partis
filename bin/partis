@@ -600,6 +600,7 @@ parent_parser.add_argument('--name-column', help='column/key name for sequence i
 parent_parser.add_argument('--seq-column', help='column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')')
 parent_parser.add_argument('--input-metafname', help='yaml file with meta information for the sequences in --infname (and --queries-to-include-fname), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. Currently accepted keys/columns are \'timepoint\', \'affinity\', \'subject\' and \'multiplicity\'. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parent_parser.add_argument('--input-partition-fname', help='partis-style json/yaml file with a partition to use during annotation, i.e. annotate the sequences in --infname using the partition in this file, rather than the default of annotating each sequence individually. Used in \'merge-paired-partitions\' when we want to annotate a list of sequences according to a new, joint partition.')
+parent_parser.add_argument('--input-partition-index', type=int, help='Index of the partition to be read from --input-partition-fname (if unset, defaults to the best partition). To figure out which index you want, you probably want to run the view-output action on the file.')
 parent_parser.add_argument('--outfname', help='output file name')
 # ----------------------------------------------------------------------------------------
 # TODO fix help msg
