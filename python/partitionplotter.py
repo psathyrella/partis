@@ -271,20 +271,19 @@ class PartitionPlotter(object):
             color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
 
             def addseq(name, seq):
-                uname = '_'+name  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
                 found = False
                 for sfo in seqfos:  # mds barfs if we have duplicate sequences, so if the sequence is already in there with a different name we just rename it (ick)
                     if sfo['seq'] == seq:
                         found = True
-                        sfo['name'] = uname
+                        sfo['name'] = name
                         break
                 if not found:
-                    seqfos.append({'name' : uname, 'seq' : seq})
-                color_scale_vals[uname] = 0
-                queries_to_include.append(uname)
+                    seqfos.append({'name' : name, 'seq' : seq})
+                color_scale_vals[name] = 0
+                queries_to_include.append(name)
             queries_to_include = []
-            addseq('naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
-            addseq('consensus', utils.cons_seq_of_line(full_info))
+            addseq('_naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
+            addseq('_consensus', utils.cons_seq_of_line(full_info))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
             if self.args.queries_to_include is not None:
                 queries_to_include += self.args.queries_to_include
 
