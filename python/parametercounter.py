@@ -28,16 +28,17 @@ class ParameterCounter(object):
         for bound in utils.boundaries:
             self.counts[bound + '_insertion_content'] = {n : 0 for n in utils.nukes}  # base content of each insertion
             self.string_columns.add(bound + '_insertion_content')
-        self.counts['cdr3_length'] = {}
+        self.counts['aa_cdr3_length'] = {}
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}  # now I'm adding the aa content, I wish this had nucleotide in the name, but I don't want to change it since it corresponds to a million existing file paths
         self.init_aa_stuff()
         self.counts['seq_aa_content'] = {a : 0 for a in self.all_aa}
         self.string_columns.add('seq_content')
         self.string_columns.add('seq_aa_content')
 
-        self.no_write_columns = ['cdr3_length', 'seq_aa_content']  # don't write these to the parameter dir, since a) cdr3_length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding them waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding these because I want them plotted)
+        self.no_write_columns = ['aa_cdr3_length', 'seq_aa_content']  # don't write these to the parameter dir, since a) cdr3 length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding them waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding these because I want them plotted)
 
         self.columns_to_subset_by_gene = [e + '_del' for e in utils.all_erosions] + [b + '_insertion' for b in utils.boundaries]
+        self.mean_columns = ['aa_cdr3_length']
 
     # ----------------------------------------------------------------------------------------
     def init_aa_stuff(self):
@@ -92,7 +93,7 @@ class ParameterCounter(object):
 
         self.reco_total += 1
 
-        all_index = self.get_index(info, tuple(list(utils.index_columns) + ['cdr3_length', ]))
+        all_index = self.get_index(info, tuple(list(utils.index_columns) + ['cdr3_length', ]))  # NOTE this cdr3_length is for getting a unique index for the rearrangement event parameters, and is thus unrelated to the key aa_cdr3_length for plotting
         if all_index not in self.counts['all']:
             self.counts['all'][all_index] = 0
         self.counts['all'][all_index] += 1
@@ -102,8 +103,8 @@ class ParameterCounter(object):
             index = self.get_index(info, deps)
             sub_increment(column, index)
 
-        for column in ['cdr3_length']:  # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
-            sub_increment(column, (info[column], ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
+        for column == 'aa_cdr3_length':  # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
+            sub_increment(column, (info[column.replace('aa_', '')] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
 
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:
@@ -156,7 +157,7 @@ class ParameterCounter(object):
             var_type = 'string' if column in self.string_columns else 'int'
 
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, column, sort=True)
-            plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, xtitle=plotconfig.xtitles.get(column, column), plottitle=plotconfig.plot_titles.get(column, column), errors=True, write_csv=True, only_csv=only_csv)
+            plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, xtitle=plotconfig.xtitles.get(column, column), plottitle=plotconfig.plot_titles.get(column, column), errors=True, write_csv=True, only_csv=only_csv, stats='mean' if column in self.mean_columns else None)
 
             if column in self.columns_to_subset_by_gene and not only_overall:
                 thisplotdir = plotdir + '/' + column

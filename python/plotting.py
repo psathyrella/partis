@@ -285,7 +285,7 @@ def shift_hist_overflows(hists, xmin, xmax):
 # ----------------------------------------------------------------------------------------
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
-                 linewidths=None, plottitle=None, csv_fname=None, stats='', translegend=(0., 0.), rebin=None,
+                 linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
                  square_bins=False):
     assert os.path.exists(plotdir)
@@ -354,12 +354,13 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         return ('%.'+str(ndig)+'f') % val
     for ih in range(len(hists)):
         htmp = hists[ih]
+        statstr = None
         if stats == 'mean':
-            htmp.title += ' (mean %s)' % floatstr(htmp.get_mean())
+            statstr = ' (mean %s)' % floatstr(htmp.get_mean())
         elif stats == 'absmean':
-            htmp.title += ' (abs av %s)' % floatstr(htmp.get_mean(absval=True))
+            statstr = ' (abs av %s)' % floatstr(htmp.get_mean(absval=True))
         elif stats == '0-bin':
-            htmp.title += ' (%s %s)' % ('0-bin' if htmp.bin_labels[1]=='' else htmp.bin_labels[1], floatstr(htmp.bin_contents[1]))
+            statstr = ' (%s %s)' % ('0-bin' if htmp.bin_labels[1]=='' else htmp.bin_labels[1], floatstr(htmp.bin_contents[1]))
         elif stats is not None and stats != '':  # damnit, I ended up with both of the damn things as possible defaults
             raise Exception('unexpected stats str \'%s\'' % stats)
         markersize = None
@@ -407,6 +408,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         tmptitle = plotconfig.plot_titles[plotname]
     else:
         tmptitle = hist.title  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
+    if statstr is not None:
+        tmptitle += statstr
+        if print_stats:
+            print '    %s %s' % (plotname, statstr)
 
     if xtitle is not None:
         tmpxtitle = xtitle
