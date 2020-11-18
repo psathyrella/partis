@@ -422,7 +422,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                ybounds=[-0.03*ymax, 1.15*ymax],
                leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
                log=log, xticks=xticks, xticklabels=xticklabels,
-               no_legend=(len(hists) <= 1))
+               no_legend=(len(hists) <= 1), adjust={'left' : 0.2})
     plt.close()
 
 # ----------------------------------------------------------------------------------------

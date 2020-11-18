@@ -200,7 +200,7 @@ class Hist(object):
             check_sum += self.bin_contents[ib]
         if not is_normed(check_sum, this_eps=1e-10):
             raise Exception('not normalized: %f' % check_sum)
-        self.ytitle = 'freq (%d total)' % sum_value
+        self.ytitle = 'freq (%.0f total)' % sum_value
 
     # ----------------------------------------------------------------------------------------
     def logify(self, factor):
