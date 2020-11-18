@@ -308,7 +308,7 @@ class PartitionDriver(object):
                 self.write_output(None, set(), write_sw=True)  # note that if you're auto-parameter caching, this will just be rewriting an sw output file that's already there from parameter caching, but oh, well. If you're setting --only-smith-waterman and not using cache-parameters, you have only yourself to blame
             return
         print 'hmm'
-        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir, partition=self.input_partition)
+        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=utils.non_none([self.args.parameter_out_dir, self.multi_hmm_param_dir]), partition=self.input_partition)
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:
@@ -871,7 +871,7 @@ class PartitionDriver(object):
             self.write_output(all_annotations.values(), hmm_failures, cpath=cpath)
 
         if self.args.count_parameters and not self.args.dont_write_parameters:  # not sure this is absolutely the most sensible place to put this, but I'm trying to kind of mimic where we write the hmms in self.cache_parameters()
-            self.write_hmms(self.multi_hmm_param_dir)  # note that this modifies <self.glfo>
+            self.write_hmms(utils.non_none([self.args.parameter_out_dir, self.multi_hmm_param_dir]))  # note that this modifies <self.glfo>
 
         self.current_action = action_cache
 
