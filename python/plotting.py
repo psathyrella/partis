@@ -1296,6 +1296,9 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             if cluster_indices is not None:  # add the (global) cluster index (i.e. 1 - rank) and cluster size as text on the right side of the plot
                 xtext = x1vals[-1] if plot_high_x else fixed_xmax
                 xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_x else fixed_xmax
+                if iclust_global == 0:
+                    ax.text(0.05 * xwidth + xtext - 3, yval + 1, 'index', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.12 * xwidth + xtext - 1, yval + 1, 'size', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 ax.text(0.12 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
 
@@ -1319,8 +1322,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     if x2key is None and len(yticks) > n_y_ticks:
         yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_y_ticks - 1)))]
         yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_y_ticks - 1)))]
-    fn = mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel='fraction of repertoire' if x2key is None else 'clonal family size', title=title,
-                    xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, yticklabelsize=11, adjust={'left' : 0.25})
+    fn = mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=('family size (frac. of %d)' % repertoire_size) if x2key is None else 'clonal family size', title=title,
+                    xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, yticklabelsize=11, adjust={'right' : 0.85})
 
     if high_x_val is None:
         return fn

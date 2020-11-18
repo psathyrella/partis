@@ -131,7 +131,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         # fig.colorbar(smap)
         if title is not None:
             # plt.title(title, fontweight='bold')  # wtf, doesn't work
-            ax.text(ax.get_xlim()[0] + 0.5 * (ax.get_xlim()[1] - ax.get_xlim()[0]), 0.9 * ax.get_ylim()[1], title, color='red', fontsize=12)
+            ax.text(ax.get_xlim()[0] + 0.4 * (ax.get_xlim()[1] - ax.get_xlim()[0]), 0.9 * ax.get_ylim()[1], title, color='red', fontsize=12)
 
         plt.savefig(svgfname)
         plt.close()

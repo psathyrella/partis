@@ -135,12 +135,12 @@ class PartitionPlotter(object):
                 ax.plot([xval], [yval], color='red', marker='.', markersize=15)
                 ax.text(xval + 0.1, yval + 0.1, ' '.join(queries_to_include_in_this_cluster), color='red', fontsize=8)
 
-        ylabel = 'fraction of repertoire' if repfrac_ylabel else 'clonal family size'
+        ylabel = ('family size\n(frac. of %d)' % repertoire_size) if repfrac_ylabel else 'clonal family size'
         if log_cluster_size:
-            ylabel += ' (log)'
+            ylabel = '(log) ' + ylabel
             plotname += '-log'
         if skipped_small_clusters:
-            ax.text(0.7 * self.n_max_mutations, math.log(ymin + 5) if log_cluster_size else ymin + 1, 'skipping clusters smaller than %d' % self.size_vs_shm_min_cluster_size, color='green', fontsize=8)
+            fig.text(0.8, 0.25, 'skipping clusters\nsmaller than %d' % self.size_vs_shm_min_cluster_size, color='green', fontsize=8)
         self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=(0, self.n_max_mutations), ybounds=(ymin, 1.05 * ymax), yticks=yticks, yticklabels=yticklabels)
 
     # ----------------------------------------------------------------------------------------
@@ -270,9 +270,21 @@ class PartitionPlotter(object):
             seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices]
             color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
 
-            seqfos.append({'name' : '_naive', 'seq' : full_info['naive_seq']})  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
-            color_scale_vals['_naive'] = 0  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
-            queries_to_include = ['_naive']
+            def addseq(name, seq):
+                uname = '_'+name  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
+                found = False
+                for sfo in seqfos:  # mds barfs if we have duplicate sequences, so if the sequence is already in there with a different name we just rename it (ick)
+                    if sfo['seq'] == seq:
+                        found = True
+                        sfo['name'] = uname
+                        break
+                if not found:
+                    seqfos.append({'name' : uname, 'seq' : seq})
+                color_scale_vals[uname] = 0
+                queries_to_include.append(uname)
+            queries_to_include = []
+            addseq('naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
+            addseq('consensus', utils.cons_seq_of_line(full_info))
             if self.args.queries_to_include is not None:
                 queries_to_include += self.args.queries_to_include
 
@@ -356,7 +368,7 @@ class PartitionPlotter(object):
             self.addfname(fnames, '%s' % get_fname(iclust))
 
         if run_in_parallel and len(cmdfos) > 0:
-            utils.run_cmds(cmdfos, clean_on_success=True) #, debug='print')
+            utils.run_cmds(cmdfos, clean_on_success=True)  #, debug='print')
 
         if debug and len(skipped_cluster_lengths) > 0:
             print '    skipped %d clusters with lengths: %s (+%d singletons)' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths if l > 1]), skipped_cluster_lengths.count(1))
