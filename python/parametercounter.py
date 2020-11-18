@@ -157,7 +157,8 @@ class ParameterCounter(object):
             var_type = 'string' if column in self.string_columns else 'int'
 
             hist = plotting.make_hist_from_dict_of_counts(values, var_type, column, sort=True)
-            plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, xtitle=plotconfig.xtitles.get(column, column), plottitle=plotconfig.plot_titles.get(column, column), errors=True, write_csv=True, only_csv=only_csv, stats='mean' if column in self.mean_columns else None)
+            plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, xtitle=plotconfig.xtitles.get(column, column), plottitle=plotconfig.plot_titles.get(column, column),
+                                  errors=True, write_csv=True, only_csv=only_csv, stats='mean' if column in self.mean_columns else None, normalize=True)
 
             if column in self.columns_to_subset_by_gene and not only_overall:
                 thisplotdir = plotdir + '/' + column

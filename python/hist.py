@@ -6,7 +6,7 @@ from utils import is_normed
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, value_list=None, weight_list=None, xtitle='', ytitle='', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, value_list=None, weight_list=None, xtitle='', ytitle='counts', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
         self.low_edges, self.bin_contents, self.bin_labels = [], [], []
         self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
@@ -182,14 +182,10 @@ class Hist(object):
         return sum_value
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self, include_overflows=True, expect_empty=False, expect_overflows=False, overflow_eps_to_ignore=1e-15):
+    def normalize(self, include_overflows=True, expect_overflows=False, overflow_eps_to_ignore=1e-15):
         sum_value = self.integral(include_overflows)
         imin, imax = self.get_bounds(include_overflows)
         if sum_value == 0.0:
-            return
-        if sum_value == 0.0:
-            if not expect_empty:
-                print 'WARNING sum zero in Hist::normalize()'
             return
         if not expect_overflows and not include_overflows and (self.bin_contents[0]/sum_value > overflow_eps_to_ignore or self.bin_contents[self.n_bins+1]/sum_value > overflow_eps_to_ignore):
             print 'WARNING under/overflows in Hist::normalize()'
@@ -204,6 +200,7 @@ class Hist(object):
             check_sum += self.bin_contents[ib]
         if not is_normed(check_sum, this_eps=1e-10):
             raise Exception('not normalized: %f' % check_sum)
+        self.ytitle = 'freq (%d total)' % sum_value
 
     # ----------------------------------------------------------------------------------------
     def logify(self, factor):

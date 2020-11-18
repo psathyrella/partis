@@ -412,7 +412,7 @@ def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotd
 
     ignore = False
     for hist in hists.values():
-        hist.normalize(include_overflows=not ignore, expect_empty=True)
+        hist.normalize(include_overflows=not ignore)
 
     print ' ', metric, '----------------'
     for hs in hstyles:

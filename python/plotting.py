@@ -161,7 +161,7 @@ def make_bool_hist(n_true, n_false, hist_label):
 
 # ----------------------------------------------------------------------------------------
 # <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}
-def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, normalize=False, sort=False):
+def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, sort=False):
     """ Fill a histogram with values from a dictionary (each key will correspond to one bin) """
     assert var_type == 'int' or var_type == 'string'  # floats should be handled by Hist class in hist.py
 
@@ -204,12 +204,6 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_for
             print '%d %f %f' % (ibin, hist.low_edges[ibin], hist.bin_contents[ibin])
         raise Exception('overflows in ' + hist_label)
 
-    if normalize:
-        hist.normalize()
-        hist.ytitle = 'freq'
-    else:
-        hist.ytitle = 'counts'
-    
     return hist
 
 # ----------------------------------------------------------------------------------------

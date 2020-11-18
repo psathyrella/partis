@@ -222,7 +222,7 @@ class PerformancePlotter(object):
                 hist = plotting.make_bool_hist(right, wrong, self.name + '-' + column)
                 plotting.draw_no_root(hist, plotname=column, plotdir=plotdir + '/gene-call', write_csv=True, stats='0-bin', only_csv=only_csv)
             else:
-                hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column, normalize=False)
+                hist = plotting.make_hist_from_dict_of_counts(self.values[column], 'int', self.name + '-' + column)
                 if 'hamming_to_true_naive' in column:
                     xtitle = 'hamming distance'
                     tmpplotdir = plotdir + '/mutation'
