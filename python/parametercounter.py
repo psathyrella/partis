@@ -103,7 +103,7 @@ class ParameterCounter(object):
             index = self.get_index(info, deps)
             sub_increment(column, index)
 
-        for column == 'aa_cdr3_length':  # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
+        for column in ['aa_cdr3_length']:  # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
             sub_increment(column, (info[column.replace('aa_', '')] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
 
         for bound in utils.boundaries:
