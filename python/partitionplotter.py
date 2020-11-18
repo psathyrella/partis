@@ -377,7 +377,7 @@ class PartitionPlotter(object):
 
         print '    made %d mds plots (%.1fs)' % (sum(len(x) for x in fnames), time.time() - start)
 
-        return [[subd + '/' + fn for fn in fnames[0]]]
+        return [[subd + '/' + fn for fn in fnames[0]], [subd + '/' + fn for fn in fnames[1]]]
 
     # ----------------------------------------------------------------------------------------
     def make_laplacian_spectra_plots(self, sorted_clusters, annotations, plotdir, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
