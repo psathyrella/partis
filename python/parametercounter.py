@@ -29,16 +29,17 @@ class ParameterCounter(object):
             self.counts[bound + '_insertion_content'] = {n : 0 for n in utils.nukes}  # base content of each insertion
             self.string_columns.add(bound + '_insertion_content')
         self.counts['aa_cdr3_length'] = {}
+        self.counts['non_vj_length'] = {}
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}  # now I'm adding the aa content, I wish this had nucleotide in the name, but I don't want to change it since it corresponds to a million existing file paths
         self.init_aa_stuff()
         self.counts['seq_aa_content'] = {a : 0 for a in self.all_aa}
         self.string_columns.add('seq_content')
         self.string_columns.add('seq_aa_content')
 
-        self.no_write_columns = ['aa_cdr3_length', 'seq_aa_content']  # don't write these to the parameter dir, since a) cdr3 length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding them waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding these because I want them plotted)
+        self.no_write_columns = ['aa_cdr3_length', 'non_vj_length', 'seq_aa_content']  # don't write these to the parameter dir, since a) cdr3 length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding them waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding these because I want them plotted)
 
         self.columns_to_subset_by_gene = [e + '_del' for e in utils.all_erosions] + [b + '_insertion' for b in utils.boundaries]
-        self.mean_columns = ['aa_cdr3_length']
+        self.mean_columns = ['aa_cdr3_length', 'non_vj_length']
 
     # ----------------------------------------------------------------------------------------
     def init_aa_stuff(self):
@@ -103,8 +104,9 @@ class ParameterCounter(object):
             index = self.get_index(info, deps)
             sub_increment(column, index)
 
-        for column in ['aa_cdr3_length']:  # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
-            sub_increment(column, (info[column.replace('aa_', '')] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
+        # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
+        sub_increment('aa_cdr3_length', (info['cdr3_length'] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
+        sub_increment('non_vj_length', (utils.get_non_vj_len(info), ))
 
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:

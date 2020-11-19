@@ -480,6 +480,10 @@ def get_annotation_dict(annotation_list, duplicate_resolution_key=None):
     return annotation_dict
 
 # ----------------------------------------------------------------------------------------
+def get_non_vj_len(line):
+    return line['regional_bounds']['j'][0] - line['regional_bounds']['v'][1]
+
+# ----------------------------------------------------------------------------------------
 def per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand
     if key not in linekeys['per_seq']:
         raise Exception('key \'%s\' not in per-sequence keys' % key)

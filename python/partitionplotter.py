@@ -241,9 +241,23 @@ class PartitionPlotter(object):
         def get_fname(ic):
             return 'icluster-%d' % ic
         # ----------------------------------------------------------------------------------------
-        def get_cluster_info(full_cluster):
+        def get_cluster_info(full_cluster, iclust):
+            # ----------------------------------------------------------------------------------------
+            def addseq(name, seq):
+                found = False
+                for sfo in seqfos:  # mds barfs if we have duplicate sequences, so if the sequence is already in there with a different name we just rename it (ick)
+                    if sfo['seq'] == seq:
+                        found = True
+                        sfo['name'] = name
+                        break
+                if not found:
+                    seqfos.append({'name' : name, 'seq' : seq})
+                color_scale_vals[name] = 0
+                queries_to_include.append(name)
+            # ----------------------------------------------------------------------------------------
             full_info = annotations[':'.join(full_cluster)]
-            title = '%s   (size: %d)' % (self.get_cdr3_title(full_info), len(full_cluster))
+            # title = '%s   (size: %d)' % (self.get_cdr3_title(full_info), len(full_cluster))
+            title = 'MDS comp. (index %d size %d)' % (iclust, len(full_cluster))
 
             all_seqs = set()
             kept_indices = []
@@ -270,17 +284,6 @@ class PartitionPlotter(object):
             seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices]
             color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
 
-            def addseq(name, seq):
-                found = False
-                for sfo in seqfos:  # mds barfs if we have duplicate sequences, so if the sequence is already in there with a different name we just rename it (ick)
-                    if sfo['seq'] == seq:
-                        found = True
-                        sfo['name'] = name
-                        break
-                if not found:
-                    seqfos.append({'name' : name, 'seq' : seq})
-                color_scale_vals[name] = 0
-                queries_to_include.append(name)
             queries_to_include = []
             addseq('_naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
             addseq('_consensus', utils.cons_seq_of_line(full_info))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
@@ -339,7 +342,7 @@ class PartitionPlotter(object):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
 
-            seqfos, color_scale_vals, queries_to_include, title = get_cluster_info(sorted_clusters[iclust])
+            seqfos, color_scale_vals, queries_to_include, title = get_cluster_info(sorted_clusters[iclust], iclust)
 
             labels = None
             if color_rule is not None:
@@ -461,7 +464,19 @@ class PartitionPlotter(object):
         else:
             assert False
 
-        self.plotting.plot_cluster_size_hists(plotdir + '/cluster-sizes.svg', csize_hists, title='', log='x')
+        fname = 'cluster-sizes'
+        if infiles is not None:
+            print '%s should probably rewrite this to integrate with the below' % utils.color('red', 'note')
+            self.plotting.plot_cluster_size_hists(plotdir + '/' + fname + '.svg', csize_hists, title='', log='x')
+        else:
+            fig, ax = self.plotting.mpl_init()
+            for label, hist in csize_hists.items():
+                hist.mpl_plot(ax, remove_empty_bins=True, label=label if len(csize_hists) > 1 else None)
+            csizes = sorted([len(c) for c in partition])
+            xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
+            def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
+            self.plotting.mpl_finish(ax, plotdir, fname, xlabel='cluster size', ylabel='number of clusters', log='xy', xticks=xticks, xticklabels=[tstr(x) for x in xticks])
+
         return [[subd + '/cluster-sizes.svg']]
 
     # ----------------------------------------------------------------------------------------
@@ -493,7 +508,7 @@ class PartitionPlotter(object):
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
             # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
             # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
-        self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
+        fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds', 'laplacian-spectra']])  # , 'sfs

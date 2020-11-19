@@ -645,6 +645,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x', normaliz
         if normalize:
             hist.normalize()
         plots[name] = ax.errorbar(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), yerr=hist.errors, **kwargs)
+        # hist.mpl_plot(ax, remove_empty_bins=True, **kwargs)  # could maybe eventually switch to this, but probably better to just rewrite this whole fcn if I need to do anything
 
     legend = ax.legend()
     sys.modules['seaborn'].despine()  #trim=True, bottom=True)
@@ -664,7 +665,7 @@ def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x', normaliz
     plt.title(title)
     plt.xlabel('cluster size')
     plt.ylabel('fraction of clusters' if normalize else 'number of clusters')
-    plt.subplots_adjust(bottom=0.14, left=0.14)
+    plt.subplots_adjust(bottom=0.14, left=0.2)
     if 'x' in log:
         ax.set_xscale('log')
     if 'y' in log:
