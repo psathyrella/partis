@@ -36,7 +36,7 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, debu
         for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not UPDATE i kind of hate this decision
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            mvals = [None for _ in line['unique_ids']]  # NOTE this sets a default of None for sequences that aren't in the input meta info. Which I think makes the most sense.
+            mvals = [None for _ in line['unique_ids']]
             for iseq, uid in enumerate(line['unique_ids']):
                 if uid not in metafo or input_key not in metafo[uid]:
                     continue
@@ -48,7 +48,8 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, debu
                 added_uids.add(uid)
                 added_keys.add(line_key)
                 mvals[iseq] = mval
-            line[line_key] = mvals
+            if mvals.count(None) < len(mvals):  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
+                line[line_key] = mvals
     if debug:
         print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids), input_metafname)
 
