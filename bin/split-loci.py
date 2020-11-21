@@ -32,7 +32,7 @@ parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines', he
 parser.add_argument('--workdir', default=utils.choose_random_subdir('/tmp/%s/partis' % os.getenv('USER', default='partis-work')), help='working directory for vsearch')
 parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch binaries for linux and darwin are included in partis/bin/, so leaving this unset should work, but for other systems you need to get your own)')
 parser.add_argument('--vsearch-threshold', type=float, default=0.4, help='default identity threshold for vsearch')
-parser.add_argument('--debug', action='store_true', default=True)
+parser.add_argument('--debug', type=int, default=1)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info/meta string of sequence name/uid (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
 parser.add_argument('--input-metafname', help='yaml file with meta information keyed by sequence id. See same argument in main partis help, and https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
@@ -53,10 +53,11 @@ def use_rev_comp(pline, rline):  # decide whether positive sense <pline> or nega
 
 # ----------------------------------------------------------------------------------------
 def run_vsearch(seqfos):  # run vsearch to see if you can get a match for each locus for every sequence
+    print '  running vsearch on %d sequences:' % len(seqfos)
     n_rev_compd, n_total = 0, 0
     for locus in utils.sub_loci(args.ig_or_tr):
         lglfo = glutils.read_glfo(args.germline_dir, locus)
-        annotations = utils.run_vsearch_with_duplicate_uids('search', seqfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='   %s  fwd:'%utils.color('blue', locus) if args.reverse_negative_strands else '   %s: '%locus)
+        annotations = utils.run_vsearch_with_duplicate_uids('search', seqfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='   %s  fwd:'%utils.color('blue', locus) if args.reverse_negative_strands else '    %s: '%locus)
         assert len(annotations) == len(seqfos)
         if args.reverse_negative_strands:  # it might be nicer to user vsearch options to run on both senses at once, but otoh this might be nicer
             revnotations = utils.run_vsearch_with_duplicate_uids('search', revfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='        rev:')
@@ -107,15 +108,14 @@ def read_meta_info():
             print '      %s only read locus info for %d/%d seqfos' % (utils.color('yellow', 'warning'), len(meta_loci), len(seqfos))
 
 # ----------------------------------------------------------------------------------------
-def print_pairing_info():
+def print_pairing_info(outfos, paired_uids):
     loci_by_uid = {sfo['name'] : l for l in outfos for sfo in outfos[l]}  # locus of each sequence, just for counting below
     print_cutoff = 0.01
     print '            count  frac  paired with'
-    def locstr(l): return utils.color({'igh' : 'blue', 'igk' : 'purple', 'igl' : 'green'}.get(l, None), l.replace('ig', ''))
     for locus in utils.sub_loci(args.ig_or_tr):
         plocicounts = {}
         for sfo in outfos[locus]:
-            plstr = ' '.join(locstr(l) for l in sorted([loci_by_uid.get(pid, '-') for pid in paired_uids[sfo['name']]]))
+            plstr = ' '.join(utils.locstr(l) for l in sorted([loci_by_uid.get(pid, '?') for pid in paired_uids[sfo['name']]]))
             if plstr not in plocicounts:
                 plocicounts[plstr] = 0
             plocicounts[plstr] += 1
@@ -125,7 +125,7 @@ def print_pairing_info():
             if counts / float(total) < print_cutoff:
                 n_skipped += counts
                 continue
-            print '       %s  %6d  %5.2f   %s' % (locstr(locus) if ipl==0 else ' ', counts, counts / float(total), plstr)
+            print '       %s  %6d  %5.2f   %s' % (utils.locstr(locus) if ipl==0 else ' ', counts, counts / float(total), plstr)
         if n_skipped > 0:
             print '                +%d counts skipped with <%.3f each' % (n_skipped , print_cutoff) # utils.color('yellow', 'note
 
@@ -169,18 +169,31 @@ for sfo in seqfos:
         locus, max_score = sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)[0]
         if max_score == 0:
             failed_seqs.append(sfo)
+            continue
     else:  # if we were passed input locus info
         locus = meta_loci[sfo['name']]
     outfos[locus].append(sfo)
     if args.debug > 1:
         def lpstr(spair):
             l, s = spair
-            return '%s %d' % (utils.color('blue' if l==locus else None, l), s)
-        print '   %s: %s' % (sfo['name'], '  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)))
+            return '%s %s' % (utils.locstr(l) if l==locus else l.replace('ig', ''), utils.color('red' if s!=0 else None, '%3d'%s))
+        print '   %s   %s' % ('  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)), sfo['name'])
 
 print 'totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_seqs) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_seqs)))
+assert sum(len(ofo) for ofo in outfos.values()) + len(failed_seqs) == len(seqfos)
+
+# remove failed uids from paired_uids
+failed_uids = set(s['name'] for s in failed_seqs)
+n_removed = 0
+for fid in failed_uids:
+    if fid in paired_uids:
+        del paired_uids[fid]
+        n_removed += 1
+paired_uids = {uid : list(set(paired_uids[uid]) - failed_uids) for uid in paired_uids}
+print '  removed %d failed uids from paired_uids' % n_removed
+
 if args.debug and len(paired_uids) > 0:
-    print_pairing_info()
+    print_pairing_info(outfos, paired_uids)
 
 print 'writing to %s/' % args.outdir
 if len(failed_seqs) > 0:
