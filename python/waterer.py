@@ -1211,13 +1211,16 @@ class Waterer(object):
             k_d_max = 2
 
         if best_k_v < k_v_min or best_k_v > k_v_max or best_k_d < k_d_min or best_k_d > k_d_max:
-            print '  %s inconsistent best kset for %s (v: %d (%d %d)  d: %d (%d %d)' % (utils.color('red', 'error'), qinfo['name'], best_k_v, k_v_min, k_v_max, best_k_d, k_d_min, k_d_max)
+            if self.debug:
+                print '  %s inconsistent best kset for %s (v: %d (%d %d)  d: %d (%d %d)' % (utils.color('red', 'error'), qinfo['name'], best_k_v, k_v_min, k_v_max, best_k_d, k_d_min, k_d_max)
             return None
         if k_v_min <= 0 or k_d_min <= 0 or k_v_min >= k_v_max or k_d_min >= k_d_max:
-            print '  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
+            if self.debug:
+                print '  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
             return None
-        if not self.args.dont_remove_framework_insertions and self.args.is_data and k_v_min - len(line['fv_insertion']) < 0:  # it happened. like, once
-            print '%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d   %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']), utils.reverse_complement_warning())
+        if not self.args.dont_remove_framework_insertions and self.args.is_data and k_v_min - len(line['fv_insertion']) < 0:
+            if self.debug:
+                print '%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d   %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']), utils.reverse_complement_warning())
             return None
 
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
