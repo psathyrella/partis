@@ -481,6 +481,9 @@ class PartitionDriver(object):
             raise Exception('unhandled annotation file suffix %s' % outfname)
 
         annotation_list = self.parse_existing_annotations(annotation_list, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')  # NOTE modifies <annotation_list>
+        if len(annotation_list) == 0:
+            print 'zero annotations to print, exiting'
+            return
         annotation_dict = utils.get_annotation_dict(annotation_list)  # returns none type if there's duplicate annotations
         extra_headers = [h for h in annotation_list[0].keys() if h not in utils.annotation_headers]
 
