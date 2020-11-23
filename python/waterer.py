@@ -1293,20 +1293,6 @@ class Waterer(object):
             #     print '%s reinstated seq not in input sequence:\n    %s\n    %s' % (utils.color('yellow', 'warning'), reinstated_seq, self.input_info[uid]['seqs'][0])
             return return_seq
         # ----------------------------------------------------------------------------------------
-        def get_key_seq(uid):  # return the sequence which will serve as the key for <uid>
-            seq = getseq(uid)
-            if not self.args.also_remove_duplicate_sequences_with_different_lengths:  # this is probably significantly slower, otherwise I might make it the default
-                return seq
-            else:
-                for kseq, kuids in seqs_to_keep.items():
-                    if self.info[kuids[0]]['cdr3_length'] != self.info[uid]['cdr3_length']:
-                        continue
-                    if seq in kseq or kseq in seq:  # note that this keeps the first one we happen to come across -- it'd be better to keep the longest one, but this is fine for now
-                        if debug:
-                            print '      using keyseq from %s instead of %s' % (kuids, uid)
-                        return kseq
-                return seq  # if we fall through, it didn't match anybody
-        # ----------------------------------------------------------------------------------------
         def get_pre_kept_queries():
             pre_kept_uids = set()
             if self.args.seed_unique_id is not None:
@@ -1320,30 +1306,75 @@ class Waterer(object):
                 print '  %s %d requested uid%s not in sw info: %s' % (utils.color('yellow', 'warning'), len(pre_kept_uids - info_queries), utils.plural(len(pre_kept_uids - info_queries)), ' '.join(pre_kept_uids - info_queries))
             pre_kept_uids &= info_queries
             return pre_kept_uids
+        # ----------------------------------------------------------------------------------------
+        def process_seqs(uid_list, remove=False, lkseqs=None):
+            for uid in uid_list:
+                keyseq = getseq(uid) if lkseqs is None else lkseqs[uid]
+                if keyseq in seqs_to_keep:
+                    seqs_to_keep[keyseq].append(uid)
+                    if remove:
+                        self.remove_query(uid)
+                        removed_queries.add(uid)
+                else:
+                    seqs_to_keep[keyseq] = [uid]
+        # ----------------------------------------------------------------------------------------
+        def get_long_seqs(tdbg=False):
+            long_seqs, seq_classes = {}, {}  # <long_seqs>: map from each long/kept seq to its uid, <seq_classes>: map from each long/kept seq to the list of uids in its class
+            for uid in self.info['queries']:
+                useq = getseq(uid)
+                found, switch = False, False
+                if uid in pre_kept_uids:  # NOTE that if two pre-kept queries have the same seq, we'll just keep whichever one is last, which isn't really right but oh well
+                    switch = True
+                for lseq, lid in long_seqs.items():
+                    if self.info[lid]['cdr3_length'] != self.info[uid]['cdr3_length']:
+                        continue
+                    if useq in lseq:  # if lseq is longer (or they're the same), keep the one that's in there (lseq)
+                        found = True
+                        if uid in pre_kept_uids and len(useq) < len(lseq):
+                            print '  %s pre-included query \'%s\' is being kept, but has shorter sequence than \'%s\', which we\'re marking as duplicate:\n    %s %s\n    %s %s' % (utils.color('yellow', 'warning'), uid, lid, useq, uid, lseq, lid)
+                        break
+                    elif lseq in useq:  # but useq is longer, we need to switch to useq
+                        found = True
+                        switch = True
+                        break
+                if found:
+                    if switch:
+                        long_seqs[useq] = uid
+                        seq_classes[useq] = seq_classes[lseq] + [uid]
+                        if tdbg:
+                            print '  %s --> %s (%s)' % (lid, uid, ' '.join(seq_classes[useq]))
+                        if lseq != useq:  # if they're the same this must be a pre-kept query
+                            del long_seqs[lseq]
+                            del seq_classes[lseq]
+                    else:
+                        seq_classes[lseq].append(uid)
+                        if tdbg:
+                            print '    add %s: %s' % (uid, ' '.join(seq_classes[lseq]))
+                else:
+                    if tdbg:
+                        print '  new: %s' % uid
+                    assert useq not in long_seqs
+                    long_seqs[useq] = uid
+                    seq_classes[useq] = [uid]
+            lkseqs = {u : lseq for lseq, uids in seq_classes.items() for u in uids}  # map from each uid to its 'keyseq', i.e. the longest seq that contains its seq
+            return long_seqs, lkseqs
 
+        # ----------------------------------------------------------------------------------------
         seqs_to_keep = {}  # seq : [uids that correspond to seq]
 
         # handle any pre-kept queries, just adding any duplicates to the appropriate list in <seqs_to_keep> *without* actually removing the duplicates
-        pre_kept_uids = get_pre_kept_queries()
-        for utpk in pre_kept_uids:
-            keyseq = get_key_seq(utpk)
-            if keyseq not in seqs_to_keep:  # it's kind of weird to have duplicates in the pre-kept sequences, but it probably just means the user specified some duplicate sequences with --queries or --queries-to-include
-                seqs_to_keep[keyseq] = []
-            seqs_to_keep[keyseq].append(utpk)
-        if debug and len(pre_kept_uids) > 0:
-            print '  pre-keeping %d uids: %s' % (len(pre_kept_uids), ' '.join(pre_kept_uids))
-            if len(seqs_to_keep) < len(pre_kept_uids):
-                print '     note: duplicate sequences in pre-kept queries: %s' % ',   '.join(' '.join(uids) for uids in seqs_to_keep.values() if len(uids) > 1)
+        pre_kept_uids = get_pre_kept_queries()  # set of seqs that we definitely keep, all as separate seqs (even if some are duplicates of each other, which occurs e.g. if there's duplicate sequences in --queries or --queries-to-include)
+        process_seqs(pre_kept_uids)
+        if len(seqs_to_keep) < len(pre_kept_uids):
+            print '  %s keeping duplicate sequences in pre-kept queries: %s' % (utils.color('yellow', 'warning'), ',   '.join(' '.join(uids) for uids in seqs_to_keep.values() if len(uids) > 1))
+
+        lkseqs, long_seqs = None, {}
+        if self.args.also_remove_duplicate_sequences_with_different_lengths:
+            long_seqs, lkseqs = get_long_seqs()
+            process_seqs(long_seqs.values())  # I'm not setting remove=True, but there shouldn't/can't be any duplicates anyway
 
         removed_queries = set()
-        for uid in set(self.info['queries']) - pre_kept_uids:
-            keyseq = get_key_seq(uid)
-            if keyseq in seqs_to_keep:
-                seqs_to_keep[keyseq].append(uid)
-                self.remove_query(uid)
-                removed_queries.add(uid)
-            else:
-                seqs_to_keep[keyseq] = [uid]
+        process_seqs(set(self.info['queries']) - pre_kept_uids - set(long_seqs.values()), remove=True, lkseqs=lkseqs)
 
         for seq, uids in seqs_to_keep.items():
             kept_uid = uids[0]
