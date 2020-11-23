@@ -1330,7 +1330,7 @@ class Waterer(object):
                         continue
                     if useq in lseq:  # if lseq is longer (or they're the same), keep the one that's in there (lseq)
                         found = True
-                        if uid in pre_kept_uids and len(useq) < len(lseq):
+                        if uid in pre_kept_uids and len(useq) < len(lseq) and lid not in pre_kept_uids:
                             print '  %s pre-included query \'%s\' is being kept, but has shorter sequence than \'%s\', which we\'re marking as duplicate:\n    %s %s\n    %s %s' % (utils.color('yellow', 'warning'), uid, lid, useq, uid, lseq, lid)
                         break
                     elif lseq in useq:  # but useq is longer, we need to switch to useq
