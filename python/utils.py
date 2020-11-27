@@ -467,6 +467,22 @@ for region in regions:
 conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
+def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False):
+    assert dtype == '10x'
+    if sep not in uid:
+        raise Exception(' sep \'%s\' not in uid \'%s\'' % (sep, uid))
+    did, cstr, cid = uid.split(sep)
+    assert cstr == 'contig'
+    if return_contigs:
+        return did, cid  # NOTE returning cid as string
+    else:
+        return did
+
+# ----------------------------------------------------------------------------------------
+def get_contig_id(uid, dtype='10x', sep='_'):
+    return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
+
+# ----------------------------------------------------------------------------------------
 def get_annotation_dict(annotation_list, duplicate_resolution_key=None):
     annotation_dict = OrderedDict()
     for line in annotation_list:
@@ -488,7 +504,7 @@ def get_non_vj_len(line):
     return line['regional_bounds']['j'][0] - line['regional_bounds']['v'][1]
 
 # ----------------------------------------------------------------------------------------
-def per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand
+def per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand (for search: iseq)
     if key not in linekeys['per_seq']:
         raise Exception('key \'%s\' not in per-sequence keys' % key)
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
@@ -1681,7 +1697,7 @@ def add_qr_seqs(line):
         line[region + '_qr_seqs'] = [get_single_qr_seq(region, seq) for seq in line['seqs']]
 
 # ----------------------------------------------------------------------------------------
-def is_functional_dbg_str(line, iseq):  # NOTE code duplication with is_functional(
+def is_functional_dbg_str(line, iseq, sep=', '):  # NOTE code duplication with is_functional(
     dbg_str_list = []
     if line['mutated_invariants'][iseq]:
         dbg_str_list.append('mutated invariant codon')
@@ -1689,7 +1705,7 @@ def is_functional_dbg_str(line, iseq):  # NOTE code duplication with is_function
         dbg_str_list.append('out of frame cdr3')
     if line['stops'][iseq]:
         dbg_str_list.append('stop codon')
-    return ', '.join(dbg_str_list)
+    return sep.join(dbg_str_list)
 
 # ----------------------------------------------------------------------------------------
 def is_functional(line, iseq):  # NOTE code duplication with is_functional_dbg_str(
@@ -2097,7 +2113,7 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_p
             color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(line, one_line=False, extra_str='', label='', post_label='', uid_extra_strs=None, queries_to_emphasize=None):
+def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, queries_to_emphasize=None):
     duplicate_counts = [(u, line['unique_ids'].count(u)) for u in line['unique_ids']]
     duplicated_uids = {u : c for u, c in duplicate_counts if c > 1}
     if len(line['unique_ids']) > 1:

@@ -15,11 +15,6 @@ sys.path.insert(1, partis_dir + '/python')
 
 import utils
 
-# ----------------------------------------------------------------------------------------
-def get_did(uid):
-    assert args.droplet_id_separator in uid
-    return uid.split(args.droplet_id_separator)[0]
-
 parser = argparse.ArgumentParser()
 parser.add_argument('infname')  #default='/fh/fast/matsen_e/data/goo-dengue-10x/test/filtered_contig.fasta')
 parser.add_argument('outfname')
@@ -29,7 +24,7 @@ args = parser.parse_args()
 seqfos = utils.read_fastx(args.infname)
 droplet_ids = {}
 for sfo in seqfos:
-    did = get_did(sfo['name'])
+    did = utils.get_droplet_id(sfo['name'])
     if did not in droplet_ids:
         droplet_ids[did] = []
     droplet_ids[did].append(sfo['name'])
@@ -51,7 +46,7 @@ metafos = {}
 for sfo in seqfos:
     if sfo['name'] in metafos:
         raise Exception('duplicate uid \'%s\' in %s' % (sfo['name'], args.infname))
-    metafos[sfo['name']] = {'paired-uids' : [u for u in droplet_ids[get_did(sfo['name'])] if u != sfo['name']]}
+    metafos[sfo['name']] = {'paired-uids' : [u for u in droplet_ids[utils.get_droplet_id(sfo['name'])] if u != sfo['name']]}
 
 if not os.path.exists(os.path.dirname(args.outfname)):
     os.makedirs(os.path.dirname(args.outfname))
