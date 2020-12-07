@@ -6,7 +6,6 @@ import scipy
 import numpy
 import itertools
 import subprocess
-import warnings
 
 import utils
 from clusterpath import ClusterPath
