@@ -3,12 +3,19 @@ import time
 import os
 import scipy
 import numpy
+import collections
 
 import utils
 
 mdir = "~/work/partis/datascripts/meta/goo-dengue-10x"
-outdir = "/fh/fast/matsen_e/dralph/partis/tmp/gex" #"~/bDropbox/tmp-plots"
-feature_matrix_fname = "/fh/fast/matsen_e/data/goo-dengue-10x/data/gex/filtered_feature_bc_matrix"
+barcodefname = 'barcodes.txt'
+pcafname = 'pca.txt'
+umapfname = 'umap.txt'
+clusterfname = 'clusters.txt'
+
+# ----------------------------------------------------------------------------------------
+def gmarkfname(iclust):
+    return 'markers-cluster-%d.txt' % iclust  # NOTE R indexing, starts from 1
 
 # ----------------------------------------------------------------------------------------
 def install():
@@ -18,7 +25,6 @@ def install():
     os.makedirs(workdir)
     utils.run_r(rcmds, workdir)
     os.rmdir(workdir)
-
 # install()
 # sys.exit()
 
@@ -27,12 +33,28 @@ def loadcmd(lib):
     return 'library(%s, warn.conflicts=F, quietly=T)' % lib
 
 # ----------------------------------------------------------------------------------------
-def run_gex(make_plots=True, max_pca_components=25, n_top_genes=10):
-    pcafname = 'pca.txt'
-    umapfname = 'umap.txt'
-    clusterfname = 'clusters.txt'
-    def gmarkfname(iclust): return 'markers-cluster-%d.txt' % iclust  # NOTE R indexing, starts from 1
+def read_gex(outdir):
+    with open('%s/%s' % (outdir, pcafname)) as pfile:
+        pca_comps = None  # names for each pca component (like PC3)
+        rotation_vals = collections.OrderedDict()  # relationship between pca and gene names
+        for il, line in enumerate(pfile):
+            if il == 0:
+                pca_comps = line.strip().split()
+                for ipc, pc in enumerate(pca_comps):
+                    assert pc[:2] == 'PC'
+                    assert int(pc[2:]) == ipc + 1
+                print '    read %d pca component headers' % len(pca_comps)
+                continue
+            lstrs = line.strip().split()
+            gene = lstrs.pop(0)
+            assert len(lstrs) == len(pca_comps)
+            rotation_vals[gene] = [float(vstr) for vstr in lstrs]
+    for gene, vals in rotation_vals.items():
+        print gene, vals
+    sys.exit()
 
+# ----------------------------------------------------------------------------------------
+def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25, n_top_genes=10):
     rcmds = [loadcmd(l) for l in ['DropletUtils', 'scater', 'scran', 'pheatmap']]
     rcmds += [
         'options(width=1000)',
@@ -61,8 +83,10 @@ def run_gex(make_plots=True, max_pca_components=25, n_top_genes=10):
         'g <- buildSNNGraph(sce, use.dimred="PCA")',
         'colLabels(sce) <- factor(igraph::cluster_louvain(g)$membership)',
         # write output files (more written below)
-        'capture.output(reducedDims(sce)$PCA, file="%s/%s")' % (outdir, pcafname),
-        'capture.output(reducedDims(sce)$UMAP, file="%s/%s")' % (outdir, umapfname),
+        'capture.output(colData(sce)$Barcode, file="%s/%s")' % (outdir, barcodefname),
+        'capture.output(attr(reducedDims(sce)$PCA, "rotation"), file="%s/%s")' % (outdir, pcafname),  # pca to gene name rotation
+        # (reducedDim(sce, "PCA")[,]  # a table of the pca values for each cell
+        'capture.output(reducedDim(sce, "UMAP")[,], file="%s/%s")' % (outdir, umapfname),
         'capture.output(colLabels(sce), file="%s/%s")' % (outdir, clusterfname),
     ]
     if make_plots:
@@ -80,7 +104,7 @@ def run_gex(make_plots=True, max_pca_components=25, n_top_genes=10):
         'for(ich in seq(length(markers))) {'  # look at genes that distinguish cluster ich from all other clusters
         '    print(sprintf("   cluster %2d  size %4d  frac %.2f", ich, sum(sce$label==ich), sum(sce$label==ich) / length(sce$label)))',
         '    interesting <- markers[[ich]]',
-        '    capture.output(interesting[1:n.genes,], file=sprintf("%s/markers-cluster-%%d", ich))' % outdir,
+        '    capture.output(interesting[1:n.genes,], file=sprintf("%s/markers-cluster-%%d.txt", ich))' % outdir,
         '    best.set <- interesting[interesting$Top <= n.genes,]',  # look at the top N genes from each pairwise comparison
         '    logFCs <- getMarkerEffects(best.set)',
     ]
@@ -98,4 +122,3 @@ def run_gex(make_plots=True, max_pca_components=25, n_top_genes=10):
     os.makedirs(workdir)
     utils.run_r(rcmds, workdir)
     os.rmdir(workdir)
-
