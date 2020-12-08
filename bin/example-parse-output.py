@@ -14,12 +14,6 @@ import utils
 import glutils
 from clusterpath import ClusterPath
 
-import gex
-feature_matrix_fname = "/fh/fast/matsen_e/data/goo-dengue-10x/data/gex/filtered_feature_bc_matrix"
-outdir = "/home/dralph/Dropbox/tmp-gex" #"/fh/fast/matsen_e/dralph/partis/tmp/gex"
-# gex.run_gex(feature_matrix_fname, outdir)
-gex.read_gex(outdir)
-sys.exit()
 parser = argparse.ArgumentParser()
 parser.add_argument('--fname', default=partis_dir + '/test/reference-results/partition-new-simu.yaml')
 parser.add_argument('--glfo-dir', default=partis_dir + '/data/germlines/human')

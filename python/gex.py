@@ -21,7 +21,7 @@ clusterfname = 'clusters.txt'
 
 # ----------------------------------------------------------------------------------------
 def markfname(iclust):
-    return 'markers-cluster-%d.txt' % iclust  # NOTE R indexing, starts from 1
+    return 'markers-cluster-%d.csv' % iclust  # NOTE R indexing, starts from 1
 
 # ----------------------------------------------------------------------------------------
 def install():
@@ -93,7 +93,7 @@ def read_ref_data():
     return fabfo, waickfo
 
 # ----------------------------------------------------------------------------------------
-def read_gex(outdir, min_dprod=0.01, debug=True):
+def read_gex(outdir, min_dprod=0.001, debug=True):
     # barcodes
     barcode_vals = []
     with open('%s/%s' % (outdir, barcodefname)) as bfile:
@@ -159,39 +159,24 @@ def read_gex(outdir, min_dprod=0.01, debug=True):
     cmarkers = {'%d-%d'%(c1, c2) : [] for c1, c2 in itertools.permutations(cluster_ints, 2)}  # reversing them (1-2 vs 2-1) the values are just the negative of each other, but you don't get all the same genes
     for cname in cluster_ints:
         other_clusters = [c for c in cluster_ints if c != cname]
-        n_genes, n_columns = None, None
         with open('%s/%s' % (outdir, markfname(cname))) as cfile:
-            for il, line in enumerate(cfile):
-                lstrs = line.strip().split()
-                if il == 0:  # intro line
-                    assert line.find('DataFrame with') == 0
-                    assert len(lstrs) == 7
-                    n_genes = int(lstrs[2])
-                    n_columns = int(lstrs[5])
-                elif il == 1:  # column names
-                    assert len(lstrs) == n_columns
-                    assert lstrs.pop(0) == 'Top'
-                    assert lstrs.pop(0) == 'p.value'
-                    assert lstrs.pop(0) == 'FDR'
-                    assert lstrs.pop(0) == 'summary.logFC'  # as currently configured below, this is the min log fc over the subsequence columns/cluster
-                    assert lstrs == ['logFC.%d'%i for i in other_clusters]  # should be a column for each pairwise comparison with another cluster
-                elif il == 2:  # column type
-                    pass  # eh fuck it
-                else:
-                    assert len(lstrs) == n_columns + 1  # they don't count the first (name) one
-                    gene, top, pval, fdr, summary_logfc = lstrs[:5]
-                    logfc_vals = {i : float(l) for i, l in zip(other_clusters, lstrs[5:])}
-                    for c2 in logfc_vals:
-                        cmarkers['%d-%d'%(cname, c2)].append((gene, logfc_vals[c2]))
+            reader = csv.DictReader(cfile)
+            assert list(reader.fieldnames)[:5] == ['', 'Top', 'p.value', 'FDR', 'summary.logFC']
+            assert list(reader.fieldnames)[5:] == ['logFC.%d'%i for i in other_clusters]  # should be a column for each pairwise comparison with another cluster
+            for il, line in enumerate(reader):
+                gene = line['']
+                logfc_vals = {i : float(line['logFC.%d'%i]) for i in other_clusters}
+                for c2 in logfc_vals:
+                    cmarkers['%d-%d'%(cname, c2)].append((gene, logfc_vals[c2]))
     for ckey in cmarkers:
         cmarkers[ckey] = collections.OrderedDict(sorted(cmarkers[ckey], key=operator.itemgetter(1), reverse=True))
 
     # reference marker genes
     fabfo, waickfo = read_ref_data()
 
-    print '  interpretation: "this cluster looks very <type>-like compared to <clusters>,  based on relative upregulation of <N genes>"'
-    print '                                                          fractional'
-    print '        type   clusters             N genes               similarity                                genes'
+    print '  interpretation: "this cluster is much more <type>-like than <clusters>, based on relative upregulation of <N genes>"'
+    print '                                    fractional'
+    print '        type   clusters             similarity                                     genes'
     for cname in cluster_ints:
         print '  %s' % utils.color('green', 'cluster %d' % cname)
         for vtype in waickfo:
@@ -204,11 +189,13 @@ def read_gex(outdir, min_dprod=0.01, debug=True):
                 clprods.append((c2, dprod, common_genes))
             clprods = sorted(clprods, key=operator.itemgetter(1), reverse=True)
             if debug and len(clprods) > 0:
-                print '    %s  %-20s  %-20s  %-40s  %s' % (utils.color('purple', vtype, width=8),
-                                                        utils.color('blue', ' '.join('%d'%c for c, _, _ in clprods), width=20, padside='right'),
-                                                        ' '.join('%d'%len(gl) for _, _, gl in clprods),
-                                                        ' '.join('%.2f'%d for _, d, _ in clprods),
-                                                        ' '.join(set(g for _, _, gl in clprods for g in gl)),
+                dpstr = ' '.join(utils.color('yellow' if d > 0.01 else None, '%.3f'%d) for _, d, _ in clprods)
+                print '    %s  %-s%s  %-40s  %s' % (utils.color('purple', vtype, width=8),
+                                                    utils.color('blue', ' '.join('%d'%c for c, _, _ in clprods), width=20, padside='right'),
+                                                    # ' '.join('%d'%len(gl) for _, _, gl in clprods),
+                                                    dpstr,
+                                                    ' ' * (60 - utils.len_excluding_colors(dpstr)),
+                                                    ' '.join(set(g for _, _, gl in clprods for g in gl)),
                 )
 
     # return barcode_vals, rotation_vals, umap_vals, cluster_vals
@@ -264,7 +251,7 @@ def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25
         'for(ich in seq(length(markers))) {'  # look at genes that distinguish cluster ich from all other clusters
         '    print(sprintf("   cluster %2d  size %4d  frac %.2f", ich, sum(sce$label==ich), sum(sce$label==ich) / length(sce$label)))',
         '    interesting <- markers[[ich]]',
-        '    capture.output(interesting[1:n.genes,], file=sprintf("%s/markers-cluster-%%d.txt", ich))' % outdir,
+        '    write.csv(interesting, sprintf("%s/markers-cluster-%%d.csv", ich))' % outdir,
         '    best.set <- interesting[interesting$Top <= n.genes,]',  # look at the top N genes from each pairwise comparison
         '    logFCs <- getMarkerEffects(best.set)',
     ]
