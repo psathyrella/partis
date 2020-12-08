@@ -1055,9 +1055,9 @@ Colors['red_bkg'] = '\033[41m'
 Colors['end'] = '\033[0m'
 
 def color(col, seq, width=None, padside='left'):
-    if col is None:
-        return seq
-    return_str = [Colors[col], seq, Colors['end']]
+    return_str = [seq]
+    if col is not None:
+        return_str = [Colors[col]] + return_str + [Colors['end']]
     if width is not None:  # make sure final string prints to correct width
         n_spaces = max(0, width - len(seq))  # if specified <width> is greater than uncolored length of <seq>, pad with spaces so that when the colors show up properly the colored sequences prints with width <width>
         if padside == 'left':
