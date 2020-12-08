@@ -4,10 +4,14 @@ import os
 import scipy
 import numpy
 import collections
+import csv
+import operator
 
 import utils
 
-mdir = "~/work/partis/datascripts/meta/goo-dengue-10x"
+mdir = "%s/work/partis/datascripts/meta/goo-dengue-10x" % os.getenv('HOME')
+fabio_fname = '%s/plasmablast_markers.tsv' % mdir
+waickfname = '%s/waickman-markers.csv' % mdir
 barcodefname = 'barcodes.txt'
 pcafname = 'pca.txt'
 umapfname = 'umap.txt'
@@ -33,25 +37,83 @@ def loadcmd(lib):
     return 'library(%s, warn.conflicts=F, quietly=T)' % lib
 
 # ----------------------------------------------------------------------------------------
-def read_gex(outdir):
+# read info from previous papers (from adam waickman + fabio, atm)
+def read_ref_data():
+    waickfo = {}
+    with open(waickfname) as wfile:
+        reader = csv.DictReader(wfile)
+        for line in reader:
+            if line['type'] not in waickfo:
+                waickfo[line['type']] = []
+            waickfo[line['type']].append((line['gene'], float(line['logfc'])))
+    for vtype in waickfo:
+        waickfo[vtype] = collections.OrderedDict(sorted(waickfo[vtype], key=operator.itemgetter(1), reverse=True))  # should already be sorted
+
+# ----------------------------------------------------------------------------------------
+def read_gex(outdir, debug=True):
+    # barcodes
+    barcode_vals = []
+    with open('%s/%s' % (outdir, barcodefname)) as bfile:
+        for il, line in enumerate(bfile):
+            lstrs = line.strip().split()
+            icount = int(lstrs.pop(0).strip('[]'))
+            assert icount == len(barcode_vals) + 1  # <icount> is the R-style (1-based) index of the first element in this line
+            barcode_vals += [s.strip('"') for s in lstrs]
+    if debug:
+        print '    read %d barcodes' % len(barcode_vals)
+
+    # pca values
+    rotation_vals = collections.OrderedDict()  # relationship between pca and gene names (map from gene name to list of pca components)
     with open('%s/%s' % (outdir, pcafname)) as pfile:
         pca_comps = None  # names for each pca component (like PC3)
-        rotation_vals = collections.OrderedDict()  # relationship between pca and gene names
         for il, line in enumerate(pfile):
             if il == 0:
                 pca_comps = line.strip().split()
                 for ipc, pc in enumerate(pca_comps):
                     assert pc[:2] == 'PC'
                     assert int(pc[2:]) == ipc + 1
-                print '    read %d pca component headers' % len(pca_comps)
                 continue
             lstrs = line.strip().split()
             gene = lstrs.pop(0)
             assert len(lstrs) == len(pca_comps)
             rotation_vals[gene] = [float(vstr) for vstr in lstrs]
-    for gene, vals in rotation_vals.items():
-        print gene, vals
-    sys.exit()
+    if debug:
+        print '      %d pca components for %d genes: %s' % (len(pca_comps), len(rotation_vals), ' '.join(rotation_vals))
+
+    # umap values
+    umap_vals = []  # list of (x, y) umap values for each cell
+    with open('%s/%s' % (outdir, umapfname)) as ufile:
+        for il, line in enumerate(ufile):
+            lstrs = line.strip().split()
+            if il == 0:
+                assert lstrs == ['[,%d]'%i for i in [1, 2]]
+            else:
+                icount = int(lstrs.pop(0).strip('[]').rstrip(','))
+                assert icount == len(umap_vals) + 1
+                umap_vals.append([float(v) for v in lstrs])
+    if debug:
+        print '      %d umap values' % len(umap_vals)
+    assert len(umap_vals) == len(barcode_vals)
+
+    # cluster assignments
+    cluster_vals = []
+    with open('%s/%s' % (outdir, clusterfname)) as cfile:
+        for il, line in enumerate(cfile):
+            lstrs = line.strip().split()
+            if lstrs[0] != 'Levels:':
+                icount = int(lstrs.pop(0).strip('[]'))
+                assert icount == len(cluster_vals) + 1  # <icount> is the R-style (1-based) index of the first element in this line
+                cluster_vals += [int(c) for c in lstrs]
+            else:  # last line lists the clusters (not sure why they're called "levels"
+                cluster_ints = set(int(c) for c in lstrs[1:])
+                assert cluster_ints == set(cluster_vals)
+    if debug:
+        print '      %d values in %d clusters: %s' % (len(cluster_vals), len(cluster_ints), ' '.join(str(c) for c in cluster_ints))
+    assert len(cluster_vals) == len(barcode_vals)
+
+    read_ref_data()
+
+    # return barcode_vals, rotation_vals, umap_vals, cluster_vals
 
 # ----------------------------------------------------------------------------------------
 def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25, n_top_genes=10):
@@ -68,8 +130,8 @@ def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25
         # normalization
         'sce <- logNormCounts(sce)',
         # feature selection
-        # 'fabio.pb.genes <- read.csv("%s/plasmablast_markers.tsv", sep="\t", header=T)$GeneName' % , mdir # $name  # genes from fabio (200 most discriminatory between plasmablast + naive B cell):
-        'waick.genes <- read.csv("%s/waickman-markers.csv", header=T)$gene' % mdir,  # 10 most up'd genes for naive, memory, pb, and prepb (40 total)
+        # 'fabio.pb.genes <- read.csv("%s", sep="\t", header=T)$GeneName' % , fabio_fname # $name  # genes from fabio (200 most discriminatory between plasmablast + naive B cell):
+        'waick.genes <- read.csv("%s", header=T)$gene' % waickfname,  # 10 most up'd genes for naive, memory, pb, and prepb (40 total)
         'genelist <- waick.genes',  # fabio.pb.genes
         'print(sprintf("  using %d genes: %s", length(genelist), paste(genelist, collapse=" ")))',
         'gene.bools <- rowData(sce)$Symbol %in% genelist',  # $ID
