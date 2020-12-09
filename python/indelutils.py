@@ -642,7 +642,8 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
             assert has_indels(rfo)  # calling fcn needs to not add it if it doesn't have indels
             joint_indelfo['genes'][region] = rfo['genes'][region]
             if utils.non_gap_len(rfo['qr_gap_seq']) != qrbounds[region][1] - qrbounds[region][0]:  # should be fixed by overlapping boundary shifter
-                raise Exception('%sqr_gap_seq non-gap length %d not the same as qrbound length %d in %s region indelfo' % ('%s: ' % uid if uid is not None else '', utils.non_gap_len(rfo['qr_gap_seq']), qrbounds[region][1] - qrbounds[region][0], region))
+                return None  # UPDATE eh screw it this managed to happen *again* (see issue #310)
+                # raise Exception('%sqr_gap_seq non-gap length %d not the same as qrbound length %d in %s region indelfo' % ('%s: ' % uid if uid is not None else '', utils.non_gap_len(rfo['qr_gap_seq']), qrbounds[region][1] - qrbounds[region][0], region))
             qr_gap_seq += [rfo['qr_gap_seq']]
             gl_gap_seq += [rfo['gl_gap_seq']]
 
