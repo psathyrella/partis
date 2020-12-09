@@ -40,13 +40,15 @@ def loadcmd(lib):
 
 # ----------------------------------------------------------------------------------------
 # takes the "dot product" (if normalized, it's cos theta) of two groups of logfc expression values to see how similar they are (yeah this is probably kind of dumb, but it'll give an idea of how similar they are)
-def gexdot(gvals1, gvals2=None, normalize=True, recursed=False, lbstr='', debug=False):  # they're both ordered dicts gene : logfc (sorted by decreasing logfc)
+def gexdot(gvals1, gvals2=None, normalize=True, recursed=False, return_gene_contributions=False, lbstr='', debug=False):  # they're both ordered dicts gene : logfc (sorted by decreasing logfc)
     if gvals2 is None:
         gvals2 = gvals1
     dprod = 0.
     common_genes = set(gvals1) & set(gvals2)
+    gene_contribs = {}
     for gene in common_genes:  # loop over genes that they have in common
-        dprod += gvals1[gene] * gvals2[gene]
+        gene_contribs[gene] = gvals1[gene] * gvals2[gene]
+        dprod += gene_contribs[gene]
     if normalize:
         dprod /= gexdot(gvals1, normalize=False, recursed=True) + gexdot(gvals2, normalize=False, recursed=True)
     if debug and not recursed:
@@ -59,7 +61,10 @@ def gexdot(gvals1, gvals2=None, normalize=True, recursed=False, lbstr='', debug=
             pass  # print '              none in common'
         else:
             print '            %s%5.2f  %2d / (%2d | %2d): %s' % (lbstr, dprod, len(common_genes), len(gvals1), len(gvals2), ' '.join(common_genes))
-    return dprod
+    if return_gene_contributions:
+        return dprod, gene_contribs
+    else:
+        return dprod
 
 # ----------------------------------------------------------------------------------------
 # read info from previous papers (from fabio + adam waickman, atm)
@@ -156,52 +161,72 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
     assert len(cluster_vals) == len(barcode_vals)
 
     # markers for each cluster
-    cmarkers = {'%d-%d'%(c1, c2) : [] for c1, c2 in itertools.permutations(cluster_ints, 2)}  # reversing them (1-2 vs 2-1) the values are just the negative of each other, but you don't get all the same genes
+    pairwise_cmarkers = {'%d-%d'%(c1, c2) : [] for c1, c2 in itertools.permutations(cluster_ints, 2)}  # reversing them (1-2 vs 2-1) the values are just the negative of each other if they're both there, but you don't get all the same genes
+    summary_cmarkers = {'%d-summary'%c : [] for c in cluster_ints}
     for cname in cluster_ints:
         other_clusters = [c for c in cluster_ints if c != cname]
         with open('%s/%s' % (outdir, markfname(cname))) as cfile:
             reader = csv.DictReader(cfile)
-            assert list(reader.fieldnames)[:5] == ['', 'Top', 'p.value', 'FDR', 'summary.logFC']
+            assert list(reader.fieldnames)[:5] == ['', 'Top', 'p.value', 'FDR', 'summary.logFC']  # summary.logFC is the log-fold change from the comparison with the lowest p-value (not necessarily the min/max log fold change)
             assert list(reader.fieldnames)[5:] == ['logFC.%d'%i for i in other_clusters]  # should be a column for each pairwise comparison with another cluster
             for il, line in enumerate(reader):
                 gene = line['']
                 logfc_vals = {i : float(line['logFC.%d'%i]) for i in other_clusters}
+                summary_cmarkers['%d-summary'%cname].append((gene, float(line['summary.logFC'])))
                 for c2 in logfc_vals:
-                    cmarkers['%d-%d'%(cname, c2)].append((gene, logfc_vals[c2]))
-    for ckey in cmarkers:
-        cmarkers[ckey] = collections.OrderedDict(sorted(cmarkers[ckey], key=operator.itemgetter(1), reverse=True))
+                    pairwise_cmarkers['%d-%d'%(cname, c2)].append((gene, logfc_vals[c2]))
+    for ckey in pairwise_cmarkers:
+        pairwise_cmarkers[ckey] = collections.OrderedDict(sorted(pairwise_cmarkers[ckey], key=operator.itemgetter(1), reverse=True))
+    for ckey in summary_cmarkers:
+        summary_cmarkers[ckey] = collections.OrderedDict(sorted(summary_cmarkers[ckey], key=operator.itemgetter(1), reverse=True))
 
     # reference marker genes
     fabfo, waickfo = read_ref_data()
 
     print '  interpretation: "this cluster is much more <type>-like than <clusters>, based on relative upregulation of <N genes>"'
-    print '                                    fractional'
-    print '        type   clusters             similarity                                     genes'
+    print '        type    any (N genes)   vs. single clusters                                                     gene contributions (sum over clusters)'
     for cname in cluster_ints:
         print '  %s' % utils.color('green', 'cluster %d' % cname)
         for vtype in waickfo:
             clprods = []
+            all_contribs = {}
             for ic2, c2 in enumerate([c for c in cluster_ints if c != cname]):
-                dprod = gexdot(waickfo[vtype], cmarkers['%d-%d'%(cname, c2)], lbstr='%8s %s '%((vtype+':') if ic2==0 else '', utils.color('blue', str(c2)))) #, debug=True)
+                dprod, gene_contribs = gexdot(waickfo[vtype], pairwise_cmarkers['%d-%d'%(cname, c2)], return_gene_contributions=True, lbstr='%8s %s '%((vtype+':') if ic2==0 else '', utils.color('blue', str(c2)))) #, debug=True)
                 if dprod < min_dprod:
                     continue
-                common_genes = set(waickfo[vtype]) & set(cmarkers['%d-%d'%(cname, c2)])
-                clprods.append((c2, dprod, common_genes))
-            clprods = sorted(clprods, key=operator.itemgetter(1), reverse=True)
+                clprods.append({'c2' : c2, 'dprod' : dprod, 'gene_contribs' : gene_contribs})
+                for tg, contr in gene_contribs.items():
+                    if tg not in all_contribs:
+                        all_contribs[tg] = 0.
+                    all_contribs[tg] += gene_contribs[tg]
+            clprods = sorted(clprods, key=lambda x: x['dprod'], reverse=True)
+            anydprod, anygcontribs = gexdot(waickfo[vtype], summary_cmarkers['%d-summary'%cname], return_gene_contributions=True)  # lbstr=XXX
+            sumclprod = {'dprod' : anydprod, 'gene_contribs' : anygcontribs}
             if debug and len(clprods) > 0:
-                dpstr = ' '.join(utils.color('yellow' if d > 0.01 else None, '%.3f'%d) for _, d, _ in clprods)
-                print '    %s  %-s%s  %-40s  %s' % (utils.color('purple', vtype, width=8),
-                                                    utils.color('blue', ' '.join('%d'%c for c, _, _ in clprods), width=20, padside='right'),
-                                                    # ' '.join('%d'%len(gl) for _, _, gl in clprods),
-                                                    dpstr,
-                                                    ' ' * (60 - utils.len_excluding_colors(dpstr)),
-                                                    ' '.join(set(g for _, _, gl in clprods for g in gl)),
+                def dcol(d):
+                    if d['dprod'] > 0.1:
+                        return 'red'
+                    elif d['dprod'] > 0.01:
+                        return 'yellow'
+                    else:
+                        return None
+                def dpstr(d): return utils.color(dcol(d), '%.3f'%d['dprod'])
+                def cstr(d): return utils.color('blue', '%d' % d['c2'])
+                tmpstr = '  '.join('%s %s' % (cstr(d), dpstr(d)) for d in clprods)
+                anystr = ''
+                if sumclprod['dprod'] > min_dprod:
+                    anystr = '%s (%2d)' % (dpstr(sumclprod), len(sumclprod['gene_contribs']))
+                print '      %s  %-s    %-s  %s' % (utils.color('purple', vtype, width=8),
+                                                   # utils.color('blue', ' '.join('%d'%d['c2'] for d in clprods), width=20, padside='right'),
+                                                   anystr + ' ' * (12 - utils.len_excluding_colors(anystr)),
+                                                   tmpstr + ' ' * (70 - utils.len_excluding_colors(tmpstr)),
+                                                   '  '.join('%s %.1f'%(g.lower(), c)for g, c in sorted(all_contribs.items(), key=operator.itemgetter(1), reverse=True)),
                 )
 
     # return barcode_vals, rotation_vals, umap_vals, cluster_vals
 
 # ----------------------------------------------------------------------------------------
-def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25, n_top_genes=50):
+def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25, n_top_genes=100):
     rcmds = [loadcmd(l) for l in ['DropletUtils', 'scater', 'scran', 'pheatmap']]
     rcmds += [
         'options(width=1000)',
@@ -246,13 +271,12 @@ def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25
     # find marker genes
     rcmds += [
         'markers <- findMarkers(sce)',  # <markers>: list of data frames for each cluster NOTE this uses *all* the genes, and i can't figure out a way to tell it not to
-        'n.genes <- %d' % n_top_genes,
-        'print(sprintf("  top %d genes for each cluster (total size %d)", n.genes, length(sce$label)))',
+        'print(sprintf("  top %d genes for each cluster (total size %%d)", length(sce$label)))' % n_top_genes,
         'for(ich in seq(length(markers))) {'  # look at genes that distinguish cluster ich from all other clusters
         '    print(sprintf("   cluster %2d  size %4d  frac %.2f", ich, sum(sce$label==ich), sum(sce$label==ich) / length(sce$label)))',
         '    interesting <- markers[[ich]]',
-        '    write.csv(interesting, sprintf("%s/markers-cluster-%%d.csv", ich))' % outdir,
-        '    best.set <- interesting[interesting$Top <= n.genes,]',  # look at the top N genes from each pairwise comparison
+        '    best.set <- interesting[interesting$Top <= %d,]' % n_top_genes,  # takes all genes that were in the top N for any pairwise comparison
+        '    write.csv(best.set, sprintf("%s/markers-cluster-%%d.csv", ich))' % outdir,
         '    logFCs <- getMarkerEffects(best.set)',
     ]
     if make_plots:
