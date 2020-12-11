@@ -26,7 +26,7 @@ def markfname(iclust):
 # ----------------------------------------------------------------------------------------
 def install():
     rcmds = ['install.packages("BiocManager", repos="http://cran.rstudio.com/"))',
-             'BiocManager::install(c("scRNAseq", "scater", "scran", "uwot", "DropletUtils"), dependencies=TRUE)']  # "TENxPBMCData"
+             'BiocManager::install(c("scRNAseq", "scater", "scran", "uwot", "DropletUtils", "GSEABase", "AUCell", "celldex", "SingleR"), dependencies=TRUE)']  # "TENxPBMCData" 
     workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
     os.makedirs(workdir)
     utils.run_r(rcmds, workdir)
@@ -37,6 +37,98 @@ def install():
 # ----------------------------------------------------------------------------------------
 def loadcmd(lib):
     return 'library(%s, warn.conflicts=F, quietly=T)' % lib
+
+# ----------------------------------------------------------------------------------------
+def rplotcmds(plotdir, plotname, pcmd, rowcol=None, hw=None, ftype='png'):
+    rcmds = [
+        '%s("%s/%s.%s")' % (ftype, plotdir, plotname, ftype),
+        pcmd,
+        'dev.off()',
+    ]
+    if rowcol is not None:  # pair of (row, column) values for layout() command
+        rcmds.insert(1, 'layout(mat=matrix(c(%s), nrow=%d, ncol=%d, byrow=T))' % (', '.join(str(i) for i in range(1, rowcol[0]*rowcol[1] + 1)), rowcol[0], rowcol[1]))
+    if hw is not None:  # pair of (width, height)
+        rcmds[0] = rcmds[0].rstrip(')') + ', width=%d, height=%d)' % tuple(hw)
+    return rcmds
+
+# ----------------------------------------------------------------------------------------
+def dimredcmds(outdir, glist_name, max_pca_components=25, n_top_genes=100):
+    # feature selection
+    rcmds = [
+        'print(sprintf("  using %%d genes: %%s", length(%s), paste(%s, collapse=" ")))' % (glist_name, glist_name),
+        'gene.bools <- rowData(sce)$Symbol %%in%% %s' % glist_name,  # $ID
+        # dimensionality reduction
+        'set.seed(1)',
+        'n.comp <- min(%d, as.integer(length(%s)/2))' % (max_pca_components, glist_name),
+        'print(sprintf("running pca with %d components", n.comp))',
+        'sce <- runPCA(sce, ncomponents=n.comp, subset_row=gene.bools)',
+        'sce <- runUMAP(sce, dimred="PCA", external_neighbors=TRUE)',  # uses pca results from previous step TODO test variety of N neighbors and min_dist values
+        # clustering
+        'g <- buildSNNGraph(sce, use.dimred="PCA")',  # guild graph
+        'colLabels(sce) <- factor(igraph::cluster_louvain(g)$membership)',  # use graph to cluster, and add the resulting labels to <sce>
+        'capture.output(attr(reducedDims(sce)$PCA, "rotation"), file="%s/%s")' % (outdir, pcafname),  # pca to gene name rotation
+        # (reducedDim(sce, "PCA")[,]  # a table of the pca values for each cell
+        'capture.output(reducedDim(sce, "UMAP")[,], file="%s/%s")' % (outdir, umapfname),  # umap pair for each cell
+        'capture.output(colLabels(sce), file="%s/%s")' % (outdir, clusterfname),  # cluster label for each cell
+    ]
+    rcmds += rplotcmds(outdir, 'clusters', 'plotUMAP(sce, colour_by="label")')
+
+    # find marker genes
+    rcmds += [
+        'markers <- findMarkers(sce)',  # <markers>: list of data frames for each cluster NOTE this uses *all* the genes, and i can't figure out a way to tell it not to
+        'print(sprintf("  top %d genes for each cluster (total size %%d)", length(sce$label)))' % n_top_genes,
+        'for(ich in seq(length(markers))) {'  # look at genes that distinguish cluster ich from all other clusters
+        '    print(sprintf("   cluster %2d  size %4d  frac %.2f", ich, sum(sce$label==ich), sum(sce$label==ich) / length(sce$label)))',
+        '    interesting <- markers[[ich]]',
+        '    best.set <- interesting[interesting$Top <= %d,]' % n_top_genes,  # takes all genes that were in the top N for any pairwise comparison
+        '    write.csv(best.set, sprintf("%s/markers-cluster-%%d.csv", ich))' % outdir,
+        '    logFCs <- getMarkerEffects(best.set)',
+    ]
+    # if make_plots:  # these plots aren't really readable any more with n_top_genes more than 10 or so
+    #     rcmds += [
+    #         # rplotcmds(outdir, 'sprintf("%s/heatmap-%%d", ich)',  # arg, this won't work this way
+    #         '    png(sprintf("%s/heatmap-%%d.png", ich))' % outdir,
+    #         '    pheatmap(logFCs, breaks=seq(-5, 5, length.out=101))',
+    #         '    dev.off()',
+    #     ]
+    rcmds += [
+        '}',
+    ]
+
+    return rcmds
+
+# ----------------------------------------------------------------------------------------
+def ctype_ann_cmds(outdir):  # cell type annotation (although we do some with celldex at the start as well)
+    # reference labels from celldex
+    rcmds = [
+        'ref <- celldex::BlueprintEncodeData()',  # get reference labels from cache or download
+        'pred <- SingleR(test=sce, ref=ref, labels=ref$label.main)',  # assign labels to our cells (more SingleR detail here: https://ltla.github.io/SingleRBook)
+        'table(pred$labels)',
+    ]
+    rcmds += rplotcmds(outdir, 'celldex-label-heatmap', 'plotScoreHeatmap(pred)')
+
+    # only if we have clusters:
+    rcmds += ['tab <- table(Assigned=pred$pruned.labels, Cluster=colLabels(sce))',]  # table (and then heatmap) comparing these new labels to our existing clusters
+    rcmds += rplotcmds(outdir, 'celldex-label-vs-cluster-heatmap', 'pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))')  # this will crash if you've filtered to only B cells
+
+    # using custom references
+    rcmds += [
+        'waick.types <- waick.markers$type[!duplicated(waick.markers$type)]',  # just gets all values for the 'type' column
+        'all.sets <- lapply(waick.types, function(x) { GeneSet(lapply(waick.markers, `[`, waick.markers$type==x)$gene, setName=x) })',
+        'all.sets <- GeneSetCollection(all.sets)',
+        'rankings <- AUCell_buildRankings(counts(sce), plotStats=FALSE, verbose=FALSE)',
+        'cell.aucs <- AUCell_calcAUC(all.sets, rankings)',
+        'results <- t(assay(cell.aucs))',
+        'head(results)',
+        'new.labels <- colnames(results)[max.col(results)]',
+        'tab <- table(new.labels, sce$label)',  # only if we have clusters
+        'tab',
+    ]
+    rcmds += rplotcmds(outdir, 'auc-thresholds', 'AUCell_exploreThresholds(cell.aucs, plotHist=TRUE, assign=TRUE)', rowcol=(2, 2), hw=(1500, 1500))  # this is verbose as all hell
+# all_gene_sets <- msigdbr(species="Homo sapiens", category="C7")
+# all_gene_sets[all_gene_sets$gs_name=="GSE42724_NAIVE_BCELL_VS_PLASMABLAST_UP",]$human_gene_symbol  # gives list of gene names
+
+    return rcmds
 
 # ----------------------------------------------------------------------------------------
 # takes the "dot product" (if normalized, it's cos theta) of two groups of logfc expression values to see how similar they are (yeah this is probably kind of dumb, but it'll give an idea of how similar they are)
@@ -226,8 +318,8 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
     # return barcode_vals, rotation_vals, umap_vals, cluster_vals
 
 # ----------------------------------------------------------------------------------------
-def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25, n_top_genes=100):
-    rcmds = [loadcmd(l) for l in ['DropletUtils', 'scater', 'scran', 'pheatmap']]
+def run_gex(feature_matrix_fname, outdir, make_plots=True):
+    rcmds = [loadcmd(l) for l in ['DropletUtils', 'scater', 'scran', 'pheatmap', 'celldex', 'SingleR', 'GSEABase', 'AUCell']]
     rcmds += [
         'options(width=1000)',
         'sce <- read10xCounts("%s")' % feature_matrix_fname,
@@ -237,59 +329,46 @@ def run_gex(feature_matrix_fname, outdir, make_plots=True, max_pca_components=25
         'qcstats <- perCellQCMetrics(sce, subsets=list(Mito=is.mito))',
         'filtered <- quickPerCellQC(qcstats, percent_subsets="subsets_Mito_percent")',  # identifies + removes outliers (in several qc metrics)
         'sce <- sce[, !filtered$discard]',
+        'capture.output(colData(sce)$Barcode, file="%s/%s")' % (outdir, barcodefname),
         # normalization
         'sce <- logNormCounts(sce)',
-        # feature selection
+
+        # # get reference labels from celldex (so we can remove HSCs) NOTE turning this off since it doesn't really change anything
+        # 'ref <- celldex::BlueprintEncodeData()',  # get reference labels from cache or download
+        # 'pred <- SingleR(test=sce, ref=ref, labels=ref$label.main)',  # assign labels to our cells (more SingleR detail here: https://ltla.github.io/SingleRBook)
+        # 'table(pred$labels)',
+        # 'sce <- sce[, pred$labels=="B-cells"]',  # discard non-b-cells
+        # 'pred <- pred[pred$labels=="B-cells", ]',
+
         # 'fabio.pb.genes <- read.csv("%s", sep="\t", header=T)$GeneName' % , fabio_fname # $name  # genes from fabio (200 most discriminatory between plasmablast + naive B cell):
-        'waick.genes <- read.csv("%s", header=T)$gene' % waickfname,  # 10 most up'd genes for naive, memory, pb, and prepb (40 total)
-        'genelist <- waick.genes',  # fabio.pb.genes
-        'print(sprintf("  using %d genes: %s", length(genelist), paste(genelist, collapse=" ")))',
-        'gene.bools <- rowData(sce)$Symbol %in% genelist',  # $ID
-        # dimensionality reduction
-        'set.seed(1)',
-        'n.comp <- min(%d, as.integer(length(genelist)/2))' % max_pca_components,
-        'print(sprintf("running pca with %d components", n.comp))',
-        'sce <- runPCA(sce, ncomponents=n.comp, subset_row=gene.bools)',
-        'sce <- runUMAP(sce, dimred="PCA", external_neighbors=TRUE)',  # uses pca results from previous step TODO test variety of N neighbors and min_dist values
-        # clustering
-        'g <- buildSNNGraph(sce, use.dimred="PCA")',
-        'colLabels(sce) <- factor(igraph::cluster_louvain(g)$membership)',
-        # write output files (more written below)
-        'capture.output(colData(sce)$Barcode, file="%s/%s")' % (outdir, barcodefname),
-        'capture.output(attr(reducedDims(sce)$PCA, "rotation"), file="%s/%s")' % (outdir, pcafname),  # pca to gene name rotation
-        # (reducedDim(sce, "PCA")[,]  # a table of the pca values for each cell
-        'capture.output(reducedDim(sce, "UMAP")[,], file="%s/%s")' % (outdir, umapfname),
-        'capture.output(colLabels(sce), file="%s/%s")' % (outdir, clusterfname),
+        'waick.markers <- read.csv("%s", header=T)' % waickfname,  # 10 most up'd genes for naive, memory, pb, and prepb (40 total). Not sure if it's with respeect to each other, or other cells, or what
     ]
-    if make_plots:
-        rcmds += [
-            ## pdf(sprintf("%s/clusters.pdf", outdir))
-            'png("%s/clusters.png")' % outdir,
-            'plotUMAP(sce, colour_by="label")',
-            'dev.off()',
-        ]
-    # find marker genes
-    rcmds += [
-        'markers <- findMarkers(sce)',  # <markers>: list of data frames for each cluster NOTE this uses *all* the genes, and i can't figure out a way to tell it not to
-        'print(sprintf("  top %d genes for each cluster (total size %%d)", length(sce$label)))' % n_top_genes,
-        'for(ich in seq(length(markers))) {'  # look at genes that distinguish cluster ich from all other clusters
-        '    print(sprintf("   cluster %2d  size %4d  frac %.2f", ich, sum(sce$label==ich), sum(sce$label==ich) / length(sce$label)))',
-        '    interesting <- markers[[ich]]',
-        '    best.set <- interesting[interesting$Top <= %d,]' % n_top_genes,  # takes all genes that were in the top N for any pairwise comparison
-        '    write.csv(best.set, sprintf("%s/markers-cluster-%%d.csv", ich))' % outdir,
-        '    logFCs <- getMarkerEffects(best.set)',
-    ]
-    if make_plots:
-        rcmds += [
-            '    png(sprintf("%s/heatmap-%%d.png", ich))' % outdir,
-            '    pheatmap(logFCs, breaks=seq(-5, 5, length.out=101))',
-            '    dev.off()',
-        ]
-    rcmds += [
-        '}',
-    ]
+
+    rcmds += dimredcmds(outdir, 'waick.markers$gene')  # fabio.pb.genes
+
+    rcmds += ctype_ann_cmds(outdir)
 
     workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
     os.makedirs(workdir)
     utils.run_r(rcmds, workdir)
     os.rmdir(workdir)
+
+## GSE4142_GC_BCELL_VS_MEMORY_BCELL_DN
+## GSE4142_GC_BCELL_VS_MEMORY_BCELL_UP
+## GSE4142_NAIVE_BCELL_VS_PLASMA_CELL_DN
+## GSE4142_NAIVE_BCELL_VS_PLASMA_CELL_UP
+## GSE4142_NAIVE_VS_GC_BCELL_DN
+## GSE4142_NAIVE_VS_GC_BCELL_UP
+## GSE4142_NAIVE_VS_MEMORY_BCELL_DN
+## GSE4142_NAIVE_VS_MEMORY_BCELL_UP
+## GSE4142_PLASMA_CELL_VS_GC_BCELL_DN
+## GSE4142_PLASMA_CELL_VS_GC_BCELL_UP
+## GSE4142_PLASMA_CELL_VS_MEMORY_BCELL_DN
+## GSE4142_PLASMA_CELL_VS_MEMORY_BCELL_UP
+
+## GSE42724_MEMORY_BCELL_VS_PLASMABLAST_DN
+## GSE42724_MEMORY_BCELL_VS_PLASMABLAST_UP
+## GSE42724_NAIVE_BCELL_VS_PLASMABLAST_DN
+## GSE42724_NAIVE_BCELL_VS_PLASMABLAST_UP
+## GSE42724_NAIVE_VS_MEMORY_BCELL_DN
+## GSE42724_NAIVE_VS_MEMORY_BCELL_UP
