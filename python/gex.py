@@ -26,7 +26,7 @@ def markfname(iclust):
 # ----------------------------------------------------------------------------------------
 def install():
     rcmds = ['install.packages("BiocManager", repos="http://cran.rstudio.com/"))',
-             'BiocManager::install(c("scRNAseq", "scater", "scran", "uwot", "DropletUtils", "GSEABase", "AUCell", "celldex", "SingleR"), dependencies=TRUE)']  # "TENxPBMCData" 
+             'BiocManager::install(c("scRNAseq", "scater", "scran", "uwot", "DropletUtils", "GSEABase", "AUCell", "celldex", "SingleR"), dependencies=TRUE)']  # "TENxPBMCData"
     workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
     os.makedirs(workdir)
     utils.run_r(rcmds, workdir)
@@ -98,23 +98,12 @@ def dimredcmds(outdir, glist_name, max_pca_components=25, n_top_genes=100):
     return rcmds
 
 # ----------------------------------------------------------------------------------------
-def ctype_ann_cmds(outdir):  # cell type annotation (although we do some with celldex at the start as well)
-    # reference labels from celldex
-    rcmds = [
-        'ref <- celldex::BlueprintEncodeData()',  # get reference labels from cache or download
-        'pred <- SingleR(test=sce, ref=ref, labels=ref$label.main)',  # assign labels to our cells (more SingleR detail here: https://ltla.github.io/SingleRBook)
-        'table(pred$labels)',
-    ]
-    rcmds += rplotcmds(outdir, 'celldex-label-heatmap', 'plotScoreHeatmap(pred)')
-
-    # only if we have clusters:
-    rcmds += ['tab <- table(Assigned=pred$pruned.labels, Cluster=colLabels(sce))',]  # table (and then heatmap) comparing these new labels to our existing clusters
-    rcmds += rplotcmds(outdir, 'celldex-label-vs-cluster-heatmap', 'pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))')  # this will crash if you've filtered to only B cells
-
+def ctype_ann_cmds(outdir, clnames):  # cell type annotation (although we do some with celldex at the start as well)
     # using custom references
-    rcmds += [
-        'waick.types <- waick.markers$type[!duplicated(waick.markers$type)]',  # just gets all values for the 'type' column
-        'all.sets <- lapply(waick.types, function(x) { GeneSet(lapply(waick.markers, `[`, waick.markers$type==x)$gene, setName=x) })',
+    rcmds = [
+        'clabels <- %s[%s$type!="", ]' % (clnames, clnames),  # remove rows/genes with empty 'type'
+        'ctypes <- clabels$type[!duplicated(clabels$type)]',  # just gets all values for the 'type' column
+        'all.sets <- lapply(ctypes, function(x) { GeneSet(lapply(clabels, `[`, clabels$type==x)$gene, setName=x) })',
         'all.sets <- GeneSetCollection(all.sets)',
         'rankings <- AUCell_buildRankings(counts(sce), plotStats=FALSE, verbose=FALSE)',
         'cell.aucs <- AUCell_calcAUC(all.sets, rankings)',
@@ -168,8 +157,8 @@ def read_ref_data():
             pbval, nval = float(line['avg_plasma']), float(line['avg_naive'])
             if pbval == 0 or nval == 0:
                 continue
-            fabfo['pb'].append((line['GeneName'], math.log(pbval / nval, 2)))  # NOTE these don't really match up with his KS statistic particularly wlel
-            fabfo['naive'].append((line['GeneName'], math.log(nval / pbval, 2)))
+            fabfo['pb'].append((line['gene'], math.log(pbval / nval, 2)))  # NOTE these don't really match up with his KS statistic particularly well
+            fabfo['naive'].append((line['gene'], math.log(nval / pbval, 2)))
     # print 'fabio'
     for vtype in fabfo:
         fabfo[vtype] = collections.OrderedDict(sorted(fabfo[vtype], key=operator.itemgetter(1), reverse=True))  # definitely not always sorted
@@ -340,17 +329,34 @@ def run_gex(feature_matrix_fname, outdir, make_plots=True):
         # 'sce <- sce[, pred$labels=="B-cells"]',  # discard non-b-cells
         # 'pred <- pred[pred$labels=="B-cells", ]',
 
-        # 'fabio.pb.genes <- read.csv("%s", sep="\t", header=T)$GeneName' % , fabio_fname # $name  # genes from fabio (200 most discriminatory between plasmablast + naive B cell):
+        'dec <- modelGeneVar(sce)',
+        'hvg <- getTopHVGs(dec, prop=0.1)',  # 0.1 gives ~700 most variable genes (if you combine these with the fabio/waick, these totally dominate everything, presumably because there's so many)
+        'fabio.markers <- read.csv("%s", sep="\t", header=T)' % fabio_fname, # $name  # genes from fabio (200 most up- or down-regulated in plasmablast as compared to naive B cells)
         'waick.markers <- read.csv("%s", header=T)' % waickfname,  # 10 most up'd genes for naive, memory, pb, and prepb (40 total). Not sure if it's with respeect to each other, or other cells, or what
+        # 'all_genes <- c(fabio.markers$gene, waick.markers$gene, hvg)',
     ]
 
-    rcmds += dimredcmds(outdir, 'waick.markers$gene')  # fabio.pb.genes
+    # rcmds += dimredcmds(outdir, 'hvg')
+    # rcmds += dimredcmds(outdir, 'waick.markers$gene')
+    rcmds += dimredcmds(outdir, 'fabio.markers$gene')
 
-    rcmds += ctype_ann_cmds(outdir)
+    # reference labels from celldex
+    rcmds += [
+        'ref <- celldex::BlueprintEncodeData()',  # get reference labels from cache or download
+        'pred <- SingleR(test=sce, ref=ref, labels=ref$label.main)',  # assign labels to our cells (more SingleR detail here: https://ltla.github.io/SingleRBook)
+        'table(pred$labels)',
+    ]
+    rcmds += rplotcmds(outdir, 'celldex-label-heatmap', 'plotScoreHeatmap(pred)')
+    # only if we have clusters:
+    rcmds += ['tab <- table(Assigned=pred$pruned.labels, Cluster=colLabels(sce))',]  # table (and then heatmap) comparing these new labels to our existing clusters
+    rcmds += rplotcmds(outdir, 'celldex-label-vs-cluster-heatmap', 'pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))')  # this will crash if you've filtered to only B cells
+
+    # rcmds += ctype_ann_cmds(outdir, 'waick.markers')
+    rcmds += ctype_ann_cmds(outdir, 'fabio.markers')
 
     workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
     os.makedirs(workdir)
-    utils.run_r(rcmds, workdir)
+    utils.run_r(rcmds, workdir, dryrun=False)
     os.rmdir(workdir)
 
 ## GSE4142_GC_BCELL_VS_MEMORY_BCELL_DN

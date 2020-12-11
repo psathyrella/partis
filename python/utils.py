@@ -3281,6 +3281,8 @@ def check_cmd(cmd, options=''):  # check for existence of <cmd> (this exists jus
 
 # ----------------------------------------------------------------------------------------
 def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return_out_err=False, debug=False):
+    if dryrun:
+        debug = True
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
     check_cmd('R', options=['--slave', '--version'])
