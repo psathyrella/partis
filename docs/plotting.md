@@ -2,13 +2,38 @@
 
 Note that in order to make plots for the `partition` action, you have to have R installed, along with several [extra packages](install.md#plotting).
 
-The addition of `--plotdir <plotdir>` to most partis commands will write to disk a variety of plots that we find useful for that command.
-These plots are written as svg files to various subdirectories of `<plotdir>`, along with html files displaying clickable summaries of the svgs.
-You typically want to view the html files in a browser, so a good way to see what's available might be to run `find <plotdir> -name '*.html' | xargs firefox`.
+The addition of `--plotdir <plotdir>` to most partis commands will write to disk a variety of plots related to that command.
+These plots are written as svg files to subdirectories of `<plotdir>`, along with html files displaying clickable summaries of the svgs.
+You typically want to view the html files in a browser, so a good way to see what's available might be to run `find <plotdir> -name '*.html' | xargs firefox` (although depending on the options, this can open a lot of tabs).
 In addition, plots that are simply histograms usually also have their histogram content written to a csv in the same directory.
 This makes it easier for later comparisons across several directories (for example with `bin/compare-plotdirs.py`).
 
-Adding `--plotdir <plotdir>` to `cache-parameters` or `annotate` will write plots summarizing the distributions of rearrangement parameters in the sample (gene calls, deletion and insertion lengths, SHM properties, etc.).
+If a `--plotdir` is specified during parameter caching (whether run automatically, or as a separate `cache-parameters` step), many plots related to rearrangement-level and shm-level parameters will be written to `sw/` and `hmm/` subdirs
+Since partitioning has not yet occurred, however, these are all based on single-sequence annotations (rather than full-family, multi-sequence annotations), so they are not usually the best choice for final analysis (for instance, rearrangement-level parameters such as v gene choice will be counted once for each sequence in the family, rather than, as is proper, once for the whole family).
+If both `--plotdir <plotdir>` and `--count-parameters` are both set when partitioning, then both parameter plots corresponding to the full multi-sequence annotations, and partitioning/cluster plots will both be written.
+These multi-sequence parameter plots will go in the `multi-hmm/` subdir.
+Examples can be found in `docs/example/plots/multi-hmm/` (open html files with a browser), but we briefly describe the structure here.
+A summary of rearrangement-level parameters are shown in `docs/example-plots/multi-hmm/overall.html`:
+
+![rearrangement-overall](images/rearrangement-overall.png)
+
+And a summary of shm is in `docs/example-plots/multi-hmm/mute-freqs/overall.html`:
+
+![shm-overall](images/shm-overall.png)
+
+In addition, if `--make-per-gene-plots` and `--make-per-gene-per-base-plots` are set, a ton of more detailed plots are also written, with per-gene shm distributions in `docs/example-plots/multi-hmm/mute-freqs/per-gene`, for instance for d:
+
+![per-d-shm](images/per-d-shm.png)
+
+and per-gene, per-base plots in `docs/example-plots/multi-hmm/mute-freqs/per-gene-per-position`, for instance for j:
+
+![per-j-per-position-shm](images/per-j-per-position-shm.png)
+
+and also per-gene, per-position, per-base (e.g. showing the different rates of A to G vs A to C) in `docs/example-plots/multi-hmm/mute-freqs/{v,d,j}-per-base/`:
+
+![per-j-per-position-per-base-shm](images/per-j-per-position-per-base-shm.png)
+
+`cache-parameters` or `annotate` will write plots summarizing the distributions of rearrangement parameters in the sample (gene calls, deletion and insertion lengths, SHM properties, etc.).
 Examples of these plots can be found [here](http://psathyrella.github.io/partis/example-plots/hmm/overall.html) for repertoire-wide rearrangement parameters, and [here](http://psathyrella.github.io/partis/example-plots/hmm/mute-freqs/overall.html) for repertoire-wide SHM frequencies broken down in various ways.
 In order to view similar files that you've written to your file system, you'd typically run, for example, `firefox docs/example-plots/*/*.html` (or `google-chrome`), where we've included copies of the same plots into a subdirectory of this documentation.
 If you set `--make-per-gene-plots` in addition to `--plotdir`, similar plots will also be written breaking things down for each individual gene, for instance the per-position SHM rates and 5' deletion lengths for each V gene.
