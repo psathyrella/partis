@@ -1324,7 +1324,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_y_ticks - 1)))]
         yticklabels = [yticklabels[i] for i in range(0, len(yticklabels), int(len(yticklabels) / float(n_y_ticks - 1)))]
     fn = mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=('family size (frac. of %d)' % repertoire_size) if x2key is None else 'clonal family size', title=title,
-                    xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, yticklabelsize=11, adjust={'right' : 0.85})
+                    xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, yticklabelsize=11, adjust={'left' : 0.2, 'right' : 0.85})
 
     if high_x_val is None:
         return fn

@@ -380,7 +380,7 @@ class PartitionPlotter(object):
 
         print '    made %d mds plots (%.1fs)' % (sum(len(x) for x in fnames), time.time() - start)
 
-        return [[subd + '/' + fn for fn in fnames[0]], [subd + '/' + fn for fn in fnames[1]]]
+        return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 
     # ----------------------------------------------------------------------------------------
     def make_laplacian_spectra_plots(self, sorted_clusters, annotations, plotdir, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
@@ -508,7 +508,8 @@ class PartitionPlotter(object):
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
             # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
             # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
-        fnames += self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
+        csfns = self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
+        fnames[0] += csfns[0]
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/%s.html' % (plotdir, subd)) for subd in ['shm-vs-size', 'mds', 'laplacian-spectra']])  # , 'sfs
