@@ -69,18 +69,13 @@ You also need to compile an updated version of bpp:
 ./bin/build.sh with-simulation  # this is really slow
 ```
 
-#### Plotting
+#### MDS Plotting
 
-For plotting to work with the `partition` action (i.e. if you're setting `--plotdir`), you need to install R (skip if you already have it installed), along with some packages
+In order to make the [MDS plots](plotting.md#partition-plots), you need R and the bios2mds package installed:
 
 ```
-apt-get install xorg libx11-dev libglu1-mesa-dev  # may not be necessary, depending on existing R install, but is at least necessary in docker
-apt-get install r-cran-rgl
+apt-get install xorg libx11-dev libglu1-mesa-dev r-cran-rgl  # may not be necessary, depending on existing R install, but is at least necessary in docker
 conda install -y -cr r-rgl r-essentials
 unset R_LIBS_SITE
-R --vanilla --slave -e 'install.packages(c("bios2mds"), repos="http://cran.rstudio.com/")'
-
-# RPANDA stuff (sorry this is hackey, but at least a.t.m. we need to use this modified src [i.e. not what it is in CRAN])
-mkdir -p packages/RPANDA/lib
-R CMD INSTALL -l packages/RPANDA/lib packages/RPANDA/
+R --vanilla --slave -e 'install.packages(c("bios2mds"), dependencies=T, repos="http://cran.rstudio.com/")'  # this may be all the deps: c("picante", "pspline", "deSolve", "igraph", "TESS", "fpc", "pvclust", "corpcor", "phytools", "mvMORPH", "geiger", "mvtnorm", "glassoFast", "Rmpfr")
 ```

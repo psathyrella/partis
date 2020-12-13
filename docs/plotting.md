@@ -5,8 +5,6 @@
   * [annotation truth plots](#annotation-truth-plots)
   * [comparison plots](#comparison-plots)
 
-Note that in order to make plots for the `partition` action, you have to have R installed, along with several [extra packages](install.md#plotting).
-
 The addition of `--plotdir <plotdir>` to most partis commands will write to disk a variety of plots related to that command.
 These plots are written as svg files to subdirectories of `<plotdir>`, along with html files displaying clickable summaries of the svgs.
 You typically want to view the html files in a browser, so a good way to see what's available might be to run `find <plotdir> -name '*.html' | xargs firefox` (although depending on the options, this can open a lot of tabs).
@@ -57,7 +55,7 @@ Only the first of these slug plots (with the biggest clusters) is shown in `over
 The middle two plots in the top row show the mean number of SHMs vs size for all the families in both linear and log scales.
 At top right is the distribution of cluster sizes.
 
-Below this, there is a "multi-dimensional scaling" (MDS, a form of dimensionality reduction) plot for each clonal family, where each sequence in each family is a point on that family's plot.
+Below this, if you have R and bios2mds installed as described [here](install.md#mds-plotting), there is a "multi-dimensional scaling" (MDS, a form of dimensionality reduction) plot for each clonal family, where each sequence in each family is a point on that family's plot.
 MDS takes each family (as a cluster in 400-odd dimensional sequence/hamming distance space) and squishes it out into two dimensions, choosing axes such as to maximize how squished out the family gets, while as nearly as possible preserving each inter-sequence distance from the real, 400-odd dimensional space.
 Note that we use the [bios2mds R package](https://cran.r-project.org/web/packages/bios2mds/bios2mds.pdf), and ambiguous bases are *not* treated correctly, i.e. Ns show up as mutations (at least we can't figure out how to change this).
 While there is no easy biological interpretation for the various directions on these plots, they do a good job of giving, at a glance, an overview of the basic structure of each family.
@@ -73,6 +71,12 @@ This converts the tree's distances into a set of eigenvalues, as described in [t
 This method is newer to us, so we have less to say about how best to interpret it, but it is perhaps useful to draw an analogy to analyzing a wave.
 In a travelling wave the time domain (the tree, in our case) provides the most interpretable description of what is actually happening.
 Moving to the frequency domain by Fourier transform (the Laplacian decomposition, in our case), while less interpretable in terms of the individual movements of the propagating medium, is typically far superior in terms of understanding the underlying processes driving wave formation.
+Making laplacian spectra will require installation of the following:
+```
+# RPANDA stuff (sorry this is hackey, but at least a.t.m. we need to use this modified src [i.e. not what it is in CRAN])
+mkdir -p packages/RPANDA/lib
+R CMD INSTALL -l packages/RPANDA/lib packages/RPANDA/
+```
 
 #### germline inference plots
 
