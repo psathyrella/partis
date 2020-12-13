@@ -1,12 +1,22 @@
 #### plotting
+  * [parameter plots](#parameter-plots)
+  * [partition plots](#partition-plots)
+  * [germline inference plots](germline-inference.md)
+  * [annotation truth plots](annotation-true-plots)
+  * [comparison plots](#comparison-plots)
 
+<!-- ---------------------------------------------------------------------------------------- -->
+<!-- TODO -->
 Note that in order to make plots for the `partition` action, you have to have R installed, along with several [extra packages](install.md#plotting).
 
 The addition of `--plotdir <plotdir>` to most partis commands will write to disk a variety of plots related to that command.
 These plots are written as svg files to subdirectories of `<plotdir>`, along with html files displaying clickable summaries of the svgs.
 You typically want to view the html files in a browser, so a good way to see what's available might be to run `find <plotdir> -name '*.html' | xargs firefox` (although depending on the options, this can open a lot of tabs).
-In addition, plots that are simply histograms usually also have their histogram content written to a csv in the same directory.
-This makes it easier for later comparisons across several directories (for example with `bin/compare-plotdirs.py`).
+In addition, svgs that are simply histograms have their content written to a csv in the same directory.
+This facilitates comparison across [different directories](#comparison-plots), as well as allowing the many re-plotting steps inevitably required during publication to involve only quick csv processing, rather than rerunning partis.
+The svgs themselves can also be easily modified to change axis labels, fonts, colors, etc. using, for instance, [inkscape](https://inkscape.org/), or in simple cases `sed` or a text editor.
+
+#### parameter plots
 
 If a `--plotdir` is specified during parameter caching (whether run automatically, or as a separate `cache-parameters` step), many plots related to rearrangement-level and shm-level parameters will be written to `sw/` and `hmm/` subdirs
 Since partitioning has not yet occurred, however, these are all based on single-sequence annotations (rather than full-family, multi-sequence annotations), so they are not usually the best choice for final analysis (for instance, rearrangement-level parameters such as v gene choice will be counted once for each sequence in the family, rather than, as is proper, once for the whole family).
@@ -25,15 +35,17 @@ In addition, if `--make-per-gene-plots` and `--make-per-gene-per-base-plots` are
 
 ![per-d-shm](images/per-d-shm.png)
 
-and per-gene, per-base plots in `docs/example-plots/multi-hmm/mute-freqs/per-gene-per-position`, for instance for j:
+and per-gene, per-position mutation plots in `docs/example-plots/multi-hmm/mute-freqs/per-gene-per-position`, for instance for j:
 
 ![per-j-per-position-shm](images/per-j-per-position-shm.png)
 
-and also per-gene, per-position, per-base (e.g. showing the different rates of A to G vs A to C) in `docs/example-plots/multi-hmm/mute-freqs/{v,d,j}-per-base/`:
+and also per-gene, per-position, per-base mutation (e.g. showing the different rates of A to G vs A to C, with germline bases below the x axis) in `docs/example-plots/multi-hmm/mute-freqs/{v,d,j}-per-base/`:
 
 ![per-j-per-position-per-base-shm](images/per-j-per-position-per-base-shm.png)
 
-Plots for the partition action are written to the subdir `partitions/`, with the most important ones displayed in `partitions/overview.html`:
+#### partition plots
+
+Plots for the partition action are written to the subdir `partitions/`, with the most important ones displayed in `docs/example-plots/partitions/overview.html`:
 
 ![partitions-overview](images/partitions-overview.png)
 
@@ -43,7 +55,7 @@ The (zero-indexed) family rank and size are shown along the right side.
 Note that the three colors (green, blue, and yellow) have no separate significance, and are used only to visually distinguish adjacent slugs.
 This particular plot also shows the result of setting some sequences of interest using `--queries-to-include a:b:z`, such that sequences labeled a, b, and z will be highlighted in red.
 A typical use case for this option is if you have made several previous `seed-partition` runs (with e.g. `--seed-unique-id a`), and you want to see how the families of the seed sequences fit into the larger repertoire.
-Only the first of these slug plots (with the biggest clusters) is shown in `overview.html` -- the rest are in the `partitions/shm-vs-size/` subdirectory (or click `shm-vs-size` link at top of page).
+Only the first of these slug plots (with the biggest clusters) is shown in `overview.html` -- the rest are in the `partitions/shm-vs-size/` subdirectory.
 The middle two plots in the top row show the mean number of SHMs vs size for all the families in both linear and log scales.
 At top right is the distribution of cluster sizes.
 
@@ -55,7 +67,7 @@ Both the inferred naive sequence and consensus sequence for each cluster are sho
 So in cases where dots get uniformly less transparent as they get further from the red naive dot, this tells you that the dimension reduction is not losing very much information.
 In cases where the plots are, on the other hand, uniformly speckled all over, the sequences are distributed more evenly across the 400-odd dimensional space (i.e. there wasn't a way to squish down to two dimensions without losing lots of information).
 The plot title shows the family's zero-based, size-sorted index and size (matching the numbers on the right side of the slug plots).
-The overview html again only shows plots for the largest few clusters, while the rest can be found in the `partitions/mds/` subdirectory (or click `mds` link at top of page).
+The overview html again only shows plots for the largest few clusters, while the rest can be found in the `partitions/mds/` subdirectory.
 
 You can write some even more speculatively informative plots if you uncomment the `make_laplacian_spectra_plots()` call in `python/partitionplotter.py`.
 Below the MDS plots, there is a row of plots showing the Laplacian spectral decomposition for each cluster's tree (the rest are in the `laplacian-spectra/` subdir).
@@ -64,4 +76,37 @@ This method is newer to us, so we have less to say about how best to interpret i
 In a travelling wave the time domain (the tree, in our case) provides the most interpretable description of what is actually happening.
 Moving to the frequency domain by Fourier transform (the Laplacian decomposition, in our case), while less interpretable in terms of the individual movements of the propagating medium, is typically far superior in terms of understanding the underlying processes driving wave formation.
 
+#### germline inference plots
+
 For a description of the plots written during germline inference, see [here](germline-inference.md).
+
+#### annotation truth plots
+
+If you're running on simulation, you can turn on `--is-simu` and write plots comparing the action's annotation performance to the simulation truth values by setting `--plot-annotation-performance`.
+This writes performance plots in three categories/subdirs: boundaries, gene calls, and mutation.
+For instance, after running [bin/compare-plotsdirs.py](#comparison-plots) we can compare the performance plots for smith-waterman annotation and the partition-based multi-hmm:
+```
+pdir=docs/example-plots
+subd=annotation-performance
+./bin/compare-plotdirs.py --outdir $pdir/comparisons/$subd --plotdirs $pdir/$subd/sw:$pdir/$subd/hmm --names sw:multi-hmm --normalize --performance-plots
+```
+Which looks like this for two of the (many) resulting plots:
+
+![annotation-performance-comparison-example](annotation-performance-comparison-example.png)
+
+#### comparison plots
+
+The csv files that are written during plotting alongside all histogram-type svgs are designed to allow quick comparisons across different plotting directories.
+For instance, comparing/combining to plots for several different subjects, or different inference methods.
+This is accomplished with `bin/compare-plotdirs.py`, which takes a colon-separated list of plotdirs (and their corresponding names), and looks for corresponding csv plot files.
+We demonstrate its use by comparing some of the smith-waterman, hmm, and multi-hmm parameter plots in `docs/example-plots`:
+
+```
+pdir=docs/example-plots
+subd=overall #mute-freqs/overall
+./bin/compare-plotdirs.py --outdir $pdir/comparisons --plotdirs $pdir/sw/$subd:$pdir/hmm/$subd:$pdir/multi-hmm/$subd --names sw:hmm:multi-hmm --normalize
+```
+
+With the result, say for d 5' deletion and v gene call showing the multi-hmm's significantly different (and improved) performance:
+
+![comparisons-example](images/comparisons-example.png)
