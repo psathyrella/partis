@@ -146,19 +146,26 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend)
 
 # ----------------------------------------------------------------------------------------
-parser = argparse.ArgumentParser()
-parser.add_argument('--outdir', required=True)
-parser.add_argument('--plotdirs', required=True)
-parser.add_argument('--names', required=True)
-parser.add_argument('--performance-plots', action='store_true')
-parser.add_argument('--colors', default=':'.join(plotting.default_colors))
-parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths))
-parser.add_argument('--gldirs') #, default=['data/germlines/human'])
+helpstr = """
+Compare csv histogram plot files across multiple directories
+    ./bin/compare-plotdirs.py --outdir _output/tmp-plots --plotdirs docs/example-plots/sw/mute-freqs/overall:docs/example-plots/hmm/mute-freqs/overall:docs/example-plots/multi-hmm/mute-freqs/overall --names sw:hmm:multi-hmm --normalize
+"""
+class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
+    pass
+formatter_class = MultiplyInheritedFormatter
+parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
+parser.add_argument('--outdir', required=True, help='Output directory to which to write the resulting comparison plots. A summary .html file is also written to <outdir>.html')
+parser.add_argument('--plotdirs', required=True, help='Colon-separated list of input plot directories, each of which must have identical structure. Looks for svgs first in each dir, but then also in the subdirs of each dir (so e.g. if each of them have a/, b/, and c/ subdirs, this script will make a separate comparison of a/, b/, and c/)')
+parser.add_argument('--names', required=True, help='colon-separated list of names/labels corresponding to --plotdirs')
+parser.add_argument('--performance-plots', action='store_true', help='set to true if these are annotation performance plots, i.e. made with --plot-annotation-performance (this makes the axis labels more sensible)')
+parser.add_argument('--colors', default=':'.join(plotting.default_colors), help='color-separated list of colors to cycle through for the plotdirs')
+parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths), help='colon-separated list of linewidths to cycle through')
+parser.add_argument('--gldirs', help='On plots showing mutation vs individual gene positions, if you\'d like a dashed veritcal line showing conserved codon positions, set this as a colon-separated list of germline info dirs corresponding to each plotdir') #, default=['data/germlines/human'])
 parser.add_argument('--locus', default='igh')
-parser.add_argument('--normalize', action='store_true')
-parser.add_argument('--extra-stats')
-parser.add_argument('--translegend')
-parser.add_argument('--log', default='')
+parser.add_argument('--normalize', action='store_true', help='If set, the histograms from each plotdir are normalized (each bin contents divided by the integral) before making the comparison (e.g. for comparing different size samples).')
+parser.add_argument('--extra-stats', help='if set, adds extra stat to legend, e.g. \'mean\', \'absmean\', \'auto\'')
+parser.add_argument('--translegend', help='colon-separated list of x, y values with which to translate all the legends')
+parser.add_argument('--log', default='', help='Display these axes on a log scale, set to either \'x\', \'y\', or \'xy\'')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)

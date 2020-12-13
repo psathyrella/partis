@@ -5,8 +5,6 @@
   * [annotation truth plots](#annotation-true-plots)
   * [comparison plots](#comparison-plots)
 
-<!-- ---------------------------------------------------------------------------------------- -->
-<!-- TODO -->
 Note that in order to make plots for the `partition` action, you have to have R installed, along with several [extra packages](install.md#plotting).
 
 The addition of `--plotdir <plotdir>` to most partis commands will write to disk a variety of plots related to that command.
@@ -110,3 +108,5 @@ subd=overall #mute-freqs/overall
 With the result, say for d 5' deletion and v gene call showing the multi-hmm's significantly different (and improved) performance:
 
 ![comparisons-example](images/comparisons-example.png)
+
+You can see here (by the much larger uncertainties) that the multi-hmm is counting each family only once (as is proper), rather than counting each sequence individually (as sw and the single hmm are have to, since they don't have access to the partition).
