@@ -178,7 +178,7 @@ This will view an ascii-art summary of the output in an existing partis output f
 ``` 
 ./bin/partis view-output --outfname test/reference-results/partition-new-simu.yaml --abbreviate | less -RS
 ```
-will look something like
+will look something like (move around with arrow keys)
 
 ![view-output](images/view-output.png)
 
