@@ -1,8 +1,8 @@
 #### plotting
   * [parameter plots](#parameter-plots)
   * [partition plots](#partition-plots)
-  * [germline inference plots](germline-inference.md)
-  * [annotation truth plots](#annotation-true-plots)
+  * germline inference plots: [separate file](germline-inference.md)
+  * [annotation truth plots](#annotation-truth-plots)
   * [comparison plots](#comparison-plots)
 
 Note that in order to make plots for the `partition` action, you have to have R installed, along with several [extra packages](install.md#plotting).
