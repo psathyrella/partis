@@ -2,7 +2,7 @@
   * [parameter plots](#parameter-plots)
   * [partition plots](#partition-plots)
   * [germline inference plots](germline-inference.md)
-  * [annotation truth plots](annotation-true-plots)
+  * [annotation truth plots](#annotation-true-plots)
   * [comparison plots](#comparison-plots)
 
 <!-- ---------------------------------------------------------------------------------------- -->
@@ -92,7 +92,7 @@ subd=annotation-performance
 ```
 Which looks like this for two of the (many) resulting plots:
 
-![annotation-performance-comparison-example](annotation-performance-comparison-example.png)
+![annotation-performance-comparison-example](images/annotation-performance-comparison-example.png)
 
 #### comparison plots
 
