@@ -3273,11 +3273,16 @@ def set_slurm_nodelist(cmdfos, batch_config_fname=None, debug=False):
         cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
 
 # ----------------------------------------------------------------------------------------
-def check_cmd(cmd, options=''):  # check for existence of <cmd> (this exists just because check_call() throws a 'no such file or directory' error, and people never figure out that that means the command isn't found)
+def check_cmd(cmd, options='', return_bool=False):  # check for existence of <cmd> (this exists just because check_call() throws a 'no such file or directory' error, and people never figure out that that means the command isn't found)
     try:
         subprocess.check_call([cmd] + options, stdout=open('/dev/null'))
+        if return_bool:  # return True if cmd exists + succeeds
+            return True
     except OSError:
-        raise Exception('command \'%s\' not found in path (maybe not installed?)' % cmd)
+        if return_bool:
+            return False
+        else:
+            raise Exception('command \'%s\' not found in path (maybe not installed?)' % cmd)
 
 # ----------------------------------------------------------------------------------------
 def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return_out_err=False, debug=False):

@@ -496,6 +496,10 @@ class PartitionPlotter(object):
             print '  --only-csv-plots not implemented for partition plots, so returning without plotting'
             return
         assert (partition is None and annotations is not None) or infiles is None
+        mds_plots = True
+        if not utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):
+            mds_plots = False
+            print '  note: R does not seem to be installed, so skipping mds partition plots'
         print '  plotting partitions'
         sys.stdout.flush()
         start = time.time()
@@ -505,7 +509,8 @@ class PartitionPlotter(object):
             self.remove_failed_clusters(partition, annotations)
             sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
             fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
-            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
+            if mds_plots:
+                fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
             # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
             # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         csfns = self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
