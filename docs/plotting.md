@@ -82,7 +82,7 @@ For a description of the plots written during germline inference, see [here](ger
 
 If you're running on simulation, you can turn on `--is-simu` and write plots comparing the action's annotation performance to the simulation truth values by setting `--plot-annotation-performance`.
 This writes performance plots in three categories/subdirs: boundaries, gene calls, and mutation.
-For instance, after running [bin/compare-plotsdirs.py](#comparison-plots) we can compare the performance plots for smith-waterman annotation and the partition-based multi-hmm:
+For instance, after running [bin/compare-plotdirs.py](#comparison-plots) we can compare the performance plots for smith-waterman annotation and the partition-based multi-hmm:
 ```
 pdir=docs/example-plots
 subd=annotation-performance
@@ -109,4 +109,4 @@ With the result, say for d 5' deletion and v gene call showing the multi-hmm's s
 
 ![comparisons-example](images/comparisons-example.png)
 
-You can see here (by the much larger uncertainties) that the multi-hmm is counting each family only once (as is proper), rather than counting each sequence individually (as sw and the single hmm are have to, since they don't have access to the partition).
+You can see here (by the much larger uncertainties) that the multi-hmm is counting each family only once (as is proper), rather than counting each sequence individually (as sw and the single hmm have to, since they don't have access to the partition).

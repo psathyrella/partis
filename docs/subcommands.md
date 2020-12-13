@@ -173,11 +173,20 @@ If you'd like a modern, browser-based package for visualizing the families and t
 
 ### view-output
 
-To print the partitions and/or annotations in an existing output file, run
+This will view an ascii-art summary of the output in an existing partis output file, for instance:
 
 ``` 
-partis view-output --outfname _output/example.yaml | less -RS
+./bin/partis view-output --outfname test/reference-results/partition-new-simu.yaml --abbreviate | less -RS
 ```
+will look something like
+
+![view-output](images/view-output.png)
+
+where the first block shows a list of the most likely partitions (from near the end of tha partitioning process, with the best partition marked in yellow).
+The next block shows the annotation for (by default) each cluster in the best partition.
+Each annotation is shown with the top three lines showing germline sequences/genes: 1. non-templated insertions, 2. D gene, 3. V and J genes.
+Each subsequent line is an observed sequence, with point mutations in red, ambiguous bases as blue Ns, and SHM indels as blue dashes/stars.
+
 You can also send std out to a log file `>log.txt` instead of piping to `less -RS`.
 
 ### cache-parameters
