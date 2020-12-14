@@ -1,7 +1,7 @@
 ### output file formatting
 
   * [output file overview](#output-file-overview)
-  * [extracting fasta files](#extracting-fasta-files)
+  * [extracting simplified fasta or csv/tsv files](#extracting-simplified-files)
   * [description of keys](#description-of-keys)
   * [output file example](#output-file-example)
 
@@ -16,7 +16,7 @@ If you want to print the results of existing output files to the terminal, use t
 While by default a fairly minimal set of annotation information is written to file, many more keys are present in the dictionary in memory (see below).
 Any of these keys, together with several additional ones, can be added to the output file by setting `--extra-annotation-columns key_a:key_b` (for all the choices, see below, or run `partis annotate --help|grep -C5 extra-annotation`).
 
-An example parsing script can be found [here](../bin/example-parse-output.py).
+An example parsing script can be found [here](../bin/parse-output.py).
 
 For more information on all options, run `partis <action> --help`.
 
@@ -31,10 +31,15 @@ The yaml output file contains four top-level headers:
 |  events        |  list of annotations for each rearrangement event (i.e. group of clonally-related sequences)
 |  partitions    |  list of partitions, including the most likely partition (only set if running the partition action)
 
-#### extracting fasta files
+#### extracting simplified files
 
-In order to quickly extra fasta sequence files from partis output files, you can use `bin/extract-fasta.py`.
-See `./bin/extract-fasta.py --help` for details.
+In order to quickly extract sequences (plus limited other info) from partis output files to fasta or csv/tsv, you can use `bin/parse-output.py`.
+For example
+```
+./bin/parse-output.py test/reference-results/partition-new-simu.yaml <tmp.csv|tmp.fa> --extra-columns cdr3_length:naive_seq
+```
+will write input sequences, together with inferred naive sequences and cdr3 lengths, to `tmp.csv` or `tmp.fa`.
+See `./bin/parse-output.py --help` for details.
 
 #### description of keys
 
