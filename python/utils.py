@@ -3285,7 +3285,7 @@ def check_cmd(cmd, options='', return_bool=False):  # check for existence of <cm
             raise Exception('command \'%s\' not found in path (maybe not installed?)' % cmd)
 
 # ----------------------------------------------------------------------------------------
-def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return_out_err=False, debug=False):
+def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfname=None, return_out_err=False, debug=False):
     if dryrun:
         debug = True
     if workdir == 'auto':
@@ -3301,7 +3301,7 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return
         print pad_lines('\n'.join(cmdlines))
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
-    retval = simplerun('R --slave -f %s' % cmdfname, return_out_err=return_out_err, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
+    retval = simplerun('R --slave -f %s' % cmdfname, return_out_err=return_out_err, logfname=logfname, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
     os.remove(cmdfname)  # different sort of <cmdfname> to that in simplerun()
     if remove_workdir:
         os.rmdir(workdir)

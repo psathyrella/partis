@@ -14,10 +14,13 @@ import utils
 mdir = "%s/work/partis/datascripts/meta/goo-dengue-10x" % os.getenv('HOME')
 fabio_fname = '%s/fabio-pb-markers.tsv' % mdir
 waickfname = '%s/waickman-markers.csv' % mdir
+msigdbfname = '%s/msigdb-markers.csv' % mdir
 barcodefname = 'barcodes.txt'
 pcafname = 'pca.txt'
 umapfname = 'umap.txt'
 clusterfname = 'clusters.txt'
+cell_type_fname = 'cell-types.csv'
+cluster_vs_subtype_fname = 'clusters-vs-subtype.csv'
 
 msdsets = [  # still need _UP or _DN tacked on at the end
     ('gc', 'GSE4142_GC_BCELL_VS_MEMORY_BCELL'),  # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4517294/ and https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1413911/
@@ -111,6 +114,7 @@ def dimredcmds(outdir, glist_name, max_pca_components=25, n_top_genes=100):
 
 # ----------------------------------------------------------------------------------------
 def run_msigdbr(outdir):  # download the sets and write to csvs
+    # NOTE still had to sort|uniq|sort -t, -k2 this by hand (after removing first column with just line numbers)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     rcmds = [
@@ -143,10 +147,10 @@ def ctype_ann_cmds(outdir, clnames):  # cell type annotation (although we do som
         'rankings <- AUCell_buildRankings(counts(sce), plotStats=FALSE, verbose=FALSE)',
         'cell.aucs <- AUCell_calcAUC(all.sets, rankings)',
         'results <- t(assay(cell.aucs))',
-        'head(results)',
+        'write.csv(results, "%s/%s")' % (outdir, cell_type_fname),
         'new.labels <- colnames(results)[max.col(results)]',
         'tab <- table(new.labels, sce$label)',  # only if we have clusters
-        'tab',
+        'write.csv(tab, "%s/%s")' % (outdir, cluster_vs_subtype_fname),
     ]
     rcmds += rplotcmds(outdir, 'auc-thresholds', 'AUCell_exploreThresholds(cell.aucs, plotHist=TRUE, assign=TRUE)', rowcol=(2, 2), hw=(1500, 1500))  # this is verbose as all hell
 
@@ -340,7 +344,9 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
     # return barcode_vals, rotation_vals, umap_vals, cluster_vals
 
 # ----------------------------------------------------------------------------------------
-def run_gex(feature_matrix_fname, outdir, make_plots=True):
+def run_gex(feature_matrix_fname, mname, outdir, make_plots=True):
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
     rcmds = [loadcmd(l) for l in ['DropletUtils', 'scater', 'scran', 'pheatmap', 'celldex', 'SingleR', 'GSEABase', 'AUCell']]
     rcmds += [
         'options(width=1000)',
@@ -361,18 +367,32 @@ def run_gex(feature_matrix_fname, outdir, make_plots=True):
         # 'table(pred$labels)',
         # 'sce <- sce[, pred$labels=="B-cells"]',  # discard non-b-cells
         # 'pred <- pred[pred$labels=="B-cells", ]',
-
-        'dec <- modelGeneVar(sce)',
-        'hvg <- getTopHVGs(dec, prop=0.1)',  # 0.1 gives ~700 most variable genes (if you combine these with the fabio/waick, these totally dominate everything, presumably because there's so many)
-        'fabio.markers <- read.csv("%s", sep="\t", header=T)' % fabio_fname, # $name  # genes from fabio (200 most up- or down-regulated in plasmablast as compared to naive B cells)
-        'waick.markers <- read.csv("%s", header=T)' % waickfname,  # 10 most up'd genes for naive, memory, pb, and prepb (40 total). Not sure if it's with respeect to each other, or other cells, or what
-        # 'all_genes <- c(fabio.markers$gene, waick.markers$gene, hvg)',
     ]
+    if mname == 'hvg':
+        rcmds += [
+            'dec <- modelGeneVar(sce)',
+            'hvg <- getTopHVGs(dec, prop=0.1)',  # 0.1 gives ~700 most variable genes (if you combine these with the fabio/waick, these totally dominate everything, presumably because there's so many)
+        ]
+    elif mname == 'fabio':
+        rcmds += [
+            'fabio.markers <- read.csv("%s", sep="\t", header=T)' % fabio_fname, # $name  # genes from fabio (200 most up- or down-regulated in plasmablast as compared to naive B cells)
+        ]
+    elif mname == 'waick':
+        rcmds += [
+            'waick.markers <- read.csv("%s", header=T)' % waickfname,  # 10 most up'd genes for naive, memory, pb, and prepb (40 total). Not sure if it's with respeect to each other, or other cells, or what
+        ]
+    elif mname == 'msigdb':
+        rcmds += [
+            'msigdb.markers <- read.csv("%s", header=T)' % msigdbfname,  # see <msdsets> above -- I just searched through the G7 sets for ones with plasma{blast,cell} and took the nearby ones
+        ]
+    else:
+        assert False
+        # 'all_genes <- c(fabio.markers$gene, waick.markers$gene, hvg)',  # don't do this, the hvgs overwhelm everything
 
-    # rcmds += dimredcmds(outdir, 'hvg')
-    # rcmds += dimredcmds(outdir, 'waick.markers$gene')
-    rcmds += dimredcmds(outdir, 'fabio.markers$gene')
-
+    mname_markers = mname
+    if mname != 'hvg':
+        mname_markers += '.markers$gene'
+    rcmds += dimredcmds(outdir, mname_markers)
     # reference labels from celldex
     rcmds += [
         'ref <- celldex::BlueprintEncodeData()',  # get reference labels from cache or download
@@ -383,8 +403,7 @@ def run_gex(feature_matrix_fname, outdir, make_plots=True):
     # only if we have clusters:
     rcmds += ['tab <- table(Assigned=pred$pruned.labels, Cluster=colLabels(sce))',]  # table (and then heatmap) comparing these new labels to our existing clusters
     rcmds += rplotcmds(outdir, 'celldex-label-vs-cluster-heatmap', 'pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))')  # this will crash if you've filtered to only B cells
+    if mname != 'hvg':
+        rcmds += ctype_ann_cmds(outdir, mname_markers.replace('$gene', ''))
 
-    # rcmds += ctype_ann_cmds(outdir, 'waick.markers')
-    rcmds += ctype_ann_cmds(outdir, 'fabio.markers')
-
-    utils.run_r(rcmds, 'auto', dryrun=False)
+    utils.run_r(rcmds, 'auto', logfname='%s/out'%outdir, dryrun=False)
