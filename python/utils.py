@@ -3288,6 +3288,10 @@ def check_cmd(cmd, options='', return_bool=False):  # check for existence of <cm
 def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return_out_err=False, debug=False):
     if dryrun:
         debug = True
+    if workdir == 'auto':
+        workdir = choose_random_subdir('/tmp/%s' % os.getenv('USER'))
+        os.makedirs(workdir)
+        remove_workdir = True
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
     check_cmd('R', options=['--slave', '--version'])
@@ -3299,6 +3303,8 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', return
         cmdfile.write('\n'.join(cmdlines) + '\n')
     retval = simplerun('R --slave -f %s' % cmdfname, return_out_err=return_out_err, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
     os.remove(cmdfname)  # different sort of <cmdfname> to that in simplerun()
+    if remove_workdir:
+        os.rmdir(workdir)
     if return_out_err:
         outstr, errstr = retval
         return outstr, errstr

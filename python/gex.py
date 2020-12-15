@@ -19,6 +19,21 @@ pcafname = 'pca.txt'
 umapfname = 'umap.txt'
 clusterfname = 'clusters.txt'
 
+msdsets = [  # still need _UP or _DN tacked on at the end
+    ('gc', 'GSE4142_GC_BCELL_VS_MEMORY_BCELL'),  # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4517294/ and https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1413911/
+    ('memory', 'GSE42724_MEMORY_BCELL_VS_PLASMABLAST'),  # https://pubmed.ncbi.nlm.nih.gov/23613519/
+    ('naive', 'GSE4142_NAIVE_BCELL_VS_PLASMA_CELL'),
+    ('naive', 'GSE4142_NAIVE_VS_GC_BCELL'),
+    ('naive', 'GSE4142_NAIVE_VS_MEMORY_BCELL'),
+    ('naive', 'GSE42724_NAIVE_BCELL_VS_PLASMABLAST'),
+    ('naive', 'GSE42724_NAIVE_VS_MEMORY_BCELL'),
+    ('plasma', 'GSE4142_PLASMA_CELL_VS_GC_BCELL'),
+    ('plasma', 'GSE4142_PLASMA_CELL_VS_MEMORY_BCELL'),
+]
+def msigdb_sets(updown):
+    assert updown in ['UP', 'DN']
+    return [(c, '%s_%s'%(n, updown)) for c, n in msdsets]
+
 # ----------------------------------------------------------------------------------------
 def markfname(iclust):
     return 'markers-cluster-%d.csv' % iclust  # NOTE R indexing, starts from 1
@@ -27,10 +42,7 @@ def markfname(iclust):
 def install():
     rcmds = ['install.packages("BiocManager", repos="http://cran.rstudio.com/"))',
              'BiocManager::install(c("scRNAseq", "scater", "scran", "uwot", "DropletUtils", "GSEABase", "AUCell", "celldex", "SingleR"), dependencies=TRUE)']  # "TENxPBMCData"
-    workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
-    os.makedirs(workdir)
-    utils.run_r(rcmds, workdir)
-    os.rmdir(workdir)
+    utils.run_r(rcmds, 'auto')
 # install()
 # sys.exit()
 
@@ -98,6 +110,29 @@ def dimredcmds(outdir, glist_name, max_pca_components=25, n_top_genes=100):
     return rcmds
 
 # ----------------------------------------------------------------------------------------
+def run_msigdbr(outdir):  # download the sets and write to csvs
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    rcmds = [
+        loadcmd('msigdbr'),
+        'all_gene_sets <- msigdbr(species="Homo sapiens", category="C7")',
+        'alldf <- data.frame()',
+    ]
+    for ctype, gsname in msigdb_sets('UP'):  # TODO should probably use the 'DN' ones in some way?
+        print '    %8s %s' % (ctype, gsname)
+        rcmds += [
+            'glist <- all_gene_sets[all_gene_sets$gs_name=="%s",]$human_gene_symbol' % gsname,  # gives list of gene names
+            'df <- data.frame(glist, tag="%s")' % ctype,
+            'names(df)[names(df) == "glist"] <- "gene"',
+            'names(df)[names(df) == "tag"] <- "type"',
+            'alldf <- rbind(alldf, df)'
+        ]
+    rcmds += [
+        'write.csv(alldf, "%s/msigdb-markers.csv")' % outdir,
+    ]
+    utils.run_r(rcmds, 'auto', dryrun=False)
+
+# ----------------------------------------------------------------------------------------
 def ctype_ann_cmds(outdir, clnames):  # cell type annotation (although we do some with celldex at the start as well)
     # using custom references
     rcmds = [
@@ -114,8 +149,6 @@ def ctype_ann_cmds(outdir, clnames):  # cell type annotation (although we do som
         'tab',
     ]
     rcmds += rplotcmds(outdir, 'auc-thresholds', 'AUCell_exploreThresholds(cell.aucs, plotHist=TRUE, assign=TRUE)', rowcol=(2, 2), hw=(1500, 1500))  # this is verbose as all hell
-# all_gene_sets <- msigdbr(species="Homo sapiens", category="C7")
-# all_gene_sets[all_gene_sets$gs_name=="GSE42724_NAIVE_BCELL_VS_PLASMABLAST_UP",]$human_gene_symbol  # gives list of gene names
 
     return rcmds
 
@@ -354,27 +387,4 @@ def run_gex(feature_matrix_fname, outdir, make_plots=True):
     # rcmds += ctype_ann_cmds(outdir, 'waick.markers')
     rcmds += ctype_ann_cmds(outdir, 'fabio.markers')
 
-    workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER'))
-    os.makedirs(workdir)
-    utils.run_r(rcmds, workdir, dryrun=False)
-    os.rmdir(workdir)
-
-## GSE4142_GC_BCELL_VS_MEMORY_BCELL_DN
-## GSE4142_GC_BCELL_VS_MEMORY_BCELL_UP
-## GSE4142_NAIVE_BCELL_VS_PLASMA_CELL_DN
-## GSE4142_NAIVE_BCELL_VS_PLASMA_CELL_UP
-## GSE4142_NAIVE_VS_GC_BCELL_DN
-## GSE4142_NAIVE_VS_GC_BCELL_UP
-## GSE4142_NAIVE_VS_MEMORY_BCELL_DN
-## GSE4142_NAIVE_VS_MEMORY_BCELL_UP
-## GSE4142_PLASMA_CELL_VS_GC_BCELL_DN
-## GSE4142_PLASMA_CELL_VS_GC_BCELL_UP
-## GSE4142_PLASMA_CELL_VS_MEMORY_BCELL_DN
-## GSE4142_PLASMA_CELL_VS_MEMORY_BCELL_UP
-
-## GSE42724_MEMORY_BCELL_VS_PLASMABLAST_DN
-## GSE42724_MEMORY_BCELL_VS_PLASMABLAST_UP
-## GSE42724_NAIVE_BCELL_VS_PLASMABLAST_DN
-## GSE42724_NAIVE_BCELL_VS_PLASMABLAST_UP
-## GSE42724_NAIVE_VS_MEMORY_BCELL_DN
-## GSE42724_NAIVE_VS_MEMORY_BCELL_UP
+    utils.run_r(rcmds, 'auto', dryrun=False)
