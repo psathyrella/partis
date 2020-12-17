@@ -95,6 +95,14 @@ def getregions(locus):  # for clarity, don't use the <loci> dictionary directly 
 def has_d_gene(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
     return 'd' in loci[locus]
 
+def samechain(l1, l2):  # true if l1 and l2 are either both heavy, or both light
+    if has_d_gene(l1) and has_d_gene(l2):
+        return True
+    elif has_d_gene(l1) or has_d_gene(l2):
+        return False
+    else:
+        return True
+
 def get_boundaries(locus):  # NOTE almost everything still uses the various static boundaries variables, rather than calling this. It may or may not be more sensible to switch to this eventually
     rlist = getregions(locus)
     return [rlist[i] + rlist[i+1] for i in range(len(rlist)-1)]
