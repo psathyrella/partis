@@ -72,7 +72,7 @@ def old_indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE sim
             colors[istr] = colors[istr][ : ifo['pos']] + [[] for _ in range(len(indelstr))] + colors[istr][ifo['pos'] : ]
             if iseq > 0 and is_qr(istr):  # the germline lines are printed based on the *first* query sequence in a multi-seq alignment, and it'd be kinda hard to really account for all subsequent sequences' indels, so we compromise by blueing the insertions in the subsequent query sequences (deletions are already blue stars). Note that they still don't line up right.
                 for inuke  in range(ifo['pos'], ifo['pos'] + ifo['len']):
-                    colors[istr][inuke] += ['light_blue', 'reverse_video']
+                    colors[istr][inuke] += ['blue', 'reverse_video']
 
     ifo = line['indelfos'][iseq]
     for ifo in ifo['indels']:
@@ -164,7 +164,7 @@ def indel_shenanigans(line, iseq, outstrs, colors, delstrs, debug=False):  # NOT
                 new_outstrs[istr] += [new_char]
                 new_colors[istr] += [[]]
                 if iseq > 0 and is_qr(istr):  # the germline lines are printed based on the *first* query sequence in a multi-seq alignment, and it'd be kinda hard to really account for all subsequent sequences' indels, so we compromise by blueing the insertions in the subsequent query sequences (deletions are already blue stars). Note that they still don't line up right.
-                    new_colors[istr][-1] += ['light_blue', 'reverse_video']
+                    new_colors[istr][-1] += ['blue', 'reverse_video']
             if ifo['gl_gap_seq'][iglgap] not in utils.gap_chars:  # if this is a dot in the gl gap seq, then this base was an insertion in the query sequence, i.e. we removed it for the reversed seq, i.e. we don't want to increment <ipos>
                 ipos += 1
             iqrgap += 1
@@ -219,7 +219,7 @@ def add_colors(outstrs, colors, line):  # NOTE do *not* modify <line>
             continue
         blue_indices = [inuke for inuke in range(len(outstrs[istr])) if outstrs[istr][inuke] in bluechars]
         for inuke in blue_indices:
-            colors[istr][inuke].append('light_blue')
+            colors[istr][inuke].append('blue')
 
     # and finally apply the colors from <colors>
     for istr in range(len(outstrs)):

@@ -189,7 +189,8 @@ def add_lists(list_a, list_b):  # add two lists together, except if one is None 
 
 # ----------------------------------------------------------------------------------------
 def get_single_entry(tl):  # adding this very late, so there's a lot of places it could be used
-    assert len(tl) == 1
+    if len(tl) != 1:
+        raise Exception('length must be 1 in get_single_entry(), but got %d' % len(tl))
     return tl[0]
 
 # ----------------------------------------------------------------------------------------
@@ -1049,18 +1050,23 @@ def from_same_event(reco_info, query_names):  # putting are_clonal in a comment,
 
 # ----------------------------------------------------------------------------------------
 # bash color codes
-Colors = {}
-Colors['head'] = '\033[95m'
-Colors['bold'] = '\033[1m'
-Colors['purple'] = '\033[95m'
-Colors['blue'] = '\033[94m'
-Colors['light_blue'] = '\033[1;34m'
-Colors['green'] = '\033[92m'
-Colors['yellow'] = '\033[93m'
-Colors['red'] = '\033[91m'
-Colors['reverse_video'] = '\033[7m'
-Colors['red_bkg'] = '\033[41m'
-Colors['end'] = '\033[0m'
+ansi_color_table = collections.OrderedDict((
+    # 'head' : '95'  # not sure wtf this was?
+    ('end', 0),
+    ('bold', 1),
+    ('reverse_video', 7),
+    ('red', 91),
+    ('green', 92),
+    ('yellow', 93),
+    ('blue', 94),
+    ('purple', 95),
+    ('red_bkg', 41),
+    ('green_bkg', 42),
+    ('yellow_bkg', 43),
+    ('blue_bkg', 44),
+    ('purple_bkg', 45),
+))
+Colors = {c : '\033[%sm'%i for c, i in ansi_color_table.items()}
 
 def color(col, seq, width=None, padside='left'):
     return_str = [seq]
@@ -1075,6 +1081,11 @@ def color(col, seq, width=None, padside='left'):
         else:
             assert False
     return ''.join(return_str)
+
+def cyclecolor(cid, clist=None):  # cycle through the (actual) colors in <Colors> (note: no control/warning over when it's wrapping around)
+    if clist is None:
+        clist = [c for c in Colors if c not in ['head', 'end']]
+    return clist[cid % len(clist)]
 
 def len_excluding_colors(seq):  # NOTE this won't work if you inserted a color code into the middle of another color code
     for color_code in Colors.values():
@@ -2480,10 +2491,12 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
     # return hackey_default_gene_versions[region]
 
 # ----------------------------------------------------------------------------------------
-def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, amino_acid=False):
+def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, align_if_necessary=False, amino_acid=False):
     if extra_bases is not None:
         raise Exception('not sure what this was supposed to do (or did in the past), but it doesn\'t do anything now! (a.t.m. it seems to only be set in bin/plot-germlines.py, which I think doesn\'t do anything useful any more)')
-    if align:  # way the hell slower, of course
+    if align or (align_if_necessary and len(seq1) != len(seq2)):  # way the hell slower if you have to align, of course
+        if align_if_necessary:
+            print '  %s unequal length sequences %d %d:\n  %s\n  %s' % (color('yellow', 'warning'), len(seq1), len(seq2), seq1, seq2)
         seq1, seq2 = align_seqs(seq1, seq2)
     if len(seq1) != len(seq2):
         raise Exception('unequal length sequences %d %d:\n  %s\n  %s' % (len(seq1), len(seq2), seq1, seq2))
@@ -2519,8 +2532,8 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         return distance
 
 # ----------------------------------------------------------------------------------------
-def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False, amino_acid=False):  # NOTE use hamming_distance() to get the positions (yeah, I should eventually add it here as well)
-    distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True, amino_acid=amino_acid)
+def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False, amino_acid=False, align_if_necessary=False):  # NOTE use hamming_distance() to get the positions (yeah, I should eventually add it here as well)
+    distance, len_excluding_ambig = hamming_distance(seq1, seq2, extra_bases=extra_bases, return_len_excluding_ambig=True, amino_acid=amino_acid, align_if_necessary=align_if_necessary)
 
     fraction = 0.
     if len_excluding_ambig > 0:

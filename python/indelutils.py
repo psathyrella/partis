@@ -215,12 +215,12 @@ def get_dbg_str(indelfo):
         qrb, glb = indelfo['qr_gap_seq'][ich], indelfo['gl_gap_seq'][ich]
         qrcolor, glcolor = None, None
         if qrb in utils.gap_chars or glb in utils.gap_chars:
-            qrcolor = 'light_blue'
-            glcolor = 'light_blue'
+            qrcolor = 'blue'
+            glcolor = 'blue'
         elif qrb in utils.all_ambiguous_bases:
-            qrcolor = 'light_blue'
+            qrcolor = 'blue'
         elif glb in utils.all_ambiguous_bases:
-            glcolor = 'light_blue'
+            glcolor = 'blue'
         elif qrb != glb:
             qrcolor = 'red'
         qrprintstr.append(utils.color(qrcolor, qrb if qrb not in utils.gap_chars else '*'))  # change it to a start just cause that's what it originally was... at some point should switch to just leaving it whatever gap char it was

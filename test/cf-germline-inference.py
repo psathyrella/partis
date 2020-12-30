@@ -410,7 +410,7 @@ def get_data_plots(args, region, baseoutdir, methods, study, dsets):
         print '%s:' % utils.color('green', dsets[0]),
     else:  # single sample plot
         glslabels = dsets
-    print '%s' % (' %s ' % utils.color('light_blue', 'vs')).join(glslabels)
+    print '%s' % (' %s ' % utils.color('blue', 'vs')).join(glslabels)
     plotdir = outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots'
     if args.all_regions:  # NOTE not actually checking this by running... but it's the same as the gls-gen one, so it should be ok
         plotdir += '/' + region
