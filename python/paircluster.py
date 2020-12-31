@@ -55,7 +55,6 @@ def remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos):
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
     all_loci = {u : l for ants in antn_lists.values() for antn in ants for u, l in zip(antn['unique_ids'], antn['loci'])}  # this includes the heavy ones, which we don't need, but oh well
     new_partition, new_antn_list = [], []
-    cpaths[ploci['h']].print_partitions()
     for iclust, cluster in enumerate(cpaths[ploci['h']].best()):
         cline = antn_dicts[ploci['h']][':'.join(cluster)]
         iseqs_to_remove = []
@@ -79,7 +78,7 @@ def remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos):
         utils.restrict_to_iseqs(new_cline, iseqs_to_keep, glfos[ploci['h']])
         new_antn_list.append(new_cline)
         print '  removed %d/%d seqs %d' % (len(iseqs_to_remove), len(cline['unique_ids']), len(new_partition[-1]))
-    lp_cpaths = {ploci['h'] : ClusterPath(seed_unique_id=cpaths[ploci['h']], partition=new_partition),
+    lp_cpaths = {ploci['h'] : ClusterPath(seed_unique_id=cpaths[ploci['h']].seed_unique_id, partition=new_partition),
                  ploci['l'] : cpaths[ploci['l']]}
     lp_antn_lists = {ploci['h'] : new_antn_list,
                      ploci['l'] : antn_lists[ploci['l']]}
