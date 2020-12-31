@@ -2744,6 +2744,8 @@ def clean_paired_dir(bdir, suffix='.fa', extra_files=None, expect_missing=False,
 
 # ----------------------------------------------------------------------------------------
 def clean_files(fnames, expect_missing=False):  # <fnames> can include dirs, just put them after the files they contain
+    if len(fnames) != len(set(fnames)):  # remove any duplicates (don't always do it, since we'd rather not change the order if we don't need to)
+        fnames = list(set(fnames))
     missing_files = []
     for fn in fnames:
         if os.path.isfile(fn):

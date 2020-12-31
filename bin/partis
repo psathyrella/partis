@@ -414,7 +414,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
                 # print '      %3d: %s' % (len(jclust), ' '.join('%3d/%3d'%(len(set(c) & set(jclust)), len(c)) for c in overlap_clusters))
         if len(missing_clusters) > 0:  # we also get the annotations for the non-missing ones, which should end up the same so it's a bit of a waste, but it's nice to not have to re-read the output file and rewrite it with the non-missing ones
             print '  need to get annotations for %d/%d joint %s clusters' % (len(missing_clusters), len(joint_partition), ltmp)
-        partition_lines = ClusterPath(partition=joint_partition).get_partition_lines(True)  # we could only get annotations for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
+        partition_lines = ClusterPath(partition=joint_partition).get_partition_lines(True)  # we could get annotations only for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
         if not os.path.exists(getpdir(ltmp)):
             print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), ltmp)
@@ -423,7 +423,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         else:
             utils.write_annotations(getofn(ltmp, joint=True, partition_only=True), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
             work_fnames.append(getofn(ltmp, joint=True, partition_only=True))
-            run_step('merge-paired-partitions', ltmp, skip_missing_input=True)  # it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable
+            run_step('merge-paired-partitions', ltmp, skip_missing_input=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
     def read_output_files(tmploci, lpair=None):
         glfos, antn_lists, cpaths = {}, {}, {}
@@ -447,7 +447,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             utils.write_annotations(getofn(ltmp, lpair=lpair), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         return glfos, antn_lists, cpaths
     # ----------------------------------------------------------------------------------------
-    def combine_chains():
+    def combine_simu_chains():
         glfos, antn_lists, cpaths = {}, {}, {}
         if args.action == 'simulate':
             for lpair in utils.locus_pairs[ig_or_tr]:
@@ -464,29 +464,27 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
                         glfos[ltmp] = lp_glfos[ltmp]
                         antn_lists[ltmp] = lp_annotations[ltmp]
                         cpaths[ltmp] = lp_cpaths[ltmp]
-        else:
-            glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr))
-            paircluster.clean_pair_info(cpaths, antn_lists, debug=True) #, max_hdist=4, n_max_clusters=1)
-            for lpair in utils.locus_pairs[ig_or_tr]:
-                print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
-                true_partitions = None
-                if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-                    true_partitions = {ch : utils.read_cpath(getifn(l), n_max_queries=args.n_max_queries).best() for ch, l in zip(utils.chains, lpair)}
-                ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
-                lp_cpaths, lp_antn_lists = paircluster.remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos)
-                joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, check_partitions=True, true_partitions=true_partitions, debug=True)  # , iparts={'igl' : 7}
-                # TODO need to write h+k/ and h+l/ subdirs here
-            # TODO figure out writing stuff here
-            # if args.paired_outdir is not None:
-            #     for ltmp in lpair:
-            #         write_joint_locus(ltmp, joint_partitions[ltmp], utils.get_annotation_dict(antn_lists[ltmp]), glfos[ltmp])
-
-        for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in antn_lists]:
-            assert args.action == 'simulate'  # need to update probably several things, at least the headers TODO handles headers more cleanly)
-            headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
-            print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
-            utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
-
+            for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in antn_lists]:
+                assert args.action == 'simulate'  # need to update probably several things, at least the headers TODO handles headers more cleanly)
+                headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
+                print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
+                utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
+    # ----------------------------------------------------------------------------------------
+    def combine_inf_chains():
+        glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr))
+        DBG = True
+        paircluster.clean_pair_info(cpaths, antn_lists, debug=DBG) #, max_hdist=4, n_max_clusters=1)
+        for lpair in utils.locus_pairs[ig_or_tr]:
+            print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
+            true_partitions = None
+            if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
+                true_partitions = {ch : utils.read_cpath(getifn(l), n_max_queries=args.n_max_queries).best() for ch, l in zip(utils.chains, lpair)}
+            ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
+            lp_cpaths, lp_antn_lists = paircluster.remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
+            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, check_partitions=True, true_partitions=true_partitions, debug=DBG)  # , iparts={'igl' : 7}
+            if args.paired_outdir is not None:
+                for ltmp in lpair:
+                    write_joint_locus(ltmp, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), glfos[ltmp])
     # ----------------------------------------------------------------------------------------
     if args.paired_outdir is None:
         print '  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).'
@@ -505,7 +503,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             for ltmp in lpair:
                 run_step(args.action, ltmp, lpair=lpair)
         if not args.dry_run:
-            combine_chains()
+            combine_simu_chains()
         if args.paired_outdir is None:
             work_fnames.extend(utils.paired_dir_fnames(getodir(), suffix='.yaml'))
     else:
@@ -518,7 +516,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             for ltmp in utils.sub_loci(ig_or_tr):
                 run_step(args.action, ltmp, skip_missing_input=True)
         if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run:
-            combine_chains()
+            combine_inf_chains()
 
     if not args.dry_run:
         # print '\n'.join(work_fnames)
