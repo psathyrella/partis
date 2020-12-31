@@ -51,7 +51,7 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_p
         antn_dict[ch] = utils.get_annotation_dict(antn_lists[ploci[ch]])
 
 # ----------------------------------------------------------------------------------------
-def remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos):  # TODO maybe should also remove unpaired seqs? Or maybe we do want them to show up in both k and l
+def remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos, debug=False):  # TODO maybe should also remove unpaired seqs? Or maybe we do want them to show up in both k and l
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
     all_loci = {u : l for ants in antn_lists.values() for antn in ants for u, l in zip(antn['unique_ids'], antn['loci'])}  # this includes the heavy ones, which we don't need, but oh well
     new_partition, new_antn_list = [], []
@@ -71,13 +71,15 @@ def remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos):
                 iseqs_to_remove.append(iseq)
         iseqs_to_keep = [i for i in range(len(cline['unique_ids'])) if i not in iseqs_to_remove]
         if len(iseqs_to_keep) == 0:
-            print '  removed all of them'
+            if debug:
+                print '  removed all of them'
             continue
         new_partition.append([cluster[i] for i in iseqs_to_keep])
         new_cline = utils.get_non_implicit_copy(cline)
         utils.restrict_to_iseqs(new_cline, iseqs_to_keep, glfos[ploci['h']])
         new_antn_list.append(new_cline)
-        print '  removed %d/%d seqs %d' % (len(iseqs_to_remove), len(cline['unique_ids']), len(new_partition[-1]))
+        if debug:
+            print '  removed %d/%d seqs %d' % (len(iseqs_to_remove), len(cline['unique_ids']), len(new_partition[-1]))
     lp_cpaths = {ploci['h'] : ClusterPath(seed_unique_id=cpaths[ploci['h']].seed_unique_id, partition=new_partition),
                  ploci['l'] : cpaths[ploci['l']]}
     lp_antn_lists = {ploci['h'] : new_antn_list,
@@ -537,12 +539,13 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
     def chstr(n_before, n_after):
         if n_before == n_after: return ''
         else: return ' ' + utils.color('red', '%+d' % (n_after - n_before))
-    print '   N clusters:\n        h %4d --> %-4d%s\n        l %4d --> %-4d%s'  % (len(init_partitions['h']), len(final_partition), chstr(len(init_partitions['h']), len(final_partition)),
-                                                                                   len(init_partitions['l']), len(final_partition), chstr(len(init_partitions['l']), len(final_partition)))
+    print '   N clusters:\n        %s %4d --> %-4d%s\n        %s %4d --> %-4d%s'  % (utils.locstr(ploci['h']), len(init_partitions['h']), len(final_partition), chstr(len(init_partitions['h']), len(final_partition)),
+                                                                                     utils.locstr(ploci['l']), len(init_partitions['l']), len(final_partition), chstr(len(init_partitions['l']), len(final_partition)))
 
     # ptnprint(final_partition, sort_by_size=False) #extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
 
-    if check_partitions:  # TODO work on this
+# TODO work on this
+    if check_partitions:
         assert is_clean_partition(final_partition)
         for tch, initpart in init_partitions.items():
             _, _, _ = utils.check_intersection_and_complement(initpart, final_partition, only_warn=True, a_label=tch, b_label='joint')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
