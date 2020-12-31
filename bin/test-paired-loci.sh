@@ -1,6 +1,6 @@
 #!/bin/bash
 
-label=re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
+label=pairclean-v0  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
 # NOTE use tmp.sh for refactor-v{3,4}
 
 nprocs=10
@@ -23,14 +23,14 @@ out_param_dir=$outdir/params
 # done
 # cat $outdir/h?/*.fa >$outdir/simu.fa
 for lc in k l; do
-    echo ./bin/partis simulate --split-loci --seed 1 --parameter-dir $in_param_dir --paired-loci-output-dir $outdir $common
+    echo ./bin/partis simulate --paired-loci --seed 1 --parameter-dir $in_param_dir --paired-outdir $outdir $common
     # echo ./bin/extract-fasta.py --input-file $outdir/h$lc/simu-igh.yaml --fasta-output-file $outdir/h$lc/simu-igh.fa
     # echo ./bin/extract-fasta.py --input-file $outdir/h$lc/simu-ig$lc.yaml --fasta-output-file $outdir/h$lc/simu-ig$lc.fa
     break
 done
 # echo cat $outdir/h?/*.fa >$outdir/simu.fa
 
-echo ./bin/TMP-merge-simu-loci.py --infiles $outdir/ig?+ig?/simu-*.yaml --outfile $outdir/simu.fa --metafile $outdir/meta.yaml
+echo ./bin/TMP-merge-simu-loci.py --infiles $outdir/ig?+ig?/*.yaml --outfile $outdir/simu.fa --metafile $outdir/meta.yaml
 # exit 0
 
 # for lc in k l; do
@@ -47,8 +47,8 @@ echo ./bin/TMP-merge-simu-loci.py --infiles $outdir/ig?+ig?/simu-*.yaml --outfil
 # testing split-loci stuff:
 for action in cache-parameters partition; do
     # --input-metafname XXX
-    common="" #"--n-procs $nprocs"  # --is-simu
-    echo ./bin/partis $action --split-loci --infname $outdir/simu.fa --input-metafname $outdir/meta.yaml --paired-loci-output-dir $outdir/inferred $common # >no-auto-cache-$action.log
+    common="--n-procs $nprocs"  # --is-simu
+    echo ./bin/partis $action --paired-loci --paired-indir $outdir --input-metafname $outdir/meta.yaml --paired-outdir $outdir/inferred $common # >no-auto-cache-$action.log
 done
 # echo ./bin/partis partition --split-loci --infname $outdir/simu.fa --paired-loci-output-dir $outdir/split-loci-test/auto-cache-no-pdir >auto-cache-no-pdir.log
 # echo ./bin/partis partition --split-loci --infname $outdir/simu.fa --paired-loci-output-dir $outdir/split-loci-test/auto-cache-with-pdir --parameter-dir $outdir/split-loci-test/auto-cache-with-pdir/x/y/z >auto-cache-with-pdir.log

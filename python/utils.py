@@ -2094,8 +2094,9 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
 
 # ----------------------------------------------------------------------------------------
 def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):  # could have called it subset_seqs_in_line, or at least i always seem to search for that when i'm trying to find this
+    # NOTE if you want to return a new one rather than modifying <line>, call get_non_implicit_copy() on <line> as you pass it in
     """ remove from <line> any sequences corresponding to indices not in <iseqs_to_keep>. modifies line. """
-    if len(iseqs_to_keep) < 1:
+    if len(iseqs_to_keep) < 1:  # NOTE we could also return if we're keeping all of them, but then we have to mess with maybe adding implicit info
         raise Exception('must be called with at least one sequence to keep (got %s)' % iseqs_to_keep)
     remove_all_implicit_info(line)
     for tkey in set(linekeys['per_seq']) & set(line):
@@ -3309,10 +3310,11 @@ def check_cmd(cmd, options='', return_bool=False):  # check for existence of <cm
 def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfname=None, return_out_err=False, debug=False):
     if dryrun:
         debug = True
+    remove_workdir = False
     if workdir == 'auto':
         workdir = choose_random_subdir('/tmp/%s' % os.getenv('USER'))
         os.makedirs(workdir)
-        remove_workdir = True
+        remove_workdir = True  # NOTE can't use workdir=='auto' since we reset it
     if not os.path.exists(workdir):
         raise Exception('workdir %s doesn\'t exist' % workdir)
     check_cmd('R', options=['--slave', '--version'])

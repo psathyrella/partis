@@ -466,15 +466,16 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
                         cpaths[ltmp] = lp_cpaths[ltmp]
         else:
             glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr))
-            paircluster.clean_pair_info(cpaths, antn_lists) #, debug=DBG) #, max_hdist=4, n_max_clusters=1)
-            # TODO figure out all of this crap
-            # print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
-            # true_partitions = None
-            # if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-            #     true_partitions = {ch : utils.read_cpath(getifn(l), n_max_queries=args.n_max_queries).best() for ch, l in zip(utils.chains, lpair)}
+            paircluster.clean_pair_info(cpaths, antn_lists, debug=True) #, max_hdist=4, n_max_clusters=1)
             for lpair in utils.locus_pairs[ig_or_tr]:
-# TODO need to split out the sequences in a family that are paired with the other light chain
-                joint_partitions = paircluster.merge_chains({ch : l for ch, l in zip(utils.chains, lpair)}, cpaths, antn_lists, check_partitions=True) #, debug=DBG) #, true_partitions=true_partitions) #, debug=True)  # , iparts={'igl' : 7}
+                print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
+                true_partitions = None
+                if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
+                    true_partitions = {ch : utils.read_cpath(getifn(l), n_max_queries=args.n_max_queries).best() for ch, l in zip(utils.chains, lpair)}
+                ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
+                lp_cpaths, lp_antn_lists = paircluster.remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos)
+                joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, check_partitions=True, true_partitions=true_partitions, debug=True)  # , iparts={'igl' : 7}
+                # TODO need to write h+k/ and h+l/ subdirs here
             # TODO figure out writing stuff here
             # if args.paired_outdir is not None:
             #     for ltmp in lpair:
