@@ -4079,7 +4079,7 @@ def find_uid_in_partition(uid, partition):
         raise Exception('couldn\'t find %s in %s\n' % (uid, partition))
 
 # ----------------------------------------------------------------------------------------
-def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='a', b_label='b'):
+def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='a', b_label='b', debug=False):
     """ make sure two partitions have identical uid lists """
     uids_a = set([uid for cluster in part_a for uid in cluster])
     uids_b = set([uid for cluster in part_b for uid in cluster])
@@ -4090,8 +4090,14 @@ def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='
         failstr = '\'%s\' partition (%d total) and \'%s\' partition (%d total) don\'t have the same uids:   only %s %d    only %s %d    common %d' % (a_label, sum(len(c) for c in part_a), b_label, sum(len(c) for c in part_b), a_label, len(a_not_b), b_label, len(b_not_a), len(a_and_b))
         if only_warn:
             print '  %s %s' % (color('yellow', 'warning'), failstr)
+            if debug:
+                for tl, tids in [(a_label, a_not_b), (b_label, b_not_a)]:
+                    print '     only %s: %s' % (tl, ' '.join(tids))
         else:
             raise Exception(failstr)
+    else:
+        if debug:
+            print '  intersection and complement both ok'
     return a_and_b, a_not_b, b_not_a
 
 # ----------------------------------------------------------------------------------------

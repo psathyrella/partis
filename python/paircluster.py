@@ -14,19 +14,20 @@ naive_hamming_bound_type = 'naive-hamming' #'likelihood'
 # ----------------------------------------------------------------------------------------
 # rename all uids in the light chain partition, and annotations that are paired with a heavy chain uid, to that heavy chain uid (pairings must, at this stage, be unique)
 def translate_paired_uids(ploci, init_partitions, antn_lists):
-    h_paired_uids = {}  # map ot each heavy chain uid <u> from its paired light chain uid <pids[0]>
+    h_paired_uids = {}  # map to each heavy chain uid <u> from its paired light chain uid <pids[0]>
     for hline in antn_lists[ploci['h']]:
         for h_id, pids in zip(hline['unique_ids'], hline['paired-uids']):
             if len(pids) == 0:
-                continue
+                raise Exception('')  # TODO
+                # continue
             elif len(pids) > 1:
                 raise Exception('multiple paired uids %s for %s sequence %s' % (' '.join(pids), ploci['h'], h_id))
             h_paired_uids[pids[0]] = h_id
     l_translations = {}
     for lline in antn_lists[ploci['l']]:
-        for iseq in range(len(lline['unique_ids'])):
-            l_id = lline['unique_ids'][iseq]
+        for iseq, l_id in enumerate(lline['unique_ids']):
             if l_id not in h_paired_uids:  # this <l_id> wasn't paired with any heavy chain ids
+                print 'wtf %s' % l_id
                 continue
             lline['unique_ids'][iseq] = h_paired_uids[l_id]
             l_translations[h_paired_uids[l_id]] = l_id  # so we can go back to <l_id> afterwards
@@ -51,50 +52,66 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_p
         antn_dict[ch] = utils.get_annotation_dict(antn_lists[ploci[ch]])
 
 # ----------------------------------------------------------------------------------------
-def remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos, debug=False):  # TODO maybe should also remove unpaired seqs? Or maybe we do want them to show up in both k and l
+def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # remove seqs paired with the wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
     all_loci = {u : l for ants in antn_lists.values() for antn in ants for u, l in zip(antn['unique_ids'], antn['loci'])}  # this includes the heavy ones, which we don't need, but oh well
-    new_partition, new_antn_list = [], []
-    for iclust, cluster in enumerate(cpaths[ploci['h']].best()):
-        cline = antn_dicts[ploci['h']][':'.join(cluster)]
-        iseqs_to_remove = []
-        for iseq, uid in enumerate(cline['unique_ids']):
-            pids = cline['paired-uids'][iseq]
-            if len(pids) == 0:  # no pairing info -- keep it for now, i guess (see TODO above)
-                continue
-            elif len(pids) > 1:
-                raise Exception('multiple paired uids for \'%s\': %s' % (uid, pids))
-            pid = utils.get_single_entry(pids)
-            plocus = all_loci[pid]
-            assert not utils.has_d_gene(plocus)
-            if plocus != ploci['l']:  # if it's the other light chain
-                iseqs_to_remove.append(iseq)
-        iseqs_to_keep = [i for i in range(len(cline['unique_ids'])) if i not in iseqs_to_remove]
-        if len(iseqs_to_keep) == 0:
+    all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this
+    unpaired_seqs = {}  # map from the uid of each seq with no pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
+    lp_cpaths, lp_antn_lists = {}, {}
+    if debug:
+        print '  removing bad/un-paired seqs'
+        print '          N       N      no   wrong  non-'
+        print '        before removed  info  light recip'
+    for tch in sorted(ploci):
+        new_partition, new_antn_list = [], []
+        for iclust, cluster in enumerate(cpaths[ploci[tch]].best()):
+            cline = antn_dicts[ploci[tch]][':'.join(cluster)]
+            iseqs_to_remove = []
+            n_unpaired, n_bad_paired, n_non_reciprocal = 0, 0, 0  # just for dbg
+            for iseq, uid in enumerate(cline['unique_ids']):
+                pids = cline['paired-uids'][iseq]
+                if len(pids) == 0:  # no pairing info
+                    iseqs_to_remove.append(iseq)
+                    sorted_hdists = sorted([(u, utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i, u in enumerate(cline['unique_ids']) if i != iseq], key=operator.itemgetter(1))
+                    unpaired_seqs[uid] = None if len(sorted_hdists)==0 else sorted_hdists[0]  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance
+                    n_unpaired += 1
+                elif len(pids) > 1:
+                    raise Exception('multiple paired uids for \'%s\': %s' % (uid, pids))
+                else:
+                    if tch == 'h' and all_loci[utils.get_single_entry(pids)] != ploci['l']:  # if it's the other light chain
+                        iseqs_to_remove.append(iseq)
+                        n_bad_paired += 1
+                    else:
+                        if all_pids[uid] not in all_pids or all_pids[all_pids[uid]] != uid:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in clean_pair_info(), but atm i think we can't look at both chains at once in that fcn
+                            iseqs_to_remove.append(iseq)
+                            n_non_reciprocal += 1
+            iseqs_to_keep = [i for i in range(len(cline['unique_ids'])) if i not in iseqs_to_remove]
+            if len(iseqs_to_keep) > 0:
+                new_partition.append([cluster[i] for i in iseqs_to_keep])
+                new_cline = utils.get_non_implicit_copy(cline)
+                utils.restrict_to_iseqs(new_cline, iseqs_to_keep, glfos[ploci[tch]])
+                new_antn_list.append(new_cline)
             if debug:
-                print '  removed all of them'
-            continue
-        new_partition.append([cluster[i] for i in iseqs_to_keep])
-        new_cline = utils.get_non_implicit_copy(cline)
-        utils.restrict_to_iseqs(new_cline, iseqs_to_keep, glfos[ploci['h']])
-        new_antn_list.append(new_cline)
-        if debug:
-            print '  removed %d/%d seqs %d' % (len(iseqs_to_remove), len(cline['unique_ids']), len(new_partition[-1]))
-    lp_cpaths = {ploci['h'] : ClusterPath(seed_unique_id=cpaths[ploci['h']].seed_unique_id, partition=new_partition),
-                 ploci['l'] : cpaths[ploci['l']]}
-    lp_antn_lists = {ploci['h'] : new_antn_list,
-                     ploci['l'] : antn_lists[ploci['l']]}
-    return lp_cpaths, lp_antn_lists
+                def fstr(v): return '' if v==0 else '%d'%v
+                print '    %s   %3d    %3s     %3s   %3s    %3s' % (utils.locstr(ploci[tch]) if iclust==0 else ' ', len(cline['unique_ids']), fstr(len(iseqs_to_remove)), fstr(n_unpaired), fstr(n_bad_paired), fstr(n_non_reciprocal))
+        lp_cpaths[ploci[tch]] = ClusterPath(seed_unique_id=cpaths[ploci[tch]].seed_unique_id, partition=new_partition)
+        lp_antn_lists[ploci[tch]] = new_antn_list
+
+    if debug:
+        print '    totals before: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in cpaths[ploci[tch]].best())) for tch in sorted(ploci))
+        print '    totals after: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in lp_cpaths[ploci[tch]].best())) for tch in sorted(ploci))
+
+    return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(cpaths, antn_lists, max_hdist=4, n_max_clusters=None, debug=False):
+def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_clusters=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(all_uids, tdbg=False):
         try:
             utils.get_droplet_id(next(iter(all_uids)))
         except:
             print '  note: couldn\'t get droplet id from \'%s\', so assuming this isn\'t 10x data' % next(iter(all_uids))  # NOTE i'm not sure that this gives the same one as the previous line
-            return
+            return False
         # check against the droplet id method (we could just do it this way, but it would only work for 10x, and only until they change their naming convention)
         pgroup_strs = set(':'.join(sorted(pg)) for pg in pid_groups)
         n_not_found = 0
@@ -109,6 +126,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, n_max_clusters=None, debug=
                 print '  %25s %s  %s  %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q) for q in dqlist)), utils.color('red', ' '.join(sorted(utils.get_contig_id(q) for q in overlaps.split(':'))) if not found else ''))
         if n_not_found > 0:
             print '  %s droplet id group check failed for %d groups' % (utils.color('red', 'error'), n_not_found)
+        return True
     # ----------------------------------------------------------------------------------------
     def getloc(uid):
         if uid not in all_antns:
@@ -151,7 +169,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, n_max_clusters=None, debug=
         dbgstr = []
         unproductive_ids = []
         for uid in chain_ids:
-            if not utils.is_functional(all_antns[uid], all_antns[uid]['unique_ids'].index(uid)):
+            if is_data and not utils.is_functional(all_antns[uid], all_antns[uid]['unique_ids'].index(uid)):
                 unproductive_ids.append(uid)
                 if tdbg:
                     dbgstr.append(utils.is_functional_dbg_str(all_antns[uid], all_antns[uid]['unique_ids'].index(uid), sep='+'))
@@ -250,7 +268,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, n_max_clusters=None, debug=
     all_antns = {}
     n_missing = 0
     if debug:
-        print '  %s consolidating info for %d loci with family/sequence counts: %s' % (utils.color('blue', '+'.join(cpaths)), len(cpaths), '  '.join('%s: %d/%d'%(l, len(cpaths[l].best()), sum(len(c) for c in cpaths[l].best())) for l in sorted(cpaths)))
+        print '  %s consolidating info for %d loci with family/sequence counts: %s' % (utils.color('blue', '+'.join(sorted(cpaths))), len(cpaths), '  '.join('%s: %d/%d'%(l, len(cpaths[l].best()), sum(len(c) for c in cpaths[l].best())) for l in sorted(cpaths)))
     for ltmp in sorted(cpaths):
         for cluster in cpaths[ltmp].best():
             cline = antn_dicts[ltmp][':'.join(cluster)]
@@ -282,7 +300,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, n_max_clusters=None, debug=
     # for ipg, pg in enumerate(pid_groups):
     #     print '  %3d %s' % (ipg, ' '.join(pg))
 
-    check_droplet_id_groups(all_uids)
+    idg_ok = check_droplet_id_groups(all_uids)
     # TODO handle/keep better track of failures
     # TODO make sure the missing ids are actually really gone
 
@@ -459,7 +477,7 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
         for tstr, tpart in [('heavy', init_partitions['h']), ('light', init_partitions['l'])]:
             ptnprint(tpart, extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
 
-    common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
+    common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light', debug=True)  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
     if len(common_uids) == 0:
         raise Exception('no uids in common between heavy and light')
 
@@ -549,6 +567,9 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
         assert is_clean_partition(final_partition)
         for tch, initpart in init_partitions.items():
             _, _, _ = utils.check_intersection_and_complement(initpart, final_partition, only_warn=True, a_label=tch, b_label='joint')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
+            init_ids, final_ids = set([u for c in initpart for u in c]), set([u for c in final_partition for u in c])
+            if len(init_ids - final_ids) > 0:  # if any seqs from the initial partition aren't in the final partition
+                raise Exception('missing %d uids from joint partition: %s' % (len(init_ids - final_ids), ' '.join(init_ids - final_ids)))
             assert len(set([u for c in initpart for u in c]) - set([u for c in final_partition for u in c])) == 0  # everybody from both initial partitions is in final_partition
         assert len(set([u for c in final_partition for u in c]) - set([u for c in init_partitions['h'] for u in c]) - set([u for c in init_partitions['l'] for u in c])) == 0  # nobody extra got added (i don't see how this could happen, but maybe it's just checking that I didnt' modify the initial partitions)
 

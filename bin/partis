@@ -472,16 +472,21 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr))
+        true_partitions = {l : None for l in utils.sub_loci(ig_or_tr)}
+        if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
+            print '             purity  completeness'
+            for ltmp in utils.sub_loci(ig_or_tr):
+                true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()
+                ccfs = utils.new_ccfs_that_need_better_names(cpaths[ltmp].best(), true_partitions[ltmp])
+                print '   %s initial %6.3f %6.3f' % (utils.locstr(ltmp), ccfs[0], ccfs[1])
         DBG = True
-        paircluster.clean_pair_info(cpaths, antn_lists, debug=DBG) #, max_hdist=4, n_max_clusters=1)
+        paircluster.clean_pair_info(cpaths, antn_lists, is_data=args.is_data, debug=DBG) #, max_hdist=4, n_max_clusters=1)
         for lpair in utils.locus_pairs[ig_or_tr]:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
-            true_partitions = None
-            if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-                true_partitions = {ch : utils.read_cpath(getifn(l), n_max_queries=args.n_max_queries).best() for ch, l in zip(utils.chains, lpair)}
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
-            lp_cpaths, lp_antn_lists = paircluster.remove_seqs_paired_with_other_light_chain(ploci, cpaths, antn_lists, glfos)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
-            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, check_partitions=True, true_partitions=true_partitions, debug=DBG)  # , iparts={'igl' : 7}
+            lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
+# TODO re-add unpaired_seqs
+            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, check_partitions=True, true_partitions={tch : true_partitions[ploci[tch]] for tch in utils.chains}, debug=DBG)  # , iparts={'igl' : 7}
             if args.paired_outdir is not None:
                 for ltmp in lpair:
                     write_joint_locus(ltmp, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), glfos[ltmp])
@@ -519,7 +524,6 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             combine_inf_chains()
 
     if not args.dry_run:
-        # print '\n'.join(work_fnames)
         utils.rmdir(args.workdir, fnames=work_fnames)
 
 # ----------------------------------------------------------------------------------------

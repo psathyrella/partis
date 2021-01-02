@@ -1,6 +1,6 @@
 #!/bin/bash
 
-label=pairclean-v0  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
+label=pairclean-v2  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
 # NOTE use tmp.sh for refactor-v{3,4}
 
 nprocs=10
@@ -30,7 +30,7 @@ for lc in k l; do
 done
 # echo cat $outdir/h?/*.fa >$outdir/simu.fa
 
-echo ./bin/TMP-merge-simu-loci.py --infiles $outdir/ig?+ig?/*.yaml --outfile $outdir/simu.fa --metafile $outdir/meta.yaml
+echo ./bin/TMP-merge-simu-loci.py --infiles $outdir/ig?+ig?/*.yaml --outfile $outdir/simu.fa --metafile $outdir/meta.yaml --mean-cells-per-droplet 1.5
 # exit 0
 
 # for lc in k l; do
@@ -47,7 +47,7 @@ echo ./bin/TMP-merge-simu-loci.py --infiles $outdir/ig?+ig?/*.yaml --outfile $ou
 # testing split-loci stuff:
 for action in cache-parameters partition; do
     # --input-metafname XXX
-    common="--n-procs $nprocs"  # --is-simu
+    common="--n-procs $nprocs --is-simu"
     echo ./bin/partis $action --paired-loci --paired-indir $outdir --input-metafname $outdir/meta.yaml --paired-outdir $outdir/inferred $common # >no-auto-cache-$action.log
 done
 # echo ./bin/partis partition --split-loci --infname $outdir/simu.fa --paired-loci-output-dir $outdir/split-loci-test/auto-cache-no-pdir >auto-cache-no-pdir.log
