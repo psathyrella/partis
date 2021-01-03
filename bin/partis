@@ -396,6 +396,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
 
             if tmpaction == 'merge-paired-partitions':
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True)]
+                utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
                 clist[clist.index(args.action)] = 'annotate'
 
             return clist

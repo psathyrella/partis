@@ -2117,7 +2117,8 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_p
         full_true_partition = get_partition_from_reco_info(reco_info)
     for uids in true_partition_of_line_uids:  # make a multi-seq line that has all the seqs from this clonal family
         full_true_clusters = [c for c in full_true_partition if len(set(c) & set(uids_and_dups(line))) > 0]
-        assert len(full_true_clusters) == 1
+        if len(full_true_clusters) != 1:
+            raise Exception('expected exactly 1 true cluster overlapping with inf cluster, but got %d:\n    inf: %s\n    true: %s' % (len(full_true_clusters), ':'.join(uids_and_dups(line)), '  '.join(':'.join(c) for c in full_true_clusters)))
         missing_uids = set(full_true_clusters[0]) - set(uids_and_dups(line))
         missing_str = '' if len(missing_uids) == 0 else '   missing %d/%d sequences from actual true cluster (but includes %d duplicates not shown below)' % (len(missing_uids), len(full_true_clusters[0]), len(uids_and_dups(line)) - len(uids))
 
