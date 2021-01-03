@@ -3903,7 +3903,7 @@ def get_deduplicated_partitions(partitions, debug=False):  # not using this atm 
     return new_partitions
 
 # ----------------------------------------------------------------------------------------
-def new_ccfs_that_need_better_names(partition, true_partition, reco_info=None, seed_unique_id=None, debug=False):
+def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None, seed_unique_id=None, debug=False):
     if seed_unique_id is None:
         check_intersection_and_complement(partition, true_partition, a_label='inferred', b_label='true')
     if reco_info is None:  # build a dummy reco_info that just has reco ids
@@ -3953,9 +3953,10 @@ def new_ccfs_that_need_better_names(partition, true_partition, reco_info=None, s
     return mean_clonal_fraction / n_uids, mean_fraction_present / n_uids
 
 # ----------------------------------------------------------------------------------------
-def correct_cluster_fractions(partition, true_partition, debug=False):
-    # return new_ccfs_that_need_better_names(partition, true_partition, debug)  # hey, look, I'm a hack! Seriously, though, the new ccfs above are pretty similar, except they're per-sequence rather than per-cluster, so they don't get all scatterbrained and shit when a sample's only got a few clusters. Also, you still get partial credit for how good your cluster is, it's not just all-or-nothing.
-    raise Exception('deprecated!')
+def per_family_correct_cluster_fractions(partition, true_partition, debug=False):
+    # The new ccfs above are pretty similar, except they're per-sequence rather than per-cluster, so they don't get all scatterbrained and shit when a sample's only got a few clusters.
+    # Also, you still get partial credit for how good your cluster is, it's not just all-or-nothing.
+    raise Exception('deprecated! use per_seq_correct_cluster_fractions() above')
 
     def find_clusters_with_ids(ids, partition):
         """ find all clusters in <partition> that contain at least one of <ids> """

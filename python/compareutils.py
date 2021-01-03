@@ -192,7 +192,7 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
                     metric_vals['ccf_under'] = float(line['ccf_under'])
                     metric_vals['ccf_over'] = float(line['ccf_over'])
                 else:
-                    ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info=reco_info)
+                    ccfs = utils.per_seq_correct_cluster_fractions(partition, true_partition, reco_info=reco_info)
                     metric_vals['ccf_under'] = ccfs[0]
                     metric_vals['ccf_over'] = ccfs[1]
                 metric_vals['ccf_product'] = sys.modules['scipy.stats'].hmean([metric_vals['ccf_under'], metric_vals['ccf_over']])
@@ -258,7 +258,7 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
     if args.is_simu:
         if 'seed' in action:  # recalculate ccfs for only the seeded cluster
             adj_mi = -1.  # screw it, we don't use this any more
-            ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info=reco_info, seed_unique_id=read_seed_unique_id_from_file(outfname))
+            ccfs = utils.per_seq_correct_cluster_fractions(partition, true_partition, reco_info=reco_info, seed_unique_id=read_seed_unique_id_from_file(outfname))
         else:
             adj_mi = cpath.adj_mis[cpath.i_best]
             ccfs = cpath.ccfs[cpath.i_best]
@@ -298,7 +298,7 @@ def generate_synthetic_partitions(args, label, n_leaves, mut_mult, seqfname, bas
             new_partition = utils.generate_incorrect_partition(true_partition, misfrac, mistype)
             cpath = ClusterPath()
             adj_mi = utils.adjusted_mutual_information(true_partition, new_partition)
-            ccfs = utils.new_ccfs_that_need_better_names(new_partition, true_partition, reco_info=reco_info)
+            ccfs = utils.per_seq_correct_cluster_fractions(new_partition, true_partition, reco_info=reco_info)
             cpath.add_partition(new_partition, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)
             cpath.write(outfname, is_data=False, reco_info=reco_info, true_partition=true_partition)
 
@@ -958,7 +958,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
         # print 'removed from true: %.3f' % utils.adjusted_mutual_information(subset_of_true_partition, partition)
 
         adj_mi = utils.adjusted_mutual_information(true_partition, partition_with_uids_added)
-        ccfs = utils.new_ccfs_that_need_better_names(partition_with_uids_added, true_partition, reco_info=reco_info)
+        ccfs = utils.per_seq_correct_cluster_fractions(partition_with_uids_added, true_partition, reco_info=reco_info)
 
     cpath = ClusterPath()
     cpath.add_partition(partition_with_uids_added, logprob=float('-inf'), n_procs=1, adj_mi=adj_mi, ccfs=ccfs)

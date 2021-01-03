@@ -376,13 +376,13 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
         dup_dict = {u : l['duplicates'][i] for l in antn_lists[ploci[chain]] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
         if len(dup_dict) > 0:
             incorporate_duplicates(cmp_partitions[chain], dup_dict)
-        ccfs[chain] = {'before' : utils.new_ccfs_that_need_better_names(cmp_partitions[chain], true_partitions[chain])}
+        ccfs[chain] = {'before' : utils.per_seq_correct_cluster_fractions(cmp_partitions[chain], true_partitions[chain])}
 
         if len(dup_dict) > 0:
             incorporate_duplicates(joint_partitions[chain], dup_dict)  # NOTE this modifies the joint partition
         j_part = utils.get_deduplicated_partitions([joint_partitions[chain]])[0]  # TODO why do i need this?
         j_part = utils.remove_missing_uids_from_true_partition(j_part, true_partitions[chain], debug=False)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition
-        ccfs[chain]['joint'] = utils.new_ccfs_that_need_better_names(j_part, true_partitions[chain])
+        ccfs[chain]['joint'] = utils.per_seq_correct_cluster_fractions(j_part, true_partitions[chain])
 
     print '             purity  completeness'
     for chain in utils.chains:

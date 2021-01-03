@@ -415,7 +415,7 @@ class PartitionDriver(object):
                 true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
                 true_cp.add_partition(true_partition, -1., 1)
                 print '%strue:' % extra_str
-                # print utils.new_ccfs_that_need_better_names(cpath.partitions[cpath.i_best], true_partition, reco_info=self.reco_info, seed_unique_id=self.args.seed_unique_id)
+                # print utils.per_seq_correct_cluster_fractions(cpath.partitions[cpath.i_best], true_partition, reco_info=self.reco_info, seed_unique_id=self.args.seed_unique_id)
                 true_cp.print_partitions(self.reco_info, print_header=False, calc_missing_values='best', extrastr=extra_str, print_partition_indices=True)
 
         if len(annotation_list) > 0:
@@ -955,7 +955,7 @@ class PartitionDriver(object):
             tmp_partition = copy.deepcopy(partition) + [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
             self.check_partition(tmp_partition)
             true_partition = utils.get_partition_from_reco_info(self.reco_info)
-            ccfs = utils.new_ccfs_that_need_better_names(tmp_partition, true_partition, reco_info=self.reco_info)
+            ccfs = utils.per_seq_correct_cluster_fractions(tmp_partition, true_partition, reco_info=self.reco_info)
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
 
@@ -2248,7 +2248,7 @@ class PartitionDriver(object):
                 row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
                 if not self.args.is_data:
                     true_partition = utils.get_partition_from_reco_info(self.reco_info)
-                    ccfs = utils.new_ccfs_that_need_better_names(partition, true_partition, reco_info=self.reco_info)
+                    ccfs = utils.per_seq_correct_cluster_fractions(partition, true_partition, reco_info=self.reco_info)
                     row['ccf_under'] = ccfs[0]
                     row['ccf_over'] = ccfs[1]
                 writer.writerow(row)

@@ -473,12 +473,13 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr))
-        true_partitions = {l : None for l in utils.sub_loci(ig_or_tr)}
+        true_partitions = None
         if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
             print '             purity  completeness'
+            true_partitions = {}
             for ltmp in utils.sub_loci(ig_or_tr):
                 true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()
-                ccfs = utils.new_ccfs_that_need_better_names(cpaths[ltmp].best(), true_partitions[ltmp])
+                ccfs = utils.per_seq_correct_cluster_fractions(cpaths[ltmp].best(), true_partitions[ltmp])
                 print '   %s initial %6.3f %6.3f' % (utils.locstr(ltmp), ccfs[0], ccfs[1])
         DBG = True
         paircluster.clean_pair_info(cpaths, antn_lists, is_data=args.is_data, debug=DBG) #, max_hdist=4, n_max_clusters=1)
@@ -487,7 +488,8 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
 # TODO re-add unpaired_seqs
-            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, check_partitions=True, true_partitions={tch : true_partitions[ploci[tch]] for tch in utils.chains}, debug=DBG)  # , iparts={'igl' : 7}
+            true_lp_partitions = {tch : true_partitions[ploci[tch]] for tch in utils.chains} if true_partitions is not None else None
+            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, check_partitions=True, true_partitions=true_lp_partitions, debug=DBG)  # , iparts={'igl' : 7}
             if args.paired_outdir is not None:
                 for ltmp in lpair:
                     write_joint_locus(ltmp, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), glfos[ltmp])
