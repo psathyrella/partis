@@ -471,17 +471,24 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
                 print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
                 utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
     # ----------------------------------------------------------------------------------------
+    def get_true_partitions(cpaths, debug=False):
+        if args.is_data or args.paired_indir is None:
+            return None
+        true_partitions = {}
+        ccfs = {}
+        for ltmp in utils.sub_loci(ig_or_tr):
+            true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
+            ccfs[ltmp] = utils.per_seq_correct_cluster_fractions(cpaths[ltmp].best(), true_partitions[ltmp], dbg_str=utils.locstr(ltmp)+' ', debug=debug)
+        if debug:
+            print '             purity  completeness'
+            for ltmp in utils.sub_loci(ig_or_tr):
+                print '   %s initial %6.3f %6.3f' % (utils.locstr(ltmp), ccfs[ltmp][0], ccfs[ltmp][1])
+        return true_partitions
+    # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr))
-        true_partitions = None
-        if not args.is_data and args.paired_indir is not None:  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-            print '             purity  completeness'
-            true_partitions = {}
-            for ltmp in utils.sub_loci(ig_or_tr):
-                true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()
-                ccfs = utils.per_seq_correct_cluster_fractions(cpaths[ltmp].best(), true_partitions[ltmp])
-                print '   %s initial %6.3f %6.3f' % (utils.locstr(ltmp), ccfs[0], ccfs[1])
         DBG = True
+        true_partitions = get_true_partitions(cpaths, debug=DBG)
         paircluster.clean_pair_info(cpaths, antn_lists, is_data=args.is_data, debug=DBG) #, max_hdist=4, n_max_clusters=1)
         for lpair in utils.locus_pairs[ig_or_tr]:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))

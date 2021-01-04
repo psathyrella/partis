@@ -360,7 +360,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             clean_with_partition_info(cluster)
 
 # ----------------------------------------------------------------------------------------
-def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists):
+def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=False):
     # ----------------------------------------------------------------------------------------
     def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
         for tclust in tpart:
@@ -376,17 +376,17 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
         dup_dict = {u : l['duplicates'][i] for l in antn_lists[ploci[chain]] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
         if len(dup_dict) > 0:
             incorporate_duplicates(cmp_partitions[chain], dup_dict)
-        ccfs[chain] = {'before' : utils.per_seq_correct_cluster_fractions(cmp_partitions[chain], true_partitions[chain])}
+        ccfs[chain] = {'before' : utils.per_seq_correct_cluster_fractions(cmp_partitions[chain], true_partitions[chain], dbg_str=utils.locstr(ploci[chain])+' ', debug=debug)}
 
         if len(dup_dict) > 0:
             incorporate_duplicates(joint_partitions[chain], dup_dict)  # NOTE this modifies the joint partition
         j_part = utils.get_deduplicated_partitions([joint_partitions[chain]])[0]  # TODO why do i need this?
         j_part = utils.remove_missing_uids_from_true_partition(j_part, true_partitions[chain], debug=False)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition
-        ccfs[chain]['joint'] = utils.per_seq_correct_cluster_fractions(j_part, true_partitions[chain])
+        ccfs[chain]['joint'] = utils.per_seq_correct_cluster_fractions(j_part, true_partitions[chain], dbg_str='joint ', debug=debug)
 
     print '             purity  completeness'
     for chain in utils.chains:
-        print '   %s before  %6.3f %6.3f' % (chain, ccfs[chain]['before'][0], ccfs[chain]['before'][1])
+        print '   %s before  %6.3f %6.3f' % (utils.locstr(ploci[chain]), ccfs[chain]['before'][0], ccfs[chain]['before'][1])
     for chain in utils.chains:
         print '    joint    %6.3f %6.3f   (%s true)' % (ccfs[chain]['joint'][0], ccfs[chain]['joint'][1], chain)
 
@@ -577,7 +577,7 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
     if len(l_translations) > 0:
         untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_partitions, antn_dict)
     if true_partitions is not None:
-        evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists)
+        evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=debug)
 
     if debug:
         for tch in utils.chains:

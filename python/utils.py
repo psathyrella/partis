@@ -3903,7 +3903,7 @@ def get_deduplicated_partitions(partitions, debug=False):  # not using this atm 
     return new_partitions
 
 # ----------------------------------------------------------------------------------------
-def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None, seed_unique_id=None, debug=False):
+def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None, seed_unique_id=None, dbg_str='', debug=False):
     if seed_unique_id is None:
         check_intersection_and_complement(partition, true_partition, a_label='inferred', b_label='true')
     if reco_info is None:  # build a dummy reco_info that just has reco ids
@@ -3923,7 +3923,7 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
         return float(n_clonal) / len(inferred_cluster)
 
     def get_fraction_present(inferred_cluster, true_cluster):
-        """ Return the fraction of the true clonemates in <true_cluster> which appear in <inferred_cluster>. """
+        """ Return the fraction of the true clonemates in <true_cluster> that appear in <inferred_cluster>. """
         n_present = 0
         for tmpid in true_cluster:  # NOTE this includes the case where tmpid equal to uid
             if tmpid in inferred_cluster:
@@ -3950,6 +3950,13 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
     if n_uids > 1e6:
         raise Exception('you should start worrying about numerical precision if you\'re going to run on this many queries')
 
+    if debug:
+        print '    %scorrect cluster fractions:' % dbg_str
+        print '               clusters uids'
+        print '          true   %3d    %3d' % (len(true_partition), sum(len(c) for c in true_partition))
+        print '           inf   %3d    %3d' % (len(partition), sum(len(c) for c in partition))
+        print '      purity:       %.1f / %d = %.3f' % (mean_clonal_fraction, n_uids, mean_clonal_fraction / n_uids)
+        print '      completeness: %.1f / %d = %.3f' % (mean_fraction_present, n_uids, mean_fraction_present / n_uids)
     return mean_clonal_fraction / n_uids, mean_fraction_present / n_uids
 
 # ----------------------------------------------------------------------------------------
