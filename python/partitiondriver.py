@@ -1180,7 +1180,7 @@ class PartitionDriver(object):
                 existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
                 # raise Exception('added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths)))
                 print '  %s added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (utils.color('yellow', 'warning'), hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths))
-                print '      %d --> %d' % (self.sw_info[hashid]['cdr3_length'], utils.get_single_entry(existing_cdr3_lengths))  # TODO maybe this fix makes sense?
+                print '      %d --> %d' % (self.sw_info[hashid]['cdr3_length'], utils.get_single_entry(existing_cdr3_lengths))  # I'm not totally sure that this fix makes sense
                 self.sw_info[hashid]['cdr3_length'] = utils.get_single_entry(existing_cdr3_lengths)
 
             self.input_info[hashid] = copy.deepcopy(self.input_info[uid_to_copy])  # i think i only need this for input meta info

@@ -150,7 +150,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
     def choose_seqs_to_remove(chain_ids, tdbg=False):  # choose one of <chain_ids> to eliminate
         # look for pairs with the same locus that
         ids_to_remove = set(u for u in chain_ids if getloc(u)=='?')
-        if tdbg and len(ids_to_remove) > 0:  # i think this actually can't happen a.t.m. TODO maybe remove it
+        if tdbg and len(ids_to_remove) > 0:  # i think this actually can't happen a.t.m.
             print '      removed %d with missing annotations' % len(ids_to_remove)
 
         # among any pairs of sequences that are [almost] identical at all non-ambiguous position, keep only the longest one
@@ -164,8 +164,8 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             hdist = utils.hamming_distance(*[gval(u, 'seqs') for u in tpair])
             if tdbg:
                 dbgstr.append(utils.color('blue' if hdist==0 else 'yellow', '%d'%hdist))
-            if hdist <= max_hdist:  # TODO would be nice to be able to combine their sequences, but I think propagating the resulting annotation modifications would be hard
-                better_id, worse_id = sorted(tpair, key=lambda q: utils.ambig_frac(gval(q, 'seqs')))  # TODO if we're tossing one with hdist > 0, maybe should take the lower-shm one if they're the same length?
+            if hdist <= max_hdist:  # it would be nice to be able to combine their sequences (since they should have coverage only over different parts of vdj), but I think propagating the resulting annotation modifications would be hard
+                better_id, worse_id = sorted(tpair, key=lambda q: utils.ambig_frac(gval(q, 'seqs')))  # if we're tossing one with hdist > 0, it might make more sense to keep the lower-shm one if they're the same length, but I don't think it really matters (in the end we're still just guessing which is the right pairing)
                 ids_to_remove.add(worse_id)
                 n_equivalent += 1
         if tdbg and len(dbgstr) > 0:
@@ -287,7 +287,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
                 pset = set([uid] + pids) - missing_ids
                 found = False
                 for ipg, pgroup in enumerate(pid_groups):
-                    if any(p in pgroup for p in pset):  # TODO should maybe check for consistency if some of them are already in there (i.e. from reciprocal info in another chain)?
+                    if any(p in pgroup for p in pset):  # could maybe check for consistency if some of them are already in there (i.e. from reciprocal info in another chain)?
                         found = True
                         pgroup |= pset
                         break
@@ -298,7 +298,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
                 for pid in pset:
                     pid_ids[pid] = ipg
 
-            cline['loci'] = [ltmp for _ in cline['unique_ids']]  # TODO maybe should add this somewhere else, like in partitiondriver? (eh, maybe not? the locus is always available in each file from the germline info anyway)
+            cline['loci'] = [ltmp for _ in cline['unique_ids']]  # could maybe add this somewhere else, like in partitiondriver? (eh, maybe not? the locus is always available in each file from the germline info anyway)
             for uid in cline['unique_ids']:
                 all_antns[uid] = cline
     if n_missing > 0:
@@ -306,16 +306,14 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
     # for ipg, pg in enumerate(pid_groups):
     #     print '  %3d %s' % (ipg, ' '.join(pg))
 
-    idg_ok = check_droplet_id_groups(all_uids)
-    # TODO handle/keep better track of failures
-    # TODO make sure the missing ids are actually really gone
+    idg_ok = check_droplet_id_groups(all_uids)  # NOTE not using the return value here, but I may need to in the future
 
     # then go through each group trying to remove as many crappy/suspicous ones as possible
     if debug:
         print '  cleaning %d pid groups:' % len(pid_groups)
     ok_groups, tried_to_fix_groups = {}, {}
     for ipg, pgroup in enumerate(pid_groups):
-        pgroup = [u for u in pgroup if getloc(u) != '?']  # TODO figure out what to do with missing ones
+        pgroup = [u for u in pgroup if getloc(u) != '?']  # maybe need to figure out something different to do with missing ones?
         hids = [u for u in pgroup if utils.has_d_gene(getloc(u))]
         lids = [u for u in pgroup if u not in hids]
         if len(hids) < 2 and len(lids) < 2:
@@ -381,7 +379,7 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
         if len(dup_dict) > 0:
             print '%s duplicate sequences in joint partition evaluation' % utils.color('yellow', 'warning')
 
-        i_part = copy.deepcopy(init_partitions[tch])  # TODO probalby it's not worth getting ccfs for these? they're pretty much meaningless since they have the unpaired seqs removed
+        i_part = copy.deepcopy(init_partitions[tch])
         j_part = copy.deepcopy(joint_partitions[tch])
         if len(dup_dict) > 0:
             incorporate_duplicates(i_part, dup_dict)
@@ -390,7 +388,7 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
         itruepart = utils.remove_missing_uids_from_true_partition(true_partitions[ltmp], i_part, debug=debug)  # returns a new/copied partition, doesn't modify original
         single_ccfs = utils.per_seq_correct_cluster_fractions(i_part, itruepart, dbg_str=utils.locstr(ltmp)+' single ', debug=debug)
 
-        # j_part = utils.get_deduplicated_partitions([j_part])[0]  # TODO why do i need this? UPDATE nothing broke when i commented it...
+        # j_part = utils.get_deduplicated_partitions([j_part])[0]  # I used to need this, but now I seem not to? either way leaving here (but commented) for now
         jtruepart = utils.remove_missing_uids_from_true_partition(true_partitions[ltmp], j_part, debug=debug)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition UPDATE not sure if this comment applies/makes sense any more
         joint_ccfs = utils.per_seq_correct_cluster_fractions(j_part, jtruepart, dbg_str=utils.locstr(ltmp)+' joint ', debug=debug)
 
@@ -571,7 +569,6 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
 
     # ptnprint(final_partition, sort_by_size=False) #extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
 
-# TODO work on this
     if check_partitions:
         assert is_clean_partition(final_partition)
         for tch, initpart in init_partitions.items():
@@ -586,8 +583,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     if len(l_translations) > 0:
         untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_partitions, antn_dict)
 
-# TODO changed my mind again, maybe should go after evaluation?
-    if unpaired_seqs is not None:  # it probably makes more sense to have this elsewhere, but I want it to happen before we evaluate
+    if unpaired_seqs is not None:  # it might be cleaner to have this elsewhere, but I want it to happen before we evaluate, and it's also nice to have evaluation in here
         n_added = {tch : 0 for tch in ploci}
         for tch, ltmp in ploci.items():
             for upid, nearid in unpaired_seqs[ltmp].items():  # <upid> is uid of seq with bad/no pair info, <nearid> is uid of nearest seq in <upid>'s original family

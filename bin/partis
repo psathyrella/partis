@@ -288,7 +288,7 @@ def remove_action_specific_args(clist, action, debug=True):
         print '    removed %d arg strs that were specific to action \'%s\': %s' % (len(removed_strs), action, ' '.join(removed_strs))
 
 # ----------------------------------------------------------------------------------------
-def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
+def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def getpdir(ltmp, bpdir=None):  # pass in <ltmp> of '' to get the base dir
         if bpdir is not None:
@@ -404,7 +404,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             if tmpaction == 'merge-paired-partitions':
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
-                utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
+                utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # TODO what should happen here if --input-metafname wasn't set?
                 clist[clist.index(args.action)] = 'annotate'
 
             return clist
@@ -457,7 +457,7 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             glfos[ltmp], antn_lists[ltmp], cpaths[ltmp] = utils.read_output(getofn(ltmp, lpair=lpair), dont_add_implicit_info=not args.debug, skip_failed_queries=True)
         return glfos, antn_lists, cpaths
     # ----------------------------------------------------------------------------------------
-    def combine_simu_pair(lpair):
+    def combine_simu_pair(lpair, headers):
         glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair)
         if any(l not in glfos for l in lpair):
             return None, None, None
@@ -465,33 +465,30 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         assert len(set(len(antn_lists[l]) for l in lpair)) == 1  # make sure the lists for both loci are the same length
         for hline, lline in zip(*[antn_lists[l] for l in lpair]):
             treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
-        headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         for ltmp in lpair:  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
             utils.write_annotations(getofn(ltmp, lpair=lpair), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         return glfos, antn_lists, cpaths
     # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
+        headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         glfos, antn_lists, cpaths = {}, {}, {}
-        if args.action == 'simulate':
-            for lpair in utils.locus_pairs[ig_or_tr]:
-                lp_glfos, lp_annotations, lp_cpaths = combine_simu_pair(lpair)
-                if lp_annotations is None:
-                    continue
-                for ltmp in lpair:
-                    if ltmp in glfos:  # merge heavy chain glfos from those paired with igk and with igl
-                        glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], lp_glfos[ltmp])
-                        antn_lists[ltmp] += lp_annotations[ltmp]
-                        assert len(cpaths[ltmp].partitions) == 1
-                        cpaths[ltmp] = ClusterPath(partition=cpaths[ltmp].best() + lp_cpaths[ltmp].best())  # TODO
-                    else:
-                        glfos[ltmp] = lp_glfos[ltmp]
-                        antn_lists[ltmp] = lp_annotations[ltmp]
-                        cpaths[ltmp] = lp_cpaths[ltmp]
-            for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in antn_lists]:
-                assert args.action == 'simulate'  # need to update probably several things, at least the headers TODO handles headers more cleanly)
-                headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
-                print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
-                utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
+        for lpair in utils.locus_pairs[ig_or_tr]:
+            lp_glfos, lp_annotations, lp_cpaths = combine_simu_pair(lpair, headers)
+            if lp_annotations is None:
+                continue
+            for ltmp in lpair:
+                if ltmp in glfos:  # merge heavy chain glfos from those paired with igk and with igl
+                    glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], lp_glfos[ltmp])
+                    antn_lists[ltmp] += lp_annotations[ltmp]
+                    assert len(cpaths[ltmp].partitions) == 1
+                    cpaths[ltmp] = ClusterPath(partition=cpaths[ltmp].best() + lp_cpaths[ltmp].best())
+                else:
+                    glfos[ltmp] = lp_glfos[ltmp]
+                    antn_lists[ltmp] = lp_annotations[ltmp]
+                    cpaths[ltmp] = lp_cpaths[ltmp]
+        for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in antn_lists]:
+            print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
+            utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
     # ----------------------------------------------------------------------------------------
     def get_true_partitions(cpaths, debug=False):
         if args.is_data or args.paired_indir is None:
@@ -509,7 +506,6 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         for lpair in utils.locus_pairs[ig_or_tr]:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
-# TODO maybe remove_badly_paired_seqs() (and re-adding them) should both be separate fcns called from within merge_chains()?
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=cpaths, input_antn_lists=antn_lists, debug=DBG)  # , iparts={'igl' : 7}
             if args.paired_outdir is not None:
