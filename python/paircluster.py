@@ -401,7 +401,6 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
 def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
-    # <cpaths> are after the badly paired seqs have been removed, while <input_cpaths> are the real initial ones
     # ----------------------------------------------------------------------------------------
     def akey(klist):
         return ':'.join(klist)
@@ -476,7 +475,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     init_partitions = {}
     for tch in utils.chains:
         if iparts is None or ploci[tch] not in iparts:
-            init_partitions[tch] = cpaths[ploci[tch]].best()
+            init_partitions[tch] = cpaths[ploci[tch]].best()  # <cpaths> (and thus <init_partitions>) are after the badly paired seqs were removed, while <input_cpaths> are the real initial ones (before anything was removed)
         else:
             init_partitions[tch] = cpaths[ploci[tch]].partitions[iparts[ploci[tch]]]
             print '  %s using non-best partition index %d for %s (best is %d)' % (utils.color('red', 'note'), iparts[ploci[tch]], tch, cpaths[ploci[tch]].i_best)
@@ -618,18 +617,13 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         print '\n        '.join(tmpstrs)
         for tch in utils.chains:
             input_antn_dict = utils.get_annotation_dict(input_antn_lists[ploci[tch]])
-            ltmp = ploci[tch]
-            print '%s' % utils.color('green', ltmp)
+            print '%s' % utils.color('green', ploci[tch])
             assert iparts is None  # just for now
-            for tclust in input_cpaths[ltmp].best():  # loop over clusters in the initial partition
-                if len(tclust) == 1:
-                    continue
+            for tclust in input_cpaths[ploci[tch]].best():  # loop over clusters in the initial partition
                 jfamilies = [c for c in joint_partitions[tch] if len(set(tclust) & set(c)) > 0]  # clusters in the joint partition that overlap with this cluster
                 uid_extra_strs = None
                 if len(jfamilies) == 0:  # couldn't find it (it was probably paired with the other light chain)
                     uid_extra_strs = [utils.color('blue', '?') for _ in tclust]
-                elif len(jfamilies) == 1:  # everyone in <tclust> is also in the same joint partition family
-                    uid_extra_strs = [utils.color('green', '-') for _ in tclust]
                 else:
                     def getjcstr(u):  # str for length of <u>'s cluster in <jfamilies>
                         jfs = [f for f in jfamilies if u in f]

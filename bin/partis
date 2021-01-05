@@ -475,14 +475,8 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         if args.is_data or args.paired_indir is None:
             return None
         true_partitions = {}
-        ccfs = {}
         for ltmp in utils.sub_loci(ig_or_tr):
             true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
-            ccfs[ltmp] = utils.per_seq_correct_cluster_fractions(cpaths[ltmp].best(), true_partitions[ltmp], dbg_str=utils.locstr(ltmp)+' ', debug=debug)
-        if debug:
-            print '             purity  completeness'
-            for ltmp in utils.sub_loci(ig_or_tr):
-                print '   %s initial %6.3f %6.3f' % (utils.locstr(ltmp), ccfs[ltmp][0], ccfs[ltmp][1])
         return true_partitions
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
