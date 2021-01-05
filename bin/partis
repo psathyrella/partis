@@ -340,7 +340,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 cmd += ' --input-metafname %s' % args.input_metafname
             utils.simplerun(cmd, dryrun=args.dry_run)
             if args.paired_outdir is None:
-                work_fnames.extend(utils.paired_dir_fnames(getodir(), no_pairing_info=args.input_metafname is None))
+                work_fnames.extend(utils.paired_dir_fnames(getodir(), no_pairing_info=args.input_metafname is None and args.is_data))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
     # ----------------------------------------------------------------------------------------
     def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
         if runs_on_existing_output(args.action):  # don't need a parameter dir to merge existing paired partitions
@@ -404,7 +404,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             if tmpaction == 'merge-paired-partitions':
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
-                utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # TODO what should happen here if --input-metafname wasn't set?
+                if args.input_metafname is not None:
+                    utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
                 clist[clist.index(args.action)] = 'annotate'
 
             return clist
@@ -448,17 +449,17 @@ def run_all_loci(args, ig_or_tr='ig'):
             work_fnames.append(getofn(ltmp, joint=True, partition_only=True, lpair=lpair))
             run_step('merge-paired-partitions', ltmp, skip_missing_input=True, lpair=lpair)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
-    def read_output_files(tmploci, lpair=None):
+    def read_output_files(tmploci, lpair=None, debug=False):
         glfos, antn_lists, cpaths = {}, {}, {}
         for ltmp in tmploci:  # read single-locus output files
             if not os.path.exists(getofn(ltmp, lpair=lpair)):
                 print '%s: no %s %s output file, skipping' % (utils.color('blue', '+'.join(lpair if lpair is not None else ltmp)), ltmp, 'simulation' if args.action=='simulate' else 'partition')
                 continue
-            glfos[ltmp], antn_lists[ltmp], cpaths[ltmp] = utils.read_output(getofn(ltmp, lpair=lpair), dont_add_implicit_info=not args.debug, skip_failed_queries=True)
+            glfos[ltmp], antn_lists[ltmp], cpaths[ltmp] = utils.read_output(getofn(ltmp, lpair=lpair), dont_add_implicit_info=not debug, skip_failed_queries=True)
         return glfos, antn_lists, cpaths
     # ----------------------------------------------------------------------------------------
     def combine_simu_pair(lpair, headers):
-        glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair)
+        glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair, debug=args.debug)
         if any(l not in glfos for l in lpair):
             return None, None, None
         print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
@@ -499,8 +500,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         return true_partitions
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
-        glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr))
         DBG = True
+        glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr), debug=DBG)
         true_partitions = get_true_partitions(cpaths, debug=DBG)
         paircluster.clean_pair_info(cpaths, antn_lists, is_data=args.is_data, debug=DBG) #, max_hdist=4, n_max_clusters=1)
         for lpair in utils.locus_pairs[ig_or_tr]:
