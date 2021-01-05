@@ -4170,7 +4170,7 @@ def remove_missing_uids_from_true_partition(true_partition, partition_with_missi
         if len(new_cluster) > 0:
             true_partition_with_uids_removed.append(new_cluster)
     if debug:
-        print '  %d (of %d) ids missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in true_partition]), ' '.join(missing_ids))
+        print '    removed %d/%d uids (leaving %d) from true partition that were not in inf partition' % (len(missing_ids), sum([len(c) for c in true_partition]), sum([len(c) for c in true_partition_with_uids_removed])) #, ' '.join(missing_ids))
     return true_partition_with_uids_removed
 
 # ----------------------------------------------------------------------------------------

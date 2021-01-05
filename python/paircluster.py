@@ -53,10 +53,16 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_p
 
 # ----------------------------------------------------------------------------------------
 def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # remove seqs paired with the wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
+    # ----------------------------------------------------------------------------------------
+    def add_unpaired(cline, iseq, uid):
+        sorted_hdists = sorted([(u, utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i, u in enumerate(cline['unique_ids']) if i != iseq], key=operator.itemgetter(1))
+        nearest_uid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
+        unpaired_seqs[cline['loci'][iseq]][uid] = nearest_uid  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance
+    # ----------------------------------------------------------------------------------------
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
     all_loci = {u : l for ants in antn_lists.values() for antn in ants for u, l in zip(antn['unique_ids'], antn['loci'])}  # this includes the heavy ones, which we don't need, but oh well
     all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this
-    unpaired_seqs = {}  # map from the uid of each seq with no pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
+    unpaired_seqs = {l : {} for l in ploci.values()}  # map for each locus from the uid of each seq with no (or non-reciprocal) pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
     lp_cpaths, lp_antn_lists = {}, {}
     if debug:
         print '  removing bad/un-paired seqs'
@@ -67,14 +73,13 @@ def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # 
         for iclust, cluster in enumerate(cpaths[ploci[tch]].best()):
             cline = antn_dicts[ploci[tch]][':'.join(cluster)]
             iseqs_to_remove = []
-            n_unpaired, n_bad_paired, n_non_reciprocal = 0, 0, 0  # just for dbg
+            n_no_info, n_bad_paired, n_non_reciprocal = 0, 0, 0  # just for dbg NOTE n_bad_paired are the only ones we *really* want to remove, since we know they're paired with the long light chain, whereas the other two categories we eventually want to re-add since we're not sure who they're paired with
             for iseq, uid in enumerate(cline['unique_ids']):
                 pids = cline['paired-uids'][iseq]
                 if len(pids) == 0:  # no pairing info
                     iseqs_to_remove.append(iseq)
-                    sorted_hdists = sorted([(u, utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i, u in enumerate(cline['unique_ids']) if i != iseq], key=operator.itemgetter(1))
-                    unpaired_seqs[uid] = None if len(sorted_hdists)==0 else sorted_hdists[0]  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance
-                    n_unpaired += 1
+                    add_unpaired(cline, iseq, uid)
+                    n_no_info += 1
                 elif len(pids) > 1:
                     raise Exception('multiple paired uids for \'%s\': %s' % (uid, pids))
                 else:
@@ -84,6 +89,7 @@ def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # 
                     else:
                         if all_pids[uid] not in all_pids or all_pids[all_pids[uid]] != uid:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in clean_pair_info(), but atm i think we can't look at both chains at once in that fcn
                             iseqs_to_remove.append(iseq)
+                            add_unpaired(cline, iseq, uid)
                             n_non_reciprocal += 1
             iseqs_to_keep = [i for i in range(len(cline['unique_ids'])) if i not in iseqs_to_remove]
             if len(iseqs_to_keep) > 0:
@@ -93,7 +99,7 @@ def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # 
                 new_antn_list.append(new_cline)
             if debug:
                 def fstr(v): return '' if v==0 else '%d'%v
-                print '    %s   %3d    %3s     %3s   %3s    %3s' % (utils.locstr(ploci[tch]) if iclust==0 else ' ', len(cline['unique_ids']), fstr(len(iseqs_to_remove)), fstr(n_unpaired), fstr(n_bad_paired), fstr(n_non_reciprocal))
+                print '    %s   %3d    %3s     %3s   %3s    %3s' % (utils.locstr(ploci[tch]) if iclust==0 else ' ', len(cline['unique_ids']), fstr(len(iseqs_to_remove)), fstr(n_no_info), fstr(n_bad_paired), fstr(n_non_reciprocal))
         lp_cpaths[ploci[tch]] = ClusterPath(seed_unique_id=cpaths[ploci[tch]].seed_unique_id, partition=new_partition)
         lp_antn_lists[ploci[tch]] = new_antn_list
 
@@ -361,6 +367,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
 
 # ----------------------------------------------------------------------------------------
 def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=False):
+    # NOTE that <joint_partitions> can have many fewer seqs than <init_partitions> since we remove from <joint_partitions> seqs paired with the other light chain (the weighted average ccfs over the h joint partitions corresponding to both light chains would be exactly comparable to the <init_partitions>, but I think this is fine as it is)
     # ----------------------------------------------------------------------------------------
     def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
         for tclust in tpart:
@@ -368,31 +375,33 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
                 if uid in dup_dict:
                     tclust += dup_dict[uid]
     # ----------------------------------------------------------------------------------------
-    cmp_partitions = {}  # (potentially) modified versions of the initial heavy/light partitions
-    ccfs = {}
-    for chain in utils.chains:
-        cmp_partitions[chain] = copy.deepcopy(init_partitions[chain])
-        true_partitions[chain] = utils.remove_missing_uids_from_true_partition(true_partitions[chain], cmp_partitions[chain], debug=False)  # NOTE it would probably be better to not modify the true partition, since it's getting passed in from outside
-        dup_dict = {u : l['duplicates'][i] for l in antn_lists[ploci[chain]] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}
+    for tch in utils.chains:
+        ltmp = ploci[tch]
+        dup_dict = {u : l['duplicates'][i] for l in antn_lists[ltmp] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}  # now that I've turned off default duplicate removal, this won't happen much any more
         if len(dup_dict) > 0:
-            incorporate_duplicates(cmp_partitions[chain], dup_dict)
-        ccfs[chain] = {'before' : utils.per_seq_correct_cluster_fractions(cmp_partitions[chain], true_partitions[chain], dbg_str=utils.locstr(ploci[chain])+' ', debug=debug)}
+            print '%s duplicate sequences in joint partition evaluation' % utils.color('yellow', 'warning')
 
+        i_part = copy.deepcopy(init_partitions[tch])  # TODO probalby it's not worth getting ccfs for these? they're pretty much meaningless since they have the unpaired seqs removed
+        j_part = copy.deepcopy(joint_partitions[tch])
         if len(dup_dict) > 0:
-            incorporate_duplicates(joint_partitions[chain], dup_dict)  # NOTE this modifies the joint partition
-        j_part = utils.get_deduplicated_partitions([joint_partitions[chain]])[0]  # TODO why do i need this?
-        j_part = utils.remove_missing_uids_from_true_partition(j_part, true_partitions[chain], debug=False)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition
-        ccfs[chain]['joint'] = utils.per_seq_correct_cluster_fractions(j_part, true_partitions[chain], dbg_str='joint ', debug=debug)
+            incorporate_duplicates(i_part, dup_dict)
+            incorporate_duplicates(j_part, dup_dict)
 
-    print '             purity  completeness'
-    for chain in utils.chains:
-        print '   %s before  %6.3f %6.3f' % (utils.locstr(ploci[chain]), ccfs[chain]['before'][0], ccfs[chain]['before'][1])
-    for chain in utils.chains:
-        print '    joint    %6.3f %6.3f   (%s true)' % (ccfs[chain]['joint'][0], ccfs[chain]['joint'][1], chain)
+        itruepart = utils.remove_missing_uids_from_true_partition(true_partitions[ltmp], i_part, debug=debug)  # returns a new/copied partition, doesn't modify original
+        single_ccfs = utils.per_seq_correct_cluster_fractions(i_part, itruepart, dbg_str=utils.locstr(ltmp)+' single ', debug=debug)
+
+        # j_part = utils.get_deduplicated_partitions([j_part])[0]  # TODO why do i need this? UPDATE nothing broke when i commented it...
+        jtruepart = utils.remove_missing_uids_from_true_partition(true_partitions[ltmp], j_part, debug=debug)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition UPDATE not sure if this comment applies/makes sense any more
+        joint_ccfs = utils.per_seq_correct_cluster_fractions(j_part, jtruepart, dbg_str=utils.locstr(ltmp)+' joint ', debug=debug)
+
+        print '  %s ccfs:     purity  completeness' % utils.locstr(ltmp)
+        print '      single  %6.3f %6.3f' % (single_ccfs[0], single_ccfs[1])
+        print '       joint  %6.3f %6.3f' % (joint_ccfs[0], joint_ccfs[1])
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
-def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False, true_partitions=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+    # <cpaths> are after the badly paired seqs have been removed, while <input_cpaths> are the real initial ones
     # ----------------------------------------------------------------------------------------
     def akey(klist):
         return ':'.join(klist)
@@ -557,8 +566,9 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
     def chstr(n_before, n_after):
         if n_before == n_after: return ''
         else: return ' ' + utils.color('red', '%+d' % (n_after - n_before))
-    print '   N clusters:\n        %s %4d --> %-4d%s\n        %s %4d --> %-4d%s'  % (utils.locstr(ploci['h']), len(init_partitions['h']), len(final_partition), chstr(len(init_partitions['h']), len(final_partition)),
-                                                                                     utils.locstr(ploci['l']), len(init_partitions['l']), len(final_partition), chstr(len(init_partitions['l']), len(final_partition)))
+    tmpstrs = ['   N clusters without bad/unpaired seqs:'] \
+              + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(init_partitions[tch]), len(final_partition), chstr(len(init_partitions[tch]), len(final_partition))) for tch in utils.chains]
+    print '\n        '.join(tmpstrs)
 
     # ptnprint(final_partition, sort_by_size=False) #extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
 
@@ -576,27 +586,55 @@ def merge_chains(ploci, cpaths, antn_lists, iparts=None, check_partitions=False,
     joint_partitions = {ch : copy.deepcopy(final_partition) for ch in utils.chains}
     if len(l_translations) > 0:
         untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_partitions, antn_dict)
+
+# TODO changed my mind again, maybe should go after evaluation?
+    if unpaired_seqs is not None:  # it probably makes more sense to have this elsewhere, but I want it to happen before we evaluate
+        n_added = {tch : 0 for tch in ploci}
+        for tch, ltmp in ploci.items():
+            for upid, nearid in unpaired_seqs[ltmp].items():  # <upid> is uid of seq with bad/no pair info, <nearid> is uid of nearest seq in <upid>'s original family
+                if nearid is None:  # it was a singleton, so keep it one
+                    joint_partitions[tch].append([upid])
+                    n_added[tch] += 1
+                    continue
+                jclusts = [c for c in joint_partitions[tch] if nearid in c]
+                if len(jclusts) < 1:
+                    joint_partitions[tch].append([upid])  # this should mean that its <nearid> was also missing pairing info, so will also be in <unpaired_seqs>, so add it as a singleton, and then when the <nearid> comes up it should get added to this new cluster
+                    n_added[tch] += 1
+                    continue
+                jclust = utils.get_single_entry(jclusts)  # if <nearid> is in more than one cluster in the partition, it isn't a partition (which I think will only happen if it's an unfinished/uncleaned seed unique id partition)
+                jclust.append(upid)
+                n_added[tch] += 1
+        if debug:
+            totstr = '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in joint_partitions[tch])) for tch in sorted(ploci))
+            print '    re-added unpaired seqs (%s) to give total seqs in joint partitions: %s' % (', '.join('%s %d'%(utils.locstr(ploci[tch]), n) for tch, n in n_added.items()), totstr)
+
     if true_partitions is not None:
-        evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=debug)
+        assert iparts is None  # just for now
+        evaluate_joint_partitions(ploci, true_partitions, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, debug=debug)
 
     if debug:
+        tmpstrs = ['   N clusters with all seqs:'] \
+                  + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]), chstr(len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]))) for tch in utils.chains]
+        print '\n        '.join(tmpstrs)
         for tch in utils.chains:
+            input_antn_dict = utils.get_annotation_dict(input_antn_lists[ploci[tch]])
             ltmp = ploci[tch]
             print '%s' % utils.color('green', ltmp)
-            for tclust in cpaths[ltmp].best():  # loop over clusters in the initial partition
+            assert iparts is None  # just for now
+            for tclust in input_cpaths[ltmp].best():  # loop over clusters in the initial partition
                 if len(tclust) == 1:
                     continue
                 jfamilies = [c for c in joint_partitions[tch] if len(set(tclust) & set(c)) > 0]  # clusters in the joint partition that overlap with this cluster
                 uid_extra_strs = None
-                if len(jfamilies) == 0:
+                if len(jfamilies) == 0:  # couldn't find it (it was probably paired with the other light chain)
                     uid_extra_strs = [utils.color('blue', '?') for _ in tclust]
                 elif len(jfamilies) == 1:  # everyone in <tclust> is also in the same joint partition family
-                    uid_extra_strs = [utils.color('blue', '-') for _ in tclust]
+                    uid_extra_strs = [utils.color('green', '-') for _ in tclust]
                 else:
                     def getjcstr(u):  # str for length of <u>'s cluster in <jfamilies>
                         jfs = [f for f in jfamilies if u in f]
                         return utils.color('blue', '?') if len(jfs)==0 else ('%d: %s'%(len(utils.get_single_entry(jfs)), ' '.join(jfs[0])))
                     uid_extra_strs = [getjcstr(u) for u in tclust]
-                utils.print_reco_event(antn_dict[tch][':'.join(tclust)], uid_extra_strs=uid_extra_strs, extra_str='      ')
+                utils.print_reco_event(input_antn_dict[':'.join(tclust)], uid_extra_strs=uid_extra_strs, extra_str='      ')
 
     return {ploci[ch] : jp for ch, jp in joint_partitions.items()}
