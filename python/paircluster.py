@@ -12,23 +12,23 @@ from clusterpath import ptnprint, ClusterPath
 naive_hamming_bound_type = 'naive-hamming' #'likelihood'
 
 # ----------------------------------------------------------------------------------------
-# rename all uids in the light chain partition, and annotations that are paired with a heavy chain uid, to that heavy chain uid (pairings must, at this stage, be unique)
+# rename all seqs in the light chain partition to their paired heavy chain uid (also change uids in the light chain annotations). Note that pairings must, at this stage, be unique.
 def translate_paired_uids(ploci, init_partitions, antn_lists):
-    h_paired_uids = {}  # map to each heavy chain uid <u> from its paired light chain uid <pids[0]>
-    for hline in antn_lists[ploci['h']]:
+    # first make a map from each light chain id to its paired heavy chain id
+    h_paired_uids = {}
+    for hline in antn_lists[ploci['h']]:  # looping over the partitions here was identical, at least when I checked it
         for h_id, pids in zip(hline['unique_ids'], hline['paired-uids']):
             if len(pids) == 0:
-                raise Exception('')  # TODO
-                # continue
+                raise Exception('no paired uids for %s' % h_id)  # everybody has to have exactly one paired id at this point
             elif len(pids) > 1:
                 raise Exception('multiple paired uids %s for %s sequence %s' % (' '.join(pids), ploci['h'], h_id))
             h_paired_uids[pids[0]] = h_id
+    # then go through the light chain annotations + partition swapping names
     l_translations = {}
     for lline in antn_lists[ploci['l']]:
         for iseq, l_id in enumerate(lline['unique_ids']):
-            if l_id not in h_paired_uids:  # this <l_id> wasn't paired with any heavy chain ids
-                print 'wtf %s' % l_id
-                continue
+            if l_id not in h_paired_uids:
+                raise Exception('no paired uids for %s' % l_id)  # everybody has to have exactly one paired id at this point
             lline['unique_ids'][iseq] = h_paired_uids[l_id]
             l_translations[h_paired_uids[l_id]] = l_id  # so we can go back to <l_id> afterwards
     if len(h_paired_uids) > 0:

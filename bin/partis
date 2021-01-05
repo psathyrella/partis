@@ -14,6 +14,7 @@ if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
     raise RuntimeError("scipy version 0.17 or later is required (found version %s)." % scipy.__version__)
 import colored_traceback.always
 import os
+import json
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
@@ -310,13 +311,19 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             odir = '%s/%s' % (odir, '+'.join(lpair))
         return odir
     # ----------------------------------------------------------------------------------------
-    def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None):
+    def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False):
         if trees:
             bname = 'trees.nwk'
         elif args.action == 'simulate':
             return utils.paired_fn(getodir(), ltmp, lpair=lpair, suffix='.yaml')
         else:
-            bname = '%s-%s.yaml' % ('simu' if args.action=='simulate' else 'partition', ltmp)
+            if args.action == 'simulate':
+                bstr = 'simu'
+            elif input_meta:
+                bstr = 'input-meta'
+            else:
+                bstr ='partition'
+            bname = '%s-%s.yaml' % (bstr, ltmp)
         ofn = '%s/%s' % (getodir(lpair=lpair), bname)
         if not joint:
             ofn = utils.insert_before_suffix('-non-merged', ofn)
@@ -390,13 +397,14 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
                     utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
                     if tmpaction != 'cache-parameters':
-                        utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=tmpaction=='merge-paired-partitions')], '--infname', has_arg=True)
+                        utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=tmpaction=='merge-paired-partitions', lpair=lpair)], '--infname', has_arg=True)
                         if args.paired_outdir is None:
                             work_fnames.append(getofn(ltmp, joint=tmpaction=='merge-paired-partitions'))
 
             if tmpaction == 'merge-paired-partitions':
-                clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True)]
+                clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
+                utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
                 clist[clist.index(args.action)] = 'annotate'
 
             return clist
@@ -406,7 +414,21 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             return
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
-    def write_joint_locus(ltmp, joint_partition, antn_dict, glfo):
+    def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict):  # replace old paired uids with new, fixed ones
+        old_metafos = utils.read_json_yaml(args.input_metafname)  # NOTE the underlying dicts get modified
+        new_metafos = {}
+        single_pids = {u : pids for l in antn_dict.values() for u, pids in zip(l['unique_ids'], l['paired-uids'])}
+        for jclust in joint_partition:
+            for uid in jclust:
+                new_metafos[uid] = old_metafos.get(uid, {})  # not sure it's possible for it to be missing, but maybe
+                new_metafos[uid]['paired-uids'] = single_pids.get(uid)  # if it's not in there, we couldn't decide who it was paired with
+        with open(getofn(ltmp, joint=True, lpair=lpair, input_meta=True), 'w') as mfile:
+            json.dump(new_metafos, mfile)
+        work_fnames.append(getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
+    # ----------------------------------------------------------------------------------------
+    def write_joint_locus(ltmp, lpair, joint_partition, antn_dict, glfo):
+        if args.input_metafname is not None:
+            rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict)
         missing_clusters = []
         for jclust in joint_partition:
             if ':'.join(jclust) not in antn_dict:
@@ -417,14 +439,14 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
             print '  need to get annotations for %d/%d joint %s clusters' % (len(missing_clusters), len(joint_partition), ltmp)
         partition_lines = ClusterPath(partition=joint_partition).get_partition_lines(True)  # we could get annotations only for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
-        if not os.path.exists(getpdir(ltmp)):
+        if not os.path.exists(getpdir(ltmp)):  # no parameter dir, so can't get new annotations
             print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), ltmp)
             # TODO maybe just subset the existing annotations according to the joint partition?
             utils.write_annotations(getofn(ltmp, joint=True), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
         else:
-            utils.write_annotations(getofn(ltmp, joint=True, partition_only=True), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
-            work_fnames.append(getofn(ltmp, joint=True, partition_only=True))
-            run_step('merge-paired-partitions', ltmp, skip_missing_input=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
+            utils.write_annotations(getofn(ltmp, joint=True, partition_only=True, lpair=lpair), glfo, [], headers, partition_lines=partition_lines)  # write just the partition (no annotations) to a tmp file for use by the annotation step below
+            work_fnames.append(getofn(ltmp, joint=True, partition_only=True, lpair=lpair))
+            run_step('merge-paired-partitions', ltmp, skip_missing_input=True, lpair=lpair)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
     def read_output_files(tmploci, lpair=None):
         glfos, antn_lists, cpaths = {}, {}, {}
@@ -487,13 +509,12 @@ def run_all_loci(args, ig_or_tr='ig'):  # TODO generalize to allow 'tr'
         for lpair in utils.locus_pairs[ig_or_tr]:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
+# TODO maybe remove_badly_paired_seqs() (and re-adding them) should both be separate fcns called from within merge_chains()?
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
-# TODO re-add unpaired_seqs
-            true_lp_partitions = {tch : true_partitions[ploci[tch]] for tch in utils.chains} if true_partitions is not None else None
-            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, check_partitions=True, true_partitions=true_lp_partitions, debug=DBG)  # , iparts={'igl' : 7}
+            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=cpaths, input_antn_lists=antn_lists, debug=DBG)  # , iparts={'igl' : 7}
             if args.paired_outdir is not None:
                 for ltmp in lpair:
-                    write_joint_locus(ltmp, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), glfos[ltmp])
+                    write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), glfos[ltmp])
     # ----------------------------------------------------------------------------------------
     if args.paired_outdir is None:
         print '  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).'
