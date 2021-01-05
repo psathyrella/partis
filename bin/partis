@@ -298,7 +298,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def getifn(ltmp):
         if args.paired_indir is not None:
-            yfn, ffn = [utils.paired_fn(args.paired_indir, ltmp, suffix=sx) for sx in ['.yaml', '.fa']]
+            yfn, ffn = [paircluster.paired_fn(args.paired_indir, ltmp, suffix=sx) for sx in ['.yaml', '.fa']]
             if [os.path.exists(f) for f in [yfn, ffn]].count(True) == 2:
                 raise Exception('both %s and %s exist, not sure which to use' % (yfn, ffn))
             return yfn if os.path.exists(yfn) else ffn
@@ -315,12 +315,12 @@ def run_all_loci(args, ig_or_tr='ig'):
         if trees:
             bname = 'trees.nwk'
         elif args.action == 'simulate':
-            return utils.paired_fn(getodir(), ltmp, lpair=lpair, suffix='.yaml')
+            return paircluster.paired_fn(getodir(), ltmp, lpair=lpair, suffix='.yaml')
         else:
             if args.action == 'simulate':
                 bstr = 'simu'
             elif input_meta:
-                bstr = 'input-meta'
+                bstr = 'meta'
             else:
                 bstr ='partition'
             bname = '%s-%s.yaml' % (bstr, ltmp)
@@ -331,6 +331,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             ofn = utils.insert_before_suffix('-only-partition', ofn)
         return ofn
     # ----------------------------------------------------------------------------------------
+    def getmfn(ftype):  # ok this name sucks, but this fcn is for in/out files with all loci together
+        return '%s/%s.%s' % (getodir(), ftype, 'fa' if 'seqs' in ftype else 'yaml')
+    # ----------------------------------------------------------------------------------------
     def prep_inputs():
         if args.infname is not None:
             cmd = './bin/split-loci.py %s --outdir %s' % (args.infname, getodir())
@@ -340,7 +343,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 cmd += ' --input-metafname %s' % args.input_metafname
             utils.simplerun(cmd, dryrun=args.dry_run)
             if args.paired_outdir is None:
-                work_fnames.extend(utils.paired_dir_fnames(getodir(), no_pairing_info=args.input_metafname is None and args.is_data))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
+                work_fnames.extend(paircluster.paired_dir_fnames(getodir(), no_pairing_info=args.input_metafname is None and args.is_data))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
     # ----------------------------------------------------------------------------------------
     def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
         if runs_on_existing_output(args.action):  # don't need a parameter dir to merge existing paired partitions
@@ -470,6 +473,33 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.write_annotations(getofn(ltmp, lpair=lpair), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         return glfos, antn_lists, cpaths
     # ----------------------------------------------------------------------------------------
+    def write_merged_simu(antn_lists):  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files
+        outfos, metafos = [], {}
+        for ltmp in antn_lists:
+            for tline in antn_lists[ltmp]:
+                for uid, seq, pids in zip(tline['unique_ids'], tline['input_seqs'], tline['paired-uids']):
+                    outfos.append({'name' : uid, 'seq' : seq})
+                    metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
+
+        n_droplets = int(0.5 * float(len(outfos)) / args.mean_cells_per_droplet)  # 0.5 is because <outfos> includes both heavy and light sequences
+        droplet_ids = [[] for _ in range(n_droplets)]
+        sfo_dict = {s['name'] : s for s in outfos}
+        while len(sfo_dict) > 0:
+            tid = next(iter(sfo_dict))
+            idrop = numpy.random.choice(range(len(droplet_ids)))
+            droplet_ids[idrop] += [tid] + metafos[tid]['paired-uids']  # add <tid> plus its paired ids to this drop
+            for uid in [tid] + metafos[tid]['paired-uids']:
+                sfo_dict[uid]['droplet-ids'] = droplet_ids[idrop]
+                del sfo_dict[uid]
+        for sfo in outfos:
+            metafos[sfo['name']]['paired-uids'] = sfo['droplet-ids']
+
+        with open(getmfn('all-seqs'), 'w') as outfile:
+            for sfo in outfos:
+                outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
+        with open(getmfn('meta'), 'w') as mfile:
+            json.dump(metafos, mfile)
+    # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
         headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         glfos, antn_lists, cpaths = {}, {}, {}
@@ -490,6 +520,9 @@ def run_all_loci(args, ig_or_tr='ig'):
         for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in antn_lists]:
             print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
             utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
+        if args.mean_cells_per_droplet is not None:  # NOTE this also writes a .fa with all three loci together, which should really probably be separate from whether mean_cells_per_droplet is set
+            write_merged_simu(antn_lists)
+
     # ----------------------------------------------------------------------------------------
     def get_true_partitions(cpaths, debug=False):
         if args.is_data or args.paired_indir is None:
@@ -520,7 +553,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     prep_inputs()
 
     if args.action == 'simulate':
-        utils.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
+        paircluster.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
         for lpair in utils.locus_pairs[ig_or_tr]:
             h_locus, l_locus = lpair
             if get_n_events(l_locus, args.n_sim_events) == 0:
@@ -532,7 +565,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not args.dry_run:
             combine_simu_chains()
         if args.paired_outdir is None:
-            work_fnames.extend(utils.paired_dir_fnames(getodir(), suffix='.yaml'))
+            work_fnames.extend(paircluster.paired_dir_fnames(getodir(), suffix='.yaml'))
     else:
         if args.action != 'cache-parameters' and auto_cache_params():  # ick. we can't just let the normal auto-parameter caching happen within each locus pair below, since it'll infer separately on the igh seqs paired with igk vs igl
             missing_pdir_loci = [l for l in utils.sub_loci(ig_or_tr) if not os.path.exists(getpdir(l))]
@@ -789,11 +822,13 @@ subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'act
 subargs['simulate'].append({'name' : '--force-dont-generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Force --generate-germline-set to False in situations in which it would otherwise be turned on (I know, this is kind of messy, but I think it\'s the best available solution).'}})
 subargs['simulate'].append({'name' : '--n-genes-per-region', 'kwargs' : {'help' : 'colon-separated list specifying the number of genes (not alleles -- i.e. the *total* number of alleles is this times the number of alleles per gene) for each region (for use with --generate-germline-set). Default (set outside argparse, so argparse incorrectly thinks it\'s None): %s' % glutils.default_n_genes_per_region}})
 subargs['simulate'].append({'name' : '--n-sim-alleles-per-gene', 'kwargs' : {'help' : 'colon-separated list of mean alleles per gene for each region (for use with --generate-germline-set). Default (set outside argparse, so argparse incorrectly thinks it\'s None): %s' % glutils.default_n_alleles_per_gene}})
-subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'default' : glutils.default_min_allele_prevalence_freq,'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between 0.01 and 1'}})
+subargs['simulate'].append({'name' : '--min-sim-allele-prevalence-freq', 'kwargs' : {'default' : glutils.default_min_allele_prevalence_freq, 'type' : float, 'help' : 'minimum frequency at which alleles are allowed to occur, e.g. if it\'s 0.01 then each pair of V alleles will have a prevalence ratio between 0.01 and 1'}})
 subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'help' : 'abandon help all ye who enter here'}})
 subargs['simulate'].append({'name' : '--nsnp-list', 'kwargs' : {'help' : 'When --generate-germline-set is set, this is a colon-separated list whose length gives the number of novel alleles to add to the germline set. Each entry in the list is the number of SNPs to generate for the corresponding new allele. If both --nsnp-list and --nindel-list are set, they must be the same length; if one is unset, it is assumed to be all zeroes.'}})
 subargs['simulate'].append({'name' : '--nindel-list', 'kwargs' : {'help' : 'When --generate-germline-set is set, this is a colon-separated list whose length gives the number of novel alleles to add to the germline set. Each entry in the list is the number of indels to generate for the corresponding new allele. If both --nsnp-list and --nindel-list are set, they must be the same length; if one is unset, it is assumed to be all zeroes.'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'Internal use only. This is set to true if this is a subprocess, i.e. set when --n-procs > 1.'}})
+subargs['simulate'].append({'name' : '--mean-cells-per-droplet', 'kwargs' : {'type' : float, 'help' : 'After simulating each family as either h+k or h+l (and adding the corresponding, correct \'paired-uids\' key to the output files, proceed to mimic a 10x experiment with multiple cells in some droplets, and writing the corresponding (incorrect) \'paired-uids\' to a new input meta file (which, when passed with --input-metafname, will override the paired uids from the regular simulation file)'}})
+
 
 subargs['view-alternative-annotations'].append({'name' : '--print-all-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to printing each alternative naive seq and gene call, with information on which clusters support its correctness, also print the annotations for all of these clusters below each naive sequence and gene call.'}})
 subargs['view-alternative-annotations'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)

@@ -4,12 +4,47 @@ import numpy
 import sys
 import operator
 import string
+import os
 
 import utils
 import prutils
 from clusterpath import ptnprint, ClusterPath
 
 naive_hamming_bound_type = 'naive-hamming' #'likelihood'
+
+# ----------------------------------------------------------------------------------------
+# return standardized file name (including subdirs) in directory structure that we use for paired heavy/light i/o
+def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig'):  # if set, only file(s) for this <locus>, and/or only files for this <lpair> of loci. If <lpair> is set but <locus> is None, returns subdir name
+    if lpair is not None:
+        bdir = '%s/%s' % (bdir, '+'.join(lpair))
+        if locus is None:
+            return bdir
+    return '%s/%s%s' % (bdir, locus, suffix)
+
+# ----------------------------------------------------------------------------------------
+def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig'):  # return all files + dirs from previous fcn
+    fnames = []
+    if not only_paired:
+        fnames += [paired_fn(bdir, l, suffix=suffix) for l in utils.sub_loci(ig_or_tr)]  # single-locus files
+    if not no_pairing_info:
+        fnames += [paired_fn(bdir, l, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr] for l in lp]  # paired single-locus files
+        fnames += [paired_fn(bdir, None, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr]]  # paired subdirs
+    return fnames  # return dirs after files for easier cleaning (below)
+
+# ----------------------------------------------------------------------------------------
+def prep_paired_dir(bdir, clean=False, suffix='.fa', extra_files=None, ig_or_tr='ig'):
+    if clean and os.path.exists(bdir):
+        clean_paired_dir(bdir, suffix=suffix, extra_files=extra_files, expect_missing=True)
+    for lpair in utils.locus_pairs[ig_or_tr]:
+        utils.prep_dir(paired_fn(bdir, None, lpair=lpair))
+
+# ----------------------------------------------------------------------------------------
+def clean_paired_dir(bdir, suffix='.fa', extra_files=None, expect_missing=False, ig_or_tr='ig'):
+    print '    cleaning paired files in %s/' % bdir
+    fnames = paired_dir_fnames(bdir, suffix=suffix, ig_or_tr=ig_or_tr)
+    if extra_files is not None:
+        fnames = extra_files + fnames  # put 'em at the start, since presumably they're actual files, not dirs
+    utils.clean_files(fnames, expect_missing=expect_missing)
 
 # ----------------------------------------------------------------------------------------
 # rename all seqs in the light chain partition to their paired heavy chain uid (also change uids in the light chain annotations). Note that pairings must, at this stage, be unique.

@@ -12,6 +12,7 @@ partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 sys.path.insert(1, partis_dir + '/python')
 
 import utils
+import paircluster
 import glutils
 from clusterpath import ClusterPath
 import seqfileopener
@@ -75,7 +76,7 @@ def run_vsearch(seqfos):  # run vsearch to see if you can get a match for each l
 
 # ----------------------------------------------------------------------------------------
 def write_locus_file(locus, ofos, lpair=None, extra_str='  '):
-    ofn = utils.paired_fn(args.outdir, locus=locus, lpair=lpair)
+    ofn = paircluster.paired_fn(args.outdir, locus=locus, lpair=lpair)
     if utils.output_exists(args, ofn, leave_zero_len=len(ofos)==0, offset=4):  # NOTE not really sure this does anything (or if i want it) now that I'm cleaning/looking for the whole dir at the start of this script
         return
     if not os.path.exists(os.path.dirname(ofn)):
@@ -136,9 +137,9 @@ if os.path.dirname(args.fname) == '':
 if args.outdir is None:
     args.outdir = utils.getprefix(args.fname)
 
-if any(os.path.exists(ofn) for ofn in utils.paired_dir_fnames(args.outdir)):
+if any(os.path.exists(ofn) for ofn in paircluster.paired_dir_fnames(args.outdir)):
     if args.overwrite:
-        utils.clean_paired_dir(args.outdir)
+        paircluster.clean_paired_dir(args.outdir)
     else:
         print '  split-loci.py output exists and --overwrite was not set, so not doing anything: %s' % args.outdir
         sys.exit(0)
