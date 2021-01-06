@@ -434,6 +434,7 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
 def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+    dbgids = None #['1437084736471665213-igh']  # None
     # ----------------------------------------------------------------------------------------
     def akey(klist):
         return ':'.join(klist)
@@ -455,14 +456,18 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     # Starting with <single_cluster> (from one chain) and <cluster_list> (all clusters in the other chain that overlap with <single_cluster>), decide which of the "splits" (i.e. cluster boundaries) in <cluster_list> should be applied to <single_cluster>.
     # Reapportions all uids from <single_cluster> and <cluster_list> into <return_clusts>, splitting definitely/first by cdr3, and then (if over some threshold) by naive hamming distance.
     def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, tdbg=False):
+        if dbgids is not None:
+            tdbg = len(set(dbgids) & set(u for c in [single_cluster] + cluster_list for u in c)) > 0
         # NOTE single_cluster and cluster_list in general have quite different sets of uids, and that's fine. All that matters here is we're trying to find all the clusters that should be split from one another (without doing some all against all horror)
         if len(cluster_list) < 2:  # nothing to do
             return [single_cluster]  # NOTE <single_cluster> doesn't get used after here
         adict = utils.get_annotation_dict(annotation_list)
         cdr3_groups = utils.group_seqs_by_value(cluster_list, lambda c: adict[akey(c)]['cdr3_length'])  # group the together clusters in <cluster_list> that have the same cdr3 (there's already utils.split_clusters_by_cdr3(), but it uses different inputs (e.g. sw_info) so i think it makes sense to not use it here)
         if tdbg:
-            print '   %s one cluster vs %d clusters' % (utils.color('blue', 'syncing'), len(cluster_list))
-            print '     split into %d cdr3 groups' % len(cdr3_groups)
+            print '   %s one cluster size: %2d  %s' % (utils.color('blue', 'syncing'), len(single_cluster), ':'.join(single_cluster))
+            jstrs = ['           %s %2d %s' % ('vs %2d with sizes:'%len(cluster_list) if i==0 else '                 ', len(c), ':'.join(c)) for i, c in enumerate(cluster_list)]
+            print '\n'.join(jstrs)
+            print '     split into %d cdr3 group%s' % (len(cdr3_groups), utils.plural(len(cdr3_groups)))
         lo_hbound, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))  # these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
         return_clusts = []
         for icdr, cdrgroup in enumerate(cdr3_groups):  # within each cdr3 group, split (i.e. use the cluster boundaries from cluster_list rather than single_cluster) if naive hfrac is > hi_hbound (but then there's shenanigans to adjudicate between different possibilities)
@@ -475,6 +480,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 if hfrac > hi_hbound:
                     clusters_to_split[akey(c1)].append(c2)
                     clusters_to_split[akey(c2)].append(c1)
+                    if tdbg: print '         hfrac split %.3f > %.3f  %s %s' % (hfrac, hi_hbound, ':'.join(c1), ':'.join(c2))
 
             # then do the splitting, which is accomplished by merging each cluster in <cdrgroup> with every other cluster in <cdrgroup> from which we aren't supposed to split it (i.e. that aren't in its <clusters_to_split>)
             if tdbg:
@@ -489,12 +495,12 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                     if any_in_common([rclust], split_clusts):  # if any uid in rclust is in a cluster from which we want to be split, skip it, i.e. don't merge with that cluster (note that we have to do it by uid because the rclusts are already merged so don't necessarily correspond to any existing cluster)
                         continue
                     # if found_one: print 'it happened!'  # can't happen any more since I switched to 'break' (although see note below)
-                    if tdbg: print '     merging with size %d' % len(rclust)
+                    if tdbg: print '     merge with size %d   %s' % (len(rclust), ':'.join(cclust))
                     rclust += cclust
                     found_one = True
                     break  # i.e. we just merge with the first one we find and stop looking; if there's more than one, it means we could merge all three together if we wanted (triangle inequality-ish, see diagram linked at top of fcn), but i doubt it'll matter either way, and this is easier
                 if not found_one:
-                    if tdbg: print '      y'
+                    if tdbg: print '      y                  %s' % ':'.join(cclust)
                     tmpclusts_for_return.append(cclust)  # if we didn't find an existing cluster that we can add it to, add it as a new cluster
 
             return_clusts += tmpclusts_for_return
