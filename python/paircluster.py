@@ -642,10 +642,10 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         assert iparts is None  # just for now
         evaluate_joint_partitions(ploci, true_partitions, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, debug=debug)
 
+    tmpstrs = ['   N clusters with all seqs:'] \
+              + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]), chstr(len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]))) for tch in utils.chains]
+    print '\n        '.join(tmpstrs)
     if debug:
-        tmpstrs = ['   N clusters with all seqs:'] \
-                  + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]), chstr(len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]))) for tch in utils.chains]
-        print '\n        '.join(tmpstrs)
         for tch in utils.chains:
             input_antn_dict = utils.get_annotation_dict(input_antn_lists[ploci[tch]])
             print '%s' % utils.color('green', ploci[tch])

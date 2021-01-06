@@ -304,6 +304,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             return yfn if os.path.exists(yfn) else ffn
         elif args.infname is not None:  # if we ran split-input.py on --infname
             return '%s/%s.fa' % (utils.non_none([args.paired_outdir, args.workdir]), ltmp)
+        else:
+            return 'XXX-DUMMY-XXX'  # ok this kind of sucks, but i think it's better than rewriting all the stuff for merge-paired-partitions (which is the one that doesn't need input stuff specified)
     # ----------------------------------------------------------------------------------------
     def getodir(lpair=None):
         odir = utils.non_none([args.paired_outdir, args.workdir])

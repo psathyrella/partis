@@ -4484,6 +4484,8 @@ def get_val_from_arglist(clist, argstr):
 
 # ----------------------------------------------------------------------------------------
 def remove_from_arglist(clist, argstr, has_arg=False):
+    if clist.count(None) > 0:
+        raise Exception('None type value in clist %s' % clist)
     imatches = arglist_imatches(clist, argstr)
     if len(imatches) == 0:
         return
@@ -4499,6 +4501,8 @@ def remove_from_arglist(clist, argstr, has_arg=False):
 # ----------------------------------------------------------------------------------------
 # replace the argument to <argstr> in <clist> with <replace_with>, or if <argstr> isn't there add it. If we need to add it and <insert_after> is set, add it after <insert_after>
 def replace_in_arglist(clist, argstr, replace_with, insert_after=None, has_arg=False):
+    if clist.count(None) > 0:
+        raise Exception('None type value in clist %s' % clist)
     if not is_in_arglist(clist, argstr):
         if insert_after is None or insert_after not in clist:  # just append it
             clist.append(argstr)
