@@ -428,6 +428,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             for uid in jclust:
                 new_metafos[uid] = old_metafos.get(uid, {})  # not sure it's possible for it to be missing, but maybe
                 new_metafos[uid]['paired-uids'] = single_pids.get(uid)  # if it's not in there, we couldn't decide who it was paired with
+        if not os.path.exists(getodir(lpair=lpair)):
+            os.makedirs(getodir(lpair=lpair))
         with open(getofn(ltmp, joint=True, lpair=lpair, input_meta=True), 'w') as mfile:
             json.dump(new_metafos, mfile)
         work_fnames.append(getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
