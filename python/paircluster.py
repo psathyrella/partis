@@ -480,7 +480,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 if hfrac > hi_hbound:
                     clusters_to_split[akey(c1)].append(c2)
                     clusters_to_split[akey(c2)].append(c1)
-                    if tdbg: print '         hfrac split %.3f > %.3f  %s %s' % (hfrac, hi_hbound, ':'.join(c1), ':'.join(c2))
+                    if tdbg: print '         hfrac split %.3f > %.3f  %d %d  %s %s' % (hfrac, hi_hbound, len(c1), len(c2), ':'.join(c1), ':'.join(c2))
 
             # then do the splitting, which is accomplished by merging each cluster in <cdrgroup> with every other cluster in <cdrgroup> from which we aren't supposed to split it (i.e. that aren't in its <clusters_to_split>)
             if tdbg:
