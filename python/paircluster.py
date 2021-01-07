@@ -464,14 +464,14 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         adict = utils.get_annotation_dict(annotation_list)
         cdr3_groups = utils.group_seqs_by_value(cluster_list, lambda c: adict[akey(c)]['cdr3_length'])  # group the together clusters in <cluster_list> that have the same cdr3 (there's already utils.split_clusters_by_cdr3(), but it uses different inputs (e.g. sw_info) so i think it makes sense to not use it here)
         if tdbg:
-            print '   %s one cluster size: %2d  %s' % (utils.color('blue', 'syncing'), len(single_cluster), ':'.join(single_cluster))
-            jstrs = ['           %s %2d %s' % ('vs %2d with sizes:'%len(cluster_list) if i==0 else '                 ', len(c), ':'.join(c)) for i, c in enumerate(cluster_list)]
+            print '   %s one cluster size: %3d  %s' % (utils.color('blue', 'syncing'), len(single_cluster), ':'.join(single_cluster))
+            jstrs = ['           %s %3d  %s' % ('vs %2d with sizes:'%len(cluster_list) if i==0 else '                 ', len(c), ':'.join(c)) for i, c in enumerate(cluster_list)]
             print '\n'.join(jstrs)
             print '     split into %d cdr3 group%s' % (len(cdr3_groups), utils.plural(len(cdr3_groups)))
         lo_hbound, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))  # these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
         return_clusts = []
         for icdr, cdrgroup in enumerate(cdr3_groups):  # within each cdr3 group, split (i.e. use the cluster boundaries from cluster_list rather than single_cluster) if naive hfrac is > hi_hbound (but then there's shenanigans to adjudicate between different possibilities)
-            if tdbg: print '      %s hfrac bound %.2f' % (utils.color('purple', 'icdr %d' % icdr), hi_hbound)
+            if tdbg: print '      %s' % utils.color('purple', 'icdr %d' % icdr)
 
             # first figure out who needs to be split from whom
             clusters_to_split = {akey(c) : [] for c in cdrgroup}  # map from each cluster ('s key) to a list of clusters from which it should be split
@@ -480,7 +480,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 if hfrac > hi_hbound:
                     clusters_to_split[akey(c1)].append(c2)
                     clusters_to_split[akey(c2)].append(c1)
-                    if tdbg: print '         hfrac split %.3f > %.3f  %d %d  %s %s' % (hfrac, hi_hbound, len(c1), len(c2), ':'.join(c1), ':'.join(c2))
+                    if tdbg: print '         hfrac split %.3f > %.3f  %3d %3d  %s   %s' % (hfrac, hi_hbound, len(c1), len(c2), ':'.join(c1), ':'.join(c2))
 
             # then do the splitting, which is accomplished by merging each cluster in <cdrgroup> with every other cluster in <cdrgroup> from which we aren't supposed to split it (i.e. that aren't in its <clusters_to_split>)
             if tdbg:
@@ -495,19 +495,20 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                     if any_in_common([rclust], split_clusts):  # if any uid in rclust is in a cluster from which we want to be split, skip it, i.e. don't merge with that cluster (note that we have to do it by uid because the rclusts are already merged so don't necessarily correspond to any existing cluster)
                         continue
                     # if found_one: print 'it happened!'  # can't happen any more since I switched to 'break' (although see note below)
-                    if tdbg: print '     merge with size %d   %s' % (len(rclust), ':'.join(cclust))
+                    if tdbg: print '     merge with size %3d   %s' % (len(rclust), ':'.join(cclust))
                     rclust += cclust
                     found_one = True
                     break  # i.e. we just merge with the first one we find and stop looking; if there's more than one, it means we could merge all three together if we wanted (triangle inequality-ish, see diagram linked at top of fcn), but i doubt it'll matter either way, and this is easier
                 if not found_one:
-                    if tdbg: print '      y                  %s' % ':'.join(cclust)
+                    if tdbg: print '      y                    %s' % ':'.join(cclust)
                     tmpclusts_for_return.append(cclust)  # if we didn't find an existing cluster that we can add it to, add it as a new cluster
 
             return_clusts += tmpclusts_for_return
 
-        # if debug:
-        #     print '      returning: %s' % ' '.join([str(len(c)) for c in return_clusts])
-        #     # ptnprint(return_clusts)
+        if tdbg:
+            print '      resolved clusters:'
+            for tclust in return_clusts:
+                print '          %s' % ':'.join(tclust)
         return return_clusts
 
     # ----------------------------------------------------------------------------------------
@@ -562,9 +563,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         if check_partitions:
             assert is_clean_partition(resolved_clusters)
 
-        resolvedbg = False
         if debug:
-            dbgheader = ['    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition)), '      ifclust N rclusts',]
+            dbgheader = ['    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition)), '      ifclust  fset   rset   common  after: fset  rset',]
         n_clean = 0
         # for each cluster that's already in <final_partition> that has uids in common with a cluster in <resolved_clusters>, decide how to apportion the common uids (basically we remove them from the larger of the two clusters)
         for ifclust in range(len(final_partition)):  # iteration/<ifclust> won't get as far as any clusters that we're just adding (to the end of <final_partition>), which is what we want
@@ -580,16 +580,22 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 common_uids = new_fset & rset
                 if len(new_fset) > len(rset):  # remove the common ids from the larger one (effectively splitting according to the splittier one)
                     new_fset -= common_uids
-                    if debug: dbgstr.append('  fclust %d --> %d' % (len(new_fset) + len(common_uids), len(new_fset)))
                 else:
                     rset -= common_uids
-                    if debug: dbgstr.append('  rclust %d --> %d' % (len(rset) + len(common_uids), len(rset)))
-                resolved_clusters[irclust] = list(rset)
-            if resolvedbg:
+                if debug:
+                    dbgstr.append(' %3d %s%3d %s  %3d    %s   %s' % (len(new_fset | common_uids),
+                                                                     ('%-s'%utils.color('red', str(len(new_fset)), width=3, padside='right')) if len(common_uids&new_fset)==0 else '   ',
+                                                                     len(rset | common_uids),
+                                                                     ('%-s'%utils.color('red', str(len(rset)), width=3, padside='right')) if len(common_uids&rset)==0 else '   ',
+                                                                     len(common_uids),
+                                                                     ':'.join(utils.color('blue' if u in common_uids else None, u) for u in new_fset),
+                                                                     ':'.join(utils.color('blue' if u in common_uids else None, u) for u in rset)))
+                resolved_clusters[irclust] = list(rset)  # replace this resolved cluster with a copy of itself that may have had any common uids removed (if it was bigger than fclust)
+            if debug:
                 if len(dbgheader) > 0:
                     print '\n'.join(dbgheader)
                     dbgheader = []
-                print '       %4d  %4d  %s' % (ifclust, len(irclusts), ''.join(dbgstr))
+                print '       %4d  %s' % (ifclust, '\n             '.join(dbgstr))
             final_partition[ifclust] = list(new_fset)
         # if debug:
         #     print '       %d fclusts clean' % n_clean
