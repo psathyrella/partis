@@ -21,7 +21,7 @@ def add_seed_seq(args, input_info, reco_info, is_data):
         reco_info[args.seed_unique_id] = 'unknown!'  # hopefully more obvious than a key error
 
 # ----------------------------------------------------------------------------------------
-def read_input_metafo(input_metafname, annotation_list, required_keys=None, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info>
+def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=10, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info>
     # NOTE <annotation_list> doesn't need to be real annotations, it only uses the 'unique_ids' key
     metafo = utils.read_json_yaml(input_metafname)
     if any(isinstance(tkey, int) for tkey in metafo):  # would be better to check for not being a string, but that's harder, and this probably only happens for my simulation hash ids
@@ -32,6 +32,7 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, debu
     if required_keys is not None and len(set(required_keys) - metafile_keys) > 0:
         raise Exception('required metafile key(s) (%s) not found in %s' % (', '.join(set(required_keys) - metafile_keys), input_metafname))
     added_uids, added_keys = set(), set()
+    n_modified, modified_keys = 0, set()
     for line in annotation_list:
         for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not UPDATE i kind of hate this decision
             if line_key not in utils.linekeys['per_seq']:
@@ -42,7 +43,10 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, debu
                     continue
                 mval = metafo[uid][input_key]
                 if line_key in line and mval != line[line_key][iseq]:  # the meta info shouldn't generally already be in the input file if you're also specifying a separate meta file
-                    print ' %s replacing \'%s\'/\'%s\' value for \'%s\' with value from %s: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, uid, input_metafname, line[line_key][iseq], mval)
+                    if n_modified < n_warn_print:
+                        print '  %s replacing \'%s\'/\'%s\' value for \'%s\' with value from %s: %s --> %s' % (utils.color('yellow', 'warning'), input_key, line_key, uid, input_metafname, line[line_key][iseq], mval)
+                    n_modified += 1
+                    modified_keys.add(line_key)
                 if input_key == 'multiplicity' and mval == 0:
                     raise Exception('input meta info value for \'multiplicity\' must be greater than 1 (since it includes this sequence), but got %d for \'%s\'' % (mval, uid))
                 added_uids.add(uid)
@@ -50,6 +54,8 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, debu
                 mvals[iseq] = mval
             if mvals.count(None) < len(mvals):  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
                 line[line_key] = mvals
+    if n_modified > 0:  # should really add this for the next function as well
+        print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
     if debug:
         print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids), input_metafname)
 
