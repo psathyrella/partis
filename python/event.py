@@ -97,7 +97,7 @@ class RecombinationEvent(object):
         def randstr():  # gah, duplicated in set_unique_ids()
             return str(numpy.random.uniform() if irandom is None else irandom)
         reco_id_str = ''.join([str(line[c]) for c in reco_id_columns])
-        line['reco_id'] = abs(hash(reco_id_str))  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event NOTE I'm not sure why this isn't cast to str, but I'm too chicken to change it atm
+        line['reco_id'] = utils.uidhashstr(reco_id_str)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event NOTE I'm not sure why this isn't cast to str, but I'm too chicken to change it atm
         return reco_id_str  # this is pretty hackey, but I want to split up the reco and unique id setting so I can call only the former from bin/bcr-phylo-run.py (UPDATE: but then I had to start changing the uids as well, so, oh, well)
 
     # ----------------------------------------------------------------------------------------
@@ -107,7 +107,7 @@ class RecombinationEvent(object):
             return str(numpy.random.uniform() if irandom is None else irandom)
         uidstrs = [''.join([str(line[c][iseq]) for c in unique_id_columns]) for iseq in range(len(line['input_seqs']))]
         uidstrs = [reco_id_str + uidstrs[iseq] + randstr() + str(iseq) for iseq in range(len(uidstrs))]  # NOTE i'm not sure I really like having the str(iseq), but it mimics the way things used to be by accident/bug (i.e. identical sequences in the same simulated rearrangement event get different uids), so I'm leaving it in for the moment to ease transition after a rewrite
-        line['unique_ids'] = [str(abs(hash(ustr))) for ustr in uidstrs]
+        line['unique_ids'] = [utils.uidhashstr(ustr) for ustr in uidstrs]
 
     # ----------------------------------------------------------------------------------------
     def set_ids(self, line, irandom=None):

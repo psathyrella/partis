@@ -668,6 +668,12 @@ def generate_dummy_v(d_gene):
     return get_locus(d_gene).upper() + 'VxDx' + pv + '-' + sv + '*' + al
 
 # ----------------------------------------------------------------------------------------
+def uidhashstr(instr, bwidth=19):  # e.g. '3869180544638498223'
+    rstr = str(abs(hash(instr)))  # the minus signs are annoying because they change the length
+    rstr = '0' * (bwidth - len(rstr)) + rstr  # also pad everyone to the same length
+    return rstr
+
+# ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
 def choose_new_uid(potential_names, used_names, initial_length=1, shuffle=False):
     # NOTE only need to set <initial_length> for the first call -- after that if you're reusing the same <potential_names> and <used_names> there's no need (but it's ok to set it every time, as long as it has the same value)
@@ -1055,15 +1061,18 @@ ansi_color_table = collections.OrderedDict((
     ('end', 0),
     ('bold', 1),
     ('reverse_video', 7),
+    ('grey', 90),
     ('red', 91),
     ('green', 92),
     ('yellow', 93),
     ('blue', 94),
     ('purple', 95),
+    ('grey_bkg', 100),
     ('red_bkg', 41),
     ('green_bkg', 42),
     ('yellow_bkg', 43),
     ('blue_bkg', 44),
+    ('light_blue_bkg', 104),
     ('purple_bkg', 45),
 ))
 Colors = {c : '\033[%sm'%i for c, i in ansi_color_table.items()}

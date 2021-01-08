@@ -567,11 +567,10 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             dbgheader = ['    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition)), '      ifclust  fset   rset   common  after: fset  rset',]
             # ----------------------------------------------------------------------------------------
             def appdbg(new_fset, rset, common_uids, xdbg=None):
+                def cstr(tclust): return '(empty)' if len(tclust)==0 else ':'.join(utils.color('light_blue_bkg' if u in common_uids else None, u) for u in tclust)
                 dbgstr.append(' %3d %s%3d %s  %3d    %s   %s' % (len(new_fset | common_uids), ('%-s'%utils.color('red', str(len(new_fset)), width=3, padside='right')) if len(common_uids&new_fset)==0 else '   ',
                                                                  len(rset | common_uids), ('%-s'%utils.color('red', str(len(rset)), width=3, padside='right')) if len(common_uids&rset)==0 else '   ',
-                                                                 len(common_uids),
-                                                                 ':'.join(utils.color('blue' if u in common_uids else None, u) for u in new_fset),
-                                                                 ':'.join(utils.color('blue' if u in common_uids else None, u) for u in rset)))
+                                                                 len(common_uids), cstr(new_fset), cstr(rset)))
                 if xdbg is not None:
                     dbgstr.append(xdbg)
             # ----------------------------------------------------------------------------------------

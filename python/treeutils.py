@@ -591,13 +591,13 @@ def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=
 
     assert len(hline['unique_ids']) == len(lline['unique_ids'])
     lpair = [hline, lline]
-    joint_reco_id = str(hash(hline['reco_id'] + lline['reco_id']))
+    joint_reco_id = utils.uidhashstr(hline['reco_id'] + lline['reco_id'])
     for ltmp in lpair:
         ltmp['reco_id'] = joint_reco_id
         ltmp['paired-uids'] = []
     dtrees = [get_dendro_tree(treestr=l['tree']) for l in lpair]
     for iuid, (huid, luid) in enumerate(zip(hline['unique_ids'], lline['unique_ids'])):
-        joint_uid = str(hash(huid + luid))
+        joint_uid = utils.uidhashstr(huid + luid)
         for ltmp in lpair:
             ltmp['unique_ids'][iuid] = joint_uid
             if not use_identical_uids:
