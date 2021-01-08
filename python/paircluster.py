@@ -565,6 +565,23 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
 
         if debug:
             dbgheader = ['    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition)), '      ifclust  fset   rset   common  after: fset  rset',]
+            # ----------------------------------------------------------------------------------------
+            def appdbg(new_fset, rset, common_uids, xdbg=None):
+                dbgstr.append(' %3d %s%3d %s  %3d    %s   %s' % (len(new_fset | common_uids), ('%-s'%utils.color('red', str(len(new_fset)), width=3, padside='right')) if len(common_uids&new_fset)==0 else '   ',
+                                                                 len(rset | common_uids), ('%-s'%utils.color('red', str(len(rset)), width=3, padside='right')) if len(common_uids&rset)==0 else '   ',
+                                                                 len(common_uids),
+                                                                 ':'.join(utils.color('blue' if u in common_uids else None, u) for u in new_fset),
+                                                                 ':'.join(utils.color('blue' if u in common_uids else None, u) for u in rset)))
+                if xdbg is not None:
+                    dbgstr.append(xdbg)
+            # ----------------------------------------------------------------------------------------
+            def prdbg(ifclust, dbgheader, dbgstr):
+                if len(dbgheader) > 0:
+                    print '\n'.join(dbgheader)
+                    dbgheader = []
+                print '       %4d  %s' % (ifclust, '\n             '.join(dbgstr))
+                return dbgheader
+        # ----------------------------------------------------------------------------------------
         n_clean = 0
         # for each cluster that's already in <final_partition> that has uids in common with a cluster in <resolved_clusters>, decide how to apportion the common uids (basically we remove them from the larger of the two clusters)
         for ifclust in range(len(final_partition)):  # iteration/<ifclust> won't get as far as any clusters that we're just adding (to the end of <final_partition>), which is what we want
@@ -578,29 +595,23 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             for irclust in irclusts:  # resolve any discrepancies between these newly-resolved clusters and fclust
                 rset = set(resolved_clusters[irclust])
                 common_uids = new_fset & rset
-                if len(new_fset) > len(rset):  # remove the common ids from the larger one (effectively splitting according to the splittier one)
+                if irclusts.index(irclust) == 0:
+                    if len(new_fset) > len(rset):  # remove the common ids from the larger one (effectively splitting according to the splittier one)
+                        new_fset -= common_uids
+                    else:
+                        rset -= common_uids
+                    if debug: xdbg = None
+                else:  # if this is the second or greater rclust, we need to apply the splits between rclusts (otherwise we can end up merging uids from different rclusts)
                     new_fset -= common_uids
-                else:
                     rset -= common_uids
-                if debug:
-                    dbgstr.append(' %3d %s%3d %s  %3d    %s   %s' % (len(new_fset | common_uids),
-                                                                     ('%-s'%utils.color('red', str(len(new_fset)), width=3, padside='right')) if len(common_uids&new_fset)==0 else '   ',
-                                                                     len(rset | common_uids),
-                                                                     ('%-s'%utils.color('red', str(len(rset)), width=3, padside='right')) if len(common_uids&rset)==0 else '   ',
-                                                                     len(common_uids),
-                                                                     ':'.join(utils.color('blue' if u in common_uids else None, u) for u in new_fset),
-                                                                     ':'.join(utils.color('blue' if u in common_uids else None, u) for u in rset)))
+                    resolved_clusters.append(list(common_uids))  # this adds a cluster at the end, which of course gets ignored in this loop over irclusts, but will get considered in the next fclust
+                    if debug: xdbg = '                  %s  %s' % (utils.color('red', '+%-3d'%len(resolved_clusters[-1])), ':'.join(resolved_clusters[-1]))
                 resolved_clusters[irclust] = list(rset)  # replace this resolved cluster with a copy of itself that may have had any common uids removed (if it was bigger than fclust)
-            if debug:
-                if len(dbgheader) > 0:
-                    print '\n'.join(dbgheader)
-                    dbgheader = []
-                print '       %4d  %s' % (ifclust, '\n             '.join(dbgstr))
-            final_partition[ifclust] = list(new_fset)
-        # if debug:
-        #     print '       %d fclusts clean' % n_clean
+                if debug: appdbg(new_fset, rset, common_uids, xdbg)
+            final_partition[ifclust] = list(new_fset)  # replace <fclust> (even if nothing was removed, which shuffles the order of unchanged clusters, but oh well)
+            if debug: dbgheader = prdbg(ifclust, dbgheader, dbgstr)
         assert is_clean_partition(resolved_clusters)
-        final_partition += resolved_clusters
+        final_partition += resolved_clusters  # add the (potentially modified) resolved clusters
 
     if debug:
         print '    removing %d/%d empty clusters' % (final_partition.count([]), len(final_partition))
