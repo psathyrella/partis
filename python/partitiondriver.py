@@ -313,6 +313,9 @@ class PartitionDriver(object):
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:
             self.write_output(annotations.values(), hmm_failures)
+        if self.args.plot_partitions:
+            partplotter = PartitionPlotter(self.args)
+            partplotter.plot(self.args.plotdir + '/partitions', partition=self.input_partition, annotations=annotations, reco_info=self.reco_info) #, cpath=cpath) cpath is only used for laplacian spectra
 
     # ----------------------------------------------------------------------------------------
     def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):

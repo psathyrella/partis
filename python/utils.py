@@ -89,6 +89,9 @@ def locstr(l):
 def sub_loci(ig_or_tr):  # ok i probably should have just split <loci> by ig/tr, but too late now
     return [l for l in loci if ig_or_tr in l]
 
+def getlpair(ltmp):  # i guess this'll crash if you give it a heavy chain, but oh well
+    return get_single_entry([lp for lplist in locus_pairs.values() for lp in lplist if ltmp in lp])
+
 def getregions(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
     return list(loci[locus])  # doesn't really need to be a list, but it's more clearly analagous to regions & co that way
 
@@ -3857,26 +3860,45 @@ def get_cluster_ids(uids, partition):
 
 # ----------------------------------------------------------------------------------------
 # return a new list of partitions that has no duplicate uids (choice as to which cluster gets to keep a duplicate id is entirely random [well, it's the first one that has it, so not uniform random, but you can't specify it])
-def get_deduplicated_partitions(partitions, debug=False):  # not using this atm since i wrote it for use in clusterpath, but then ended up not needing it UPDATE now using it during paired clustering resolution, but maybe only temporarily
+def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=False):  # not using this atm since i wrote it for use in clusterpath, but then ended up not needing it UPDATE now using it during paired clustering resolution, but maybe only temporarily
+    # ----------------------------------------------------------------------------------------
+    def try_to_remove_annotation(cluster, new_cluster):
+        ilines = [i for i, l in enumerate(antn_list) if l['unique_ids']==cluster]
+        if len(ilines) == 0:
+            print '  %s antn_list was set in get_deduplicated_partitions(), but there wasn\'t an annotation for cluster %s' % (color('yellow', 'warning'), cluster)  # to check for overlapping (but not identical) ones: print [l for l in antn_list if len(set(l['unique_ids']) & cluster) > 0]
+        else:
+            if len(new_cluster) == 0:
+                antn_list.pop(ilines[0])
+            else:
+                tline = antn_list[ilines[0]]
+                iseqs_to_keep = [i for i, u in enumerate(tline['unique_ids']) if u in new_cluster]
+                restrict_to_iseqs(tline, iseqs_to_keep, glfo)
+    # ----------------------------------------------------------------------------------------
     if debug:
-        print '    deduplicating %d partitions' % len(partitions)
+        print '    deduplicating %d partition%s' % (len(partitions), plural(len(partitions)))
     new_partitions = [[] for _ in partitions]
     for ipart in range(len(partitions)):
         if debug:
-            print '      ipart %d: %d clusters: %d unique vs %d total uids (sum of cluster sizes)' % (ipart, len(partitions[ipart]), len(set(u for c in partitions[ipart] for u in c)), sum(len(c) for c in partitions[ipart]))
+            unique_uids, total_uids = len(set(u for c in partitions[ipart] for u in c)), sum(len(c) for c in partitions[ipart])
+            print '      ipart %d with %d clusters: %d unique vs %d total uids (expect to remove %d)' % (ipart, len(partitions[ipart]), unique_uids, total_uids, total_uids - unique_uids)
             duplicated_uids = set()
         previously_encountered_uids = set()
+        n_removed = 0
         for cluster in partitions[ipart]:
             new_cluster = copy.deepcopy(cluster)  # need to make sure not to modify the existing partitions
             new_cluster = list(set(new_cluster) - previously_encountered_uids)  # remove any uids that were in previous clusters (note that this will, of course, change the order of uids)
             previously_encountered_uids |= set(new_cluster)
             if len(new_cluster) > 0:
                 new_partitions[ipart].append(new_cluster)
-            if debug and len(new_cluster) < len(cluster):
-                print '         removed %d uids from cluster of size %d' % (len(cluster) - len(new_cluster), len(cluster))
-                duplicated_uids |= set(cluster) - set(new_cluster)
+            if len(new_cluster) < len(cluster):  # if we're actually removing any uids
+                if antn_list is not None:
+                    try_to_remove_annotation(cluster, new_cluster)
+                if debug:
+                    print '         removed %d uid%s from cluster of size %d' % (len(cluster) - len(new_cluster), plural(len(cluster) - len(new_cluster)), len(cluster))
+                    duplicated_uids |= set(cluster) - set(new_cluster)
+                    n_removed += len(cluster) - len(new_cluster)
         if debug:
-            print '      %d uids appeared more than once%s' % (len(duplicated_uids), (':  ' + ' '.join(duplicated_uids)) if len(duplicated_uids) < 10 else '')
+            print '      %d uids appeared more than once (and %d total were removed)%s' % (len(duplicated_uids), n_removed, (':  ' + ' '.join(duplicated_uids)) if len(duplicated_uids) < 10 else '')
     return new_partitions
 
 # ----------------------------------------------------------------------------------------

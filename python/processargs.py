@@ -99,6 +99,8 @@ def process(args):
             raise Exception('can\'t specify both --infname and --paired-indir')
         if args.outfname is not None:
             raise Exception('can\'t set --outfname if --paired-loci is set (use --paired-outdir)')
+        if args.plotdir is not None:
+            raise Exception('can\'t set separate --plotdir for --paired-loci (plots go in subdirs of --paired-outdir if --plot-partitions is set)')
     else:
         assert args.paired_indir is None
     if args.reverse_negative_strands and not args.paired_loci:
@@ -278,8 +280,10 @@ def process(args):
             raise Exception('can\'t plot performance unless --is-simu is set (and this is simulation)')
     if args.print_n_worst_annotations is not None and not args.plot_annotation_performance:
         raise Exception('--plot-annotation-performance must be set if you\'re setting --print-worst-annotations')
-    if args.action == 'plot-partitions' and args.plotdir is None:
-        raise Exception('--plotdir must be specified for plot-partitions')
+    if not args.paired_loci and (args.action=='plot-partitions' or args.action=='annotate' and args.plot_partitions) and args.plotdir is None:
+        raise Exception('--plotdir must be specified if plotting partitions')
+    if args.action == 'annotate' and args.plot_partitions and args.input_partition_fname is None:
+        print '  %s running annotate with --plot-partitions, but --input-partition-fname is not set, which likely means the partitions will be trivial/singleton partitions'
 
     if args.make_per_gene_per_base_plots and not args.make_per_gene_plots:  # the former doesn't do anything unless the latter is turned on
         args.make_per_gene_plots = True
