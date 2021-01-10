@@ -462,7 +462,7 @@ class PartitionPlotter(object):
             for ih in range(len(subset_hists)):
                 subset_hists[ih].write(plotdir + ('/subset-%d-cluster-sizes.csv' % ih))
         else:
-            assert False
+            raise Exception('either a partition or a list of infiles must be specified (both were None)')
 
         fname = 'cluster-sizes'
         if infiles is not None:
