@@ -314,6 +314,7 @@ class PartitionDriver(object):
         if self.args.outfname is not None:
             self.write_output(annotations.values(), hmm_failures)
         if self.args.plot_partitions:
+            assert self.input_partition is not None
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', partition=self.input_partition, annotations=annotations, reco_info=self.reco_info) #, cpath=cpath) cpath is only used for laplacian spectra
 
