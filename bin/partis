@@ -619,7 +619,10 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run:
             combine_inf_chains()
         if args.action == 'plot-partitions':
-            for ltmp in utils.sub_loci(ig_or_tr):
+            for lpair in utils.locus_pairs[ig_or_tr]:  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
+                for ltmp in lpair:
+                    run_step(args.action, ltmp, skip_missing_input=True, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
+            for ltmp in utils.sub_loci(ig_or_tr):  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
                 if utils.has_d_gene(ltmp):  # light chain in the paired subdirs is the same, so just link the results
                     run_step('plot-partitions', ltmp, joint=True)
                 else:
