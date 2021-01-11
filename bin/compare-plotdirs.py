@@ -195,15 +195,22 @@ if args.gldirs is not None:
         else:
             args.glfo = glutils.get_merged_glfo(args.glfo, tmpglfo)
 
-# figure out if there's subdirs we need to deal with
 listof_plotdirlists, listof_outdirs = [], []
+# first add the main/parent dir, if it has csvs
 firstdir = args.plotdirs[0]
-if len(glob.glob(firstdir + '/*.csv')) > 0:  # add the parent dirs if they've got csvs
+if len(glob.glob(firstdir + '/*.csv')) > 0:
     listof_plotdirlists.append(args.plotdirs)
     listof_outdirs.append(args.outdir)
+else:
+    print '    no csvs in main/parent dir %s' % firstdir
+# then figure out if there's subdirs we need to deal with
+added_subds = []
 for subdir in [d for d in os.listdir(firstdir) if os.path.isdir(firstdir + '/' + d)]:
     listof_plotdirlists.append([d + '/' + subdir for d in args.plotdirs])
     listof_outdirs.append(args.outdir + '/' + subdir)
+    added_subds.append(subdir)
+if len(added_subds) > 0:
+    print '  added %d subdirs: %s' % (len(added_subds), ' '.join(added_subds))
 
 for dlist, outdir in zip(listof_plotdirlists, listof_outdirs):
     compare_directories(args, dlist, outdir)
