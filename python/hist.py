@@ -135,21 +135,41 @@ class Hist(object):
                 self.fill(value, weight=weight)
 
     # ----------------------------------------------------------------------------------------
-    def get_maximum(self, xbounds=None):
-        # NOTE includes under/overflows by default
-        ibin_start = 0 if xbounds is None else self.find_bin(xbounds[0])
-        ibin_end = self.n_bins + 2 if xbounds is None else self.find_bin(xbounds[1])
+    def get_extremum(self, mtype, xbounds=None, exclude_empty=False):  # NOTE includes under/overflows by default for max, but *not* for min
+        if xbounds is None:
+            if mtype == 'min':
+                ibin_start, ibin_end = 1, self.n_bins + 1
+            if mtype == 'max':
+                ibin_start, ibin_end = 0, self.n_bins + 2
+        else:
+            ibin_start, ibin_end = [self.find_bin(b) for b in xbounds]
 
         if ibin_start == ibin_end:
             return self.bin_contents[ibin_start]
 
-        ymax = None
+        ymin, ymax = None, None
         for ibin in range(ibin_start, ibin_end):
+            if ymin is None or self.bin_contents[ibin] < ymin:
+                if not (exclude_empty and self.bin_contents[ibin] == 0):
+                    ymin = self.bin_contents[ibin]
             if ymax is None or self.bin_contents[ibin] > ymax:
                 ymax = self.bin_contents[ibin]
+        assert ymin is not None and ymax is not None
 
-        assert ymax is not None
-        return ymax
+        if mtype == 'min':
+            return ymin
+        elif mtype == 'max':
+            return ymax
+        else:
+             assert False
+
+    # ----------------------------------------------------------------------------------------
+    def get_maximum(self, xbounds=None):  # NOTE includes under/overflows by default
+        return self.get_extremum('max', xbounds=xbounds)
+
+    # ----------------------------------------------------------------------------------------
+    def get_minimum(self, xbounds=None, exclude_empty=False):  # NOTE does *not* include under/overflows by default (unlike previous fcn, since we expect under/overflows to be zero)
+        return self.get_extremum('min', xbounds=xbounds, exclude_empty=exclude_empty)
 
     # ----------------------------------------------------------------------------------------
     def get_filled_ibins(self):  # return indices of bins with nonzero contents

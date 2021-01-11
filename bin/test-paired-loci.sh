@@ -1,6 +1,6 @@
 #!/bin/bash
 
-label=fix-bad-merge-v4 #2 # pairclean-v2  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
+label=fix-bad-merge-v1 #2 # pairclean-v2  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
 # NOTE use tmp.sh for refactor-v{3,4}
 
 nprocs=10

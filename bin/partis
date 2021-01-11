@@ -629,7 +629,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 else:
                     makelink(getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp))
                 subd = 'partitions/sizes'
-                utils.simplerun('./bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s --make-parent-html --add-to-title %s' % (cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd, ltmp))
+                utils.simplerun('./bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % (cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd, ltmp))
             fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True)
             import plotting
             plotting.make_html(cfpdir, fnames=[sorted(fnoutstr.strip().split('\n'))])

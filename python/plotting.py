@@ -288,7 +288,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if more_hists is not None:
         hists = hists + more_hists
 
-    xmin, xmax, ymax = None, None, None
+    xmin, xmax, ymin, ymax = None, None, None, None
     for htmp in hists:
         if htmp.title == 'null':  # empty hists
             continue
@@ -298,6 +298,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                 htmp.errors[ibin] *= factor
         if normalize:  # NOTE removed <normalization_bounds> option, hopefully I'm not using it any more
             htmp.normalize()
+        if ymin is None or htmp.get_minimum(xbounds=bounds) < ymin:  # adding this afterwards, so might screw up something below
+            ymin = htmp.get_minimum(xbounds=bounds, exclude_empty='y' in log)
         if ymax is None or htmp.get_maximum(xbounds=bounds) > ymax:
             ymax = htmp.get_maximum(xbounds=bounds)
         if xmin is None or htmp.xmin < xmin:  # overridden by <bounds> below
@@ -414,12 +416,13 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     else:
         tmpxtitle = hist.xtitle  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
 
+    ymin = 0.8 * ymin if 'y' in log else -0.03*ymax
     mpl_finish(ax, plotdir, plotname,
                title=tmptitle,
                xlabel=tmpxtitle,
                ylabel=hist.ytitle if ytitle is None else ytitle,
                xbounds=[xmin, xmax],
-               ybounds=[-0.03*ymax, 1.15*ymax],
+               ybounds=[ymin, 1.15*ymax],
                leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
                log=log, xticks=xticks, xticklabels=xticklabels,
                no_legend=(len(hists) <= 1), adjust={'left' : 0.2})
