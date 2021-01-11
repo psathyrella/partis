@@ -127,6 +127,14 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             base_plottitle = plotconfig.plot_titles[base_varname] if base_varname in plotconfig.plot_titles else ''
             plottitle = gene + ' -- ' + base_plottitle
 
+    if varname == 'cluster-sizes':
+        xtitle = 'cluster size'
+        ytitle = 'N clusters'
+        plottitle = ''
+
+    if args.add_to_title is not None:
+        plottitle += args.add_to_title
+
     if len(hlist) > 9:  # skootch it down so they (maybe) all fit
         translegend[1] -= 0.5
     if args.translegend is not None:  # override with the command line
@@ -166,6 +174,8 @@ parser.add_argument('--normalize', action='store_true', help='If set, the histog
 parser.add_argument('--extra-stats', help='if set, adds extra stat to legend, e.g. \'mean\', \'absmean\', \'auto\'')
 parser.add_argument('--translegend', help='colon-separated list of x, y values with which to translate all the legends')
 parser.add_argument('--log', default='', help='Display these axes on a log scale, set to either \'x\', \'y\', or \'xy\'')
+parser.add_argument('--make-parent-html', action='store_true', help='after doing everything within subdirs, make a single html in the main/parent dir with all plots from subdirs')
+parser.add_argument('--add-to-title', help='string to append to existing title')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -214,3 +224,7 @@ if len(added_subds) > 0:
 
 for dlist, outdir in zip(listof_plotdirlists, listof_outdirs):
     compare_directories(args, dlist, outdir)
+
+if args.make_parent_html:  # didn't really test this very well
+    fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % args.outdir, return_out_err=True)
+    plotting.make_html(args.outdir, fnames=[fnoutstr.strip().split('\n')])

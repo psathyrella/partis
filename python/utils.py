@@ -2719,7 +2719,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
                     print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), ftmp)
         remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn not in subdirs]  # allow subdirs to still be present
         if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
-            raise Exception('files (%s) remain in %s despite wildlings %s' % (' '.join(['\'' + fn + '\'' for fn in remaining_files]), dirname, wildlings))
+            raise Exception('files remain in %s despite wildlings %s:\n (%s)' % (dirname, wildlings, ' '.join(remaining_files)))
     else:
         os.makedirs(dirname)
 

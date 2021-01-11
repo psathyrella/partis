@@ -476,8 +476,10 @@ class PartitionPlotter(object):
             xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
             def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
             self.plotting.mpl_finish(ax, plotdir, fname, xlabel='cluster size', ylabel='number of clusters', log='xy', xticks=xticks, xticklabels=[tstr(x) for x in xticks])
+            if len(csize_hists) == 1:
+                csize_hists['best'].write(plotdir + '/' + fname + '.csv')
 
-        return [[subd + '/cluster-sizes.svg']]
+        return [[subd + '/' + fname + '.svg']]
 
     # ----------------------------------------------------------------------------------------
     def remove_failed_clusters(self, partition, annotations):
