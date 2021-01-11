@@ -12,7 +12,7 @@ out_param_dir=$outdir/params
 mkdir -p $outdir  # for the .log files
 # ./bin/partis simulate --paired-loci --seed 1 --parameter-dir $in_param_dir --paired-outdir $outdir/simu $common --mean-cells-per-droplet 1.1 >$outdir/simu.log
 for action in cache-parameters partition; do  # merge-paired-partitions plot-partitions
-    common="--n-procs $nprocs --is-simu"
+    common="--n-procs $nprocs --is-simu --no-mds-plots"
     echo "./bin/partis $action --paired-loci --paired-indir $outdir/simu --input-metafname $outdir/simu/meta.yaml --paired-outdir $outdir/inferred $common >$outdir/$action.log"
     # --plot-partitions
 done
