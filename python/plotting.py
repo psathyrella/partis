@@ -463,7 +463,7 @@ def get_cluster_size_hist(partition, rebin=None):
     #     rebin = 2
     if rebin is not None:
         nbins = int(float(nbins) / rebin)
-    hist = Hist(nbins, 0.5, max(sizes) + 0.5, xtitle='cluster size', title='x')
+    hist = Hist(nbins, 0.5, max(sizes) + 0.5, xtitle='cluster size')
     for sz in sizes:
         hist.fill(sz)
     return hist
