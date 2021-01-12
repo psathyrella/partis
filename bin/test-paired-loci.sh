@@ -1,6 +1,6 @@
 #!/bin/bash
 
-label=fix-bad-merge-v1 #2 # pairclean-v2  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
+label=fix-bad-merge-v2 #2 # pairclean-v2  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
 # NOTE use tmp.sh for refactor-v{3,4}
 
 nprocs=10
@@ -14,5 +14,5 @@ mkdir -p $outdir  # for the .log files
 for action in cache-parameters partition; do  # merge-paired-partitions plot-partitions
     common="--n-procs $nprocs --is-simu --no-mds-plots"
     echo "./bin/partis $action --paired-loci --paired-indir $outdir/simu --input-metafname $outdir/simu/meta.yaml --paired-outdir $outdir/inferred $common >$outdir/$action.log"
-    # --plot-partitions
+    # --plot-partitions  # don't need to add this to either partition or merge-paired-partitions if we run plot-partitions afterward
 done

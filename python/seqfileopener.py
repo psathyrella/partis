@@ -175,7 +175,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         if not is_data:
             simglfo = yaml_glfo  # doesn't replace the contents, of course, which is why we return it
     else:
-        raise Exception('unhandled file extension %s' % suffix)
+        raise Exception('unhandled file extension \'%s\' on file \'%s\'' % (suffix, infname))
 
     input_info = OrderedDict()
     reco_info = None
