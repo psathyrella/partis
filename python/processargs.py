@@ -99,10 +99,10 @@ def process(args):
             raise Exception('can\'t specify both --infname and --paired-indir')
         if args.outfname is not None:
             raise Exception('can\'t set --outfname if --paired-loci is set (use --paired-outdir)')
-        if args.plotdir is not None:
-            raise Exception('can\'t set separate --plotdir for --paired-loci (plots go in subdirs of --paired-outdir if --plot-partitions is set)')
     else:
         assert args.paired_indir is None
+    if not args.paired_loci and (args.paired_indir is not None or args.paired_outdir is not None):
+        raise Exception('--paired-loci must be set if either --paired-indir or --paired-outdir is set')
     if args.reverse_negative_strands and not args.paired_loci:
         raise Exception('--reverse-negative-strands has no effect unless --paired-loci is set (maybe need to run bin/split-loci.py separately?)')
 

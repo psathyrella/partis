@@ -67,10 +67,10 @@ def add_input_metafo(input_info, annotation_list, dont_overwrite_info=False, deb
         for input_key, line_key in utils.input_metafile_keys.items():
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            mvals = [input_info[u][line_key][0] for u in line['unique_ids'] if line_key in input_info[u]]
-            if len(mvals) == 0:
+            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else None for u in line['unique_ids']]
+            if mvals.count(None) == len(mvals):
                 continue
-            elif len(mvals) == len(line['unique_ids']):
+            else:
                 if line_key in line:
                     if mvals == line[line_key]:
                         continue
@@ -86,8 +86,6 @@ def add_input_metafo(input_info, annotation_list, dont_overwrite_info=False, deb
                 if debug:
                     added_uids |= set(line['unique_ids'])
                     added_keys.add(line_key)
-            else:
-                raise Exception('invalid input meta info in <input_info> (%d values, but expected 0 or %d)' % (len(mvals), len(line['unique_ids'])))
     if debug:
         print '  transferred input meta info (%s) for %d sequences from input_info' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids))
 

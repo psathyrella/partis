@@ -307,16 +307,18 @@ def run_all_loci(args, ig_or_tr='ig'):
         else:
             return 'XXX-DUMMY-XXX'  # ok this kind of sucks, but i think it's better than rewriting all the stuff for merge-paired-partitions (which is the one that doesn't need input stuff specified)
     # ----------------------------------------------------------------------------------------
-    def getodir(lpair=None, single_chain=False):
+    def getodir(lpair=None, single_chain=False, is_plotting=False):
         odir = utils.non_none([args.paired_outdir, args.workdir])
+        if is_plotting and args.plotdir is not None:
+            odir = args.plotdir
         if lpair is not None:
             odir = '%s/%s' % (odir, '+'.join(lpair))
         if single_chain:
             odir = '%s/single-chain' % odir
         return odir
     # ----------------------------------------------------------------------------------------
-    def getplotdir(ltmp, lpair=None, single_chain=False):
-        return '%s/plots/%s' % (getodir(lpair=lpair, single_chain=single_chain), ltmp)
+    def getplotdir(ltmp, lpair=None, single_chain=False, tmpaction=None):
+        return '%s/plots/%s%s' % (getodir(lpair=lpair, single_chain=single_chain, is_plotting=True), ltmp, '/parameters' if tmpaction=='cache-parameters' else '')
     # ----------------------------------------------------------------------------------------
     def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False):
         if trees:
@@ -362,6 +364,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             return False
         existing_pdir_loci = [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(getpdir(l))]
         if len(existing_pdir_loci) == 0:
+            if args.refuse_to_cache_parameters:
+                raise Exception('parameter dirs don\'t exist, but --refuse-to-cache-parameters was set: %s' % ' '.join(getpdir(l) for l in utils.sub_loci(ig_or_tr)))
             return True  # all missing, so auto cache parameters
         elif len(existing_pdir_loci) == len(utils.sub_loci(ig_or_tr)):
             return False  # all there, don't auto-cache
@@ -423,13 +427,14 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # have to use the new, rewritten input meta file (with corrected pairing info)
                 clist[clist.index(args.action)] = 'annotate'
 
-            if args.plot_partitions or tmpaction == 'plot-partitions':
-                assert '--plotdir' not in clist
-                assert tmpaction != 'cache-parameters'
+            if args.plotdir is not None:
+                utils.replace_in_arglist(clist, '--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction))
+            if args.plot_partitions or tmpaction == 'plot-partitions':  # partitiondriver turns on partition plots if plotdir and input partition fname are both specified, so setting --plot-partitions isn't necessary... but they result in potentially different plotdirs, which is potentially important if you want plots to go somewhere specific
                 if tmpaction != 'annotate':  # don't need it
                     utils.remove_from_arglist(clist, '--plot-partitions')
                 utils.remove_from_arglist(clist, '--infname', has_arg=True)
-                clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint)]
+                if '--plotdir' not in clist:
+                    clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
 
             return clist
         # ----------------------------------------------------------------------------------------
@@ -620,7 +625,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run:
             combine_inf_chains()
         if args.action == 'plot-partitions':
-            cfpdir = '%s/cf-plots' % getodir()
+            cfpdir = '%s/cf-plots' % getodir(is_plotting=True)
             for lpair in utils.locus_pairs[ig_or_tr]:  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
                 for ltmp in lpair:
                     run_step(args.action, ltmp, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
