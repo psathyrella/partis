@@ -345,7 +345,18 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
     idg_ok = check_droplet_id_groups(all_uids)  # NOTE not using the return value here, but I may need to in the future
     if plotdir is not None:
         bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
-        bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='N uids per droplet', ylabel='counts')
+        bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='N uids per droplet', ylabel='counts', title='before')
+        fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
+        for pgroup in pid_groups:
+            funclist = [utils.is_functional(all_antns[p], all_antns[p]['unique_ids'].index(p)) for p in pgroup]
+            fhists['func'].fill(funclist.count(True))
+            fhists['nonfunc'].fill(funclist.count(False))
+        import plotting
+        fig, ax = plotting.mpl_init()  # this'll need to be updated when i want to use a kwarg for this fcn
+        for fk, fcolor in zip(fhists, plotting.default_colors):
+            fhists[fk].mpl_plot(ax, label=fk, color=fcolor)
+            fhists[fk].write('%s/%s.csv'%(plotdir, fk + '-per-drop'))
+        plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop', xlabel='N uids per droplet', ylabel='counts', title='before')
 
     # then go through each group trying to remove as many crappy/suspicous ones as possible
     if debug:
@@ -408,7 +419,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             for cluster in cpaths[ltmp].best():
                 pidlengths += [len(pids) for pids in antn_dicts[ltmp][':'.join(cluster)]['paired-uids']]
         ahist = Hist(value_list=pidlengths, init_int_bins=True)
-        ahist.fullplot(plotdir, 'paired-uids-per-uid', xlabel='N paired uids per uid', ylabel='counts')
+        ahist.fullplot(plotdir, 'paired-uids-per-uid', xlabel='N paired uids per uid', ylabel='counts', title='after')
 
 # ----------------------------------------------------------------------------------------
 def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=False):
