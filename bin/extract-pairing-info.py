@@ -14,9 +14,10 @@ partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 sys.path.insert(1, partis_dir + '/python')
 
 import utils
+import hist
 
 parser = argparse.ArgumentParser()
-parser.add_argument('infname')  #default='/fh/fast/matsen_e/data/goo-dengue-10x/test/filtered_contig.fasta')
+parser.add_argument('infname')
 parser.add_argument('outfname')
 parser.add_argument('--droplet-id-separator', default='_', help='everything in the sequence id before this character is treated as the droplet id, e.g. for the default, the uid AAACGGGCAAGCGAGT-1_contig_2 has a droplet id of AAACGGGCAAGCGAGT-1')
 args = parser.parse_args()

@@ -6,11 +6,15 @@ from utils import is_normed
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, value_list=None, weight_list=None, xtitle='', ytitle='counts', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, value_list=None, weight_list=None, init_int_bins=False, xtitle='', ytitle='counts', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
         self.low_edges, self.bin_contents, self.bin_labels = [], [], []
         self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
         if fname is None:
+            if init_int_bins:  # use value_list to initialize integer bins NOTE adding this very late, and i tink there's lots of places where it could be used
+                assert value_list is not None
+                xmin, xmax = min(value_list) - 0.5, max(value_list) + 0.5
+                n_bins = xmax - xmin
             assert xmin is not None and xmax is not None
             self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
         else:

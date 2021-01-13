@@ -318,7 +318,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         return odir
     # ----------------------------------------------------------------------------------------
     def getplotdir(ltmp, lpair=None, single_chain=False, tmpaction=None):
-        return '%s/plots/%s%s' % (getodir(lpair=lpair, single_chain=single_chain, is_plotting=True), ltmp, '/parameters' if tmpaction=='cache-parameters' else '')
+        return '%s/plots/%s%s' % (getodir(lpair=lpair, single_chain=single_chain, is_plotting=True), ('/'+ltmp) if ltmp is not None else '', '/parameters' if tmpaction=='cache-parameters' else '')
     # ----------------------------------------------------------------------------------------
     def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False):
         if trees:
@@ -580,7 +580,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         DBG = True
         glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr), debug=DBG)
         true_partitions = get_true_partitions(cpaths, debug=DBG)
-        paircluster.clean_pair_info(cpaths, antn_lists, is_data=args.is_data, debug=DBG) #, max_hdist=4, n_max_clusters=1)
+        paircluster.clean_pair_info(cpaths, antn_lists, is_data=args.is_data, plotdir=getplotdir(None), debug=DBG) #, max_hdist=4, n_max_clusters=1)
         lp_infos = {}
         for lpair in utils.locus_pairs[ig_or_tr]:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
@@ -746,7 +746,7 @@ parent_parser.add_argument('--sw-cachefname', help='Smith-Waterman cache file na
 parent_parser.add_argument('--write-sw-cachefile', action='store_true', help='Write sw results to the sw cache file during actions for which we\'d normally only look for an existing one (i.e annotate and partition).')
 parent_parser.add_argument('--workdir', help='Temporary working directory (default is set below)')
 
-parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (by default this is not set, and consequently no plots are written')
+parent_parser.add_argument('--plotdir', help='Base directory to which to write plots (by default this is not set, and consequently no plots are written. If --paired-loci is set, you can set --plotdir to \'paired-outdir\' to copy over the value from that argument.')
 parent_parser.add_argument('--plot-annotation-performance', action='store_true', help='Compare inferred and true annotation values (deletion lengths, gene calls, etc.). If --plotdir is set, write corresponding plots to disk, and see also --print-n-worst-annotations.')
 parent_parser.add_argument('--plot-partitions', action='store_true', help='after running annotation, plot partitions on resulting cluster annotations. This only makes sense if partitions were specified with --input-partition-fname, and only with \'annotate\' and \'merge-paired-partitions\' actions. Can also use \'plot-partitions\' action')
 parent_parser.add_argument('--no-mds-plots', action='store_true', help='don\'t make mds plots when plotting partitions (they\'re slowish)')
