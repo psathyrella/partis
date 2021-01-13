@@ -345,12 +345,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
     idg_ok = check_droplet_id_groups(all_uids)  # NOTE not using the return value here, but I may need to in the future
     if plotdir is not None:
         bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
-        import plotting
-        fig, ax = plotting.mpl_init()
-        bhist.mpl_plot(ax)
-        bhname = 'uids-per-droplet'
-        plotting.mpl_finish(ax, plotdir, bhname, xlabel='N uids per droplet', ylabel='counts')
-        bhist.write('%s/%s.csv'%(plotdir, bhname))
+        bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='N uids per droplet', ylabel='counts')
 
     # then go through each group trying to remove as many crappy/suspicous ones as possible
     if debug:
@@ -413,11 +408,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             for cluster in cpaths[ltmp].best():
                 pidlengths += [len(pids) for pids in antn_dicts[ltmp][':'.join(cluster)]['paired-uids']]
         ahist = Hist(value_list=pidlengths, init_int_bins=True)
-        fig, ax = plotting.mpl_init()
-        ahist.mpl_plot(ax)
-        ahname = 'paired-uids-per-uid'
-        plotting.mpl_finish(ax, plotdir, ahname, xlabel='N paired uids per uid', ylabel='counts')
-        bhist.write('%s/%s.csv'%(plotdir, ahname))
+        ahist.fullplot(plotdir, 'paired-uids-per-uid', xlabel='N paired uids per uid', ylabel='counts')
 
 # ----------------------------------------------------------------------------------------
 def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=False):

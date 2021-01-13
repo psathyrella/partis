@@ -408,3 +408,11 @@ class Hist(object):
                 return plt.hist(xvals, npbins, weights=yvals, **kwargs)
             else:
                 return ax.plot(xvals, yvals, **kwargs)  #, fmt='-o')
+
+    # ----------------------------------------------------------------------------------------
+    def fullplot(self, plotdir, plotname, **kwargs):  # i.e. full plotting process, not just the ax.plot type stuff above
+        import plotting
+        fig, ax = plotting.mpl_init()
+        self.mpl_plot(ax)
+        plotting.mpl_finish(ax, plotdir, plotname, **kwargs)
+        self.write('%s/%s.csv'%(plotdir, plotname))
