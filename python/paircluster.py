@@ -173,7 +173,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
     # ----------------------------------------------------------------------------------------
     def plot_uids_before(plotdir, pid_groups, all_antns):
         # ----------------------------------------------------------------------------------------
-        def fnfplot(logstr, fhists):
+        def fnfplot(logstr, fhists, n_max_bins=15):
             fklabels = {'func' : 'all func.', 'nonfunc' : 'any non.'}
             fig, ax = plotting.mpl_init()
             for fk, fcolor in zip(fhists, plotting.default_colors):
@@ -182,7 +182,8 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
                     fhists[fk].write('%s/%s.csv'%(plotdir, fk + '-per-drop'))
                 xticks = fhists[fk].get_bin_centers()
                 xticklabels = fhists[fk].bin_labels
-            plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.65, 0.7), xticks=xticks, xticklabels=xticklabels)
+                xbounds = None if fhists[fk].n_bins<n_max_bins else (0, n_max_bins)
+            plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.65, 0.7), xticks=xticks, xticklabels=xticklabels, xbounds=xbounds)
         # ----------------------------------------------------------------------------------------
         bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
         bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='uids per droplet', ylabel='counts', title='before')
@@ -198,7 +199,18 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             if lckey not in flcounts[fkey]:
                 flcounts[fkey][lckey] = 0
             flcounts[fkey][lckey] += 1
-        binlabels = sorted(set(k for fcnts in flcounts.values() for k in fcnts), reverse=True)
+
+        # shenanigans to get bins sorted by the fractional counts summed over both func and nonfunc
+        ctotals = {fk : sum(flcounts[fk].values()) for fk in flcounts}
+        flfracs = {}
+        for fk in flcounts:
+            for ck in flcounts[fk]:
+                if ck not in flfracs:
+                    flfracs[ck] = 0
+                flfracs[ck] += flcounts[fk][ck] / (2*float(ctotals[fk]))  # 2 is cause func and nonfunc totals are separate
+        assert utils.is_normed(flfracs)
+        binlabels, _ = zip(*sorted(flfracs.items(), key=operator.itemgetter(1), reverse=True))
+
         fhists = {f : Hist(len(binlabels), -0.5, len(binlabels) - 0.5) for f in ['func', 'nonfunc']}
         for fstr in ['func', 'nonfunc']:
             for ibin, blabel in enumerate(binlabels):
