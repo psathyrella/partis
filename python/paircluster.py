@@ -183,7 +183,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
                 xticks = fhists[fk].get_bin_centers()
                 xticklabels = fhists[fk].bin_labels
                 xbounds = None if fhists[fk].n_bins<n_max_bins else (0, n_max_bins)
-            plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.65, 0.7), xticks=xticks, xticklabels=xticklabels, xbounds=xbounds)
+            plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.6, 0.7), xticks=xticks, xticklabels=xticklabels, xbounds=xbounds)
         # ----------------------------------------------------------------------------------------
         bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
         bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='uids per droplet', ylabel='counts', title='before')

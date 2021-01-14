@@ -853,14 +853,14 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         ax.set_xscale('symlog')  # 'log' used to work, but now it screws up the x axis labels
     if 'y' in log:
         ax.set_yscale('log')
+    if xticks is not None:  # if these are after the xbound setting they override it
+        plt.xticks(xticks)
+    if yticks is not None:
+        plt.yticks(yticks)
     if xbounds is not None and xbounds[0] != xbounds[1]:
         plt.xlim(xbounds[0], xbounds[1])
     if ybounds is not None and ybounds[0] != ybounds[1]:
         plt.ylim(ybounds[0], ybounds[1])
-    if xticks is not None:
-        plt.xticks(xticks)
-    if yticks is not None:
-        plt.yticks(yticks)
     if xticklabels is not None:
         # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
         median_length = numpy.median([len(xl) for xl in xticklabels])
