@@ -174,17 +174,18 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
     def plot_uids_before(plotdir, pid_groups, all_antns):
         # ----------------------------------------------------------------------------------------
         def fnfplot(logstr, fhists):
+            fklabels = {'func' : 'all func.', 'nonfunc' : 'any non.'}
             fig, ax = plotting.mpl_init()
             for fk, fcolor in zip(fhists, plotting.default_colors):
-                fhists[fk].mpl_plot(ax, label=fk, color=fcolor)
+                fhists[fk].mpl_plot(ax, label=fklabels[fk], color=fcolor)
                 if logstr == '':
                     fhists[fk].write('%s/%s.csv'%(plotdir, fk + '-per-drop'))
                 xticks = fhists[fk].get_bin_centers()
                 xticklabels = fhists[fk].bin_labels
-            plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.7, 0.6), xticks=xticks, xticklabels=xticklabels)
+            plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.65, 0.7), xticks=xticks, xticklabels=xticklabels)
         # ----------------------------------------------------------------------------------------
         bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
-        bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='N uids per droplet', ylabel='counts', title='before')
+        bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='uids per droplet', ylabel='counts', title='before')
         # fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
         flcounts = {f : {} for f in ['func', 'nonfunc']}
         for pgroup in pid_groups:
@@ -222,7 +223,6 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
         sfcn = utils.pass_fcn if dont_sort else sorted
         lfcn = (lambda x: x[2]) if for_plot else utils.locstr
         lgstrs = [lfcn(l) for l in sfcn([getloc(u) for u in lgroup])]
-        # return lgstrs if for_plot else ' '.join(lgstrs)
         return ' '.join(lgstrs)
     # ----------------------------------------------------------------------------------------
     def choose_seqs_to_remove(chain_ids, tdbg=False):  # choose one of <chain_ids> to eliminate
