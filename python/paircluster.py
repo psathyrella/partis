@@ -5,6 +5,7 @@ import sys
 import operator
 import string
 import os
+import math
 
 import utils
 import prutils
@@ -146,26 +147,6 @@ def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def plot_uids_before(plotdir, pid_groups, all_antns):
-    def fnfplot(logstr, fhists):
-        fig, ax = plotting.mpl_init()
-        for fk, fcolor in zip(fhists, plotting.default_colors):
-            fhists[fk].mpl_plot(ax, label=fk, color=fcolor)
-            if logstr == '':
-                fhists[fk].write('%s/%s.csv'%(plotdir, fk + '-per-drop'))
-        plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.7, 0.6))
-    bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
-    bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='N uids per droplet', ylabel='counts', title='before')
-    fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
-    for pgroup in pid_groups:
-        funclist = [utils.is_functional(all_antns[p], all_antns[p]['unique_ids'].index(p)) for p in pgroup]
-        fhists['func'].fill(funclist.count(True))
-        fhists['nonfunc'].fill(funclist.count(False))
-    import plotting
-    for logstr in ['', '-log']:
-        fnfplot(logstr, fhists)
-
-# ----------------------------------------------------------------------------------------
 def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_clusters=None, plotdir=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(all_uids, tdbg=False):
@@ -190,6 +171,43 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             print '  %s droplet id group check failed for %d groups' % (utils.color('red', 'error'), n_not_found)
         return True
     # ----------------------------------------------------------------------------------------
+    def plot_uids_before(plotdir, pid_groups, all_antns):
+        # ----------------------------------------------------------------------------------------
+        def fnfplot(logstr, fhists):
+            fig, ax = plotting.mpl_init()
+            for fk, fcolor in zip(fhists, plotting.default_colors):
+                fhists[fk].mpl_plot(ax, label=fk, color=fcolor)
+                if logstr == '':
+                    fhists[fk].write('%s/%s.csv'%(plotdir, fk + '-per-drop'))
+                xticks = fhists[fk].get_bin_centers()
+                xticklabels = fhists[fk].bin_labels
+            plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.7, 0.6), xticks=xticks, xticklabels=xticklabels)
+        # ----------------------------------------------------------------------------------------
+        bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
+        bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='N uids per droplet', ylabel='counts', title='before')
+        # fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
+        flcounts = {f : {} for f in ['func', 'nonfunc']}
+        for pgroup in pid_groups:
+            funclist = [utils.is_functional(all_antns[p], all_antns[p]['unique_ids'].index(p)) for p in pgroup]
+            # fhists['func'].fill(funclist.count(True))
+            # fhists['nonfunc'].fill(funclist.count(False))
+            fkey = 'nonfunc' if any(not f for f in funclist) else 'func'  # fill the nonfunc hist if *any* seq in this droplet is nonfunctional
+            # lcounts = {l : lgstr(pgroup, for_plot=True).count(l) for l in utils.loci}
+            lckey = lgstr(pgroup, for_plot=True)
+            if lckey not in flcounts[fkey]:
+                flcounts[fkey][lckey] = 0
+            flcounts[fkey][lckey] += 1
+        binlabels = sorted(set(k for fcnts in flcounts.values() for k in fcnts), reverse=True)
+        fhists = {f : Hist(len(binlabels), -0.5, len(binlabels) - 0.5) for f in ['func', 'nonfunc']}
+        for fstr in ['func', 'nonfunc']:
+            for ibin, blabel in enumerate(binlabels):
+                fhists[fstr].set_ibin(ibin + 1, flcounts[fstr].get(blabel, 0), math.sqrt(flcounts[fstr].get(blabel, 0)))
+                fhists[fstr].bin_labels[ibin + 1] = blabel
+        import plotting
+        # fhists = {f : plotting.make_hist_from_dict_of_counts(flcounts[f], 'string', 'locus counts', sort=True) for f in ['func', 'nonfunc']}  # i don't know wtf this isn't working, but whatever
+        for logstr in ['', '-log']:
+            fnfplot(logstr, fhists)
+    # ----------------------------------------------------------------------------------------
     def getloc(uid):
         if uid not in all_antns:
             return '?'
@@ -200,8 +218,12 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             return None
         return utils.per_seq_val(all_antns[uid], key, uid)
     # ----------------------------------------------------------------------------------------
-    def lgstr(lgroup, sort=True):
-        return ' '.join(utils.locstr(l) for l in (sorted if sort else utils.pass_fcn)([getloc(u) for u in lgroup]))
+    def lgstr(lgroup, dont_sort=False, for_plot=False):  # return str representing locus of each uid in <lgroup>, e.g. [a, b, c] --> 'h  k  k' (or ['h', 'k', 'k'])
+        sfcn = utils.pass_fcn if dont_sort else sorted
+        lfcn = (lambda x: x[2]) if for_plot else utils.locstr
+        lgstrs = [lfcn(l) for l in sfcn([getloc(u) for u in lgroup])]
+        # return lgstrs if for_plot else ' '.join(lgstrs)
+        return ' '.join(lgstrs)
     # ----------------------------------------------------------------------------------------
     def choose_seqs_to_remove(chain_ids, tdbg=False):  # choose one of <chain_ids> to eliminate
         # look for pairs with the same locus that
@@ -265,7 +287,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             else:
                 assert len(pids) == 1  # if we passed in <pfids> (an id for each paired family), this should be after cleaning, so there should only be one of them
                 spids, spfcs, spfids = pids, pfcs, pfids
-            return '  '.join('%s %s %s'%(lg, '%1d'%sp if pfids is None else '%2d'%sp, fidstr(fid)) for lg, sp, fid in zip(lgstr(spids, sort=False).split(' '), spfcs, spfids))
+            return '  '.join('%s %s %s'%(lg, '%1d'%sp if pfids is None else '%2d'%sp, fidstr(fid)) for lg, sp, fid in zip(lgstr(spids, dont_sort=True).split(' '), spfcs, spfids))
         # ----------------------------------------------------------------------------------------
         def print_dbg():
             new_pfamilies = get_pfamily_dict(cline, extra_str='after:')
@@ -427,7 +449,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             for cluster in cpaths[ltmp].best():
                 pidlengths += [len(pids) for pids in antn_dicts[ltmp][':'.join(cluster)]['paired-uids']]
         ahist = Hist(value_list=pidlengths, init_int_bins=True)
-        ahist.fullplot(plotdir, 'paired-uids-per-uid', xlabel='N paired uids per uid', ylabel='counts', title='after')
+        ahist.fullplot(plotdir, 'paired-uids-per-uid', xlabel='N paired uids per uid', ylabel='counts', title='after', log='y')
 
 # ----------------------------------------------------------------------------------------
 def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=False):
