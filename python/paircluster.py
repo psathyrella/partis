@@ -146,6 +146,26 @@ def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
+def plot_uids_before(plotdir, pid_groups, all_antns):
+    def fnfplot(logstr, fhists):
+        fig, ax = plotting.mpl_init()
+        for fk, fcolor in zip(fhists, plotting.default_colors):
+            fhists[fk].mpl_plot(ax, label=fk, color=fcolor)
+            if logstr == '':
+                fhists[fk].write('%s/%s.csv'%(plotdir, fk + '-per-drop'))
+        plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.7, 0.6))
+    bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
+    bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='N uids per droplet', ylabel='counts', title='before')
+    fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
+    for pgroup in pid_groups:
+        funclist = [utils.is_functional(all_antns[p], all_antns[p]['unique_ids'].index(p)) for p in pgroup]
+        fhists['func'].fill(funclist.count(True))
+        fhists['nonfunc'].fill(funclist.count(False))
+    import plotting
+    for logstr in ['', '-log']:
+        fnfplot(logstr, fhists)
+
+# ----------------------------------------------------------------------------------------
 def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_clusters=None, plotdir=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(all_uids, tdbg=False):
@@ -344,19 +364,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
 
     idg_ok = check_droplet_id_groups(all_uids)  # NOTE not using the return value here, but I may need to in the future
     if plotdir is not None:
-        bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
-        bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='N uids per droplet', ylabel='counts', title='before')
-        fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
-        for pgroup in pid_groups:
-            funclist = [utils.is_functional(all_antns[p], all_antns[p]['unique_ids'].index(p)) for p in pgroup]
-            fhists['func'].fill(funclist.count(True))
-            fhists['nonfunc'].fill(funclist.count(False))
-        import plotting
-        fig, ax = plotting.mpl_init()  # this'll need to be updated when i want to use a kwarg for this fcn
-        for fk, fcolor in zip(fhists, plotting.default_colors):
-            fhists[fk].mpl_plot(ax, label=fk, color=fcolor)
-            fhists[fk].write('%s/%s.csv'%(plotdir, fk + '-per-drop'))
-        plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop', xlabel='N uids per droplet', ylabel='counts', title='before')
+        plot_uids_before(plotdir, pid_groups, all_antns)
 
     # then go through each group trying to remove as many crappy/suspicous ones as possible
     if debug:
