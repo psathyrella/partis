@@ -37,6 +37,10 @@ xtitles = {
     'd_fraction_correct_vs_mute_freq' : 'mut freq',
     'j_fraction_correct_vs_mute_freq' : 'mut freq',
     'mfreq-diff' : 'max abs mfreq discontinuity',
+    'uids-per-droplet' : 'N uids per droplet',
+    'paired-uids-per-uid' : 'N paired uids per uid',
+    'func-per-drop' : 'locus combos',
+    'nonfunc-per-drop' : 'locus combos',
 }
 for rstr in [r + '_' for r in utils.regions] + ['', ]:
     xtitles[rstr + 'hamming_to_true_naive'] = 'hamming distance'
@@ -78,6 +82,10 @@ plot_titles = {
     'j_allele_fraction_correct_vs_per_gene_support' : 'J gene',
     'shm_indel_length' : 'total/net SHM indel length',
     'mfreq-diff' : 'chimera detection',
+    'func-per-drop' : 'drops with all seqs func.',
+    'nonfunc-per-drop' : 'drops with any seq non-func.',
+    'paired-uids-per-uid' : 'after all cleaning',
+    'uids-per-droplet' : 'before cleaning',
 }
 for region in utils.regions:
     for end in ['5', '3']:
@@ -147,7 +155,8 @@ default_hard_bounds = {
     'IGHJ4*02' : (-0.5, 24),
     'IGHJ4*03' : (-0.5, 24),
     'IGHJ5*01' : (-0.5, 27),
-    'IGHJ5*02' : (-0.5, 28)
+    'IGHJ5*02' : (-0.5, 28),
     # 'IGHV3-23D*01' : (260, 296),
     # 'IGHV3-33*06' : (260, 296)
+    'uids-per-droplet' : (0, 8),
 }

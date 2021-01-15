@@ -131,6 +131,10 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         xtitle = 'cluster size'
         ytitle = 'N clusters'
         plottitle = ''
+    if varname in ['func-per-drop', 'nonfunc-per-drop']:
+        bounds = (0, 15)
+    if xtitle is None:
+        xtitle = plotconfig.xtitles.get(varname)
 
     if args.add_to_title is not None:
         plottitle += args.add_to_title
@@ -139,6 +143,8 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         translegend[1] -= 0.5
     if args.translegend is not None:  # override with the command line
         translegend = args.translegend
+    if varname == 'paired-uids-per-uid':
+        translegend = [translegend[0], translegend[1] - 0.3]
     if args.extra_stats == 'auto':  # kind of hackey
         if xtitle == 'inferred - true':
             stats = 'absmean'
