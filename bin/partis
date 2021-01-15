@@ -580,7 +580,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         DBG = True
         glfos, antn_lists, cpaths = read_output_files(utils.sub_loci(ig_or_tr), debug=DBG)
         true_partitions = get_true_partitions(cpaths, debug=DBG)
-        paircluster.clean_pair_info(cpaths, antn_lists, is_data=args.is_data, plotdir=getplotdir(None), debug=DBG) #, max_hdist=4, n_max_clusters=1)
+        paircluster.clean_pair_info(cpaths, antn_lists, is_data=args.is_data, plotdir=getplotdir(None), debug=DBG) #, max_hdist=4
         lp_infos = {}
         for lpair in utils.locus_pairs[ig_or_tr]:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))

@@ -147,7 +147,7 @@ def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_clusters=None, plotdir=None, debug=False):
+def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(all_uids, tdbg=False):
         try:
@@ -237,9 +237,8 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
         lgstrs = [lfcn(l) for l in sfcn([getloc(u) for u in lgroup])]
         return ' '.join(lgstrs)
     # ----------------------------------------------------------------------------------------
-    def choose_seqs_to_remove(chain_ids, tdbg=False):  # choose one of <chain_ids> to eliminate
-        # look for pairs with the same locus that
-        ids_to_remove = set(u for u in chain_ids if getloc(u)=='?')
+    def choose_seqs_to_remove(chain_ids, tdbg=False):  # choose one of <chain_ids> to eliminate (based on identical/similar seq collapse and productivity)
+        ids_to_remove = set(u for u in chain_ids if getloc(u)=='?')  # remove any with missing annotations
         if tdbg and len(ids_to_remove) > 0:  # i think this actually can't happen a.t.m.
             print '      removed %d with missing annotations' % len(ids_to_remove)
 
@@ -261,7 +260,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
         if tdbg and len(dbgstr) > 0:
             print '        %d pair%s equivalent with hdists %s' % (n_equivalent, utils.plural(n_equivalent), ' '.join(dbgstr))
 
-        # remove unproductive
+        # remove unproductive (only on real data, since simulation usually has lots of stop codons)
         dbgstr = []
         unproductive_ids = []
         for uid in chain_ids:
@@ -289,7 +288,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
             return utils.color(utils.cyclecolor(fid, clist=['red', 'yellow', 'blue_bkg', 'reverse_video', 'green_bkg', 'purple', 'green', 'blue']), fstr)
 
     # ----------------------------------------------------------------------------------------
-    def clean_with_partition_info(cluster):
+    def clean_with_partition_info(cluster):  # use information from the [clonal family] partitions to decide which of several potential paired uids is the correct one
         # ----------------------------------------------------------------------------------------
         def lcstr(pids, pfcs, pfids=None):  # returns string summarizing the families of the paired uids for a uid, e.g. 'k 51  l 3  h 1' if the uid has three potential pids, one from k with which 50 other uids in <cline> are paired, etc.
             if len(pids) == 0: return ''
@@ -400,24 +399,26 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
     if plotdir is not None:
         plot_uids_before(plotdir, pid_groups, all_antns)
 
-    # then go through each group trying to remove as many crappy/suspicous ones as possible
+    # then go through each group trying to remove as many crappy/suspicously similar ones as possible (this step has a fairly minor effect compared to the partition-based step below)
     if debug:
         print '  cleaning %d pid groups:' % len(pid_groups)
+        def tmpincr(pgroup, cdict):
+            if lgstr(pgroup) not in cdict:
+                cdict[lgstr(pgroup)] = 0
+            cdict[lgstr(pgroup)] += 1
     ok_groups, tried_to_fix_groups = {}, {}
     for ipg, pgroup in enumerate(pid_groups):
         pgroup = [u for u in pgroup if getloc(u) != '?']  # maybe need to figure out something different to do with missing ones?
         hids = [u for u in pgroup if utils.has_d_gene(getloc(u))]
         lids = [u for u in pgroup if u not in hids]
-        if len(hids) < 2 and len(lids) < 2:
-            if lgstr(pgroup) not in ok_groups:
-                ok_groups[lgstr(pgroup)] = 0
-            ok_groups[lgstr(pgroup)] += 1
+        if len(hids) < 2 and len(lids) < 2:  # all good, nothing to do
             pid_groups[ipg] = pgroup
+            if debug: tmpincr(pgroup, ok_groups)
             continue
         if debug > 1:
             print '    %s' % lgstr(pgroup),
         for chain, idlist in zip(utils.chains, [hids, lids]):
-            if len(idlist) < 2:
+            if len(idlist) < 2:  # skip whichever of the chains that has only one id
                 continue
             if debug > 1:
                 print '\n      too many %s chains: %s' % (chain, lgstr(idlist))
@@ -432,9 +433,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
                         prutils.print_seq_in_reco_event(all_antns[uid], all_antns[uid]['unique_ids'].index(uid), one_line=True, extra_str='        ', uid_extra_str=utils.locstr(getloc(uid)))
 
         pid_groups[ipg] = pgroup
-        if lgstr(pgroup) not in tried_to_fix_groups:
-            tried_to_fix_groups[lgstr(pgroup)] = 0
-        tried_to_fix_groups[lgstr(pgroup)] += 1
+        if debug: tmpincr(pgroup, tried_to_fix_groups)
 
     if debug:
         print '    ok to start with:'
@@ -448,11 +447,8 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, n_max_cluste
     for ltmp in sorted(cpaths):
         if debug:
             print '%s' % utils.color('green', ltmp)
-            cpaths[ltmp].print_partitions()
             name_dict, name_ids = {'potential' : None, 'used' : None}, {}
         for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
-            if n_max_clusters is not None and iclust >= n_max_clusters:
-                break
             clean_with_partition_info(cluster)
 
     if plotdir is not None:
