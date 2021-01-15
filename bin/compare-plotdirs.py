@@ -132,7 +132,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         ytitle = 'N clusters'
         plottitle = ''
     if varname in ['func-per-drop', 'nonfunc-per-drop']:
-        bounds = (0, 15)
+        bounds = (-0.5, 15.5)
     if xtitle is None:
         xtitle = plotconfig.xtitles.get(varname)
 
@@ -144,7 +144,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if args.translegend is not None:  # override with the command line
         translegend = args.translegend
     if varname == 'paired-uids-per-uid':
-        translegend = [translegend[0], translegend[1] - 0.3]
+        translegend = [translegend[0] + 0.15, translegend[1] - 0.3]
     if args.extra_stats == 'auto':  # kind of hackey
         if xtitle == 'inferred - true':
             stats = 'absmean'
@@ -153,8 +153,9 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     # draw that little #$*(!
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
     alphas = [0.6 for _ in range(len(hlist))]
+    shift_overflows = os.path.basename(outdir) != 'gene-call' and 'func-per-drop' not in varname
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds,
-                          shift_overflows=(os.path.basename(outdir) != 'gene-call'), plottitle=plottitle, colors=args.colors,
+                          shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, alphas=alphas, errors=True, remove_empty_bins='y' in args.log,
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend)
