@@ -418,7 +418,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         if debug > 1:
             print '    %s' % lgstr(pgroup),
         for chain, idlist in zip(utils.chains, [hids, lids]):
-            if len(idlist) < 2:  # skip whichever of the chains that has only one id
+            if len(idlist) < 2:  # skip whichever of the chains has only one id
                 continue
             if debug > 1:
                 print '\n      too many %s chains: %s' % (chain, lgstr(idlist))

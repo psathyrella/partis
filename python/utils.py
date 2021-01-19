@@ -89,7 +89,8 @@ def locstr(l):
 def sub_loci(ig_or_tr):  # ok i probably should have just split <loci> by ig/tr, but too late now
     return [l for l in loci if ig_or_tr in l]
 
-def getlpair(ltmp):  # i guess this'll crash if you give it a heavy chain, but oh well
+def getlpair(ltmp):
+    if has_d_gene(ltmp): raise Exception('only makes sense for light chain, but got %s' % ltmp)
     return get_single_entry([lp for lplist in locus_pairs.values() for lp in lplist if ltmp in lp])
 
 def getregions(locus):  # for clarity, don't use the <loci> dictionary directly to access its .values()
