@@ -197,7 +197,8 @@ def plot_trees(args):
     tstyle = ete3.TreeStyle()
     tstyle.mode = args.tree_style[0]
     # tstyle.show_scale = False
-    tstyle.scale_length = 1. / treeutils.typical_bcr_seq_len
+    if getattr(tstyle, 'scale_length', None) is not None:
+        tstyle.scale_length = 1. / treeutils.typical_bcr_seq_len
     # tstyle.show_branch_length = True
     # tstyle.complete_branch_lines_when_necessary = True
 

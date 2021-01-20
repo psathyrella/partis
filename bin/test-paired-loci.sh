@@ -1,10 +1,10 @@
 #!/bin/bash
 
-label=cf-ccfs-v0 #cells-per-drop-$cpd # pair-plots-v0 #fix-bad-merge-v2 #2 # pairclean-v2  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
+label=smetrics-v0  # cf-ccfs-v0 #cells-per-drop-$cpd # pair-plots-v0 #fix-bad-merge-v2 #2 # pairclean-v2  # re-refactor-v0 #refactor-v4  #paired-clustering-output-v2
 # NOTE use tmp.sh for refactor-v{3,4}
 
 nprocs=10
-common="--n-sim-events 10 --n-leaves 10 --n-procs $nprocs --no-per-base-mutation --allowed-cdr3-lengths 30:33:36:42:45:48 --mutation-multiplier 1" # --debug 1" #  --constant-number-of-leaves
+common="--n-sim-events 3 --n-leaves 100 --n-procs $nprocs --no-per-base-mutation --allowed-cdr3-lengths 30:33:36:42:45:48 --mutation-multiplier 1" # --debug 1" #  --constant-number-of-leaves
 in_param_dir=_output/paired-simulation/parameters
 outdir=_output/$label
 out_param_dir=$outdir/params

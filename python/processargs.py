@@ -262,7 +262,7 @@ def process(args):
         if os.path.exists(utils.getprefix(args.outfname) + '-hmm-cache.csv'):
             args.persistent_cachefname = utils.getprefix(args.outfname) + '-hmm-cache.csv'  # written by bcrham, so has to be csv, not yaml
 
-    if args.action == 'get-selection-metrics' or args.get_selection_metrics:
+    if not args.paired_loci and (args.action == 'get-selection-metrics' or args.get_selection_metrics):
         if args.outfname is None and args.selection_metric_fname is None:
                 print '    %s calculating selection metrics, but neither --outfname nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
         elif args.selection_metric_fname is None and args.action == 'get-selection-metrics' and not args.add_selection_metrics_to_outfname:
