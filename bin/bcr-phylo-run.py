@@ -273,7 +273,7 @@ def partition():
     cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --infname %s --parameter-dir %s --outfname %s --seed %d' % (simfname(), param_dir(), partition_fname(), args.seed)
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
     if not args.dont_get_tree_metrics:
-        cmd += ' --get-tree-metrics --plotdir %s' % (infdir() + '/plots')
+        cmd += ' --get-selection-metrics --plotdir %s' % (infdir() + '/plots')
     if args.lb_tau is not None:
         cmd += ' --lb-tau %f' % args.lb_tau
     if args.n_procs > 1:
@@ -283,7 +283,7 @@ def partition():
     if args.n_max_queries is not None:
         cmd += ' --n-max-queries %d' % args.n_max_queries
     utils.simplerun(cmd, debug=True) #, dryrun=True)
-    # cmd = './bin/partis get-tree-metrics --outfname %s/partition.yaml' % infdir()
+    # cmd = './bin/partis get-selection-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
