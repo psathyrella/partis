@@ -171,7 +171,7 @@ formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
 parser.add_argument('--outdir', required=True, help='Output directory to which to write the resulting comparison plots. A summary .html file is also written to <outdir>.html')
 parser.add_argument('--plotdirs', required=True, help='Colon-separated list of input plot directories, each of which must have identical structure. Looks for svgs first in each dir, but then also in the subdirs of each dir (so e.g. if each of them have a/, b/, and c/ subdirs, this script will make a separate comparison of a/, b/, and c/)')
-parser.add_argument('--names', required=True, help='colon-separated list of names/labels corresponding to --plotdirs')
+parser.add_argument('--names', required=True, help='colon-separated list of names/labels corresponding to --plotdirs (use @ as space)')
 parser.add_argument('--performance-plots', action='store_true', help='set to true if these are annotation performance plots, i.e. made with --plot-annotation-performance (this makes the axis labels more sensible)')
 parser.add_argument('--colors', default=':'.join(plotting.default_colors), help='color-separated list of colors to cycle through for the plotdirs')
 parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths), help='colon-separated list of linewidths to cycle through')
@@ -182,7 +182,7 @@ parser.add_argument('--extra-stats', help='if set, adds extra stat to legend, e.
 parser.add_argument('--translegend', help='colon-separated list of x, y values with which to translate all the legends')
 parser.add_argument('--log', default='', help='Display these axes on a log scale, set to either \'x\', \'y\', or \'xy\'')
 parser.add_argument('--make-parent-html', action='store_true', help='after doing everything within subdirs, make a single html in the main/parent dir with all plots from subdirs')
-parser.add_argument('--add-to-title', help='string to append to existing title')
+parser.add_argument('--add-to-title', help='string to append to existing title (use @ as space)')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -193,6 +193,8 @@ args.gldirs = utils.get_arg_list(args.gldirs)
 args.translegend = utils.get_arg_list(args.translegend, floatify=True)
 for iname in range(len(args.names)):
     args.names[iname] = args.names[iname].replace('@', ' ')
+if args.add_to_title is not None:
+    args.add_to_title = args.add_to_title.replace('@', ' ')
 
 # if you just pass in one parent directory, we assume <args.names> contains the desired subdirs
 if len(args.plotdirs) == 1:

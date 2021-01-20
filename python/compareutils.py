@@ -948,13 +948,13 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
             id_clusters[clid].append(uid)
 
     partition = [ids for ids in id_clusters.values()]
-    partition_with_uids_added = utils.add_missing_uids_as_singletons_to_inferred_partition(partition, all_ids=input_info.keys())
+    partition_with_uids_added = utils.add_missing_uids_to_partition(partition, [[u] for u in input_info])  # NOTE updating this fcn signature without testing it
 
     adj_mi, ccfs = None, [None, None]
     true_partition = None
     if args.is_simu:
         true_partition = utils.get_partition_from_reco_info(reco_info)
-        # subset_of_true_partition = utils.remove_missing_uids_from_true_partition(true_partition, partition)
+        # subset_of_true_partition = utils.remove_missing_uids_from_ref_partition(true_partition, partition)
         # print 'removed from true: %.3f' % utils.adjusted_mutual_information(subset_of_true_partition, partition)
 
         adj_mi = utils.adjusted_mutual_information(true_partition, partition_with_uids_added)

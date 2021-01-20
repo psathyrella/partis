@@ -460,37 +460,40 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         ahist.fullplot(plotdir, 'paired-uids-per-uid', xlabel='N paired uids per uid', ylabel='counts', title='after', log='y')
 
 # ----------------------------------------------------------------------------------------
-def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=False):
-    # NOTE that <joint_partitions> can have many fewer seqs than <init_partitions> since we remove from <joint_partitions> seqs paired with the other light chain (the weighted average ccfs over the h joint partitions corresponding to both light chains would be exactly comparable to the <init_partitions>, but I think this is fine as it is)
+def compare_partition_pair(cfpart, refpart, remove_from_ref=False, antn_list=None, dbg_str=None, cf_label='inferred', ref_label='true', debug=False):
     # ----------------------------------------------------------------------------------------
-    def incorporate_duplicates(tpart, dup_dict):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
+    def incorporate_duplicates(tpart):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
         for tclust in tpart:
             for uid in tclust:
                 if uid in dup_dict:
                     tclust += dup_dict[uid]
     # ----------------------------------------------------------------------------------------
-    for tch in utils.chains:
-        ltmp = ploci[tch]
-        dup_dict = {u : l['duplicates'][i] for l in antn_lists[ltmp] for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}  # now that I've turned off default duplicate removal, this won't happen much any more
+    dup_dict = {}
+    if antn_list is not None:
+        dup_dict = {u : l['duplicates'][i] for l in antn_list for i, u in enumerate(l['unique_ids']) if len(l['duplicates'][i]) > 0}  # now that I've turned off default duplicate removal, this won't happen much any more
         if len(dup_dict) > 0:
             print '%s duplicate sequences in joint partition evaluation' % utils.color('yellow', 'warning')
 
-        i_part = copy.deepcopy(init_partitions[tch])
-        j_part = copy.deepcopy(joint_partitions[tch])
-        if len(dup_dict) > 0:
-            incorporate_duplicates(i_part, dup_dict)
-            incorporate_duplicates(j_part, dup_dict)
+    cfpart = copy.deepcopy(cfpart)  # don't want to modify opject pointed to by <cfpart)
+    if len(dup_dict) > 0:
+        incorporate_duplicates(cfpart)
+    if remove_from_ref:  # we could also use add_missing_uids_to_partition()
+        refpart = utils.remove_missing_uids_from_ref_partition(refpart, cfpart, debug=debug)  # returns a new/copied partition, doesn't modify original
+    return utils.per_seq_correct_cluster_fractions(cfpart, refpart, dbg_str=dbg_str, inf_label=cf_label, true_label=ref_label, debug=debug)
+    # TODO figure out which cases of 'missing' uids should really be removed, and which should be singletons
 
-        itruepart = utils.remove_missing_uids_from_true_partition(true_partitions[ltmp], i_part, debug=debug)  # returns a new/copied partition, doesn't modify original
-        single_ccfs = utils.per_seq_correct_cluster_fractions(i_part, itruepart, dbg_str=utils.locstr(ltmp)+' single ', debug=debug)
-
-        # j_part = utils.get_deduplicated_partitions([j_part])[0]  # I used to need this, but now I seem not to? either way leaving here (but commented) for now
-        jtruepart = utils.remove_missing_uids_from_true_partition(true_partitions[ltmp], j_part, debug=debug)  # we already removed failed queries from each individual chain's partition, but then if the other chain didn't fail it'll still be in the joint partition UPDATE not sure if this comment applies/makes sense any more
-        joint_ccfs = utils.per_seq_correct_cluster_fractions(j_part, jtruepart, dbg_str=utils.locstr(ltmp)+' joint ', debug=debug)
-
+# ----------------------------------------------------------------------------------------
+def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=False):
+    # NOTE that <joint_partitions> can have many fewer seqs than <init_partitions> since in making <joint_partitions> we remove seqs paired with the other light chain (the weighted average ccfs over the h joint partitions corresponding to both light chains would be exactly comparable to the <init_partitions>, but I think this is fine as it is)
+    for tch in utils.chains:
+        ltmp = ploci[tch]
+        ccfs = {}
+        for dstr, cfpart in [('single', init_partitions[tch]), ('joint', joint_partitions[tch])]:
+            ccfs[dstr] = compare_partition_pair(cfpart, true_partitions[ltmp], remove_from_ref=True,  # removes from the true ptn any uids that are missing from the inferred ptn
+                                                antn_list=antn_lists[ltmp], dbg_str='%s %s '%(utils.locstr(ltmp), dstr), debug=debug)
         print '  %s ccfs:     purity  completeness' % utils.locstr(ltmp)
-        print '      single  %6.3f %6.3f' % (single_ccfs[0], single_ccfs[1])
-        print '       joint  %6.3f %6.3f' % (joint_ccfs[0], joint_ccfs[1])
+        print '      single  %6.3f %6.3f' % (ccfs['single'][0], ccfs['single'][1])
+        print '       joint  %6.3f %6.3f' % (ccfs['joint'][0], ccfs['joint'][1])
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229

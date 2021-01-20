@@ -3903,9 +3903,9 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
     return new_partitions
 
 # ----------------------------------------------------------------------------------------
-def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None, seed_unique_id=None, dbg_str='', debug=False):
+def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None, seed_unique_id=None, dbg_str='', inf_label='inferred', true_label='true', debug=False):
     if seed_unique_id is None:
-        check_intersection_and_complement(partition, true_partition, a_label='inferred', b_label='true')
+        check_intersection_and_complement(partition, true_partition, a_label=inf_label, b_label=true_label)
     if reco_info is None:  # build a dummy reco_info that just has reco ids
         def tkey(c): return ':'.join(c)
         chashes = {tkey(tc) : hash(tkey(tc)) for tc in true_partition}
@@ -3952,9 +3952,9 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
 
     if debug:
         print '    %scorrect cluster fractions:' % dbg_str
-        print '               clusters uids'
-        print '          true   %3d    %3d' % (len(true_partition), sum(len(c) for c in true_partition))
-        print '           inf   %3d    %3d' % (len(partition), sum(len(c) for c in partition))
+        print '       clusters uids'
+        print '         %3d    %3d  %s' % (len(true_partition), sum(len(c) for c in true_partition), true_label)
+        print '         %3d    %3d  %s' % (len(partition), sum(len(c) for c in partition), inf_label)
         print '      purity:       %.1f / %d = %.3f' % (mean_clonal_fraction, n_uids, mean_clonal_fraction / n_uids)
         print '      completeness: %.1f / %d = %.3f' % (mean_fraction_present, n_uids, mean_fraction_present / n_uids)
     return mean_clonal_fraction / n_uids, mean_fraction_present / n_uids
@@ -4135,43 +4135,27 @@ def adjusted_mutual_information(partition_a, partition_b):
     # return sklearn.metrics.cluster.adjusted_mutual_info_score(clusts_a, clusts_b)
 
 # ----------------------------------------------------------------------------------------
-def add_missing_uids_as_singletons_to_inferred_partition(partition_with_missing_uids, true_partition=None, all_ids=None, debug=True):
-    """ return a copy of <partition_with_missing_uids> which has had any uids which were missing inserted as singletons (i.e. uids which were in <true_partition>) """
-
-    if true_partition is None:  # it's less confusing than the alternatives, I swear
-        true_partition = [[uid, ] for uid in all_ids]
-
-    partition_with_uids_added = copy.deepcopy(partition_with_missing_uids)
-    missing_ids = []
-    for cluster in true_partition:
-        for uid in cluster:
-            try:
-                find_uid_in_partition(uid, partition_with_missing_uids)
-            except:
-                partition_with_uids_added.append([uid, ])
-                missing_ids.append(uid)
+def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, debug=True):  # NOTE that in this fcn, ref_partition (often the true_partition) is left unchanged, whereas in the next fcn it is modified
+    """ return a copy of <partition_with_missing_uids> which has had any uids which were missing inserted as singletons (i.e. uids which were in <ref_partition>) """
+    ref_ids, pmiss_ids = set(u for c in ref_partition for u in c), set(u for c in partition_with_missing_uids for u in c)
+    missing_ids = ref_ids - pmiss_ids
+    partition_with_uids_added = copy.deepcopy(partition_with_missing_uids) + [[u] for u in missing_ids]
     if debug:
-        print '  %d (of %d) ids missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in true_partition]), ' '.join(missing_ids))
+        print '  %d (of %d) ids missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in ref_partition]), ' '.join(missing_ids))
     return partition_with_uids_added
 
 # ----------------------------------------------------------------------------------------
-def remove_missing_uids_from_true_partition(true_partition, partition_with_missing_uids, debug=True):
-    """ return a copy of <true_partition> which has had any uids which do not occur in <partition_with_missing_uids> removed """
-    true_partition_with_uids_removed = []
-    missing_ids = []
-    for cluster in true_partition:
-        new_cluster = []
-        for uid in cluster:
-            try:
-                find_uid_in_partition(uid, partition_with_missing_uids)
-                new_cluster.append(uid)
-            except:
-                missing_ids.append(uid)
-        if len(new_cluster) > 0:
-            true_partition_with_uids_removed.append(new_cluster)
+def remove_missing_uids_from_ref_partition(ref_partition, partition_with_missing_uids, debug=True):  # NOTE see note on previous fcn
+    """ return a copy of <ref_partition> which has had any uids which do not occur in <partition_with_missing_uids> removed """
+    ref_ids, pmiss_ids = set(u for c in ref_partition for u in c), set(u for c in partition_with_missing_uids for u in c)
+    missing_ids = ref_ids - pmiss_ids
+    ref_partition_with_uids_removed = copy.deepcopy(ref_partition)
+    for iclust, cluster in enumerate(ref_partition_with_uids_removed):
+        ref_partition_with_uids_removed[iclust] = [u for u in cluster if u not in missing_ids]
+    ref_partition_with_uids_removed = [c for c in ref_partition_with_uids_removed if len(c) > 0]  # remove any empty clusters
     if debug:
-        print '    removed %d/%d uids (leaving %d) from true partition that were not in inf partition' % (len(missing_ids), sum([len(c) for c in true_partition]), sum([len(c) for c in true_partition_with_uids_removed])) #, ' '.join(missing_ids))
-    return true_partition_with_uids_removed
+        print '    removed %d/%d uids (leaving %d) from ref partition that were not in other partition: %s' % (len(missing_ids), sum([len(c) for c in ref_partition]), sum([len(c) for c in ref_partition_with_uids_removed]), ' '.join(missing_ids))
+    return ref_partition_with_uids_removed
 
 # ----------------------------------------------------------------------------------------
 def generate_incorrect_partition(true_partition, misassign_fraction, error_type, debug=False):
