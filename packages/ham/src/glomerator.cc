@@ -1162,11 +1162,10 @@ void Glomerator::Merge(ClusterPath *path) {
 	  printf("    couldn't merge past a biggest cluster of %u despite setting force merge\n", LargestClusterSize(path->CurrentPartition()));
       } else {
 	force_merge_ = true;
-	printf("    setting force merge");
 	if(args_->n_final_clusters() > 0)
-	  printf(" (currently have %lu clusters, requested %u)\n", path->CurrentPartition().size(), args_->n_final_clusters());
+	  printf("    setting force merge (currently have %lu clusters, requested %u)\n", path->CurrentPartition().size(), args_->n_final_clusters());
 	if(args_->min_largest_cluster_size() > 0)
-	  printf(" (current biggest cluster %u, requested %u)\n", LargestClusterSize(path->CurrentPartition()), args_->min_largest_cluster_size());
+	  printf("    setting force merge (current biggest cluster %u, requested %u)\n", LargestClusterSize(path->CurrentPartition()), args_->min_largest_cluster_size());
       }
     } else {  // we've gotten down to the requested number of clusters, so we can stop (shouldn't be possible to get here, since it'd require somehow missing setting the path to finished in the if clause below)
       path->finished_ = true;
@@ -1204,9 +1203,9 @@ void Glomerator::Merge(ClusterPath *path) {
      (args_->min_largest_cluster_size() > 0 && LargestClusterSize(path->CurrentPartition()) >= args_->min_largest_cluster_size())) {  // largest cluster is still too small
     path->finished_ = true;
     if(args_->n_final_clusters() > 0)
-      printf("    finished glomerating to %lu clusters (requested %u))\n", path->CurrentPartition().size(), args_->n_final_clusters());
+      printf("    finished glomerating to %lu clusters (requested %u), force merge status %d\n", path->CurrentPartition().size(), args_->n_final_clusters(), force_merge_);
     if(args_->min_largest_cluster_size() > 0)
-      printf("    finished glomerating to a biggest cluster of %u (requested %u))\n", LargestClusterSize(path->CurrentPartition()), args_->min_largest_cluster_size());
+      printf("    finished glomerating to a biggest cluster of %u (requested %u)), force merge status %d\n", LargestClusterSize(path->CurrentPartition()), args_->min_largest_cluster_size(), force_merge_);
   }
 }
 
