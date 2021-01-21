@@ -1205,7 +1205,7 @@ void Glomerator::Merge(ClusterPath *path) {
     if(args_->n_final_clusters() > 0)
       printf("    finished glomerating to %lu clusters (requested %u), force merge status %d\n", path->CurrentPartition().size(), args_->n_final_clusters(), force_merge_);
     if(args_->min_largest_cluster_size() > 0)
-      printf("    finished glomerating to a biggest cluster of %u (requested %u)), force merge status %d\n", LargestClusterSize(path->CurrentPartition()), args_->min_largest_cluster_size(), force_merge_);
+      printf("    finished glomerating to a biggest cluster of %u (requested %u), force merge status %d\n", LargestClusterSize(path->CurrentPartition()), args_->min_largest_cluster_size(), force_merge_);
   }
 }
 
