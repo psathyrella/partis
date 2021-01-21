@@ -262,6 +262,9 @@ def process(args):
         if os.path.exists(utils.getprefix(args.outfname) + '-hmm-cache.csv'):
             args.persistent_cachefname = utils.getprefix(args.outfname) + '-hmm-cache.csv'  # written by bcrham, so has to be csv, not yaml
 
+    if args.min_largest_cluster_size is not None and args.n_final_clusters is not None:
+        print '  note: both --min-largest-cluster-size and --n-final-clusters are set, which means we\'ll stop clustering when *either* of their criteria are satisfied (not both)'  # maybe it should be both, but whatever
+
     if not args.paired_loci and (args.action == 'get-selection-metrics' or args.get_selection_metrics):
         if args.outfname is None and args.selection_metric_fname is None:
                 print '    %s calculating selection metrics, but neither --outfname nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
