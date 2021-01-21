@@ -439,6 +439,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if '--plotdir' not in clist:
                     clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
                 clist[clist.index(args.action)] = 'plot-partitions'
+            if tmpaction=='get-selection-metrics' and args.is_data:  # for simulation we still need it
+                utils.remove_from_arglist(clist, '--infname', has_arg=True)
 
             return clist
         # ----------------------------------------------------------------------------------------
