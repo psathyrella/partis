@@ -359,7 +359,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 cmd += ' --input-metafname %s' % args.input_metafname
             utils.simplerun(cmd, dryrun=args.dry_run)
             if args.paired_outdir is None:
-                work_fnames.extend(paircluster.paired_dir_fnames(getodir(), no_pairing_info=args.input_metafname is None and args.is_data))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
+                work_fnames.extend(paircluster.paired_dir_fnames(getodir(), no_pairing_info=args.input_metafname is None and args.is_data, include_failed=True))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
     # ----------------------------------------------------------------------------------------
     def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
         if runs_on_existing_output(args.action):  # don't need a parameter dir to merge existing paired partitions
@@ -421,6 +421,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                         utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname', has_arg=True)
                         if args.paired_outdir is None:
                             work_fnames.append(getofn(ltmp, joint=joint))
+                            if not joint and lpair is None and getodir(single_chain=True) not in work_fnames:
+                                work_fnames.append(getodir(single_chain=True))
 
             if tmpaction == 'annotate':
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
@@ -444,9 +446,13 @@ def run_all_loci(args, ig_or_tr='ig'):
 
             return clist
         # ----------------------------------------------------------------------------------------
-        if skip_missing_input and not os.path.exists(getifn(ltmp)):
-            print '%s: no input file, skipping' % utils.color('blue', ltmp)
-            return
+        if skip_missing_input:
+            if not os.path.exists(getifn(ltmp)):
+                print '%s: no input file, skipping' % utils.color('blue', ltmp)
+                return
+            if tmpaction in ['annotate', 'partition'] and not os.path.exists(getpdir(ltmp)):  # this probably means that no sequences had annotations (i.e. all failed) for this locus when parameter caching
+                print '%s: no parameter dir, skipping' % utils.color('blue', ltmp)
+                return
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
     def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict):  # replace old paired uids with new, fixed ones
@@ -585,6 +591,9 @@ def run_all_loci(args, ig_or_tr='ig'):
     def combine_inf_chains():
         DBG = True #False
         single_glfos, single_antn_lists, single_cpaths = read_output_files(utils.sub_loci(ig_or_tr), debug=DBG)  # single chain cpaths (and other info)
+        if not any('paired-uids' in l for alist in single_antn_lists.values() for l in alist):
+            print '  no paired uids in any annotations, not merging single chain partitions'
+            return
         true_partitions = get_true_partitions(single_cpaths, debug=DBG)
         paircluster.clean_pair_info(single_cpaths, single_antn_lists, is_data=args.is_data, plotdir=getplotdir(None), debug=DBG) #, max_hdist=4
         lp_infos = {}
@@ -677,10 +686,7 @@ subparsers = parser.add_subparsers(dest='action')
 parent_parser = argparse.ArgumentParser(add_help=False)
 
 parent_parser.add_argument('--locus', default='igh', choices=utils.loci.keys(), help='which immunoglobulin or t-cell receptor locus?')
-# ----------------------------------------------------------------------------------------
-# TODO fix help msg
-parent_parser.add_argument('--paired-loci', action='store_true', help='This must be set if --infname contains sequences from more than one locus (igh, igk, igl all together). It will first split the loci into separate input files, run the specified action on each of these, and (if specified) merge the resulting partitions.')
-# ----------------------------------------------------------------------------------------
+parent_parser.add_argument('--paired-loci', action='store_true', help='Set this if input contains sequences from more than one locus (igh+igk+igl all together). Input can be specified either with --infname (in which case it will be automatically split apart by loci), or with --paired-indir (whose files must conform to the same conventions). It will then run the specified action on each of the single locus input files, and (if specified) merge the resulting partitions.')
 parent_parser.add_argument('--reverse-negative-strands', action='store_true', help='If --paired-loci is set, align every sequence both forwards and revcomp\'d, then for each sequence keep the sense with better alignment. If *not* running with --paired-loci, then first run bin/split-loci.py separately with --reverse-negative-strands.')
 parent_parser.add_argument('--dry-run', action='store_true', help='Just print subprocess commands that would be run without actually running them (only implemented for --paired-loci).')
 parent_parser.add_argument('--species', default='human', choices=('human', 'macaque', 'mouse'), help='Which species?')
@@ -741,20 +747,14 @@ parent_parser.add_argument('--simultaneous-true-clonal-seqs', action='store_true
 parent_parser.add_argument('--mimic-data-read-length', action='store_true', help='In simulation, trim V 5\' and D 3\' to mimic read lengths seen in data (must also be set when caching parameters)')
 
 parent_parser.add_argument('--infname', help='input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)')
-# ----------------------------------------------------------------------------------------
-# TODO fix help msg
-parent_parser.add_argument('--paired-indir', help='')
-# ----------------------------------------------------------------------------------------
+parent_parser.add_argument('--paired-indir', help='Directory with input files for use with --paired-loci. Must conform to file naming conventions from bin/split-loci.py (really paircluster.paired_dir_fnames()), i.e. the files generated when --infname and --paired-loci are set.')
 parent_parser.add_argument('--name-column', help='column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\'). If set to \'fasta-info-index-N\' for an integer N, it will take the Nth (zero-indexed) value from a fasta files uid line.')
 parent_parser.add_argument('--seq-column', help='column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')')
 parent_parser.add_argument('--input-metafname', help='yaml file with meta information for the sequences in --infname (and --queries-to-include-fname), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. Currently accepted keys/columns are \'timepoint\', \'affinity\', \'subject\' and \'multiplicity\'. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parent_parser.add_argument('--input-partition-fname', help='partis-style json/yaml file with a partition to use during annotation, i.e. annotate the sequences in --infname using the partition in this file, rather than the default of annotating each sequence individually. Used in \'merge-paired-partitions\' when we want to annotate a list of sequences according to a new, joint partition.')
 parent_parser.add_argument('--input-partition-index', type=int, help='Index of the partition to be read from --input-partition-fname (if unset, defaults to the best partition). To figure out which index you want, you probably want to run the view-output action on the file.')
 parent_parser.add_argument('--outfname', help='output file name')
-# ----------------------------------------------------------------------------------------
-# TODO fix help msg
-parent_parser.add_argument('--paired-outdir', help='collective output directory for all output files involved in paired heavy/light sequences, i.e. involving --paired-loci.')
-# ----------------------------------------------------------------------------------------
+parent_parser.add_argument('--paired-outdir', help='Directory for all output files when --paired-loci is set, i.e. involving multiple loci in input and/or paired heavy/light information.')
 parent_parser.add_argument('--write-full-yaml-output', action='store_true', help='By default, we write yaml output files using the json subset of yaml, since it\'s much faster. If this is set, we instead write full yaml, which is more human-readable (but also much slower).')
 parent_parser.add_argument('--presto-output', action='store_true', help='Write output file(s) in presto/changeo format. Since this format depends on a particular IMGT alignment, this depends on a fasta file with imgt-gapped alignments for all the V, D, and J germline genes. The default in data/germlines/<species>/imgt-alignments/, is probably fine for most cases. For the \'annotate\' action, a single .tsv file is written with annotations (so --outfname suffix must be .tsv). For the \'partition\' action, a fasta file is written with cluster information (so --outfname suffix must be .fa or .fasta), as well as a .tsv in the same directory with the corresponding annotations.')
 parent_parser.add_argument('--airr-output', action='store_true', help='Write output file(s) in AIRR-C format (if --outfname has suffix .tsv, only the airr .tsv is written; however if --outfname has suffix .yaml, both the standard partis .yaml file and an airr .tsv are written). A description of the airr columns can be found here https://docs.airr-community.org/en/stable/datarep/rearrangements.html#fields.')

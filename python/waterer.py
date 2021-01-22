@@ -188,7 +188,7 @@ class Waterer(object):
 
         if len(self.info['queries']) == 0:
             print '%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning')
-            sys.exit(1)
+            sys.exit(0)
 
         # kind of messy, but if we just read the cache file then we need to print duplicates, but if we didn't just read the cache file then we haven't yet removed duplicates so we can't
         dupl_str, n_dupes = '', 0

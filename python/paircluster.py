@@ -24,10 +24,12 @@ def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig'):  # if set, 
     return '%s/%s%s' % (bdir, locus, suffix)
 
 # ----------------------------------------------------------------------------------------
-def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig'):  # return all files + dirs from previous fcn
+def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig', include_failed=False):  # return all files + dirs from previous fcn
     fnames = []
     if not only_paired:
         fnames += [paired_fn(bdir, l, suffix=suffix) for l in utils.sub_loci(ig_or_tr)]  # single-locus files
+    if include_failed:
+        fnames += [paired_fn(bdir, 'failed', suffix=suffix)]  # kind of hackey, but bin/split-loci.py does this, so we need to be able to clean it up
     if not no_pairing_info:
         fnames += [paired_fn(bdir, l, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr] for l in lp]  # paired single-locus files
         fnames += [paired_fn(bdir, None, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr]]  # paired subdirs
@@ -368,7 +370,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         for cluster in cpaths[ltmp].best():
             cline = antn_dicts[ltmp][':'.join(cluster)]
             if 'paired-uids' not in cline:
-                print '  %s no paired-uids in line' % utils.color('yellow', 'warning')
+                print '  %s no paired uids in line' % utils.color('yellow', 'warning')
                 continue  # maybe should still add to all_antns?
             for uid, pids in zip(cline['unique_ids'], cline['paired-uids']):
                 missing_ids = set(pids) - all_uids
