@@ -11,6 +11,7 @@ import numpy
 import scipy
 import itertools
 import collections
+import traceback
 if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
     raise RuntimeError("scipy version 0.17 or later is required (found version %s)." % scipy.__version__)
 import colored_traceback.always
@@ -324,6 +325,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False):
         if trees:
             bname = 'trees.nwk'
+        elif input_meta and args.input_metafname is not None and ltmp is None:  # if ltmp is set, we're rewriting the meta files for each locus
+            return args.input_metafname
         elif args.action == 'simulate':
             return paircluster.paired_fn(getodir(), ltmp, lpair=lpair, suffix='.yaml')  # kind of weird that this getodir() call doesn't need any args
         else:
@@ -333,7 +336,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 bstr = 'meta'
             else:
                 bstr ='partition'
-            bname = '%s-%s.yaml' % (bstr, ltmp)
+            bname = '%s%s.yaml' % (bstr, '-'+ltmp if ltmp is not None else '')
         ofn = '%s/%s' % (getodir(lpair=lpair, single_chain=not joint and lpair is None), bname)
         if partition_only:
             ofn = utils.insert_before_suffix('-only-partition', ofn)
@@ -352,14 +355,26 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def prep_inputs():
         if args.infname is not None:
+            cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, getofn(None, joint=True, input_meta=True))
+            if args.n_max_queries > 0:
+                cmd += ' --n-max-queries %d' % args.n_max_queries
+            try:
+                utils.simplerun(cmd, dryrun=args.dry_run)
+            except:
+                elines = traceback.format_exception(*sys.exc_info())
+                print utils.pad_lines(''.join(elines))
+                print '  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info'
             cmd = './bin/split-loci.py %s --outdir %s' % (args.infname, getodir())
             if args.reverse_negative_strands:
                 cmd += ' --reverse-negative-strands'
-            if args.input_metafname is not None:
-                cmd += ' --input-metafname %s' % args.input_metafname
+            if os.path.exists(getofn(None, joint=True, input_meta=True)):  # NOTE this won't show up up in dry_run since it won't exist yet
+                cmd += ' --input-metafname %s' % getofn(None, joint=True, input_meta=True)
+            if args.n_max_queries > 0:
+                cmd += ' --n-max-queries %d' % args.n_max_queries
             utils.simplerun(cmd, dryrun=args.dry_run)
             if args.paired_outdir is None:
-                work_fnames.extend(paircluster.paired_dir_fnames(getodir(), no_pairing_info=args.input_metafname is None and args.is_data, include_failed=True))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
+                no_pairing_info = not os.path.exists(getofn(None, joint=True, input_meta=True))
+                work_fnames.extend(paircluster.paired_dir_fnames(getodir(), no_pairing_info=no_pairing_info and args.is_data, include_failed=True, include_meta=True))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
     # ----------------------------------------------------------------------------------------
     def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
         if runs_on_existing_output(args.action):  # don't need a parameter dir to merge existing paired partitions
@@ -420,14 +435,17 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if tmpaction != 'cache-parameters':
                         utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname', has_arg=True)
                         if args.paired_outdir is None:
-                            work_fnames.append(getofn(ltmp, joint=joint))
+                            work_fnames.append(getofn(ltmp, joint=joint, lpair=lpair))
                             if not joint and lpair is None and getodir(single_chain=True) not in work_fnames:
                                 work_fnames.append(getodir(single_chain=True))
+
+            if os.path.exists(getofn(None, joint=True, input_meta=True)):  # need to add input meta file to args if we automatically generated it with extract-pairing-info.py (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
+                utils.replace_in_arglist(clist, '--input-metafname', getofn(None, joint=True, lpair=lpair, input_meta=True))
 
             if tmpaction == 'annotate':
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
-                if args.input_metafname is not None:
+                if os.path.exists(getofn(None, joint=True, input_meta=True)):  # this looks for the original meta file in the parent dir, but then adds the locus-specific one, although we could use the latter for both
                     utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # have to use the new, rewritten input meta file (with corrected pairing info)
                 clist[clist.index(args.action)] = 'annotate'
 
@@ -456,7 +474,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
     def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict):  # replace old paired uids with new, fixed ones
-        old_metafos = utils.read_json_yaml(args.input_metafname)  # NOTE the underlying dicts get modified
+        old_metafos = utils.read_json_yaml(getofn(None, joint=True, input_meta=True))  # NOTE the underlying dicts get modified
         new_metafos = {}
         single_pids = {u : pids for l in antn_dict.values() for u, pids in zip(l['unique_ids'], l['paired-uids'])}
         for jclust in joint_partition:
@@ -470,7 +488,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         work_fnames.append(getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
     # ----------------------------------------------------------------------------------------
     def write_joint_locus(ltmp, lpair, joint_partition, antn_dict, glfo):
-        if args.input_metafname is not None:
+        if os.path.exists(getofn(None, joint=True, input_meta=True)):
             rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict)
         missing_clusters = []
         for jclust in joint_partition:
@@ -566,6 +584,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.write_annotations(getofn(ltmp, joint=True), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
                 else:
                     makelink(getofn(ltmp, lpair=utils.getlpair(ltmp)), getofn(ltmp, joint=True))
+                if args.paired_outdir is None:
+                    work_fnames.append(getofn(ltmp, joint=True))
         return glfos, antn_lists, joint_cpaths
     # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
@@ -595,16 +615,15 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  no paired uids in any annotations, not merging single chain partitions'
             return
         true_partitions = get_true_partitions(single_cpaths, debug=DBG)
-        paircluster.clean_pair_info(single_cpaths, single_antn_lists, is_data=args.is_data, plotdir=getplotdir(None), debug=DBG) #, max_hdist=4
+        paircluster.clean_pair_info(single_cpaths, single_antn_lists, is_data=args.is_data, plotdir=getplotdir(None) if args.plotdir is not None else None, debug=DBG) #, max_hdist=4
         lp_infos = {}
         for lpair in utils.locus_pairs[ig_or_tr]:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_cpaths, single_antn_lists, single_glfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_cpaths, input_antn_lists=single_antn_lists, debug=DBG)  # , iparts={'igl' : 7}
-            if args.paired_outdir is not None:
-                for ltmp in lpair:
-                    write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_glfos[ltmp])
+            for ltmp in lpair:
+                write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_glfos[ltmp])
             lp_infos[tuple(lpair)] = {k : v for k, v in zip(['glfos', 'antn_lists', 'cpaths'], read_output_files(lpair, lpair=lpair))}  # ick this is ugly
         _, concat_antn_lists, concat_cpaths = concat_heavy_chain(lp_infos, write=True)
         # TODO figure out about adding/removing missing uids
@@ -666,14 +685,14 @@ def run_all_loci(args, ig_or_tr='ig'):
                     run_step(tmpaction, ltmp, joint=True)
                 else:
                     makelink(getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp))
-                if not aigsm:
+                if not aigsm and args.plotdir is not None:
                     run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
-            if not aigsm:
+            if not aigsm and args.plotdir is not None:
                 fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True)
                 import plotting
                 plotting.make_html(cfpdir, fnames=[sorted(fnoutstr.strip().split('\n'))])
 
-    if not args.dry_run:
+    if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         utils.rmdir(args.workdir, fnames=work_fnames)
 
 # ----------------------------------------------------------------------------------------

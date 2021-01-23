@@ -24,12 +24,14 @@ def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig'):  # if set, 
     return '%s/%s%s' % (bdir, locus, suffix)
 
 # ----------------------------------------------------------------------------------------
-def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig', include_failed=False):  # return all files + dirs from previous fcn
+def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig', include_failed=False, include_meta=False):  # return all files + dirs from previous fcn
     fnames = []
     if not only_paired:
         fnames += [paired_fn(bdir, l, suffix=suffix) for l in utils.sub_loci(ig_or_tr)]  # single-locus files
     if include_failed:
         fnames += [paired_fn(bdir, 'failed', suffix=suffix)]  # kind of hackey, but bin/split-loci.py does this, so we need to be able to clean it up
+    if include_meta:
+        fnames += [paired_fn(bdir, 'meta', suffix='.yaml')]  # this is also kind of hackey
     if not no_pairing_info:
         fnames += [paired_fn(bdir, l, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr] for l in lp]  # paired single-locus files
         fnames += [paired_fn(bdir, None, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr]]  # paired subdirs
@@ -593,7 +595,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
 
     common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light', debug=True)  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
     if len(common_uids) == 0:
-        raise Exception('no uids in common between heavy and light')
+        print '  %s no uids in common between heavy and light' % utils.color('yellow', 'warning')
 
     antn_dict = {ch : utils.get_annotation_dict(antn_lists[ploci[ch]]) for ch in ploci}
 

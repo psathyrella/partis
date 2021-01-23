@@ -2725,12 +2725,13 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
         os.makedirs(dirname)
 
 # ----------------------------------------------------------------------------------------
-def clean_files(fnames, expect_missing=False):  # <fnames> can include dirs, just put them after the files they contain
+def clean_files(fnames, expect_missing=False):  # <fnames> can include dirs, we first sort it to put them after the files
     if len(fnames) != len(set(fnames)):  # remove any duplicates (don't always do it, since we'd rather not change the order if we don't need to)
         fnames = list(set(fnames))
+    fnames = sorted(fnames, key=lambda x: os.path.isdir(x))  # put files first, dirs second
     missing_files = []
     for fn in fnames:
-        if os.path.isfile(fn):
+        if os.path.isfile(fn) or os.path.islink(fn):
             os.remove(fn)
         elif os.path.isdir(fn):
             if len(os.listdir(fn)) > 0:

@@ -20,9 +20,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument('infname')
 parser.add_argument('outfname')
 parser.add_argument('--droplet-id-separator', default='_', help='everything in the sequence id before this character is treated as the droplet id, e.g. for the default, the uid AAACGGGCAAGCGAGT-1_contig_2 has a droplet id of AAACGGGCAAGCGAGT-1')
+parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences to read from input file, starting from beginning of file')
 args = parser.parse_args()
 
-seqfos = utils.read_fastx(args.infname)
+if utils.output_exists(args, args.outfname, offset=4, debug=False):
+    print '  extract-pairing-info.py output exists and --overwrite was not set, so not doing anything: %s' % args.outfname
+    sys.exit(0)
+
+seqfos = utils.read_fastx(args.infname, n_max_queries=args.n_max_queries)
 droplet_ids = {}
 for sfo in seqfos:
     did = utils.get_droplet_id(sfo['name'])

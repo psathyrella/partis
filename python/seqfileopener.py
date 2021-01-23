@@ -34,7 +34,7 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
     added_uids, added_keys = set(), set()
     n_modified, modified_keys = 0, set()
     for line in annotation_list:
-        for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not UPDATE i kind of hate this decision
+        for input_key, line_key in utils.input_metafile_keys.items():  # design decision: if --input-metafname is specified, we get all the input metafile keys in all the dicts, otherwise not UPDATE i kind of hate this decision UPDATE dammit didn't i change this, i guess i forgot to modify the comment
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
             mvals = [None for _ in line['unique_ids']]
