@@ -6,9 +6,9 @@ Assuming you don't pass it a parameter dir, it will also first infer parameters,
 
 ```/path/to/<partis_dir>/bin/partis partition --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.yaml```.
 
-This by default assumes input of single-chain plus strand human igh.
-If you have single chain positive sequences, but they're not human igh, set the `--species {human,mouse,macaque}` and/or `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
-If you instead have a mix of plus and minus strand sequences and/or different loci together, you'll need to either first run `./bin/split-loci.py` to split them into separate files, or use `--paired-loci` (both of which take `--reverse-negative-strands` if you have a mix of + and - strands).
+This by default assumes input of single-chain positive sense human igh.
+If you have single chain positive sense sequences, but they're not human igh, set the `--species {human,mouse,macaque}` and/or `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
+If you instead have a mix of positive and negative sense sequences and/or different loci together, you'll need to either set `--paired-loci`, or first run `./bin/split-loci.py`, both of which split different loci into separate files, and both of which take `--reverse-negative-strands` if you have a mix of + and - sense.
 If you have heavy/light pairing information, for instance from 10x single cell data, it is important to incorporate it as described [here](paired-loci.md) in order to take advantage of dramatically improved partitioning accuracy.
 If you're using Docker, and you mounted your host filesystem as described [here](install.md#installation-with-docker), you should replace `/path/to` with the appropriate host mount point within Docker.
 To parallelize on your local machine, add `--n-procs N`; to paralellize over many machines, the slurm and sge batch systems are currently supported (details [here](parallel.md)).
