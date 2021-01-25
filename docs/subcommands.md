@@ -1,13 +1,12 @@
   - [annotate](#annotate) find most likely annotation for each sequence
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
-  - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to synchronize/improve partitions from heavy and light chains
+  - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
   - [view-output](#view-output) print the partitions and/or annotations from an existing output file
   - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, runs automatically before annotation and partitioning)
     - [germline sets](#germline-sets)
   - [simulate](#simulate) make simulated sequences
   - [miscellany](#miscellany)
-    - [paired heavy and light chains](#paired-heavy-and-light-chains)
     - [naive probability estimates](#naive-probability-estimates)
     - [input meta info](#input-meta-info)
 	- [naive sequence comparison with linearham](#naive-sequence-comparison-with-linearham)
@@ -125,31 +124,8 @@ The columns are:
 
 ### merge-paired-partitions
 
-In order to partition data that has heavy/light chain pairing information, each locus must first be split into separate files.
-One quick way to do this is by running `./bin/split-loci.py`.
-Each pair of heavy/light sequences must also have the same unique id: this is how partis determines which sequences in the heavy and light files go together.
-The paired clustering entails two steps: first clustering each locus individually, and then merging the information from each locus pairing to create a joint partition.
-In many cases, for example, the second step simply involves splitting light chain clusters that have different heavy chain cdr3 lengths.
-Since light chains are many orders of magnitude less diverse, this results in a vastly more accurate light chain partition.
-
-If you were only running igh/igk pairing, you could do both steps with one command:
-```
-partis partition --paired-loci igh:igk --infname <igh-input-file> --light-chain-infname <igk-input-file> --outfname <igh-output-file> --light-chain-outfname <igk-output-file>
-```
-Alternatively, you can partition each locus separately:
-```
-for locus in igh igk igl; do
-	partis partition --locus --infname <$locus-input-file> --outfname <$locus-output-file>
-done
-```
-then merge each heavy/light pairing
-```
-for hlpair in igh:igk igh:igl; do
-	partis merge-paired-partitions --paired-loci $hlpair --outfname <heavy-partition-file> --light-chain-outfname <light-partition-file> --paired-outfname <$hlpair-joint-output-file>
-done
-```
-
-You can also simulate paired heavy/light repertoires (see below).
+Refine the separate single-chain partitions (igh, igk, igl) using heavy/light pairing information (e.g. from 10x single cell data).
+Details [here](paired-loci.md).
 
 ### get-selection-metrics
 
@@ -176,7 +152,7 @@ If you'd like a modern, browser-based package for visualizing the families and t
 This will view an ascii-art summary of the output in an existing partis output file, for instance:
 
 ``` 
-./bin/partis view-output --outfname test/reference-results/partition-new-simu.yaml --abbreviate | less -RS
+partis view-output --outfname test/reference-results/partition-new-simu.yaml --abbreviate | less -RS
 ```
 will look something like (move around with arrow keys)
 
@@ -263,7 +239,7 @@ Default simulation [requires installation](install.md#simulation) of two additio
 
 There are two main partis-only simulation modes (with options for running hybrids between the two), plus you can combine partis with the [bcr-phylo](http://dx.doi.org/10.3389/fimmu.2018.02451) package (which is included, although you may need to run `git submodule update`):
   1. you pass it an inferred parameter directory with `--parameter-dir` (e.g. `test/reference-results/test/parameters/simu`) and it mimics the sample from which those parameters were inferred
-  2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `./bin/partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
+  2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
   3. partis simulates a naive rearrangement, then passes it to bcr-phylo for mutation (as used in the [selection metric paper](https://arxiv.org/abs/2004.11868))
 
 Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire, while 3. is preferred if you want to manipulate the details of the GC selection process (rather than crude output parameters like the number of leaves or tree depth).
@@ -278,16 +254,11 @@ When subsequently running inference on this simulation, you typically want to pa
 During parameter caching, this will write a separate parameter directory with the true parameters (in a addition to `sw/` and `hmm/`).
 During annotation and partitioning, with `--debug 1` it will print the true rearrangements and partitions along with the inferred ones.
 
-Running bcr-phylo for 3. is handled by running `./bin/bcr-phylo-run.py`.
+Running bcr-phylo for 3. is handled by running `bin/bcr-phylo-run.py`.
 This should work fine with no arguments, but in order to change the script's many options run with `--help`, and also look at the corresponding options in [packages/bcr-phylo-benchmark/bin/simulator.py](packages/bcr-phylo-benchmark/bin/simulator.py).
 Note that by default bcr-phylo-run.py turns off context-dependent mutation in bcr-phylo, since this is much faster, but if you want it to mutate with the S5F model you can set `--context-depend`.
 
-You can also simulate paired heavy/light repertoires, for example:
-```
-partis simulate --paired-loci igh:igk --parameter-dir /path/to/igh/parameters --light-chain-parameter-dir /path/to/igk/parameters --outfname simu-igh.yaml --light-chain-outfname simu-igk.yaml
-```
-This first generates a series of trees (as normal), then for each locus simulates a rearrangement event for each tree in order.
-The result is that each of the events in the heavy chain output file corresponds (in order) to an event in the light chain output file with the same sequence ids and stemming from the same tree.
+To simulate paired heavy/light repertoires, see [here](paired-loci.md#simulation).
 
 Partly because the simulation is so easy to parallelize (use `--n-procs N` and see [here](parallel.md)), its run time is not usually a limiting factor.
 With default parameters, 10,000 sequences takes about 8 minutes with one core (so a million sequences on ten cores would take an hour and a half), although this depends a lot on the family size distribution and mutation levels you specify.
@@ -302,7 +273,9 @@ This is an incomplete list, and is not always up to date, so for better informat
 |----------------------------------|-----------------------------------------------------------------
 | `--mutation-multiplier <factor>` | multiply the observed SHM rate by `<factor>`
 | `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J. This tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the template data sample.
-| `--paired-loci <igx:igy>`        | simulate paired heavy and light chain sequences [see below](#paired-heavy-and-light-chains).
+| `--paired-loci`                  | simulate paired heavy and light chain sequences details [here](paired-loci.md#simulation).
+| `--mean-cells-per-droplet <mean>`| simulates the effect of multiple cells per droplet in 10x single-cell data: draw the number of cells per droplet from a geometric distribution with this mean value
+| `--light-chain-fractions <dict>` | fraction of events with igk vs igl in paired simulation, in form \'igk,f1:igl,f2\', where f1+f2 must equal to 1
 
 **Tree control:**
 
@@ -394,9 +367,6 @@ You can then add novel alleles to the germline set by telling it how many novel 
 
 
 ### Miscellany
-
-##### paired heavy and light chains
-TODO
 
 ##### naive probability estimates
 

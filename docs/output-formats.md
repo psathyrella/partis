@@ -1,6 +1,7 @@
 ### output file formatting
 
   * [output file overview](#output-file-overview)
+  * [paired loci](paired-loci.md#output-directory)
   * [extracting simplified fasta or csv/tsv files](#extracting-simplified-files)
   * [description of keys](#description-of-keys)
   * [output file example](#output-file-example)
