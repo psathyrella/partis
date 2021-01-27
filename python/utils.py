@@ -1179,6 +1179,9 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 
 # ----------------------------------------------------------------------------------------
 def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq=None, tie_resolver_label=None):
+    ckey = 'cons_dists_' + ('aa' if aa else 'nuc')
+    if len(seqfos) > 0 and ckey in seqfos[0]:
+        seqfos = sorted(seqfos, key=lambda s: s[ckey])
     for iseq in range(len(seqfos)):
         post_ref_str, mstr =  '', ''
         if 'multiplicity' in seqfos[iseq]:
@@ -1232,9 +1235,14 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, ti
     return cons_seq
 
 # ----------------------------------------------------------------------------------------
-def seqfos_from_line(line, aa=False):
+def seqfos_from_line(line, aa=False, extra_keys=None):
     tstr = '_aa' if aa else ''
-    return [{'name' : u, 'seq' : s, 'multiplicity' : m if m is not None else 1} for u, s, m in zip(line['unique_ids'], line['seqs'+tstr], get_multiplicities(line))]
+    seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m if m is not None else 1} for u, s, m in zip(line['unique_ids'], line['seqs'+tstr], get_multiplicities(line))]
+    if extra_keys is not None:
+        for iseq, sfo in enumerate(seqfos):
+            for ekey in extra_keys:
+                sfo[ekey] = line[ekey][iseq] if ekey in line else None
+    return seqfos
 
 # ----------------------------------------------------------------------------------------
 # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
