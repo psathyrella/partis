@@ -4020,11 +4020,19 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
     return (1. - under_frac, 1. - over_frac)
 
 # ----------------------------------------------------------------------------------------
-def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_biggest_clusters, debug=False):
+def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_biggest_clusters, iscn_denominator='min', debug=False):
+    # iscn_denominator: denominator to divide intersection size of each pair of clusters ('min': min of the two sizes, 'mean': mean of the two sizes)
     """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest, divided by the mean size of the two clusters """
     def sort_within_clusters(part):  # sort each cluster's uids alphabetically (so we can sort clusters alphabetically below in order to get a more consistent sorting between partitions, although maybe it would make more sense to sort afterwards by intersection size)
         for iclust in range(len(part)):
             part[iclust] = sorted(part[iclust])
+    def norm_factor(clust_a, clust_b):
+        if iscn_denominator == 'min':
+            return min(len(clust_a), len(clust_b))
+        elif iscn_denominator == 'mean':
+            return 0.5 * (len(clust_a) + len(clust_b))  # mean size of the two clusters
+        else:
+            assert False
 
     sort_within_clusters(partition_a)
     sort_within_clusters(partition_b)
@@ -4038,8 +4046,7 @@ def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_bigg
         smatrix.append([])
         for clust_b in b_clusters:
             intersection = len(set(clust_a) & set(clust_b))
-            norm_factor = 0.5 * (len(clust_a) + len(clust_b))  # mean size of the two clusters
-            ifrac = float(intersection) / norm_factor
+            ifrac = float(intersection) / norm_factor(clust_a, clust_b)
             if debug:
                 print '    %.2f  %5d   %5d %5d' % (ifrac, intersection, len(clust_a), len(clust_b))
             smatrix[-1].append(ifrac)

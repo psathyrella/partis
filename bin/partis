@@ -643,7 +643,7 @@ def run_all_loci(args, ig_or_tr='ig'):
 
         # NOTE this has to happen *after* running compare-plotdirs.py, since it cleans the dirs
         import plotting
-        plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 50)
+        plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
 
     # ----------------------------------------------------------------------------------------
     if args.paired_outdir is None:
