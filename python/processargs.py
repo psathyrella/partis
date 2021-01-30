@@ -94,6 +94,8 @@ def process(args):
             raise Exception('can\'t set --outfname if --paired-loci is set (use --paired-outdir)')
         if args.plotdir == 'paired-outdir':
             args.plotdir = args.paired_outdir
+        if args.plotdir is None and args.action == 'plot-partitions':
+            args.plotdir = args.paired_outdir
     else:
         assert args.paired_indir is None
     if not args.paired_loci and (args.paired_indir is not None or args.paired_outdir is not None):

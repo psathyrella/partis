@@ -640,6 +640,11 @@ def run_all_loci(args, ig_or_tr='ig'):
         cmdstr = './bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
         cmdstr += ' --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % titlestr
         utils.simplerun(cmdstr)
+
+        # NOTE this has to happen *after* running compare-plotdirs.py, since it cleans the dirs
+        import plotting
+        plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 50)
+
     # ----------------------------------------------------------------------------------------
     if args.paired_outdir is None:
         print '  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).'
@@ -690,7 +695,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             if not aigsm and args.plotdir is not None:
                 fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True)
                 import plotting
-                plotting.make_html(cfpdir, fnames=[sorted(fnoutstr.strip().split('\n'))])
+                fnlist = sorted(fnoutstr.strip().split('\n'))
+                plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         utils.rmdir(args.workdir, fnames=work_fnames)

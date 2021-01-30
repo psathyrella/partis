@@ -236,7 +236,7 @@ class Hist(object):
         self.ytitle = 'freq (%.0f total)' % sum_value
 
     # ----------------------------------------------------------------------------------------
-    def sample(self, n_vals, include_overflows=False, debug_plot=False):  # draw a random number from the x axis, according to the probabilities given by the bin contents NOTE similarity to recombinator.choose_vdj_combo()
+    def sample(self, n_vals, include_overflows=False, debug_plot=False):  # draw <n_vals> random numbers from the x axis, according to the probabilities given by the bin contents NOTE similarity to recombinator.choose_vdj_combo()
         assert not include_overflows  # probably doesn't really make sense (since contents of overflows could've been from anywhere below/above, but we'd only return bin center), this is just a way to remind that it doesn't make sense
         self.normalize(include_overflows=include_overflows)  # if this is going to get called a lot with n_vals of 1, this would be slow, but otoh we *really* want to make sure things are normalized with include_overflows the same as it is here
         centers = self.get_bin_centers()
