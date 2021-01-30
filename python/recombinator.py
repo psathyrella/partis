@@ -346,7 +346,7 @@ class Recombinator(object):
         return tmpline
 
     # ----------------------------------------------------------------------------------------
-    def choose_vdj_combo(self, reco_event):
+    def choose_vdj_combo(self, reco_event):  # NOTE similarity to hist.sample()
         """ Choose the set of rearrangement parameters """
 
         vdj_choice = None

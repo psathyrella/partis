@@ -1,7 +1,9 @@
 import csv
 import math
 import os
-from utils import is_normed
+import numpy
+
+import utils
 
 # ----------------------------------------------------------------------------------------
 class Hist(object):
@@ -88,6 +90,13 @@ class Hist(object):
     # ----------------------------------------------------------------------------------------
     def overflow_contents(self):
         return self.bin_contents[0] + self.bin_contents[-1]
+
+    # ----------------------------------------------------------------------------------------
+    def ibiniter(self, include_overflows):  # return iterator over ibins (adding this late, so could probably be used in a lot of places that it isn't)
+        if include_overflows:
+            return range(self.n_bins + 2)
+        else:
+            return range(1, self.n_bins + 1)
 
     # ----------------------------------------------------------------------------------------
     def set_ibin(self, ibin, value, error, label=None):
@@ -222,13 +231,40 @@ class Hist(object):
         check_sum = 0.0
         for ib in range(imin, imax):  # check it
             check_sum += self.bin_contents[ib]
-        if not is_normed(check_sum, this_eps=1e-10):
+        if not utils.is_normed(check_sum, this_eps=1e-10):
             raise Exception('not normalized: %f' % check_sum)
         self.ytitle = 'freq (%.0f total)' % sum_value
 
     # ----------------------------------------------------------------------------------------
+    def sample(self, n_vals, include_overflows=False, debug_plot=False):  # draw a random number from the x axis, according to the probabilities given by the bin contents NOTE similarity to recombinator.choose_vdj_combo()
+        assert not include_overflows  # probably doesn't really make sense (since contents of overflows could've been from anywhere below/above, but we'd only return bin center), this is just a way to remind that it doesn't make sense
+        self.normalize(include_overflows=include_overflows)  # if this is going to get called a lot with n_vals of 1, this would be slow, but otoh we *really* want to make sure things are normalized with include_overflows the same as it is here
+        centers = self.get_bin_centers()
+        pvals = numpy.random.uniform(0, 1, size=n_vals)
+        return_vals = [None for _ in pvals]
+        sum_prob, last_sum_prob = 0., 0.
+        for ibin in self.ibiniter(include_overflows):
+            sum_prob += self.bin_contents[ibin]
+            for iprob, pval in enumerate(pvals):
+                if pval < sum_prob and pval >= last_sum_prob:
+                    return_vals[iprob] = centers[ibin]
+            last_sum_prob = sum_prob
+        assert return_vals.count(None) == 0
+
+        if debug_plot:
+            import plotting
+            fig, ax = plotting.mpl_init()
+            self.mpl_plot(ax, label='original')
+            shist = Hist(value_list=return_vals, init_int_bins=True)
+            shist.normalize(include_overflows=False)
+            shist.mpl_plot(ax, label='sampled', color='red')
+            plotting.mpl_finish(ax, '', 'tmp')
+
+        return return_vals
+
+    # ----------------------------------------------------------------------------------------
     def logify(self, factor):
-        for ib in range(self.n_bins + 2):
+        for ib in self.ibiniter(include_overflows=True):
             if self.bin_contents[ib] > 0:
                 if self.bin_contents[ib] <= factor:
                     raise Exception('factor %f passed to hist.logify() must be less than all non-zero bin entries, but found a bin with %f' % (factor, self.bin_contents[ib]))
@@ -393,7 +429,6 @@ class Hist(object):
             if remove_empty_bins:
                 xvals, yvals = zip(*[(xvals[iv], yvals[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
             if square_bins:
-                import numpy
                 import matplotlib.pyplot as plt
                 if abs(xvals[-1] - xvals[0]) > 5:  # greater/less than five is kind of a shitty way to decide whether to int() and +/- 0.5 or not, but I'm calling it now with a range much less than 1, and I don't want the int()s, but where I call it elsewhere I do and the range is much larger, so...
                     npbins = list(numpy.arange(int(xvals[0]) - 0.5, int(xvals[-1]) - 0.5))
