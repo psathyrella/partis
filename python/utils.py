@@ -4021,65 +4021,28 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
 
 # ----------------------------------------------------------------------------------------
 def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_biggest_clusters, debug=False):
-    """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest """
-    def intersection_size(cl_1, cl_2):
-        isize = 0
-        for uid in cl_1:
-            if uid in cl_2:
-                isize += 1
-        return isize
-
-    # n_biggest_clusters = 10
-    def sort_within_clusters(part):
+    """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest, divided by the mean size of the two clusters """
+    def sort_within_clusters(part):  # sort each cluster's uids alphabetically (so we can sort clusters alphabetically below in order to get a more consistent sorting between partitions, although maybe it would make more sense to sort afterwards by intersection size)
         for iclust in range(len(part)):
             part[iclust] = sorted(part[iclust])
 
-    # a_clusters = sorted(partition_a, key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters
-    # b_clusters = sorted(partition_b, key=len, reverse=True)[ : n_biggest_clusters]
     sort_within_clusters(partition_a)
     sort_within_clusters(partition_b)
-    a_clusters = sorted(sorted(partition_a), key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters
+    a_clusters = sorted(sorted(partition_a), key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters (after sorting clusters alphabetically)
     b_clusters = sorted(sorted(partition_b), key=len, reverse=True)[ : n_biggest_clusters]
 
     smatrix = []
-    pair_info = []  # list of full pair info (e.g. [0.8, ick)
-    max_pair_info = 5
     for clust_a in a_clusters:
-        # if debug:
-        #     print clust_a
+        if debug:
+            print clust_a
         smatrix.append([])
         for clust_b in b_clusters:
-            # norm_factor = 1.  # don't normalize
-            norm_factor = 0.5 * (len(clust_a) + len(clust_b))  # mean size
-            # norm_factor = min(len(clust_a), len(clust_b))  # smaller size
-            intersection = intersection_size(clust_a, clust_b)
-            isize = float(intersection) / norm_factor
-            # if debug:
-            #     print '    %.2f  %5d   %5d %5d' % (isize, intersection, len(clust_a), len(clust_b))
-            if isize == 0.:
-                isize = None
-            smatrix[-1].append(isize)
-            if isize is not None:
-                if len(pair_info) < max_pair_info:
-                    pair_info.append([intersection, [clust_a, clust_b]])
-                    pair_info = sorted(pair_info, reverse=True)
-                elif intersection > pair_info[-1][0]:
-                    pair_info[-1] = [intersection, [clust_a, clust_b]]
-                    pair_info = sorted(pair_info, reverse=True)
-
-    if debug:
-        print 'intersection     a_rank  b_rank'
-        for it in pair_info:
-            print '%-4d  %3d %3d   %s  %s' % (it[0], a_clusters.index(it[1][0]), b_clusters.index(it[1][1]), ':'.join(it[1][0]), ':'.join(it[1][1]))
-
-    # with open('erick/' + meth_a + '_' + meth_b + '.csv', 'w') as csvfile:
-    #     writer = csv.DictWriter(csvfile, ['a_meth', 'b_meth', 'intersection', 'a_rank', 'b_rank', 'a_cluster', 'b_cluster'])
-    #     writer.writeheader()
-    #     for it in pair_info:
-    #         writer.writerow({'a_meth' : meth_a, 'b_meth' : meth_b,
-    #                          'intersection' : it[0],
-    #                          'a_rank' : a_clusters.index(it[1][0]), 'b_rank' : b_clusters.index(it[1][1]),
-    #                          'a_cluster' : ':'.join(it[1][0]), 'b_cluster' : ':'.join(it[1][1])})
+            intersection = len(set(clust_a) & set(clust_b))
+            norm_factor = 0.5 * (len(clust_a) + len(clust_b))  # mean size of the two clusters
+            ifrac = float(intersection) / norm_factor
+            if debug:
+                print '    %.2f  %5d   %5d %5d' % (ifrac, intersection, len(clust_a), len(clust_b))
+            smatrix[-1].append(ifrac)
 
     a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]
     return a_cluster_lengths, b_cluster_lengths, smatrix
@@ -5308,7 +5271,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))
 
-    if len(cpath.partitions) == 0 and not skip_annotations:  # old simulation files didn't write the partition separately, but we may as well get it
+    if cpath is not None and len(cpath.partitions) == 0 and not skip_annotations:  # old simulation files didn't write the partition separately, but we may as well get it
         cpath.add_partition(get_partition_from_annotation_list(annotation_list), -1., 1)
 
     if skip_failed_queries:
