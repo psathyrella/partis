@@ -204,7 +204,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                 flcounts[fkey][lckey] = 0
             flcounts[fkey][lckey] += 1
 
-        # shenanigans to get bins sorted by the fractional counts summed over both func and nonfunc
+        # shenanigans to get bins sorted by the fractional counts summed over both func and nonfunc (i.e. by the average fractional count, so bins will look out of order for func/nonfunc individually)
         ctotals = {fk : sum(flcounts[fk].values()) for fk in flcounts}
         flfracs = {}
         for fk in flcounts:
