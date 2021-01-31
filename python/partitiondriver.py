@@ -316,7 +316,7 @@ class PartitionDriver(object):
         if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
             assert self.input_partition is not None
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=self.input_partition, annotations=annotations, reco_info=self.reco_info, no_mds_plots=self.args.no_mds_plots) #, cpath=cpath) cpath is only used for laplacian spectra
+            partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, no_mds_plots=self.args.no_mds_plots) #, cpath=cpath) cpath is only used for laplacian spectra
 
     # ----------------------------------------------------------------------------------------
     def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
@@ -511,7 +511,7 @@ class PartitionDriver(object):
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=annotation_dict, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
+            partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], annotation_dict, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotation_list)
@@ -884,7 +884,7 @@ class PartitionDriver(object):
 
         if self.args.plotdir is not None and not self.args.no_partition_plots:
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', partition=cpath.partitions[cpath.i_best], annotations=all_annotations, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
+            partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], all_annotations, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
 
         if self.args.seed_unique_id is not None:
             seed_cluster = cpath.seed_cluster()

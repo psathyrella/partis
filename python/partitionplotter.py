@@ -448,36 +448,21 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_cluster_size_distribution(self, base_plotdir, partition=None, infiles=None):
+    def make_cluster_size_distribution(self, base_plotdir, partition):
         subd, plotdir = self.init_subd('sizes', base_plotdir)
 
-        if partition is not None:  # one partition
-            csize_hists = {'best' : self.plotting.get_cluster_size_hist(partition)}
-        elif infiles is not None:  # plot the mean of a partition from each file
-            subset_hists = []
-            for fname in infiles:
-                cp = ClusterPath(fname=fname)
-                subset_hists.append(self.plotting.get_cluster_size_hist(cp.partitions[cp.i_best]))
-            csize_hists = {'best' : self.plotting.make_mean_hist(subset_hists)}
-            for ih in range(len(subset_hists)):
-                subset_hists[ih].write(plotdir + ('/subset-%d-cluster-sizes.csv' % ih))
-        else:
-            raise Exception('either a partition or a list of infiles must be specified (both were None)')
+        csize_hists = {'best' : self.plotting.get_cluster_size_hist(partition)}  # used to be able to have more than one hist, and i don't feel like completely removing that ability atm
 
         fname = 'cluster-sizes'
-        if infiles is not None:
-            print '%s should probably rewrite this to integrate with the below' % utils.color('red', 'note')
-            self.plotting.plot_cluster_size_hists(plotdir + '/' + fname + '.svg', csize_hists, title='', log='x')
-        else:
-            fig, ax = self.plotting.mpl_init()
-            for label, hist in csize_hists.items():
-                hist.mpl_plot(ax, remove_empty_bins=True, label=label if len(csize_hists) > 1 else None)
-            csizes = sorted([len(c) for c in partition])
-            xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
-            def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
-            self.plotting.mpl_finish(ax, plotdir, fname, xlabel='cluster size', ylabel='number of clusters', log='xy', xticks=xticks, xticklabels=[tstr(x) for x in xticks])
-            if len(csize_hists) == 1:
-                csize_hists['best'].write(plotdir + '/' + fname + '.csv')
+        fig, ax = self.plotting.mpl_init()
+        for label, hist in csize_hists.items():
+            hist.mpl_plot(ax, remove_empty_bins=True, label=label if len(csize_hists) > 1 else None)
+        csizes = sorted([len(c) for c in partition])
+        xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
+        def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
+        self.plotting.mpl_finish(ax, plotdir, fname, xlabel='cluster size', ylabel='number of clusters', log='xy', xticks=xticks, xticklabels=[tstr(x) for x in xticks])
+        if len(csize_hists) == 1:
+            csize_hists['best'].write(plotdir + '/' + fname + '.csv')
 
         return [[subd + '/' + fname + '.svg']]
 
@@ -493,11 +478,10 @@ class PartitionPlotter(object):
             partition.remove(fclust)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, partition=None, infiles=None, annotations=None, reco_info=None, cpath=None, no_mds_plots=False):
+    def plot(self, plotdir, partition, annotations, reco_info=None, cpath=None, no_mds_plots=False):
         if self.args.only_csv_plots:
             print '  --only-csv-plots not implemented for partition plots, so returning without plotting'
             return
-        assert (partition is None and annotations is not None) or infiles is None
         if not utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):
             no_mds_plots = True
             print '  note: R does not seem to be installed, so skipping mds partition plots'
@@ -506,15 +490,14 @@ class PartitionPlotter(object):
         start = time.time()
 
         fnames = []
-        if partition is not None:  # only one partition
-            self.remove_failed_clusters(partition, annotations)
-            sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
-            fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
-            if not no_mds_plots:
-                fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
-            # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
-            # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
-        csfns = self.make_cluster_size_distribution(plotdir, partition=partition, infiles=infiles)
+        self.remove_failed_clusters(partition, annotations)
+        sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
+        fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
+        if not no_mds_plots:
+            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
+        # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+        # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
+        csfns = self.make_cluster_size_distribution(plotdir, partition)
         fnames[0] += csfns[0]
 
         if not self.args.only_csv_plots:
