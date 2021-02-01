@@ -627,7 +627,7 @@ def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info,
     if not args.is_simu:
         log += 'y'
     title = get_title(args, label, n_leaves, mut_mult, hfrac_bounds)
-    sys.modules['plotting'].plot_cluster_size_hists(plotdir + '/cluster-size-distributions/' + plotname + '.svg', this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
+    sys.modules['plotting'].plot_cluster_size_hists(plotdir + '/cluster-size-distributions', plotname, this_info['hists'], title=title, log=log)  #, xmax=n_leaves*6.01
     sys.modules['plotting'].make_html(plotdir + '/cluster-size-distributions')  # this runs a bunch more times than it should
 
     if args.print_metrics:
@@ -822,17 +822,18 @@ def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subs
         this_info['hists'][method] = sys.modules['plotting'].make_mean_hist(per_subset_info['hists'][method])
     cluster_size_plotdir = baseplotdir + '/means-over-subsets/cluster-size-distributions'
     log = 'x'
+    plotdir = cluster_size_plotdir
     if not args.is_simu:
         title = get_title(args, label, n_leaves, mut_mult)
-        plotfname = cluster_size_plotdir + '/data.svg'
+        plotname = 'data'
         xmax = 10
     else:
         title = get_title(args, label, n_leaves, mut_mult)
-        plotfname = cluster_size_plotdir + '/' + leafmutstr(args, n_leaves, mut_mult) + '.svg'
+        plotname = leafmutstr(args, n_leaves, mut_mult)
         xmax = n_leaves*6.01
         # if n_leaves <= 10:
         #     log = 'x'
-    sys.modules['plotting'].plot_cluster_size_hists(plotfname, this_info['hists'], title=title, xmax=xmax, log=log)
+    sys.modules['plotting'].plot_cluster_size_hists(plotdir, plotname, this_info['hists'], title=title, xmax=xmax, log=log)
     sys.modules['plotting'].make_html(cluster_size_plotdir)
 
     if args.is_simu:

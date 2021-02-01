@@ -25,6 +25,7 @@ default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c
 default_linewidths = ['5', '3', '2', '2', '2']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
+cluster_size_xticks = [1, 2, 3, 10, 30, 75, 200, 500, 1000, 5000, 10000]
 
 plot_ratios = {
     'v' : (30, 3),
@@ -277,14 +278,15 @@ def shift_hist_overflows(hists, xmin, xmax):
                       error=math.sqrt(over_err2 + htmp.errors[last_shown_bin]**2))
 
 # ----------------------------------------------------------------------------------------
+# NOTE now you should set <hist> to None if you have more than one hist
 def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
-                 square_bins=False):
+                 square_bins=False, xticks=None, xticklabels=None):
     assert os.path.exists(plotdir)
 
-    hists = [hist,]
+    hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
     if more_hists is not None:
         hists = hists + more_hists
 
@@ -393,10 +395,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     #     yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
     #     yl.Draw()
 
-    xticks, xticklabels = None, None
-    if not no_labels and hist.bin_labels.count('') != len(hist.bin_labels):
-        xticks = hist.get_bin_centers()
-        xticklabels = hist.bin_labels
+    if xticks is None:
+        if not no_labels and hist.bin_labels.count('') != len(hist.bin_labels):
+            xticks = hist.get_bin_centers()
+            xticklabels = hist.bin_labels
 
     if plottitle is not None:
         tmptitle = plottitle
@@ -582,108 +584,39 @@ def label_bullshit_transform(label):
 # colors['cdr3-indels'] = '#cc0000'
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(outfname, hists, title, xmax=None, log='x', normalize=False):
-    if 'seaborn' not in sys.modules:
-        import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
-    sys.modules['seaborn'].set_style('ticks')
-
-    fsize = 20
-    mpl.rcParams.update({
-        # 'font.size': fsize,
-        'legend.fontsize': fsize,
-        'axes.titlesize': fsize,
-        # 'axes.labelsize': fsize,
-        'xtick.labelsize': fsize,
-        'ytick.labelsize': fsize,
-        'axes.labelsize': fsize
-    })
-
-    # base_xvals = hists['true'].get_bin_centers()
-    # data = {}
-    # for name, hist in hists.items():
-    #     hist.normalize()
-
-    #     contents = hist.bin_contents
-    #     centers = hist.get_bin_centers()
-    #     if len(centers) > len(base_xvals):
-    #         print centers, base_xvals
-    #         assert False
-    #     for ic in range(len(base_xvals)):
-    #         if ic < len(centers):
-    #             if centers[ic] != base_xvals[ic]:
-    #                 print centers
-    #                 print base_xvals
-    #                 assert False
-    #         else:
-    #             contents.append(0)
-
-    #     data[name] = contents
-        
-    fig, ax = plt.subplots()
-    fig.tight_layout()
-    plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.95)
-    # dark red '#A52A2A',
-    plots = {}
-    scplots = {}
-    # tmpmax, n_queries = None, None
-    for name, hist in hists.items():
+def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='x', normalize=False):
+    hist_list, tmpcolors, alphas = [], [], []
+    for ih, (name, hist) in enumerate(hists.items()):
         if 'misassign' in name:
             continue
         if 'vollmers' in name:
             if '0.7' in name or '0.8' in name or '0.95' in name or '0.5' in name:
                 continue
 
-        # other (old) possibility:
-        # ax.bar and ax.scatter also suck
-        # plots[name] = ax.plot(base_xvals, data[name], linewidth=linewidth, label=name, color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
-        # scplots[name] = ax.scatter(hists[name].get_bin_centers(), hists[name].bin_contents, linewidth=linewidths.get(name, 4), label=legends.get(name, name), color=colors.get(name, 'grey'), linestyle=linestyle, alpha=alpha)
+        tmpcolors.append(colors.get(name, 'grey' if len(hists)==1 else default_colors[ih%len(default_colors)]))
+        alphas.append(0.7)
+        hxmin, hxmax = hist.get_filled_bin_xbounds()
+        if xmin is None or hxmin < xmin:
+            xmin = hxmin
+        if xmax is None or hxmax > xmax:
+            xmax = hxmax
+        hist.title = legends.get(name, name)
+        hist_list.append(hist)
 
-        kwargs = {'linewidth' : linewidths.get(name, 4),
-                  'label' : legends.get(name, name),
-                  'color' : colors.get(name, 'grey'),
-                  'linestyle' : linestyles.get(name, 'solid'),
-                  'alpha' : alphas.get(name, 1.)}
-
-        # was using this:
-        if normalize:
-            hist.normalize()
-        plots[name] = ax.errorbar(hist.get_bin_centers(), hist.bin_contents_no_zeros(1e-8), yerr=hist.errors, **kwargs)
-        # hist.mpl_plot(ax, remove_empty_bins=True, **kwargs)  # could maybe eventually switch to this, but probably better to just rewrite this whole fcn if I need to do anything
-
-    legend = ax.legend()
-    sys.modules['seaborn'].despine()  #trim=True, bottom=True)
-
-    # xmax = tmpmax
-    if xmax is None:
-        xmax = plt.gca().get_xlim()[1]
-    else:
-        ax.set_xlim(0.9, xmax)
-
-    if normalize:
-        if 'vollmers' in title:
-            ymin = 5e-4
-        else:
-            ymin = 5e-5
-        plt.ylim(ymin, 1)
-    plt.title(title)
-    plt.xlabel('cluster size')
-    plt.ylabel('fraction of clusters' if normalize else 'number of clusters')
-    plt.subplots_adjust(bottom=0.14, left=0.2)
     if 'x' in log:
-        ax.set_xscale('log')
-    if 'y' in log:
-        ax.set_yscale('log')
-        # if n_queries is not None:
-        #     plt.ylim(1./n_queries, 1)
-    potential_xticks = [1, 2, 3, 9, 30, 75, 200, 500]
-    xticks = [xt for xt in potential_xticks if xt < xmax]
-    plt.xticks(xticks, [str(xt) for xt in xticks])
-    plotdir = os.path.dirname(outfname)
-    if not os.path.exists(plotdir):
-        os.makedirs(plotdir)
-    plt.savefig(outfname)
-    plt.close()
-    # subprocess.check_call(['chmod', '664', outfname])
+        if xmin < 1:  # the above gives us the bin low edge, which with log x scale is way too far left of the lowest point
+            xmin = 0.9
+        xmax *= 1.025
+    xticks = [xt for xt in cluster_size_xticks if xt >= xmin and xt <= xmax]
+    def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
+    if len(xticks) < 3:
+        xticks = [int(xmin) + 1, int((xmin + xmax)/2.), int(xmax)]
+    # this was another way of getting x ticks, if you still have the partition, and it's kind of nice:
+    # csizes = sorted([len(c) for c in partition])
+    # xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
+
+    draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=[tstr(xt) for xt in xticks],
+                 bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle='fraction of clusters' if normalize else 'number of clusters', errors=True, alphas=alphas)
 
 # ----------------------------------------------------------------------------------------
 def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title):

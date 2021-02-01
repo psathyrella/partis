@@ -450,20 +450,10 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def make_cluster_size_distribution(self, base_plotdir, partition):
         subd, plotdir = self.init_subd('sizes', base_plotdir)
-
         csize_hists = {'best' : self.plotting.get_cluster_size_hist(partition)}  # used to be able to have more than one hist, and i don't feel like completely removing that ability atm
-
         fname = 'cluster-sizes'
-        fig, ax = self.plotting.mpl_init()
-        for label, hist in csize_hists.items():
-            hist.mpl_plot(ax, remove_empty_bins=True, label=label if len(csize_hists) > 1 else None)
-        csizes = sorted([len(c) for c in partition])
-        xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
-        def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
-        self.plotting.mpl_finish(ax, plotdir, fname, xlabel='cluster size', ylabel='number of clusters', log='xy', xticks=xticks, xticklabels=[tstr(x) for x in xticks])
-        if len(csize_hists) == 1:
-            csize_hists['best'].write(plotdir + '/' + fname + '.csv')
-
+        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists)
+        csize_hists['best'].write(plotdir + '/' + fname + '.csv')
         return [[subd + '/' + fname + '.svg']]
 
     # ----------------------------------------------------------------------------------------
