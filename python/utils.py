@@ -71,7 +71,7 @@ def parameter_type_subdir(args, paramdir):
     if args.parameter_type is None and paramdir is not None:
         for ptype in parameter_type_choices:
             if os.path.exists('%s/%s' % (paramdir, ptype)):
-                return '%s/%s' % (param_dir, ptype)
+                return '%s/%s' % (paramdir, ptype)
     # if none exist, set to 'default' (arg, kind of messy, it's not really a default)
     return '%s/%s' % (paramdir, default_parameter_type)
     # if args.parameter_type != processargs.default_parameter_type:
