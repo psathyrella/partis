@@ -126,21 +126,6 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fc
             xbins[ib] = xmin + ib*dx
 
 # ----------------------------------------------------------------------------------------
-def write_hist_to_file(fname, hist):
-    """ see the make_hist_from* functions to reverse this operation """
-    with open(fname, 'w') as histfile:
-        writer = csv.DictWriter(histfile, ('bin_low_edge', 'contents', 'binerror', 'xtitle', 'binlabel'))  # this is a really crummy way of writing style information, but root files *suck*, so this is what I do for now
-        writer.writeheader()
-        for ibin in range(hist.GetNbinsX() + 2):
-            writer.writerow({
-                'bin_low_edge' : hist.GetXaxis().GetBinLowEdge(ibin),
-                'contents' : hist.GetBinContent(ibin),
-                'binerror' : hist.GetBinError(ibin),
-                'xtitle' : hist.GetXaxis().GetTitle(),
-                'binlabel' : hist.GetXaxis().GetBinLabel(ibin)
-            })
-
-# ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
     if 'fraction_uncertainty' not in sys.modules:
