@@ -450,8 +450,8 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def make_cluster_size_distribution(self, base_plotdir, partition):
         subd, plotdir = self.init_subd('sizes', base_plotdir)
-        csize_hists = {'best' : self.plotting.get_cluster_size_hist(partition)}  # used to be able to have more than one hist, and i don't feel like completely removing that ability atm
         fname = 'cluster-sizes'
+        csize_hists = {'best' : self.plotting.make_hist_from_list_of_values([len(c) for c in partition], 'int', fname)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want
         self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists)
         csize_hists['best'].write(plotdir + '/' + fname + '.csv')
         return [[subd + '/' + fname + '.svg']]

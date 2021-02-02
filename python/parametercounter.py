@@ -31,6 +31,7 @@ class ParameterCounter(object):
         self.counts['aa_cdr3_length'] = {}
         self.counts['non_vj_length'] = {}
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}  # now I'm adding the aa content, I wish this had nucleotide in the name, but I don't want to change it since it corresponds to a million existing file paths
+        self.counts['cluster_size'] = {}
         self.init_aa_stuff()
         self.counts['seq_aa_content'] = {a : 0 for a in self.all_aa}
         self.string_columns.add('seq_content')
@@ -107,6 +108,7 @@ class ParameterCounter(object):
         # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
         sub_increment('aa_cdr3_length', (info['cdr3_length'] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
         sub_increment('non_vj_length', (utils.get_non_vj_len(info), ))
+        sub_increment('cluster_size', (len(info['unique_ids']), ))
 
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:
@@ -199,7 +201,7 @@ class ParameterCounter(object):
             elif column == 'all':
                 index = tuple(list(utils.index_columns) + ['cdr3_length', ])
                 outfname = base_outdir + '/' + utils.get_parameter_fname(column='all')
-            elif '_content' in column:
+            elif '_content' in column or column == 'cluster_size':
                 index = [column,]
                 outfname = base_outdir + '/' + column + '.csv'
             else:

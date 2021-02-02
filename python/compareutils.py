@@ -36,7 +36,7 @@ def FOOP():
             check_call(cmd)
 
 # ----------------------------------------------------------------------------------------
-def get_cluster_size_hist(partition, rebin=None):  # NOTE moving this from plotting.py without actually testing it
+def get_cluster_size_hist(partition, rebin=None):  # NOTE moving this from plotting.py without actually testing it (i'm not sure i really want to keep using it at all, but i don't want to rerun the stuff in this file to test)
     sizes = [len(c) for c in partition]
     nbins = max(sizes)
     # if nbins > 30:

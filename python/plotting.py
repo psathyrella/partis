@@ -97,8 +97,7 @@ def get_smap_color(smap, info, key=None, val=None):  # specify *either* <key> or
     return rgb_to_hex(rgb_code)
 
 # ----------------------------------------------------------------------------------------
-def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):
-    """ NOTE <values> should be sorted """
+def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fcn/signature is weird because it mimics an old root fcn
     assert len(values) > 0
     values = sorted(values)
     if is_log_x:
@@ -167,7 +166,7 @@ def make_hist_from_list_of_values(vlist, var_type, hist_label, is_log_x=False, x
 
 # ----------------------------------------------------------------------------------------
 # <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}
-def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False, default_n_bins=30):  # default_n_bins is only used for auto log bins
+def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False, default_n_bins=30):  # default_n_bins is only used if is_log_x set we're doing auto log bins
     """ Fill a histogram with values from a dictionary (each key will correspond to one bin) """
     assert var_type == 'int' or var_type == 'string'  # floats should be handled by Hist class in hist.py
 
