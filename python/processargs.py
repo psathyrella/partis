@@ -10,7 +10,8 @@ def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
 
 actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info']
-parameter_type_choices = ('sw', 'hmm', 'multi-hmm')
+parameter_type_choices = ('multi-hmm', 'hmm', 'sw')  # NOTE this order determines default priority, i.e. if not set on the command line we choose the first one in this order that exists
+default_parameter_type = 'hmm'  # not 'default' in the sense of we always use it if user doesn't set something, but default in terms of we want to set something if none of them exist (especially when caching parameters)
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
@@ -287,9 +288,6 @@ def process(args):
 
     if args.make_per_gene_per_base_plots and not args.make_per_gene_plots:  # the former doesn't do anything unless the latter is turned on
         args.make_per_gene_plots = True
-
-    if args.parameter_type != 'hmm':
-        print '  using non-default parameter type \'%s\'' % args.parameter_type
 
     if args.action == 'simulate':
         if args.n_trees is None and not args.paired_loci:

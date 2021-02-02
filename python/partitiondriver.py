@@ -300,7 +300,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def annotate(self):
-        print 'annotating'
+        print 'annotating    (with %s)' % self.sub_param_dir
         if self.sw_info is None:
             self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile, count_parameters=self.args.count_parameters)
         if self.args.only_smith_waterman:
@@ -521,7 +521,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def partition(self):
         """ Partition sequences in <self.input_info> into clonally related lineages """
-        print 'partitioning'
+        print 'partitioning     (with %s)' % self.sub_param_dir
         if self.sw_info is None:
             self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile, count_parameters=self.args.count_parameters)  # run smith-waterman
         if len(self.sw_info['queries']) == 0:
