@@ -161,8 +161,13 @@ def make_bool_hist(n_true, n_false, hist_label):
     return hist
 
 # ----------------------------------------------------------------------------------------
+def make_hist_from_list_of_values(vlist, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False):
+    vdict = {v : vlist.count(v) for v in set(vlist)}
+    return make_hist_from_dict_of_counts(vdict, var_type, hist_label, is_log_x=is_log_x, xmin_force=xmin_force, xmax_force=xmax_force, sort_by_counts=sort_by_counts)
+
+# ----------------------------------------------------------------------------------------
 # <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}
-def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_force=0.0, xmax_force=0.0, sort=False):
+def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False, default_n_bins=30):  # default_n_bins is only used for auto log bins
     """ Fill a histogram with values from a dictionary (each key will correspond to one bin) """
     assert var_type == 'int' or var_type == 'string'  # floats should be handled by Hist class in hist.py
 
@@ -170,23 +175,27 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, log='', xmin_for
         print 'WARNING no values for %s in make_hist' % hist_label
         return Hist(1, 0, 1)
 
-    bin_labels = sorted(values)
-    if not sort and var_type == 'string':  # for strings, sort so most common value is to left side
+    bin_labels = sorted(values)  # by default sort by keys in dict (i.e. these aren't usually actually string "labels")
+    if sort_by_counts:  # instead sort by counts
         bin_labels = sorted(values, key=values.get, reverse=True)
 
     if var_type == 'string':
         n_bins = len(values)
     else:
-        n_bins = bin_labels[-1] - bin_labels[0] + 1
+        n_bins = bin_labels[-1] - bin_labels[0] + 1 if not is_log_x else default_n_bins
 
     hist = None
     xbins = [0. for _ in range(n_bins+1)]  # NOTE the +1 is 'cause you need the lower edge of the overflow bin
     if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work out what they should be
         if var_type == 'string':
-            set_bins(bin_labels, n_bins, 'x' in log, xbins, var_type)
+            set_bins(bin_labels, n_bins, is_log_x, xbins, var_type)
             hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
         else:
-            hist = Hist(n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the last bin label (they're sorted)
+            if is_log_x:  # get automatic log-spaced bins
+                set_bins(bin_labels, n_bins, is_log_x, xbins, var_type)
+                hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
+            else:
+                hist = Hist(n_bins, bin_labels[0] - 0.5, bin_labels[-1] + 0.5)  # for integers, just go from the first to the last bin label (they're sorted)
     else:
       hist = Hist(n_bins, xmin_force, xmax_force)
 
@@ -456,19 +465,6 @@ def get_unified_bin_hist(hists):
                 low_edges.insert(len(low_edges), low_edges[-1] + dx)
 
     return Hist(len(low_edges), low_edges[0], low_edges[-1] + dx)
-
-# ----------------------------------------------------------------------------------------
-def get_cluster_size_hist(partition, rebin=None):
-    sizes = [len(c) for c in partition]
-    nbins = max(sizes)
-    # if nbins > 30:
-    #     rebin = 2
-    if rebin is not None:
-        nbins = int(float(nbins) / rebin)
-    hist = Hist(nbins, 0.5, max(sizes) + 0.5, xtitle='cluster size')
-    for sz in sizes:
-        hist.fill(sz)
-    return hist
 
 # ----------------------------------------------------------------------------------------
 def make_mean_hist(hists):

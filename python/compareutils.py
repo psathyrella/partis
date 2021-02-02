@@ -36,6 +36,19 @@ def FOOP():
             check_call(cmd)
 
 # ----------------------------------------------------------------------------------------
+def get_cluster_size_hist(partition, rebin=None):  # NOTE moving this from plotting.py without actually testing it
+    sizes = [len(c) for c in partition]
+    nbins = max(sizes)
+    # if nbins > 30:
+    #     rebin = 2
+    if rebin is not None:
+        nbins = int(float(nbins) / rebin)
+    hist = Hist(nbins, 0.5, max(sizes) + 0.5, xtitle='cluster size')
+    for sz in sizes:
+        hist.fill(sz)
+    return hist
+
+# ----------------------------------------------------------------------------------------
 def float_str(float_val):
     if float_val - int(float_val) == 0.:
         return '%d' % float_val
@@ -165,7 +178,7 @@ def parse_true(args, info, outdir, true_partition):
         import plotting
 
     # well, not really parse per se
-    truehist = sys.modules['plotting'].get_cluster_size_hist(true_partition)
+    truehist = get_cluster_size_hist(true_partition)
     deal_with_parse_results(info, outdir, 'true', true_partition, truehist, metric_vals=None)
 
 # ----------------------------------------------------------------------------------------
@@ -197,7 +210,7 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
                     metric_vals['ccf_over'] = ccfs[1]
                 metric_vals['ccf_product'] = sys.modules['scipy.stats'].hmean([metric_vals['ccf_under'], metric_vals['ccf_over']])
 
-            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, sys.modules['plotting'].get_cluster_size_hist(partition), metric_vals)
+            deal_with_parse_results(info, outdir, 'vollmers-' + line['threshold'], partition, get_cluster_size_hist(partition), metric_vals)
 
     if n_lines < 1:
         raise Exception('zero partition lines read from %s' % vollmers_fname)
@@ -210,7 +223,7 @@ def parse_changeo(args, info, outfname, csvdir):
         import plotting
 
     cpath = ClusterPath(fname=outfname)
-    hist = sys.modules['plotting'].get_cluster_size_hist(cpath.partitions[cpath.i_best])
+    hist = get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     metric_vals = None
     if args.is_simu:
@@ -251,7 +264,7 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
         import plotting
 
     cpath = ClusterPath(fname=outfname)
-    hist = sys.modules['plotting'].get_cluster_size_hist(cpath.partitions[cpath.i_best])
+    hist = get_cluster_size_hist(cpath.partitions[cpath.i_best])
     partition = cpath.partitions[cpath.i_best]
     vname = action
     metric_vals = None
@@ -314,7 +327,7 @@ def parse_synthetic(args, info, outdir, true_partition, base_outfname):
         vname = stype
         cpath = ClusterPath(fname=base_outfname.replace('.csv', '-' + vname + '.csv'))
         partition = cpath.partitions[cpath.i_best]
-        hist = sys.modules['plotting'].get_cluster_size_hist(partition)
+        hist = get_cluster_size_hist(partition)
         ccfs = cpath.ccfs[cpath.i_best]
         metric_vals = {'adj_mi' : cpath.adj_mis[cpath.i_best], 'ccf_under' : ccfs[0], 'ccf_over' : ccfs[1], 'ccf_product' : sys.modules['scipy.stats'].hmean(ccfs)}
         deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals)

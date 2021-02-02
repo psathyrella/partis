@@ -178,6 +178,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
     def plot_uids_before(plotdir, pid_groups, all_antns):
         # ----------------------------------------------------------------------------------------
         def fnfplot(logstr, fhists, n_max_bins=15):
+            import plotting
             fklabels = {'func' : 'all func.', 'nonfunc' : 'any non.'}
             fig, ax = plotting.mpl_init()
             for fk, fcolor in zip(fhists, plotting.default_colors):
@@ -220,8 +221,6 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             for ibin, blabel in enumerate(binlabels):
                 fhists[fstr].set_ibin(ibin + 1, flcounts[fstr].get(blabel, 0), math.sqrt(flcounts[fstr].get(blabel, 0)))
                 fhists[fstr].bin_labels[ibin + 1] = blabel
-        import plotting
-        # fhists = {f : plotting.make_hist_from_dict_of_counts(flcounts[f], 'string', 'locus counts', sort=True) for f in ['func', 'nonfunc']}  # i don't know wtf this isn't working, but whatever
         for logstr in ['', '-log']:
             fnfplot(logstr, fhists)
     # ----------------------------------------------------------------------------------------
