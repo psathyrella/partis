@@ -10,8 +10,6 @@ def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
 
 actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info']
-parameter_type_choices = ('multi-hmm', 'hmm', 'sw')  # NOTE this order determines default priority, i.e. if not set on the command line we choose the first one in this order that exists
-default_parameter_type = 'hmm'  # not 'default' in the sense of we always use it if user doesn't set something, but default in terms of we want to set something if none of them exist (especially when caching parameters)
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
@@ -349,8 +347,8 @@ def process(args):
         args.parameter_dir = args.parameter_dir.rstrip('/')
         if os.path.exists(args.parameter_dir):
             pdirs = [d for d in os.listdir(args.parameter_dir) if os.path.isdir(d)]
-            if len(pdirs) > 0 and len(set(pdirs) & set(parameter_type_choices)) == 0:
-                raise Exception('couldn\'t find any expected parameter types (i.e. subdirs) in --parameter-dir \'%s\'. Allowed types: %s, found: %s. Maybe you added the parameter type to the parameter dir path?' % (args.parameter_dir, ' '.join(parameter_type_choices), ' '.join(os.listdir(args.parameter_dir))))
+            if len(pdirs) > 0 and len(set(pdirs) & set(utils.parameter_type_choices)) == 0:
+                raise Exception('couldn\'t find any expected parameter types (i.e. subdirs) in --parameter-dir \'%s\'. Allowed types: %s, found: %s. Maybe you added the parameter type to the parameter dir path?' % (args.parameter_dir, ' '.join(utils.parameter_type_choices), ' '.join(os.listdir(args.parameter_dir))))
 
     if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
         args.default_initial_germline_dir += '/' + args.species

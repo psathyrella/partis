@@ -35,8 +35,9 @@ class Recombinator(object):
         utils.prep_dir(self.workdir)
 
         assert self.args.parameter_dir is None  # we don't use the overall dir anywhere here, only reco_ and shm_
-        self.reco_parameter_dir = (self.args.reco_parameter_dir + '/' + self.args.parameter_type) if self.args.reco_parameter_dir is not None else None  # only used if not rearranging from scratch
-        self.shm_parameter_dir = (self.args.shm_parameter_dir + '/' + self.args.parameter_type) if self.args.shm_parameter_dir is not None else None  # only used if not mutating from scratch
+        self.reco_parameter_dir = utils.parameter_type_subdir(self.args, self.args.reco_parameter_dir) if self.args.reco_parameter_dir is not None else None  # only used if not rearranging from scratch
+        self.shm_parameter_dir = utils.parameter_type_subdir(self.args, self.args.shm_parameter_dir) if self.args.shm_parameter_dir is not None else None  # only used if not mutating from scratch
+        print 'simulating    (reco: %s   shm: %s)' % (utils.non_none([self.reco_parameter_dir, 'scratch']), utils.non_none([self.shm_parameter_dir, 'scratch']))
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}

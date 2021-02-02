@@ -56,7 +56,7 @@ class PartitionDriver(object):
         self.small_cluster_seqs = None  # all the queries that we removed after a few partition steps 'cause they were in small clusters
 
         self.sw_param_dir, self.hmm_param_dir, self.multi_hmm_param_dir = ['%s/%s' % (self.args.parameter_dir, s) for s in ['sw', 'hmm', 'multi-hmm']]
-        self.sub_param_dir = self.args.parameter_dir + '/' + self.args.parameter_type
+        self.sub_param_dir = utils.parameter_type_subdir(self.args, self.args.parameter_dir)
 
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'

@@ -65,6 +65,19 @@ def timeprinter(fcn):
     return wrapper
 
 # ----------------------------------------------------------------------------------------
+parameter_type_choices = ('multi-hmm', 'hmm', 'sw')  # NOTE this order determines default priority, i.e. if not set on the command line we choose the first one in this order that exists
+default_parameter_type = 'hmm'  # not 'default' in the sense of we always use it if user doesn't set something, but default in terms of we want to set something if none of them exist (especially when caching parameters)
+def parameter_type_subdir(args, paramdir):
+    if args.parameter_type is None and paramdir is not None:
+        for ptype in parameter_type_choices:
+            if os.path.exists('%s/%s' % (paramdir, ptype)):
+                return '%s/%s' % (param_dir, ptype)
+    # if none exist, set to 'default' (arg, kind of messy, it's not really a default)
+    return '%s/%s' % (paramdir, default_parameter_type)
+    # if args.parameter_type != processargs.default_parameter_type:
+    #     print '  note: using non-\'default\' parameter type \'%s\'' % args.parameter_type
+
+# ----------------------------------------------------------------------------------------
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
 regions = ['v', 'd', 'j']
 constant_regions = ['c', 'm', 'g', 'a', 'd', 'e']  # NOTE d is in here, which is stupid but necessary, so use is_constant_gene()
