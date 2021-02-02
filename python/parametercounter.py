@@ -7,7 +7,7 @@ import itertools
 import utils
 import glutils
 from hist import Hist
-import hist
+import hutils
 import plotconfig
 from mutefreqer import MuteFreqer
 
@@ -161,7 +161,7 @@ class ParameterCounter(object):
 
             var_type = 'string' if column in self.string_columns else 'int'
 
-            hist = hist.make_hist_from_dict_of_counts(values, var_type, column)
+            hist = hutils.make_hist_from_dict_of_counts(values, var_type, column)
             plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, xtitle=plotconfig.xtitles.get(column, column), plottitle=plotconfig.plot_titles.get(column, column),
                                   errors=True, write_csv=True, only_csv=only_csv, stats='mean' if column in self.mean_columns else None, normalize=True)
 
@@ -169,7 +169,7 @@ class ParameterCounter(object):
                 thisplotdir = plotdir + '/' + column
                 for gene in gene_values:
                     plotname = utils.sanitize_name(gene) + '-' + column
-                    hist = hist.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname)
+                    hist = hutils.make_hist_from_dict_of_counts(gene_values[gene], var_type, plotname)
                     plotting.draw_no_root(hist, plotname=plotname, plotdir=thisplotdir, xtitle=plotconfig.plot_titles.get(column, column), plottitle=gene, errors=True, write_csv=True, only_csv=only_csv)
                 if not only_csv:
                     plotting.make_html(thisplotdir)

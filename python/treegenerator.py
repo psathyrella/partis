@@ -10,6 +10,7 @@ import json
 from subprocess import check_call
 
 from hist import Hist
+import hutils
 import utils
 import treeutils
 

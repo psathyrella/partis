@@ -14,7 +14,6 @@ partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 sys.path.insert(1, partis_dir + '/python')
 
 import utils
-import hist
 
 parser = argparse.ArgumentParser()
 parser.add_argument('infname')
