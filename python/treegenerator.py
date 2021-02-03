@@ -88,10 +88,10 @@ class TreeGenerator(object):
                 reader = csv.DictReader(csfile)
                 for line in reader:
                     csizes[int(line['cluster_size'])] = int(line['count'])
-            hist = hutils.make_hist_from_dict_of_counts(csizes, 'int', 'cluster_size')
+            hist = hutils.make_hist_from_dict_of_counts(csizes, 'int', 'cluster_size')  # maybe there's no reason to do this whole conversion, maybe should just sample from the dict of counts? I do that in a bunch of other places (I guess this made sense because I was thinking I would actually use bigger bins, but then decided to use single-int bins)
             hist.normalize(include_overflows=False)
             if hist.bin_contents[hist.find_bin(1)] == 1:
-                print '  %s cluster size hist was made from the singleton partition, suggesting that parameters may have been inferred without partitioning' % utils.color('yellow', 'warning')
+                print '  %s cluster size hist was made from the singleton partition, suggesting that parameters may have been inferred without partitioning (override use of the hist by setting --n-leaf-distribution)' % utils.color('yellow', 'warning')
             self.n_leaf_hist = hist
        # ----------------------------------------------------------------------------------------
         if self.args.n_leaf_distribution is None:  # if not set on the command line
@@ -141,7 +141,7 @@ class TreeGenerator(object):
     # ----------------------------------------------------------------------------------------
     def run_treesim(self, seed, outfname, workdir):
         if self.args.debug or utils.getsuffix(outfname) == '.nwk':
-            print '  generating %d trees,' % self.args.n_trees,
+            print '  generating %d tree%s,' % (self.args.n_trees, utils.plural(self.args.n_trees)),
             if self.args.constant_number_of_leaves:
                 print 'all with %s leaves' % str(self.args.n_leaves)
             else:
