@@ -67,15 +67,22 @@ def timeprinter(fcn):
 # ----------------------------------------------------------------------------------------
 parameter_type_choices = ('multi-hmm', 'hmm', 'sw')  # NOTE this order determines default priority, i.e. if not set on the command line we choose the first one in this order that exists
 default_parameter_type = 'hmm'  # not 'default' in the sense of we always use it if user doesn't set something, but default in terms of we want to set something if none of them exist (especially when caching parameters)
+def get_parameter_type(args, paramdir):
+    if paramdir is None:
+        return None
+    ptype = default_parameter_type
+    if args.parameter_type is not None:  # if it was set on the command line, use that
+        ptype = args.parameter_type
+    else:  # otherwise take the first one that actually exists
+        for tpt in parameter_type_choices:
+            if os.path.exists('%s/%s' % (paramdir, tpt)):
+                ptype = tpt
+                break
+    return ptype
 def parameter_type_subdir(args, paramdir):
-    if args.parameter_type is None and paramdir is not None:
-        for ptype in parameter_type_choices:
-            if os.path.exists('%s/%s' % (paramdir, ptype)):
-                return '%s/%s' % (paramdir, ptype)
-    # if none exist, set to 'default' (arg, kind of messy, it's not really a default)
-    return '%s/%s' % (paramdir, default_parameter_type)
-    # if args.parameter_type != processargs.default_parameter_type:
-    #     print '  note: using non-\'default\' parameter type \'%s\'' % args.parameter_type
+    if paramdir is None:
+        return None
+    return '%s/%s' % (paramdir, get_parameter_type(args, paramdir))
 
 # ----------------------------------------------------------------------------------------
 # putting these up here so glutils import doesn't fail... I think I should be able to do it another way, though
@@ -3313,7 +3320,7 @@ def check_cmd(cmd, options='', return_bool=False):  # check for existence of <cm
             raise Exception('command \'%s\' not found in path (maybe not installed?)' % cmd)
 
 # ----------------------------------------------------------------------------------------
-def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfname=None, return_out_err=False, debug=False):
+def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfname=None, return_out_err=False, debug=False):  # <print_time> is a string which, if set, is printed along with/labeling the time
     if dryrun:
         debug = True
     remove_workdir = False

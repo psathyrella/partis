@@ -179,6 +179,8 @@ def process(args):
             raise Exception('can\'t specify both --n-simultaneous-seqs and --simultaneous-true-clonal-seqs')
         if args.all_seqs_simultaneous:
             raise Exception('can\'t specify both --all-seqs-simultaneous and --simultaneous-true-clonal-seqs')
+        if args.action == 'partition':
+            raise Exception('can\'t set --simultaneous-true-clonal-seqs when partitioning')
     if args.n_simultaneous_seqs is not None and args.all_seqs_simultaneous:
         raise Exception('doesn\'t make sense to set both --n-simultaneous-seqs and --all-seqs-simultaneous.')
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+import csv
 import os
 import re
 import random
@@ -19,8 +20,11 @@ class TreeGenerator(object):
     def __init__(self, args, parameter_dir):
         self.args = args
         self.parameter_dir = parameter_dir
-        self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
+        self.n_leaf_hist = None
+
+        self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
+        self.init_n_leaves()
 
     #----------------------------------------------------------------------------------------
     def convert_observed_changes_to_branch_length(self, mute_freq):
@@ -72,6 +76,38 @@ class TreeGenerator(object):
                 raise Exception('not normalized %f' % check_sum)
 
     #----------------------------------------------------------------------------------------
+    def init_n_leaves(self):
+        # ----------------------------------------------------------------------------------------
+        def init_n_leaf_hist():
+            csfname = '%s/cluster_size.csv' % self.parameter_dir
+            if not os.path.exists(csfname):
+                print '  %s tried to use cluster size hist for N leaf distribution, but it doesn\'t exist: %s' % (utils.color('yellow', 'warning'), csfname)
+                return
+            csizes = {}
+            with open(csfname) as csfile:
+                reader = csv.DictReader(csfile)
+                for line in reader:
+                    csizes[int(line['cluster_size'])] = int(line['count'])
+            hist = hutils.make_hist_from_dict_of_counts(csizes, 'int', 'cluster_size')
+            hist.normalize(include_overflows=False)
+            if hist.bin_contents[hist.find_bin(1)] == 1:
+                print '  %s cluster size hist was made from the singleton partition, suggesting that parameters may have been inferred without partitioning' % utils.color('yellow', 'warning')
+            self.n_leaf_hist = hist
+       # ----------------------------------------------------------------------------------------
+        if self.args.n_leaf_distribution is None:  # if not set on the command line
+            if self.args.rearrange_from_scratch:
+                self.final_nldist = self.args.default_scratch_n_leaf_distribution
+            else:
+                self.final_nldist = 'hist'
+        else:
+            self.final_nldist = self.args.n_leaf_distribution
+
+        if self.final_nldist == 'hist':
+            init_n_leaf_hist()
+            if self.n_leaf_hist is None:  # if init'ing failed
+                self.final_nldist = self.args.default_scratch_n_leaf_distribution
+
+    #----------------------------------------------------------------------------------------
     def choose_full_sequence_branch_length(self):
         iprob = numpy.random.uniform(0,1)
         sum_prob = 0.0
@@ -87,16 +123,18 @@ class TreeGenerator(object):
         if self.args.constant_number_of_leaves:
             return self.args.n_leaves
 
-        if self.args.n_leaf_distribution == 'geometric':
-            return numpy.random.geometric(1./self.args.n_leaves)
-        elif self.args.n_leaf_distribution == 'box':
+        if self.final_nldist == 'geometric':
+            return numpy.random.geometric(1. / self.args.n_leaves)
+        elif self.final_nldist == 'box':
             width = self.args.n_leaves / 5.  # whatever
             lo, hi = int(self.args.n_leaves - width), int(self.args.n_leaves + width)
             if hi - lo <= 0:
                 raise Exception('n leaves %d and width %f round to bad box bounds [%f, %f]' % (self.args.n_leaves, width, lo, hi))
             return random.randint(lo, hi)  # NOTE interval is inclusive!
-        elif self.args.n_leaf_distribution == 'zipf':
+        elif self.final_nldist == 'zipf':
             return numpy.random.zipf(self.args.n_leaves)  # NOTE <n_leaves> is not the mean here
+        elif self.final_nldist == 'hist':
+            return self.n_leaf_hist.sample(1)[0]  # it would be faster to sample a bunch at once (see comments in fcn), but oh well
         else:
             raise Exception('n leaf distribution %s not among allowed choices' % self.args.n_leaf_distribution)
 
@@ -107,7 +145,7 @@ class TreeGenerator(object):
             if self.args.constant_number_of_leaves:
                 print 'all with %s leaves' % str(self.args.n_leaves)
             else:
-                print 'n-leaves from %s distribution with parameter %s' % (self.args.n_leaf_distribution, str(self.args.n_leaves))
+                print 'n-leaves from %s' % ('hist in parameter dir' if self.final_nldist == 'hist' else '%s distribution with parameter %s' % (self.final_nldist, str(self.args.n_leaves)))
             if self.args.debug:
                 print '        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch')
                 for mtype in ['all',] + utils.regions:
@@ -150,7 +188,7 @@ class TreeGenerator(object):
         else:
             if os.path.exists(outfname):
                 os.remove(outfname)
-            utils.run_r(cmd_lines, workdir)
+            utils.run_r(cmd_lines, workdir, print_time='tree generation' if self.args.debug else None)
 
         with open(outfname) as treefile:
             for itree, tstr in enumerate(treestrs):

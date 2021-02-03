@@ -35,7 +35,7 @@ parser.add_argument('--cluster-index', type=int, help='if set, take sequences on
 parser.add_argument('--indel-reversed-seqs', action='store_true', help='if set, take sequences that have had any shm indels "reversed" (i.e. insertions are reversed, and deletions are replaced with the germline bases) rather than the default of using sequences from the original input file. Indel-reversed sequences can be convenient because they are by definition the same length as and aligned to the naive sequence.')
 parser.add_argument('--glfo-dir', help='Directory with germline info. Only necessary for old-style csv output files. Equivalent to a parameter dir with \'/hmm/germline-sets\' appended.')
 parser.add_argument('--locus', default='igh', help='only used for old-style csv output files')
-parser.add_argument('--plotdir', help='if set, plot annotation parameters from --fname to --plotdir and exit (you still have to set outfile, sorry, it\'s nice having it be a positional arg, but it doesn\'t get used). To add e.g. per-gene-per-position plots comment/uncomment args in the call below.')
+parser.add_argument('--plotdir', help='if set, plot annotation parameters from infile to --plotdir and exit (you still have to set outfile, sorry, it\'s nice having it be a positional arg, but it doesn\'t get used). To add e.g. per-gene-per-position plots comment/uncomment args in the call below.')
 parser.add_argument('--fasta-info-separator', default=' ', help='character to use ')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
