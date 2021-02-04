@@ -85,7 +85,7 @@ class Tester(object):
         else:
             pcache_data_args = {'extras' : ['--n-max-queries', str(self.n_data_queries)], 'output-path' : 'test/parameters/data'}
             pcache_simu_args = {'extras' : [], 'output-path' : 'test/parameters/simu'}
-            simulate_args = {'extras' : ['--n-sim-events', str(self.n_sim_events), '--n-trees', str(self.n_sim_events), '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
+            simulate_args = {'extras' : ['--n-sim-events', str(self.n_sim_events), '--n-trees', str(self.n_sim_events), '--n-leaf-distribution', 'geometric', '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
             if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
                 self.tests['cache-parameters-data'] = pcache_data_args
                 self.tests['simulate'] = simulate_args
