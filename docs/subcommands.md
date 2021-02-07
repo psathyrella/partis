@@ -242,7 +242,8 @@ There are two main partis-only simulation modes (with options for running hybrid
   2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
   3. partis simulates a naive rearrangement, then passes it to bcr-phylo for mutation (as used in the [selection metric paper](https://arxiv.org/abs/2004.11868))
 
-Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire, while 3. is preferred if you want to manipulate the details of the GC selection process (rather than crude output parameters like the number of leaves or tree depth).
+Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire.
+Meanwhile 3. is required if you want to manipulate the details of the GC selection process (rather than parameters related to the results of the GC reaction, like number of leaves or tree depth).
 If you did not specify a parameter directory during inference, the parameters will still have been written to disk in a location printed to stdout (for instance, at the moment if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`).
 You could thus for instance simulate based on this parameter dir with:
 
@@ -258,14 +259,14 @@ Using bcr-phylo for mutation as in 3. is handled by running `bin/bcr-phylo-run.p
 This should work with no arguments, but in order to change the script's many options run with `--help`, and also look at the corresponding options in [packages/bcr-phylo-benchmark/bin/simulator.py](packages/bcr-phylo-benchmark/bin/simulator.py).
 Note that by default bcr-phylo-run.py turns off context-dependent mutation in bcr-phylo, since this is much faster, but if you want it to mutate with the S5F model you can set `--context-depend`.
 
-There are several ways to control the simulated cluster size distribution (each detailed below and with `--help`), and their behavior also depends on how you inferred parameters.
+There are several ways to control the simulated cluster size distribution (each detailed by `--help`), and their behavior also depends on how you inferred parameters.
 The size of each cluster is drawn either from a histogram (inferred from data), or from an analytic distribution (e.g. geometric), both controlled by `--n-leaf-distribution`.
 When trying to mimic a particular data set, we want to use the inferred cluster size distribution.
 While the inferred cluster size histogram is always written to the parameter directory, it's only meaningful if the sample has actually been partitioned.
 Typically this means that, if you're planning on simulating with the inferred parameters, you should set `--count-parameters` when partitioning.
-This also results in more accurate parameters, partly because the annotations are more accurate, and partly because it allows the per-family parameters (e.g. v gene and v_5p deletion, and as opposed to per-sequence parameters like mutation) to be counted only once for each family, rather than once for each sequence (as for single-sequence annotation, which is of course used when caching parameters before partitioning).
+This also results in more accurate parameters, partly because the annotations are more accurate, and partly because it allows the per-family parameters (e.g. v gene and v_5p deletion, and as opposed to per-sequence parameters like mutation) to be counted only once for each family, rather than once for each sequence.
 Setting `--count-parameters` when partitioning writes parameters to a third subdir `multi-hmm/` (in addition to the standard two `sw/` and `hmm/`), which will automatically be used by future runs if it exists (see `--parameter-type`).
-If `--rearrange-from-scratch` is set, or you've set `--n-leaf-distrubtion`, then each cluster size will instead be drawn from an analytic distribution, e.g. geometric or zipf.
+If `--rearrange-from-scratch` is set, or you've set `--n-leaf-distrubtion` to something other than hist, then each cluster size will instead be drawn from an analytic distribution, e.g. geometric or zipf.
 
 To simulate paired heavy/light repertoires, see [here](paired-loci.md#simulation).
 
