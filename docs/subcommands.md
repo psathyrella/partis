@@ -13,10 +13,10 @@
 
 ### Subcommands
 
-The `partis` command has a number of actions:
+`partis` takes a single positional argument specifying the action to run:
 
 ```
-partis annotate | partition | get-selection-metrics | view-output | cache-parameters | simulate
+partis partition | get-selection-metrics | simulate | view-output | cache-parameters | annotate
 ```
 
 For information on options for each subcommand that are not documented in this manual run `partis <subcommand> --help`.
@@ -235,28 +235,37 @@ There is, however, a wealth of information that can be used to get a good sense 
 
 ### simulate
 
-Default simulation [requires installation](install.md#simulation) of two additional R packages (and R, if you don't have it).
+Default simulation requires some additional [installation steps](install.md#simulation).
 
-There are two main partis-only simulation modes (with options for running hybrids between the two), plus you can combine partis with the [bcr-phylo](http://dx.doi.org/10.3389/fimmu.2018.02451) package (which is included, although you may need to run `git submodule update`):
+There are two main partis-only simulation modes (with options for running hybrids between the two), plus you can combine partis with the [bcr-phylo](http://dx.doi.org/10.3389/fimmu.2018.02451) package (which is included with partis, although you may need to run `git submodule update`):
   1. you pass it an inferred parameter directory with `--parameter-dir` (e.g. `test/reference-results/test/parameters/simu`) and it mimics the sample from which those parameters were inferred
   2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
   3. partis simulates a naive rearrangement, then passes it to bcr-phylo for mutation (as used in the [selection metric paper](https://arxiv.org/abs/2004.11868))
 
 Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire, while 3. is preferred if you want to manipulate the details of the GC selection process (rather than crude output parameters like the number of leaves or tree depth).
-If you did not specify a parameter directory during inference, then by default if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`.
+If you did not specify a parameter directory during inference, the parameters will still have been written to disk in a location printed to stdout (for instance, at the moment if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`).
 You could thus for instance simulate based on this parameter dir with:
 
-`partis simulate --parameter-dir _output/_path_to_sample --outfname simu.yaml --n-sim-events 3 --debug 1`
+`partis simulate --parameter-dir _output/_path_to_sample --outfname simu.yaml --n-sim-events 3 --debug 1  # pipe to "| less -RS" to view in terminal`
 
 where `--debug 1` prints to stdout what the rearrangement events look like as they're being made.
 The resulting output file follows regular output [format](output-formats.md), with an additional column `reco_id` to identify clonal families (it's a hash of the rearrangement parameters).
 When subsequently running inference on this simulation, you typically want to pass the `--is-simu` option.
 During parameter caching, this will write a separate parameter directory with the true parameters (in a addition to `sw/` and `hmm/`).
-During annotation and partitioning, with `--debug 1` it will print the true rearrangements and partitions along with the inferred ones.
+During annotation and partitioning, with `--debug 1` it will also print the true rearrangements and partitions along with the inferred ones.
 
-Running bcr-phylo for 3. is handled by running `bin/bcr-phylo-run.py`.
-This should work fine with no arguments, but in order to change the script's many options run with `--help`, and also look at the corresponding options in [packages/bcr-phylo-benchmark/bin/simulator.py](packages/bcr-phylo-benchmark/bin/simulator.py).
+Using bcr-phylo for mutation as in 3. is handled by running `bin/bcr-phylo-run.py`.
+This should work with no arguments, but in order to change the script's many options run with `--help`, and also look at the corresponding options in [packages/bcr-phylo-benchmark/bin/simulator.py](packages/bcr-phylo-benchmark/bin/simulator.py).
 Note that by default bcr-phylo-run.py turns off context-dependent mutation in bcr-phylo, since this is much faster, but if you want it to mutate with the S5F model you can set `--context-depend`.
+
+There are several ways to control the simulated cluster size distribution (each detailed below and with `--help`), and their behavior also depends on how you inferred parameters.
+The size of each cluster is drawn either from a histogram (inferred from data), or from an analytic distribution (e.g. geometric), both controlled by `--n-leaf-distribution`.
+When trying to mimic a particular data set, we want to use the inferred cluster size distribution.
+While the inferred cluster size histogram is always written to the parameter directory, it's only meaningful if the sample has actually been partitioned.
+Typically this means that, if you're planning on simulating with the inferred parameters, you should set `--count-parameters` when partitioning.
+This also results in more accurate parameters, partly because the annotations are more accurate, and partly because it allows the per-family parameters (e.g. v gene and v_5p deletion, and as opposed to per-sequence parameters like mutation) to be counted only once for each family, rather than once for each sequence (as for single-sequence annotation, which is of course used when caching parameters before partitioning).
+Setting `--count-parameters` when partitioning writes parameters to a third subdir `multi-hmm/` (in addition to the standard two `sw/` and `hmm/`), which will automatically be used by future runs if it exists (see `--parameter-type`).
+If `--rearrange-from-scratch` is set, or you've set `--n-leaf-distrubtion`, then each cluster size will instead be drawn from an analytic distribution, e.g. geometric or zipf.
 
 To simulate paired heavy/light repertoires, see [here](paired-loci.md#simulation).
 
@@ -285,7 +294,7 @@ There are, however, several options to manipulate this:
 | option                                        | description
 |-----------------------------------------------|-----------------------------------------------------------------
 | `--n-trees <N>`                               | Before actually generating events, we first make a set of `<N>` phylogentic trees. For each event, we then choose a tree at random from this set. Defaults to the value of --n-sim-events.
-| `--n-leaf-distribution <geometric,box,zipf>`  | When generating these trees, from what distribution should the number of leaves be drawn?
+| `--n-leaf-distribution <hist,geometric,box,zipf>`  | When generating these trees, from what distribution should the number of leaves be drawn?
 | `--n-leaves <N>`                              | Parameter controlling the n-leaf distribution (e.g. for the geometric distribution, it's the mean number of leaves)
 | `--constant-number-of-leaves`                 | instead of drawing the number of leaves for each tree from a distribution, force every tree to have the same number of leaves
 | `--root-mrca-weibull-parameter`               | adjusts tree balance/speciation by switching to TreeSimGM (useful range: 0.3 to 1.3)

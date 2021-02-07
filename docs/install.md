@@ -47,10 +47,9 @@ Several methods of accomplishing this are described [here](subcommands.md#subcom
 
 #### Simulation
 
-The default simulation uses the R packages TreeSim and TreeSimGM to generate trees, so you'll need to install these if you don't already have them.
-Alternatively, if you have a list of your own newick trees in a file you can instead use --input-simulation-treefname, in which case you can avoid R installation entirely.
-One way to install R on debian/ubuntu is:
-
+By default, partis simulation generates trees using the R packages TreeSim and TreeSimGM, so if not already present they'll need to be installed (along with R).
+Alternatively, if you have a list of your own newick trees in a file you can pass this in with `--input-simulation-treefname`, in which case you can avoid R installation entirely.
+One way to install R on debian/ubuntu (and thus also within a partis container) is:
 ```
 apt-get install -y dirmngr apt-transport-https ca-certificates software-properties-common gnupg2
 apt-key adv --keyserver keys.gnupg.net --recv-key 'E19F5F87128899B192B1A2C2AD5F960A256A04AF'  # this R installation stuff was in the Dockerfile for a while, but this line was crashing on dockerhub, and it appears that keyservers are just too flakey to use in docker files
@@ -64,10 +63,11 @@ You can then install the required R packages with:
 ```
 R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM"), repos="http://cran.rstudio.com/")'
 ```
-You also need to compile an updated version of bpp:
+The default mutation model also requires compilatoin of an updated (development) version of bpp that's in `packages/bpp-newlik/`:
 ```
-./bin/build.sh with-simulation  # this is really slow
+./bin/build.sh with-simulation  # this takes a while, maybe 20-60 mimutes
 ```
+However, if you don't much care about mutation model accuracy (in particular, if you don't care about modeling different rates between different bases e.g. A->C vs A->T), you can set `--no-per-base-mutation` and it'll fall back to an older, already-compiled bpp version in `packages/bpp`.
 
 #### MDS Plotting
 
