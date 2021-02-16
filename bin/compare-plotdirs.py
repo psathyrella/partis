@@ -57,6 +57,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     stats = args.extra_stats
     translegend = [0.0, -0.2]
     xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
+    xticks, xticklabels = None, None
     if xtitle == '':  # arg, plotting.py thinks default should be None, hist.py thinks it's ''
         xtitle = None
     if '-mean-bins' in varname:
@@ -131,6 +132,8 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         xtitle = 'cluster size'
         ytitle = 'N clusters'
         plottitle = ''
+        xticks, xticklabels = plotting.get_cluster_size_xticks(hlist=hlist)  # it would be better to use all the hists, but i think it'll just screw up the ticks
+        import matplotlib.pyplot as plt
     if varname in ['func-per-drop', 'nonfunc-per-drop']:
         bounds = (-0.5, 15.5)
     if xtitle is None:
@@ -158,7 +161,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, alphas=alphas, errors=True, remove_empty_bins='y' in args.log,
-                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend)
+                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels)
 
 # ----------------------------------------------------------------------------------------
 helpstr = """

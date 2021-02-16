@@ -25,7 +25,21 @@ default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c
 default_linewidths = ['5', '3', '2', '2', '2']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
-cluster_size_xticks = [1, 2, 3, 10, 30, 75, 200, 500, 1000, 5000, 10000]
+def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # set either xmin and xmax, or hlist
+    if xmin is None or xmax is None:
+        assert xmin is None and xmax is None  # would have to implement it if you want to be able to set just one
+        assert hlist is not None
+        minlist, maxlist = zip(*[h.get_filled_bin_xbounds() for h in hlist])
+        xmin, xmax = [mfcn(mlist) for mfcn, mlist in zip((min, max), (minlist, maxlist))]
+    def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
+    default_xticks = [1, 2, 3, 10, 30, 75, 200, 500, 1000, 5000, 10000]
+    xticks = [xt for xt in default_xticks if xt >= xmin and xt <= xmax]
+    if len(xticks) < 3:
+        xticks = [int(xmin) + 1, int((xmin + xmax)/2.), int(xmax)]
+    # this was another way of getting x ticks, if you still have the partition, and it's kind of nice:
+    # csizes = sorted([len(c) for c in partition])
+    # xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
+    return xticks, [tstr(xt) for xt in xticks]
 
 plot_ratios = {
     'v' : (30, 3),
@@ -303,6 +317,15 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     #     yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
     #     yl.Draw()
 
+    yticks, yticklabels = None, None
+    if xticklabels is not None and 'y' in log:  # if xticklabels is set we need to also set the y ones so the fonts match up
+        def tstr(y): return (('%.0e'%y) if y>1000 else '%.0f'%y) if 'y' in log else str(y)
+        tstart, tstop = math.floor(math.log(ymin, 10)), math.floor(math.log(ymax, 10))  # could also use math.ceil() for ttsop
+        yticks = [y for y in numpy.logspace(tstart, tstop, num=tstop - tstart + 1)]
+        # ymax = yticks[-1]
+        if ymax > 1.1*yticks[-1]:
+            yticks.append(ymax)
+        yticklabels = [tstr(t) for t in yticks]
     if xticks is None:
         if not no_labels and hist.bin_labels.count('') != len(hist.bin_labels):
             xticks = hist.get_bin_centers()
@@ -334,9 +357,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                xbounds=[xmin, xmax],
                ybounds=[ymin, 1.15*ymax],
                leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
-               log=log, xticks=xticks, xticklabels=xticklabels,
+               log=log, xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels,
                no_legend=(len(hists) <= 1), adjust={'left' : 0.2})
-    plt.close()
 
 # ----------------------------------------------------------------------------------------
 def get_unified_bin_hist(hists):
@@ -502,15 +524,8 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         if xmin < 1:  # the above gives us the bin low edge, which with log x scale is way too far left of the lowest point
             xmin = 0.9
         xmax *= 1.025
-    xticks = [xt for xt in cluster_size_xticks if xt >= xmin and xt <= xmax]
-    def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
-    if len(xticks) < 3:
-        xticks = [int(xmin) + 1, int((xmin + xmax)/2.), int(xmax)]
-    # this was another way of getting x ticks, if you still have the partition, and it's kind of nice:
-    # csizes = sorted([len(c) for c in partition])
-    # xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
-
-    draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=[tstr(xt) for xt in xticks],
+    xticks, xticklabels = get_cluster_size_xticks(xmin, xmax)  # NOTE could also pass list of hists in here to get xmin, xmax
+    draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
                  bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle='fraction of clusters' if normalize else 'number of clusters', errors=True, alphas=alphas)
 
 # ----------------------------------------------------------------------------------------
@@ -640,19 +655,17 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def mpl_init(figsize=None, fontsize=20):
+def mpl_init(figsize=None, fsize=20, label_fsize=15):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     sys.modules['seaborn'].set_style('ticks')
-    fsize = fontsize
     mpl.rcParams.update({
-        # 'legend.fontweight': 900,
+        'font.size': fsize, 'axes.titlesize': fsize, 'axes.labelsize': fsize,
+        'xtick.labelsize': label_fsize, 'ytick.labelsize': label_fsize,  # NOTE this gets (maybe always?) overriden by xticklabelsize/yticklabelsize in mpl_finis()
         'legend.fontsize': fsize,
-        'axes.titlesize': fsize,
-        'xtick.labelsize': fsize,
-        'ytick.labelsize': fsize,
-        'axes.labelsize': fsize
-    })
+        'font.family': 'Lato', 'font.weight': 600,
+        'axes.labelweight': 600, 'axes.titleweight': 600,
+        'figure.autolayout': True})
     fig, ax = plt.subplots(figsize=figsize)
     fig.tight_layout()
     plt.gcf().subplots_adjust(bottom=0.16, left=0.2, right=0.78, top=0.92)
@@ -696,7 +709,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
         else:
             ax.set_xticklabels(xticklabels, size=xticklabelsize)
-    if yticklabels is not None:
+    if yticklabels is not None:  # NOTE there's some complicated auto log y tick stuff in draw_no_root()
         ax.set_yticklabels(yticklabels, size=yticklabelsize)
     plt.title(title, fontweight='bold', fontsize=20 if len(title) < 25 else 15)
     if not os.path.exists(plotdir):
@@ -730,46 +743,23 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
         print 'a_clusters: ', ' '.join([str(l) for l in a_cluster_lengths])
         print 'b_clusters: ', ' '.join([str(l) for l in b_cluster_lengths])
 
-    fig, ax = plt.subplots()
-    plt.gcf().subplots_adjust(bottom=0.14, left=0.18, right=0.95, top=0.92)
-    ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')
+    fig, ax = mpl_init()
     data = numpy.array(smatrix)
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
     heatmap = ax.pcolor(data, cmap=cmap, vmin=0., vmax=1.)
-    cbar = plt.colorbar(heatmap)
+    cbar = plt.colorbar(heatmap, label='fractional overlap', pad=0.09)
     
     modulo = 2
     axis_max = min(len(b_cluster_lengths), min(n_biggest_clusters, len(a_cluster_lengths)))
     if axis_max > 20:
         modulo = 3
     ticks = [n - 0.5 for n in range(1, axis_max + 1, modulo)]
-    xticklabels = [b_cluster_lengths[it] for it in range(0, len(b_cluster_lengths), modulo)]
-    yticklabels = [a_cluster_lengths[it] for it in range(0, len(a_cluster_lengths), modulo)]
-    plt.xticks(ticks, xticklabels)
-    plt.yticks(ticks, yticklabels)
-
-    mpl.rcParams['text.usetex'] = True
-    mpl.rcParams['text.latex.unicode'] = True
-
-    def boldify(textstr):  # TODO dammit this isn't working on thneed, maybe need to reinstall matplotlib with texlive already installed?
-        return textstr
-        # textstr = textstr.replace('%', '\%')
-        # textstr = textstr.replace('\n', '')
-        # return r'\textbf{' + textstr + '}'
-
-    plt.xlabel(boldify(legends.get(meth2, meth2)) + ' cluster size')  # I don't know why it's reversed, it just is
-    plt.ylabel(boldify(legends.get(meth1, meth1)) + ' cluster size')
-    ax.set_ylim(0, axis_max)
-    ax.set_xlim(0, axis_max)
-
-    plt.title(title)
-    
-    if not os.path.exists(plotdir):
-        os.makedirs(plotdir)
-    plt.savefig(plotdir + '/' + plotname + '.svg')
-    plt.close()
+    xticklabels = [str(b_cluster_lengths[it]) for it in range(0, len(b_cluster_lengths), modulo)]
+    yticklabels = [str(a_cluster_lengths[it]) for it in range(0, len(a_cluster_lengths), modulo)]
+    mpl_finish(ax, plotdir, plotname, title=title, xlabel='%s cluster size'%legends.get(meth2, meth2), ylabel='%s cluster size'%legends.get(meth1, meth1),
+               xticks=ticks, yticks=ticks, xticklabels=xticklabels, yticklabels=yticklabels, xticklabelsize=15, yticklabelsize=15,
+               xbounds=(0, axis_max), ybounds=(0, axis_max))
 
 # ----------------------------------------------------------------------------------------
 def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None, extra_links=None):
