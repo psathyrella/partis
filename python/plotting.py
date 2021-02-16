@@ -36,6 +36,8 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # set either xmi
     xticks = [xt for xt in default_xticks if xt >= xmin and xt <= xmax]
     if len(xticks) < 3:
         xticks = [int(xmin) + 1, int((xmin + xmax)/2.), int(xmax)]
+    if xmax > 2*xticks[-1]:  # just big enough that they don't overlap
+        xticks.append(xmax)
     # this was another way of getting x ticks, if you still have the partition, and it's kind of nice:
     # csizes = sorted([len(c) for c in partition])
     # xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
@@ -319,7 +321,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
 
     yticks, yticklabels = None, None
     if xticklabels is not None and 'y' in log:  # if xticklabels is set we need to also set the y ones so the fonts match up
-        yticks, yticklabels = auto_set_y_ticks(ymin, ymax, log=log)
+        yticks, yticklabels = get_auto_y_ticks(ymin, ymax, log=log)
     if xticks is None:
         if not no_labels and hist.bin_labels.count('') != len(hist.bin_labels):
             xticks = hist.get_bin_centers()
@@ -495,7 +497,7 @@ def label_bullshit_transform(label):
 # colors['cdr3-indels'] = '#cc0000'
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='x', normalize=False):
+def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False):
     hist_list, tmpcolors, alphas = [], [], []
     for ih, (name, hist) in enumerate(hists.items()):
         if 'misassign' in name:
@@ -716,12 +718,12 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     return fullname  # this return is being added long after this fcn was written, so it'd be nice to go through all the places where it's called and take advantage of the return value
 
 # ----------------------------------------------------------------------------------------
-def auto_set_y_ticks(ymin, ymax, log=''):
+def get_auto_y_ticks(ymin, ymax, log=''):
     def tstr(y): return (('%.0e'%y) if y>1000 else '%.0f'%y) if 'y' in log else str(y)
     tstart, tstop = math.floor(math.log(ymin, 10)), math.floor(math.log(ymax, 10))  # could also use math.ceil() for ttsop
     yticks = [y for y in numpy.logspace(tstart, tstop, num=tstop - tstart + 1)]
     # ymax = yticks[-1]
-    if ymax > 1.1*yticks[-1]:
+    if ymax > 1.4*yticks[-1]:
         yticks.append(ymax)
     return yticks, [tstr(t) for t in yticks]
 
