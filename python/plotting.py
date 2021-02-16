@@ -319,13 +319,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
 
     yticks, yticklabels = None, None
     if xticklabels is not None and 'y' in log:  # if xticklabels is set we need to also set the y ones so the fonts match up
-        def tstr(y): return (('%.0e'%y) if y>1000 else '%.0f'%y) if 'y' in log else str(y)
-        tstart, tstop = math.floor(math.log(ymin, 10)), math.floor(math.log(ymax, 10))  # could also use math.ceil() for ttsop
-        yticks = [y for y in numpy.logspace(tstart, tstop, num=tstop - tstart + 1)]
-        # ymax = yticks[-1]
-        if ymax > 1.1*yticks[-1]:
-            yticks.append(ymax)
-        yticklabels = [tstr(t) for t in yticks]
+        yticks, yticklabels = auto_set_y_ticks(ymin, ymax, log=log)
     if xticks is None:
         if not no_labels and hist.bin_labels.count('') != len(hist.bin_labels):
             xticks = hist.get_bin_centers()
@@ -720,6 +714,16 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     plt.close()
     # subprocess.check_call(['chmod', '664', fullname])
     return fullname  # this return is being added long after this fcn was written, so it'd be nice to go through all the places where it's called and take advantage of the return value
+
+# ----------------------------------------------------------------------------------------
+def auto_set_y_ticks(ymin, ymax, log=''):
+    def tstr(y): return (('%.0e'%y) if y>1000 else '%.0f'%y) if 'y' in log else str(y)
+    tstart, tstop = math.floor(math.log(ymin, 10)), math.floor(math.log(ymax, 10))  # could also use math.ceil() for ttsop
+    yticks = [y for y in numpy.logspace(tstart, tstop, num=tstop - tstart + 1)]
+    # ymax = yticks[-1]
+    if ymax > 1.1*yticks[-1]:
+        yticks.append(ymax)
+    return yticks, [tstr(t) for t in yticks]
 
 # ----------------------------------------------------------------------------------------
 def plot_csim_matrix_from_files(plotdir, plotname, meth1, ofn1, meth2, ofn2, n_biggest_clusters, title='', debug=False):
