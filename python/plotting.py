@@ -25,7 +25,7 @@ default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c
 default_linewidths = ['5', '3', '2', '2', '2']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
-def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # set either xmin and xmax, or hlist
+def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either xmin and xmax, or hlist NOTE pretty similar to get_auto_y_ticks()
     if xmin is None or xmax is None:
         assert xmin is None and xmax is None  # would have to implement it if you want to be able to set just one
         assert hlist is not None
@@ -718,7 +718,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     return fullname  # this return is being added long after this fcn was written, so it'd be nice to go through all the places where it's called and take advantage of the return value
 
 # ----------------------------------------------------------------------------------------
-def get_auto_y_ticks(ymin, ymax, log=''):
+def get_auto_y_ticks(ymin, ymax, log=''):  # NOTE pretty similar to get_cluster_size_xticks()
     def tstr(y): return (('%.0e'%y) if y>1000 else '%.0f'%y) if 'y' in log else str(y)
     tstart, tstop = math.floor(math.log(ymin, 10)), math.floor(math.log(ymax, 10))  # could also use math.ceil() for ttsop
     yticks = [y for y in numpy.logspace(tstart, tstop, num=tstop - tstart + 1)]
