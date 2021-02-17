@@ -1768,6 +1768,7 @@ def is_functional_dbg_str(line, iseq, sep=', '):  # NOTE code duplication with i
     return sep.join(dbg_str_list)
 
 # ----------------------------------------------------------------------------------------
+# NOTE that this only looks at one chain, so it doesn't know anything about "non-pairing" ig chains (should add a link here to a reference)
 def is_functional(line, iseq):  # NOTE code duplication with is_functional_dbg_str(
     if line['mutated_invariants'][iseq]:
         return False

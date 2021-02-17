@@ -56,7 +56,7 @@ The following keys are written to output by default:
 | v_gene         |  V gene in most likely annotation
 | d_gene         |  see v_gene
 | j_gene         |  see v_gene
-| cdr3_length    |  CDR3 length of most likely annotation (__including__ both conserved codons in their entirety)
+| cdr3_length    |  CDR3 length of most likely annotation (IMGT numbering, but __including__ both conserved codons in their entirety)
 | mut_freqs      |  list of sequence mutation frequencies `[per-seq]`
 | input_seqs     |  list of input sequences (with constant regions (fv/jf insertions) removed, unless `--dont-remove-framework-insertions` was set) `[per-seq]`
 | naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation
