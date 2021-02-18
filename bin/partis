@@ -413,8 +413,11 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
             utils.remove_from_arglist(clist, '--paired-outdir', has_arg=True)
             utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
-            if tmpaction in ['generate-trees', 'simulate']:  # deal with simulation {,reco,shm}-parameter dir stuff
-                for tstr in ['', 'reco-', 'shm-']:
+            if tmpaction in ['generate-trees', 'simulate']:
+                if '--seed' in clist:  # if it was set on the command line, we need to send different seeds to each pair (otherwise we'll get the same trees and same igh sequences in h+k and h+l)
+                    sval = hash('+'.join(lpair) + utils.get_val_from_arglist(clist, '--seed')) % 2**31  # % by max seed value (well it's 32) NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
+                    utils.replace_in_arglist(clist, '--seed', str(sval))
+                for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
                         utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr)))  # the trees aren't really associated with the locus if we're generating trees, but we just use it to get the mutation rate (and maybe that doesn't really get used?)  # NOTE this will use the heavy chain parameter dir and ignore the light chain one, which I think is ok (it's just used for tree scaling, and it would be better to eventually have different scaling for light chain, but it should be fine)
