@@ -43,8 +43,10 @@ def markfname(iclust):
 
 # ----------------------------------------------------------------------------------------
 def install():
-    rcmds = ['install.packages("BiocManager", repos="http://cran.rstudio.com/"))',
+    rcmds = ['install.packages("BiocManager", repos="http://cran.rstudio.com/")',
              'BiocManager::install(c("scRNAseq", "scater", "scran", "uwot", "DropletUtils", "GSEABase", "AUCell", "celldex", "SingleR"), dependencies=TRUE)']  # "TENxPBMCData"
+    # maybe should add these, since the regular package installer tried to update them but couldn't?
+    # 'beachmat', 'BiocNeighbors', 'BiocStyle', 'biomaRt', 'DelayedArray', 'DelayedMatrixStats', 'edgeR', 'gdsfmt', 'GenomeInfoDb', 'HDF5Array', 'IRanges', 'MatrixGenerics', 'preprocessCore', 'Rhdf5lib', 'S4Vectors', 'scuttle', 'sparseMatrixStats'
     utils.run_r(rcmds, 'auto')
 # install()
 # sys.exit()
@@ -368,20 +370,20 @@ def run_gex(feature_matrix_fname, mname, outdir, make_plots=True):
         # 'sce <- sce[, pred$labels=="B-cells"]',  # discard non-b-cells
         # 'pred <- pred[pred$labels=="B-cells", ]',
     ]
-    if mname == 'hvg':
+    if mname == 'hvg':  # hvg (hypervariable genes): this is the dumb/default/no prior info choice, where you use the ~700 most variable genes in our sample
         rcmds += [
             'dec <- modelGeneVar(sce)',
             'hvg <- getTopHVGs(dec, prop=0.1)',  # 0.1 gives ~700 most variable genes (if you combine these with the fabio/waick, these totally dominate everything, presumably because there's so many)
         ]
-    elif mname == 'fabio':
+    elif mname == 'fabio':  # he gaves us the 200 most discriminative genes between pb and naive; here i use only the ones up'd in pb
         rcmds += [
             'fabio.markers <- read.csv("%s", sep="\t", header=T)' % fabio_fname, # $name  # genes from fabio (200 most up- or down-regulated in plasmablast as compared to naive B cells)
         ]
-    elif mname == 'waick':
+    elif mname == 'waick':  # he gave us the 10 most upregulated genes in his samples for each of naive, memory, pb, and prepb, so 40 total
         rcmds += [
             'waick.markers <- read.csv("%s", header=T)' % waickfname,  # 10 most up'd genes for naive, memory, pb, and prepb (40 total). Not sure if it's with respeect to each other, or other cells, or what
         ]
-    elif mname == 'msigdb':
+    elif mname == 'msigdb':  # msigdb: I searched through the msigdb "C7" immune cell sets for anything with plasma{blast,cell} and picked the sets that seemed most relevant, ended up with ~1000 genes from these two papers (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4517294/ and https://pubmed.ncbi.nlm.nih.gov/23613519/)
         rcmds += [
             'msigdb.markers <- read.csv("%s", header=T)' % msigdbfname,  # see <msdsets> above -- I just searched through the G7 sets for ones with plasma{blast,cell} and took the nearby ones
         ]
@@ -403,7 +405,7 @@ def run_gex(feature_matrix_fname, mname, outdir, make_plots=True):
     # only if we have clusters:
     rcmds += ['tab <- table(Assigned=pred$pruned.labels, Cluster=colLabels(sce))',]  # table (and then heatmap) comparing these new labels to our existing clusters
     rcmds += rplotcmds(outdir, 'celldex-label-vs-cluster-heatmap', 'pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))')  # this will crash if you've filtered to only B cells
-    if mname != 'hvg':
+    if mname != 'hvg':  # doesn't @#%$!$ing work any more (failes with "unable to find an inherited method for function AUCell_buildRankings for signature DelayedMatrix")
         rcmds += ctype_ann_cmds(outdir, mname_markers.replace('$gene', ''))
 
     utils.run_r(rcmds, 'auto', logfname='%s/out'%outdir, dryrun=False)
