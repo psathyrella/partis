@@ -445,9 +445,9 @@ class Hist(object):
                 return ax.plot(xvals, yvals, **kwargs)  #, fmt='-o')
 
     # ----------------------------------------------------------------------------------------
-    def fullplot(self, plotdir, plotname, **kwargs):  # i.e. full plotting process, not just the ax.plot type stuff above
+    def fullplot(self, plotdir, plotname, pargs={}, fargs={}): #**kwargs):  # i.e. full plotting process, not just the ax.plot type stuff above
         import plotting
         fig, ax = plotting.mpl_init()  # this'll need to be updated when i want to use a kwarg for this fcn
-        self.mpl_plot(ax)
-        plotting.mpl_finish(ax, plotdir, plotname, **kwargs)
+        self.mpl_plot(ax, **pargs)
+        plotting.mpl_finish(ax, plotdir, plotname, **fargs)
         self.write('%s/%s.csv'%(plotdir, plotname))

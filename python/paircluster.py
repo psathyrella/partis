@@ -191,7 +191,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N uids per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.6, 0.7), xticks=xticks, xticklabels=xticklabels, xbounds=xbounds)
         # ----------------------------------------------------------------------------------------
         bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
-        bhist.fullplot(plotdir, 'uids-per-droplet', xlabel='uids per droplet', ylabel='counts', title='before')
+        bhist.fullplot(plotdir, 'uids-per-droplet', fargs={'xlabel' : 'uids per droplet', 'ylabel' : 'counts', 'title' : 'before'})
         # fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
         flcounts = {f : {} for f in ['func', 'nonfunc']}
         for pgroup in pid_groups:
@@ -460,7 +460,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             for cluster in cpaths[ltmp].best():
                 pidlengths += [len(pids) for pids in antn_dicts[ltmp][':'.join(cluster)]['paired-uids']]
         ahist = Hist(value_list=pidlengths, init_int_bins=True)
-        ahist.fullplot(plotdir, 'paired-uids-per-uid', xlabel='N paired uids per uid', ylabel='counts', title='after', log='y')
+        ahist.fullplot(plotdir, 'paired-uids-per-uid', pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N paired uids per uid', 'ylabel' : 'counts', 'title' : 'after'})
 
 # ----------------------------------------------------------------------------------------
 def compare_partition_pair(cfpart, refpart, remove_from_ref=False, antn_list=None, dbg_str=None, cf_label='inferred', ref_label='true', debug=False):
