@@ -194,6 +194,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         bhist.fullplot(plotdir, 'seqs-per-droplet', fargs={'xlabel' : 'seqs per droplet', 'ylabel' : 'counts', 'title' : 'before'})
         # fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
         flcounts = {f : {} for f in ['func', 'nonfunc']}
+        per_seq_flcounts = {}
         for pgroup in pid_groups:
             funclist = [utils.is_functional(all_antns[p], all_antns[p]['unique_ids'].index(p)) for p in pgroup]
             # fhists['func'].fill(funclist.count(True))
@@ -204,6 +205,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             if lckey not in flcounts[fkey]:
                 flcounts[fkey][lckey] = 0
             flcounts[fkey][lckey] += 1
+            per_seq_flcounts.update({u : lckey for u in pgroup})
 
         # shenanigans to get bins sorted by the fractional counts summed over both func and nonfunc (i.e. by the average fractional count, so bins will look out of order for func/nonfunc individually)
         ctotals = {fk : sum(flcounts[fk].values()) for fk in flcounts}
@@ -223,6 +225,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                 fhists[fstr].bin_labels[ibin + 1] = blabel
         for logstr in ['', '-log']:
             fnfplot(logstr, fhists)
+        return per_seq_flcounts
     # ----------------------------------------------------------------------------------------
     def plot_n_pseqs_per_seq(pstr):
         pidlengths = {}
@@ -234,29 +237,17 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         ahist.fullplot(plotdir, 'paired-seqs-per-seq-%s'%pstr, pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N paired seqs per seq', 'ylabel' : 'counts', 'title' : pstr, 'xbounds' : (-0.05, 1.05*ahist.xmax), 'xticks' : [i for i in range(0, int(ahist.xmax+1))]})
         return pidlengths
     # ----------------------------------------------------------------------------------------
-    def plot_pseq_matrix(initial_seqs_per_seq, final_seqs_per_seq, tdbg=False):
-        init_bins, fin_bins = [[-1] + sorted(set(td.values())) for td in (initial_seqs_per_seq, final_seqs_per_seq)]
-        smatrix = [[0 for _ in fin_bins] for _ in init_bins]
-        for uid in set(initial_seqs_per_seq) | set(final_seqs_per_seq):
-            smatrix[init_bins.index(initial_seqs_per_seq.get(uid, -1))][fin_bins.index(final_seqs_per_seq.get(uid, -1))] += 1
-        if tdbg:
-            print '     %s' % ' '.join(('   %2d'%ib for ib in init_bins))
-            for iff, fb in enumerate(fin_bins):
-                for ii, ib in enumerate(init_bins):
-                    print '%s %4d' % (('   %2d'%fb) if ii==0 else '', smatrix[ii][iff]),
-                print ''
+    def make_final_plots(initial_seqs_per_seq, initial_flcounts):
+        final_seqs_per_seq = plot_n_pseqs_per_seq('after')
         import plotting
-        from matplotlib import pyplot as plt
-        fig, ax = plotting.mpl_init()
-        cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
-        cmap.set_under('w')
-        heatmap = ax.pcolor(numpy.array(smatrix), cmap=cmap) #, vmin=0., vmax=1.)
-        cbar = plt.colorbar(heatmap, label='counts', pad=0.09)
-        def tstr(bv): return '%d'%bv if bv >= 0 else 'miss.'
-        plotting.mpl_finish(ax, plotdir, 'pseq-matrix', title='N paired seqs per seq', xlabel='after', ylabel='before',
-                            xticks=[n - 0.5 for n in range(1, len(fin_bins) + 1)], yticks=[n - 0.5 for n in range(1, len(init_bins) + 1)],
-                            xticklabels=[tstr(b) for b in fin_bins], yticklabels=[tstr(b) for b in init_bins],
-                            xticklabelsize=15, yticklabelsize=15)
+        plotting.plot_smatrix(plotdir, 'pseq-matrix', final_seqs_per_seq, initial_seqs_per_seq, xlabel='after', ylabel='before', lfcn=lambda x: 'miss.' if x==-1 else str(x), title='N paired seqs per seq')
+        final_flcounts = {}  # note that this has to be per seq (even though that kind of double counts) since otherwise we wouldn't have a way to determine correspondence between initial and final
+        for ltmp in sorted(cpaths):
+            for cluster in cpaths[ltmp].best():
+                atn = antn_dicts[ltmp][':'.join(cluster)]
+                final_flcounts.update({u : lgstr(set([u] + pids), for_plot=True) for u, pids in zip(atn['unique_ids'], atn['paired-uids'])})  # have to make sure <u> is included in <pids> (as well as that there's no duplicates)
+        plotting.plot_smatrix(plotdir, 'flcount-matrix', final_flcounts, initial_flcounts, kfcn=len, # trunc_frac=0.01,
+                              lfcn=lambda x: 'miss.' if x==-1 else ('none' if x=='' else str(x)), xlabel='after', ylabel='before', title='pair combo (per seq)')
     # ----------------------------------------------------------------------------------------
     def getloc(uid):
         if uid not in all_antns:
@@ -434,7 +425,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
 
     idg_ok = check_droplet_id_groups(all_uids)  # NOTE not using the return value here, but I may need to in the future
     if plotdir is not None:
-        plot_uids_before(plotdir, pid_groups, all_antns)
+        initial_flcounts = plot_uids_before(plotdir, pid_groups, all_antns)
         initial_seqs_per_seq = plot_n_pseqs_per_seq('before')
 
     # then go through each group trying to remove as many crappy/suspicously similar ones as possible (this step has a fairly minor effect compared to the partition-based step below)
@@ -490,8 +481,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             clean_with_partition_info(cluster)
 
     if plotdir is not None:
-        final_seqs_per_seq = plot_n_pseqs_per_seq('after')
-        plot_pseq_matrix(initial_seqs_per_seq, final_seqs_per_seq)
+        make_final_plots(initial_seqs_per_seq, initial_flcounts)
 
 # ----------------------------------------------------------------------------------------
 def compare_partition_pair(cfpart, refpart, remove_from_ref=False, antn_list=None, dbg_str=None, cf_label='inferred', ref_label='true', debug=False):

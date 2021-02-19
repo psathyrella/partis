@@ -768,6 +768,33 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
                xbounds=(0, axis_max), ybounds=(0, axis_max))
 
 # ----------------------------------------------------------------------------------------
+def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, trunc_frac=None, lfcn=lambda x: x, xlabel='', ylabel='', title='', tdbg=False):
+    xbins, ybins = [[-1] + sorted(set(td.values()), key=kfcn) for td in (xvals, yvals)]
+    smatrix = [[0 for _ in xbins] for _ in ybins]
+    for uid in set(yvals) | set(xvals):
+        smatrix[ybins.index(yvals.get(uid, -1))][xbins.index(xvals.get(uid, -1))] += 1
+    if tdbg:
+        print '     %s' % ' '.join(('   %2d'%ib for ib in ybins))
+        for iff, fb in enumerate(xbins):
+            for ii, ib in enumerate(ybins):
+                print '%s %4d' % (('   %2d'%fb) if ii==0 else '', smatrix[ii][iff]),
+            print ''
+    # if trunc_frac is not None:
+    #     if tdbg:
+    #         print '    truncating values less than %.4f' % trunc_frac
+    #     xvals = 
+
+    fig, ax = mpl_init()
+    cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
+    cmap.set_under('w')
+    heatmap = ax.pcolor(numpy.array(smatrix), cmap=cmap) #, vmin=0., vmax=1.)
+    cbar = plt.colorbar(heatmap, label='counts', pad=0.09)
+    mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,
+               xticks=[n - 0.5 for n in range(1, len(xbins) + 1)], yticks=[n - 0.5 for n in range(1, len(ybins) + 1)],
+               xticklabels=[lfcn(b) for b in xbins], yticklabels=[lfcn(b) for b in ybins],
+               xticklabelsize=15, yticklabelsize=15)
+
+# ----------------------------------------------------------------------------------------
 def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None, extra_links=None):
     if fnames is not None:  # make sure it's formatted properly
         for rowfnames in fnames:
