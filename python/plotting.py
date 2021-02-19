@@ -768,27 +768,31 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
                xbounds=(0, axis_max), ybounds=(0, axis_max))
 
 # ----------------------------------------------------------------------------------------
-def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, trunc_frac=None, lfcn=lambda x: x, xlabel='', ylabel='', title='', tdbg=False):
+def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lfcn=lambda x: x, xlabel='', ylabel='', title='', tdbg=False):
     xbins, ybins = [[-1] + sorted(set(td.values()), key=kfcn) for td in (xvals, yvals)]
+    if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
+        print '    truncating x bins %d --> %d and ybins %d --> %d' % (len(xbins), n_max_bins, len(ybins), n_max_bins)
+        xbins, ybins = xbins[:n_max_bins], ybins[:n_max_bins]
     smatrix = [[0 for _ in xbins] for _ in ybins]
+    n_skipped = 0
     for uid in set(yvals) | set(xvals):
-        smatrix[ybins.index(yvals.get(uid, -1))][xbins.index(xvals.get(uid, -1))] += 1
+        yv, xv = yvals.get(uid, -1), xvals.get(uid, -1)
+        if yv not in ybins or xv not in xbins:
+            n_skipped += 1
+            continue
+        smatrix[ybins.index(yv)][xbins.index(xv)] += 1
     if tdbg:
         print '     %s' % ' '.join(('   %2d'%ib for ib in ybins))
         for iff, fb in enumerate(xbins):
             for ii, ib in enumerate(ybins):
                 print '%s %4d' % (('   %2d'%fb) if ii==0 else '', smatrix[ii][iff]),
             print ''
-    # if trunc_frac is not None:
-    #     if tdbg:
-    #         print '    truncating values less than %.4f' % trunc_frac
-    #     xvals = 
 
     fig, ax = mpl_init()
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
     heatmap = ax.pcolor(numpy.array(smatrix), cmap=cmap) #, vmin=0., vmax=1.)
-    cbar = plt.colorbar(heatmap, label='counts', pad=0.09)
+    cbar = plt.colorbar(heatmap, label=('counts (skipped %d)'%n_skipped) if n_skipped > 0 else 'counts', pad=0.09)
     mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,
                xticks=[n - 0.5 for n in range(1, len(xbins) + 1)], yticks=[n - 0.5 for n in range(1, len(ybins) + 1)],
                xticklabels=[lfcn(b) for b in xbins], yticklabels=[lfcn(b) for b in ybins],
