@@ -93,8 +93,10 @@ class TreeGenerator(object):
             if hist.bin_contents[hist.find_bin(1)] == 1:
                 print '  %s cluster size hist was made from the singleton partition, suggesting that parameters may have been inferred without partitioning (override use of the hist by setting --n-leaf-distribution)' % utils.color('yellow', 'warning')
             self.n_leaf_hist = hist
-       # ----------------------------------------------------------------------------------------
-        if self.args.n_leaf_distribution is None:  # if not set on the command line
+        # ----------------------------------------------------------------------------------------
+        if self.args.constant_number_of_leaves:
+            self.final_nldist = None
+        elif self.args.n_leaf_distribution is None:  # if not set on the command line
             if self.args.rearrange_from_scratch:
                 self.final_nldist = self.args.default_scratch_n_leaf_distribution
             else:

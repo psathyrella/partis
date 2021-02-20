@@ -540,7 +540,32 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.write_annotations(getofn(ltmp, lpair=lpair), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
         return {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : cpaths}
     # ----------------------------------------------------------------------------------------
-    def write_merged_simu(antn_lists):  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files
+    def apportion_cells_to_droplets(outfos, metafos):
+        n_droplets = int(0.5 * float(len(outfos)) / args.mean_cells_per_droplet)  # (randomly) apportion cells among this many droplets (0.5 is because <outfos> includes both heavy and light sequences)
+        droplet_ids = [[] for _ in range(n_droplets)]  # list of sequence ids for each droplet
+        sfo_dict = {s['name'] : s for s in outfos}  # temp, to keep track of who still needs apportioning (but we do modify its sfos, which are shared with <outfos>)
+        while len(sfo_dict) > 0:
+            tid = next(iter(sfo_dict))
+            idrop = numpy.random.choice(range(len(droplet_ids)))
+            droplet_ids[idrop] += [tid] + metafos[tid]['paired-uids']  # add <tid> plus its paired ids to this drop (note that these are the original/correct paired ids, which is what we want)
+            for uid in [tid] + metafos[tid]['paired-uids']:
+                sfo_dict[uid]['droplet-ids'] = droplet_ids[idrop]
+                del sfo_dict[uid]
+        for sfo in outfos:
+            metafos[sfo['name']]['paired-uids'] = [u for u in sfo['droplet-ids'] if u != sfo['name']]
+        print '  apportioned %d seqs among %d droplets (mean/2 %.1f): %s' % (len(outfos), n_droplets, numpy.mean([len(d) for d in droplet_ids]) / 2, ' '.join(str(len(d)) for d in droplet_ids))
+    # ----------------------------------------------------------------------------------------
+    def remove_reads_from_droplets(outfos, metafos):
+        n_to_remove = int(args.fraction_of_reads_to_remove * len(outfos))
+        ifos_to_remove = numpy.random.choice(range(len(outfos)), size=n_to_remove, replace=False)
+        for ifo in ifos_to_remove:
+            del metafos[outfos[ifo]['name']]
+        outfos = [outfos[ifo] for ifo in range(len(outfos)) if ifo not in ifos_to_remove]
+        print '  removed %d / %d = %.2f seqs from outfos' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove))
+        return outfos
+    # ----------------------------------------------------------------------------------------
+    def write_merged_simu(antn_lists):  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
+        # merge together info from all loci into <outfos> and <metafos>
         outfos, metafos = [], {}
         for ltmp in antn_lists:
             for tline in antn_lists[ltmp]:
@@ -548,19 +573,12 @@ def run_all_loci(args, ig_or_tr='ig'):
                     outfos.append({'name' : uid, 'seq' : seq})
                     metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
 
-        n_droplets = int(0.5 * float(len(outfos)) / args.mean_cells_per_droplet)  # 0.5 is because <outfos> includes both heavy and light sequences
-        droplet_ids = [[] for _ in range(n_droplets)]
-        sfo_dict = {s['name'] : s for s in outfos}
-        while len(sfo_dict) > 0:
-            tid = next(iter(sfo_dict))
-            idrop = numpy.random.choice(range(len(droplet_ids)))
-            droplet_ids[idrop] += [tid] + metafos[tid]['paired-uids']  # add <tid> plus its paired ids to this drop
-            for uid in [tid] + metafos[tid]['paired-uids']:
-                sfo_dict[uid]['droplet-ids'] = droplet_ids[idrop]
-                del sfo_dict[uid]
-        for sfo in outfos:
-            metafos[sfo['name']]['paired-uids'] = sfo['droplet-ids']
+        if args.mean_cells_per_droplet is not None:
+            apportion_cells_to_droplets(outfos, metafos)
+        if args.fraction_of_reads_to_remove is not None:
+            outfos = remove_reads_from_droplets(outfos, metafos)
 
+        # write merged fasta and input meta files
         with open(getmfn('all-seqs'), 'w') as outfile:
             for sfo in outfos:
                 outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
@@ -606,8 +624,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         for ltmp in [l for l in utils.sub_loci(ig_or_tr) if l in antn_lists]:
             print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
             utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
-        if args.mean_cells_per_droplet is not None:  # NOTE this also writes a .fa with all three loci together, which should really probably be separate from whether mean_cells_per_droplet is set
-            write_merged_simu(antn_lists)
+        write_merged_simu(antn_lists)
     # ----------------------------------------------------------------------------------------
     def get_true_partitions(cpaths, debug=False):
         if args.is_data or args.paired_indir is None:
@@ -948,7 +965,8 @@ subargs['simulate'].append({'name' : '--allele-prevalence-fname', 'kwargs' : {'h
 subargs['simulate'].append({'name' : '--nsnp-list', 'kwargs' : {'help' : 'When --generate-germline-set is set, this is a colon-separated list whose length gives the number of novel alleles to add to the germline set. Each entry in the list is the number of SNPs to generate for the corresponding new allele. If both --nsnp-list and --nindel-list are set, they must be the same length; if one is unset, it is assumed to be all zeroes.'}})
 subargs['simulate'].append({'name' : '--nindel-list', 'kwargs' : {'help' : 'When --generate-germline-set is set, this is a colon-separated list whose length gives the number of novel alleles to add to the germline set. Each entry in the list is the number of indels to generate for the corresponding new allele. If both --nsnp-list and --nindel-list are set, they must be the same length; if one is unset, it is assumed to be all zeroes.'}})
 subargs['simulate'].append({'name' : '--im-a-subproc', 'kwargs' : {'action' : 'store_true', 'help' : 'Internal use only. This is set to true if this is a subprocess, i.e. set when --n-procs > 1.'}})
-subargs['simulate'].append({'name' : '--mean-cells-per-droplet', 'kwargs' : {'type' : float, 'help' : 'After simulating each family as either h+k or h+l (and adding the corresponding, correct \'paired-uids\' key to the output files, proceed to mimic a 10x experiment with multiple cells in some droplets, and writing the corresponding (incorrect) \'paired-uids\' to a new input meta file (which, when passed with --input-metafname, will override the paired uids from the regular simulation file)'}})
+subargs['simulate'].append({'name' : '--mean-cells-per-droplet', 'kwargs' : {'type' : float, 'help' : 'If set, in paired simulation add extra cells per droplet (to mimic ambiguous pairing info, as in "overloaded" 10x data). Cells are apportioned uniform-randomly among the correct number of droplets so as to arrive at the specified mean cells. Correct pairing info is left in original simulation file, while new, incorrect info is written to a new input meta file, which if passed to partis inference with --input-metafname will override pairing info from simulation file. See also --fraction-of-reads-to-remove.'}})
+subargs['simulate'].append({'name' : '--fraction-of-reads-to-remove', 'kwargs' : {'type' : float, 'help' : 'If set, in paired simulation we throw out this fraction of sequences (so that their paired seq, which remains, has no paired seq). See also --mean-cells-per-droplet.'}})
 
 
 subargs['view-alternative-annotations'].append({'name' : '--print-all-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to printing each alternative naive seq and gene call, with information on which clusters support its correctness, also print the annotations for all of these clusters below each naive sequence and gene call.'}})

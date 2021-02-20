@@ -344,6 +344,8 @@ def process(args):
 
         if args.treefname is not None:
             raise Exception('--treefname was set for simulation action (probably meant to use --input-simulation-treefname)')
+        if args.fraction_of_reads_to_remove is not None:
+            assert args.fraction_of_reads_to_remove > 0. and args.fraction_of_reads_to_remove < 1.
 
     if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')
