@@ -334,6 +334,9 @@ def process(args):
         if args.generate_germline_set and not args.rearrange_from_scratch:
             raise Exception('can only --generate-germline-set if also rearranging from scratch (set --rearrange-from-scratch)')
 
+        if args.constant_number_of_leaves and args.n_leaf_distribution is not None:
+            raise Exception('--n-leaf-distribution has no effect if --constant-number-of-leaves is set (but both were set)')
+
         if args.generate_germline_set:
             args.snp_positions = None  # if you want to control the exact positions, you have to use bin/test-germline-inference.py
             args.indel_positions = None
