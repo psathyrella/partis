@@ -788,7 +788,7 @@ def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lf
     if tdbg:
         lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
         print '  detailed smatrix'
-        print '     %s' % ''.join((('  %'+lb+'s')%ib for ib in [''] + ybins))
+        print '%s' % ''.join((('  %'+lb+'s')%ib for ib in [''] + ybins))
         for iff, fb in enumerate(xbins):
             for ii, ib in enumerate(ybins):
                 print ('%s %'+lb+'d') % ((('%'+lb+'s')%fb) if ii==0 else '', smatrix[ii][iff]),

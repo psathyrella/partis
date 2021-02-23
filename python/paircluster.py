@@ -247,7 +247,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 final_flcounts.update({u : lgstr(set([u] + pids), for_plot=True) for u, pids in zip(atn['unique_ids'], atn['paired-uids'])})  # have to make sure <u> is included in <pids> (as well as that there's no duplicates)
         plotting.plot_smatrix(plotdir, 'flcount-matrix', final_flcounts, initial_flcounts, kfcn=len, n_max_bins=15,
-                              lfcn=lambda x: 'miss.' if x==-1 else ('none' if x=='' else str(x)), xlabel='after', ylabel='before', title='pair combo (per seq)')
+                              lfcn=lambda x: 'miss.' if x==-1 else ('none' if x=='' else str(x)), xlabel='after', ylabel='before', title='pair combo (per seq)', tdbg=2 if debug else False)
     # ----------------------------------------------------------------------------------------
     def getloc(uid):
         if uid not in all_antns:
