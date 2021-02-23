@@ -791,8 +791,8 @@ def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lf
     fig, ax = mpl_init()
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
-    heatmap = ax.pcolor(numpy.array(smatrix), cmap=cmap) #, vmin=0., vmax=1.)
-    cbar = plt.colorbar(heatmap, label=('counts (skipped %d)'%n_skipped) if n_skipped > 0 else 'counts', pad=0.09)
+    heatmap = ax.pcolor(numpy.array(smatrix), cmap='viridis', vmin=0.5) #, vmax=1.) #, norm=mpl.colors.LogNorm()
+    cbar = plt.colorbar(heatmap, label=('counts (skipped %d)'%n_skipped) if n_skipped > 0 else 'counts', pad=0.12)
     mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,
                xticks=[n - 0.5 for n in range(1, len(xbins) + 1)], yticks=[n - 0.5 for n in range(1, len(ybins) + 1)],
                xticklabels=[lfcn(b) for b in xbins], yticklabels=[lfcn(b) for b in ybins],
