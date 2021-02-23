@@ -704,7 +704,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         ccfs = None  # if we're just plotting partitions (not merging), we'd have to go back and read single + joint/concat'd partitions in order to get these
         if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run:
             ccfs = combine_inf_chains()
-        if args.action in ['get-selection-metrics', 'plot-partitions'] or args.plotdir is not None or args.plot_partitions:
+        if args.action in ['get-selection-metrics', 'plot-partitions'] or (args.action=='partition' and args.plotdir is not None) or args.plot_partitions:
             aigsm = args.action=='get-selection-metrics'
             tmpaction = 'get-selection-metrics' if aigsm else 'plot-partitions'  # NOTE there's no way to make this get selection metrics and plot partitions in one go (i.e. --get-selection-metrics won't do anything), but whatever just run it as a separate step
             for lpair in utils.locus_pairs[ig_or_tr]:  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)

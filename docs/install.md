@@ -61,7 +61,7 @@ Note also that if you instead install R with conda, it replaces your entire comp
 
 You can then install the required R packages with:
 ```
-R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM"), repos="http://cran.rstudio.com/")'
+R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE)'
 ```
 The default mutation model also requires compilatoin of an updated (development) version of bpp that's in `packages/bpp-newlik/`:
 ```
