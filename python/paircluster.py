@@ -341,6 +341,8 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             utils.print_reco_event(cline, uid_extra_strs=uid_extra_strs, extra_str='      ')
         # ----------------------------------------------------------------------------------------
         cline = antn_dicts[ltmp][':'.join(cluster)]
+        if any(u not in pid_groups[pid_ids[u]] for u in cline['unique_ids']):  # shouldn't be able to happen any more, but that was a really bad/dumb bug
+            raise Exception('one of unique ids %s not in its own pid group' % cline['unique_ids'])
         cline['paired-uids'] = [[p for p in pid_groups[pid_ids[u]] if p != u] for u in cline['unique_ids']]
 
         pfamilies = get_pfamily_dict(cline, extra_str='before:')
@@ -455,6 +457,8 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             for rid in ids_to_remove:
                 pgroup.remove(rid)
                 idlist.remove(rid)
+                pid_groups.append(set([rid]))  # add the removed id to a new pid group of its own at the end (so it'll show up as unpaired)
+                pid_ids[rid] = len(pid_groups) - 1
             if debug > 1:
                 print '      %s: removed %d, leaving %d' % (utils.color('green', 'fixed') if len(idlist)==1 else utils.color('red', 'nope'), len(ids_to_remove), len(idlist))
                 if len(idlist) > 1:
