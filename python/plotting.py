@@ -774,6 +774,8 @@ def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lf
         print '    truncating x bins %d --> %d and ybins %d --> %d' % (len(xbins), n_max_bins, len(ybins), n_max_bins)
         xbins, ybins = xbins[:n_max_bins], ybins[:n_max_bins]
     smatrix = [[0 for _ in xbins] for _ in ybins]
+    if tdbg > 1:
+        uid_matrix = [[[] for _ in xbins] for _ in ybins]
     n_skipped = 0
     for uid in set(yvals) | set(xvals):
         yv, xv = yvals.get(uid, -1), xvals.get(uid, -1)
@@ -781,12 +783,21 @@ def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lf
             n_skipped += 1
             continue
         smatrix[ybins.index(yv)][xbins.index(xv)] += 1
+        if tdbg > 1:
+            uid_matrix[ybins.index(yv)][xbins.index(xv)].append(uid)
     if tdbg:
-        print '     %s' % ' '.join(('   %2d'%ib for ib in ybins))
+        lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
+        print '  detailed smatrix'
+        print '     %s' % ''.join((('  %'+lb+'s')%ib for ib in [''] + ybins))
         for iff, fb in enumerate(xbins):
             for ii, ib in enumerate(ybins):
-                print '%s %4d' % (('   %2d'%fb) if ii==0 else '', smatrix[ii][iff]),
+                print ('%s %'+lb+'d') % ((('%'+lb+'s')%fb) if ii==0 else '', smatrix[ii][iff]),
             print ''
+        if tdbg > 1:
+            print '  uids in smatrix'
+            for iy, yb in enumerate(ybins):
+                for ix, xb in enumerate(xbins):
+                    print ('  %'+lb+'s   %'+lb+'s    %4d   %s') % (yb, xb, len(uid_matrix[iy][ix]), ':'.join(uid_matrix[iy][ix]))
 
     fig, ax = mpl_init()
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
