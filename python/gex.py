@@ -149,8 +149,8 @@ def ctype_ann_cmds(outdir, clnames):  # cell type annotation (although we do som
         'rankings <- AUCell_buildRankings(counts(sce), plotStats=FALSE, verbose=FALSE)',
         'cell.aucs <- AUCell_calcAUC(all.sets, rankings)',
         'results <- t(assay(cell.aucs))',
-        'write.csv(results, "%s/%s")' % (outdir, cell_type_fname),
         'new.labels <- colnames(results)[max.col(results)]',
+        'write.csv(cbind(results, new.labels), "%s/%s")' % (outdir, cell_type_fname),
         'tab <- table(new.labels, sce$label)',  # only if we have clusters
         'write.csv(tab, "%s/%s")' % (outdir, cluster_vs_subtype_fname),
     ]

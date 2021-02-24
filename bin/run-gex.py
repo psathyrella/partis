@@ -18,6 +18,6 @@ import gex
 feature_matrix_fname = "/fh/fast/matsen_e/data/goo-dengue-10x/data/gex/filtered_feature_bc_matrix"
 outdir = "/home/dralph/Dropbox/tmp-gex" #"/fh/fast/matsen_e/dralph/partis/tmp/gex"
 # gex.run_msigdbr('datascripts/meta/goo-dengue-10x')
-for mname in ['hvg', 'fabio', 'msigdb']: #['hvg', 'fabio', 'waick', 'msigdb']:
+for mname in ['waick', 'msigdb']: # ['hvg', 'fabio', 'waick', 'msigdb']:
     gex.run_gex(feature_matrix_fname, mname, outdir + '/' + mname)
-# gex.read_gex(outdir)
+    # gex.read_gex(outdir + '/' + mname)
