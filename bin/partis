@@ -665,7 +665,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             titlestr += ':@specif.%.2f'%ccfs[ltmp][0]
         cmdstr = './bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
         cmdstr += ' --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % titlestr
-        utils.simplerun(cmdstr)
+        utils.simplerun(cmdstr, dryrun=args.dry_run)
 
         # NOTE this has to happen *after* running compare-plotdirs.py, since it cleans the dirs
         import plotting
@@ -704,7 +704,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         ccfs = None  # if we're just plotting partitions (not merging), we'd have to go back and read single + joint/concat'd partitions in order to get these
         if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run:
             ccfs = combine_inf_chains()
-        if args.action in ['get-selection-metrics', 'plot-partitions'] or (args.action=='partition' and args.plotdir is not None) or args.plot_partitions:
+        if args.action in ['get-selection-metrics', 'plot-partitions'] or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None) or args.plot_partitions:
             aigsm = args.action=='get-selection-metrics'
             tmpaction = 'get-selection-metrics' if aigsm else 'plot-partitions'  # NOTE there's no way to make this get selection metrics and plot partitions in one go (i.e. --get-selection-metrics won't do anything), but whatever just run it as a separate step
             for lpair in utils.locus_pairs[ig_or_tr]:  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
@@ -719,7 +719,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if not aigsm and args.plotdir is not None:
                     run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
             if not aigsm and args.plotdir is not None:
-                fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True)
+                fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
                 import plotting
                 fnlist = sorted(fnoutstr.strip().split('\n'))
                 plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
