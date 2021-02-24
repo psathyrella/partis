@@ -21,6 +21,7 @@ parser.add_argument('outfname')
 parser.add_argument('--droplet-id-separator', default='_', help='everything in the sequence id before this character is treated as the droplet id, e.g. for the default, the uid AAACGGGCAAGCGAGT-1_contig_2 has a droplet id of AAACGGGCAAGCGAGT-1')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--n-max-queries', type=int, default=-1, help='Maximum number of query sequences to read from input file, starting from beginning of file')
+parser.add_argument('--input-metafname', help='json/yaml file with additional (beyond pairing info) input meta info (see partis help)')
 args = parser.parse_args()
 
 if utils.output_exists(args, args.outfname, offset=4, debug=False):
@@ -48,11 +49,19 @@ for size, count in sorted(count_info.items(), key=operator.itemgetter(0)):
     frac = count / float(total)
     print '       %2d        %5d     %s' % (size, count, ('%.3f'%frac) if frac > 0.001 else ('%.1e'%frac))
 
+input_metafos = {}
+if args.input_metafname is not None:
+    with open(args.input_metafname) as mfile:
+        input_metafos = json.load(mfile)
+
 metafos = {}
 for sfo in seqfos:
     if sfo['name'] in metafos:
         raise Exception('duplicate uid \'%s\' in %s' % (sfo['name'], args.infname))
     metafos[sfo['name']] = {'paired-uids' : [u for u in droplet_ids[utils.get_droplet_id(sfo['name'])] if u != sfo['name']]}
+    if sfo['name'] in input_metafos:
+        assert 'paired-uids' not in input_metafos[sfo['name']]  # don't want to adjudicate between alternative versions here
+        metafos[sfo['name']].update(input_metafos[sfo['name']])
 
 if not os.path.exists(os.path.dirname(args.outfname)):
     os.makedirs(os.path.dirname(args.outfname))
