@@ -207,14 +207,14 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             flcounts[fkey][lckey] += 1
             per_seq_flcounts.update({u : lckey for u in pgroup})
 
-        # shenanigans to get bins sorted by the fractional counts summed over both func and nonfunc (i.e. by the average fractional count, so bins will look out of order for func/nonfunc individually)
-        ctotals = {fk : sum(flcounts[fk].values()) for fk in flcounts}
+        # shenanigans to get bins sorted by the average fractional counts (summed over func and nonfunc individually, i.e. by the average fractional count, so bins will look out of order for func/nonfunc individually)
+        ctotals = {fk : sum(flcounts[fk].values()) for fk in flcounts if len(flcounts[fk])>0}  # total counts for func and nonfunc
         flfracs = {}
         for fk in flcounts:
             for ck in flcounts[fk]:
                 if ck not in flfracs:
                     flfracs[ck] = 0
-                flfracs[ck] += flcounts[fk][ck] / (2*float(ctotals[fk]))  # 2 is cause func and nonfunc totals are separate
+                flfracs[ck] += flcounts[fk][ck] / (float(ctotals[fk]) * len(ctotals))
         assert utils.is_normed(flfracs)
         binlabels, _ = zip(*sorted(flfracs.items(), key=operator.itemgetter(1), reverse=True))
 
