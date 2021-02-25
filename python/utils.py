@@ -271,7 +271,8 @@ def gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
     return len([c for c in seq if c in gap_chars])
 def non_gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment())
     return len(seq) - gap_len(seq)
-def ambig_frac(seq):
+def ambig_frac(seq, aa=False):
+    assert not aa  # just to remind you that this fcn doesn't handle aa
     # ambig_seq = filter(all_ambiguous_bases.__contains__, seq)
     # return float(len(ambig_seq)) / len(seq)
     return float(seq.count(ambig_base)) / len(seq)
@@ -1201,16 +1202,23 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 # ----------------------------------------------------------------------------------------
 def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq=None, tie_resolver_label=None):
     ckey = 'cons_dists_' + ('aa' if aa else 'nuc')
+    hfkey = ckey.replace('cons_dists_', 'cons_fracs_')
     if len(seqfos) > 0 and ckey in seqfos[0]:
         seqfos = sorted(seqfos, key=lambda s: s[ckey])
-    for iseq in range(len(seqfos)):
+        if hfkey in seqfos[0]:
+            seqfos = sorted(seqfos, key=lambda s: s[hfkey])
+    for iseq, sfo in enumerate(seqfos):
         post_ref_str, mstr =  '', ''
-        if 'multiplicity' in seqfos[iseq]:
-            mstr = '%-3d ' % seqfos[iseq]['multiplicity']
-            if seqfos[iseq]['multiplicity'] > 1:
+        if 'multiplicity' in sfo:
+            post_ref_str = '  hdist hfrac  %s' % color('blue', ' N')
+            mstr = '%-3d' % sfo['multiplicity']
+            if sfo['multiplicity'] > 1:
                 mstr = color('blue', mstr)
-            post_ref_str = color('blue', ' N')
-        color_mutants(cons_seq, seqfos[iseq]['seq'], align=align, amino_acid=aa, print_result=True, only_print_seq=iseq>0, ref_label=' consensus ', extra_str='  ', post_str='    %s%s'%(mstr, seqfos[iseq]['name']), post_ref_str=post_ref_str, print_n_snps=True)
+        post_str = '   %2d  %5.2f    %s' % (sfo[ckey], sfo.get(hfkey, -1), mstr)
+        if 'cell-types' in sfo:  # if it's in one, it should be in all of 'em
+            cl = str(max(len(str(s['cell-types'])) for s in seqfos))  # wasteful (but cleaner) to do this for eery sfo (also, str call is in case it's None)
+            post_str += (' %'+cl+'s') % sfo['cell-types']
+        color_mutants(cons_seq, sfo['seq'], align=align, amino_acid=aa, print_result=True, only_print_seq=iseq>0, ref_label=' consensus ', extra_str='  ', post_str='%s  %s'%(post_str, sfo['name']), post_ref_str=post_ref_str) #, print_n_snps=True, print_hfrac=True)
     if tie_resolver_seq is not None:
         color_mutants(cons_seq, tie_resolver_seq, align=align, amino_acid=aa, print_result=True, only_print_seq=True, seq_label=' '*len(' consensus '),
                       post_str='    tie resolver%s'%('' if tie_resolver_label is None else (' (%s)'%tie_resolver_label)), extra_str='  ', print_n_snps=True)
@@ -1388,7 +1396,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
             n_snp_str = color('blue', n_snp_str)
     hfrac_str = ''
     if print_hfrac:
-        hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq)
+        hfrac_str = '   hfrac %.3f' % hamming_fraction(ref_seq, seq, amino_acid=amino_acid)
     if print_result:
         lwidth = max(len_excluding_colors(ref_label), len_excluding_colors(seq_label))
         if not only_print_seq:

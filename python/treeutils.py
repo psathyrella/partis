@@ -48,12 +48,13 @@ def add_cons_seqs(line, aa=False):
             line[ckey] = utils.cons_seq_of_line(line, aa=True)
 
 # ----------------------------------------------------------------------------------------
-def lb_cons_dist(line, iseq, aa=False):  # at every point where this can add something to <line> (i.e. consensus seqs and aa seqs) it checks that they're not already there, so it will never do those calculations twice. But the final hamming calculation is *not* cached so will get redone if you call more than once
+def lb_cons_dist(line, iseq, aa=False, frac=False):  # at every point where this can add something to <line> (i.e. consensus seqs and aa seqs) it checks that they're not already there, so it will never do those calculations twice. But the final hamming calculation is *not* cached so will get redone if you call more than once
     if aa and 'seqs_aa' not in line:
         utils.add_seqs_aa(line)
     add_cons_seqs(line, aa=aa)
     tstr = '_aa' if aa else ''
-    return utils.hamming_distance(line['consensus_seq'+tstr], line['seqs'+tstr][iseq], amino_acid=aa)
+    hfcn = utils.hamming_fraction if frac else utils.hamming_distance
+    return hfcn(line['consensus_seq'+tstr], line['seqs'+tstr][iseq], amino_acid=aa)
 
 # ----------------------------------------------------------------------------------------
 def add_cons_dists(line, aa=False, debug=False):
@@ -65,7 +66,12 @@ def add_cons_dists(line, aa=False, debug=False):
         # don't need this unless we turn the tie resolver stuff back on:
         # if aa:  # we have to add this by hand since we don't actually use it to calculate the aa cons seq -- we get that by just translating the nuc cons seq
         #     utils.add_naive_seq_aa(line)
-        utils.print_cons_seq_dbg(utils.seqfos_from_line(line, aa=aa, extra_keys=[ckey]), line['consensus_seq'+tstr], align=False, aa=aa)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
+        hfkey = ckey.replace('cons_dists_', 'cons_fracs_')
+        line[hkfey] = [lb_cons_dist(line, i, aa=aa, frac=True) for i, u in enumerate(line['unique_ids'])]
+        extra_keys = [ckey, hkfey]
+        if 'cell-types' in line:
+            extra_keys.append('cell-types')
+        utils.print_cons_seq_dbg(utils.seqfos_from_line(line, aa=aa, extra_keys=extra_keys), line['consensus_seq'+tstr], align=False, aa=aa, use_hfrac=True)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
 
 # ----------------------------------------------------------------------------------------
 def add_cdists_to_lbfo(line, lbfo, cdist, debug=False):  # it's kind of dumb to store them both in <line> and in <lbfo> (and thus in <line['tree-info']['lb']>), but I think it's ultimately the most sensible thing, given the inherent contradiction that a) we want to *treat* the cons dists like lbi/lbr tree metrics in almost every way, but b) they're *not* actually tree metrics in the sense that they don't use a tree (also, we want the minus sign in lbfo)
@@ -1634,7 +1640,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
             check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
             if add_aa_consensus_distance:
-                add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
+                add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=True)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
             if add_aa_lb_metrics:
                 get_aa_lb_metrics(line, treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
             if dtr_path is not None and not train_dtr:  # don't want to train on data
