@@ -235,7 +235,7 @@ def add_colors(outstrs, colors, line):  # NOTE do *not* modify <line>
     return outstrs
 
 # ----------------------------------------------------------------------------------------
-def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_line=False, queries_to_emphasize=None, duplicated_uids=None, check_line_integrity=False, uid_extra_str=''):
+def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_line=False, queries_to_emphasize=None, duplicated_uids=None, check_line_integrity=False, uid_extra_str='', uid_extra_str_label=None):
     """
     Print ascii summary of recombination event and mutation.
     If <one_line>, then skip the germline lines, and only print the final_seq line.
@@ -313,7 +313,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     tmppad = utils.len_excluding_colors(uidstr) - utils.len_excluding_colors(vjlabelstr)
     suffixes = ['insert%s\n'       % ('s' if utils.has_d_gene(utils.get_locus(line['v_gene'])) else ''),
                 '%s%s\n'             % (utils.color_gene(line['d_gene']), vj_delstr),
-                '%s%s  %%shm  %s\n'        % (vjlabelstr, tmppad * ' ', utils.color('blue', 'N') if any((m is not None and m > 1) for m in utils.get_multiplicities(line)) else ''),
+                '%s%s  %%shm  %s%s\n'        % (vjlabelstr, tmppad * ' ', utils.color('blue', 'N') if any((m is not None and m > 1) for m in utils.get_multiplicities(line)) else '', uid_extra_str_label if uid_extra_str_label is not None else ''),
                 '%s  %4.1f  %s %s %s\n' % (uidstr, 100*line['mut_freqs'][iseq], mtpystr, uid_extra_str, utils.color('red', utils.is_functional_dbg_str(line, iseq)))]
     outstrs = ['%s%s   %s' % (extra_str, ostr, suf) for ostr, suf in zip(outstrs, suffixes)]
 

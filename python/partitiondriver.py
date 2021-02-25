@@ -437,7 +437,7 @@ class PartitionDriver(object):
                     continue
                 if self.args.only_print_queries_to_include_clusters and len(set(self.args.queries_to_include) & set(line['unique_ids'])) == 0:  # will barf if you don't tell us what queries to include, but then that's your fault isn't it
                     continue
-                label, post_label = [], []
+                label, post_label, uid_extra_strs = [], [], None
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.simglfo, self.reco_info, line, full_true_partition=true_partition, extra_str=extra_str+'  ')
                     label += ['inferred:']
@@ -455,10 +455,11 @@ class PartitionDriver(object):
                     post_label += [', %s' % utils.color('red', 'queries-to-include')]
                     queries_to_emphasize += self.args.queries_to_include
                 if self.args.extra_print_key is not None:
-                    post_label += ['   %s: %s' % (self.args.extra_print_key, line[self.args.extra_print_key])]
+                    # post_label += ['   %s: %s' % (self.args.extra_print_key, line[self.args.extra_print_key])]
+                    uid_extra_strs = [('%s'%v) for v in line.get(self.args.extra_print_key, '?')]
                 if label_list is not None:
                     post_label += [label_list[iline]]
-                utils.print_reco_event(line, extra_str=extra_str+'  ', label=''.join(label), post_label=''.join(post_label), queries_to_emphasize=queries_to_emphasize)
+                utils.print_reco_event(line, extra_str=extra_str+'  ', label=''.join(label), post_label=''.join(post_label), queries_to_emphasize=queries_to_emphasize, uid_extra_strs=uid_extra_strs, uid_extra_str_label=self.args.extra_print_key)
 
     # ----------------------------------------------------------------------------------------
     def read_existing_output(self, outfname=None, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):

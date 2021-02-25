@@ -71,7 +71,7 @@ def add_cons_dists(line, aa=False, debug=False):
         extra_keys = [ckey, hfkey]
         if 'cell-types' in line:
             extra_keys.append('cell-types')
-        utils.print_cons_seq_dbg(utils.seqfos_from_line(line, aa=aa, extra_keys=extra_keys), line['consensus_seq'+tstr], align=False, aa=aa, use_hfrac=True)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
+        utils.print_cons_seq_dbg(utils.seqfos_from_line(line, aa=aa, extra_keys=extra_keys), line['consensus_seq'+tstr], align=False, aa=aa)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
 
 # ----------------------------------------------------------------------------------------
 def add_cdists_to_lbfo(line, lbfo, cdist, debug=False):  # it's kind of dumb to store them both in <line> and in <lbfo> (and thus in <line['tree-info']['lb']>), but I think it's ultimately the most sensible thing, given the inherent contradiction that a) we want to *treat* the cons dists like lbi/lbr tree metrics in almost every way, but b) they're *not* actually tree metrics in the sense that they don't use a tree (also, we want the minus sign in lbfo)

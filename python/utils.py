@@ -2185,13 +2185,13 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_p
             color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, queries_to_emphasize=None):
+def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, uid_extra_str_label=None, queries_to_emphasize=None):
     duplicate_counts = [(u, line['unique_ids'].count(u)) for u in line['unique_ids']]
     duplicated_uids = {u : c for u, c in duplicate_counts if c > 1}
     if len(line['unique_ids']) > 1:
         label += '%s%d sequences with %.1f mean mutations (%.1f%%)' % ('' if label == '' else '    ', len(line['unique_ids']), numpy.mean(line['n_mutations']), 100*numpy.mean(line['mut_freqs']))
     for iseq in range(len(line['unique_ids'])):
-        prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label + post_label if iseq==0 else ''), one_line=(iseq>0), queries_to_emphasize=queries_to_emphasize, duplicated_uids=duplicated_uids, uid_extra_str=uid_extra_strs[iseq] if uid_extra_strs is not None else '')
+        prutils.print_seq_in_reco_event(line, iseq, extra_str=extra_str, label=(label + post_label if iseq==0 else ''), one_line=(iseq>0), queries_to_emphasize=queries_to_emphasize, duplicated_uids=duplicated_uids, uid_extra_str=uid_extra_strs[iseq] if uid_extra_strs is not None else '', uid_extra_str_label=uid_extra_str_label)
 
 #----------------------------------------------------------------------------------------
 def sanitize_name(name):
