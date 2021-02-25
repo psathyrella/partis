@@ -54,7 +54,7 @@ class Tester(object):
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
 
-        self.selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'aa-lbi', 'aa-lbr']
+        self.selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'aa-lbi', 'aa-lbr']  # NOTE kind of duplicates treeutils.selection_metrics, but I want to be able to change the latter
         self.expected_trees = ['tree', 'aa-tree']  # TODO might be worthwhile comparing the actual trees, although if they change the metrics will also change so maybe not
 
         self.n_partition_queries = 500

@@ -2185,7 +2185,25 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_p
             color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
 # ----------------------------------------------------------------------------------------
-def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, uid_extra_str_label=None, queries_to_emphasize=None):
+def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, extra_print_keys=None, queries_to_emphasize=None):
+    uid_extra_str_label = None
+    if extra_print_keys is not None:
+        def vstr(v): return ('%.2f'%v) if isinstance(v, float) else str(v)  # this is not going to be sufficient to look nice
+        if uid_extra_strs is None:
+            uid_extra_strs = ['' for _ in line['unique_ids']]
+            uid_extra_str_label = ''
+        for ekey in extra_print_keys:
+            if ekey in treeutils.selection_metrics:
+                if ekey == 'cons-frac-aa':  # arg this sucks (this is because we don't store/use the frac anywhere, which maybe is wrong, or maybe we shouldn't be messing with non full length sequences). Either way, I'm not going to start storing both of them.
+                    vlist = [treeutils.lb_cons_dist(line, i, aa=True, frac=True) for i in range(len(line['unique_ids']))]  # probably has to recalculate cons seqs
+                else:
+                    vlist = treeutils.smvals(line, ekey, nullval='?')  # don't really want to try to recalculate if they're not there, since for some we'd need trees, and yadda yadda
+            else:
+                vlist = line.get(ekey, '?')
+            # tw = str(max(len(ekey), max(len(vstr(v)) for v in vlist)))  # maybe include len of ekey in width?
+            tw = str(max(len(vstr(v)) for v in vlist))
+            uid_extra_str_label += ('%'+tw+'s') % ekey
+            uid_extra_strs = [(('%s%'+tw+'s')%(e, vstr(v))) for v, e in zip(vlist, uid_extra_strs)]
     duplicate_counts = [(u, line['unique_ids'].count(u)) for u in line['unique_ids']]
     duplicated_uids = {u : c for u, c in duplicate_counts if c > 1}
     if len(line['unique_ids']) > 1:

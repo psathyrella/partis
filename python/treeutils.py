@@ -30,6 +30,7 @@ except ImportError:
 import utils
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
+selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr']  # I really thought this was somewhere, but can't find it so adding it here
 typical_bcr_seq_len = 400
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 20
@@ -53,7 +54,7 @@ def lb_cons_dist(line, iseq, aa=False, frac=False):  # at every point where this
         utils.add_seqs_aa(line)
     add_cons_seqs(line, aa=aa)
     tstr = '_aa' if aa else ''
-    hfcn = utils.hamming_fraction if frac else utils.hamming_distance
+    hfcn = utils.hamming_fraction if frac else utils.hamming_distance  # NOTE it's important to use this if you want the fraction (rather than dividing by sequence length afterward) since you also need to account for ambig bases in the cons seq
     return hfcn(line['consensus_seq'+tstr], line['seqs'+tstr][iseq], amino_acid=aa)
 
 # ----------------------------------------------------------------------------------------
@@ -78,6 +79,14 @@ def add_cdists_to_lbfo(line, lbfo, cdist, debug=False):  # it's kind of dumb to 
     add_cons_dists(line, aa='-aa' in cdist, debug=debug)
     tkey = cdist.replace('cons-dist-', 'cons_dists_')  # yes, I want the names to be different (although admittedly with a time machine it'd be set up differently)
     lbfo[cdist] = {u : -line[tkey][i] for i, u in enumerate(line['unique_ids'])}
+
+# ----------------------------------------------------------------------------------------
+def smvals(line, smetric, nullval=None):  # retrieve selection metric values from within line['tree-info']['lb'][yadda yadda], i.e. as if they were a normal list-based per-seq quantity
+    # NOTE this is what you use if the values are already there, in 'tree-info' -- if you want to calculate them, there's other fcns
+    if 'tree-info' not in line or 'lb' not in line['tree-info'] or smetric not in line['tree-info']['lb']:
+        return [nullval for _ in line['unique_ids']]
+    lbfo = line['tree-info']['lb'][smetric]
+    return [lbfo.get(u, nullval) for u in line['unique_ids']]
 
 # ----------------------------------------------------------------------------------------
 def lb_cons_seq_shm(line, aa=False):

@@ -155,6 +155,8 @@ def process(args):
     elif args.seed_seq is not None:
         args.seed_unique_id = 'seed-seq'
 
+    args.extra_print_keys = utils.get_arg_list(args.extra_print_keys)
+
     if args.sw_debug is None:  # if not explicitly set, set equal to regular debug
         args.sw_debug = args.debug
 
