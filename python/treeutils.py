@@ -67,8 +67,8 @@ def add_cons_dists(line, aa=False, debug=False):
         # if aa:  # we have to add this by hand since we don't actually use it to calculate the aa cons seq -- we get that by just translating the nuc cons seq
         #     utils.add_naive_seq_aa(line)
         hfkey = ckey.replace('cons_dists_', 'cons_fracs_')
-        line[hkfey] = [lb_cons_dist(line, i, aa=aa, frac=True) for i, u in enumerate(line['unique_ids'])]
-        extra_keys = [ckey, hkfey]
+        line[hfkey] = [lb_cons_dist(line, i, aa=aa, frac=True) for i, u in enumerate(line['unique_ids'])]
+        extra_keys = [ckey, hfkey]
         if 'cell-types' in line:
             extra_keys.append('cell-types')
         utils.print_cons_seq_dbg(utils.seqfos_from_line(line, aa=aa, extra_keys=extra_keys), line['consensus_seq'+tstr], align=False, aa=aa, use_hfrac=True)  # NOTE you probably don't want to turn the naive tie resolver back on in utils.cons_seq_of_line(), but if you do, this reminds you to also do it here so the dbg is correct, tie_resolver_seq=line['naive_seq'+tstr], tie_resolver_label='naive seq')
