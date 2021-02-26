@@ -5,6 +5,7 @@ import subprocess
 
 import utils
 import glutils
+import treeutils
 
 def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
@@ -274,7 +275,7 @@ def process(args):
         if args.outfname is None and args.selection_metric_fname is None:
                 print '    %s calculating selection metrics, but neither --outfname nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
         elif args.selection_metric_fname is None and args.action == 'get-selection-metrics' and not args.add_selection_metrics_to_outfname:
-            args.selection_metric_fname = utils.insert_before_suffix('-selection-metrics', args.outfname)
+            args.selection_metric_fname = treeutils.smetric_fname(args.outfname)
 
     if args.plot_annotation_performance:
         if args.plotdir is None and args.print_n_worst_annotations is None:

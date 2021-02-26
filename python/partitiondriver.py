@@ -2223,7 +2223,7 @@ class PartitionDriver(object):
                 print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
         annotations_to_use = eroded_annotations if self.args.mimic_data_read_length else padded_annotations
-        seqfileopener.add_input_metafo(self.input_info, annotations_to_use.values(), dont_overwrite_info=True)  # don't overwrite any info that's already in there (presumably multiplicities) since it will have been updated in waterer after collapsing duplicates
+        seqfileopener.add_input_metafo(self.input_info, annotations_to_use.values(), dont_overwrite_info=True)  # don't overwrite any info that's already in there (presumably multiplicities) since it will have been updated in waterer after collapsing duplicates NOTE/UPDATE if you screw something up though, this may end up not overwriting 'paired-uids' that you *do* want it to overwrite
         if not is_subcluster_recursed:
             self.process_annotation_output(annotations_to_use.values(), hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=print_annotations)
 

@@ -760,6 +760,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
               + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]), chstr(len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]))) for tch in utils.chains]
     print '\n        '.join(tmpstrs)
     if debug:
+        print 'annotations for initial partition clusters, showing (on right) also the joint partition clusters into which they were split (?: probably paired with other chain):'
         for tch in utils.chains:
             input_antn_dict = utils.get_annotation_dict(input_antn_lists[ploci[tch]])
             print '%s' % utils.color('green', ploci[tch])

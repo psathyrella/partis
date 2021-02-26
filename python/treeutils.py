@@ -39,6 +39,10 @@ default_min_selection_metric_cluster_size = 10
 dummy_str = 'x-dummy-x'
 
 # ----------------------------------------------------------------------------------------
+def smetric_fname(fname):
+    return utils.insert_before_suffix('-selection-metrics', fname)
+
+# ----------------------------------------------------------------------------------------
 def add_cons_seqs(line, aa=False):
     ckey = 'consensus_seq'
     if ckey not in line:
@@ -81,12 +85,15 @@ def add_cdists_to_lbfo(line, lbfo, cdist, debug=False):  # it's kind of dumb to 
     lbfo[cdist] = {u : -line[tkey][i] for i, u in enumerate(line['unique_ids'])}
 
 # ----------------------------------------------------------------------------------------
-def smvals(line, smetric, nullval=None):  # retrieve selection metric values from within line['tree-info']['lb'][yadda yadda], i.e. as if they were a normal list-based per-seq quantity
+def smvals(line, smetric, iseq=None, nullval=None):  # retrieve selection metric values from within line['tree-info']['lb'][yadda yadda], i.e. as if they were a normal list-based per-seq quantity
     # NOTE this is what you use if the values are already there, in 'tree-info' -- if you want to calculate them, there's other fcns
     if 'tree-info' not in line or 'lb' not in line['tree-info'] or smetric not in line['tree-info']['lb']:
-        return [nullval for _ in line['unique_ids']]
+        return [nullval for _ in line['unique_ids']] if iseq is None else nullval
     lbfo = line['tree-info']['lb'][smetric]
-    return [lbfo.get(u, nullval) for u in line['unique_ids']]
+    if iseq is None:
+        return [lbfo.get(u, nullval) for u in line['unique_ids']]
+    else:
+        return lbfo.get(line['unique_ids'][iseq], nullval)
 
 # ----------------------------------------------------------------------------------------
 def lb_cons_seq_shm(line, aa=False):
@@ -1723,8 +1730,14 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
     if outfname is not None:
         print '  writing selection metrics to %s' % outfname
         utils.prep_dir(None, fname=outfname, allow_other_files=True)
+        def dumpfo(tl):
+            dumpfo = {'unique_ids' : l['unique_ids']}
+            dumpfo.update(l['tree-info'])
+            # for k, v in l['tree-info']:
+            #     dumpfo[k] = v
+            return dumpfo
         with open(outfname, 'w') as tfile:
-            json.dump([l['tree-info'] for l in inf_lines_to_use if 'tree-info' in l], tfile)
+            json.dump([dumpfo(l) for l in inf_lines_to_use if 'tree-info' in l], tfile)
 
 # ----------------------------------------------------------------------------------------
 def init_dtr(train_dtr, dtr_path, cfg_fname=None):
