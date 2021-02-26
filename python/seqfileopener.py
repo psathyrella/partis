@@ -60,9 +60,11 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
         print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids), input_metafname)
 
 # ----------------------------------------------------------------------------------------
-def add_input_metafo(input_info, annotation_list, dont_overwrite_info=False, debug=False):  # transfer input metafo from <input_info> to <annotation_list>
+def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_warn_print=10, debug=False):  # transfer input metafo from <input_info> to <annotation_list>
     # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafname, from <input_info>, from <sw_info>. As it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
+    # NOTE <keys_not_to_overwrite> should be the *line* key
     added_uids, added_keys = set(), set()
+    n_modified, modified_keys = 0, set()
     for line in annotation_list:
         for input_key, line_key in utils.input_metafile_keys.items():
             if line_key not in utils.linekeys['per_seq']:
@@ -74,18 +76,23 @@ def add_input_metafo(input_info, annotation_list, dont_overwrite_info=False, deb
                 if line_key in line:
                     if mvals == line[line_key]:
                         continue
-                    if dont_overwrite_info:  # atm this happens if in waterer we reset 'multiplicities' to account for duplicate sequences, then when this fcn gets called by partitiondriver we need to keep those reset values
+                    if keys_not_to_overwrite is not None and line_key in keys_not_to_overwrite:  # atm this happens if in waterer we reset 'multiplicities' to account for duplicate sequences, then when this fcn gets called by partitiondriver we need to keep those reset values
                         if debug:
-                            print '    not overwriting non-matching info'
+                            print '    not overwriting non-matching info for %s' % line_key
                         continue
                     else:
-                        print ' %s replacing input metafo \'%s\'/\'%s\' value for \'%s\' with value: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, ' '.join(line['unique_ids']), line[line_key], mvals)
+                        if n_modified < n_warn_print:
+                            print ' %s replacing input metafo \'%s\'/\'%s\' value for \'%s\' with value: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, ' '.join(line['unique_ids']), line[line_key], mvals)
                         line[line_key] = mvals
+                        n_modified += 1
+                        modified_keys.add(line_key)
                 else:
                     line[line_key] = mvals
                 if debug:
                     added_uids |= set(line['unique_ids'])
                     added_keys.add(line_key)
+    if n_modified > 0:  # should really add this for the next function as well
+        print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
     if debug:
         print '  transferred input meta info (%s) for %d sequences from input_info' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids))
 
