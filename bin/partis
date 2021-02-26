@@ -684,6 +684,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         return ccfs
     # ----------------------------------------------------------------------------------------
     def combine_selection_metrics():
+        # ----------------------------------------------------------------------------------------
         def getpids(line):
             all_ids = []
             for pids in line['paired-uids']:
@@ -696,6 +697,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     print pids
                     assert False
             return all_ids
+        # ----------------------------------------------------------------------------------------
         def find_cluster_pairs(lpair):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
             lp_antn_pairs = []
             h_part, l_part = [sorted(cpaths[l].best(), key=len, reverse=True) for l in lpair]
@@ -711,6 +713,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 l_atn = l_atn_dict[':'.join(l_clusts[0])]
                 lp_antn_pairs.append((h_atn, l_atn))
             return lp_antn_pairs
+        # ----------------------------------------------------------------------------------------
         antn_pairs = []
         for lpair in utils.locus_pairs[ig_or_tr]:
             glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair, read_selection_metrics=True)

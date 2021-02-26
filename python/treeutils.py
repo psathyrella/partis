@@ -1733,8 +1733,6 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
         def dumpfo(tl):
             dumpfo = {'unique_ids' : l['unique_ids']}
             dumpfo.update(l['tree-info'])
-            # for k, v in l['tree-info']:
-            #     dumpfo[k] = v
             return dumpfo
         with open(outfname, 'w') as tfile:
             json.dump([dumpfo(l) for l in inf_lines_to_use if 'tree-info' in l], tfile)
