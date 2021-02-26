@@ -453,10 +453,14 @@ def run_all_loci(args, ig_or_tr='ig'):
             if os.path.exists(getofn(None, joint=True, input_meta=True)):  # need to add input meta file to args if we automatically generated it with extract-pairing-info.py (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
                 utils.replace_in_arglist(clist, '--input-metafname', getofn(None, joint=True, lpair=lpair, input_meta=True))
 
+            if args.sw_cachefname is None:
+                clist += ['--sw-cachefname', '%s/sw-cache.yaml'%getpdir(ltmp)]
+
             if tmpaction == 'annotate':
                 utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
+                utils.remove_from_arglist(clist, '--is-simu')  # now that i'm making a tmp .fa file for this step's input, if i want to set --is-simu i'd need to pass in a simulation germline dir, but i think i don't have any reason to set --is-simu anyway?
                 if os.path.exists(getofn(ltmp, joint=True, lpair=lpair, input_meta=True)):
                     utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # have to use the new, rewritten input meta file (with corrected pairing info)
                 clist[clist.index(args.action)] = 'annotate'
@@ -718,8 +722,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         for lpair in utils.locus_pairs[ig_or_tr]:
             glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair, read_selection_metrics=True)
             antn_pairs += find_cluster_pairs(lpair)
-        print '      iclust   aa-cfrac       aa-cdist      droplet        contig'
-        print '                h     l        h    l                       h  l'
+        print '      iclust   aa-cfrac       aa-cdist         droplet        contig'
+        print '                h     l        h    l                          h  l'
         for iclust, (h_atn, l_atn) in enumerate(sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)):
             metric_pairs = []
             for hid, pids in zip(h_atn['unique_ids'], h_atn['paired-uids']):
@@ -735,11 +739,17 @@ def run_all_loci(args, ig_or_tr='ig'):
                     mpfo[tch+'_id'] = uid
                     mpfo[tch+'_cdist'] = treeutils.smvals(ltmp, 'cons-dist-aa', iseq=ltmp['unique_ids'].index(uid))
                     mpfo[tch+'_cfrac'] = -treeutils.lb_cons_dist(ltmp, ltmp['unique_ids'].index(uid), aa=True, frac=True)
+                    if 'cell-types' in ltmp:
+                        mpfo[tch+'_cell_type'] = utils.per_seq_val(ltmp, 'cell-types', uid)
                 metric_pairs.append(mpfo)
             for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: x['h_cfrac']+x['l_cfrac'])):
                 dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (mpfo['h_id'], mpfo['l_id'])])
                 assert len(set(dids)) == 1  # make sure they're from the same droplet
-                print '       %s   %6.2f%6.2f    %4d%4d   %s  %s  %s' % ('   ' if imp>0 else '%3d'%iclust, mpfo['h_cfrac'], mpfo['l_cfrac'], mpfo['h_cdist'], mpfo['l_cdist'], dids[0], cids[0], cids[1])
+                ctstr = '  '
+                if 'cell-types' in h_atn or 'cell-types' in l_atn:
+                    assert mpfo['h_cell_type'] == mpfo['l_cell_type']
+                    ctstr = mpfo['h_cell_type']
+                print '       %s   %6.2f%6.2f    %4d%4d   %s %s  %s  %s' % ('   ' if imp>0 else '%3d'%iclust, mpfo['h_cfrac'], mpfo['l_cfrac'], mpfo['h_cdist'], mpfo['l_cdist'], ctstr, dids[0], cids[0], cids[1])
             if args.plotdir is not None:
                 import lbplotting
                 plotvals = {k : [m[k] for m in metric_pairs] for k in ('h_cfrac', 'l_cfrac')}
