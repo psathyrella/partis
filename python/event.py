@@ -141,7 +141,7 @@ class RecombinationEvent(object):
         treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']))  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
         line['tree'] = self.tree.as_string(schema='newick')
         line['duplicates'] = [[] for _ in range(len(line['input_seqs']))]
-        line['loci'] = [self.glfo['locus'] for _ in range(len(line['input_seqs']))]  # this is annoying to make it per-seq, but that makes it easier to deal with it wen it's input meta info
+        line['loci'] = [self.glfo['locus'] for _ in range(len(line['input_seqs']))]  # this is annoying to make it per-seq, but that makes it easier to deal with it when it's input meta info
 
         utils.add_implicit_info(self.glfo, line)
 
