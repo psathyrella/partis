@@ -758,11 +758,12 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.plotdir is not None:
                 import lbplotting
                 iclust_plotvals = {k : [m[k] for m in metric_pairs] for k in ('h_cfrac', 'l_cfrac')}
-                lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, getplotdir(None), iclust_plotvals, 'l_cfrac', 'light aa-cfrac', 'aa-cfrac', xvar='h_cfrac', xlabel='heavy aa-cfrac')  # NOTE this iclust will in general *not* correspond to the one in partition plots
+                mstr = treeutils.legtexts['cons-frac-aa']
+                lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, getplotdir(None), iclust_plotvals, 'l_cfrac', 'light %s'%mstr, mstr, xvar='h_cfrac', xlabel='heavy %s'%mstr, stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
                 for k in all_plotvals:
                     all_plotvals[k] += iclust_plotvals[k]
-        if args.plotdir is not None:
-            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', getplotdir(None), all_plotvals, 'l_cfrac', 'light aa-cfrac', 'aa-cfrac', xvar='h_cfrac', xlabel='heavy aa-cfrac')  # NOTE this iclust will in general *not* correspond to the one in partition plots
+        if args.plotdir is not None:  # NOTE set --dry when getting selection metrics to get these plots, but not the regular (single-chain) selection metric plots (which are slow, especially the tree ones)
+            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', getplotdir(None), all_plotvals, 'l_cfrac', 'light %s'%mstr, mstr, xvar='h_cfrac', xlabel='heavy %s'%mstr, stats='correlation')
     # ----------------------------------------------------------------------------------------
     def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):
         subd = 'partitions/sizes'

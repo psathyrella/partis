@@ -38,6 +38,24 @@ default_min_selection_metric_cluster_size = 10
 
 dummy_str = 'x-dummy-x'
 
+legtexts = {
+    'metric-for-target-distance' : 'target dist. metric',
+    'n-sim-seqs-per-generation' : 'N sampled',
+    'leaf-sampling-scheme' : 'sampling scheme',
+    'target-count' : 'N target seqs',
+    'n-target-clusters' : 'N target clust.',
+    'min-target-distance' : 'min target dist.',
+    'uniform-random' : 'unif. random',
+    'affinity-biased' : 'affinity biased',
+    'high-affinity' : 'perf. affinity',
+    'cons-dist-aa' : 'aa-cdist',
+    'cons-frac-aa' : 'aa-cfrac',
+    'cons-dist-nuc' : 'nuc-cdist',
+    'shm' : 'n-shm',
+    'aa-lbi' : 'aa-lbi',
+    'aa-lbr' : 'aa-lbr',
+}
+
 # ----------------------------------------------------------------------------------------
 def smetric_fname(fname):
     return utils.insert_before_suffix('-selection-metrics', fname)

@@ -12,23 +12,6 @@ import math
 import subprocess
 import multiprocessing
 
-legtexts = {
-    'metric-for-target-distance' : 'target dist. metric',
-    'n-sim-seqs-per-generation' : 'N sampled',
-    'leaf-sampling-scheme' : 'sampling scheme',
-    'target-count' : 'N target seqs',
-    'n-target-clusters' : 'N target clust.',
-    'min-target-distance' : 'min target dist.',
-    'uniform-random' : 'unif. random',
-    'affinity-biased' : 'affinity biased',
-    'high-affinity' : 'perf. affinity',
-    'cons-dist-aa' : 'aa-cdist',  # surely these are supposed to be somewhere else?
-    'cons-dist-nuc' : 'nuc-cdist',
-    'shm' : 'n-shm',
-    'aa-lbi' : 'aa-lbi',
-    'aa-lbr' : 'aa-lbr',
-}
-
 # ----------------------------------------------------------------------------------------
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
 linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
@@ -331,16 +314,16 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         'obs-times' : 't obs',
         'carry-cap' : 'carry cap',
     }
-    legtexts.update(lbplotting.metric_for_target_distance_labels)
+    treeutils.legtexts.update(lbplotting.metric_for_target_distance_labels)
     def legstr(label, title=False):
         if label is None: return None
         jstr = '\n' if title else '; '
-        tmplist = [legtexts.get(l, l.replace('-', ' ')) for l in label.split('; ')]
+        tmplist = [treeutils.legtexts.get(l, l.replace('-', ' ')) for l in label.split('; ')]
         if title and args.pvks_to_plot is not None:  # if we're only plotting specific values, put them in the legend str (typically we're just plotting one value)
             assert isinstance(args.pvks_to_plot, list)  # don't really need this
             for il in range(len(tmplist)):
                 subpvks = [pvk.split('; ')[il] for pvk in args.pvks_to_plot]
-                tmplist[il] += ': %s' % ' '.join(legtexts.get(spvk, spvk) for spvk in subpvks)
+                tmplist[il] += ': %s' % ' '.join(treeutils.legtexts.get(spvk, spvk) for spvk in subpvks)
         lstr = jstr.join(tmplist)
         return lstr
 
@@ -560,7 +543,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         return '%s/%s.yaml' % (get_comparison_plotdir(mtmp, per_x, extra_str=estr), getplotname(mtmp))
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
-        xlabel = legtexts.get(xvar, xvar.replace('-', ' '))
+        xlabel = treeutils.legtexts.get(xvar, xvar.replace('-', ' '))
         if xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
             xticks, xticklabels = [], []
             global_pv_vars = None
@@ -586,7 +569,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     global_pv_vars = pv_vars
                 if pv_vars != global_pv_vars:
                     raise Exception('each bcr-phylo run has to have the same variables with parameter variances, but got %s and %s' % (global_pv_vars, pv_vars))
-            xlabel = ', '.join(legtexts.get(p, p.replace('-', ' ')) for p in global_pv_vars)
+            xlabel = ', '.join(treeutils.legtexts.get(p, p.replace('-', ' ')) for p in global_pv_vars)
         elif isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
             def tickstr(t):
                 if len(t) < 4:
