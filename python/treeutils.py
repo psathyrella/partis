@@ -163,7 +163,7 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
             elif var == 'shm':
                 return utils.per_seq_val(line, 'n_mutations', uid)
             elif var == 'shm-aa':
-                return utils.hamming_distance(line['naive_seq_aa'], utils.per_seq_val(line, 'seqs_aa', uid))  # assumes we've handled adding 'seqs_aa' elsewhere
+                return utils.shm_aa(line, line['unique_ids'].index(uid))
             else:
                 assert False
         elif pchoice == 'per-cluster':
@@ -1674,7 +1674,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
             line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
             check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
             if add_aa_consensus_distance:
-                add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=True)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
+                add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
             if add_aa_lb_metrics:
                 get_aa_lb_metrics(line, treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
             if dtr_path is not None and not train_dtr:  # don't want to train on data

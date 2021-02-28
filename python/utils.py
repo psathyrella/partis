@@ -2922,6 +2922,14 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
         print pad_lines('\n'.join(line['seqs_aa']))
 
 # ----------------------------------------------------------------------------------------
+def shm_aa(line, iseq=None, uid=None):  # it's kind of weird to have this fcn separate, whereas the non-aa one we don't, but it only really exists so it can add the aa seqs
+    if iseq is None:  # have to specify either iseq or uid (no i don't care if you specified both and they're inconsistent
+        iseq = line['unique_ids'].index(uid)
+    add_naive_seq_aa(line)
+    add_seqs_aa(line)
+    return hamming_distance(line['naive_seq_aa'], line['seqs_aa'][iseq])
+
+# ----------------------------------------------------------------------------------------
 def pad_nuc_seq(nseq):  # if length not multiple of three, pad on right with Ns
     if len(nseq) % 3 != 0:
         nseq += 'N' * (3 - (len(nseq) % 3))
