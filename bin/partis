@@ -720,10 +720,14 @@ def run_all_loci(args, ig_or_tr='ig'):
                 lp_antn_pairs.append((h_atn, l_atn))
             return lp_antn_pairs
         # ----------------------------------------------------------------------------------------
+        if args.plotdir is not None:
+            import lbplotting
+            mstr = treeutils.legtexts['cons-frac-aa']
         antn_pairs = []
         for lpair in utils.locus_pairs[ig_or_tr]:
             glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair, read_selection_metrics=True)
             antn_pairs += find_cluster_pairs(lpair)
+        print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
         print '             sizes    aa-cfrac      aa-cdist       droplet       contig'
         print '                       h     l       h    l                       h  l'
         all_plotvals = {k : [] for k in ('h_cfrac', 'l_cfrac')}
@@ -756,9 +760,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 istr = '%s %s  %3d %3d' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]), len(h_atn['unique_ids']), len(l_atn['unique_ids']))
                 print '       %s %6.2f%6.2f   %4d%4d   %s  %s  %s  %s' % (istr if imp==0 else ' '*utils.len_excluding_colors(istr), mpfo['h_cfrac'], mpfo['l_cfrac'], mpfo['h_cdist'], mpfo['l_cdist'], dids[0], cids[0], cids[1], ctstr)
             if args.plotdir is not None:
-                import lbplotting
                 iclust_plotvals = {k : [m[k] for m in metric_pairs] for k in ('h_cfrac', 'l_cfrac')}
-                mstr = treeutils.legtexts['cons-frac-aa']
                 lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, getplotdir(None), iclust_plotvals, 'l_cfrac', 'light %s'%mstr, mstr, xvar='h_cfrac', xlabel='heavy %s'%mstr, stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
                 for k in all_plotvals:
                     all_plotvals[k] += iclust_plotvals[k]
