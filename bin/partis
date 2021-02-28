@@ -728,8 +728,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair, read_selection_metrics=True)
             antn_pairs += find_cluster_pairs(lpair)
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
-        print '             sizes    aa-cfrac      aa-cdist       droplet       contig'
-        print '                       h     l       h    l                       h  l'
+        print '             sizes   aa-cfrac (%)      aa-cdist       droplet       contig'
+        print '                      sum   h    l      h    l                       h  l'
         all_plotvals = {k : [] for k in ('h_cfrac', 'l_cfrac')}
         for iclust, (h_atn, l_atn) in enumerate(sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)):
             metric_pairs = []
@@ -745,12 +745,12 @@ def run_all_loci(args, ig_or_tr='ig'):
                 mpfo = {}
                 for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
                     mpfo[tch+'_id'] = uid
-                    mpfo[tch+'_cdist'] = treeutils.smvals(ltmp, 'cons-dist-aa', iseq=ltmp['unique_ids'].index(uid))
-                    mpfo[tch+'_cfrac'] = -treeutils.lb_cons_dist(ltmp, ltmp['unique_ids'].index(uid), aa=True, frac=True)
+                    mpfo[tch+'_cdist'] = -treeutils.smvals(ltmp, 'cons-dist-aa', iseq=ltmp['unique_ids'].index(uid))
+                    mpfo[tch+'_cfrac'] = treeutils.lb_cons_dist(ltmp, ltmp['unique_ids'].index(uid), aa=True, frac=True)
                     if 'cell-types' in ltmp:
                         mpfo[tch+'_cell_type'] = utils.per_seq_val(ltmp, 'cell-types', uid)
                 metric_pairs.append(mpfo)
-            for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: x['h_cfrac']+x['l_cfrac'], reverse=True)):
+            for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: x['h_cfrac']+x['l_cfrac'])):
                 dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (mpfo['h_id'], mpfo['l_id'])])
                 assert len(set(dids)) == 1  # make sure they're from the same droplet
                 ctstr = '  '
@@ -758,7 +758,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     assert mpfo['h_cell_type'] == mpfo['l_cell_type']
                     ctstr = mpfo['h_cell_type']
                 istr = '%s %s  %3d %3d' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]), len(h_atn['unique_ids']), len(l_atn['unique_ids']))
-                print '       %s %6.2f%6.2f   %4d%4d   %s  %s  %s  %s' % (istr if imp==0 else ' '*utils.len_excluding_colors(istr), mpfo['h_cfrac'], mpfo['l_cfrac'], mpfo['h_cdist'], mpfo['l_cdist'], dids[0], cids[0], cids[1], ctstr)
+                print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %s  %s  %s  %s' % (istr if imp==0 else ' '*utils.len_excluding_colors(istr), 100*(mpfo['h_cfrac']+mpfo['l_cfrac']), 100*mpfo['h_cfrac'], 100*mpfo['l_cfrac'], mpfo['h_cdist'], mpfo['l_cdist'], dids[0], cids[0], cids[1], ctstr)
             if args.plotdir is not None:
                 iclust_plotvals = {k : [m[k] for m in metric_pairs] for k in ('h_cfrac', 'l_cfrac')}
                 lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, getplotdir(None), iclust_plotvals, 'l_cfrac', 'light %s'%mstr, mstr, xvar='h_cfrac', xlabel='heavy %s'%mstr, stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
