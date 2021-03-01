@@ -65,6 +65,11 @@ def timeprinter(fcn):
     return wrapper
 
 # ----------------------------------------------------------------------------------------
+# NOTE there are many many many places where i could use this
+def wfmt(val, width, fmt='s'):  # return <val> formatted with with <width> and format <fmt> (the necessary parentheses really make stuff hard to read without this fcn)
+    return ('%' + str(width) + fmt) % val
+
+# ----------------------------------------------------------------------------------------
 parameter_type_choices = ('multi-hmm', 'hmm', 'sw')  # NOTE this order determines default priority, i.e. if not set on the command line we choose the first one in this order that exists
 default_parameter_type = 'hmm'  # not 'default' in the sense of we always use it if user doesn't set something, but default in terms of we want to set something if none of them exist (especially when caching parameters)
 def get_parameter_type(args, paramdir):
@@ -4570,7 +4575,7 @@ def replace_in_arglist(clist, argstr, replace_with, insert_after=None, has_arg=F
 
 # ----------------------------------------------------------------------------------------
 # insert list <new_arg_strs> after <argstr> (unless <before> is set),  Use <has_arg> if <argstr> has an argument after which the insertion should occur
-def insert_in_arglist(clist, new_arg_strs, argstr, has_arg=False, before=False):
+def insert_in_arglist(clist, new_arg_strs, argstr, has_arg=False, before=False):  # set <argstr> to None to put it at end (yeah it probably should've been a kwarg)
     i_insert = len(clist)
     if argstr is not None:
         i_insert = clist.index(argstr) + (2 if has_arg else 1)

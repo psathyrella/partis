@@ -441,10 +441,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                         remove_action_specific_args(clist, args.action)
                     elif args.action != 'cache-parameters':
                         clist += ['--refuse-to-cache-parameters']
-                    utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
+                    if tmpaction != 'view-output':
+                        utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
                     if tmpaction != 'cache-parameters':
-                        utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname', has_arg=True)
+                        utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname' if '--infname' in clist else None, has_arg=True)
                         if args.paired_outdir is None:
                             work_fnames.append(getofn(ltmp, joint=joint, lpair=lpair))
                             if not joint and lpair is None and getodir(single_chain=True) not in work_fnames:
@@ -482,7 +483,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # ----------------------------------------------------------------------------------------
         if skip_missing_input:
             if not os.path.exists(getifn(ltmp)):
-                print '%s: no input file, skipping' % utils.color('blue', ltmp)
+                print '%s: no input file, skipping  (%s)' % (utils.color('blue', ltmp), getifn(ltmp))
                 return
             if tmpaction in ['annotate', 'partition'] and not os.path.exists(getpdir(ltmp)):  # this probably means that no sequences had annotations (i.e. all failed) for this locus when parameter caching
                 print '%s: no parameter dir, skipping' % utils.color('blue', ltmp)
@@ -754,7 +755,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if len(metric_pairs) == 0:
                 continue
             if debug:
-                ctlen = max(len(str(m.get(c+'_cell_type', ''))) for m in metric_pairs for c in ['h', 'l'])
+                ctlen = max([len('cell'), len('type')] + [len(str(m.get(c+'_cell_type', ''))) for m in metric_pairs for c in ['h', 'l']])
                 lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
                 h_cshm, l_cshm = [treeutils.lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
                 cdstr = '%2d %2d' % (h_cshm, l_cshm)
@@ -764,8 +765,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
                 h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
                 h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-                print ('             aa-cfrac (%%)      aa-cdist      droplet       contig%s   N aa mutations      sizes           %s %s %s') % (' '*ctlen, ('%'+str(gstr_len)+'s')%'genes    cons:', h_cseq, l_cseq)
-                print ('             sum   h    l       h   l                       h  l %s    cons.    obs.    both   h   l      %s %s %s') % (' '*ctlen, ('%'+str(gstr_len)+'s')%'naive:', h_nseq, l_nseq)
+                print ('             aa-cfrac (%%)      aa-cdist      droplet       contig %s  N aa mutations      sizes           %s %s %s') % (utils.wfmt('cell', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
+                print ('             sum   h    l       h   l                       h  l  %s   cons.    obs.    both   h   l      %s %s %s') % (utils.wfmt('type', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
             for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: x['h_cfrac']+x['l_cfrac'])):
                 dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (mpfo['h_id'], mpfo['l_id'])])
                 assert len(set(dids)) == 1  # make sure they're from the same droplet
@@ -832,7 +833,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  missing %d locus parameter dirs (%s), so caching a new set of parameters before running action \'%s\':  %s' % (len(missing_pdir_loci), ' '.join(missing_pdir_loci), args.action, ' '.join(getpdir(l) for l in missing_pdir_loci))
             for ltmp in utils.sub_loci(ig_or_tr):
                 run_step('cache-parameters', ltmp, auto_cache=True, skip_missing_input=True)
-        if args.action not in ['merge-paired-partitions', 'get-selection-metrics']:
+        if args.action not in ['merge-paired-partitions', 'get-selection-metrics', 'view-output']:  # NOTE this skips printing the single-chain results for 'view-output', since presumably we don't really care about them
             for ltmp in utils.sub_loci(ig_or_tr):
                 run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions')
         ccfs = None  # if we're just plotting partitions (not merging), we'd have to go back and read single + joint/concat'd partitions in order to get these
@@ -855,11 +856,12 @@ def run_all_loci(args, ig_or_tr='ig'):
                 import plotting
                 fnlist = sorted(fnoutstr.strip().split('\n'))
                 plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
-        if args.action == 'get-selection-metrics' or args.get_selection_metrics:
+        if args.action in ['get-selection-metrics', 'view-output'] or args.get_selection_metrics:
             for lpair in utils.locus_pairs[ig_or_tr]:  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
                 for ltmp in lpair:
                     run_step(args.action, ltmp, lpair=lpair, joint=True)
-            combine_selection_metrics()
+            if args.action == 'get-selection-metrics':
+                combine_selection_metrics()
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         utils.rmdir(args.workdir, fnames=work_fnames)
