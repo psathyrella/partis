@@ -2932,7 +2932,7 @@ def shm_aa(line, iseq=None, uid=None):  # it's kind of weird to have this fcn se
         iseq = line['unique_ids'].index(uid)
     add_naive_seq_aa(line)
     add_seqs_aa(line)
-    return hamming_distance(line['naive_seq_aa'], line['seqs_aa'][iseq])
+    return hamming_distance(line['naive_seq_aa'], line['seqs_aa'][iseq], amino_acid=True)
 
 # ----------------------------------------------------------------------------------------
 def pad_nuc_seq(nseq):  # if length not multiple of three, pad on right with Ns
