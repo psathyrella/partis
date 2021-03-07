@@ -665,7 +665,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         return true_partitions
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
-        DBG = False #True
+        DBG = args.debug #False #True
         single_glfos, single_antn_lists, single_cpaths = read_output_files(utils.sub_loci(ig_or_tr), debug=DBG)  # single chain cpaths (and other info)
         if not any('paired-uids' in l for alist in single_antn_lists.values() for l in alist):
             print '  no paired uids in any annotations, not merging single chain partitions'
@@ -755,7 +755,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             if len(metric_pairs) == 0:
                 continue
             if debug:
-                ctlen = max([len('cell'), len('type')] + [len(str(m.get(c+'_cell_type', ''))) for m in metric_pairs for c in ['h', 'l']])
+                ctlen = 0
+                if any(c+'_cell_type' in mpfo for mpfo in metric_pairs for c in ['h', 'l']):
+                    ctlen = max([len('cell'), len('type')] + [len(str(m.get(c+'_cell_type', ''))) for m in metric_pairs for c in ['h', 'l']])
                 lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
                 h_cshm, l_cshm = [treeutils.lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
                 cdstr = '%2d %2d' % (h_cshm, l_cshm)
@@ -765,20 +767,24 @@ def run_all_loci(args, ig_or_tr='ig'):
                 gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
                 h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
                 h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-                print ('             aa-cfrac (%%)      aa-cdist      droplet       contig %s  N aa mutations      sizes           %s %s %s') % (utils.wfmt('cell', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
-                print ('             sum   h    l       h   l                       h  l  %s   cons.    obs.    both   h   l      %s %s %s') % (utils.wfmt('type', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
+                print ('             aa-cfrac (%%)      aa-cdist       droplet        contig %s  N aa mutations      sizes           %s %s %s') % (utils.wfmt('cell', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
+                print ('             sum   h    l       h   l                         h  l  %s   cons.    obs.    both   h   l      %s %s %s') % (utils.wfmt('type', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
             for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: x['h_cfrac']+x['l_cfrac'])):
                 dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (mpfo['h_id'], mpfo['l_id'])])
-                assert len(set(dids)) == 1  # make sure they're from the same droplet
+                if len(set(dids)) == 1:  # make sure they're from the same droplet
+                    didstr = dids[0]
+                else:
+                    print '  %s paired seqs %s %s have different droplet ids %s' % (utils.color('red', 'error'), mpfo['h_id'], mpfo['l_id'], dids)
+                    didstr = 'see error'
                 ctstr = ''
                 if 'cell-types' in h_atn or 'cell-types' in l_atn:
                     assert mpfo['h_cell_type'] == mpfo['l_cell_type']
                     ctstr = ('%'+str(ctlen)+'s') % mpfo['h_cell_type']
                 if debug:
                     h_seq, l_seq = [utils.color_mutants(l['consensus_seq_aa'], utils.per_seq_val(l, 'seqs_aa', u), amino_acid=True) for u, l in zip((mpfo['h_id'], mpfo['l_id']), (h_atn, l_atn))]
-                    print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %s  %s  %s %s   %s   %2d  %2d   %s    %s   %s %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
+                    print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %20s  %s  %s %s   %s   %2d  %2d   %s    %s   %s %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
                                                                                                                         100*(mpfo['h_cfrac']+mpfo['l_cfrac']), 100*mpfo['h_cfrac'], 100*mpfo['l_cfrac'], mpfo['h_cdist'], 
-                                                                                                                        mpfo['l_cdist'], dids[0], cids[0], cids[1], ctstr, cdstr if imp==0 else ' '*len(cdstr), utils.shm_aa(h_atn, uid=mpfo['h_id']), utils.shm_aa(l_atn, uid=mpfo['l_id']),
+                                                                                                                        mpfo['l_cdist'], didstr, cids[0], cids[1], ctstr, cdstr if imp==0 else ' '*len(cdstr), utils.shm_aa(h_atn, uid=mpfo['h_id']), utils.shm_aa(l_atn, uid=mpfo['l_id']),
                                                                                                                         sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
                                                                                                                         h_seq, l_seq)
             if debug:
