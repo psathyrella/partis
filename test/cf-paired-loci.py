@@ -15,6 +15,7 @@ in_param_dir = '_output/paired-simulation/parameters'  # TODO
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
+parser.add_argument('actions', default='cache-parameters:partition')
 parser.add_argument('--n-sim-events', type=int, default=10)
 parser.add_argument('--n-leaf-list', default='2:3:4:10') #1 5; do10)
 parser.add_argument('--cells-per-drop-list', default='10') #0.8 2 3 5 10; do #1.1; do
@@ -25,8 +26,10 @@ parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--version', default='v3')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--no-plots', action='store_true')
 args = parser.parse_args()
 
+args.actions = utils.get_arg_list(args.actions, choices=['cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics'])
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.cells_per_drop_list = utils.get_arg_list(args.cells_per_drop_list, floatify=True)
 
@@ -41,6 +44,16 @@ def run_simu(ncells, nleaf):
     utils.simplerun(cmd, logfname='%s/simu.log'%outdir, dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------
+def outpath(action):
+    if action == 'cache-parameters':
+        outstr = 'parameters'
+    elif action in ['partition', 'merge-paired-partitions']:  # i guess it makes sense to use the same file for both?
+        outstr = 'partition-igh.yaml'  # partition-igh.yaml is about the last file to be written, so it's probably ok to use for this
+    else:
+        assert False
+    return '%s/inferred/%s' % (outdir, outstr)
+
+# ----------------------------------------------------------------------------------------
 for ncells in args.cells_per_drop_list:
     for nleaf in args.n_leaf_list:
         # TODO label = 'cleanscan-n-leaves-%d-cells-%d-%s' % (nleaf, ncells, args.version)
@@ -49,15 +62,17 @@ for ncells in args.cells_per_drop_list:
         outdir = '%s/partis/tmp/%s' % (os.getenv('fs'), label)  # TODO move from tmp/
         out_param_dir = '%s/params' % outdir
 
-        run_simu(ncells, nleaf)
-
-        for action in ['cache-parameters', 'partition']:
-            outpath = '%s/inferred/%s' % (outdir, 'parameters' if action=='cache-parameters' else 'partition-igh.yaml')  # partition-igh.yaml is about the last file to be written, so it's probably ok to use for this
-            if utils.output_exists(args, outpath):
+        for action in args.actions:
+            if action == 'simulate':
+                run_simu(ncells, nleaf)
+                continue
+            if utils.output_exists(args, outpath(action)):
                 continue
             cmd = './bin/partis %s --paired-loci --paired-indir %s/simu --input-metafname %s/simu/meta.yaml --paired-outdir %s/inferred' % (action, outdir, outdir, outdir)
-            cmd += ' --n-procs %d --is-simu --no-partition-plots' % args.n_procs  #  --no-mds-plots
-            if action != 'cache-parameters':
+            cmd += ' --n-procs %d --is-simu' % args.n_procs
+            if action in ['partition', 'merge-paired-partitions']:
+                cmd += ' --no-partition-plots' #--no-mds-plots' #
+            if action != 'cache-parameters' and not args.no_plots:
         	cmd += ' --plotdir paired-outdir'
             utils.simplerun(cmd, logfname='%s/%s.log'%(outdir, action), dryrun=args.dry)
         break

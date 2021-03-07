@@ -155,10 +155,8 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
 def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(all_uids, tdbg=False):
-        try:
-            utils.get_droplet_id(next(iter(all_uids)))
-        except:
-            print '  note: couldn\'t get droplet id from \'%s\', so assuming this isn\'t 10x data' % next(iter(all_uids))  # NOTE i'm not sure that this gives the same one as the previous line
+        if not is_data:
+            # print '  note: couldn\'t get droplet id from \'%s\', so assuming this isn\'t 10x data' % next(iter(all_uids))  # NOTE i'm not sure that this gives the same one as the previous line
             return False
         # check against the droplet id method (we could just do it this way, but it would only work for 10x, and only until they change their naming convention)
         pgroup_strs = set(':'.join(sorted(pg)) for pg in pid_groups)

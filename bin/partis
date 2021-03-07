@@ -744,7 +744,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     run_step('plot-partitions', ltmp, joint=True)
                 else:
                     makelink(getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp))
-                if args.plotdir is not None:
+                if args.plotdir is not None and not args.no_partition_plots:
                     run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
             if args.plotdir is not None:
                 fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
