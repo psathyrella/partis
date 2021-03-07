@@ -93,13 +93,14 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_p
         antn_dict[ch] = utils.get_annotation_dict(antn_lists[ploci[ch]])
 
 # ----------------------------------------------------------------------------------------
-def remove_badly_paired_seqs(ploci, cpaths, antn_lists, glfos, debug=False):  # remove seqs paired with the wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
+def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired with the wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
     # ----------------------------------------------------------------------------------------
     def add_unpaired(cline, iseq, uid):
         sorted_hdists = sorted([(u, utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i, u in enumerate(cline['unique_ids']) if i != iseq], key=operator.itemgetter(1))
         nearest_uid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
         unpaired_seqs[cline['loci'][iseq]][uid] = nearest_uid  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance
     # ----------------------------------------------------------------------------------------
+    cpaths, antn_lists, glfos = [outfos[k] for k in ['cpaths', 'antn_lists', 'glfos']]
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
     all_loci = {u : l for ants in antn_lists.values() for antn in ants for u, l in zip(antn['unique_ids'], antn['loci'])}  # this includes the heavy ones, which we don't need, but oh well
     all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this

@@ -556,19 +556,19 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for atn in antn_lists[ltmp]:
                     if ':'.join(atn['unique_ids']) in sminfos:  # all the ones that were too small won't be there, for instance
                         atn['tree-info'] = sminfos[':'.join(atn['unique_ids'])]
-        return glfos, antn_lists, cpaths
+        return {k : v for k, v in  zip(['glfos', 'antn_lists', 'cpaths'], [glfos, antn_lists, cpaths])}
     # ----------------------------------------------------------------------------------------
     def combine_simu_pair(lpair, headers):
-        glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair, debug=args.debug)
-        if any(l not in glfos for l in lpair):
-            return {'glfos' : None, 'antn_lists' : None, 'cpaths' : None}
+        lpfos = read_output_files(lpair, lpair=lpair, debug=args.debug)
+        if any(l not in lpfos['glfos'] for l in lpair):
+            return {k : None for k in lpfos}
         print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
-        assert len(set(len(antn_lists[l]) for l in lpair)) == 1  # make sure the lists for both loci are the same length
-        for hline, lline in zip(*[antn_lists[l] for l in lpair]):
+        assert len(set(len(lpfos['antn_lists'][l]) for l in lpair)) == 1  # make sure the lists for both loci are the same length
+        for hline, lline in zip(*[lpfos['antn_lists'][l] for l in lpair]):
             treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
         for ltmp in lpair:  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
-            utils.write_annotations(getofn(ltmp, lpair=lpair), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
-        return {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : cpaths}
+            utils.write_annotations(getofn(ltmp, lpair=lpair), lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], headers, use_pyyaml=args.write_full_yaml_output)
+        return lpfos
     # ----------------------------------------------------------------------------------------
     def apportion_cells_to_droplets(outfos, metafos):
         n_droplets = int(0.5 * float(len(outfos)) / args.mean_cells_per_droplet)  # (randomly) apportion cells among this many droplets (0.5 is because <outfos> includes both heavy and light sequences)
@@ -666,138 +666,27 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         DBG = args.debug #False #True
-        single_glfos, single_antn_lists, single_cpaths = read_output_files(utils.sub_loci(ig_or_tr), debug=DBG)  # single chain cpaths (and other info)
-        if not any('paired-uids' in l for alist in single_antn_lists.values() for l in alist):
+        single_outfos = read_output_files(utils.sub_loci(ig_or_tr), debug=DBG)  # single chain cpaths (and other info)
+        if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
             print '  no paired uids in any annotations, not merging single chain partitions'
             return
-        true_partitions = get_true_partitions(single_cpaths, debug=DBG)
-        paircluster.clean_pair_info(single_cpaths, single_antn_lists, is_data=args.is_data, plotdir=getplotdir(None) if args.plotdir is not None else None, debug=DBG) #, max_hdist=4
+        true_partitions = get_true_partitions(single_outfos['cpaths'], debug=DBG)
+        paircluster.clean_pair_info(single_outfos['cpaths'], single_outfos['antn_lists'], is_data=args.is_data, plotdir=getplotdir(None) if args.plotdir is not None else None, debug=DBG) #, max_hdist=4
         lp_infos = {}
         for lpair in utils.locus_pairs[ig_or_tr]:
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
-            lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_cpaths, single_antn_lists, single_glfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
-            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_cpaths, input_antn_lists=single_antn_lists, debug=DBG)  # , iparts={'igl' : 7}
+            lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
+            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=DBG)  # , iparts={'igl' : 7}
             for ltmp in lpair:
-                write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_glfos[ltmp], single_antn_lists[ltmp])
-            lp_infos[tuple(lpair)] = {k : v for k, v in zip(['glfos', 'antn_lists', 'cpaths'], read_output_files(lpair, lpair=lpair))}  # ick this is ugly
+                write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp])
+            lp_infos[tuple(lpair)] = read_output_files(lpair, lpair=lpair)
         _, concat_antn_lists, concat_cpaths = concat_heavy_chain(lp_infos, write=True)
         # TODO figure out about adding/removing missing uids
         ccfs = {}
         for ltmp in utils.sub_loci(ig_or_tr):
-            ccfs[ltmp] = paircluster.compare_partition_pair(single_cpaths[ltmp].best(), concat_cpaths[ltmp].best(), dbg_str='%s single vs joint concat\'d '%utils.locstr(ltmp), cf_label='single', ref_label='joint', debug=True) # antn_list=XXX
+            ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str='%s single vs joint concat\'d '%utils.locstr(ltmp), cf_label='single', ref_label='joint', debug=True) # antn_list=XXX
         return ccfs
-    # ----------------------------------------------------------------------------------------
-    def combine_selection_metrics():
-        # ----------------------------------------------------------------------------------------
-        def getpids(line):
-            all_ids = []
-            for pids in line['paired-uids']:
-                if pids is None or len(pids) == 0:
-                    continue
-                elif len(pids) == 1:
-                    assert pids[0] not in all_ids
-                    all_ids.append(pids[0])
-                else:
-                    print pids
-                    assert False
-            return all_ids
-        # ----------------------------------------------------------------------------------------
-        def find_cluster_pairs(lpair):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
-            lp_antn_pairs = []
-            h_part, l_part = [sorted(cpaths[l].best(), key=len, reverse=True) for l in lpair]
-            h_atn_dict, l_atn_dict = [utils.get_annotation_dict(antn_lists[l]) for l in lpair]
-            for h_clust in h_part:
-                h_atn = h_atn_dict[':'.join(h_clust)]
-                if 'tree-info' not in h_atn:  # skip (presumably) the smaller ones
-                    continue
-                if 'paired-uids' not in h_atn:  # seems to just be single-seq clusters, so i don't care
-                    continue
-                l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
-                assert len(l_clusts) == 1
-                l_atn = l_atn_dict[':'.join(l_clusts[0])]
-                h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
-                l_atn['loci'] = [lpair[1] for _ in l_atn['unique_ids']]
-                lp_antn_pairs.append((h_atn, l_atn))
-            return lp_antn_pairs
-        # ----------------------------------------------------------------------------------------
-        debug = True
-        if args.plotdir is not None:
-            import lbplotting
-            mstr = treeutils.legtexts['cons-frac-aa']
-        antn_pairs = []
-        for lpair in utils.locus_pairs[ig_or_tr]:
-            glfos, antn_lists, cpaths = read_output_files(lpair, lpair=lpair, read_selection_metrics=True)
-            antn_pairs += find_cluster_pairs(lpair)
-        all_plotvals = {k : [] for k in ('h_cfrac', 'l_cfrac')}
-        if debug:
-            print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
-        for iclust, (h_atn, l_atn) in enumerate(sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)):
-            metric_pairs = []
-            for hid, pids in zip(h_atn['unique_ids'], h_atn['paired-uids']):
-                if pids is None or len(pids) == 0:  # should only have the latter now (set with .get() call in rewrite_input_metafo())
-                    continue
-                lid = pids[0]
-                if lid not in l_atn['unique_ids']:
-                    print '  paired light id %s missing' % lid
-                    continue
-                if any(len(l['unique_ids']) < args.min_selection_metric_cluster_size for l in (h_atn, l_atn)):
-                    continue
-                mpfo = {}
-                for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
-                    mpfo[tch+'_id'] = uid
-                    mpfo[tch+'_cdist'] = -treeutils.smvals(ltmp, 'cons-dist-aa', iseq=ltmp['unique_ids'].index(uid))
-                    mpfo[tch+'_cfrac'] = treeutils.lb_cons_dist(ltmp, ltmp['unique_ids'].index(uid), aa=True, frac=True)
-                    if 'cell-types' in ltmp:
-                        ctval = utils.per_seq_val(ltmp, 'cell-types', uid)
-                        mpfo[tch+'_cell_type'] = ctval if ctval is not None else '?'
-                metric_pairs.append(mpfo)
-            if len(metric_pairs) == 0:
-                continue
-            if debug:
-                ctlen = 0
-                if any(c+'_cell_type' in mpfo for mpfo in metric_pairs for c in ['h', 'l']):
-                    ctlen = max([len('cell'), len('type')] + [len(str(m.get(c+'_cell_type', ''))) for m in metric_pairs for c in ['h', 'l']])
-                lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
-                h_cshm, l_cshm = [treeutils.lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
-                cdstr = '%2d %2d' % (h_cshm, l_cshm)
-                sstr = ' %3d  %3d %3d' % (len(metric_pairs), len(h_atn['unique_ids']), len(l_atn['unique_ids']))
-                gstrs = ['%s %s' % (utils.color_gene(h_atn[r+'_gene']), utils.color_gene(l_atn[r+'_gene']) if r!='d' else '') for r in utils.regions]
-                gstr_len = max(utils.len_excluding_colors(s) for s in gstrs)  # don't really need this as long as it's the last column
-                gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
-                h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-                h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-                print ('             aa-cfrac (%%)      aa-cdist       droplet        contig %s  N aa mutations      sizes           %s %s %s') % (utils.wfmt('cell', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
-                print ('             sum   h    l       h   l                         h  l  %s   cons.    obs.    both   h   l      %s %s %s') % (utils.wfmt('type', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
-            for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: x['h_cfrac']+x['l_cfrac'])):
-                dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (mpfo['h_id'], mpfo['l_id'])])
-                if len(set(dids)) == 1:  # make sure they're from the same droplet
-                    didstr = dids[0]
-                else:
-                    print '  %s paired seqs %s %s have different droplet ids %s' % (utils.color('red', 'error'), mpfo['h_id'], mpfo['l_id'], dids)
-                    didstr = 'see error'
-                ctstr = ''
-                if 'cell-types' in h_atn or 'cell-types' in l_atn:
-                    assert mpfo['h_cell_type'] == mpfo['l_cell_type']
-                    ctstr = ('%'+str(ctlen)+'s') % mpfo['h_cell_type']
-                if debug:
-                    h_seq, l_seq = [utils.color_mutants(l['consensus_seq_aa'], utils.per_seq_val(l, 'seqs_aa', u), amino_acid=True) for u, l in zip((mpfo['h_id'], mpfo['l_id']), (h_atn, l_atn))]
-                    print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %20s  %s  %s %s   %s   %2d  %2d   %s    %s   %s %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
-                                                                                                                        100*(mpfo['h_cfrac']+mpfo['l_cfrac']), 100*mpfo['h_cfrac'], 100*mpfo['l_cfrac'], mpfo['h_cdist'], 
-                                                                                                                        mpfo['l_cdist'], didstr, cids[0], cids[1], ctstr, cdstr if imp==0 else ' '*len(cdstr), utils.shm_aa(h_atn, uid=mpfo['h_id']), utils.shm_aa(l_atn, uid=mpfo['l_id']),
-                                                                                                                        sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
-                                                                                                                        h_seq, l_seq)
-            if debug:
-                for gs in gstrs[imp+1:]:  # if the cluster was smaller than gstrs, need to print the extra gstrs (this shouldn't really ever happen unless i make gstrs much longer))
-                    print '%81s%s' % ('', gs)  # this width will sometimes be wrong
-                print ''
-            if args.plotdir is not None:
-                iclust_plotvals = {k : [m[k] for m in metric_pairs] for k in ('h_cfrac', 'l_cfrac')}
-                lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, getplotdir(None), iclust_plotvals, 'l_cfrac', 'light %s'%mstr, mstr, xvar='h_cfrac', xlabel='heavy %s'%mstr, stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
-                for k in all_plotvals:
-                    all_plotvals[k] += iclust_plotvals[k]
-        if args.plotdir is not None:  # NOTE set --dry when getting selection metrics to get these plots, but not the regular (single-chain) selection metric plots (which are slow, especially the tree ones)
-            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', getplotdir(None), all_plotvals, 'l_cfrac', 'light %s'%mstr, mstr, xvar='h_cfrac', xlabel='heavy %s'%mstr, stats='correlation')
     # ----------------------------------------------------------------------------------------
     def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):
         subd = 'partitions/sizes'
@@ -867,7 +756,10 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for ltmp in lpair:
                     run_step(args.action, ltmp, lpair=lpair, joint=True)
             if args.action == 'get-selection-metrics':
-                combine_selection_metrics()
+                lp_infos = {}
+                for lpair in utils.locus_pairs[ig_or_tr]:
+                    lp_infos[tuple(lpair)] = read_output_files(lpair, lpair=lpair, read_selection_metrics=True)
+                treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=args.plotdir)
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         utils.rmdir(args.workdir, fnames=work_fnames)

@@ -2055,3 +2055,115 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     if plotdir is not None:
         import plotting
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
+
+# ----------------------------------------------------------------------------------------
+def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig'):
+    # ----------------------------------------------------------------------------------------
+    def getpids(line):
+        all_ids = []
+        for pids in line['paired-uids']:
+            if pids is None or len(pids) == 0:
+                continue
+            elif len(pids) == 1:
+                assert pids[0] not in all_ids
+                all_ids.append(pids[0])
+            else:
+                print pids
+                assert False
+        return all_ids
+    # ----------------------------------------------------------------------------------------
+    def find_cluster_pairs(lpair):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
+        lp_antn_pairs = []
+        lpk = tuple(lpair)
+        h_part, l_part = [sorted(lp_infos[lpk]['cpaths'][l].best(), key=len, reverse=True) for l in lpair]
+        h_atn_dict, l_atn_dict = [utils.get_annotation_dict(lp_infos[lpk]['antn_lists'][l]) for l in lpair]
+        for h_clust in h_part:
+            h_atn = h_atn_dict[':'.join(h_clust)]
+            if 'tree-info' not in h_atn:  # skip (presumably) the smaller ones
+                continue
+            if 'paired-uids' not in h_atn:  # seems to just be single-seq clusters, so i don't care
+                continue
+            l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
+            assert len(l_clusts) == 1
+            l_atn = l_atn_dict[':'.join(l_clusts[0])]
+            h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
+            l_atn['loci'] = [lpair[1] for _ in l_atn['unique_ids']]
+            lp_antn_pairs.append((h_atn, l_atn))
+        return lp_antn_pairs
+    # ----------------------------------------------------------------------------------------
+    debug = True
+    if plotdir is not None:
+        import lbplotting
+        mstr = legtexts['cons-frac-aa']
+    antn_pairs = []
+    for lpair in utils.locus_pairs[ig_or_tr]:
+        antn_pairs += find_cluster_pairs(lpair)
+    all_plotvals = {k : [] for k in ('h_cfrac', 'l_cfrac')}
+    if debug:
+        print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
+    for iclust, (h_atn, l_atn) in enumerate(sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)):
+        metric_pairs = []
+        for hid, pids in zip(h_atn['unique_ids'], h_atn['paired-uids']):
+            if pids is None or len(pids) == 0:  # should only have the latter now (set with .get() call in rewrite_input_metafo())
+                continue
+            lid = pids[0]
+            if lid not in l_atn['unique_ids']:
+                print '  paired light id %s missing' % lid
+                continue
+            if any(len(l['unique_ids']) < min_cluster_size for l in (h_atn, l_atn)):
+                continue
+            mpfo = {}
+            for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
+                mpfo[tch+'_id'] = uid
+                mpfo[tch+'_cdist'] = -smvals(ltmp, 'cons-dist-aa', iseq=ltmp['unique_ids'].index(uid))
+                mpfo[tch+'_cfrac'] = lb_cons_dist(ltmp, ltmp['unique_ids'].index(uid), aa=True, frac=True)
+                if 'cell-types' in ltmp:
+                    ctval = utils.per_seq_val(ltmp, 'cell-types', uid)
+                    mpfo[tch+'_cell_type'] = ctval if ctval is not None else '?'
+            metric_pairs.append(mpfo)
+        if len(metric_pairs) == 0:
+            continue
+        if debug:
+            ctlen = 0
+            if any(c+'_cell_type' in mpfo for mpfo in metric_pairs for c in ['h', 'l']):
+                ctlen = max([len('cell'), len('type')] + [len(str(m.get(c+'_cell_type', ''))) for m in metric_pairs for c in ['h', 'l']])
+            lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
+            h_cshm, l_cshm = [lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
+            cdstr = '%2d %2d' % (h_cshm, l_cshm)
+            sstr = ' %3d  %3d %3d' % (len(metric_pairs), len(h_atn['unique_ids']), len(l_atn['unique_ids']))
+            gstrs = ['%s %s' % (utils.color_gene(h_atn[r+'_gene']), utils.color_gene(l_atn[r+'_gene']) if r!='d' else '') for r in utils.regions]
+            gstr_len = max(utils.len_excluding_colors(s) for s in gstrs)  # don't really need this as long as it's the last column
+            gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
+            h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
+            h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
+            print ('             aa-cfrac (%%)      aa-cdist       droplet        contig %s  N aa mutations      sizes           %s %s %s') % (utils.wfmt('cell', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
+            print ('             sum   h    l       h   l                         h  l  %s   cons.    obs.    both   h   l      %s %s %s') % (utils.wfmt('type', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
+        for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: x['h_cfrac']+x['l_cfrac'])):
+            dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (mpfo['h_id'], mpfo['l_id'])])
+            if len(set(dids)) == 1:  # make sure they're from the same droplet
+                didstr = dids[0]
+            else:
+                print '  %s paired seqs %s %s have different droplet ids %s' % (utils.color('red', 'error'), mpfo['h_id'], mpfo['l_id'], dids)
+                didstr = 'see error'
+            ctstr = ''
+            if 'cell-types' in h_atn or 'cell-types' in l_atn:
+                assert mpfo['h_cell_type'] == mpfo['l_cell_type']
+                ctstr = ('%'+str(ctlen)+'s') % mpfo['h_cell_type']
+            if debug:
+                h_seq, l_seq = [utils.color_mutants(l['consensus_seq_aa'], utils.per_seq_val(l, 'seqs_aa', u), amino_acid=True) for u, l in zip((mpfo['h_id'], mpfo['l_id']), (h_atn, l_atn))]
+                print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %20s  %s  %s %s   %s   %2d  %2d   %s    %s   %s %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
+                                                                                                                    100*(mpfo['h_cfrac']+mpfo['l_cfrac']), 100*mpfo['h_cfrac'], 100*mpfo['l_cfrac'], mpfo['h_cdist'], 
+                                                                                                                    mpfo['l_cdist'], didstr, cids[0], cids[1], ctstr, cdstr if imp==0 else ' '*len(cdstr), utils.shm_aa(h_atn, uid=mpfo['h_id']), utils.shm_aa(l_atn, uid=mpfo['l_id']),
+                                                                                                                    sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
+                                                                                                                    h_seq, l_seq)
+        if debug:
+            for gs in gstrs[imp+1:]:  # if the cluster was smaller than gstrs, need to print the extra gstrs (this shouldn't really ever happen unless i make gstrs much longer))
+                print '%81s%s' % ('', gs)  # this width will sometimes be wrong
+            print ''
+        if plotdir is not None:
+            iclust_plotvals = {k : [m[k] for m in metric_pairs] for k in ('h_cfrac', 'l_cfrac')}
+            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, getplotdir(None), iclust_plotvals, 'l_cfrac', 'light %s'%mstr, mstr, xvar='h_cfrac', xlabel='heavy %s'%mstr, stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
+            for k in all_plotvals:
+                all_plotvals[k] += iclust_plotvals[k]
+    if plotdir is not None:  # NOTE set --dry when getting selection metrics to get these plots, but not the regular (single-chain) selection metric plots (which are slow, especially the tree ones)
+        lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', getplotdir(None), all_plotvals, 'l_cfrac', 'light %s'%mstr, mstr, xvar='h_cfrac', xlabel='heavy %s'%mstr, stats='correlation')
