@@ -1736,7 +1736,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     for iseq in range(nseqs):
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : len(trimmed_seqs[iseq]) - line['j_3p_del']]
         line['input_seqs'][iseq] = trimmed_input_seqs[iseq][line['v_5p_del'] : len(trimmed_input_seqs[iseq]) - line['j_3p_del']]
-        if indelutils.has_indels(line['indelfos'][iseq]):
+        if 'has_shm_indels' in line and line['has_shm_indels'][iseq] or 'indelfos' in line and indelutils.has_indels(line['indelfos'][iseq]):  # if 'indelfos' isn't in <line>, implicit info needs to be added, but maybe it will crash (arg)
             indelutils.trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, line['v_5p_del'], line['j_3p_del'])
 
     line['fv_insertion'] = final_fv_insertion

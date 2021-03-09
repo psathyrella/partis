@@ -49,6 +49,8 @@ def outpath(action):
         outstr = 'parameters'
     elif action in ['partition', 'merge-paired-partitions']:  # i guess it makes sense to use the same file for both?
         outstr = 'partition-igh.yaml'  # partition-igh.yaml is about the last file to be written, so it's probably ok to use for this
+    elif action == 'get-selection-metrics':
+        outstr = 'igh+igk/partition-igh-selection-metrics.yaml'
     else:
         assert False
     return '%s/inferred/%s' % (outdir, outstr)
@@ -69,7 +71,9 @@ for ncells in args.cells_per_drop_list:
             if utils.output_exists(args, outpath(action)):
                 continue
             cmd = './bin/partis %s --paired-loci --paired-indir %s/simu --input-metafname %s/simu/meta.yaml --paired-outdir %s/inferred' % (action, outdir, outdir, outdir)
-            cmd += ' --n-procs %d --is-simu' % args.n_procs
+            cmd += ' --n-procs %d' % args.n_procs
+            if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
+                cmd += ' --is-simu'
             if action in ['partition', 'merge-paired-partitions']:
                 cmd += ' --no-partition-plots' #--no-mds-plots' #
             if action != 'cache-parameters' and not args.no_plots:

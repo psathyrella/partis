@@ -379,17 +379,24 @@ def pad_indelfo(indelfo, leftstr, rightstr):
 def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, v_5p_to_remove, j_3p_to_remove):
     for skey in ['qr_gap_seq', 'gl_gap_seq']:
         istart = len(fv_insertion_to_remove) + v_5p_to_remove
-        istop = len(line['indelfos'][iseq][skey]) - len(jf_insertion_to_remove) - j_3p_to_remove
-        line['indelfos'][iseq][skey] = line['indelfos'][iseq][skey][istart : istop]
+        if 'indelfos' in line:  # normal, i guess, although not necessarily anything wrong with the other option
+            tseq = line['indelfos'][iseq][skey]
+            istop = len(tseq) - len(jf_insertion_to_remove) - j_3p_to_remove
+            line['indelfos'][iseq][skey] = tseq[istart : istop]
+        else:  # i'm pretty sure this means it was read from a file, and hasn't had implicit info added (e.g. if calling utils.reset_effective_erosions_and_effective_insertions() after reading a file)
+            tseq = line[skey+'s'][iseq]
+            istop = len(tseq) - len(jf_insertion_to_remove) - j_3p_to_remove
+            line[skey+'s'][iseq] = tseq[istart : istop]
 
-    rseq = line['indelfos'][iseq]['reversed_seq']
-    rseq = rseq[len(fv_insertion_to_remove) + v_5p_to_remove : ]
-    if len(jf_insertion_to_remove) + j_3p_to_remove > 0:
-        rseq = rseq[ : -(len(jf_insertion_to_remove) + j_3p_to_remove)]
-    line['indelfos'][iseq]['reversed_seq'] = rseq
+    if 'indelfos' in line:
+        rseq = line['indelfos'][iseq]['reversed_seq']
+        rseq = rseq[len(fv_insertion_to_remove) + v_5p_to_remove : ]
+        if len(jf_insertion_to_remove) + j_3p_to_remove > 0:
+            rseq = rseq[ : -(len(jf_insertion_to_remove) + j_3p_to_remove)]
+        line['indelfos'][iseq]['reversed_seq'] = rseq
 
-    for indel in line['indelfos'][iseq]['indels']:
-        indel['pos'] -= len(fv_insertion_to_remove) + v_5p_to_remove
+        for indel in line['indelfos'][iseq]['indels']:
+            indel['pos'] -= len(fv_insertion_to_remove) + v_5p_to_remove
 
 # ----------------------------------------------------------------------------------------
 def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this function sucks, because it has to handle both the case where we're reconstucting the indel info from info in a file, and the case where we're checking what's already there
