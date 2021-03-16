@@ -2174,7 +2174,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 continue
             if any(len(l['unique_ids']) < min_cluster_size for l in (h_atn, l_atn)):
                 continue
-            mpfo = {}
+            mpfo = {'iclust' : iclust}
             for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
                 mpfo[tch+'_id'] = uid
                 mpfo[tch+'_aa-cdist'] = -smvals(ltmp, 'cons-dist-aa', iseq=ltmp['unique_ids'].index(uid))
@@ -2183,12 +2183,14 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 mpfo[tch+'_seq_aa'] = utils.per_seq_val(ltmp, 'seqs_aa', uid)
                 mpfo[tch+'_seq_nuc'] = utils.per_seq_val(ltmp, 'input_seqs', uid)
                 mpfo[tch+'_has_indels'] = utils.per_seq_val(ltmp, 'has_shm_indels', uid)
-                mpfo[tch+'_family_size'] = len(ltmp['unique_ids'])
+                mpfo[tch+'_family_size'] = len(ltmp['unique_ids'])  # a bunch of these are just to write to the csv
                 for region in utils.regions:
                     mpfo['%s_%s_gene'%(tch, region)] = ltmp[region+'_gene']
                 if 'cell-types' in ltmp:
                     ctval = utils.per_seq_val(ltmp, 'cell-types', uid)
                     mpfo[tch+'_cell_type'] = ctval if ctval is not None else '?'
+            for kname in ['_aa-cfrac', '_aa-cdist', '_shm-aa']:
+                mpfo['sum'+kname] = sum(mpfo[c+kname] for c in 'hl')
             metric_pairs.append(mpfo)
         if len(metric_pairs) == 0:
             continue
