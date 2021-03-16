@@ -2207,10 +2207,11 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
             else:
                 vlist = treeutils.smvals(line, ekey, nullval='?')  # don't really want to try to recalculate if they're not there, since for some we'd need trees, and yadda yadda
         else:
-            vlist = line.get(ekey, '?')
+            vlist = line.get(ekey, ['?' for _ in line['unique_ids']])
         # tw = str(max(len(ekey), max(len(vstr(v)) for v in vlist)))  # maybe include len of ekey in width?
         tw = str(max(len(vstr(v)) for v in vlist))
         uid_extra_str_label += ('%'+tw+'s') % ekey
+        assert len(vlist) == len(uid_extra_strs)
         uid_extra_strs = [(('%s%'+tw+'s')%(e, vstr(v))) for v, e in zip(vlist, uid_extra_strs)]
     return uid_extra_strs, uid_extra_str_label
 
@@ -2218,6 +2219,8 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
 def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, uid_extra_str_label=None, extra_print_keys=None, queries_to_emphasize=None):
     if extra_print_keys is not None:
         uid_extra_strs, uid_extra_str_label = get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_label)
+    if uid_extra_strs is not None and len(uid_extra_strs) != len(line['unique_ids']):
+        raise Exception('uid_extra_strs %d different length to unique_ids %d' % (len(uid_extra_strs), len(line['unique_ids'])))
     duplicate_counts = [(u, line['unique_ids'].count(u)) for u in line['unique_ids']]
     duplicated_uids = {u : c for u, c in duplicate_counts if c > 1}
     if len(line['unique_ids']) > 1:
