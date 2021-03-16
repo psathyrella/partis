@@ -444,6 +444,9 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'locus' : 'loci',
     'cell-type' : 'cell-types',
 }
+input_metafile_defaults = {  # default values to use if the info isn't there (None if not present)
+    'multiplicities' : 1
+}
 reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
 # ----------------------------------------------------------------------------------------
@@ -562,7 +565,7 @@ def uids_and_dups(line):  # NOTE it's kind of weird to have this ignore 'multipl
     return line['unique_ids'] + [u for dlist in line['duplicates'] for u in dlist]
 
 # ----------------------------------------------------------------------------------------
-def get_multiplicity(line, uid=None, iseq=None):  # combines duplicates with any input meta info multiplicities (well, the 'multiplicities' key in <line> should already have them combined [see waterer])
+def get_multiplicity(line, uid=None, iseq=None):  # if 'multiplicities' is set (i.e. from input meta info), we return that, since it *should* have been updated in waterer to include duplicates. Otherwise we use the 'duplicates' key NOTE we can't combine them here, since we have no way of being sure whether they have previously been combined, i.e. if 'multiplicities' is there, it *has* to be correct
     if uid is None:
         def ifcn(k): return line[k][iseq]
     elif iseq is None:

@@ -93,7 +93,7 @@ def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_
                 if debug:
                     added_uids |= set(line['unique_ids'])
                     added_keys.add(line_key)
-    if n_modified > 0:  # should really add this for the next function as well
+    if n_modified > 0:
         print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
     if debug:
         print '  transferred input meta info (%s) for %d sequences from input_info' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids))
