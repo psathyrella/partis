@@ -27,6 +27,8 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
     if any(isinstance(tkey, int) for tkey in metafo):  # would be better to check for not being a string, but that's harder, and this probably only happens for my simulation hash ids
         raise Exception('meta info keys need to be string (maybe just need to add \'\' around sequence ids in yaml file), but got: %s' % ' '.join(str(type(tk)) for tk in metafo if isinstance(tk, int)))
     metafile_keys = set(k for mfo in metafo.values() for k in mfo)
+    if len(metafile_keys) == 0:  # zero length meta info file
+        return
     if len(metafile_keys & set(utils.input_metafile_keys)) == 0:
         raise Exception('no overlap between %d metafile keys and %d allowed keys:\n    %s\n    %s' % (len(metafile_keys), len(utils.input_metafile_keys), ' '.join(metafile_keys), ' '.join(utils.input_metafile_keys)))
     if required_keys is not None and len(set(required_keys) - metafile_keys) > 0:

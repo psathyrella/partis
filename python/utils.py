@@ -4643,12 +4643,30 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
+def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes an extra info (beyond name and seq)
+    if not os.path.isdir(os.path.dirname(fname)):
+        os.makedirs(os.path.dirname(fname))
+    with open(fname, 'w') as seqfile:
+        json.dump(seqfos, seqfile)
+
+# ----------------------------------------------------------------------------------------
 def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
     if not os.path.isdir(os.path.dirname(fname)):
         os.makedirs(os.path.dirname(fname))
     with open(fname, 'w') as seqfile:
         for sfo in seqfos:
             seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
+
+# ----------------------------------------------------------------------------------------
+# NOTE replacement for (some cases of) read_fastx()
+def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None): NOTE maybe add these args?
+    if getsuffix(fname) not in ['.json', '.yaml']:
+        raise Exception('unhandled suffix %s (should be .json or .yaml)' % getsuffix(fname))
+    with open(fname) as sfile:
+        seqfos = json.load(sfile)
+    if 'germline-info' in seqfos:
+        raise Exception('this is a standard yaml output file (not just list of seq infos), need to use utils.read_yaml_output()')
+    return seqfos
 
 # ----------------------------------------------------------------------------------------
 def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):
@@ -5379,6 +5397,8 @@ def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), o
 # ----------------------------------------------------------------------------------------
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
     yamlfo = read_json_yaml(fname)
+    if isinstance(yamlfo, list):
+        raise Exception('read list of seqfos (expected standard yaml output with germline-info, annotations, and partitions), need to run read_seqfos() instead: %s' % fname)
     if debug:
         print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
 
