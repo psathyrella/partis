@@ -2239,8 +2239,13 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print ''
         if plotdir is not None:
             iclust_plotvals = {k : [m[k] for m in metric_pairs] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
-            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, getplotdir(None), iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
-            for k in all_plotvals:
+            if len(iclust_mfos) > 0:
+                iclust_chosen_ids = [m[c+'_id'] for m in iclust_mfos for c in 'hl']
+                def tchosen(m): return m['h_id'] in iclust_chosen_ids and m['l_id'] in iclust_chosen_ids
+                iclust_plotvals['uids'] = ['x' if tchosen(m) else None for m in metric_pairs]
+            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
+            for k in iclust_plotvals:
+                if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
                 all_plotvals[k] += iclust_plotvals[k]
     if args.chosen_ab_fname is not None:
         if debug:
@@ -2251,4 +2256,4 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             for line in chosen_mfos:
                 writer.writerow(line)
     if plotdir is not None:  # NOTE set --dry when getting selection metrics to get these plots, but not the regular (single-chain) selection metric plots (which are slow, especially the tree ones)
-        lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', getplotdir(None), all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, stats='correlation')
+        lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, stats='correlation')
