@@ -4668,7 +4668,7 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
     with open(fname) as sfile:
         seqfos = json.load(sfile)
     if 'germline-info' in seqfos:
-        raise Exception('this is a standard yaml output file (not just list of seq infos), need to use utils.read_yaml_output()')
+        raise Exception('this is a standard yaml output file (not just a list of seq infos), so needs to be read with utils.read_yaml_output(): %s' % fname)
     return seqfos
 
 # ----------------------------------------------------------------------------------------
@@ -5401,7 +5401,7 @@ def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), o
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
     yamlfo = read_json_yaml(fname)
     if isinstance(yamlfo, list):
-        raise Exception('read list of seqfos (expected standard yaml output with germline-info, annotations, and partitions), need to run read_seqfos() instead: %s' % fname)
+        raise Exception('read list of seqfos from file, instead of the expected standard yaml output with germline-info, annotations, and partitions. Run read_seqfos() instead: %s' % fname)
     if debug:
         print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
 

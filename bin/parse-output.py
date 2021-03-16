@@ -26,8 +26,8 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
     pass
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
-parser.add_argument('infile', help='partis output file')
-parser.add_argument('outfile', help='output file name (fasta or csv/tsv)')
+parser.add_argument('infile', help='partis output file from which to read input')
+parser.add_argument('outfile', help='file to which to write output extracted from <infile> (fasta or csv/tsv)')
 parser.add_argument('--extra-columns', help='colon-separated list of additional partis output columns (beyond sequences), to write to the output file. If writing to a fasta file, the column values are appended after the sequence name, separated by --fasta-info-separator. If writing to csv/tsv, they\'re written as proper, labeled columns.')
 parser.add_argument('--partition-index', type=int, help='if set, use the partition at this index in the cluster path, rather than the default of using the best partition')
 parser.add_argument('--seed-unique-id', help='if set, take sequences only from the cluster containing this seed sequence, rather than the default of taking all sequences from all clusters')
