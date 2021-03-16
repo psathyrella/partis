@@ -49,7 +49,7 @@ The top row shows several ways to summarize the clusters in the repertoire.
 At top left is a plot with a colored blob/slug for each clonal family (sorted by size) whose extent along the x direction shows the distribution of number of SHMs within that family.
 The (zero-indexed) family rank and size are shown along the right side.
 Note that the three colors (green, blue, and yellow) have no separate significance, and are used only to visually distinguish adjacent slugs.
-This particular plot also shows the result of setting some sequences of interest using `--queries-to-include a:b:z`, such that sequences labeled a, b, and z will be highlighted in red.
+This particular plot also shows the result of setting some sequences of interest using `--queries-to-include a:b:z` (or `--queries-to-include-fname`), such that sequences labeled a, b, and z will be highlighted in red.
 A typical use case for this option is if you have made several previous `seed-partition` runs (with e.g. `--seed-unique-id a`), and you want to see how the families of the seed sequences fit into the larger repertoire.
 Only the first of these slug plots (with the biggest clusters) is shown in `overview.html` -- the rest are in the `partitions/shm-vs-size/` subdirectory.
 The middle two plots in the top row show the mean number of SHMs vs size for all the families in both linear and log scales.
@@ -59,7 +59,7 @@ Below this, if you have R and bios2mds installed as described [here](install.md#
 MDS takes each family (as a cluster in 400-odd dimensional sequence/hamming distance space) and squishes it out into two dimensions, choosing axes such as to maximize how squished out the family gets, while as nearly as possible preserving each inter-sequence distance from the real, 400-odd dimensional space.
 Note that we use the [bios2mds R package](https://cran.r-project.org/web/packages/bios2mds/bios2mds.pdf), and ambiguous bases are *not* treated correctly, i.e. Ns show up as mutations (at least we can't figure out how to change this).
 While there is no easy biological interpretation for the various directions on these plots, they do a good job of giving, at a glance, an overview of the basic structure of each family.
-Both the inferred naive sequence and consensus sequence for each cluster are shown as red points on these plots (as are any queries specified with `--queries-to-include`), and the SHM rate of each sequence is given by its transparency (darker is more mutated).
+Both the inferred naive sequence and consensus sequence for each cluster are shown as red points on these plots (as are any queries specified with `--queries-to-include` or `--queries-to-include-fname`), and the SHM rate of each sequence is given by its transparency (darker is more mutated).
 So in cases where dots get uniformly less transparent as they get further from the red naive dot, this tells you that the dimension reduction is not losing very much information.
 In cases where the plots are, on the other hand, uniformly speckled all over, the sequences are distributed more evenly across the 400-odd dimensional space (i.e. there wasn't a way to squish down to two dimensions without losing lots of information).
 The plot title shows the family's zero-based, size-sorted index and size (matching the numbers on the right side of the slug plots).
