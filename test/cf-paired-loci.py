@@ -15,7 +15,7 @@ in_param_dir = '_output/paired-simulation/parameters'  # TODO
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('actions', default='cache-parameters:partition')
+parser.add_argument('--actions', default='simulate:cache-parameters:partition')
 parser.add_argument('--n-sim-events', type=int, default=10)
 parser.add_argument('--n-leaf-list', default='2:3:4:10') #1 5; do10)
 parser.add_argument('--cells-per-drop-list', default='10') #0.8 2 3 5 10; do #1.1; do
@@ -29,7 +29,7 @@ parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--no-plots', action='store_true')
 args = parser.parse_args()
 
-args.actions = utils.get_arg_list(args.actions, choices=['cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics'])
+args.actions = utils.get_arg_list(args.actions, choices=['simulate', 'cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics'])
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.cells_per_drop_list = utils.get_arg_list(args.cells_per_drop_list, floatify=True)
 
@@ -61,7 +61,7 @@ for ncells in args.cells_per_drop_list:
         # TODO label = 'cleanscan-n-leaves-%d-cells-%d-%s' % (nleaf, ncells, args.version)
         ncstr = ('%.0f'%ncells) if int(ncells)==ncells else '%.1f'%ncells
         label = 'cleanscan-%d-%s-%s' % (nleaf, ncstr, args.version)  # pair-params-v2  # smetrics-v0  # cf-ccfs-v0 #cells-per-drop-$cpd # pair-plots-v0 #fix-bad-merge-v2
-        outdir = '%s/partis/tmp/%s' % (os.getenv('fs'), label)  # TODO move from tmp/
+        outdir = '%s/partis/paired-loci/%s' % (os.getenv('fs'), label)  # TODO move from tmp/
         out_param_dir = '%s/params' % outdir
 
         for action in args.actions:
