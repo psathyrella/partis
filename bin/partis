@@ -673,7 +673,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         return true_partitions
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
-        DBG = args.debug #False #True
+        DBG = args.debug_paired_clustering
         single_outfos = read_output_files(utils.sub_loci(ig_or_tr), debug=DBG)  # single chain cpaths (and other info)
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
             print '  no paired uids in any annotations, not merging single chain partitions'
@@ -794,8 +794,9 @@ parent_args.append({'name' : '--n-max-queries', 'kwargs' : {'type' : int, 'defau
 parent_args.append({'name' : '--n-random-queries', 'kwargs' : {'type' : int, 'help' : 'choose this many queries at random from entire input file'}})
 parent_args.append({'name' : '--istartstop', 'kwargs' : {'help' : 'colon-separated start:stop line indices for input sequence file (with python slice conventions, e.g. if set to \'2:4\' will skip the zeroth and first sequences, and then take the following two sequences, and then skip all subsequence sequences). Applied before any other input filters, e.g. --n-max-queries, --queries, --reco-ids, etc.'}})
 
-parent_args.append({'name' : '--debug', 'kwargs' : {'type' : int, 'default' : 0, 'choices' : [0, 1, 2], 'help' : 'Debug verbosity level.'}})
-parent_args.append({'name' : '--sw-debug', 'kwargs' : {'type' : int, 'choices' : [0, 1, 2], 'help' : 'Debug level for Smith-Waterman.'}})
+parent_args.append({'name' : '--debug', 'kwargs' : {'type' : int, 'default' : 0, 'choices' : [0, 1, 2], 'help' : 'Overall debug verbosity level. See also --sw-debug (which defaults to this), and --debug-allele-finding and --debug-paired-clustering (which are independent).'}})
+parent_args.append({'name' : '--sw-debug', 'kwargs' : {'type' : int, 'choices' : [0, 1, 2], 'help' : 'Debug level for Smith-Waterman. If not set, defaults to level given by --debug.'}})
+parent_args.append({'name' : '--debug-paired-clustering', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of ascii debug info while merging paired partitions'}})
 parent_args.append({'name' : '--abbreviate', 'kwargs' : {'action' : 'store_true', 'help' : 'Abbreviate/translate sequence ids to improve readability of partition debug output. Uses a, b, c, ..., aa, ab, ...'}})
 parent_args.append({'name' : '--print-git-commit', 'kwargs' : {'action' : 'store_true', 'help' : 'print sys.argv, git commit hash, and tag info'}})
 parent_args.append({'name' : '--dont-write-git-info', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t write git tag/commit info to yaml output files (used to enable diffing of test results)'}})

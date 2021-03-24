@@ -130,7 +130,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
 
     if varname == 'cluster-sizes':
         xtitle = 'cluster size'
-        ytitle = 'N clusters'
+        ytitle = 'fraction of clusteres' if args.normalize else 'N clusters'
         plottitle = ''
         xticks, xticklabels = plotting.get_cluster_size_xticks(hlist=hlist)  # it would be better to use all the hists, but i think it'll just screw up the ticks
         import matplotlib.pyplot as plt
