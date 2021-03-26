@@ -270,8 +270,8 @@ def run_partitiondriver(args):
             raise Exception('--parameter-dir %s doesn\'t exist, and --refuse-to-cache-parameters was set' % args.parameter_dir)
         actions = ['cache-parameters'] + actions
         print '  parameter dir does not exist, so caching a new set of parameters before running action \'%s\': %s' % (actions[1], args.parameter_dir)
-        if args.seed_unique_id is not None or args.seed_seq is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
-            raise Exception('if setting --seed-unique-id or --seed-seq for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
+        if args.seed_unique_id is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
+            raise Exception('if setting --seed-unique-id for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
 
     input_info, reco_info, glfo, simglfo = read_inputs(args, actions)
     parter = PartitionDriver(args, glfo, input_info, simglfo, reco_info)
@@ -423,6 +423,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
             utils.remove_from_arglist(clist, '--paired-outdir', has_arg=True)
             utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
+            utils.remove_from_arglist(clist, '--seed-loci', has_arg=True)
             if tmpaction in ['generate-trees', 'simulate']:
                 if '--seed' in clist:  # if it was set on the command line, we need to send different seeds to each pair (otherwise we'll get the same trees and same igh sequences in h+k and h+l)
                     sval = hash('+'.join(lpair) + utils.get_val_from_arglist(clist, '--seed')) % 2**31  # % by max seed value (well it's 32) NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
@@ -446,12 +447,17 @@ def run_all_loci(args, ig_or_tr='ig'):
                 else:
                     if auto_cache:
                         clist[clist.index(args.action)] = 'cache-parameters'
-                        remove_action_specific_args(clist, args.action)
                     elif args.action != 'cache-parameters':
                         clist += ['--refuse-to-cache-parameters']
+                    if auto_cache or tmpaction == 'annotate':
+                        remove_action_specific_args(clist, args.action)
                     if tmpaction != 'view-output':
                         utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
+                    if tmpaction == 'partition':
+                        if args.seed_unique_id is not None:  # it would be nice to work out what the locus of the light chain seed seq is so we don't have to run both, but whatever
+                            assert len(args.seed_unique_id) == 2
+                            utils.replace_in_arglist(clist, '--seed-unique-id', args.seed_unique_id[0 if utils.has_d_gene(ltmp) else 1])
                     if tmpaction != 'cache-parameters':
                         utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname' if '--infname' in clist else None, has_arg=True)
                         if args.paired_outdir is None:
@@ -490,6 +496,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             return clist
         # ----------------------------------------------------------------------------------------
         if skip_missing_input:
+            if args.seed_loci is not None and ltmp not in args.seed_loci:
+                return
             if not os.path.exists(getifn(ltmp)):
                 print '%s: no input file, skipping  (%s)' % (utils.color('blue', ltmp), getifn(ltmp))
                 return
@@ -686,6 +694,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=DBG)  # , iparts={'igl' : 7}
+            if any(len(jp)==0 for jp in joint_partitions.values()):
+                print '  zero length joint partitions'
+                return None
             for ltmp in lpair:
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp])
             lp_infos[tuple(lpair)] = read_output_files(lpair, lpair=lpair)
@@ -754,7 +765,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     makelink(getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp))
                 if args.plotdir is not None and not args.no_partition_plots:
                     run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
-            if args.plotdir is not None:
+            if args.plotdir is not None and os.path.exists(cfpdir):
                 fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
                 import plotting
                 fnlist = sorted(fnoutstr.strip().split('\n'))
@@ -944,8 +955,9 @@ subargs['annotate'].append({'name' : '--get-selection-metrics', 'kwargs' : {'act
 # ----------------------------------------------------------------------------------------
 subargs['partition'].append({'name' : '--naive-hamming', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value'}})
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then toss it all into vsearch. But, of course, not as accurate as the slower methods.'}})
-subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Throw out all sequences that are not clonally related to this sequence id. Much much much faster than partitioning the entire sample (well, unless your whole sample is one family).'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
-subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'same effect as --seed-unique-id, but specifies the sequence instead of that sequence\'s id (so that it doesn\'t have to be in the original input file)'}})
+subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Throw out all sequences that are not clonally related to this sequence id. Much much much faster than partitioning the entire sample (well, unless your whole sample is one family). If --paired-loci is set, this must be a colon-separated list of length two with the heavy:light sequence ids, and you must also set --seed-loci.'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'DEPRECATED use --seed-unique-id and --queries-to-include-fname'}})
+subargs['partition'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'Only used when both --seed-unique-id and --paired-loci are set: colon-separated list of length two with the heavy and light chain loci, e.g. \'igh:igk\''}})
 subargs['partition'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'choose a sequence at random from the input file, and use it as the seed for seed partitioning (as if it had been set as the --seed-unique-id)'}})
 subargs['partition'].append({'name' : '--annotation-clustering', 'kwargs' : {'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
 subargs['partition'].append({'name' : '--annotation-clustering-thresholds', 'kwargs' : {'default' : '0.9', 'help' : 'colon-separated list of thresholds for annotation-based clustering (i.e. a cluster is defined as the same v and j gene plus this threshold on cdr3 nucleotide hamming distance)'}})

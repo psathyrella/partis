@@ -211,13 +211,13 @@ class PartitionDriver(object):
                 cachefname = cache_path + '.csv'
         else:  # i.e. if we're not explicitly told to look for it (and it exists) then it should be out of date
             waterer.clean_cache(cache_path)  # hm, should this be <cachefname> instead of <cache_path>? i mean they're the same, but still
-        if (look_for_cachefile or require_cachefile) and os.path.exists(cachefname):  # run sw if we either don't want to do any caching (None) or if we are planning on writing the results after we run
+        if (look_for_cachefile or require_cachefile) and os.path.exists(cachefname):
             waterer.read_cachefile(cachefname)
         else:
             if require_cachefile:
                 raise Exception('sw cache file %s not found' % cachefname)
             if look_for_cachefile:
-                print '    couldn\'t find sw cache file %s, so running sw%s' % (cachefname, ' (this is probably because --seed-seq/--seed-unique-id is set to a sequence that wasn\'t in the input file on which we cached parameters [if it\'s inconvenient to put your seed sequences in your input file, you can avoid this by putting them instead in separate file and set --queries-to-include-fname])' if self.args.seed_unique_id is not None else '')
+                print '    couldn\'t find sw cache file %s, so running sw%s' % (cachefname, ' (this is probably because --seed-unique-id is set to a sequence that wasn\'t in the input file on which we cached parameters [if it\'s inconvenient to put your seed sequences in your input file, you can avoid this by putting them instead in separate file and set --queries-to-include-fname])' if self.args.seed_unique_id is not None else '')
             waterer.run(cachefname if write_cachefile else None)
 
         self.sw_info = waterer.info

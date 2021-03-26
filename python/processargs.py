@@ -80,6 +80,8 @@ def process(args):
     if args.action == 'view-alternative-naive-seqs':
         print'  note: replacing deprecated action name \'view-alternative-naive-seqs\' with current name \'view-alternative-annotations\' (you don\'t need to change anything unless you want this warning message to go away)'
         args.action = 'view-alternative-annotations'
+    if args.seed_seq is not None:
+        raise Exception('--seed-seq is deprecated, use --seed-unique-id and --queries-to-include-fname')
 
     args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True)
     if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
@@ -96,6 +98,13 @@ def process(args):
             args.plotdir = args.paired_outdir
         if args.plotdir is None and args.action == 'plot-partitions':
             args.plotdir = args.paired_outdir
+        if args.seed_unique_id is not None:
+            args.seed_unique_id = utils.get_arg_list(args.seed_unique_id)
+            assert len(args.seed_unique_id) == 2
+            args.seed_loci = utils.get_arg_list(args.seed_loci, choices=utils.loci)
+            assert args.seed_loci is not None and len(args.seed_loci) == 2
+        if args.random_seed_seq:
+            raise Exception('--random-seed-seq not implemented for --paired-loci... please open an issue if you\'d like to use it')
     else:
         assert args.paired_indir is None
     if not args.paired_loci and (args.paired_indir is not None or args.paired_outdir is not None):
@@ -142,7 +151,7 @@ def process(args):
             args.small_clusters_to_ignore = range(lo, hi + 1)
         else:
             args.small_clusters_to_ignore = utils.get_arg_list(args.small_clusters_to_ignore, intify=True)
-    if args.seed_unique_id is not None:
+    if not args.paired_loci and args.seed_unique_id is not None:  # if --paired-loci is set, there will be two seed uids/seqs, which requires totally different handling, so do it above
         args.seed_unique_id = args.seed_unique_id.strip()  # protect against the space you may put in front of it if it's got an initial minus sign (better way is to use an equals sign)
         if args.queries is not None and args.seed_unique_id not in args.queries:
             raise Exception('seed uid %s not in --queries %s' % (args.seed_unique_id, ' '.join(args.queries)))
@@ -153,8 +162,6 @@ def process(args):
             args.queries_to_include = [args.seed_unique_id]
         elif args.seed_unique_id not in args.queries_to_include:
             args.queries_to_include = [args.seed_unique_id] + args.queries_to_include  # may as well put it first, I guess (?)
-    elif args.seed_seq is not None:
-        args.seed_unique_id = 'seed-seq'
 
     args.extra_print_keys = utils.get_arg_list(args.extra_print_keys)
 

@@ -232,7 +232,7 @@ class Waterer(object):
             if self.args.seed_unique_id in self.info['queries']:
                 seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']
             else:  # if it failed
-                print '    %s seed unique id \'%s\' not in final s-w queries, so removing all queries' % (utils.color('yellow', 'note:'), self.args.seed_unique_id)
+                print '    %s seed unique id \'%s\' not in final s-w queries, so removing all queries (if seed seq is coming from --queries-to-include-fname, maybe need to run parameter caching with this arg set?)' % (utils.color('yellow', 'note:'), self.args.seed_unique_id)
                 seed_cdr3_length = -1
             initial_n_queries = len(self.info['queries'])
             for query in copy.deepcopy(self.info['queries']):

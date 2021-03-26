@@ -15,12 +15,6 @@ import utils
 delimit_info = {'.csv' : ',', '.tsv' : '\t'}
 
 # ----------------------------------------------------------------------------------------
-def add_seed_seq(args, input_info, reco_info, is_data):
-    input_info[args.seed_unique_id] = {'unique_ids' : [args.seed_unique_id, ], 'seqs' : [args.seed_seq, ]}
-    if not is_data:
-        reco_info[args.seed_unique_id] = 'unknown!'  # hopefully more obvious than a key error
-
-# ----------------------------------------------------------------------------------------
 def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=10, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info>
     # NOTE <annotation_list> doesn't need to be real annotations, it only uses the 'unique_ids' key
     metafo = utils.read_json_yaml(input_metafname)
@@ -84,7 +78,7 @@ def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_
                         continue
                     else:
                         if n_modified < n_warn_print:
-                            print ' %s replacing input metafo \'%s\'/\'%s\' value for \'%s\' with value: %s --> %s' % (utils.color('red', 'warning'), input_key, line_key, ' '.join(line['unique_ids']), line[line_key], mvals)
+                            print ' %s replacing input metafo \'%s\'/\'%s\' value for \'%s\' with value: %s --> %s' % (utils.color('yellow', 'warning'), input_key, line_key, ' '.join(line['unique_ids']), line[line_key], mvals)
                         line[line_key] = mvals
                         n_modified += 1
                         modified_keys.add(line_key)
@@ -108,30 +102,19 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
         if n_lines_in_file < args.istartstop[1]:
             raise Exception('--istartstop upper bound %d larger than number of lines in file %d' % (args.istartstop[1], n_lines_in_file))
     if len(input_info) == 0:
-        if args.queries is not None and args.seed_seq is None:  # if --seed-seq is specified, we don't expect to pull it from the file
+        if args.queries is not None:
             raise Exception('didn\'t find the specified --queries (%s) in %s' % (str(args.queries), infname))
         if args.reco_ids is not None:
             raise Exception('didn\'t find the specified --reco-ids (%s) in %s' % (str(args.reco_ids), infname))
     if args.queries is not None:
         missing_queries = set(args.queries) - set(input_info)
-        if args.seed_seq is not None:  # if the seed uid isn't in the input file, you can specify its sequence with --seed-seq
-            missing_queries -= set([args.seed_unique_id])
         extra_queries = set(input_info) - set(args.queries)  # this is just checking for a bug in the code just above here...
         if len(missing_queries) > 0:
             raise Exception('didn\'t find some of the specified --queries: %s' % ' '.join(missing_queries))
         if len(extra_queries) > 0:
             raise Exception('extracted uids %s that weren\'t specified with --queries' % ' '.join(extra_queries))
-    if args.seed_unique_id is not None:
-        if found_seed:
-            if args.seed_seq is not None:  # and input_info[args.seed_unique_id]['seqs'][0] != args.seed_seq:
-                # raise Exception('incompatible --seed-unique-id and --seed-seq (i.e. the sequence in %s corresponding to %s wasn\'t %s)' % (infname, args.seed_unique_id, args.seed_seq))
-                raise Exception('--seed-seq was specified, but --seed-unique-id was also present in input file')
-        else:
-            if args.seed_seq is None:
-                raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
-            add_seed_seq(args, input_info, reco_info, is_data)
-    elif args.seed_seq is not None:
-        add_seed_seq(args, input_info, reco_info, is_data)
+    if args.seed_unique_id is not None and not found_seed:
+        raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
     elif args.random_seed_seq:  # already checked (in bin/partis) that other seed args aren't set
         args.seed_unique_id = random.choice(input_info.keys())
         print '    chose random seed unique id %s' % args.seed_unique_id
