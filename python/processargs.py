@@ -270,6 +270,9 @@ def process(args):
 
     if args.min_largest_cluster_size is not None and args.n_final_clusters is not None:
         print '  note: both --min-largest-cluster-size and --n-final-clusters are set, which means we\'ll stop clustering when *either* of their criteria are satisfied (not both)'  # maybe it should be both, but whatever
+    if args.min_largest_cluster_size is not None or args.n_final_clusters is not None:
+        if args.seed_unique_id is not None and args.n_procs == 1:
+            raise Exception('--n-procs must be set to greater than 1 if --seed-unique-id, and either --min-largest-cluster-size or --n-final-clusters, are set (so that a second clustering iteration is run after removing)')  # yes, this could also be fixed by making the algorithm that decides when to stop clustering smarter, but that would be hard
 
     if not args.paired_loci and (args.action == 'get-selection-metrics' or args.get_selection_metrics):
         if args.outfname is None and args.selection_metric_fname is None:

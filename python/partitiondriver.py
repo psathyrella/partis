@@ -585,36 +585,40 @@ class PartitionDriver(object):
         return new_n_procs
 
     # ----------------------------------------------------------------------------------------
-    def shall_we_reduce_n_procs(self, last_n_procs, n_proc_list):
+    def shall_we_reduce_n_procs(self, last_n_procs):
         if self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples
             return True
         n_calcd_per_process = self.get_n_calculated_per_process()
         if n_calcd_per_process < self.args.n_max_to_calc_per_process and last_n_procs > 2:  # should be replaced by time requirement, since especially in later iterations, the larger clusters make this a crappy metric (2 is kind of a special case, becase, well, small integers and all)
             return True
         times_to_try_this_n_procs = max(4, last_n_procs)  # if we've already milked this number of procs for most of what it's worth (once you get down to 2 or 3, you don't want to go lower)
-        if n_proc_list.count(last_n_procs) >= times_to_try_this_n_procs:
+        if self.n_proc_list.count(last_n_procs) >= times_to_try_this_n_procs:
             return True
 
         return False
 
     # ----------------------------------------------------------------------------------------
-    def prepare_next_iteration(self, n_proc_list, cpath, initial_nseqs):
-        last_n_procs = n_proc_list[-1]
+    def prepare_next_iteration(self, cpath, initial_nseqs):
+        last_n_procs = self.n_proc_list[-1]
         next_n_procs = last_n_procs
 
         factor = 1.3
-        if self.shall_we_reduce_n_procs(last_n_procs, n_proc_list):
+        if self.shall_we_reduce_n_procs(last_n_procs):
             next_n_procs = int(next_n_procs / float(factor))
 
         def time_to_remove_some_seqs(n_proc_threshold):
-            return len(n_proc_list) >= n_proc_threshold or next_n_procs == 1
+            return len(self.n_proc_list) >= n_proc_threshold or next_n_procs == 1
 
         if self.args.small_clusters_to_ignore is not None and self.small_cluster_seqs is None and time_to_remove_some_seqs(self.args.n_steps_after_which_to_ignore_small_clusters):
             cpath = self.remove_small_clusters(cpath)
-            next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, n_proc_list[0], cpath)
-        if self.args.seed_unique_id is not None and self.unseeded_seqs is None and time_to_remove_some_seqs(3):  # if we didn't already remove the unseeded clusters in a partition previous step
-            cpath = self.split_seeded_clusters(cpath)
-            next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, n_proc_list[0], cpath)
+            next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, self.n_proc_list[0], cpath)
+        if self.args.seed_unique_id is not None and self.unseeded_seqs is None and time_to_remove_some_seqs(3):  # if we didn't already remove the unseeded clusters in a previous partition step
+            if (self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None) and not self.set_force_args:  # need to add an additional iteration here with at least one of the force args set
+                self.set_force_args = True
+                next_n_procs = last_n_procs
+            else:
+                cpath = self.split_seeded_clusters(cpath)
+                next_n_procs = self.scale_n_procs_for_new_n_clusters(initial_nseqs, self.n_proc_list[0], cpath)
 
         return next_n_procs, cpath
 
@@ -764,18 +768,19 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def cluster_with_bcrham(self):
         tmpstart = time.time()
+        self.set_force_args = False  # annoying shenanigans to make sure that if both --seed-unique-id and either of --n-final-clusters or --min-largest-cluster-size are set, that the "force" args are set in bcrham *before* we remove unseeded seqs
         n_procs = self.args.n_procs
         cpath, initial_nseqs = self.init_cpath(n_procs)
-        n_proc_list = []
+        self.n_proc_list = []
         self.istep = 0
         start = time.time()
         while n_procs > 0:
             print '%d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             cpath, _, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # note that this annihilates the old <cpath>, which is a memory optimization (but we write all of them to the cpath progress dir)
-            n_proc_list.append(n_procs)
+            self.n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
                 break
-            n_procs, cpath = self.prepare_next_iteration(n_proc_list, cpath, initial_nseqs)
+            n_procs, cpath = self.prepare_next_iteration(cpath, initial_nseqs)
             self.istep += 1
 
         if self.args.max_cluster_size is not None:
@@ -1022,10 +1027,10 @@ class PartitionDriver(object):
                 if n_procs == 1:  # if this is the last time through, with one process, we want glomerator.cc to calculate the total logprob of each partition NOTE this is quite expensive, since we have to turn off translation entirely
                     cmd_str += '  --write-logprob-for-each-partition'
 
-                if self.args.seed_unique_id is not None and self.unseeded_seqs is None:  # if we're in the last few cycles (i.e. we've removed unseeded clusters) we want bcrham to not know about the seed (this gives more accurate clustering 'cause we're really doing hierarchical agglomeration)
+                if self.args.seed_unique_id is not None and self.unseeded_seqs is None:  # if we're in the last few cycles (i.e. we've removed unseeded clusters so self.unseeded_seqs is set) we want bcrham to *not* know about the seed (this gives more accurate clustering 'cause it means we're really doing hierarchical agglomeration)
                     cmd_str += ' --seed-unique-id ' + self.args.seed_unique_id
 
-                if n_procs == 1:
+                if n_procs == 1 or self.set_force_args:
                     if self.args.n_final_clusters is not None:
                         cmd_str += ' --n-final-clusters ' + str(self.args.n_final_clusters)
                     if self.args.min_largest_cluster_size is not None:
