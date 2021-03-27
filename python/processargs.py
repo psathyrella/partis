@@ -100,9 +100,9 @@ def process(args):
             args.plotdir = args.paired_outdir
         if args.seed_unique_id is not None:
             args.seed_unique_id = utils.get_arg_list(args.seed_unique_id)
-            assert len(args.seed_unique_id) == 2
             args.seed_loci = utils.get_arg_list(args.seed_loci, choices=utils.loci)
-            assert args.seed_loci is not None and len(args.seed_loci) == 2
+            if len(args.seed_unique_id) != 2 or args.seed_loci is None or len(args.seed_loci) != 2:
+                raise Exception('if --seed-unique-id and --paired-loci are set, both --seed-unique-id and --seed-loci must be set to colon-separated lists of length two')
         if args.random_seed_seq:
             raise Exception('--random-seed-seq not implemented for --paired-loci... please open an issue if you\'d like to use it')
     else:

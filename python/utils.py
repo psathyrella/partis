@@ -404,7 +404,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'cell-types', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'reads', 'umis', 'cell-types', 'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -443,6 +443,8 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'paired-uids' : 'paired-uids',
     'locus' : 'loci',
     'cell-type' : 'cell-types',
+    'umis' : 'umis',
+    'reads' : 'reads',
 }
 input_metafile_defaults = {  # default values to use if the info isn't there (None if not present)
     'multiplicities' : 1
@@ -2765,6 +2767,11 @@ def split_key(key):
     return key.split('.')
 
 # ----------------------------------------------------------------------------------------
+def mkdir(fname):  # adding this very late, so could use it in a lot of places
+    if not os.path.exists(os.path.dirname(fname)):
+        os.makedirs(os.path.dirname(fname))
+
+# ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None, allow_other_files=False):
     """
     Make <dirname> if it d.n.e.
@@ -3108,8 +3115,7 @@ def merge_csvs(outfname, csv_list, cleanup=True):
             os.rmdir(os.path.dirname(infname))
 
     outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    mkdir(outdir)
     with open(outfname, 'w') as outfile:
         writer = csv.DictWriter(outfile, header)
         writer.writeheader()
@@ -3150,8 +3156,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False, do
     if getsuffix(outfname) != '.yaml':
         raise Exception('wrong function for %s' % outfname)
     outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+    mkdir(outdir)
 
     write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines(True))  # set is_data to True since we can't pass in reco_info and whatnot anyway
 
@@ -3444,8 +3449,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             errstr = ''.join(ferr.readlines())
     else:
         if logfname is not None:  # write cmd_str to logfname, then redirect stdout to it as well
-            if not os.path.exists(os.path.dirname(logfname)):
-                os.makedirs(os.path.dirname(logfname))
+            mkdir(os.path.dirname(logfname))
             subprocess.check_call('echo %s >%s'%(cmd_str, logfname), shell=True)
             cmd_str = '%s >>%s' % (cmd_str, logfname)
             shell = True
@@ -3555,8 +3559,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
         prestr, fout, ferr = get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options)
         cstr = prestr + ' ' + cstr
 
-    if not os.path.exists(cmdfo['logdir']):
-        os.makedirs(cmdfo['logdir'])
+    mkdir(cmdfo['logdir'])
 
     proc = subprocess.Popen(cstr if shell else cstr.split(),
                             stdout=None if fout is None else open(fout, 'w'),
@@ -4650,15 +4653,13 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
 
 # ----------------------------------------------------------------------------------------
 def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes an extra info (beyond name and seq)
-    if not os.path.isdir(os.path.dirname(fname)):
-        os.makedirs(os.path.dirname(fname))
+    mkdir(os.path.dirname(fname))
     with open(fname, 'w') as seqfile:
         json.dump(seqfos, seqfile)
 
 # ----------------------------------------------------------------------------------------
 def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
-    if not os.path.isdir(os.path.dirname(fname)):
-        os.makedirs(os.path.dirname(fname))
+    mkdir(os.path.dirname(fname))
     with open(fname, 'w') as seqfile:
         for sfo in seqfos:
             seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
