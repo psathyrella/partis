@@ -400,6 +400,8 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                 print '  %s no paired uids in line' % utils.color('yellow', 'warning')
                 continue  # maybe should still add to all_antns?
             for uid, pids in zip(cline['unique_ids'], cline['paired-uids']):
+                if pids is None:
+                    raise Exception('None type \'paired-uids\' for %s' % uid)
                 missing_ids = set(pids) - all_uids
                 n_missing += len(missing_ids)
                 pset = set([uid] + pids) - missing_ids

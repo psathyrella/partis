@@ -33,7 +33,7 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
         for input_key, line_key in utils.input_metafile_keys.items():
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            mvals = [None for _ in line['unique_ids']]
+            mvals = [utils.input_metafile_defaults.get(line_key) for _ in line['unique_ids']]
             for iseq, uid in enumerate(line['unique_ids']):
                 if uid not in metafo or input_key not in metafo[uid]:
                     continue
@@ -48,7 +48,7 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
                 added_uids.add(uid)
                 added_keys.add(line_key)
                 mvals[iseq] = mval
-            if mvals.count(None) < len(mvals):  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
+            if mvals.count(utils.input_metafile_defaults.get(line_key)) < len(mvals):  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
                 line[line_key] = mvals
     if n_modified > 0:  # should really add this for the next function as well
         print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
@@ -65,8 +65,8 @@ def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_
         for input_key, line_key in utils.input_metafile_keys.items():
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else None for u in line['unique_ids']]
-            if mvals.count(None) == len(mvals):
+            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else utils.input_metafile_defaults.get(line_key) for u in line['unique_ids']]
+            if mvals.count(utils.input_metafile_defaults.get(line_key)) == len(mvals):
                 continue
             else:
                 if line_key in line:

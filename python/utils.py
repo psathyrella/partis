@@ -447,7 +447,8 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'reads' : 'reads',
 }
 input_metafile_defaults = {  # default values to use if the info isn't there (None if not present)
-    'multiplicities' : 1
+    'multiplicities' : 1,
+    'paired-uids' : [],
 }
 reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
