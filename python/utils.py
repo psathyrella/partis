@@ -2767,9 +2767,11 @@ def split_key(key):
     return key.split('.')
 
 # ----------------------------------------------------------------------------------------
-def mkdir(fname):  # adding this very late, so could use it in a lot of places
-    if not os.path.exists(os.path.dirname(fname)):
-        os.makedirs(os.path.dirname(fname))
+def mkdir(path, isfile=False):  # adding this very late, so could use it in a lot of places
+    if isfile:
+        path = os.path.dirname(path)
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 # ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None, allow_other_files=False):
@@ -3449,7 +3451,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             errstr = ''.join(ferr.readlines())
     else:
         if logfname is not None:  # write cmd_str to logfname, then redirect stdout to it as well
-            mkdir(logfname)
+            mkdir(logfname, isfile=True)
             subprocess.check_call('echo %s >%s'%(cmd_str, logfname), shell=True)
             cmd_str = '%s >>%s' % (cmd_str, logfname)
             shell = True
@@ -4653,13 +4655,13 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
 
 # ----------------------------------------------------------------------------------------
 def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes an extra info (beyond name and seq)
-    mkdir(fname)
+    mkdir(fname, isfile=True)
     with open(fname, 'w') as seqfile:
         json.dump(seqfos, seqfile)
 
 # ----------------------------------------------------------------------------------------
 def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
-    mkdir(fname)
+    mkdir(fname, isfile=True)
     with open(fname, 'w') as seqfile:
         for sfo in seqfos:
             seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
