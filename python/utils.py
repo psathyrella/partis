@@ -3449,7 +3449,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             errstr = ''.join(ferr.readlines())
     else:
         if logfname is not None:  # write cmd_str to logfname, then redirect stdout to it as well
-            mkdir(os.path.dirname(logfname))
+            mkdir(logfname)
             subprocess.check_call('echo %s >%s'%(cmd_str, logfname), shell=True)
             cmd_str = '%s >>%s' % (cmd_str, logfname)
             shell = True
@@ -4653,13 +4653,13 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
 
 # ----------------------------------------------------------------------------------------
 def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes an extra info (beyond name and seq)
-    mkdir(os.path.dirname(fname))
+    mkdir(fname)
     with open(fname, 'w') as seqfile:
         json.dump(seqfos, seqfile)
 
 # ----------------------------------------------------------------------------------------
 def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
-    mkdir(os.path.dirname(fname))
+    mkdir(fname)
     with open(fname, 'w') as seqfile:
         for sfo in seqfos:
             seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))

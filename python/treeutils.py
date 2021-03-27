@@ -1537,10 +1537,10 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
     print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 
 # ----------------------------------------------------------------------------------------
-def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, debug=False):
+def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, ignore_existing_internal_node_labels=False, debug=False):
     # figure out how we want to get the inferred tree
     if treefname is not None:
-        dtree = get_dendro_tree(treefname=treefname, debug=debug)
+        dtree = get_dendro_tree(treefname=treefname, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
         origin = 'treefname'
         if len(set([n.taxon.label for n in dtree.preorder_node_iter()]) & set(line['unique_ids'])) == 0:  # if no nodes in common between line and tree in file (e.g. you passed in the wrong file or didn't set --cluster-indices)
             dtree = None
@@ -1625,7 +1625,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_me
 def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
                            dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, add_aa_lb_metrics=False, true_lines_to_use=None, include_relative_affy_plots=False,
-                           cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, debug=False):
+                           cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, ignore_existing_internal_node_labels=False, debug=False):
     print 'getting selection metrics'
     if reco_info is not None:
         if not use_true_clusters:
@@ -1662,7 +1662,7 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
                 continue
             if debug:
                 print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
-            treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
+            treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
             if treefo['tree'] is None and treefo['origin'] == 'no-uids':
                 n_skipped_uid += 1
                 continue
