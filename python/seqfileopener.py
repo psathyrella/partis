@@ -57,7 +57,7 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
 
 # ----------------------------------------------------------------------------------------
 def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_warn_print=10, debug=False):  # transfer input metafo from <input_info> to <annotation_list>
-    # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafname, from <input_info>, from <sw_info>. As it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
+    # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafname, from <input_info>, from <sw_info>. If it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
     # NOTE <keys_not_to_overwrite> should be the *line* key
     added_uids, added_keys = set(), set()
     n_modified, modified_keys = 0, set()
@@ -65,8 +65,9 @@ def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_
         for input_key, line_key in utils.input_metafile_keys.items():
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else utils.input_metafile_defaults.get(line_key) for u in line['unique_ids']]
-            if mvals.count(utils.input_metafile_defaults.get(line_key)) == len(mvals):
+            dfval = utils.input_metafile_defaults.get(line_key)
+            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else dfval for u in line['unique_ids']]
+            if mvals.count(dfval) == len(mvals):
                 continue
             else:
                 if line_key in line:
@@ -78,7 +79,7 @@ def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_
                         continue
                     else:
                         if n_modified < n_warn_print:
-                            print ' %s replacing input metafo \'%s\'/\'%s\' value for \'%s\' with value: %s --> %s' % (utils.color('yellow', 'warning'), input_key, line_key, ' '.join(line['unique_ids']), line[line_key], mvals)
+                            print '  %s replacing input metafo \'%s\' value for \'%s\': %s --> %s' % (utils.color('yellow', 'warning'), line_key, ':'.join(line['unique_ids']), line[line_key], mvals)
                         line[line_key] = mvals
                         n_modified += 1
                         modified_keys.add(line_key)

@@ -4673,7 +4673,11 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
     if getsuffix(fname) not in ['.json', '.yaml']:
         raise Exception('unhandled suffix %s (should be .json or .yaml)' % getsuffix(fname))
     with open(fname) as sfile:
-        seqfos = json.load(sfile)
+        try:  # ok this is kind of dumb but it's nice to be able to edit them by hand as yaml files
+            seqfos = json.load(sfile)
+        except ValueError:
+            sfile.seek(0)
+            seqfos = yaml.load(sfile, Loader=Loader)
     if 'germline-info' in seqfos:
         raise Exception('this is a standard yaml output file (not just a list of seq infos), so needs to be read with utils.read_yaml_output(): %s' % fname)
     return seqfos

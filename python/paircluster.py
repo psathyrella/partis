@@ -165,11 +165,12 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             dqlist = list(drop_queries)
             found = ':'.join(sorted(dqlist)) in pgroup_strs
             if not found:
-                overlaps = [g for g in pgroup_strs if dropid in g]
-                overlaps = utils.get_single_entry(overlaps)
+                overlaps = [g for g in pgroup_strs if dropid in g]  # this should essentially always be length 1, except when we're missing pairing info in simulation (in which case i know we don't even want to be running this simulation, but whatever I'm testing edge cases)
                 n_not_found += 1
             if tdbg or not found:
-                print '  %25s %s  %s  %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q) for q in dqlist)), utils.color('red', ' '.join(sorted(utils.get_contig_id(q) for q in overlaps.split(':'))) if not found else ''))
+                ostr = ' '.join(sorted(utils.get_contig_id(q) for q in overlaps[0].split(':'))) if len(overlaps)==1 else 'multiple'
+                print '  %25s %s  %s  %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q) for q in dqlist)),
+                                             utils.color('red', ostr if not found else ''))
         if n_not_found > 0:
             print '  %s droplet id group check failed for %d groups' % (utils.color('red', 'error'), n_not_found)
         return True

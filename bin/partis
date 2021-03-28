@@ -218,6 +218,8 @@ def read_inputs(args, actions):
     if args.queries_to_include_fname is not None:
         if utils.getsuffix(args.queries_to_include_fname) == '.yaml':  # this is pretty ugly, but i'm not sure there's a better way given current constraints
             seqfos = utils.read_seqfos(args.queries_to_include_fname)
+            if any('locus' in s for s in seqfos):  # remove any that have locus info that doesn't match args.locus
+                seqfos = [s for s in seqfos if 'locus' in s and s['locus'] == args.locus]
             more_input_info = collections.OrderedDict([(s['name'], {'unique_ids' : [s['name']], 'seqs' : [s['seq']]}) for s in seqfos])
             for sfo in seqfos:
                 for mkey in set(utils.input_metafile_keys) & set(sfo):
@@ -484,6 +486,8 @@ def run_all_loci(args, ig_or_tr='ig'):
 
             if tmpaction == 'annotate':
                 utils.remove_from_arglist(clist, '--queries-to-include-fname', has_arg=True)  # we end up with inconsistent sequences (well, it's just that one is N-padded and the other isn't)
+                utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)  # we're no longer running on the initial input file, so theis (and --n-random-queries) screws everything up if e.g. --queries-to-include-fname is set by not reading all the seqs
+                utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
                 utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
@@ -520,6 +524,12 @@ def run_all_loci(args, ig_or_tr='ig'):
         old_metafos = {}
         if os.path.exists(getofn(None, joint=True, input_meta=True)):
             old_metafos = utils.read_json_yaml(getofn(None, joint=True, input_meta=True))  # NOTE the underlying dicts get modified
+        if args.queries_to_include_fname is not None and utils.getsuffix(args.queries_to_include_fname) == '.yaml':  # this kind of sucks, but if you want to add weird extra edge case functionality, it's gonna make your code messier
+            for sfo in utils.read_seqfos(args.queries_to_include_fname):
+                if sfo['name'] not in old_metafos:
+                    old_metafos[sfo['name']] = {}
+                for mkey in set(utils.input_metafile_keys) & set(sfo):
+                    old_metafos[sfo['name']][mkey] = sfo[mkey]
         new_metafos = {}
         single_pids = {u : pids for l in antn_dict.values() for u, pids in zip(l['unique_ids'], l['paired-uids'])}
         for jclust in joint_partition:
@@ -547,6 +557,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print '    %s missing %d/%d seqs when writing annotation input: %s' % (utils.color('yellow', 'warning'), len(missing_seqs), sum(len(c) for c in joint_partition), ' '.join(missing_seqs))  # not sure if this will actually happen or not
             work_fnames.append(getofn(ltmp, lpair=lpair, fasta=True))
         # ----------------------------------------------------------------------------------------
+        if len(joint_partition) == 0:
+            return
         rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict)
         missing_clusters = []
         for jclust in joint_partition:
@@ -569,6 +581,27 @@ def run_all_loci(args, ig_or_tr='ig'):
             run_step('annotate', ltmp, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
     def read_output_files(tmploci, lpair=None, read_selection_metrics=False, debug=False):
+        # ----------------------------------------------------------------------------------------
+        def parse_pairing_info(ltmp, atnlist):
+            if args.seed_unique_id is not None:  # I'm really not sure this is the best place to do this, but we have to add the seed id pairing info at some point
+                sid = seedid(ltmp)  # maybe this would be too slow to run for every line?
+                other_sid = utils.get_single_entry([u for u in args.seed_unique_id if u != sid])
+                for sline in [l for l in atnlist if sid in l['unique_ids']]:
+                    if 'paired-uids' in sline:  # if the seed id is in a cluster with non-seed seqs, the key'll be there but it'll be None
+                        pids = utils.per_seq_val(sline, 'paired-uids', sid)
+                        if pids is not None and pids != [other_sid]:
+                            print '  %s unexpected seq(s) paired with seed id %s: %s' % (utils.color('yellow', 'warning'), sid, pids)
+                    else:  # but if it's by itself the key won't be there
+                        sline['paired-uids'] = [[] for _ in sline['unique_ids']]
+                    sline['paired-uids'][sline['unique_ids'].index(sid)] = [other_sid]
+            for tline in atnlist:  # unfortunately we *also* need to replace any None values with [], since somehow when writing/reading sw cache info missing ones end up as Nones. Should really fix that rather than doing this, but oh well
+                if 'paired-uids' in tline:
+                    inones = [i for i, pids in enumerate(tline['paired-uids']) if pids is None]
+                    for itmp in inones:
+                        tline['paired-uids'][itmp] = utils.input_metafile_defaults['paired-uids']
+                else:
+                    tline['paired-uids'] = [utils.input_metafile_defaults['paired-uids'] for _ in tline['unique_ids']]
+        # ----------------------------------------------------------------------------------------
         glfos, antn_lists, cpaths = {}, {}, {}
         for ltmp in tmploci:  # read single-locus output files
             if not os.path.exists(getofn(ltmp, lpair=lpair)):
@@ -582,24 +615,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for atn in antn_lists[ltmp]:
                     if ':'.join(atn['unique_ids']) in sminfos:  # all the ones that were too small won't be there, for instance
                         atn['tree-info'] = sminfos[':'.join(atn['unique_ids'])]
-            if args.seed_unique_id is not None:  # I'm really not sure this is the best place to do this, but we have to add the seed id pairing info at some point
-                sid = seedid(ltmp)  # maybe this would be too slow to run for every line?
-                other_sid = utils.get_single_entry([u for u in args.seed_unique_id if u != sid])
-                for sline in [l for l in antn_lists[ltmp] if sid in l['unique_ids']]:
-                    if 'paired-uids' in sline:  # if the seed id is in a cluster with non-seed seqs, the key'll be there but it'll be None
-                        pids = utils.per_seq_val(sline, 'paired-uids', sid)
-                        if pids is not None and pids != [other_sid]:
-                            print '  %s unexpected seq(s) paired with seed id %s: %s' % (utils.color('yellow', 'warning'), sid, pids)
-                    else:  # but if it's by itself the key won't be there
-                        sline['paired-uids'] = [[] for _ in sline['unique_ids']]
-                    sline['paired-uids'][sline['unique_ids'].index(sid)] = [other_sid]
-            for tline in antn_lists[ltmp]:  # unfortunately we *also* need to replace any None values with [], since somehow when writing/reading sw cache info missing ones end up as Nones. Should really fix that rather than doing this, but oh well
-                if 'paired-uids' in tline:
-                    inones = [i for i, pids in enumerate(tline['paired-uids']) if pids is None]
-                    for itmp in inones:
-                        tline['paired-uids'][itmp] = utils.input_metafile_defaults['paired-uids']
-                else:
-                    tline['paired-uids'] = [utils.input_metafile_defaults['paired-uids'] for _ in tline['unique_ids']]
+            parse_pairing_info(ltmp, antn_lists[ltmp])
 
         return {k : v for k, v in  zip(['glfos', 'antn_lists', 'cpaths'], [glfos, antn_lists, cpaths])}
     # ----------------------------------------------------------------------------------------
@@ -667,6 +683,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             if lp_infos[lpk]['antn_lists'] is None:
                 continue
             for ltmp in lpair:
+                if ltmp not in lp_infos[lpk]['glfos']:  # this lpair's output files were empty
+                    continue
                 if ltmp in glfos:  # merge heavy chain glfos from those paired with igk and with igl
                     glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], lp_infos[lpk]['glfos'][ltmp])
                     antn_lists[ltmp] += lp_infos[lpk]['antn_lists'][ltmp]
@@ -728,7 +746,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             lp_infos[tuple(lpair)] = read_output_files(lpair, lpair=lpair)
         _, concat_antn_lists, concat_cpaths = concat_heavy_chain(lp_infos, write=True)
         ccfs = {}
-        for ltmp in sloci():
+        for ltmp in [l for l in sloci() if l in concat_cpaths]:
             ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str='%s single vs joint concat\'d '%utils.locstr(ltmp), cf_label='single', ref_label='joint', debug=True) # antn_list=XXX
         return ccfs
     # ----------------------------------------------------------------------------------------
