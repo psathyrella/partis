@@ -845,15 +845,12 @@ class PartitionDriver(object):
                 additional_clusters |= set([tuple(cluster) for partition in cpath.partitions for cluster in partition])  # kind of wasteful to re-add clusters from the best partition here, but oh well
             if self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None:  # add the clusters from the last partition
                 additional_clusters |= set([tuple(c) for c in cpath.partitions[len(cpath.partitions) - 1]])
-            if len(additional_clusters) > 0:
-                if self.args.subcluster_annotation_size is None:
-                    cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
-                    clusters_to_annotate = [list(c) for c in cluster_set]
-                    print '    added %d clusters (in addition to the %d from the best partition) before running cluster annotations' % (len(clusters_to_annotate) - len(cpath.partitions[cpath.i_best]), len(cpath.partitions[cpath.i_best]))
-                    if self.args.debug:
-                        print '       %s these additional clusters will also be printed below, since --debug is greater than 0' % utils.color('yellow', 'note:')
-                else:
-                    print '  %s was asked to add %d additional cluster%s before running cluster annotations, but not adding them because --subcluster-annotation-size was also set' % (utils.color('yellow', 'warning'), len(additional_clusters), utils.plural(len(additional_clusters)))  # see exception in processargs
+            if len(additional_clusters) > 0 and any(list(c) not in clusters_to_annotate for c in additional_clusters):
+                cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
+                clusters_to_annotate = [list(c) for c in cluster_set]
+                print '    added %d clusters (in addition to the %d from the best partition) before running cluster annotations' % (len(clusters_to_annotate) - len(cpath.partitions[cpath.i_best]), len(cpath.partitions[cpath.i_best]))
+                if self.args.debug:
+                    print '       %s these additional clusters will also be printed below, since --debug is greater than 0' % utils.color('yellow', 'note:')
             return clusters_to_annotate
 
         # ----------------------------------------------------------------------------------------
@@ -1180,8 +1177,10 @@ class PartitionDriver(object):
                         for mfcn in [min, max]:
                             mn = mfcn.__name__
                             swhfo[kn][mn] = mfcn(swhfo[kn][mn], self.sw_info[tid][kn][mn])
-            if hashid in self.sw_info:
-                raise Exception('hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (hashid, ':'.join(line['unique_ids'])))
+            if hashid in self.sw_info:  # I *think* it's ok to just return now, but I'm still a little worried about it
+                # raise Exception('hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (hashid, ':'.join(line['unique_ids'])))
+                print '  %s hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (utils.color('yellow', 'warning'), hashid, ':'.join(line['unique_ids']))
+                return
             self.sw_info[hashid] = swhfo
             if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
                 existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
@@ -1215,7 +1214,8 @@ class PartitionDriver(object):
             clusters_to_run = []
             for tclust in clusters_still_to_do:
                 if not self.subcl_split(len(tclust)):  # if <tclust> is small enough we don't need to split it up
-                    clusters_to_run.append(tclust)
+                    if tclust not in clusters_to_run:  # it should only be possible to have it already in there if we're adding <additional_clusters> from get_cluster_annotations() e.g. from --n-final-clusters or something
+                        clusters_to_run.append(tclust)
                     if debug:
                         print '       %4d                   ' % len(tclust)
                 else:
@@ -1226,7 +1226,7 @@ class PartitionDriver(object):
                         subd_clusters[skey(tclust)] = []
                         subclusters = getsubclusters(tclust, shuffle=self.reco_info is not None and istep==0)  # the order of uids in each cluster that comes out of simulation is the order of leaves in the tree (i.e. they're sorted by similarity), so it's *extremely* important to shuffle them to get a fair comparison
                     subd_clusters[skey(tclust)].append(subclusters)
-                    clusters_to_run += subclusters
+                    clusters_to_run += [c for c in subclusters if c not in clusters_to_run]  # it should only be possible to have a <c> already in there if we're adding <additional_clusters> from get_cluster_annotations() e.g. from --n-final-clusters or something
                     if debug:
                         n_prev = len(subd_clusters[skey(tclust)]) - 1
                         mphfracs = [utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in c]) for c in subclusters]
@@ -1888,6 +1888,9 @@ class PartitionDriver(object):
     def get_nsets(self, algorithm, partition):
 
         if partition is not None:
+            if any(partition.count(c) > 1 for c in partition):  # there's nothing really *wrong* with having duplicates, but a) it's wasteful and b) it typically means something is wrong/nonsensical in the code that decided to send you the same task twice
+                for tcount, tclust in set([(partition.count(c), ':'.join(c)) for c in partition if partition.count(c) > 1]):
+                    print '  %s cluster occurs %d times in the <nsets> we\'re sending to bcrham: %s' % (utils.color('yellow', 'warning'), tcount, tclust)
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
             if self.input_partition is not None or self.args.simultaneous_true_clonal_seqs:  # this is hackey, but we absolutely cannot have different cdr3 lengths in the same cluster, and these are two cases where it can happen (in very rare cases, usually on really crappy sequences)
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)
@@ -2194,7 +2197,7 @@ class PartitionDriver(object):
                     continue
 
                 if uidstr in padded_annotations:  # this shouldn't happen, but it's more an indicator that something else has gone wrong than that in and of itself it's catastrophic
-                    print '%s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
+                    print '  %s uidstr %s already read from file %s' % (utils.color('yellow', 'warning'), uidstr, annotation_fname)
                 padded_annotations[uidstr] = padded_line
 
                 line_to_use = padded_line
