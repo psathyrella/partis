@@ -468,10 +468,10 @@ def run_all_loci(args, ig_or_tr='ig'):
                         clist += ['--refuse-to-cache-parameters']
                     if auto_cache or tmpaction in ['annotate', 'plot-partitions']:
                         remove_action_specific_args(clist, args.action, tmpaction)
-                    if tmpaction != 'view-output':
+                    if tmpaction != 'view-output' or not args.is_data:
                         utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
-                    if args.seed_unique_id is not None and tmpaction in ['partition', 'plot-partitions']:  # it would be nice to work out what the locus of the light chain seed seq is so we don't have to run both, but whatever
+                    if args.seed_unique_id is not None and tmpaction in ['partition', 'plot-partitions', 'view-output']:  # it would be nice to work out what the locus of the light chain seed seq is so we don't have to run both, but whatever
                         utils.replace_in_arglist(clist, '--seed-unique-id', seedid(ltmp))
                     if tmpaction != 'cache-parameters':
                         utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname' if '--infname' in clist else None, has_arg=True)
@@ -767,6 +767,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
 
     # ----------------------------------------------------------------------------------------
+    paired_loci_actions = ['cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output']
+    if args.action not in paired_loci_actions:
+        raise Exception('action %s not supported for paired loci (choose from %s)' % (args.action, paired_loci_actions))
     if args.paired_outdir is None:
         print '  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).'
     utils.prep_dir(args.workdir)  # NOTE it's kind of weird to have workdir and paired_outdir, but workdir is for stuff we throw out by default, whereas paired_outdir is for stuff we save
@@ -789,6 +792,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             work_fnames.extend(paircluster.paired_dir_fnames(getodir(), suffix='.yaml'))  # using extend() rather than += in a few places because of local variable/scoping behavior
     else:
         if args.action != 'cache-parameters' and auto_cache_params():  # ick. we can't just let the normal auto-parameter caching happen within each locus pair below, since it'll infer separately on the igh seqs paired with igk vs igl
+            if args.seed_unique_id is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
+                raise Exception('if setting --seed-unique-id for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
             missing_pdir_loci = [l for l in sloci() if not os.path.exists(getpdir(l))]
             print '  missing %d locus parameter dirs (%s), so caching a new set of parameters before running action \'%s\':  %s' % (len(missing_pdir_loci), ' '.join(missing_pdir_loci), args.action, ' '.join(getpdir(l) for l in missing_pdir_loci))
             for ltmp in sloci():
@@ -1084,6 +1089,7 @@ subargs['get-selection-metrics'].append({'name' : '--chosen-ab-fname', 'kwargs' 
 subargs['merge-paired-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['merge-paired-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['plot-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 
