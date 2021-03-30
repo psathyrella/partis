@@ -105,6 +105,9 @@ def process(args):
                 raise Exception('if --seed-unique-id and --paired-loci are set, both --seed-unique-id and --seed-loci must be set to colon-separated lists of length two')
             if utils.has_d_gene(args.seed_loci[1]) or not utils.has_d_gene(args.seed_loci[0]):
                 raise Exception('--seed-loci has to have one heavy and one light locus, with the heavy one first (e.g. igh:igk) but got %s' % args.seed_loci)
+        else:
+            if args.seed_loci is not None:
+                raise Exception('doesn\'t make sense to set --seed-loci without also setting --seed-unique-id')
         if args.random_seed_seq:
             raise Exception('--random-seed-seq not implemented for --paired-loci... please open an issue if you\'d like to use it')
     else:

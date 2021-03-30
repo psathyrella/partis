@@ -15,9 +15,10 @@ import glutils
 from clusterpath import ClusterPath
 
 import gex
-feature_matrix_fname = "/fh/fast/matsen_e/data/goo-dengue-10x/data/gex/filtered_feature_bc_matrix"
-outdir = "/home/dralph/Dropbox/tmp-gex" #"/fh/fast/matsen_e/dralph/partis/tmp/gex"
-# gex.run_msigdbr('datascripts/meta/goo-dengue-10x')
-for mname in ['waick', 'msigdb']: # ['hvg', 'fabio', 'waick', 'msigdb']:
-    gex.run_gex(feature_matrix_fname, mname, outdir + '/' + mname)
-    # gex.read_gex(outdir + '/' + mname)
+for subj in ['JL029-001-03', 'JL029-002-02', 'JL029-012-03', 'd14']:
+    feature_matrix_fname = "/fh/fast/matsen_e/data/goo-dengue-10x/data/%s/filtered_feature_bc_matrix" % subj
+    outdir = "/home/dralph/Dropbox/tmp-gex/%s" % subj #"/fh/fast/matsen_e/dralph/partis/tmp/gex"
+    # gex.run_msigdbr('datascripts/meta/goo-dengue-10x')
+    for mname in ['waick', 'fabio']: # ['hvg', 'fabio', 'waick', 'msigdb']:
+        gex.run_gex(feature_matrix_fname, mname, outdir + '/' + mname)
+        # gex.read_gex(outdir + '/' + mname)
