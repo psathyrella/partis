@@ -284,10 +284,12 @@ def run_partitiondriver(args):
 # ----------------------------------------------------------------------------------------
 # it would be really nice if this didn't need to exist, it's complicated (but it's necessitated by needing to auto-cache parameters on the full un-split igh seqs when splitting loci)
 # note that i could also just stop having action-specific arguments, but oh well this seems better for now at least
-def remove_action_specific_args(clist, action, debug=True):
-    if action not in subargs:  # nothing to do
+def remove_action_specific_args(clist, argsaction, tmpaction, debug=True):  # remove args specific to command line action <argsaction> that are not also specific to current action <tmpaction>
+    if argsaction not in subargs:  # nothing to do
         return
-    pargs, act_args = [set(afo['name'] for afo in tgs) for tgs in [parent_args, subargs[action]]]
+    def anames(argdicts): return set(afo['name'] for afo in argdicts)
+    pargs = anames(parent_args)
+    act_args = anames(subargs[argsaction]) - anames(subargs[tmpaction])
     iarg = 0
     removed_strs = []
     while iarg < len(clist):
@@ -303,7 +305,7 @@ def remove_action_specific_args(clist, action, debug=True):
         else:
             iarg += 1
     if debug and len(removed_strs) > 0:
-        print '    removed %d arg strs that were specific to action \'%s\': %s' % (len(removed_strs), action, ' '.join(removed_strs))
+        print '    removed %d arg strs that were specific to action \'%s\': %s' % (len(removed_strs), argsaction, ' '.join(removed_strs))
 
 # ----------------------------------------------------------------------------------------
 def run_all_loci(args, ig_or_tr='ig'):
