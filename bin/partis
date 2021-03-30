@@ -467,7 +467,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     elif args.action != 'cache-parameters':
                         clist += ['--refuse-to-cache-parameters']
                     if auto_cache or tmpaction in ['annotate', 'plot-partitions']:
-                        remove_action_specific_args(clist, args.action)
+                        remove_action_specific_args(clist, args.action, tmpaction)
                     if tmpaction != 'view-output':
                         utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
