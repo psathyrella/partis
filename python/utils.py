@@ -4535,16 +4535,23 @@ def non_none(vlist):  # return the first non-None value in vlist (there are many
 
 # ----------------------------------------------------------------------------------------
 def arglist_imatches(clist, argstr):
-    assert argstr[:2] == '--'  # this is necessary since the matching assumes that argparses has ok'd the uniqueness of an abbreviated argument
+    assert argstr[:2] == '--'  # this is necessary since the matching assumes that argparse has ok'd the uniqueness of an abbreviated argument
     return [i for i, c in enumerate(clist) if argstr.find(c)==0]
+
+# ----------------------------------------------------------------------------------------
+def reduce_imatches(imatches, clist, argstr):  # restrict <imatches> to exact matches in an effort to get it down to one unique match
+    imatches = [i for i in imatches if clist[i]==argstr]  # see if any of them are exact matches
+    if len(imatches) > 1:
+        raise Exception('multiple matches for argstr \'%s\' in cmd (this is likely caused by not typing out the entirety of an arg string): %s' % (argstr, ' '.join(clist[i] for i in imatches)))
+    return imatches
 
 # ----------------------------------------------------------------------------------------
 def arglist_index(clist, argstr):
     imatches = arglist_imatches(clist, argstr)
     if len(imatches) == 0:
         raise Exception('\'%s\' not found in cmd: %s' % (argstr, ' '.join(clist)))
-    elif len(imatches) > 1:
-        raise Exception('multiple matches for argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist[i] for i in imatches)))
+    if len(imatches) > 1:
+        imatches = reduce_imatches(imatches, clist, argstr)
     return get_single_entry(imatches)
 
 # ----------------------------------------------------------------------------------------
@@ -4568,8 +4575,8 @@ def remove_from_arglist(clist, argstr, has_arg=False):
     imatches = arglist_imatches(clist, argstr)
     if len(imatches) == 0:
         return
-    elif len(imatches) > 1:
-        raise Exception('multiple matches for argstr \'%s\' in cmd: %s' % (argstr, ' '.join(clist[i] for i in imatches)))
+    if len(imatches) > 1:
+        imatches = reduce_imatches(imatches, clist, argstr)
     iloc = imatches[0]
     # if clist[iloc] != argstr:
     #     print '  %s removing abbreviation \'%s\' from sys.argv rather than \'%s\'' % (color('yellow', 'warning'), clist[iloc], argstr)
