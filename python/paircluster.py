@@ -102,7 +102,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     # ----------------------------------------------------------------------------------------
     cpaths, antn_lists, glfos = [outfos[k] for k in ['cpaths', 'antn_lists', 'glfos']]
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
-    all_loci = {u : l for ants in antn_lists.values() for antn in ants for u, l in zip(antn['unique_ids'], antn['loci'])}  # this includes the heavy ones, which we don't need, but oh well
+    all_loci = {u : l for l, ants in antn_lists.items() for antn in ants for u in antn['unique_ids']}  # this includes the heavy ones, which we don't need, but oh well
     all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this
     unpaired_seqs = {l : {} for l in ploci.values()}  # map for each locus from the uid of each seq with no (or non-reciprocal) pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
     lp_cpaths, lp_antn_lists = {}, {}

@@ -442,7 +442,7 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'subject' : 'subjects',
     'constant-region' : 'constant-regions',
     'paired-uids' : 'paired-uids',
-    'locus' : 'loci',
+    'locus' : 'loci',  # i *think* it's worth having this, even though it duplicates info in the glfo, since it's nice to be able to pass in locus info for some input sequences (e.g. --queries-to-include-fname), but you should generally avoid using the 'loci' key in annotations unless you really need it, since it's annoying trying to make sure it's always there)
     'cell-type' : 'cell-types',
     'umis' : 'umis',
     'reads' : 'reads',
