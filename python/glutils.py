@@ -233,9 +233,16 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
     if n_skipped_orfs > 0:
         print '    skipped %d %s orfs (leaving %d genes)' % (n_skipped_orfs, region, len(glseqs))
 
+# ----------------------------------------------------------------------------------------
+def get_empty_glfo(locus):  # adding this very late, so probably some more places I could use it
+    glfo = {'locus' : locus, 'functionalities' : {}, 'seqs' : {r : OrderedDict() for r in utils.regions}}
+    for codon in utils.conserved_codons[locus].values():
+        glfo[codon + '-positions'] = {}
+    return glfo
+
 #----------------------------------------------------------------------------------------
 def read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_name_components=False, debug=False):
-    glfo = {'locus' : locus, 'functionalities' : {}, 'seqs' : {r : OrderedDict() for r in utils.regions}}
+    glfo = get_empty_glfo(locus)
     read_extra_info(glfo, gldir)
     for region in utils.getregions(locus):
         read_fasta_file(glfo, region, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, add_dummy_name_components=add_dummy_name_components, locus=locus, debug=debug)
@@ -513,8 +520,6 @@ def remove_extraneouse_info(glfo, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def read_extra_info(glfo, gldir):
-    for codon in utils.conserved_codons[glfo['locus']].values():
-        glfo[codon + '-positions'] = {}
     if not os.path.exists(get_extra_fname(gldir, glfo['locus'])):
         print '  %s extra file %s not found (i.e. no codon positions for glfo)' % (utils.color('yellow', 'warning'), get_extra_fname(gldir, glfo['locus']))
         return
@@ -903,6 +908,16 @@ def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_
         add_new_allele(glfo, newfo, remove_template_genes=remove_template_genes, use_template_for_codon_info=use_template_for_codon_info, simglfo=simglfo, debug=debug)
 
 # ----------------------------------------------------------------------------------------
+def rename_gene(glfo, old_name, new_name, debug=False):
+    if debug:
+        print '    renaming %s --> %s' % (utils.color_gene(old_name), utils.color_gene(new_name))
+    region = utils.get_region(old_name)
+    codon = utils.cdn(glfo, region)
+    glfo[codon + '-positions'][new_name] = glfo[codon + '-positions'][old_name]
+    glfo['seqs'][region][new_name] = glfo['seqs'][region][old_name]
+    remove_gene(glfo, old_name)
+
+# ----------------------------------------------------------------------------------------
 def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
     # NOTE <use_template_for_codon_info> has default True
     """
@@ -915,11 +930,11 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     if len(set(newfo['seq']) - utils.alphabet) > 0:
         raise Exception('unexpected characters %s in new gl seq %s' % (set(newfo['seq']) - utils.alphabet, newfo['seq']))
     if newfo['gene'] in glfo['seqs'][region]:
-        print '%s attempted to add name %s that already exists in glfo' % (utils.color('red', 'error'), utils.color_gene(newfo['gene']))
+        print '  %s attempted to add name %s that already exists in glfo (returning without doing anything)' % (utils.color('yellow', 'warning'), utils.color_gene(newfo['gene']))
         return
-    if newfo['seq'] in glfo['seqs'][region].values():
+    if newfo['seq'] in glfo['seqs'][region].values():  # it's nice to allow duplicate seqs e.g. if you want to rename a gene
         names_with_this_seq = [utils.color_gene(g) for g, seq in glfo['seqs'][region].items() if seq == newfo['seq']]
-        print '%s attempted to add sequence that\'s already in glfo with name%s %s\n  %s' % (utils.color('red', 'error'), utils.plural(len(names_with_this_seq)), ' '.join(names_with_this_seq), newfo['seq'])
+        print '  %s attempted to add sequence (with name %s) that\'s already in glfo with name%s %s (returning without doing anything)\n    %s' % (utils.color('yellow', 'warning'), utils.color_gene(newfo['gene']), utils.plural(len(names_with_this_seq)), ' '.join(names_with_this_seq), newfo['seq'])
         return
 
     glfo['seqs'][region][newfo['gene']] = newfo['seq']
