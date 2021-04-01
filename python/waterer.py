@@ -1385,7 +1385,7 @@ class Waterer(object):
             self.info[kept_uid]['duplicates'][0] = all_duplicates
             self.duplicates[kept_uid] = all_duplicates  # copy info from previous line to <self.duplicates>, which is just so partitiondriver can pass in previous duplicates, and yes having the info in two places is dumb
             if any_have_mtpy:
-                def getmult(ltmp): return ltmp['multiplicities'][0] if 'multiplicities' in ltmp else utils.input_metafile_defaults.get('multiplicities')
+                def getmult(ltmp): return ltmp['multiplicities'][0] if 'multiplicities' in ltmp else utils.input_metafile_defaults('multiplicities')
                 self.info[kept_uid]['multiplicities'] = [sum(getmult(self.input_info[u]) for u in [kept_uid] + all_duplicates)]
 
         if len(removed_queries) > 0:

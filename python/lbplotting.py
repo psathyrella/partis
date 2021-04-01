@@ -496,6 +496,7 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
 # ----------------------------------------------------------------------------------------
 def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', colorvar=None, log='', leg_loc=None, warn_text=None, markersize=15, stats=None):
     leafcolors = {'leaf' : '#006600', 'internal' : '#2b65ec'}  # green, blue
+    chosecolors = {'chosen' : '#990012', 'nope' : '#006600'}  # red, green
     if len(plotvals[xvar]) == 0:
         # print '    no %s vs affy info' % yvar
         return '%s/%s.svg' % (plotdir, plotname)
@@ -506,6 +507,8 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     else:
         if colorvar == 'is_leaf':
             colorfcn = lambda x: leafcolors['leaf' if x else 'internal']
+        if colorvar == 'chosen':
+            colorfcn = lambda x: chosecolors[x]
         else:
             smap = plotting.get_normalized_scalar_map([v for v in plotvals[colorvar] if v is not None], 'viridis')
             colorfcn = lambda x: 'grey' if x is None else plotting.get_smap_color(smap, None, val=x)
@@ -540,6 +543,8 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         leg_prop = {'size' : 12}
         if colorvar == 'is_leaf':
             leg_iter = [(leafcolors[l], l) for l in ['leaf', 'internal']]
+        elif colorvar == 'chosen':
+            leg_iter = [(chosecolors[l], l) for l in ['chosen', 'nope']]
         elif plotvals[colorvar].count(None) == len(plotvals[colorvar]):  # no points have color values
             pass
         elif colorvar in ['affinity', 'edge-dist']:

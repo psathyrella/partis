@@ -33,7 +33,8 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
         for input_key, line_key in utils.input_metafile_keys.items():
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            mvals = [utils.input_metafile_defaults.get(line_key) for _ in line['unique_ids']]
+            mvals = [utils.input_metafile_defaults(line_key) for _ in line['unique_ids']]
+            n_with_info = 0  # have to keep track of this, rather than just counting the non-default-value ones (which we used to do), because sometimes the default is info in the file that we want to keep (e.g. for paired uids)
             for iseq, uid in enumerate(line['unique_ids']):
                 if uid not in metafo or input_key not in metafo[uid]:
                     continue
@@ -47,8 +48,9 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
                     raise Exception('input meta info value for \'multiplicity\' must be greater than 1 (since it includes this sequence), but got %d for \'%s\'' % (mval, uid))
                 added_uids.add(uid)
                 added_keys.add(line_key)
+                n_with_info += 1
                 mvals[iseq] = mval
-            if mvals.count(utils.input_metafile_defaults.get(line_key)) < len(mvals):  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
+            if n_with_info > 0:  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
                 line[line_key] = mvals
     if n_modified > 0:  # should really add this for the next function as well
         print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
@@ -65,29 +67,28 @@ def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_
         for input_key, line_key in utils.input_metafile_keys.items():
             if line_key not in utils.linekeys['per_seq']:
                 raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            dfval = utils.input_metafile_defaults.get(line_key)
-            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else dfval for u in line['unique_ids']]
-            if mvals.count(dfval) == len(mvals):
+            n_with_info = len([u for u in line['unique_ids'] if line_key in input_info[u]])
+            if n_with_info == 0:
                 continue
-            else:
-                if line_key in line:
-                    if mvals == line[line_key]:
-                        continue
-                    if keys_not_to_overwrite is not None and line_key in keys_not_to_overwrite:  # atm this happens if in waterer we reset 'multiplicities' to account for duplicate sequences, then when this fcn gets called by partitiondriver we need to keep those reset values
-                        if debug:
-                            print '    not overwriting non-matching info for %s' % line_key
-                        continue
-                    else:
-                        if n_modified < n_warn_print:
-                            print '  %s replacing input metafo \'%s\' value for \'%s\': %s --> %s' % (utils.color('yellow', 'warning'), line_key, ':'.join(line['unique_ids']), line[line_key], mvals)
-                        line[line_key] = mvals
-                        n_modified += 1
-                        modified_keys.add(line_key)
+            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else utils.input_metafile_defaults(line_key) for u in line['unique_ids']]
+            if line_key in line:
+                if mvals == line[line_key]:
+                    continue
+                if keys_not_to_overwrite is not None and line_key in keys_not_to_overwrite:  # atm this happens if in waterer we reset 'multiplicities' to account for duplicate sequences, then when this fcn gets called by partitiondriver we need to keep those reset values
+                    if debug:
+                        print '    not overwriting non-matching info for %s' % line_key
+                    continue
                 else:
+                    if n_modified < n_warn_print:
+                        print '  %s replacing input metafo \'%s\' value for \'%s\': %s --> %s' % (utils.color('yellow', 'warning'), line_key, ':'.join(line['unique_ids']), line[line_key], mvals)
                     line[line_key] = mvals
-                if debug:
-                    added_uids |= set(line['unique_ids'])
-                    added_keys.add(line_key)
+                    n_modified += 1
+                    modified_keys.add(line_key)
+            else:
+                line[line_key] = mvals
+            if debug:
+                added_uids |= set(line['unique_ids'])
+                added_keys.add(line_key)
     if n_modified > 0:
         print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
     if debug:

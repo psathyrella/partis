@@ -2134,7 +2134,7 @@ class PartitionDriver(object):
         line['indelfos'] = [self.sw_info['indels'].get(uid, indelutils.get_empty_indel()) for uid in uids]  # reminder: hmm was given a sequence that had any indels reversed (i.e. <self.sw_info['indels'][uid]['reverersed_seq']>)
         line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
         line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
-        def gv(lkey, uid): return self.sw_info[uid][lkey][0] if lkey in self.sw_info[uid] else utils.input_metafile_defaults.get(lkey)
+        def gv(lkey, uid): return self.sw_info[uid][lkey][0] if lkey in self.sw_info[uid] else utils.input_metafile_defaults(lkey)
         for lkey in utils.input_metafile_keys.values():
             if any(lkey in self.sw_info[u] for u in uids):  # it used to be that if it was in one it had to be in all, but now no longer (see comments in seqfileopener.read_input_metafo()
                 line[lkey] = [gv(lkey, u) for u in uids]

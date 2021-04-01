@@ -2062,15 +2062,14 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def getpids(line):
         all_ids = []
-        for pids in line['paired-uids']:
+        for ip, pids in enumerate(line['paired-uids']):
             if pids is None or len(pids) == 0:
                 continue
             elif len(pids) == 1:
                 assert pids[0] not in all_ids
                 all_ids.append(pids[0])
             else:
-                print pids
-                assert False
+                raise Exception('too many paired ids (%d) for %s: %s' % (len(pids), line['unique_ids'][ip], ' '.join(pids)))
         return all_ids
     # ----------------------------------------------------------------------------------------
     def find_cluster_pairs(lpair):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
@@ -2150,15 +2149,34 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '      added cons seq'
         return chosen_mfos
     # ----------------------------------------------------------------------------------------
+    def add_plotval_uids(iclust_plotvals, iclust_mfos):
+        def waschosen(m):
+            return 'chosen' if m['h_id'] in iclust_chosen_ids and m['l_id'] in iclust_chosen_ids else 'nope'
+        def ustr(m):
+            rstr = ''
+            # if waschosen(m):
+            #     rstr = 'x'
+            if args.queries_to_include is not None and m['h_id'] in args.queries_to_include and m['l_id'] in args.queries_to_include:
+                common_chars = ''.join(c for c, d in zip(m['h_id'], m['l_id']) if c==d)
+                common_chars = common_chars.rstrip('-ig')
+                if len(common_chars) > 0:
+                    rstr += ' ' + common_chars
+                else:
+                    rstr += ' ' + m['h_id'] + ' ' + m['l_id']
+            return None if rstr == '' else rstr
+        iclust_chosen_ids = [m[c+'_id'] for m in iclust_mfos for c in 'hl']
+        iclust_plotvals['uids'] = [ustr(m) for m in metric_pairs]
+        iclust_plotvals['chosen'] = [waschosen(m) for m in metric_pairs]
+    # ----------------------------------------------------------------------------------------
     debug = True
     if plotdir is not None:
         import lbplotting
         mstr = legtexts['cons-frac-aa']
     chosen_mfos = []
     with open(args.ab_choice_cfg) as cfile:
-        cfgfo = yaml.load(cfile)
+        cfgfo = yaml.load(cfile, Loader=Loader)
     antn_pairs = []
-    for lpair in utils.locus_pairs[ig_or_tr]:
+    for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += find_cluster_pairs(lpair)
     all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
     if debug:
@@ -2216,6 +2234,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (mpfo['h_id'], mpfo['l_id'])])
                 if len(set(dids)) == 1:  # make sure they're from the same droplet
                     didstr = dids[0]
+                    if args.queries_to_include is not None and mpfo['h_id'] in args.queries_to_include and mpfo['l_id'] in args.queries_to_include:
+                        didstr = utils.color('red', didstr, width=20)
                 else:
                     print '  %s paired seqs %s %s have different droplet ids %s' % (utils.color('red', 'error'), mpfo['h_id'], mpfo['l_id'], dids)
                     didstr = 'see error'
@@ -2239,11 +2259,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print ''
         if plotdir is not None:
             iclust_plotvals = {k : [m[k] for m in metric_pairs] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
-            if len(iclust_mfos) > 0:
-                iclust_chosen_ids = [m[c+'_id'] for m in iclust_mfos for c in 'hl']
-                def tchosen(m): return m['h_id'] in iclust_chosen_ids and m['l_id'] in iclust_chosen_ids
-                iclust_plotvals['uids'] = ['x' if tchosen(m) else None for m in metric_pairs]
-            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
+            add_plotval_uids(iclust_plotvals, iclust_mfos)
+            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
             for k in iclust_plotvals:
                 if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
                 all_plotvals[k] += iclust_plotvals[k]
@@ -2256,4 +2273,4 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             for line in chosen_mfos:
                 writer.writerow(line)
     if plotdir is not None:  # NOTE set --dry when getting selection metrics to get these plots, but not the regular (single-chain) selection metric plots (which are slow, especially the tree ones)
-        lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, stats='correlation')
+        lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')

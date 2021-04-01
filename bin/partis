@@ -168,6 +168,27 @@ def run_simulation(args):
         utils.rmdir(args.workdir, fnames=work_fnames)
 
 # ----------------------------------------------------------------------------------------
+def read_qti_file(args):
+    if args.queries_to_include_fname is None:
+        return None
+    if utils.getsuffix(args.queries_to_include_fname) == '.yaml':  # this is pretty ugly, but i'm not sure there's a better way given current constraints
+        seqfos = utils.read_seqfos(args.queries_to_include_fname)
+        if args.locus is not None and any('locus' in s for s in seqfos):  # remove any that have locus info that doesn't match args.locus (if args.locus is None, we're combining loci)
+            seqfos = [s for s in seqfos if 'locus' not in s or s['locus'] == args.locus]
+        more_input_info = collections.OrderedDict([(s['name'], {'unique_ids' : [s['name']], 'seqs' : [s['seq']]}) for s in seqfos])
+        for sfo in seqfos:
+            for mkey in set(utils.input_metafile_keys) & set(sfo):
+                lkey = utils.input_metafile_keys[mkey]
+                more_input_info[sfo['name']][lkey] = [sfo[mkey]]
+    else:
+        more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data)
+    print '  --queries-to-include-fname: adding %d extra sequence%s from %s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname)
+    if args.queries_to_include is None:
+        args.queries_to_include = []
+    args.queries_to_include += more_input_info.keys()
+    return more_input_info
+
+# ----------------------------------------------------------------------------------------
 def read_inputs(args, actions):
     if actions[0] == 'cache-parameters':  # for parameter caching, use the default in data/germlines/human unless something else was set on the command line
         gldir = args.default_initial_germline_dir if args.initial_germline_dir is None else args.initial_germline_dir
@@ -214,23 +235,7 @@ def read_inputs(args, actions):
         else:
             raise Exception('couldn\'t find simulation germline info: either set with --simulation-germline-dir, or use .yaml simulation files and set --infname')
 
-    more_input_info = None
-    if args.queries_to_include_fname is not None:
-        if utils.getsuffix(args.queries_to_include_fname) == '.yaml':  # this is pretty ugly, but i'm not sure there's a better way given current constraints
-            seqfos = utils.read_seqfos(args.queries_to_include_fname)
-            if any('locus' in s for s in seqfos):  # remove any that have locus info that doesn't match args.locus
-                seqfos = [s for s in seqfos if 'locus' in s and s['locus'] == args.locus]
-            more_input_info = collections.OrderedDict([(s['name'], {'unique_ids' : [s['name']], 'seqs' : [s['seq']]}) for s in seqfos])
-            for sfo in seqfos:
-                for mkey in set(utils.input_metafile_keys) & set(sfo):
-                    lkey = utils.input_metafile_keys[mkey]
-                    more_input_info[sfo['name']][lkey] = [sfo[mkey]]
-        else:
-            more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data)
-        print '  --queries-to-include-fname: adding %d extra sequence%s from %s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname)
-        if args.queries_to_include is None:
-            args.queries_to_include = []
-        args.queries_to_include += more_input_info.keys()
+    more_input_info = read_qti_file(args)  # also set args.queries_to_include
 
     if args.infname is None:  # put this *after* setting queries_to_include from a file, since we need that set
         return None, None, glfo, simglfo
@@ -471,7 +476,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if tmpaction != 'view-output' or not args.is_data:
                         utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
-                    if args.seed_unique_id is not None and tmpaction in ['partition', 'plot-partitions', 'view-output']:  # it would be nice to work out what the locus of the light chain seed seq is so we don't have to run both, but whatever
+                    if args.seed_unique_id is not None and tmpaction in ['partition', 'plot-partitions', 'view-output', 'get-selection-metrics']:  # it would be nice to work out what the locus of the light chain seed seq is so we don't have to run both, but whatever
                         utils.replace_in_arglist(clist, '--seed-unique-id', seedid(ltmp))
                     if tmpaction != 'cache-parameters':
                         utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname' if '--infname' in clist else None, has_arg=True)
@@ -490,6 +495,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.remove_from_arglist(clist, '--queries-to-include-fname', has_arg=True)  # we end up with inconsistent sequences (well, it's just that one is N-padded and the other isn't)
                 utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)  # we're no longer running on the initial input file, so theis (and --n-random-queries) screws everything up if e.g. --queries-to-include-fname is set by not reading all the seqs
                 utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
+                utils.remove_from_arglist(clist, '--plotdir', has_arg=True)  # i think there isn't anything we want to plot when we're getting the joint partition annotations?
                 utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
@@ -498,7 +504,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # have to use the new, rewritten input meta file (with corrected pairing info)
                 clist[clist.index(args.action)] = 'annotate'
 
-            if args.plotdir is not None:
+            if args.plotdir is not None and tmpaction != 'annotate':
                 utils.replace_in_arglist(clist, '--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction))
             if args.plot_partitions or tmpaction == 'plot-partitions':  # partitiondriver turns on partition plots if plotdir and input partition fname are both specified, so setting --plot-partitions isn't necessary... but they result in potentially different plotdirs, which is potentially important if you want plots to go somewhere specific
                 if tmpaction != 'annotate':  # don't need it
@@ -522,7 +528,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 return
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
-    def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
+    def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
         old_metafos = {}
         if os.path.exists(getofn(None, joint=True, input_meta=True)):
             old_metafos = utils.read_json_yaml(getofn(None, joint=True, input_meta=True))  # NOTE the underlying dicts get modified
@@ -537,14 +543,18 @@ def run_all_loci(args, ig_or_tr='ig'):
         for jclust in joint_partition:
             for uid in jclust:
                 new_metafos[uid] = old_metafos.get(uid, {})  # not sure it's possible for it to be missing, but maybe
-                new_metafos[uid]['paired-uids'] = single_pids.get(uid, utils.input_metafile_defaults['paired-uids'])  # if it's not in there, we couldn't decide who it was paired with NOTE so default needs to be [] (rather than None) so it gets used to overwrite the paired uids in the sw cache file by add_input_metafo() when running annotate
+                if uid in unpaired_seqs[ltmp]:  # if we determined in paircluster.remove_badly_paired_seqs() that we weren't sure who <uid> was paired with, we need to set <pids> to []
+                    pids = utils.input_metafile_defaults('paired-uids')
+                else:
+                    pids = single_pids.get(uid, utils.input_metafile_defaults('paired-uids'))
+                new_metafos[uid]['paired-uids'] = pids
         if not os.path.exists(getodir(lpair=lpair)):
             os.makedirs(getodir(lpair=lpair))
         with open(getofn(ltmp, joint=True, lpair=lpair, input_meta=True), 'w') as mfile:
             json.dump(new_metafos, mfile)
         work_fnames.append(getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
     # ----------------------------------------------------------------------------------------
-    def write_joint_locus(ltmp, lpair, joint_partition, antn_dict, glfo, single_antn_list):  # have to use <single_antn_list> since <antn_dict> is missing input seqs, i think mostly/entirely from removing badly paired seqs
+    def write_joint_locus(ltmp, lpair, joint_partition, antn_dict, glfo, single_antn_list, unpaired_seqs):  # have to use <single_antn_list> since <antn_dict> is missing input seqs, i think mostly/entirely from removing badly paired seqs
         # ----------------------------------------------------------------------------------------
         def write_fasta_input():
             single_seqs = {u : s for l in single_antn_list for u, s in zip(l['unique_ids'], l['input_seqs'])}
@@ -561,7 +571,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # ----------------------------------------------------------------------------------------
         if len(joint_partition) == 0:
             return
-        rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict)
+        rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs)
         missing_clusters = []
         for jclust in joint_partition:
             if ':'.join(jclust) not in antn_dict:
@@ -600,9 +610,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if 'paired-uids' in tline:
                     inones = [i for i, pids in enumerate(tline['paired-uids']) if pids is None]
                     for itmp in inones:
-                        tline['paired-uids'][itmp] = utils.input_metafile_defaults['paired-uids']
+                        tline['paired-uids'][itmp] = utils.input_metafile_defaults('paired-uids')
                 else:
-                    tline['paired-uids'] = [utils.input_metafile_defaults['paired-uids'] for _ in tline['unique_ids']]
+                    tline['paired-uids'] = [utils.input_metafile_defaults('paired-uids') for _ in tline['unique_ids']]
         # ----------------------------------------------------------------------------------------
         glfos, antn_lists, cpaths = {}, {}, {}
         for ltmp in tmploci:  # read single-locus output files
@@ -744,7 +754,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=DBG)  # , iparts={'igl' : 7}
             for ltmp in lpair:
-                write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp])
+                write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs)
             lp_infos[tuple(lpair)] = read_output_files(lpair, lpair=lpair)
         _, concat_antn_lists, concat_cpaths = concat_heavy_chain(lp_infos, write=True)
         ccfs = {}
@@ -829,6 +839,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 lp_infos = {}
                 for lpair in spairs():
                     lp_infos[tuple(lpair)] = read_output_files(lpair, lpair=lpair, read_selection_metrics=True)
+                _ = read_qti_file(args)  # sets args.queries_to_include
                 treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=args.plotdir, args=args)
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
@@ -1084,6 +1095,7 @@ subargs['view-output'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' :
 subargs['view-output'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['view-output'].append({'name' : '--extra-print-keys', 'kwargs' : {'help' : 'add the value of these keys (colon-separated list) as a new column to the ascii art annotation'}})
 subargs['get-selection-metrics'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+subargs['get-selection-metrics'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['get-selection-metrics'].append({'name' : '--ab-choice-cfg', 'kwargs' : {'default' : partis_dir + '/data/selection-metrics/ab-choice.yaml', 'help' : 'yaml file with config info for how to choose abs.'}})
 subargs['get-selection-metrics'].append({'name' : '--chosen-ab-fname', 'kwargs' : {'help' : 'csv file to which to write information on chosen antibody sequences'}})
 subargs['merge-paired-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
