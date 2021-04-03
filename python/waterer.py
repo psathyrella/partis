@@ -1384,7 +1384,7 @@ class Waterer(object):
             all_duplicates = list(previous_duplicates | new_duplicates)
             self.info[kept_uid]['duplicates'][0] = all_duplicates
             self.duplicates[kept_uid] = all_duplicates  # copy info from previous line to <self.duplicates>, which is just so partitiondriver can pass in previous duplicates, and yes having the info in two places is dumb
-            if any_have_mtpy:
+            if any_have_mtpy or len(all_duplicates) > 0:  # we *also* have to add it if there's any duplicates, since some of those duplicate sequences might have multiplicities, which would then get lost if no other sequences have multiplicities (this is admittedly very rare)
                 def getmult(ltmp): return ltmp['multiplicities'][0] if 'multiplicities' in ltmp else utils.input_metafile_defaults('multiplicities')
                 self.info[kept_uid]['multiplicities'] = [sum(getmult(self.input_info[u]) for u in [kept_uid] + all_duplicates)]
 
