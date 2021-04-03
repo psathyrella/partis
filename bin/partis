@@ -523,6 +523,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             if not os.path.exists(getifn(ltmp)):
                 print '%s: no input file, skipping  (%s)' % (utils.color('blue', ltmp), getifn(ltmp))
                 return
+            if os.stat(getifn(ltmp)).st_size == 0:
+                print '%s: zero length input file, skipping  (%s)' % (utils.color('blue', ltmp), getifn(ltmp))
+                return
             if tmpaction in ['annotate', 'partition'] and not os.path.exists(getpdir(ltmp)):  # this probably means that no sequences had annotations (i.e. all failed) for this locus when parameter caching
                 print '%s: no parameter dir, skipping' % utils.color('blue', ltmp)
                 return
@@ -692,7 +695,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         glfos, antn_lists, joint_cpaths = {}, {}, {}
         for lpair in spairs():
             lpk = tuple(lpair)
-            if lp_infos[lpk]['antn_lists'] is None:
+            if lpk not in lp_infos or lp_infos[lpk]['antn_lists'] is None:
                 continue
             for ltmp in lpair:
                 if ltmp not in lp_infos[lpk]['glfos']:  # this lpair's output files were empty
@@ -751,6 +754,9 @@ def run_all_loci(args, ig_or_tr='ig'):
         for lpair in spairs():
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
+            if any(l not in single_outfos['antn_lists'] for l in lpair):
+                print '    no single chain output'
+                continue
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=DBG)  # , iparts={'igl' : 7}
             for ltmp in lpair:
