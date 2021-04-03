@@ -392,27 +392,26 @@ def run_all_loci(args, ig_or_tr='ig'):
         utils.simplerun('cd %s && ln -sf %s %s' % (getodir(), target, link_name), shell=True, dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
     def prep_inputs():
-        if args.infname is not None:
-            cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, getofn(None, joint=True, input_meta=True))
-            if args.n_max_queries > 0:
-                cmd += ' --n-max-queries %d' % args.n_max_queries
-            try:
-                utils.simplerun(cmd, dryrun=args.dry_run)
-            except:
-                elines = traceback.format_exception(*sys.exc_info())
-                print utils.pad_lines(''.join(elines))
-                print '  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info'
-            cmd = './bin/split-loci.py %s --outdir %s' % (args.infname, getodir())
-            if args.reverse_negative_strands:
-                cmd += ' --reverse-negative-strands'
-            if os.path.exists(getofn(None, joint=True, input_meta=True)):  # NOTE this won't show up up in dry_run since it won't exist yet
-                cmd += ' --input-metafname %s' % getofn(None, joint=True, input_meta=True)
-            if args.n_max_queries > 0:
-                cmd += ' --n-max-queries %d' % args.n_max_queries
+        cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, getofn(None, joint=True, input_meta=True))
+        if args.n_max_queries > 0:
+            cmd += ' --n-max-queries %d' % args.n_max_queries
+        try:
             utils.simplerun(cmd, dryrun=args.dry_run)
-            if args.paired_outdir is None:
-                no_pairing_info = not os.path.exists(getofn(None, joint=True, input_meta=True))
-                work_fnames.extend(paircluster.paired_dir_fnames(getodir(), no_pairing_info=no_pairing_info and args.is_data, include_failed=True, include_meta=True))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
+        except:
+            elines = traceback.format_exception(*sys.exc_info())
+            print utils.pad_lines(''.join(elines))
+            print '  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info'
+        cmd = './bin/split-loci.py %s --outdir %s' % (args.infname, getodir())
+        if args.reverse_negative_strands:
+            cmd += ' --reverse-negative-strands'
+        if os.path.exists(getofn(None, joint=True, input_meta=True)):  # NOTE this won't show up up in dry_run since it won't exist yet
+            cmd += ' --input-metafname %s' % getofn(None, joint=True, input_meta=True)
+        if args.n_max_queries > 0:
+            cmd += ' --n-max-queries %d' % args.n_max_queries
+        utils.simplerun(cmd, dryrun=args.dry_run)
+        if args.paired_outdir is None:
+            no_pairing_info = not os.path.exists(getofn(None, joint=True, input_meta=True))
+            work_fnames.extend(paircluster.paired_dir_fnames(getodir(), no_pairing_info=no_pairing_info and args.is_data, include_failed=True, include_meta=True))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
     # ----------------------------------------------------------------------------------------
     def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
         if runs_on_existing_output(args.action):  # don't need a parameter dir to merge existing paired partitions
@@ -485,8 +484,12 @@ def run_all_loci(args, ig_or_tr='ig'):
                             if not joint and lpair is None and getodir(single_chain=True) not in work_fnames:
                                 work_fnames.append(getodir(single_chain=True))
 
-            if os.path.exists(getofn(None, joint=True, input_meta=True)):  # need to add input meta file to args if we automatically generated it with extract-pairing-info.py (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
+            if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
+                assert args.input_metafname is None
                 utils.replace_in_arglist(clist, '--input-metafname', getofn(None, joint=True, lpair=lpair, input_meta=True))
+            elif args.input_metafname is None and os.path.exists(getifn('meta')):  # if it wasn't set on the command line, we want to look in a default-ish location to which e.g. write_merged_simu() writes it
+                print '  note: adding --input-metafname from default location %s' % getifn('meta')
+                utils.replace_in_arglist(clist, '--input-metafname', getifn('meta'))
 
             if args.sw_cachefname is None:
                 clist += ['--sw-cachefname', '%s/sw-cache.yaml'%getpdir(ltmp)]
@@ -790,7 +793,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         print '  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).'
     utils.prep_dir(args.workdir)  # NOTE it's kind of weird to have workdir and paired_outdir, but workdir is for stuff we throw out by default, whereas paired_outdir is for stuff we save
     work_fnames = []
-    prep_inputs()
+    if args.infname is not None:
+        prep_inputs()
 
     if args.action == 'simulate':
         paircluster.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
