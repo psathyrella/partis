@@ -15,7 +15,7 @@ import utils
 delimit_info = {'.csv' : ',', '.tsv' : '\t'}
 
 # ----------------------------------------------------------------------------------------
-def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=10, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info>
+def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=10, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info> (wait so at this point it sounds like this fcn and the next one should be merged [although that would be hard and dangerous, so i'm not doing it now)
     # NOTE <annotation_list> doesn't need to be real annotations, it only uses the 'unique_ids' key
     metafo = utils.read_json_yaml(input_metafname)
     if any(isinstance(tkey, int) for tkey in metafo):  # would be better to check for not being a string, but that's harder, and this probably only happens for my simulation hash ids
@@ -30,16 +30,17 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
         print '  %s %d key%s in input metafile not among allowed keys: %s' % (utils.color('yellow', 'warning'), len(extra_keys), utils.plural(len(extra_keys)), ' '.join(extra_keys))
     if required_keys is not None and len(set(required_keys) - metafile_keys) > 0:
         raise Exception('required metafile key(s) (%s) not found in %s' % (', '.join(set(required_keys) - metafile_keys), input_metafname))
-    added_uids, added_keys = set(), set()
-    n_no_info, n_added = 0, 0
+
+    usets = {c : {lk : set() for lk in utils.input_metafile_keys.values()} for c in ['no-info', 'added']}  # for counting each seq/uid
+    llists = {c : {lk : [] for lk in utils.input_metafile_keys.values()} for c in ['no-info', 'added']}  # for counting each line
     n_modified, modified_keys = 0, set()
     for line in annotation_list:
         for input_key, line_key in utils.input_metafile_keys.items():
-            # fill <mvals> with default values, then modify the values for seqs that have info
-            mvals = [utils.input_metafile_defaults(line_key) for _ in line['unique_ids']]
+            mvals = [utils.input_metafile_defaults(line_key) for _ in line['unique_ids']]  # fill <mvals> with default values, then modify the values for seqs that have info
             n_seqs_with_info = 0  # have to keep track of this, rather than just counting the non-default-value ones (which we used to do), because sometimes the default is info in the file that we want to keep (e.g. for paired uids)
             for iseq, uid in enumerate(line['unique_ids']):
-                if uid not in metafo or input_key not in metafo[uid]:
+                if uid not in metafo or input_key not in metafo[uid]:  # skip this seq if it doesn't have info
+                    usets['no-info'][line_key].add(uid)
                     continue
                 mval = metafo[uid][input_key]
                 if line_key in line and mval != line[line_key][iseq]:  # in general, the meta info shouldn't already be in the input file if you're also specifying a separate meta file
@@ -50,21 +51,28 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
                 if input_key == 'multiplicity' and mval == 0:
                     raise Exception('input meta info value for \'multiplicity\' must be greater than 1 (since it includes this sequence), but got %d for \'%s\'' % (mval, uid))
                 mvals[iseq] = mval
-                added_uids.add(uid)
-                added_keys.add(line_key)
+                usets['added'][line_key].add(uid)
                 n_seqs_with_info += 1
 
             if n_seqs_with_info > 0:  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
                 line[line_key] = mvals
-                n_added += 1
+                llists['added'][line_key].append(line['unique_ids'])
             else:
-                n_no_info += 1
+                llists['no-info'][line_key].append(line['unique_ids'])
 
-    if n_modified > 0:  # should really add this for the next function as well
+    if n_modified > 0:
         print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
+    added_keys = set(k for k, us in usets['added'].items() if len(us) > 0)
+    added_uids = set(u for us in usets['added'].values() for u in us)
+    print '  --input-metafname: added meta info for %d sequences from %s: %s' % (len(added_uids), input_metafname, ' '.join(added_keys))
     if debug:
-        print '  read_input_metafo():  no info: %d  added: %d  (lines x keys)' % (n_no_info, n_added)
-    print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids), input_metafname)
+        print '  read_input_metafo(): add input metafo from meta file to annotations'
+        print '                       uids      uids     lines  lines'
+        print '                     no-info  with-info  no-info added'
+        for ik, lk in utils.input_metafile_keys.items():
+            if len(usets['added'][lk]) == 0:
+                continue
+            print '     %15s   %3d      %3d       %3d    %3d' % (lk, len(usets['no-info'][lk]), len(usets['added'][lk]), len(llists['no-info'][lk]), len(llists['added'][lk]))
 
 # ----------------------------------------------------------------------------------------
 def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_max_warn_print=10, debug=False):  # transfer input metafo from <input_info> (i.e. what was in --input-metafname) to <annotation_list>
