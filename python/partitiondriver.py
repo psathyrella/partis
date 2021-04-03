@@ -323,7 +323,7 @@ class PartitionDriver(object):
         if annotation_list is None:
             annotation_list = annotation_dict.values()
         if self.current_action == 'get-selection-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-selection-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
-            seqfileopener.read_input_metafo(self.args.input_metafname, annotation_list, debug=True)
+            seqfileopener.read_input_metafo(self.args.input_metafname, annotation_list)
         if self.args.seed_unique_id is not None:  # restrict to seed cluster in the best partition (clusters from non-best partition have duplicate uids, which then make fasttree barf, and it doesn't seem worth the trouble to fix it now)
             annotation_dict = OrderedDict([(uidstr, line) for uidstr, line in annotation_dict.items() if self.args.seed_unique_id in line['unique_ids'] and line['unique_ids'] in cpath.partitions[cpath.i_best]])
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=cpath.partitions[cpath.i_best])  # replace <cpath> with a new <cpath> that only has the best partition. The cpath will in general have duplicate uids in different clusters when seed partitioning, so it's better to just use the best partition and use fasttree for everything

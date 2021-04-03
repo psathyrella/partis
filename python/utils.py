@@ -448,11 +448,13 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'reads' : 'reads',
     'c_gene' : 'c_genes',
 }
-def input_metafile_defaults(mkey):  # default values to use if the info isn't there (None if not present)
+if any(k not in linekeys['per_seq'] for k in input_metafile_keys.values()):
+    raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence (add to linekeys[\'per_seq\']): %s' % ' '.join(k for k in input_metafile_keys.values() if k not in linekeys['per_seq']))
+def input_metafile_defaults(mkey):  # default values to use if the info isn't there (have to use a fcn rather than dict so e.g. [] doesn't give the same object each time)
     if mkey == 'multiplicities':
         return 1
     elif mkey == 'paired-uids':
-        return []  # don't use a dict (like you did initially) since then every instance gets the same object
+        return []
     else:
         return None
 

@@ -93,7 +93,7 @@ def write_locus_file(locus, ofos, lpair=None, extra_str='  '):
 # ----------------------------------------------------------------------------------------
 def read_meta_info():  # read all input meta info, and add pairing info (if present) to <paired_uids>
     dummy_annotation_list = [{'unique_ids' : [sfo['name']]} for sfo in seqfos]
-    seqfileopener.read_input_metafo(args.input_metafname, dummy_annotation_list, debug=True)  # , required_keys=['paired-uids'])
+    seqfileopener.read_input_metafo(args.input_metafname, dummy_annotation_list)  # , required_keys=['paired-uids'])
     for line in dummy_annotation_list:
         if 'loci' in line:
             meta_loci[line['unique_ids'][0]] = line['loci'][0]

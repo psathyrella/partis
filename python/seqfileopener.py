@@ -25,74 +25,95 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
         return
     if len(metafile_keys & set(utils.input_metafile_keys)) == 0:
         raise Exception('no overlap between %d metafile keys and %d allowed keys:\n    %s\n    %s' % (len(metafile_keys), len(utils.input_metafile_keys), ' '.join(metafile_keys), ' '.join(utils.input_metafile_keys)))
+    if len(metafile_keys - set(utils.input_metafile_keys)) > 0:
+        extra_keys = metafile_keys - set(utils.input_metafile_keys)
+        print '  %s %d key%s in input metafile not among allowed keys: %s' % (utils.color('yellow', 'warning'), len(extra_keys), utils.plural(len(extra_keys)), ' '.join(extra_keys))
     if required_keys is not None and len(set(required_keys) - metafile_keys) > 0:
         raise Exception('required metafile key(s) (%s) not found in %s' % (', '.join(set(required_keys) - metafile_keys), input_metafname))
     added_uids, added_keys = set(), set()
+    n_no_info, n_added = 0, 0
     n_modified, modified_keys = 0, set()
     for line in annotation_list:
         for input_key, line_key in utils.input_metafile_keys.items():
-            if line_key not in utils.linekeys['per_seq']:
-                raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
+            # fill <mvals> with default values, then modify the values for seqs that have info
             mvals = [utils.input_metafile_defaults(line_key) for _ in line['unique_ids']]
-            n_with_info = 0  # have to keep track of this, rather than just counting the non-default-value ones (which we used to do), because sometimes the default is info in the file that we want to keep (e.g. for paired uids)
+            n_seqs_with_info = 0  # have to keep track of this, rather than just counting the non-default-value ones (which we used to do), because sometimes the default is info in the file that we want to keep (e.g. for paired uids)
             for iseq, uid in enumerate(line['unique_ids']):
                 if uid not in metafo or input_key not in metafo[uid]:
                     continue
                 mval = metafo[uid][input_key]
-                if line_key in line and mval != line[line_key][iseq]:  # the meta info shouldn't generally already be in the input file if you're also specifying a separate meta file
+                if line_key in line and mval != line[line_key][iseq]:  # in general, the meta info shouldn't already be in the input file if you're also specifying a separate meta file
                     if n_modified < n_warn_print:
                         print '  %s replacing \'%s\'/\'%s\' value for \'%s\' with value from %s: %s --> %s' % (utils.color('yellow', 'warning'), input_key, line_key, uid, input_metafname, line[line_key][iseq], mval)
                     n_modified += 1
                     modified_keys.add(line_key)
                 if input_key == 'multiplicity' and mval == 0:
                     raise Exception('input meta info value for \'multiplicity\' must be greater than 1 (since it includes this sequence), but got %d for \'%s\'' % (mval, uid))
+                mvals[iseq] = mval
                 added_uids.add(uid)
                 added_keys.add(line_key)
-                n_with_info += 1
-                mvals[iseq] = mval
-            if n_with_info > 0:  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
+                n_seqs_with_info += 1
+
+            if n_seqs_with_info > 0:  # we used to add it even if they were all empty, but that means that you always get all the possible input meta keys, which is super messy (the downside of skipping them is some seqs can have them while others don't)
                 line[line_key] = mvals
+                n_added += 1
+            else:
+                n_no_info += 1
+
     if n_modified > 0:  # should really add this for the next function as well
         print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
     if debug:
-        print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids), input_metafname)
+        print '  read_input_metafo():  no info: %d  added: %d  (lines x keys)' % (n_no_info, n_added)
+    print '  --input-metafname: added meta info (%s) for %d sequences from %s' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids), input_metafname)
 
 # ----------------------------------------------------------------------------------------
-def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_warn_print=10, debug=False):  # transfer input metafo from <input_info> to <annotation_list>
+def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_max_warn_print=10, debug=False):  # transfer input metafo from <input_info> (i.e. what was in --input-metafname) to <annotation_list>
     # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafname, from <input_info>, from <sw_info>. If it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
     # NOTE <keys_not_to_overwrite> should be the *line* key
-    added_uids, added_keys = set(), set()
-    n_modified, modified_keys = 0, set()
+    usets = {c : {lk : set() for lk in utils.input_metafile_keys.values()} for c in ['no-info', 'with-info', 'one-source', 'identical', 'not-overwritten', 'replaced']}
+    n_warn_printed = 0
     for line in annotation_list:
-        for input_key, line_key in utils.input_metafile_keys.items():
-            if line_key not in utils.linekeys['per_seq']:
-                raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence')
-            n_with_info = len([u for u in line['unique_ids'] if line_key in input_info[u]])
+        uids = line['unique_ids']
+        for line_key in utils.input_metafile_keys.values():
+            n_with_info = len([u for u in uids if line_key in input_info[u]])  # NOTE there can be info in <line> but *not* in <input_info>, e.g. if we added multiplicity information in waterer.
             if n_with_info == 0:
+                usets['no-info'][line_key] |= set(uids)  # it's a little weird to use a set, but the same uid is sometimes in different <line>s, and i guess maybe it'd be better to treat them separately, this way is probably simpler
                 continue
-            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else utils.input_metafile_defaults(line_key) for u in line['unique_ids']]
-            if line_key in line:
-                if mvals == line[line_key]:
-                    continue
-                if keys_not_to_overwrite is not None and line_key in keys_not_to_overwrite:  # atm this happens if in waterer we reset 'multiplicities' to account for duplicate sequences, then when this fcn gets called by partitiondriver we need to keep those reset values
-                    if debug:
-                        print '    not overwriting non-matching info for %s' % line_key
-                    continue
-                else:
-                    if n_modified < n_warn_print:
-                        print '  %s replacing input metafo \'%s\' value for \'%s\': %s --> %s' % (utils.color('yellow', 'warning'), line_key, ':'.join(line['unique_ids']), line[line_key], mvals)
-                    line[line_key] = mvals
-                    n_modified += 1
-                    modified_keys.add(line_key)
-            else:
+            usets['with-info'][line_key] |= set(uids)  # it's a little weird to use a set, but the same uid is sometimes in different <line>s, and i guess maybe it'd be better to treat them separately, this way is probably simpler
+            mvals = [input_info[u][line_key][0] if line_key in input_info[u] else utils.input_metafile_defaults(line_key) for u in uids]
+
+            if line_key not in line:  # info in <input_info>, but not in <line> so just copy it over
                 line[line_key] = mvals
-            if debug:
-                added_uids |= set(line['unique_ids'])
-                added_keys.add(line_key)
-    if n_modified > 0:
-        print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
+                usets['one-source'][line_key] |= set(uids)
+                continue
+
+            if mvals == line[line_key]:  # both sources agree, so nothing to do
+                usets['identical'][line_key] |= set(uids)
+                continue
+
+            if keys_not_to_overwrite is not None and line_key in keys_not_to_overwrite:  # they're different, but we were explicitly told not to overwrite the info in <line> (e.g. in waterer we reset 'multiplicities' to account for duplicate sequences, then when this fcn gets called by partitiondriver we need to keep those reset values)
+                if debug:
+                    print '    not overwriting non-matching info for %s' % line_key
+                usets['not-overwritten'][line_key] |= set(uids)
+                continue
+
+            # actually replace the info in <line>
+            if n_warn_printed < n_max_warn_print:
+                print '  %s replacing input metafo \'%s\' value for \'%s\': %s --> %s' % (utils.color('yellow', 'warning'), line_key, ':'.join(uids), line[line_key], mvals)
+                n_warn_printed += 1
+            line[line_key] = mvals
+            usets['replaced'][line_key] |= set(uids)
+
+    if any(len(us) > 0 for us in usets['replaced'].values()) > 0:
+        modified_keys = [lk for lk, us in usets['replaced'].items() if len(us) > 0]
+        print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), sum(len(us) for us in usets['replaced'].values()), utils.plural(modified_keys), ', '.join(modified_keys), n_max_warn_print)
     if debug:
-        print '  transferred input meta info (%s) for %d sequences from input_info' % (', '.join('\'%s\'' % k for k in added_keys), len(added_uids))
+        print '  add_input_metafo(): transferring input metafo from <input_info> to <line> (counts in table are uids, not lines)'
+        print '                     no-info  with-info    one-src ident. not-overwr. replaced'
+        for ik, lk in utils.input_metafile_keys.items():
+            if len(usets['with-info'][lk]) == 0:
+                continue
+            print '     %15s   %3d     %3d         %3d      %3d      %3d      %3d' % (lk, len(usets['no-info'][lk]), len(usets['with-info'][lk]), len(usets['one-source'][lk]), len(usets['identical'][lk]), len(usets['not-overwritten'][lk]), len(usets['replaced'][lk]))
 
 # ----------------------------------------------------------------------------------------
 def post_process(input_info, reco_info, args, infname, found_seed, is_data, iline):
@@ -283,7 +304,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             found_seed = True
         input_info.update(more_input_info)
     if args is not None and args.input_metafname is not None:
-        read_input_metafo(args.input_metafname, input_info.values(), debug=True)
+        read_input_metafo(args.input_metafname, input_info.values())
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 
     if len(input_info) == 0:
