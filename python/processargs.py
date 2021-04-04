@@ -250,7 +250,7 @@ def process(args):
             args.aligned_germline_fname = '%s/%s/imgt-alignments/%s.fa' % (args.default_initial_germline_dir, args.species, args.locus)
         if not os.path.exists(args.aligned_germline_fname):
             raise Exception('--aligned-germline-fname %s doesn\'t exist, but we need it in order to write presto output' % args.aligned_germline_fname)
-    if args.airr_output:
+    if not args.paired_loci and args.airr_output:
         if args.outfname is None:
             raise Exception('have to set --outfname if --airr-output is set')
         if utils.getsuffix(args.outfname) == '.tsv':
