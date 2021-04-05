@@ -16,12 +16,12 @@ naive_hamming_bound_type = 'naive-hamming' #'likelihood'
 
 # ----------------------------------------------------------------------------------------
 # return standardized file name (including subdirs) in directory structure that we use for paired heavy/light i/o
-def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig'):  # if set, only file(s) for this <locus>, and/or only files for this <lpair> of loci. If <lpair> is set but <locus> is None, returns subdir name
+def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig', actstr=None):  # if set, only file(s) for this <locus>, and/or only files for this <lpair> of loci. If <lpair> is set but <locus> is None, returns subdir name
     if lpair is not None:
         bdir = '%s/%s' % (bdir, '+'.join(lpair))
         if locus is None:
             return bdir
-    return '%s/%s%s' % (bdir, locus, suffix)
+    return '%s/%s%s%s' % (bdir, '' if actstr is None else actstr+'-', locus, suffix)
 
 # ----------------------------------------------------------------------------------------
 def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig', include_failed=False, include_meta=False):  # return all files + dirs from previous fcn
