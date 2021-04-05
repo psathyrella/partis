@@ -405,7 +405,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             if iclust_fnames is not None and iclust < iclust_fnames:
                 fnames[-1].append(fn)
         assert len(set([len(plotvals[vt]) for vt in plotvals])) == 1  # make sure all of them are the same length
-        for vtype in [vt for vt in plotvals if vt != 'uids']:
+        for vtype in plotvals:
             plotvals[vtype] += iclust_plotvals[vtype]
 
     # uncomment this to only plot high affinity/lb values (mostly to speed up plotting)
