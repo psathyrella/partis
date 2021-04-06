@@ -2084,6 +2084,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if 'paired-uids' not in h_atn:  # seems to just be single-seq clusters, so i don't care
                 continue
             l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
+            if len(l_clusts) != 1:
+                print '  %s couldn\'t find a unique light cluster for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(h_atn), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
+                continue
             assert len(l_clusts) == 1
             l_atn = l_atn_dict[':'.join(l_clusts[0])]
             h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
@@ -2119,6 +2122,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg:
                 print '      skipped %d with too many ambiguous bases (>%d)' % (n_before - len(metric_pairs), cfgfo['max-ambig-bases'])
+        if len(metric_pairs) == 0:
+            return []
         chosen_mfos = []
         for sortvar, vcfg in cfgfo['vars'].items():
             if 'h_'+sortvar not in metric_pairs[0]:
