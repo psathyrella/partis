@@ -850,7 +850,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for lpair in spairs():
                     lp_infos[tuple(lpair)] = read_output_files(lpair, lpair=lpair, read_selection_metrics=True)
                 _ = read_qti_file(args)  # sets args.queries_to_include
-                treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=args.plotdir, args=args)
+                treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/combo-selection-metrics', args=args)
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         utils.rmdir(args.workdir, fnames=work_fnames)

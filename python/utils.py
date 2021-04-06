@@ -595,14 +595,14 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
     return [get_multiplicity(line, iseq=i) for i in range(len(line['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
-def synthesize_single_seq_line(line, iseq):
+def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting dont_deep_copy is obviously *really* *dangerous*
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     singlefo = {}
     for key in line:
         if key in linekeys['per_seq']:
             singlefo[key] = [line[key][iseq], ]  # used to also deepcopy the per-seq value, but it's really slow and i really think there's no reason to
         else:
-            singlefo[key] = copy.deepcopy(line[key])
+            singlefo[key] = line[key] if dont_deep_copy else copy.deepcopy(line[key])
     return singlefo
 
 # ----------------------------------------------------------------------------------------
