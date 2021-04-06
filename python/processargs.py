@@ -252,13 +252,15 @@ def process(args):
             raise Exception('--aligned-germline-fname %s doesn\'t exist, but we need it in order to write presto output' % args.aligned_germline_fname)
     if not args.paired_loci and args.airr_output:
         if args.outfname is None:
-            raise Exception('have to set --outfname if --airr-output is set')
-        if utils.getsuffix(args.outfname) == '.tsv':
-            print '  note: writing only airr .tsv to %s' % args.outfname
-        elif utils.getsuffix(args.outfname) in ['.yaml', '.csv']:
-            print '  note: writing both partis %s to %s and airr .tsv to %s' % (utils.getsuffix(args.outfname), args.outfname, utils.replace_suffix(args.outfname, '.tsv'))
+            if args.action != 'cache-parameters':
+                print '  note: no --outfname set'
         else:
-            raise Exception('--outfname suffix has to be either .tsv or .yaml if --airr-output is set (got %s)' % utils.getsuffix(args.outfname))
+            if utils.getsuffix(args.outfname) == '.tsv':
+                print '  note: writing only airr .tsv to %s' % args.outfname
+            elif utils.getsuffix(args.outfname) in ['.yaml', '.csv']:
+                print '  note: writing both partis %s to %s and airr .tsv to %s' % (utils.getsuffix(args.outfname), args.outfname, utils.replace_suffix(args.outfname, '.tsv'))
+            else:
+                raise Exception('--outfname suffix has to be either .tsv or .yaml if --airr-output is set (got %s)' % utils.getsuffix(args.outfname))
     if args.airr_input:
         args.seq_column = 'sequence'
         args.name_column = 'sequence_id'
