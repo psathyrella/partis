@@ -2160,11 +2160,20 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '      %s: chose %d%s' % (sortvar, n_new, '' if n_new==n_var_choose else ' (%d were in common with a previous var)'%(n_var_choose-n_new))
         if cfgfo['include-cons-seqs']:
             m0 = metric_pairs[0]
-            consfo = {c : {
-                'unique_ids' : '%s-cons-%s' % (utils.uidhashstr(m0[c]['consensus_seq_aa'])[:hash_len], m0[c]['loci'][0]),
+            consfo = {c : {  # constructing this pseudo-non-annotation is a terrible idea
+                'unique_ids' : ['%s-cons-%s' % (utils.uidhashstr(m0[c]['consensus_seq_aa'])[:hash_len], m0[c]['loci'][0])],
                 'seqs_aa' : [m0[c]['consensus_seq_aa']],
-                'seqs' : utils.cons_seq_of_line(m0[c]),
+                'seqs' : [m0[c]['consensus_seq']],
+                'input_seqs' : [m0[c]['consensus_seq']],  # arg, this isn't even right maybe
+                'consensus_seq_aa' : m0[c]['consensus_seq_aa'],
+                'v_gene' : m0[c]['v_gene'],
+                'd_gene' : m0[c]['d_gene'],
+                'j_gene' : m0[c]['j_gene'],
+                'has_shm_indels' : [False],
+                'cell-types' : [m0[c].get('cell-types', [None])[0]],
             } for c in 'hl'}
+            consfo.update({'iclust' : iclust, 'is_consensus' : True})
+            consfo.update({c+'_family_size' : m0[c+'_family_size'] for c in 'hl'})
             chosen_mfos.append(consfo)
             if tdbg:
                 print '      added cons seq'
@@ -2188,6 +2197,42 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         iclust_chosen_ids = [m[c]['unique_ids'][0] for m in iclust_mfos for c in 'hl']
         iclust_plotvals['uids'] = [ustr(m) for m in metric_pairs]
         iclust_plotvals['chosen'] = [waschosen(m) for m in metric_pairs]
+    # ----------------------------------------------------------------------------------------
+    def write_chosen_file(all_chosen_mfos):
+        if debug:
+            print '      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname)
+        with open(args.chosen_ab_fname, 'w') as cfile:
+            outfos = []
+            for mfo in all_chosen_mfos:
+                ofo = {'iclust' : mfo['iclust']}
+                for tch in 'hl':
+                    ofo.update({tch+'_'+r+'_gene' : mfo[tch][r+'_gene'] for r in utils.regions})
+                    ofo.update({
+                        tch+'_id' : mfo[tch]['unique_ids'][0],
+                        tch+'_family_size' : mfo[tch+'_family_size'],
+                        tch+'_has_indels' : mfo[tch]['has_shm_indels'][0],
+                        tch+'_cell_type' : mfo[tch]['cell-types'][0],
+                        tch+'_seq_nuc' : mfo[tch]['input_seqs'][0],
+                        tch+'_seq_aa' : mfo[tch]['seqs_aa'][0],
+                    })
+                    if 'is_consensus' not in mfo:
+                        ofo.update({
+                            tch+'_aa-cfrac' : gsval(mfo[tch], 'aa-cfrac'), #/100.,
+                            tch+'_aa-cdist' : gsval(mfo[tch], 'aa-cdist'),
+                            tch+'_shm-aa' : gsval(mfo[tch], 'shm-aa'),
+                        })
+                if 'is_consensus' not in mfo:
+                    ofo.update({
+                        'sum_aa-cfrac' : sum(gsval(mfo[c], 'aa-cfrac') for c in 'hl'),  # /100.
+                        'sum_aa-cdist' : sum(gsval(mfo[c], 'aa-cdist') for c in 'hl'),
+                        'sum_shm-aa' : sum(gsval(mfo[c], 'shm-aa') for c in 'hl'),
+                    })
+                outfos.append(ofo)
+            if len(all_chosen_mfos) > 0:
+                writer = csv.DictWriter(cfile, outfos[0].keys())
+                writer.writeheader()
+                for ofo in outfos:
+                    writer.writerow(ofo)
     # ----------------------------------------------------------------------------------------
     debug = True
     if plotdir is not None:
@@ -2219,6 +2264,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             mpfo = {'iclust' : iclust}
             for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
                 mpfo[tch] = utils.synthesize_single_seq_line(ltmp, ltmp['unique_ids'].index(uid), dont_deep_copy=True)  # NOTE you *have* to make sure you add the consensus seqs before doing this (also, maybe it would be better to not synthesize a line here and instead just store the iseq?)
+                mpfo[tch+'_family_size'] = len(ltmp['unique_ids'])
             metric_pairs.append(mpfo)
         if len(metric_pairs) == 0:
             continue
@@ -2278,12 +2324,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
                 all_plotvals[k] += iclust_plotvals[k]
     if args.chosen_ab_fname is not None:
-        if debug:
-            print '      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname)
-        with open(args.chosen_ab_fname, 'w') as cfile:
-            writer = csv.DictWriter(cfile, all_chosen_mfos[0].keys()) #['h_id', 'l_id', 'h_seq', 'l_seq'])
-            writer.writeheader()
-            for line in all_chosen_mfos:
-                writer.writerow(line)
+        write_chosen_file(all_chosen_mfos)
     if plotdir is not None:  # NOTE set --dry when getting selection metrics to get these plots, but not the regular (single-chain) selection metric plots (which are slow, especially the tree ones)
         lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')
