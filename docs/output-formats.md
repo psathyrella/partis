@@ -111,8 +111,8 @@ The following keys can also be added to the output file using `--extra-annotatio
 | full_coding_input_seqs  |  see full_coding_naive_seq `[per-seq]`
 | cons_dists_nuc          |  nucleotide distance to clonal family consensus sequence
 | cons_dists_aa           |  amino acid distance to clonal family consensus sequence
-| consensus_seq           |  clonal family nucleotide consensus sequence
-| consensus_seq_aa        |  clonal family amino acid consensus sequence
+| consensus_seq           | nucleotide consensus sequence for the family (calculated from "indel_reversed_seqs", *not* from "input_seqs", i.e. any shm indels are reversed; i.e. assumes that indels are in a minority of the family, which could be incorrect)
+| consensus_seq_aa        | amino acid consensus sequence for the family (calculated from "indel_reversed_seqs", *not* from "input_seqs", i.e. any shm indels are reversed; i.e. assumes that indels are in a minority of the family, which could be incorrect) 
 | seqs_aa                 |  amino acid translations of the nucleotide sequence under the 'indel_reversed_seqs' key
 | naive_seq_aa            |  amino acid translation of 'naive_seq'
 
