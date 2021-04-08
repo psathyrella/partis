@@ -19,6 +19,13 @@ def get_empty_indel():
     return emptdel
 
 # ----------------------------------------------------------------------------------------
+def has_indels_line(line, iseq):  # arg it sucks that these fcns both exist, but I can't change all the instances that use the older one (below) right now (the basic reason this fcn exists is that sometimes only 'indelfos' is there, and sometimes only 'has_shm_indels' is there (I think if reading a file without adding implicit info?)
+    if 'has_shm_indels' in line:
+        return line['has_shm_indels'][iseq]
+    else:
+        return has_indels(line['indelfos'][iseq])
+
+# ----------------------------------------------------------------------------------------
 def has_indels(indelfo):
     if 'unique_ids' in indelfo:
         raise Exception('call this on line[\'indelfos\'][iseq], not on the whole line')

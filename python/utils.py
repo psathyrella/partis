@@ -2952,7 +2952,7 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
             print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
         return tseq
     line['seqs_aa'] = [ltranslate(tmpseq(s)) for s in line['seqs']]
-    line['input_seqs_aa'] = [ltranslate(tmpseq(inseq)) if has_indel else irseq_aa for has_indel, inseq, irseq_aa in zip(line['has_shm_indels'], line['input_seqs'], line['seqs_aa'])]
+    line['input_seqs_aa'] = [ltranslate(tmpseq(inseq)) if indelutils.has_indels_line(line, iseq) else irseq_aa for iseq, (inseq, irseq_aa) in enumerate(zip(line['input_seqs'], line['seqs_aa']))]
     if debug:
         print pad_lines('\n'.join(line['seqs_aa']))
         if any(h for h in line['has_shm_indels']):
