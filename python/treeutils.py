@@ -2154,7 +2154,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             sorted_mfos = sorted(metric_pairs, key=lambda m: sum(gsval(m, c, sortvar) for c in 'hl'), reverse=vcfg['sort']=='high')
             for mfo in sorted_mfos[:n_var_choose]:
                 if any(gsval(mfo, c, 'has_shm_indels') for c in 'hl'):
-                    print '  %s chose ab with shm indel, need to implement use of non-indel-reversed aa seq (although nuc seq will be in output file): %s %s' % (utils.color('red', 'error'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
+                    print '  %s chose ab with shm indel: the consensus sequence will *not* reflect the indels (it assumes most of the family doesn\'t have this indel, which may be incorrect), and you need to be *very* careful that you get the sequence you expect from the output file.  uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
                 if mfo not in chosen_mfos:
                     chosen_mfos.append(mfo)
                     n_new += 1
@@ -2204,7 +2204,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 ofo.update([(c+'_seq_nuc', mfo[c]['consensus_seq']) for c in 'hl'])
                 ofo.update([(c+'_seq_aa', mfo[c]['consensus_seq_aa']) for c in 'hl'])
             else:
-                for ok, lk in [('seq_nuc', 'input_seqs'), ('seq_aa', 'seqs_aa'), ('has_shm_indels', None), ('cell_type', 'cell-types'), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None)]:
+                for ok, lk in [('has_shm_indels', None), ('cell_type', 'cell-types'), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None), ('seq_nuc', 'input_seqs'), ('seq_aa', 'input_seqs_aa')]:
                     ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]))) for c in 'hl'])
             return ofo
         # ----------------------------------------------------------------------------------------

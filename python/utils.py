@@ -405,7 +405,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'reads', 'umis', 'c_genes', 'cell-types',
-                       'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
+                       'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -595,6 +595,7 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
     return [get_multiplicity(line, iseq=i) for i in range(len(line['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
+# NOTE the consensus seqs will (obviously) be *different* afterwards
 def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting dont_deep_copy is obviously *really* *dangerous*
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
     singlefo = {}
@@ -2951,8 +2952,11 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
             print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
         return tseq
     line['seqs_aa'] = [ltranslate(tmpseq(s)) for s in line['seqs']]
+    line['input_seqs_aa'] = [ltranslate(tmpseq(inseq)) if has_indel else irseq_aa for has_indel, inseq, irseq_aa in zip(line['has_shm_indels'], line['input_seqs'], line['seqs_aa'])]
     if debug:
         print pad_lines('\n'.join(line['seqs_aa']))
+        if any(h for h in line['has_shm_indels']):
+            print '%s in add_seqs_aa() one has an indel, input_seqs_aa debug needs to be implemented' % color('red', 'error')
 
 # ----------------------------------------------------------------------------------------
 def shm_aa(line, iseq=None, uid=None):  # it's kind of weird to have this fcn separate, whereas the non-aa one we don't, but it only really exists so it can add the aa seqs
