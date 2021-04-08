@@ -2123,6 +2123,12 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg:
                 print '      skipped %d with cell type not among %s' % (n_before - len(metric_pairs), cfgfo['cell-types'])
+        if 'min-umis' in cfgfo and 'umis' in metric_pairs[0]['h']:
+            def keepfcn(m): return sum(gsval(m, c, 'umis') for c in 'hl') > cfgfo['min-umis']
+            n_before = len(metric_pairs)
+            metric_pairs = [m for m in metric_pairs if keepfcn(m)]
+            if tdbg:
+                print '      skipped %d with umis less than %d' % (n_before - len(metric_pairs), cfgfo['min-umis'])
         if 'max-ambig-bases' in cfgfo:  # would be better to count ambiguous amino acid residues (for cases where the ambiguous nuc doesn't lead to ambig aa), but i don't feel like dealing with the difference
             # argggg the effective erosions are still zero after this, that was pointless
             # lpair = [l['loci'][0] for l in h_atn, l_atn]
@@ -2221,9 +2227,17 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     writer.writerow(ofo)
     # ----------------------------------------------------------------------------------------
     def print_dbg(metric_pairs):
-        ctlen = 0
-        if any('cell-types' in mpfo[c] for mpfo in metric_pairs for c in 'hl'):
-            ctlen = max([len('cell'), len('type')] + [len(str(gsval(m, c, 'cell-types'))) for m in metric_pairs for c in 'hl'])
+        xtra_heads = [('cell-types', ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c_gene', ''])]
+        xheads, xtrafo, xlen = [[], []], [], 0
+        for xn, xh in xtra_heads:
+            if all(xn not in mpfo[c] for mpfo in metric_pairs for c in 'hl'):
+                continue
+            xtrafo.append(xn)
+            ctlens = [len(str(gsval(m, c, xn))) for m in metric_pairs for c in 'hl']
+            xheads = [x + [utils.wfmt(s, max(ctlens))] for x, s in zip(xheads, xh)]
+            xlen = max([xlen] + ctlens)
+        xlen = max([xlen] + [len(h) for x in xheads for h in x])
+
         lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
         h_cshm, l_cshm = [lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
         cdstr = '%2d %2d' % (h_cshm, l_cshm)
@@ -2233,8 +2247,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
         h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
         h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig %s indels  N aa mutations      sizes           %s %s %s') % (utils.wfmt('cell', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
-        print ('             sum   h    l       h   l                           h  l  %s         cons.      obs.   both   h   l      %s %s %s') % (utils.wfmt('type', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
+        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels %s  N aa mutations      sizes           %s %s %s') % (utils.wfmt('  '.join(xheads[0]), xlen), utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
+        print ('             sum   h    l       h   l                           h  l         %s  cons.      obs.   both   h   l      %s %s %s') % (utils.wfmt('  '.join(xheads[1]), xlen), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
         for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: sum(gsval(x, c, 'aa-cfrac') for c in 'hl'))):
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
             dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (hid, lid)])
@@ -2246,17 +2260,24 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '  %s paired seqs %s %s have different droplet ids %s' % (utils.color('red', 'error'), hid, lid, dids)
                 didstr = 'see error'
             indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
-            ctstr = ''
-            if 'cell-types' in h_atn or 'cell-types' in l_atn:
-                assert all('cell-types' in l for l in [h_atn, l_atn])
+
+            xstr = []  # don't try to condense these into a block, they're too different
+            if 'cell-types' in xtrafo:
                 ctval = utils.get_single_entry(list(set(gsval(mpfo, c, 'cell-types') for c in 'hl')))
-                ctstr = ('%'+str(ctlen)+'s') % ('?' if ctval is None else ctval)
+                xstr += [utils.wfmt(utils.non_none([ctval, '?']), xlen)]
+            if 'umis' in xtrafo:
+                uvals = [gsval(mpfo, c, 'umis') for c in 'hl']
+                xstr += [utils.wfmt('?' if None in uvals else sum(uvals), xlen)]
+            if 'c_genes' in xtrafo:
+                cg = gsval(mpfo, 'h', 'c_genes')
+                xstr += [utils.wfmt('?' if cg in [None, 'None'] else cg.replace('IGH', ''), xlen)]
+
             h_seq, l_seq = [utils.color_mutants(l['consensus_seq_aa'], utils.per_seq_val(l, 'seqs_aa', u), amino_acid=True) for u, l in zip((hid, lid), (h_atn, l_atn))]
-            print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %s %20s  %s  %s %s    %s  %s   %2d %2d %2d  %s    %s   %s %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
+            print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %s %20s  %s  %s   %s  %s  %s   %2d %2d %2d  %s    %s   %s %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
                                                                                                                             100*sum(gsval(mpfo, c, 'aa-cfrac') for c in 'hl'), 100*gsval(mpfo, 'h', 'aa-cfrac'), 100*gsval(mpfo, 'l', 'aa-cfrac'),
                                                                                                                             gsval(mpfo, 'h', 'aa-cdist'), gsval(mpfo, 'l', 'aa-cdist'),
                                                                                                                             utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
-                                                                                                                            didstr, cids[0], cids[1], ctstr, indelstr, cdstr if imp==0 else ' '*len(cdstr),
+                                                                                                                            didstr, cids[0], cids[1], indelstr, ' '.join(xstr), cdstr if imp==0 else ' '*len(cdstr),
                                                                                                                             sum(gsval(mpfo, c, 'shm-aa') for c in 'hl'), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'),
                                                                                                                             sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
                                                                                                                             h_seq, l_seq)

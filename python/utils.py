@@ -66,6 +66,7 @@ def timeprinter(fcn):
 
 # ----------------------------------------------------------------------------------------
 # NOTE there are many many many places where i could use this
+# see it's short for "width format"...
 def wfmt(val, width, fmt='s'):  # return <val> formatted with with <width> and format <fmt> (the necessary parentheses really make stuff hard to read without this fcn)
     return ('%' + str(width) + fmt) % val
 
