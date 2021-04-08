@@ -2094,29 +2094,31 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             lp_antn_pairs.append((h_atn, l_atn))
         return lp_antn_pairs
     # ----------------------------------------------------------------------------------------
-    def gsval(sline, vname):
-        assert len(sline['unique_ids']) == 1
-        if vname in sline:
-            return sline[vname][0]
-        if vname == 'aa-cfrac':
-            assert 'consensus_seq_aa' in sline  # it *has* to have been added before synthesizing a single seq line (or it'll be wrong)
-            return lb_cons_dist(sline, 0, aa=True, frac=True)
+    def gsval(mfo, tch, vname):
+        cln, iseq = mfo[tch], mfo[tch+'_iseq']
+        if vname in cln:
+            assert vname in utils.linekeys['per_seq']
+            return cln[vname][iseq]
+        elif vname == 'cell-types':
+            return None
+        elif vname == 'aa-cfrac':
+            return lb_cons_dist(cln, iseq, aa=True, frac=True)
         elif vname == 'shm-aa':
-            return utils.shm_aa(sline, iseq=0)
+            return utils.shm_aa(cln, iseq=iseq)
         elif vname == 'aa-cdist':
-            return -smvals(sline, 'cons-dist-aa', iseq=0)
+            return -smvals(cln, 'cons-dist-aa', iseq=iseq)
         elif vname in selection_metrics:
-            return smvals(sline, vname, iseq=0)
+            return smvals(cln, vname, iseq=iseq)
         else:
             raise Exception('unsupported sort var \'%s\'' % vname)
     # ----------------------------------------------------------------------------------------
-    def choose_abs(metric_pairs, iclust, hash_len=8, tdbg=False):
+    def choose_abs(metric_pairs, iclust, tdbg=False):
         if iclust >= cfgfo['n-families']:
             return []
         if tdbg:
             print '    choosing abs from joint cluster with size %d (marked with %s)' % (len(metric_pairs), utils.color('green', 'x'))
         if 'cell-types' in cfgfo and 'cell-types' in metric_pairs[0]['h']:
-            def keepfcn(m): return all(m[c]['cell-types'][0] in cfgfo['cell-types'] for c in 'hl')  # kind of dumb to check both, they should be the same, but whatever it'll crash in the debug printing below if they're different
+            def keepfcn(m): return all(gsval(m, c, 'cell-types') in cfgfo['cell-types'] for c in 'hl')  # kind of dumb to check both, they should be the same, but whatever it'll crash in the debug printing below if they're different
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg:
@@ -2129,10 +2131,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             # print h_tmp_atn['v_5p_del'], h_tmp_atn['j_3p_del']
             # print l_tmp_atn['v_5p_del'], l_tmp_atn['j_3p_del']
             # utils.print_reco_event(htmp_atn)
-            def n_ambig(atn):  # single-seq line
-                istart, istop = len(atn['fv_insertion']), len(atn['seqs'][0]) - len(atn['jf_insertion'])
-                return atn['seqs'][0][istart : istop].count(utils.ambig_base)
-            def keepfcn(m): return all(n_ambig(m[c]) <= cfgfo['max-ambig-bases'] for c in 'hl')
+            def n_ambig(m, c):  # single-seq line
+                istart, istop = len(m[c]['fv_insertion']), len(gsval(m, c, 'seqs')) - len(m[c]['jf_insertion'])
+                return gsval(m, c, 'seqs')[istart : istop].count(utils.ambig_base)
+            def keepfcn(m): return all(n_ambig(m, c) <= cfgfo['max-ambig-bases'] for c in 'hl')
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg:
@@ -2149,31 +2151,18 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 assert len(n_cfg) == cfgfo['n-families']
                 n_var_choose = n_cfg[iclust]
             n_new = 0
-            sorted_mfos = sorted(metric_pairs, key=lambda m: sum(gsval(m[c], sortvar) for c in 'hl'), reverse=vcfg['sort']=='high')
+            sorted_mfos = sorted(metric_pairs, key=lambda m: sum(gsval(m, c, sortvar) for c in 'hl'), reverse=vcfg['sort']=='high')
             for mfo in sorted_mfos[:n_var_choose]:
-                if any(mfo[c]['has_shm_indels'][0] for c in 'hl'):
-                    print '  %s chose ab with shm indel, need to implement use of non-indel-reversed aa seq (although nuc seq will be in output file): %s %s' % (utils.color('red', 'error'), mfo['h']['unique_ids'][0], mfo['l']['unique_ids'][0])
+                if any(gsval(mfo, c, 'has_shm_indels') for c in 'hl'):
+                    print '  %s chose ab with shm indel, need to implement use of non-indel-reversed aa seq (although nuc seq will be in output file): %s %s' % (utils.color('red', 'error'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
                 if mfo not in chosen_mfos:
                     chosen_mfos.append(mfo)
                     n_new += 1
             if tdbg:
                 print '      %s: chose %d%s' % (sortvar, n_new, '' if n_new==n_var_choose else ' (%d were in common with a previous var)'%(n_var_choose-n_new))
         if cfgfo['include-cons-seqs']:
-            m0 = metric_pairs[0]
-            consfo = {c : {  # constructing this pseudo-non-annotation is a terrible idea
-                'unique_ids' : ['%s-cons-%s' % (utils.uidhashstr(m0[c]['consensus_seq_aa'])[:hash_len], m0[c]['loci'][0])],
-                'seqs_aa' : [m0[c]['consensus_seq_aa']],
-                'seqs' : [m0[c]['consensus_seq']],
-                'input_seqs' : [m0[c]['consensus_seq']],  # arg, this isn't even right maybe
-                'consensus_seq_aa' : m0[c]['consensus_seq_aa'],
-                'v_gene' : m0[c]['v_gene'],
-                'd_gene' : m0[c]['d_gene'],
-                'j_gene' : m0[c]['j_gene'],
-                'has_shm_indels' : [False],
-                'cell-types' : [m0[c].get('cell-types', [None])[0]],
-            } for c in 'hl'}
-            consfo.update({'iclust' : iclust, 'is_consensus' : True})
-            consfo.update({c+'_family_size' : m0[c+'_family_size'] for c in 'hl'})
+            consfo = {c : metric_pairs[0][c] for c in 'hl'}
+            consfo.update({'iclust' : iclust, 'consensus' : True})
             chosen_mfos.append(consfo)
             if tdbg:
                 print '      added cons seq'
@@ -2181,58 +2170,101 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs):
         def waschosen(m):
-            return 'chosen' if all(m[c]['unique_ids'][0] in iclust_chosen_ids for c in 'hl') else 'nope'
+            return 'chosen' if all(gsval(m, c, 'unique_ids') in iclust_chosen_ids for c in 'hl') else 'nope'
         def ustr(m):
             rstr = ''
-            # if waschosen(m):
+            # if waschosen(m):  # if this is commented, i think i can simplify this fcn a lot?
             #     rstr = 'x'
-            if args.queries_to_include is not None and all(m[c]['unique_ids'][0] in args.queries_to_include for c in 'hl'):
-                common_chars = ''.join(c for c, d in zip(m['h']['unique_ids'][0], m['l']['unique_ids'][0]) if c==d)
+            if args.queries_to_include is not None and all(gsval(m, c, 'unique_ids') in args.queries_to_include for c in 'hl'):
+                common_chars = ''.join(c for c, d in zip(gsval(m, 'h', 'unique_ids'), gsval(m, 'l', 'unique_ids')) if c==d)
                 common_chars = common_chars.rstrip('-ig')
                 if len(common_chars) > 0:
                     rstr += ' ' + common_chars
                 else:
-                    rstr += ' ' + ' '.join(m[c]['unique__ids'] for c in 'hl')
+                    rstr += ' ' + ' '.join(gsval(m, c, 'unique__ids') for c in 'hl')
             return None if rstr == '' else rstr
-        iclust_chosen_ids = [m[c]['unique_ids'][0] for m in iclust_mfos for c in 'hl']
+        iclust_chosen_ids = [gsval(m, c, 'unique_ids') for m in iclust_mfos for c in 'hl']
         iclust_plotvals['uids'] = [ustr(m) for m in metric_pairs]
         iclust_plotvals['chosen'] = [waschosen(m) for m in metric_pairs]
     # ----------------------------------------------------------------------------------------
-    def write_chosen_file(all_chosen_mfos):
+    def write_chosen_file(all_chosen_mfos, hash_len=8):
+        # ----------------------------------------------------------------------------------------
+        def getofo(mfo):
+            ofo = collections.OrderedDict([('iclust', mfo['iclust'])])
+            if 'consensus' in mfo:
+                def consid(mfo, c): return '%s-cons-%s' % (utils.uidhashstr(mfo[c]['consensus_seq_aa'])[:hash_len], mfo[c]['loci'][0])
+                ofo.update([(c+'_id', consid(mfo, c)) for c in 'hl'])
+            else:
+                ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
+                for kn in ['aa-cfrac', 'shm-aa', 'aa-cdist']:
+                    ofo.update([('sum_'+kn, sum(gsval(mfo, c, kn) for c in 'hl'))])
+            ofo.update([(c+'_family_size', len(mfo[c]['unique_ids'])) for c in 'hl'])
+            ofo.update([(c+'_'+r+'_gene' , mfo[c][r+'_gene']) for r in utils.regions for c in 'hl'])
+            if 'consensus' in mfo:
+                ofo.update([(c+'_seq_nuc', mfo[c]['consensus_seq']) for c in 'hl'])
+                ofo.update([(c+'_seq_aa', mfo[c]['consensus_seq_aa']) for c in 'hl'])
+            else:
+                for ok, lk in [('seq_nuc', 'input_seqs'), ('seq_aa', 'seqs_aa'), ('has_shm_indels', None), ('cell_type', 'cell-types'), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None)]:
+                    ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]))) for c in 'hl'])
+            return ofo
+        # ----------------------------------------------------------------------------------------
         if debug:
             print '      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname)
         with open(args.chosen_ab_fname, 'w') as cfile:
             outfos = []
             for mfo in all_chosen_mfos:
-                ofo = {'iclust' : mfo['iclust']}
-                for tch in 'hl':
-                    ofo.update({tch+'_'+r+'_gene' : mfo[tch][r+'_gene'] for r in utils.regions})
-                    ofo.update({
-                        tch+'_id' : mfo[tch]['unique_ids'][0],
-                        tch+'_family_size' : mfo[tch+'_family_size'],
-                        tch+'_has_indels' : mfo[tch]['has_shm_indels'][0],
-                        tch+'_cell_type' : mfo[tch]['cell-types'][0],
-                        tch+'_seq_nuc' : mfo[tch]['input_seqs'][0],
-                        tch+'_seq_aa' : mfo[tch]['seqs_aa'][0],
-                    })
-                    if 'is_consensus' not in mfo:
-                        ofo.update({
-                            tch+'_aa-cfrac' : gsval(mfo[tch], 'aa-cfrac'), #/100.,
-                            tch+'_aa-cdist' : gsval(mfo[tch], 'aa-cdist'),
-                            tch+'_shm-aa' : gsval(mfo[tch], 'shm-aa'),
-                        })
-                if 'is_consensus' not in mfo:
-                    ofo.update({
-                        'sum_aa-cfrac' : sum(gsval(mfo[c], 'aa-cfrac') for c in 'hl'),  # /100.
-                        'sum_aa-cdist' : sum(gsval(mfo[c], 'aa-cdist') for c in 'hl'),
-                        'sum_shm-aa' : sum(gsval(mfo[c], 'shm-aa') for c in 'hl'),
-                    })
-                outfos.append(ofo)
+                outfos.append(getofo(mfo))
             if len(all_chosen_mfos) > 0:
                 writer = csv.DictWriter(cfile, outfos[0].keys())
                 writer.writeheader()
                 for ofo in outfos:
                     writer.writerow(ofo)
+    # ----------------------------------------------------------------------------------------
+    def print_dbg(metric_pairs):
+        ctlen = 0
+        if any('cell-types' in mpfo[c] for mpfo in metric_pairs for c in 'hl'):
+            ctlen = max([len('cell'), len('type')] + [len(str(gsval(m, c, 'cell-types'))) for m in metric_pairs for c in 'hl'])
+        lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
+        h_cshm, l_cshm = [lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
+        cdstr = '%2d %2d' % (h_cshm, l_cshm)
+        sstr = ' %3d  %3d %3d' % (len(metric_pairs), len(h_atn['unique_ids']), len(l_atn['unique_ids']))
+        gstrs = ['%s %s' % (utils.color_gene(h_atn[r+'_gene']), utils.color_gene(l_atn[r+'_gene']) if r!='d' else '') for r in utils.regions]
+        gstr_len = max(utils.len_excluding_colors(s) for s in gstrs)  # don't really need this as long as it's the last column
+        gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
+        h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
+        h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
+        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig %s indels  N aa mutations      sizes           %s %s %s') % (utils.wfmt('cell', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
+        print ('             sum   h    l       h   l                           h  l  %s         cons.      obs.   both   h   l      %s %s %s') % (utils.wfmt('type', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
+        for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: sum(gsval(x, c, 'aa-cfrac') for c in 'hl'))):
+            hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
+            dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (hid, lid)])
+            if len(set(dids)) == 1:  # make sure they're from the same droplet
+                didstr = dids[0]
+                if args.queries_to_include is not None and hid in args.queries_to_include and lid in args.queries_to_include:
+                    didstr = utils.color('red', didstr, width=20)
+            else:
+                print '  %s paired seqs %s %s have different droplet ids %s' % (utils.color('red', 'error'), hid, lid, dids)
+                didstr = 'see error'
+            indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
+            ctstr = ''
+            if 'cell-types' in h_atn or 'cell-types' in l_atn:
+                assert all('cell-types' in l for l in [h_atn, l_atn])
+                ctval = utils.get_single_entry(list(set(gsval(mpfo, c, 'cell-types') for c in 'hl')))
+                ctstr = ('%'+str(ctlen)+'s') % ('?' if ctval is None else ctval)
+            h_seq, l_seq = [utils.color_mutants(l['consensus_seq_aa'], utils.per_seq_val(l, 'seqs_aa', u), amino_acid=True) for u, l in zip((hid, lid), (h_atn, l_atn))]
+            print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %s %20s  %s  %s %s    %s  %s   %2d %2d %2d  %s    %s   %s %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
+                                                                                                                            100*sum(gsval(mpfo, c, 'aa-cfrac') for c in 'hl'), 100*gsval(mpfo, 'h', 'aa-cfrac'), 100*gsval(mpfo, 'l', 'aa-cfrac'),
+                                                                                                                            gsval(mpfo, 'h', 'aa-cdist'), gsval(mpfo, 'l', 'aa-cdist'),
+                                                                                                                            utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
+                                                                                                                            didstr, cids[0], cids[1], ctstr, indelstr, cdstr if imp==0 else ' '*len(cdstr),
+                                                                                                                            sum(gsval(mpfo, c, 'shm-aa') for c in 'hl'), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'),
+                                                                                                                            sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
+                                                                                                                            h_seq, l_seq)
+
+        for gs in gstrs[imp+1:]:  # if the cluster was smaller than gstrs, need to print the extra gstrs (this shouldn't really ever happen unless i make gstrs much longer))
+            print '%81s%s' % ('', gs)  # this width will sometimes be wrong
+        print ''
+
     # ----------------------------------------------------------------------------------------
     debug = True
     if plotdir is not None:
@@ -2263,8 +2295,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 continue
             mpfo = {'iclust' : iclust}
             for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
-                mpfo[tch] = utils.synthesize_single_seq_line(ltmp, ltmp['unique_ids'].index(uid), dont_deep_copy=True)  # NOTE you *have* to make sure you add the consensus seqs before doing this (also, maybe it would be better to not synthesize a line here and instead just store the iseq?)
-                mpfo[tch+'_family_size'] = len(ltmp['unique_ids'])
+                mpfo[tch] = ltmp
+                mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
             metric_pairs.append(mpfo)
         if len(metric_pairs) == 0:
             continue
@@ -2272,52 +2304,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if len(iclust_mfos) > 0:
             all_chosen_mfos += iclust_mfos
         if debug:
-            ctlen = 0
-            if any('cell-types' in mpfo[c] for mpfo in metric_pairs for c in 'hl'):
-                ctlen = max([len('cell'), len('type')] + [len(str(m[c].get('cell-types', [''])[0])) for m in metric_pairs for c in 'hl'])
-            lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
-            h_cshm, l_cshm = [lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
-            cdstr = '%2d %2d' % (h_cshm, l_cshm)
-            sstr = ' %3d  %3d %3d' % (len(metric_pairs), len(h_atn['unique_ids']), len(l_atn['unique_ids']))
-            gstrs = ['%s %s' % (utils.color_gene(h_atn[r+'_gene']), utils.color_gene(l_atn[r+'_gene']) if r!='d' else '') for r in utils.regions]
-            gstr_len = max(utils.len_excluding_colors(s) for s in gstrs)  # don't really need this as long as it's the last column
-            gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
-            h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-            h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-            print ('             aa-cfrac (%%)      aa-cdist         droplet        contig %s indels  N aa mutations      sizes           %s %s %s') % (utils.wfmt('cell', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
-            print ('             sum   h    l       h   l                           h  l  %s         cons.      obs.   both   h   l      %s %s %s') % (utils.wfmt('type', ctlen) if ctlen>0 else ' '*ctlen, utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
-            for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: sum(gsval(x[c], 'aa-cfrac') for c in 'hl'))):
-                hid, lid = [mpfo[c]['unique_ids'][0] for c in 'hl']
-                dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (hid, lid)])
-                if len(set(dids)) == 1:  # make sure they're from the same droplet
-                    didstr = dids[0]
-                    if args.queries_to_include is not None and hid in args.queries_to_include and lid in args.queries_to_include:
-                        didstr = utils.color('red', didstr, width=20)
-                else:
-                    print '  %s paired seqs %s %s have different droplet ids %s' % (utils.color('red', 'error'), hid, lid, dids)
-                    didstr = 'see error'
-                indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
-                ctstr = ''
-                if 'cell-types' in h_atn or 'cell-types' in l_atn:
-                    assert all('cell-types' in l for l in [h_atn, l_atn])
-                    ctval = utils.get_single_entry(list(set(mpfo[c]['cell-types'][0] for c in 'hl')))
-                    ctstr = ('%'+str(ctlen)+'s') % ('?' if ctval is None else ctval)
-                h_seq, l_seq = [utils.color_mutants(l['consensus_seq_aa'], utils.per_seq_val(l, 'seqs_aa', u), amino_acid=True) for u, l in zip((hid, lid), (h_atn, l_atn))]
-                print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %s %20s  %s  %s %s    %s  %s   %2d %2d %2d  %s    %s   %s %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
-                                                                                                                                100*sum(gsval(mpfo[c], 'aa-cfrac') for c in 'hl'), 100*gsval(mpfo['h'], 'aa-cfrac'), 100*gsval(mpfo['l'], 'aa-cfrac'),
-                                                                                                                                gsval(mpfo['h'], 'aa-cdist'), gsval(mpfo['l'], 'aa-cdist'),
-                                                                                                                                utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
-                                                                                                                                didstr, cids[0], cids[1], ctstr, indelstr, cdstr if imp==0 else ' '*len(cdstr),
-                                                                                                                                sum(gsval(mpfo[c], 'shm-aa') for c in 'hl'), gsval(mpfo['h'], 'shm-aa'), gsval(mpfo['l'], 'shm-aa'),
-                                                                                                                                sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
-                                                                                                                                h_seq, l_seq)
-
-        if debug:
-            for gs in gstrs[imp+1:]:  # if the cluster was smaller than gstrs, need to print the extra gstrs (this shouldn't really ever happen unless i make gstrs much longer))
-                print '%81s%s' % ('', gs)  # this width will sometimes be wrong
-            print ''
+            print_dbg(metric_pairs)
         if plotdir is not None:
-            iclust_plotvals = {c+'_aa-cfrac' : [gsval(m[c], 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
+            iclust_plotvals = {c+'_aa-cfrac' : [gsval(m, c, 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
             add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs)  # add uids for the chosen ones
             lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
             for k in iclust_plotvals:
