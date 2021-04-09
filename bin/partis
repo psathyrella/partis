@@ -786,7 +786,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
 
     # ----------------------------------------------------------------------------------------
-    paired_loci_actions = ['cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output']
+    paired_loci_actions = ['cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate']
     if args.action not in paired_loci_actions:
         raise Exception('action %s not supported for paired loci (choose from %s)' % (args.action, paired_loci_actions))
     if args.paired_outdir is None:
