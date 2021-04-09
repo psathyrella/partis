@@ -2117,13 +2117,13 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return []
         if tdbg:
             print '    choosing abs from joint cluster with size %d (marked with %s)' % (len(metric_pairs), utils.color('green', 'x'))
-        if 'cell-types' in cfgfo and 'cell-types' in metric_pairs[0]['h']:
+        if 'cell-types' in cfgfo and len(metric_pairs) > 0 and 'cell-types' in metric_pairs[0]['h']:
             def keepfcn(m): return all(gsval(m, c, 'cell-types') in cfgfo['cell-types'] for c in 'hl')  # kind of dumb to check both, they should be the same, but whatever it'll crash in the debug printing below if they're different
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg:
                 print '      skipped %d with cell type not among %s' % (n_before - len(metric_pairs), cfgfo['cell-types'])
-        if 'min-umis' in cfgfo and 'umis' in metric_pairs[0]['h']:
+        if 'min-umis' in cfgfo and len(metric_pairs) > 0 and 'umis' in metric_pairs[0]['h']:  # TODO this (and the other ones) should really warn if it's in cfgfo but not in the info in metric_pairs
             def keepfcn(m): return sum(gsval(m, c, 'umis') for c in 'hl') > cfgfo['min-umis']
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
@@ -2189,7 +2189,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 else:
                     rstr += ' ' + ' '.join(gsval(m, c, 'unique__ids') for c in 'hl')
             return None if rstr == '' else rstr
-        iclust_chosen_ids = [gsval(m, c, 'unique_ids') for m in iclust_mfos for c in 'hl']
+        non_cons_mfos = [m for m in iclust_mfos if 'consensus' not in m]
+        iclust_chosen_ids = [gsval(m, c, 'unique_ids') for m in non_cons_mfos for c in 'hl']
         iclust_plotvals['uids'] = [ustr(m) for m in metric_pairs]
         iclust_plotvals['chosen'] = [waschosen(m) for m in metric_pairs]
     # ----------------------------------------------------------------------------------------
