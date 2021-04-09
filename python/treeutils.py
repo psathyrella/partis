@@ -2148,6 +2148,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if len(metric_pairs) == 0:
             return []
         chosen_mfos = []
+        all_chosen_seqs = set()  # just for keeping track of the seqs we've chosen
         for sortvar, vcfg in cfgfo['vars'].items():
             n_cfg = vcfg['n']
             assert vcfg['sort'] in ['low', 'high']
@@ -2156,16 +2157,24 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             else:  # specify a different number for each family
                 assert len(n_cfg) == cfgfo['n-families']
                 n_var_choose = n_cfg[iclust]
-            n_new = 0
+            n_already_chosen, n_same_seqs, n_newly_chosen = 0, 0, 0
             sorted_mfos = sorted(metric_pairs, key=lambda m: sum(gsval(m, c, sortvar) for c in 'hl'), reverse=vcfg['sort']=='high')
-            for mfo in sorted_mfos[:n_var_choose]:
+            for mfo in sorted_mfos:
                 if any(gsval(mfo, c, 'has_shm_indels') for c in 'hl'):
                     print '  %s chose ab with shm indel: the consensus sequence will *not* reflect the indels (it assumes most of the family doesn\'t have this indel, which may be incorrect), and you need to be *very* careful that you get the sequence you expect from the output file.  uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
-                if mfo not in chosen_mfos:
-                    chosen_mfos.append(mfo)
-                    n_new += 1
+                if mfo in chosen_mfos:
+                    n_already_chosen += 1
+                    continue
+                if '+'.join(gsval(mfo, c, 'input_seqs_aa') for c in 'hl') in all_chosen_seqs:
+                    n_same_seqs += 1
+                    continue
+                chosen_mfos.append(mfo)
+                all_chosen_seqs.add('+'.join(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
+                n_newly_chosen += 1
+                if n_newly_chosen >= n_var_choose:
+                    break
             if tdbg:
-                print '      %s: chose %d%s' % (sortvar, n_new, '' if n_new==n_var_choose else ' (%d were in common with a previous var)'%(n_var_choose-n_new))
+                print '      %s: chose %d%s%s' % (sortvar, n_newly_chosen, '' if n_already_chosen==0 else ' (%d were in common with a previous var)'%n_already_chosen, '' if n_same_seqs==0 else ' (%d had seqs identical to previously-chosen ones)'%n_same_seqs)
         if cfgfo['include-cons-seqs']:
             consfo = {c : metric_pairs[0][c] for c in 'hl'}
             consfo.update({'iclust' : iclust, 'consensus' : True})
@@ -2260,7 +2269,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 if args.queries_to_include is not None and hid in args.queries_to_include and lid in args.queries_to_include:
                     didstr = utils.color('red', didstr, width=20)
             else:
-                print '  %s paired seqs %s %s have different droplet ids %s' % (utils.color('red', 'error'), hid, lid, dids)
+                print '  %s paired seqs %s %s have different droplet ids (i.e. they were probably mis-paired) %s' % (utils.color('red', 'error'), hid, lid, dids)
                 didstr = 'see error'
             return didstr
         # ----------------------------------------------------------------------------------------
