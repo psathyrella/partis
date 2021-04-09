@@ -2249,7 +2249,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
         h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
         print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels %s  N aa mutations      sizes           %s %s %s') % (utils.wfmt('  '.join(xheads[0]), xlen), utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
-        print ('             sum   h    l       h   l                           h  l         %s  cons.      obs.   both   h   l      %s %s %s') % (utils.wfmt('  '.join(xheads[1]), xlen), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
+        print ('             sum   h    l       h   l                           h  l         %s  cons.      obs.   both   h   l       %s %s %s') % (utils.wfmt('  '.join(xheads[1]), xlen), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
         for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: sum(gsval(x, c, 'aa-cfrac') for c in 'hl'))):
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
             dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (hid, lid)])

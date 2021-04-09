@@ -4865,6 +4865,8 @@ def replace_suffix(fname, new_suffix):
 
 # ----------------------------------------------------------------------------------------
 def insert_before_suffix(insert_str, fname):
+    if getsuffix(fname) == '':
+        raise Exception('no suffix in %s' % fname)
     return fname.replace(getsuffix(fname), '%s%s' % (insert_str, getsuffix(fname)))
 
 # ----------------------------------------------------------------------------------------
