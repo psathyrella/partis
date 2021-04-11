@@ -83,7 +83,7 @@ def process(args):
     if args.seed_seq is not None:
         raise Exception('--seed-seq is deprecated, use --seed-unique-id and --queries-to-include-fname')
 
-    args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True)
+    args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True, choices=['igk', 'igl'])
     if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
         raise Exception('--light-chain-fractions %s don\'t add to 1: %f' % (args.light_chain_fractions, sum(args.light_chain_fractions.values())))
     if args.action == 'merge-paired-partitions':

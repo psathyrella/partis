@@ -9,6 +9,7 @@ import subprocess
 # import multiprocessing
 import numpy
 import scipy
+import math
 import itertools
 import collections
 import traceback
@@ -427,12 +428,13 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  %s parameters exist for some (%s) but not all (%s) loci, so not auto-caching parameters into %s' % (utils.color('yellow', 'warning'), ' '.join(existing_pdir_loci), ' '.join(set(utils.sub_loci(ig_or_tr)) - set(existing_pdir_loci)), getpdir(''))
             return False
     # ----------------------------------------------------------------------------------------
-    def get_n_events(l_locus, arg_events):  # l_locus has to be set
-        n_events = max(1, int(arg_events * args.light_chain_fractions[l_locus]))  # so if you don't set --n-sim-events, or if you ask for 1, you get 1 of each (i don't feel like drawing a random to see which to give you)
-        if args.light_chain_fractions[l_locus] == 0:  # if you want only igk, set igl's fraction to 0
-            n_events = 0
-        # print '  %s+%s: %d * %.2f = %d events' % (h_locus, l_locus, arg_events, args.light_chain_fractions[l_locus], n_events)
-        return n_events
+    def get_n_events(l_locus, arg_events, tdbg=False):
+        lfrac = args.light_chain_fractions[l_locus]
+        def round_up(): return l_locus=='igk' if lfrac==0.5 else lfrac>0.5  # have to pick one of 'em if they're both exactly 0.5
+        n_events = (math.ceil if round_up() else math.floor)(arg_events * lfrac)  # round one of them up, the other one down
+        if tdbg:
+            print '  %s+%s: %d * %.2f = %d events' % (h_locus, l_locus, arg_events, lfrac, n_events)
+        return int(n_events)
     # ----------------------------------------------------------------------------------------
     def run_step(tmpaction, ltmp, auto_cache=False, skip_missing_input=False, lpair=None, joint=False):
         # ----------------------------------------------------------------------------------------
