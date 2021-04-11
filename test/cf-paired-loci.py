@@ -18,12 +18,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simulate:cache-parameters:partition')
 parser.add_argument('--n-sim-events', type=int, default=10)
 parser.add_argument('--n-leaf-list', default='2:3:4:10') #1 5; do10)
-parser.add_argument('--cells-per-drop-list', default='10') #0.8 2 3 5 10; do #1.1; do
+parser.add_argument('--cells-per-drop-list', default='1') #0.8 2 3 5 10; do #1.1; do
 parser.add_argument('--allowed-cdr3-lengths', default='30:33:36:42:45:48')
-parser.add_argument('--mutation-multiplier', type=int, default=1)
+parser.add_argument('--mutation-multiplier', type=float, default=1)
 parser.add_argument('--n-procs', type=int, default=10)
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--version', default='v3')
+parser.add_argument('--label', default='cleanscan')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--no-plots', action='store_true')
@@ -40,7 +41,7 @@ def run_simu(ncells, nleaf):
         return
     cmd = './bin/partis simulate --paired-loci --seed %d --parameter-dir %s --paired-outdir %s/simu --mean-cells-per-droplet %f' % (args.seed, in_param_dir, outdir, ncells)
     cmd += ' --n-sim-events %d --n-leaves %d --n-procs %d --no-per-base-mutation --allowed-cdr3-lengths %s' % (args.n_sim_events, nleaf, args.n_procs, args.allowed_cdr3_lengths)
-    cmd += ' --mutation-multiplier %d --constant-number-of-leaves' % args.mutation_multiplier
+    cmd += ' --mutation-multiplier %.2f --constant-number-of-leaves' % args.mutation_multiplier
     utils.simplerun(cmd, logfname='%s/simu.log'%outdir, dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------
@@ -58,10 +59,8 @@ def outpath(action):
 # ----------------------------------------------------------------------------------------
 for ncells in args.cells_per_drop_list:
     for nleaf in args.n_leaf_list:
-        # TODO label = 'cleanscan-n-leaves-%d-cells-%d-%s' % (nleaf, ncells, args.version)
         ncstr = ('%.0f'%ncells) if int(ncells)==ncells else '%.1f'%ncells
-        label = 'cleanscan-%d-%s-%s' % (nleaf, ncstr, args.version)  # pair-params-v2  # smetrics-v0  # cf-ccfs-v0 #cells-per-drop-$cpd # pair-plots-v0 #fix-bad-merge-v2
-        outdir = '%s/partis/paired-loci/%s' % (os.getenv('fs'), label)  # TODO move from tmp/
+        outdir = '%s/partis/paired-loci/%s-%d-%s-%s' % (os.getenv('fs'), args.label, nleaf, ncstr, args.version)
         out_param_dir = '%s/params' % outdir
 
         for action in args.actions:
@@ -74,10 +73,10 @@ for ncells in args.cells_per_drop_list:
             cmd += ' --n-procs %d' % args.n_procs
             if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
                 cmd += ' --is-simu'
-            if action in ['partition', 'merge-paired-partitions']:
-                cmd += ' --no-partition-plots' #--no-mds-plots' #
             if action != 'cache-parameters' and not args.no_plots:
         	cmd += ' --plotdir paired-outdir'
+                if action in ['partition', 'merge-paired-partitions']:
+                    cmd += ' --no-partition-plots' #--no-mds-plots' #
             utils.simplerun(cmd, logfname='%s/%s.log'%(outdir, action), dryrun=args.dry)
         break
 
