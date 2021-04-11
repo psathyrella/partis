@@ -537,7 +537,7 @@ class PartitionDriver(object):
             self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.simultaneous_true_clonal_seqs:
-            print '    using true clusters instead of partitioning'
+            print '  --simultaneous-true-clonal-seqs: using true clusters instead of partitioning'
             true_partition = [[uid for uid in cluster if uid in self.sw_info] for cluster in utils.get_partition_from_reco_info(self.reco_info)]  # mostly just to remove duplicates, although I think there might be other reasons why a uid would be missing
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=true_partition)
         elif self.args.naive_vsearch or self.args.naive_swarm:
@@ -1313,8 +1313,7 @@ class PartitionDriver(object):
             n_procs = self.args.n_procs
 
         nsets = self.get_nsets(algorithm, partition)
-        if self.args.subcluster_annotation_size is not None and algorithm == 'viterbi' and not is_subcluster_recursed and any(self.subcl_split(len(c)) for c in nsets):
-            assert not precache_all_naive_seqs
+        if self.args.subcluster_annotation_size is not None and algorithm == 'viterbi' and not is_subcluster_recursed and not precache_all_naive_seqs and any(self.subcl_split(len(c)) for c in nsets):
             assert not shuffle_input
             return self.run_subcluster_annotate(nsets, parameter_in_dir, n_procs, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, dont_print_annotations=dont_print_annotations, debug=self.args.debug)
 
@@ -1898,6 +1897,7 @@ class PartitionDriver(object):
             qlist = self.sw_info['queries']  # shorthand
 
             if self.args.simultaneous_true_clonal_seqs:  # NOTE this arg can now also be set when partitioning, but it's dealt with elsewhere
+                print '  --simultaneous-true-clonal-seqs: grouping seqs according to true partition'
                 nsets = utils.get_partition_from_reco_info(self.reco_info, ids=qlist)
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)  # arg, have to split some clusters apart by cdr3, for rare cases where we call an shm indel in j within the cdr3
             elif self.args.all_seqs_simultaneous:  # everybody together
