@@ -53,6 +53,78 @@ def clean_paired_dir(bdir, suffix='.fa', extra_files=None, expect_missing=False,
     utils.clean_files(fnames, expect_missing=expect_missing)
 
 # ----------------------------------------------------------------------------------------
+def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics=False, seed_unique_id=None, dbgstr='', debug=False):
+    # ----------------------------------------------------------------------------------------
+    def parse_pairing_info(ltmp, atnlist):
+        if seed_unique_id is not None:  # I'm really not sure this is the best place to do this, but we have to add the seed id pairing info at some point
+            assert isinstance(seed_unique_id, list) and len(seed_unique_id) == 2  # just a reminder
+            sid = seedid(ltmp)  # maybe this would be too slow to run for every line?
+            other_sid = utils.get_single_entry([u for u in seed_unique_id if u != sid])
+            for sline in [l for l in atnlist if sid in l['unique_ids']]:
+                if 'paired-uids' in sline:  # if the seed id is in a cluster with non-seed seqs, the key'll be there but it'll be None
+                    pids = utils.per_seq_val(sline, 'paired-uids', sid)
+                    if pids is not None and pids != [other_sid]:
+                        print '  %s unexpected seq(s) paired with seed id %s: %s' % (utils.color('yellow', 'warning'), sid, pids)
+                else:  # but if it's by itself the key won't be there
+                    sline['paired-uids'] = [[] for _ in sline['unique_ids']]
+                sline['paired-uids'][sline['unique_ids'].index(sid)] = [other_sid]
+        for tline in atnlist:  # unfortunately we *also* need to replace any None values with [], since somehow when writing/reading sw cache info missing ones end up as Nones. Should really fix that rather than doing this, but oh well
+            if 'paired-uids' in tline:
+                inones = [i for i, pids in enumerate(tline['paired-uids']) if pids is None]
+                for itmp in inones:
+                    tline['paired-uids'][itmp] = utils.input_metafile_defaults('paired-uids')
+            else:
+                tline['paired-uids'] = [utils.input_metafile_defaults('paired-uids') for _ in tline['unique_ids']]
+    # ----------------------------------------------------------------------------------------
+    def read_smetrics(ofn, atnlist):
+        with open(treeutils.smetric_fname(ofn)) as sfile:
+            sminfos = json.load(sfile)
+        sminfos = {':'.join(smfo['unique_ids']) : smfo for smfo in sminfos}  # convert from list to dict
+        for atn in antn_lists[ltmp]:
+            if ':'.join(atn['unique_ids']) in sminfos:  # all the ones that were too small won't be there, for instance
+                atn['tree-info'] = sminfos[':'.join(atn['unique_ids'])]
+    # ----------------------------------------------------------------------------------------
+    lpfos = {k : {} for k in ['glfos', 'antn_lists', 'cpaths']}
+# TODO maybe don't pass in lpair?
+    for ltmp in tmploci:  # read single-locus output files
+        ofn = ofn_fcn(ltmp, lpair=lpair)
+        if not os.path.exists(ofn):
+            print '%s: no %s %s output file, skipping: %s' % (utils.color('blue', '+'.join(lpair) if lpair is not None else ltmp), ltmp, dbgstr, ofn)
+            # glfos[ltmp], antn_lists[ltmp], cpaths[ltmp] = None, None, None
+            continue
+        lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], lpfos['cpaths'][ltmp] = utils.read_output(ofn, dont_add_implicit_info=not debug, skip_failed_queries=True)
+        if read_selection_metrics and os.path.exists(treeutils.smetric_fname(ofn)):  # if it doesn't exist, the info should be in the regular output file
+            read_smetrics(ofn, lpfos['antn_lists'][ltmp])
+        parse_pairing_info(ltmp, lpfos['antn_lists'][ltmp])
+    # if any(l not in lpfos['glfos'] for l in tmploci):
+    #     lpfos = {k : None for k in lpfos}
+    return lpfos
+
+# ----------------------------------------------------------------------------------------
+def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, seed_unique_id=None, dbgstr='', debug=False):
+    lp_infos = {}
+    for lpair in lpairs:
+        lpfos = read_locus_output_files(lpair, ofn_fcn, lpair=lpair, read_selection_metrics=read_selection_metrics, seed_unique_id=seed_unique_id, dbgstr=dbgstr, debug=debug)
+        if any(l not in lpfos['glfos'] for l in lpair):
+            lpfos = {k : None for k in lpfos}
+        lp_infos[tuple(lpair)] = lpfos
+    return lp_infos
+
+# ----------------------------------------------------------------------------------------
+def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
+    if None in lpfos.values():
+        return []
+    assert len(set(len(lpfos['antn_lists'][l]) for l in lpair)) == 1  # make sure the lists for both loci are the same length
+    return zip(*[lpfos['antn_lists'][l] for l in lpair])
+
+# ----------------------------------------------------------------------------------------
+def get_both_lpair_antn_pairs(lpairs, lp_infos):  # ok this name sucks, but this lumps together both h+k and h+l, whereas get_antn_pairs() just gives you one or the other
+    antn_pairs = []
+    for lpair in lpairs:
+        antn_pairs += get_antn_pairs(lpair, lp_infos[tuple(lpair)])
+    return antn_pairs
+
+# ----------------------------------------------------------------------------------------
 # rename all seqs in the light chain partition to their paired heavy chain uid (also change uids in the light chain annotations). Note that pairings must, at this stage, be unique.
 def translate_paired_uids(ploci, init_partitions, antn_lists):
     # first make a map from each light chain id to its paired heavy chain id
