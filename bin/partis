@@ -715,11 +715,10 @@ def run_all_loci(args, ig_or_tr='ig'):
         DBG = args.debug_paired_clustering
         single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dbgstr='partition', debug=DBG)  # single chain cpaths (and other info)
         if None in single_outfos.values():
-            print 'yep'
-            return
+            return None
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
             print '  no paired uids in any annotations, not merging single chain partitions'
-            return
+            return None
         true_partitions = get_true_partitions(single_outfos['cpaths'], debug=DBG)
         paircluster.clean_pair_info(single_outfos['cpaths'], single_outfos['antn_lists'], is_data=args.is_data, plotdir=getplotdir(None) if args.plotdir is not None else None, debug=DBG) #, max_hdist=4
         lp_infos = {}

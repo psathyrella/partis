@@ -85,19 +85,15 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
                 atn['tree-info'] = sminfos[':'.join(atn['unique_ids'])]
     # ----------------------------------------------------------------------------------------
     lpfos = {k : {} for k in ['glfos', 'antn_lists', 'cpaths']}
-# TODO maybe don't pass in lpair?
     for ltmp in tmploci:  # read single-locus output files
         ofn = ofn_fcn(ltmp, lpair=lpair)
         if not os.path.exists(ofn):
             print '%s: no %s %s output file, skipping: %s' % (utils.color('blue', '+'.join(lpair) if lpair is not None else ltmp), ltmp, dbgstr, ofn)
-            # glfos[ltmp], antn_lists[ltmp], cpaths[ltmp] = None, None, None
-            continue
+            continue  # note that we don't want to set any of them to None here, because we're sometimes looping over (all three) single loci, not just locus pairs
         lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], lpfos['cpaths'][ltmp] = utils.read_output(ofn, dont_add_implicit_info=not debug, skip_failed_queries=True)
         if read_selection_metrics and os.path.exists(treeutils.smetric_fname(ofn)):  # if it doesn't exist, the info should be in the regular output file
             read_smetrics(ofn, lpfos['antn_lists'][ltmp])
         parse_pairing_info(ltmp, lpfos['antn_lists'][ltmp])
-    # if any(l not in lpfos['glfos'] for l in tmploci):
-    #     lpfos = {k : None for k in lpfos}
     return lpfos
 
 # ----------------------------------------------------------------------------------------
