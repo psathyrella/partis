@@ -24,7 +24,7 @@ def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig', actstr=None)
     return '%s/%s%s%s' % (bdir, '' if actstr is None else actstr+'-', locus, suffix)
 
 # ----------------------------------------------------------------------------------------
-def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig', include_failed=False, include_meta=False):  # return all files + dirs from previous fcn
+def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig', include_failed=False, include_meta=False, no_dirs=False):  # return all files + dirs from previous fcn
     fnames = []
     if not only_paired:
         fnames += [paired_fn(bdir, l, suffix=suffix) for l in utils.sub_loci(ig_or_tr)]  # single-locus files
@@ -34,7 +34,8 @@ def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.f
         fnames += [paired_fn(bdir, 'meta', suffix='.yaml')]  # this is also kind of hackey
     if not no_pairing_info:
         fnames += [paired_fn(bdir, l, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr] for l in lp]  # paired single-locus files
-        fnames += [paired_fn(bdir, None, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr]]  # paired subdirs
+        if not no_dirs:
+            fnames += [paired_fn(bdir, None, lpair=lp, suffix=suffix) for lp in utils.locus_pairs[ig_or_tr]]  # paired subdirs
     return fnames  # return dirs after files for easier cleaning (below)
 
 # ----------------------------------------------------------------------------------------
@@ -53,7 +54,7 @@ def clean_paired_dir(bdir, suffix='.fa', extra_files=None, expect_missing=False,
     utils.clean_files(fnames, expect_missing=expect_missing)
 
 # ----------------------------------------------------------------------------------------
-def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics=False, seed_unique_id=None, dbgstr='', debug=False):
+def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics=False, seed_unique_id=None, dont_add_implicit_info=False, dbgstr='', debug=False):
     # ----------------------------------------------------------------------------------------
     def parse_pairing_info(ltmp, atnlist):
         if seed_unique_id is not None:  # I'm really not sure this is the best place to do this, but we have to add the seed id pairing info at some point
@@ -88,21 +89,28 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
     for ltmp in tmploci:  # read single-locus output files
         ofn = ofn_fcn(ltmp, lpair=lpair)
         if not os.path.exists(ofn):
-            print '%s: no %s %s output file, skipping: %s' % (utils.color('blue', '+'.join(lpair) if lpair is not None else ltmp), ltmp, dbgstr, ofn)
-            continue  # note that we don't want to set any of them to None here, because we're sometimes looping over (all three) single loci, not just locus pairs
-        lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], lpfos['cpaths'][ltmp] = utils.read_output(ofn, dont_add_implicit_info=not debug, skip_failed_queries=True)
+            for k in lpfos:
+                lpfos[k][ltmp] = None
+            if debug:
+                print '%s: no %s %s output file, skipping: %s' % (utils.color('blue', '+'.join(lpair) if lpair is not None else ltmp), ltmp, dbgstr, ofn)
+            continue
+        lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], lpfos['cpaths'][ltmp] = utils.read_output(ofn, dont_add_implicit_info=dont_add_implicit_info, skip_failed_queries=True)
         if read_selection_metrics and os.path.exists(treeutils.smetric_fname(ofn)):  # if it doesn't exist, the info should be in the regular output file
             read_smetrics(ofn, lpfos['antn_lists'][ltmp])
         parse_pairing_info(ltmp, lpfos['antn_lists'][ltmp])
+    if all(lpfos[k][l] is None for k in lpfos for l in tmploci):  # if there was no info for *any* of the loci, set Nones one level up (it's just easier to have the Nones there)
+        lpfos = {k : None for k in lpfos}
     return lpfos
 
 # ----------------------------------------------------------------------------------------
-def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, seed_unique_id=None, dbgstr='', debug=False):
+def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, seed_unique_id=None, dont_add_implicit_info=False, dbgstr='', debug=False):
     lp_infos = {}
     for lpair in lpairs:
-        lpfos = read_locus_output_files(lpair, ofn_fcn, lpair=lpair, read_selection_metrics=read_selection_metrics, seed_unique_id=seed_unique_id, dbgstr=dbgstr, debug=debug)
-        if any(l not in lpfos['glfos'] for l in lpair):
-            lpfos = {k : None for k in lpfos}
+        lpfos = read_locus_output_files(lpair, ofn_fcn, lpair=lpair, read_selection_metrics=read_selection_metrics, seed_unique_id=seed_unique_id, dont_add_implicit_info=dont_add_implicit_info, dbgstr=dbgstr, debug=debug)
+# ----------------------------------------------------------------------------------------
+        # if any(l not in lpfos['glfos'] for l in lpair):
+        #     lpfos = {k : None for k in lpfos}
+# ----------------------------------------------------------------------------------------
         lp_infos[tuple(lpair)] = lpfos
     return lp_infos
 
@@ -119,6 +127,27 @@ def get_both_lpair_antn_pairs(lpairs, lp_infos):  # ok this name sucks, but this
     for lpair in lpairs:
         antn_pairs += get_antn_pairs(lpair, lp_infos[tuple(lpair)])
     return antn_pairs
+
+# ----------------------------------------------------------------------------------------
+def get_with_concatd_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
+    glfos, antn_lists, joint_cpaths = {}, {}, {}
+    for lpair in lpairs:
+        lpk = tuple(lpair)
+        if lpk not in lp_infos or lp_infos[lpk]['antn_lists'] is None:
+            continue
+        for ltmp in lpair:
+            if ltmp not in lp_infos[lpk]['glfos']:  # this lpair's output files were empty
+                continue
+            if ltmp in glfos:  # merge heavy chain glfos from those paired with igk and with igl
+                glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], lp_infos[lpk]['glfos'][ltmp])
+                antn_lists[ltmp] += lp_infos[lpk]['antn_lists'][ltmp]
+                assert len(joint_cpaths[ltmp].partitions) == 1
+                joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + lp_infos[lpk]['cpaths'][ltmp].best())
+            else:
+                glfos[ltmp] = lp_infos[lpk]['glfos'][ltmp]
+                antn_lists[ltmp] = lp_infos[lpk]['antn_lists'][ltmp]
+                joint_cpaths[ltmp] = lp_infos[lpk]['cpaths'][ltmp]
+    return glfos, antn_lists, joint_cpaths
 
 # ----------------------------------------------------------------------------------------
 # rename all seqs in the light chain partition to their paired heavy chain uid (also change uids in the light chain annotations). Note that pairings must, at this stage, be unique.

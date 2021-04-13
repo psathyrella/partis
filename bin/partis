@@ -605,7 +605,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             run_step('annotate', ltmp, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
     def combine_simu_pair(lpair, headers):
-        lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dbgstr='simulation', debug=args.debug)
+        lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug)
         if None in lpfos.values():
             return lpfos
         print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
@@ -661,23 +661,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             json.dump(metafos, mfile)
     # ----------------------------------------------------------------------------------------
     def concat_heavy_chain(lp_infos, write=False):  # concatenate partitions+annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
-        glfos, antn_lists, joint_cpaths = {}, {}, {}
-        for lpair in spairs():
-            lpk = tuple(lpair)
-            if lpk not in lp_infos or lp_infos[lpk]['antn_lists'] is None:
-                continue
-            for ltmp in lpair:
-                if ltmp not in lp_infos[lpk]['glfos']:  # this lpair's output files were empty
-                    continue
-                if ltmp in glfos:  # merge heavy chain glfos from those paired with igk and with igl
-                    glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], lp_infos[lpk]['glfos'][ltmp])
-                    antn_lists[ltmp] += lp_infos[lpk]['antn_lists'][ltmp]
-                    assert len(joint_cpaths[ltmp].partitions) == 1
-                    joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + lp_infos[lpk]['cpaths'][ltmp].best())
-                else:
-                    glfos[ltmp] = lp_infos[lpk]['glfos'][ltmp]
-                    antn_lists[ltmp] = lp_infos[lpk]['antn_lists'][ltmp]
-                    joint_cpaths[ltmp] = lp_infos[lpk]['cpaths'][ltmp]
+        glfos, antn_lists, joint_cpaths = paircluster.get_with_concatd_heavy_chain(spairs(), lp_infos)
         # have to remove duplicates from heavy partition and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs)
         hloc = utils.get_single_entry([l for l in utils.sub_loci(ig_or_tr) if utils.has_d_gene(l)])  # very convoluted way to get heavy chain
         joint_cpaths[hloc] = ClusterPath(partition=utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=True)[0])  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
@@ -713,7 +697,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         DBG = args.debug_paired_clustering
-        single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dbgstr='partition', debug=DBG)  # single chain cpaths (and other info)
+        single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=DBG)  # single chain cpaths (and other info)
         if None in single_outfos.values():
             return None
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
@@ -732,7 +716,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=DBG)  # , iparts={'igl' : 7}
             for ltmp in lpair:
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs)
-            lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dbgstr='partition')
+            lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
         _, concat_antn_lists, concat_cpaths = concat_heavy_chain(lp_infos, write=True)
         ccfs = {}
         for ltmp in [l for l in sloci() if l in concat_cpaths]:
@@ -816,7 +800,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.action == 'get-selection-metrics':
                 lp_infos = {}
                 for lpair in spairs():
-                    lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, read_selection_metrics=True, dbgstr='partition')
+                    lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
                 _ = read_qti_file(args)  # sets args.queries_to_include
                 treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/combo-selection-metrics', args=args)
 

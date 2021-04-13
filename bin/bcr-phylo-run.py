@@ -17,39 +17,54 @@ import utils
 import indelutils
 import treeutils
 from event import RecombinationEvent
+import paircluster
 
 ete_path = '/home/' + os.getenv('USER') + '/anaconda_ete/bin'
 bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
+ig_or_tr = 'ig'
 
 # ----------------------------------------------------------------------------------------
 def simdir():
     return '%s/%s/simu' % (args.base_outdir, args.stype)
 def infdir():
     return '%s/%s/partis' % (args.base_outdir, args.stype)
-def naive_fname():
-    return '%s/naive-simu.yaml' % simdir()
+def spath(tstr):
+    return '%s/%s-simu%s' % (simdir(), tstr, '' if args.paired_loci else '.yaml')
+def sfname(tstr, ltmp, lpair=None):
+    return paircluster.paired_fn(spath(tstr), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath(tstr)
+def naive_fname(ltmp, lpair=None):  # args are only used for paired loci (but we pass the whole fcn to another fcn, so we need the signature like this)
+    return sfname('naive', ltmp, lpair=lpair) #paircluster.paired_fn(spath('naive'), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath('naive')
+# def all_naive_fnames():
+#     return paircluster.paired_dir_fnames(spath('naive'), only_paired=True, suffix='.yaml', no_dirs=True) if args.paired_loci else [spath('naive')]
 def bcr_phylo_fasta_fname(outdir):
     return '%s/%s.fasta' % (outdir, args.extrastr)
-def simfname():
-    return '%s/mutated-simu.yaml' % simdir()
+def simfname(ltmp, lpair=None):
+    return sfname('mutated', ltmp, lpair=lpair)
 def param_dir():
+# TODO gneralize
     return '%s/params' % infdir()
 def partition_fname():
+# TODO gneralize
     return '%s/partition.yaml' % infdir()
 
 # ----------------------------------------------------------------------------------------
 def rearrange():
-    if utils.output_exists(args, naive_fname(), outlabel='naive simu', offset=4):
+    if utils.output_exists(args, naive_fname('igh'), outlabel='naive simu', offset=4):  # just look for the merged igh file, since it's about the last to be written (and both paired subdirs may not be there)
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
-    cmd += ' --debug %d --seed %d --outfname %s --n-sim-events %d' % (int(args.debug), args.seed, naive_fname(), args.n_sim_events)
+    cmd += ' --debug %d --seed %d --n-sim-events %d' % (int(args.debug), args.seed, args.n_sim_events)
+    if args.paired_loci:
+        cmd += ' --paired-loci --paired-outdir %s' % spath('naive')
+    else:
+        cmd += ' --outfname %s' % spath('naive')
     if args.restrict_available_genes:
+        assert not args.paired_loci
         cmd += ' --only-genes IGHV1-18*01:IGHJ1*01'
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
         cmd += ' --batch-system slurm'
-    utils.simplerun(cmd, debug=True)
+    utils.simplerun(cmd, dryrun=args.dry_run, debug=True)
 
 # ----------------------------------------------------------------------------------------
 def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command line arg that is allowed to (but may not at the moment) be drawn from a variable distribution (note we have to pass in <pval> for args that are lists)
@@ -83,7 +98,7 @@ def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command lin
     return return_val
 
 # ----------------------------------------------------------------------------------------
-def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
+def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
     if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
         return None
 
@@ -130,53 +145,33 @@ def run_bcr_phylo(naive_line, outdir, ievent, n_total_events, uid_str_len=None):
     cmd += ' --random_seed %d' % (args.seed + ievent)
     if uid_str_len is not None:
         cmd += ' --uid_str_len %d' % uid_str_len
-    cmd += ' --naive_seq %s' % naive_line['naive_seq']
+    cmd += ' --naive_seq %s' % naive_seq
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
     cfo = None
     if args.n_procs == 1:
-        utils.run_ete_script(cmd, ete_path)  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
+        utils.run_ete_script(cmd, ete_path, dryrun=args.dry_run)  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
     else:
-        cmd, _ = utils.run_ete_script(cmd, ete_path, return_for_cmdfos=True, tmpdir=outdir)
+        cmd, _ = utils.run_ete_script(cmd, ete_path, return_for_cmdfos=True, tmpdir=outdir, dryrun=args.dry_run)
         cfo = {'cmd_str' : cmd, 'workdir' : outdir, 'outfname' : bcr_phylo_fasta_fname(outdir)}
     return cfo
 
 # ----------------------------------------------------------------------------------------
-def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
-    seqfos = utils.read_fastx(bcr_phylo_fasta_fname(outdir))  # output mutated sequences from bcr-phylo
-
-    assert len(naive_line['unique_ids']) == 1  # enforces that we ran naive-only, 1-leaf partis simulation above
-    assert not indelutils.has_indels(naive_line['indelfos'][0])  # would have to handle this below
-    if args.debug:
-        utils.print_reco_event(naive_line)
-    reco_info = collections.OrderedDict()
-    for sfo in seqfos:
-        mline = copy.deepcopy(naive_line)
-        utils.remove_all_implicit_info(mline)
-        del mline['tree']
-        mline['unique_ids'] = [sfo['name']]
-        mline['seqs'] = [sfo['seq']]  # it's really important to set both the seqs (since they're both already in there from the naive line)
-        mline['input_seqs'] = [sfo['seq']]  # it's really important to set both the seqs (since they're both already in there from the naive line)
-        mline['duplicates'] = [[]]
-        reco_info[sfo['name']] = mline
-        try:
-            utils.add_implicit_info(glfo, mline)
-        except:  # TODO not sure if I really want to leave this in long term, but it shouldn't hurt anything (it's crashing on unequal naive/mature sequence lengths, and I need this to track down which event it is) UPDATE: yeah it was just because something crashed in the middle of writing a .fa file
-            print 'implicit info adding failed for ievent %d in %s' % (ievent, outdir)
-            lines = traceback.format_exception(*sys.exc_info())
-            print utils.pad_lines(''.join(lines))  # NOTE this will still crash on the next line if implicit info adding failed
-    final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in seqfos], reco_info)
-    if args.debug:
-        utils.print_reco_event(final_line)
-
-    # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
-    if args.stype == 'selection':
-        kdfname, nwkfname = '%s/kd-vals.csv' % outdir, '%s/simu.nwk' % outdir
-        if not utils.output_exists(args, kdfname, outlabel='kd/nwk conversion', offset=4):  # eh, don't really need to check for both kd an nwk file, chances of only one being missing are really small, and it'll just crash when it looks for it a couple lines later
-            cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s --newick-tree-file %s' % (outdir, args.extrastr, kdfname, nwkfname)
-            utils.run_ete_script(cmd, ete_path, debug=args.n_procs==1)
+def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
+    # ----------------------------------------------------------------------------------------
+    def split_seqfos(seqfos):
+        hline, lline = naive_events[ievent]
+        hseqfos, lseqfos = [], []
+        for sfo in seqfos:
+            padseq = utils.pad_nuc_seq(hline['naive_seq'])
+            assert len(sfo['seq']) == len(padseq) + len(lline['naive_seq'])
+            hseqfos.append({'name' : sfo['name'], 'seq' : sfo['seq'][ : len(hline['naive_seq'])]})
+            lseqfos.append({'name' : sfo['name'], 'seq' : sfo['seq'][len(padseq) : ]})
+        return hseqfos, lseqfos
+    # ----------------------------------------------------------------------------------------
+    def read_kdvals(kdfname):
         nodefo = {}
         with open(kdfname) as kdfile:
             reader = csv.DictReader(kdfile)
@@ -187,6 +182,44 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
                     'lambda' : line.get('lambda', None),
                     'target_index' : int(line['target_index']),
                 }
+        return nodefo
+    # ----------------------------------------------------------------------------------------
+    def get_mature_line(sfos, naive_line, glfo, nodefo, dtree, target_sfos, locus=None):
+        assert len(naive_line['unique_ids']) == 1  # enforces that we ran naive-only, 1-leaf partis simulation above
+        assert not indelutils.has_indels(naive_line['indelfos'][0])  # would have to handle this below
+        if args.debug:
+            utils.print_reco_event(naive_line)
+        reco_info = collections.OrderedDict()
+        for sfo in sfos:
+            mline = utils.get_non_implicit_copy(naive_line)
+            del mline['tree']
+            mline['unique_ids'] = [sfo['name']]
+            mline['seqs'] = [sfo['seq']]
+            mline['input_seqs'] = [sfo['seq']]  # it's really important to set both the seqs (since they're both already in there from the naive line)
+            mline['duplicates'] = [[]]
+            reco_info[sfo['name']] = mline
+            try:
+                utils.add_implicit_info(glfo, mline)
+            except:  # TODO not sure if I really want to leave this in long term, but it shouldn't hurt anything (it's crashing on unequal naive/mature sequence lengths, and I need this to track down which event it is) UPDATE: yeah it was just because something crashed in the middle of writing a .fa file
+                print 'implicit info adding failed for ievent %d in %s' % (ievent, outdir)
+                lines = traceback.format_exception(*sys.exc_info())
+                print utils.pad_lines(''.join(lines))  # NOTE this will still crash on the next line if implicit info adding failed
+        final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in sfos], reco_info)
+
+        ftree = copy.deepcopy(dtree)
+        if locus is not None:
+            new_nodefo = {}
+            for u_old in nodefo:
+                new_nodefo[u_old+'-'+locus] = nodefo[u_old]
+            nodefo = new_nodefo
+            treeutils.translate_labels(ftree, [(u, u+'-'+locus) for u in final_line['unique_ids']])
+            final_line['unique_ids'] = [u+'-'+locus for u in final_line['unique_ids']]
+# TODO translate also 'paired-uids' (and check other keys)
+
+        if args.debug:
+            utils.print_reco_event(final_line)
+
+        # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
         if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
             print '        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(nodefo) - set(final_line['unique_ids']))
         if len(set(final_line['unique_ids']) - set(nodefo)) > 0:
@@ -195,39 +228,69 @@ def parse_bcr_phylo_output(glfo, naive_line, outdir, ievent):
         final_line['relative_affinities'] = [1. / nodefo[u]['relative_kd'] for u in final_line['unique_ids']]
         final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
         final_line['nearest_target_indices'] = [nodefo[u]['target_index'] for u in final_line['unique_ids']]
-        tree = treeutils.get_dendro_tree(treefname=nwkfname)
-        tree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))
+        ftree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))
         if args.debug:
-            print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=tree), padwidth=12)
-        final_line['tree'] = tree.as_string(schema='newick')
-    tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
-    tmp_event.set_reco_id(final_line, irandom=ievent)  # not sure that setting <irandom> here actually does anything
+            print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ftree), padwidth=12)
+        final_line['tree'] = ftree.as_string(schema='newick')
 
-    # get target sequences
+        tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
+        tmp_event.set_reco_id(final_line, irandom=ievent)  # not sure that setting <irandom> here actually does anything
+        final_line['target_seqs'] = [tfo['seq'] for tfo in target_sfos]
+
+    # ----------------------------------------------------------------------------------------
+    assert args.stype == 'selection'  # i don't know that non-'selection' is possible or has any point at this point (can just set selection strength to zero)
+    kdfname, nwkfname = '%s/kd-vals.csv' % outdir, '%s/simu.nwk' % outdir
+    if not utils.output_exists(args, kdfname, outlabel='kd/nwk conversion', offset=4):  # eh, don't really need to check for both kd and nwk file, chances of only one being missing are really small, and it'll just crash when it looks for it a couple lines later
+        cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s --newick-tree-file %s' % (outdir, args.extrastr, kdfname, nwkfname)
+        utils.run_ete_script(cmd, ete_path, debug=args.n_procs==1)
+    nodefo = read_kdvals(kdfname)
+    dtree = treeutils.get_dendro_tree(treefname=nwkfname)
+    seqfos = utils.read_fastx(bcr_phylo_fasta_fname(outdir))  # output mutated sequences from bcr-phylo
     target_seqfos = utils.read_fastx('%s/%s_targets.fa' % (outdir, args.extrastr))
-    final_line['target_seqs'] = [tfo['seq'] for tfo in target_seqfos]
+    if args.paired_loci:
+        mevents = []
+        for tline, sfos, tsfos in zip(naive_events[ievent], split_seqfos(seqfos), split_seqfos(target_seqfos)):
+            mevents.append(get_mature_line(sfos, tline, glfos[tline['loci'][0]], nodefo, dtree, target_seqfos, locus=tline['loci'][0]))
+        return mevents
+    else:
+        return get_mature_line(seqfos, naive_events[ievent], glfos[0], nodefo, dtree, target_seqfos)
 
-    return final_line
+# ----------------------------------------------------------------------------------------
+def read_rearrangements():
+    if args.paired_loci:
+        lpairs = utils.locus_pairs[ig_or_tr]
+        lp_infos = paircluster.read_lpair_output_files(lpairs, naive_fname, dbgstr='naive simulation')
+        naive_events = paircluster.get_both_lpair_antn_pairs(lpairs, lp_infos)
+        glfos, _, _ = paircluster.get_with_concatd_heavy_chain(lpairs, lp_infos)  # per-locus glfos with concat'd heavy chain
+    else:
+        glfo, naive_events, _ = utils.read_output(naive_fname(None))
+        glfos = [glfo]
+    return glfos, naive_events
 
 # ----------------------------------------------------------------------------------------
 def simulate():
 
     rearrange()
 
-    glfo, naive_event_list, cpath = utils.read_output(naive_fname())
-    assert len(naive_event_list) == args.n_sim_events
+    glfos, naive_events = read_rearrangements()
+    assert len(naive_events) == args.n_sim_events
 
-    outdirs = ['%s/event-%d' % (simdir(), i) for i in range(len(naive_event_list))]
+    outdirs = ['%s/event-%d' % (simdir(), i) for i in range(len(naive_events))]
 
     start = time.time()
     cmdfos = []
     if args.n_procs > 1:
-        print '    starting %d events' % len(naive_event_list)
-    uid_str_len = 6 + int(math.log(len(naive_event_list), 10))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
-    for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
+        print '    starting %d events' % len(naive_events)
+    uid_str_len = 6 + int(math.log(len(naive_events), 10))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
+    for ievent, outdir in enumerate(outdirs):
         if args.n_sim_events > 1 and args.n_procs == 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
-        cfo = run_bcr_phylo(naive_line, outdir, ievent, len(naive_event_list), uid_str_len=uid_str_len)  # if n_procs > 1, doesn't run, just returns cfo
+        if args.paired_loci:
+            hline, lline = naive_events[ievent]
+            naive_seq = utils.pad_nuc_seq(hline['naive_seq']) + lline['naive_seq']
+        else:
+            naive_seq = naive_events[ievent]['naive_seq']
+        cfo = run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=uid_str_len)  # if n_procs > 1, doesn't run, just returns cfo
         if cfo is not None:
             print '      %s %s' % (utils.color('red', 'run'), cfo['cmd_str'])
             cmdfos.append(cfo)
@@ -235,17 +298,19 @@ def simulate():
         utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None, allow_failure=True, debug='print')
     print '  bcr-phylo run time: %.1fs' % (time.time() - start)
 
-    if utils.output_exists(args, simfname(), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
+    if utils.output_exists(args, simfname('igh'), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
         return
 
     start = time.time()
     mutated_events = []
-    for ievent, (naive_line, outdir) in enumerate(zip(naive_event_list, outdirs)):
-        mutated_events.append(parse_bcr_phylo_output(glfo, naive_line, outdir, ievent))
+    for ievent, outdir in enumerate(outdirs):
+        mutated_events.append(parse_bcr_phylo_output(glfos, naive_events, outdir, ievent))
     print '  parsing time: %.1fs' % (time.time() - start)
 
-    print '  writing annotations to %s' % simfname()
-    utils.write_annotations(simfname(), glfo, mutated_events, utils.simulation_headers)
+    print '  writing annotations to %s' % (spath('mutated') if args.paired_loci else simfname(None))
+    sys.exit()
+# TODO write paired subdirs by hand here, then make a fcn in paircluster that [optionally?] reads those, then writes the merged stuff in parent dir
+    utils.write_annotations(simfname(), glfos, mutated_events, utils.simulation_headers)
 
     if not args.only_csv_plots:
         import lbplotting
@@ -324,6 +389,8 @@ parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')
 parser.add_argument('--parameter-variances', help='if set, parameters vary from family to family in one of two ways 1) the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75, or 2) parameters for each family are chosen from a \'..\'-separated list, e.g. obs-times,75..100..150')
 parser.add_argument('--slurm', action='store_true')
+parser.add_argument('--paired-loci', action='store_true')
+parser.add_argument('--dry-run', action='store_true')
 
 args = parser.parse_args()
 

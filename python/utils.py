@@ -596,6 +596,9 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
     return [get_multiplicity(line, iseq=i) for i in range(len(line['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
+# NOTE see get_non_implicit_copy() below (if you're thinking of again trying to add it here)
+
+# ----------------------------------------------------------------------------------------
 # NOTE the consensus seqs will (obviously) be *different* afterwards
 def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting dont_deep_copy is obviously *really* *dangerous*
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
@@ -4838,9 +4841,13 @@ def output_exists(args, outfname, outlabel=None, leave_zero_len=False, offset=No
         return False
 
 # ----------------------------------------------------------------------------------------
-def all_outputs_exist(args, outfnames, outlabel=None, leave_zero_len=False, offset=None, debug=True):
+def all_outputs_exist(args, outfnames, outlabel=None, leave_zero_len=False, offset=None, dbgpathstr=None, debug=True):
     o_exist_list = [output_exists(args, ofn, outlabel=outlabel, leave_zero_len=leave_zero_len, offset=offset, debug=debug) for ofn in outfnames]
-    return o_exist_list.count(True) == len(o_exist_list)
+    n_exist = o_exist_list.count(True)
+    if debug:
+        ostr = '' if outlabel is None else ('%s ' % outlabel)
+        print '    %s%d/%d outputs exist%s' % (ostr, n_exist, len(o_exist_list), '' if dbgpathstr is None else ' in %s'%dbgpathstr)
+    return n_exist == len(o_exist_list)
 
 # NOTE/reminder probably doesn't make sense to have this fcn, since output_exists() doesn't just test for existence, it also removes stuff, looks for zero length, etc.
 # # ----------------------------------------------------------------------------------------
