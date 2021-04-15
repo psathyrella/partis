@@ -787,10 +787,16 @@ def run_all_loci(args, ig_or_tr='ig'):
 # ----------------------------------------------------------------------------------------
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass
+class SaneArgumentParser(argparse.ArgumentParser):
+  """Disables prefix matching in ArgumentParser."""  # yes, it's convenient to only need to type part of the arg, but since we have to parse through the command line strings e.g. for --paired-loci, it's extremely dangerous, and has led to bad bugs
+  def _get_option_tuples(self, option_string):
+    """Prevent argument parsing from looking for prefix matches."""
+    return []
+
 formatter_class = MultiplyInheritedFormatter
-parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter)
+parser = SaneArgumentParser(formatter_class=MultiplyInheritedFormatter)
 subparsers = parser.add_subparsers(dest='action')
-parent_parser = argparse.ArgumentParser(add_help=False)
+parent_parser = SaneArgumentParser(add_help=False)
 
 parent_args = []
 parent_args.append({'name' : '--locus', 'kwargs' : {'default' : 'igh', 'choices' : utils.loci.keys(), 'help' : 'which immunoglobulin or t-cell receptor locus?'}})
