@@ -4560,10 +4560,11 @@ def non_none(vlist):  # return the first non-None value in vlist (there are many
 
 # ----------------------------------------------------------------------------------------
 def arglist_imatches(clist, argstr):
-    assert argstr[:2] == '--'  # this is necessary since the matching assumes that argparse has ok'd the uniqueness of an abbreviated argument
-    return [i for i, c in enumerate(clist) if argstr.find(c)==0]
+    assert argstr[:2] == '--'  # this is necessary since the matching assumes that argparse has ok'd the uniqueness of an abbreviated argument UPDATE now we've disable argparse prefix matching, but whatever
+    return [i for i, c in enumerate(clist) if argstr==c]  # NOTE do *not* try to go back to matching just the start of the argument, in order to make that work you'd need to have access to the whole list of potential arguments in bin/partis, and you'd probably screw it up anyway
 
 # ----------------------------------------------------------------------------------------
+# NOTE this is not necessary any more since arglist_imatches() now only look for exact matches (since I've disable argparse prefix matchin), but I'm in the middle of too many things to remove it atm
 def reduce_imatches(imatches, clist, argstr):  # restrict <imatches> to exact matches in an effort to get it down to one unique match
     imatches = [i for i in imatches if clist[i]==argstr]  # see if any of them are exact matches
     if len(imatches) > 1:
