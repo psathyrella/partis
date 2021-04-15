@@ -793,8 +793,12 @@ class SaneArgumentParser(argparse.ArgumentParser):
     """Prevent argument parsing from looking for prefix matches."""
     return []
 
+usage_msg = """partis <action> [options]
+list available actions: partis --help
+details on the options for each individual action: partis <action> --help
+"""
 formatter_class = MultiplyInheritedFormatter
-parser = SaneArgumentParser(formatter_class=MultiplyInheritedFormatter)
+parser = SaneArgumentParser(formatter_class=MultiplyInheritedFormatter, usage=usage_msg)
 subparsers = parser.add_subparsers(dest='action')
 parent_parser = SaneArgumentParser(add_help=False)
 
