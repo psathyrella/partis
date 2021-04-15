@@ -2788,6 +2788,17 @@ def mkdir(path, isfile=False):  # adding this very late, so could use it in a lo
         os.makedirs(path)
 
 # ----------------------------------------------------------------------------------------
+def makelink(odir, target, link_name, dryrun=False):
+    if os.path.exists(link_name) and not os.path.islink(link_name):
+        raise Exception('link name %s exists and is not link' % link_name)
+    target = target.replace(odir+'/', '')
+    link_name = link_name.replace(odir+'/', '')
+    if '/' in link_name:  # it's a subdir of odir, we need to add at least one ../
+        n_slashes = [x[0] for x in itertools.groupby(link_name)].count('/')  # have to collapse any adjacent /s
+        target = n_slashes * '../' + target
+    simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun)
+
+# ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None, allow_other_files=False):
     """
     Make <dirname> if it d.n.e.

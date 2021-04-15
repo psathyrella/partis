@@ -349,7 +349,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     def getplotdir(ltmp, lpair=None, single_chain=False, tmpaction=None):
         return '%s/plots%s%s' % (getodir(lpair=lpair, single_chain=single_chain, is_plotting=True), ('/'+ltmp) if ltmp is not None else '', '/parameters' if tmpaction=='cache-parameters' else '')
     # ----------------------------------------------------------------------------------------
-    def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False, fasta=False):  # NOTE setting <joint> and <lpair> have the same effect at least some of the time
+    def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False, fasta=False):  # NOTE <joint> and <lpair> do *not* always have the same effect (e.g. differs with single-chain/)
         if trees:
             bname = 'trees.nwk'
         elif input_meta and args.input_metafname is not None and ltmp is None:  # if ltmp is set, we're rewriting the meta files for each locus
@@ -383,14 +383,6 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def spairs():
         return utils.locus_pairs[ig_or_tr] if args.seed_unique_id is None else [args.seed_loci]
-    # ----------------------------------------------------------------------------------------
-    def makelink(target, link_name):
-        target = target.replace(getodir()+'/', '')
-        link_name = link_name.replace(getodir()+'/', '')
-        if '/' in link_name:  # it's a subdir of getodir(), we need to add at least one ../
-            n_slashes = [x[0] for x in itertools.groupby(link_name)].count('/')  # have to collapse any adjacent /s
-            target = n_slashes * '../' + target
-        utils.simplerun('cd %s && ln -sf %s %s' % (getodir(), target, link_name), shell=True, dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
     def prep_inputs():
         cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, getofn(None, joint=True, input_meta=True))
@@ -604,17 +596,6 @@ def run_all_loci(args, ig_or_tr='ig'):
             write_fasta_input()
             run_step('annotate', ltmp, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
-    def combine_simu_pair(lpair, headers):
-        lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug)
-        if None in lpfos.values():
-            return lpfos
-        print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
-        for hline, lline in paircluster.get_antn_pairs(lpair, lpfos):
-            treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
-        for ltmp in lpair:  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
-            utils.write_annotations(getofn(ltmp, lpair=lpair), lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], headers, use_pyyaml=args.write_full_yaml_output)
-        return lpfos
-    # ----------------------------------------------------------------------------------------
     def apportion_cells_to_droplets(outfos, metafos):
         n_droplets = int(0.5 * float(len(outfos)) / args.mean_cells_per_droplet)  # (randomly) apportion cells among this many droplets (0.5 is because <outfos> includes both heavy and light sequences)
         droplet_ids = [[] for _ in range(n_droplets)]  # list of sequence ids for each droplet
@@ -660,31 +641,27 @@ def run_all_loci(args, ig_or_tr='ig'):
         with open(getmfn('meta'), 'w') as mfile:
             json.dump(metafos, mfile)
     # ----------------------------------------------------------------------------------------
-    def concat_heavy_chain(lp_infos, write=False):  # concatenate partitions+annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
-        glfos, antn_lists, joint_cpaths = paircluster.get_with_concatd_heavy_chain(spairs(), lp_infos)
+    def handle_concatd_heavy_chain(lp_infos, headers):  # concatenate partitions+annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
+        glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)
         # have to remove duplicates from heavy partition and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs)
         hloc = utils.get_single_entry([l for l in utils.sub_loci(ig_or_tr) if utils.has_d_gene(l)])  # very convoluted way to get heavy chain
         joint_cpaths[hloc] = ClusterPath(partition=utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=True)[0])  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
-        if write:
-            for ltmp in sloci():
-                if utils.has_d_gene(ltmp):
-                    headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
-                    utils.write_annotations(getofn(ltmp, joint=True), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
-                else:
-                    makelink(getofn(ltmp, lpair=utils.getlpair(ltmp)), getofn(ltmp, joint=True))
-                if args.paired_outdir is None:
-                    work_fnames.append(getofn(ltmp, joint=True))
+        paircluster.write_concatd_output_files(glfos, antn_lists, getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None)
         return glfos, antn_lists, joint_cpaths
     # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
-        headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         lp_infos = {}
         for lpair in spairs():
-            lp_infos[tuple(lpair)] = combine_simu_pair(lpair, headers)
-        glfos, antn_lists, cpaths = concat_heavy_chain(lp_infos)
-        for ltmp in [l for l in sloci() if l in antn_lists]:
-            print '  %s: writing %d annotation%s to %s' % (ltmp, len(antn_lists[ltmp]), utils.plural(len(antn_lists[ltmp])), getofn(ltmp))
-            utils.write_annotations(getofn(ltmp), glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=args.write_full_yaml_output)
+            lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug)
+            lp_infos[tuple(lpair)] = lpfos
+            if None in lpfos.values():
+                continue
+            print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
+            for hline, lline in paircluster.get_antn_pairs(lpair, lpfos):
+                treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
+        headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
+        paircluster.write_lpair_output_files(spairs(), lp_infos, getofn, headers, use_pyyaml=args.write_full_yaml_output)  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
+        glfos, antn_lists, cpaths = handle_concatd_heavy_chain(lp_infos, headers)
         write_merged_simu(antn_lists)
     # ----------------------------------------------------------------------------------------
     def get_true_partitions(cpaths, debug=False):
@@ -717,7 +694,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             for ltmp in lpair:
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs)
             lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
-        _, concat_antn_lists, concat_cpaths = concat_heavy_chain(lp_infos, write=True)
+        _, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns))
         ccfs = {}
         for ltmp in [l for l in sloci() if l in concat_cpaths]:
             ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str='%s single vs joint concat\'d '%utils.locstr(ltmp), cf_label='single', ref_label='joint', debug=True) # antn_list=XXX
@@ -785,7 +762,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if utils.has_d_gene(ltmp):  # light chain in the paired subdirs is the same, so just link the results
                     run_step('plot-partitions', ltmp, joint=True)
                 else:
-                    makelink(getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp))
+                    utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
                 if args.plotdir is not None and not args.no_partition_plots:
                     run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
             if args.plotdir is not None and os.path.exists(cfpdir):

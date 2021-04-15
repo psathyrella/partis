@@ -11,6 +11,7 @@ import utils
 import prutils
 from clusterpath import ptnprint, ClusterPath
 from hist import Hist
+import glutils
 
 naive_hamming_bound_type = 'naive-hamming' #'likelihood'
 
@@ -106,13 +107,31 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
 def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, seed_unique_id=None, dont_add_implicit_info=False, dbgstr='', debug=False):
     lp_infos = {}
     for lpair in lpairs:
-        lpfos = read_locus_output_files(lpair, ofn_fcn, lpair=lpair, read_selection_metrics=read_selection_metrics, seed_unique_id=seed_unique_id, dont_add_implicit_info=dont_add_implicit_info, dbgstr=dbgstr, debug=debug)
-# ----------------------------------------------------------------------------------------
-        # if any(l not in lpfos['glfos'] for l in lpair):
-        #     lpfos = {k : None for k in lpfos}
-# ----------------------------------------------------------------------------------------
-        lp_infos[tuple(lpair)] = lpfos
+        lp_infos[tuple(lpair)] = read_locus_output_files(lpair, ofn_fcn, lpair=lpair, read_selection_metrics=read_selection_metrics, seed_unique_id=seed_unique_id, dont_add_implicit_info=dont_add_implicit_info, dbgstr=dbgstr, debug=debug)
     return lp_infos
+
+# ----------------------------------------------------------------------------------------
+def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=False):
+    def glpf(p, k, l):  # NOTE duplicates code in concat_heavy_chain()
+        if lp_infos[tuple(p)][k] is None:
+            return None
+        return lp_infos[tuple(p)][k].get(l)
+    for lpair in lpairs:
+        for ltmp in lpair:
+            if glpf(lpair, 'glfos', ltmp) is None:
+                continue
+            utils.write_annotations(ofn_fcn(ltmp, lpair=lpair), glpf(lpair, 'glfos', ltmp), glpf(lpair, 'antn_lists', ltmp), headers, use_pyyaml=use_pyyaml)
+
+# ----------------------------------------------------------------------------------------
+def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None):
+    for ltmp in sorted(glfos):  # not really a reason to write igh first, but i guess it's nice to be consistent
+        ofn = ofn_fcn(ltmp, joint=True)
+        if utils.has_d_gene(ltmp):
+            utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, use_pyyaml=use_pyyaml)
+        else:
+            utils.makelink(os.path.dirname(ofn), ofn_fcn(ltmp, lpair=utils.getlpair(ltmp)), ofn)
+        if work_fnames is not None:
+            work_fnames.append(ofn)
 
 # ----------------------------------------------------------------------------------------
 def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
@@ -129,24 +148,27 @@ def get_both_lpair_antn_pairs(lpairs, lp_infos):  # ok this name sucks, but this
     return antn_pairs
 
 # ----------------------------------------------------------------------------------------
-def get_with_concatd_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
+def concat_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
+    def glpf(p, k, l):  # NOTE duplicates code in write_lpair_output_files
+        if tuple(p) not in lp_infos or lp_infos[tuple(p)][k] is None:
+            return None
+        return lp_infos[tuple(p)][k].get(l)
     glfos, antn_lists, joint_cpaths = {}, {}, {}
     for lpair in lpairs:
-        lpk = tuple(lpair)
-        if lpk not in lp_infos or lp_infos[lpk]['antn_lists'] is None:
-            continue
         for ltmp in lpair:
-            if ltmp not in lp_infos[lpk]['glfos']:  # this lpair's output files were empty
+            if glpf(lpair, 'glfos', ltmp) is None:  # this lpair's output files were empty
                 continue
             if ltmp in glfos:  # merge heavy chain glfos from those paired with igk and with igl
-                glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], lp_infos[lpk]['glfos'][ltmp])
-                antn_lists[ltmp] += lp_infos[lpk]['antn_lists'][ltmp]
-                assert len(joint_cpaths[ltmp].partitions) == 1
-                joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + lp_infos[lpk]['cpaths'][ltmp].best())
+                glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
+                antn_lists[ltmp] += glpf(lpair, 'antn_lists', ltmp)
+                if glpf(lpair, 'cpaths', ltmp) is not None:
+                    assert len(joint_cpaths[ltmp].partitions) == 1
+                    joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + glpf(lpair, 'cpaths', ltmp).best())
             else:
-                glfos[ltmp] = lp_infos[lpk]['glfos'][ltmp]
-                antn_lists[ltmp] = lp_infos[lpk]['antn_lists'][ltmp]
-                joint_cpaths[ltmp] = lp_infos[lpk]['cpaths'][ltmp]
+                glfos[ltmp] = glpf(lpair, 'glfos', ltmp)
+                antn_lists[ltmp] = glpf(lpair, 'antn_lists', ltmp)
+                if glpf(lpair, 'cpaths', ltmp) is not None:
+                    joint_cpaths[ltmp] = glpf(lpair, 'cpaths', ltmp)
     return glfos, antn_lists, joint_cpaths
 
 # ----------------------------------------------------------------------------------------
