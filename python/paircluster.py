@@ -6,12 +6,14 @@ import operator
 import string
 import os
 import math
+import json
 
 import utils
 import prutils
 from clusterpath import ptnprint, ClusterPath
 from hist import Hist
 import glutils
+import treeutils
 
 naive_hamming_bound_type = 'naive-hamming' #'likelihood'
 
@@ -82,16 +84,17 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
         with open(treeutils.smetric_fname(ofn)) as sfile:
             sminfos = json.load(sfile)
         sminfos = {':'.join(smfo['unique_ids']) : smfo for smfo in sminfos}  # convert from list to dict
-        for atn in antn_lists[ltmp]:
+        for atn in atnlist:
             if ':'.join(atn['unique_ids']) in sminfos:  # all the ones that were too small won't be there, for instance
                 atn['tree-info'] = sminfos[':'.join(atn['unique_ids'])]
     # ----------------------------------------------------------------------------------------
+    nulldict = {'glfos' : None, 'antn_lists' : [], 'cpaths' : ClusterPath(partition=[])}
     lpfos = {k : {} for k in ['glfos', 'antn_lists', 'cpaths']}
     for ltmp in tmploci:  # read single-locus output files
         ofn = ofn_fcn(ltmp, lpair=lpair)
         if not os.path.exists(ofn):
             for k in lpfos:
-                lpfos[k][ltmp] = None
+                lpfos[k][ltmp] = copy.deepcopy(nulldict[k])
             if debug:
                 print '%s: no %s %s output file, skipping: %s' % (utils.color('blue', '+'.join(lpair) if lpair is not None else ltmp), ltmp, dbgstr, ofn)
             continue
@@ -99,7 +102,7 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
         if read_selection_metrics and os.path.exists(treeutils.smetric_fname(ofn)):  # if it doesn't exist, the info should be in the regular output file
             read_smetrics(ofn, lpfos['antn_lists'][ltmp])
         parse_pairing_info(ltmp, lpfos['antn_lists'][ltmp])
-    if all(lpfos[k][l] is None for k in lpfos for l in tmploci):  # if there was no info for *any* of the loci, set Nones one level up (it's just easier to have the Nones there)
+    if all(lpfos['glfos'][l] is None for l in tmploci):  # if there was no info for *any* of the loci, set Nones one level up (it's just easier to have the Nones there)
         lpfos = {k : None for k in lpfos}
     return lpfos
 
@@ -170,6 +173,53 @@ def concat_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i wan
                 if glpf(lpair, 'cpaths', ltmp) is not None:
                     joint_cpaths[ltmp] = glpf(lpair, 'cpaths', ltmp)
     return glfos, antn_lists, joint_cpaths
+
+# ----------------------------------------------------------------------------------------
+def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet):
+    n_droplets = int(0.5 * float(len(outfos)) / mean_cells_per_droplet)  # (randomly) apportion cells among this many droplets (0.5 is because <outfos> includes both heavy and light sequences)
+    droplet_ids = [[] for _ in range(n_droplets)]  # list of sequence ids for each droplet
+    sfo_dict = {s['name'] : s for s in outfos}  # temp, to keep track of who still needs apportioning (but we do modify its sfos, which are shared with <outfos>)
+    while len(sfo_dict) > 0:
+        tid = next(iter(sfo_dict))
+        idrop = numpy.random.choice(range(len(droplet_ids)))
+        droplet_ids[idrop] += [tid] + metafos[tid]['paired-uids']  # add <tid> plus its paired ids to this drop (note that these are the original/correct paired ids, which is what we want)
+        for uid in [tid] + metafos[tid]['paired-uids']:
+            sfo_dict[uid]['droplet-ids'] = droplet_ids[idrop]
+            del sfo_dict[uid]
+    for sfo in outfos:
+        metafos[sfo['name']]['paired-uids'] = [u for u in sfo['droplet-ids'] if u != sfo['name']]
+    print '  apportioned %d seqs among %d droplets (mean/2 %.1f): %s' % (len(outfos), n_droplets, numpy.mean([len(d) for d in droplet_ids]) / 2, ' '.join(str(len(d)) for d in droplet_ids))
+# ----------------------------------------------------------------------------------------
+def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
+    n_to_remove = int(fraction_of_reads_to_remove * len(outfos))
+    ifos_to_remove = numpy.random.choice(range(len(outfos)), size=n_to_remove, replace=False)
+    for ifo in ifos_to_remove:
+        del metafos[outfos[ifo]['name']]
+    outfos = [outfos[ifo] for ifo in range(len(outfos)) if ifo not in ifos_to_remove]
+    print '  removed %d / %d = %.2f seqs from outfos' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove))
+    return outfos
+# ----------------------------------------------------------------------------------------
+# write fasta and meta file with all simulation loci together
+def write_merged_simu(antn_lists, fastafname, metafname, mean_cells_per_droplet=None, fraction_of_reads_to_remove=None):  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
+    # merge together info from all loci into <outfos> and <metafos>
+    outfos, metafos = [], {}
+    for ltmp in antn_lists:
+        for tline in antn_lists[ltmp]:
+            for uid, seq, pids in zip(tline['unique_ids'], tline['input_seqs'], tline['paired-uids']):
+                outfos.append({'name' : uid, 'seq' : seq})
+                metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
+
+    if mean_cells_per_droplet is not None:
+        apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet)
+    if fraction_of_reads_to_remove is not None:
+        outfos = remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove)
+
+    # write merged fasta and input meta files
+    with open(fastafname, 'w') as outfile:
+        for sfo in outfos:
+            outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
+    with open(metafname, 'w') as mfile:
+        json.dump(metafos, mfile)
 
 # ----------------------------------------------------------------------------------------
 # rename all seqs in the light chain partition to their paired heavy chain uid (also change uids in the light chain annotations). Note that pairings must, at this stage, be unique.
@@ -542,7 +592,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             for uid in cline['unique_ids']:
                 all_antns[uid] = cline
     if n_missing > 0:
-        print '   %d missing uids' % n_missing # NOTE at least for now we're skipping invalid queries when reading output
+        print '   %d/%d missing uids when cleaning pair info' % (n_missing, len(all_uids))  # NOTE at least for now we're skipping invalid queries when reading output
     # for ipg, pg in enumerate(pid_groups):
     #     print '  %3d %s' % (ipg, ' '.join(pg))
 

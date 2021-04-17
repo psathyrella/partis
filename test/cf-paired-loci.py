@@ -70,6 +70,7 @@ for ncells in args.cells_per_drop_list:
             if utils.output_exists(args, outpath(action)):
                 continue
             cmd = './bin/partis %s --paired-loci --paired-indir %s/simu --input-metafname %s/simu/meta.yaml --paired-outdir %s/inferred' % (action, outdir, outdir, outdir)
+            cmd += ' --seed %d' % args.seed
             cmd += ' --n-procs %d' % args.n_procs
             if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
                 cmd += ' --is-simu'

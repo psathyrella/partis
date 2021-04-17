@@ -523,8 +523,9 @@ conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
 def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False):
-    if uid.count('-') == 1 and uid.split('-')[1] in loci:  # simulation
-        did, locus = uid.split('-')
+    if uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation
+        ulist = uid.split('-')
+        did, locus = '-'.join(ulist[:-1]), ulist[-1]
         cid = locus[2]
     else:
         assert dtype == '10x'

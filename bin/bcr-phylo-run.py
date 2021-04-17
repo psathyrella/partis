@@ -28,24 +28,43 @@ def simdir():
     return '%s/%s/simu' % (args.base_outdir, args.stype)
 def infdir():
     return '%s/%s/partis' % (args.base_outdir, args.stype)
-def spath(tstr):
+def evtdir(i):
+    return '%s/event-%d' % (simdir(), i)
+def spath(tstr):  # use spath() for building command line args, whereas use simfname() to get [an] inidivudal file e.g. for utils.output_exists(), as well as for passing to fcns in paircluster.py
     return '%s/%s-simu%s' % (simdir(), tstr, '' if args.paired_loci else '.yaml')
 def sfname(tstr, ltmp, lpair=None):
+    if ltmp is None: assert not args.paired_loci
     return paircluster.paired_fn(spath(tstr), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath(tstr)
 def naive_fname(ltmp, lpair=None):  # args are only used for paired loci (but we pass the whole fcn to another fcn, so we need the signature like this)
     return sfname('naive', ltmp, lpair=lpair) #paircluster.paired_fn(spath('naive'), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath('naive')
-# def all_naive_fnames():
-#     return paircluster.paired_dir_fnames(spath('naive'), only_paired=True, suffix='.yaml', no_dirs=True) if args.paired_loci else [spath('naive')]
 def bcr_phylo_fasta_fname(outdir):
     return '%s/%s.fasta' % (outdir, args.extrastr)
-def simfname(ltmp, lpair=None):
+def simfname(ltmp, lpair=None, joint=False):  # NOTE joint has no effect, but is needed for passing to paircluster.write_concatd_output_files()
     return sfname('mutated', ltmp, lpair=lpair)
-def param_dir():
-# TODO gneralize
-    return '%s/params' % infdir()
-def partition_fname():
-# TODO gneralize
-    return '%s/partition.yaml' % infdir()
+# ----------------------------------------------------------------------------------------
+def ipath(stype):  # path/file name for building command line args
+    rpath = infdir()
+    if args.paired_loci:
+        return rpath
+    assert stype in ['params', 'partition', 'plots']
+    rpath = '%s/%s' % (rpath, stype)
+    if stype == 'partition':
+        rpath += '.yaml'
+    return rpath
+# ----------------------------------------------------------------------------------------
+def ifname(stype, ltmp='igh'):  # path/files for utils.output_exists()
+    rpath = ipath(stype)
+    if args.paired_loci:
+        if stype == 'partition':
+            rpath = paircluster.paired_fn(rpath, ltmp, suffix='.yaml', actstr=stype)
+        else:
+            rpath += '/parameters/%s' % ltmp
+    if stype == 'params':
+        rpath += '/hmm/hmms'
+    return rpath
+# ----------------------------------------------------------------------------------------
+def lpairs():
+    return utils.locus_pairs[ig_or_tr]
 
 # ----------------------------------------------------------------------------------------
 def rearrange():
@@ -208,13 +227,21 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
 
         ftree = copy.deepcopy(dtree)
         if locus is not None:
+            def ltr(u): return u + '-' + locus
             new_nodefo = {}
             for u_old in nodefo:
-                new_nodefo[u_old+'-'+locus] = nodefo[u_old]
+                new_nodefo[ltr(u_old)] = nodefo[u_old]
             nodefo = new_nodefo
-            treeutils.translate_labels(ftree, [(u, u+'-'+locus) for u in final_line['unique_ids']])
-            final_line['unique_ids'] = [u+'-'+locus for u in final_line['unique_ids']]
-# TODO translate also 'paired-uids' (and check other keys)
+            treeutils.translate_labels(ftree, [(u, ltr(u)) for u in final_line['unique_ids']])
+            final_line['unique_ids'] = [ltr(u) for u in final_line['unique_ids']]
+            assert len(sfos) == len(final_line['unique_ids'])
+            for iseq, sfo in enumerate(sfos):
+                naive_id = naive_line['unique_ids'][0]
+                assert naive_id.count('-') == 1
+                bstr = naive_id.replace('-'+locus, '')
+                pids = final_line['paired-uids'][iseq]
+                assert len(pids) == 1 and pids[0].find(bstr) == 0 and pids[0].count('-') == 1 and pids[0].split('-')[1] in utils.loci  # if uid is xxx-igh, paired id shoud be e.g. xxx-igk
+                final_line['paired-uids'][iseq] = [p.replace(bstr, sfo['name']) for p in pids]
 
         if args.debug:
             utils.print_reco_event(final_line)
@@ -236,6 +263,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
         tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
         tmp_event.set_reco_id(final_line, irandom=ievent)  # not sure that setting <irandom> here actually does anything
         final_line['target_seqs'] = [tfo['seq'] for tfo in target_sfos]
+        return final_line
 
     # ----------------------------------------------------------------------------------------
     assert args.stype == 'selection'  # i don't know that non-'selection' is possible or has any point at this point (can just set selection strength to zero)
@@ -258,14 +286,31 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
 # ----------------------------------------------------------------------------------------
 def read_rearrangements():
     if args.paired_loci:
-        lpairs = utils.locus_pairs[ig_or_tr]
-        lp_infos = paircluster.read_lpair_output_files(lpairs, naive_fname, dbgstr='naive simulation')
-        naive_events = paircluster.get_both_lpair_antn_pairs(lpairs, lp_infos)
-        glfos, _, _ = paircluster.get_with_concatd_heavy_chain(lpairs, lp_infos)  # per-locus glfos with concat'd heavy chain
+        lp_infos = paircluster.read_lpair_output_files(lpairs(), naive_fname, dbgstr='naive simulation')
+        naive_events = paircluster.get_both_lpair_antn_pairs(lpairs(), lp_infos)
+        glfos, _, _ = paircluster.concat_heavy_chain(lpairs(), lp_infos)  # per-locus glfos with concat'd heavy chain
     else:
         glfo, naive_events, _ = utils.read_output(naive_fname(None))
         glfos = [glfo]
     return glfos, naive_events
+
+# ----------------------------------------------------------------------------------------
+def write_simulation(glfos, mutated_events):
+    if args.paired_loci:
+        lp_infos = {}
+        for lpair in lpairs():
+            lpfos = {k : {} for k in ['glfos', 'antn_lists', 'cpaths']}  # cpaths i think don't get used
+            mevents = [(hl, ll) for hl, ll in mutated_events if [hl['loci'][0], ll['loci'][0]] == lpair]  # grab the events for this h/l pair
+            for ltmp, levents in zip(lpair, zip(*mevents)):
+                lpfos['antn_lists'][ltmp] = levents
+                lpfos['glfos'][ltmp] = glfos[ltmp]
+            lp_infos[tuple(lpair)] = lpfos
+        paircluster.write_lpair_output_files(lpairs(), lp_infos, simfname, utils.simulation_headers)
+        glfos, antn_lists, _ = paircluster.concat_heavy_chain(lpairs(), lp_infos)  # per-locus glfos with concat'd heavy chain
+        paircluster.write_concatd_output_files(glfos, antn_lists, simfname, utils.simulation_headers)
+        paircluster.write_merged_simu(antn_lists, spath('mutated')+'/all-seqs.fa', spath('mutated')+'/meta.yaml')
+    else:
+        utils.write_annotations(spath('mutated'), glfos[0], mutated_events, utils.simulation_headers)
 
 # ----------------------------------------------------------------------------------------
 def simulate():
@@ -275,7 +320,7 @@ def simulate():
     glfos, naive_events = read_rearrangements()
     assert len(naive_events) == args.n_sim_events
 
-    outdirs = ['%s/event-%d' % (simdir(), i) for i in range(len(naive_events))]
+    outdirs = [evtdir(i) for i in range(len(naive_events))]
 
     start = time.time()
     cmdfos = []
@@ -307,38 +352,46 @@ def simulate():
         mutated_events.append(parse_bcr_phylo_output(glfos, naive_events, outdir, ievent))
     print '  parsing time: %.1fs' % (time.time() - start)
 
-    print '  writing annotations to %s' % (spath('mutated') if args.paired_loci else simfname(None))
-    sys.exit()
-# TODO write paired subdirs by hand here, then make a fcn in paircluster that [optionally?] reads those, then writes the merged stuff in parent dir
-    utils.write_annotations(simfname(), glfos, mutated_events, utils.simulation_headers)
+    print '  writing annotations to %s' % spath('mutated')
+    write_simulation(glfos, mutated_events)
 
     if not args.only_csv_plots:
         import lbplotting
-        for outdir, event in zip(outdirs, mutated_events):
-            lbplotting.plot_bcr_phylo_simulation(outdir, event, args.extrastr, lbplotting.metric_for_target_distance_labels[args.metric_for_target_distance])
+        for ievent, outdir in enumerate(outdirs):
+            if args.paired_loci:
+                lpair = [l['loci'][0] for l in mutated_events[ievent]]
+                evtlist = mutated_events[ievent]
+            else:
+                lpair = None
+                evtlist = [mutated_events[ievent]]
+            lbplotting.plot_bcr_phylo_simulation(outdir + '/plots', outdir, evtlist, args.extrastr, lbplotting.metric_for_target_distance_labels[args.metric_for_target_distance], lpair=lpair)
         # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
 
 # ----------------------------------------------------------------------------------------
 def cache_parameters():
-    if utils.output_exists(args, param_dir() + '/hmm/hmms', outlabel='parameters', offset=4):
+    if utils.output_exists(args, ifname('params'), outlabel='parameters', offset=4):
         return
-    cmd = './bin/partis cache-parameters --infname %s --parameter-dir %s --seed %d --no-indels' % (simfname(), param_dir(), args.seed)  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
+    cmd = './bin/partis cache-parameters --seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
+    fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else ' --infname %s --parameter-dir %s'
+    cmd += fstr % (spath('mutated'), ipath('params'))
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
         cmd += ' --batch-system slurm'
     if args.n_max_queries is not None:
         cmd += ' --n-max-queries %d' % args.n_max_queries
-    utils.simplerun(cmd, debug=True) #, dryrun=True)
+    utils.simplerun(cmd, debug=True, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def partition():
-    if utils.output_exists(args, partition_fname(), outlabel='partition', offset=4):
+    if utils.output_exists(args, ifname('partition'), outlabel='partition', offset=4):
         return
-    cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --infname %s --parameter-dir %s --outfname %s --seed %d' % (simfname(), param_dir(), partition_fname(), args.seed)
+    cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --seed %d' % args.seed
+    fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else (' --infname %%s --parameter-dir %s --outfname %%s' % ipath('params'))
+    cmd += fstr % (spath('mutated'), ipath('partition'))
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
     if not args.dont_get_tree_metrics:
-        cmd += ' --get-selection-metrics --plotdir %s' % (infdir() + '/plots')
+        cmd += ' --get-selection-metrics --plotdir %s' % ('paired-outdir' if args.paired_loci else ipath('plots'))
     if args.lb_tau is not None:
         cmd += ' --lb-tau %f' % args.lb_tau
     if args.n_procs > 1:
@@ -347,7 +400,7 @@ def partition():
         cmd += ' --batch-system slurm'
     if args.n_max_queries is not None:
         cmd += ' --n-max-queries %d' % args.n_max_queries
-    utils.simplerun(cmd, debug=True) #, dryrun=True)
+    utils.simplerun(cmd, debug=True, dryrun=args.dry_run)
     # cmd = './bin/partis get-selection-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
 

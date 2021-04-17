@@ -471,6 +471,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
                     if args.seed_unique_id is not None and tmpaction in ['partition', 'plot-partitions', 'view-output', 'get-selection-metrics']:  # it would be nice to work out what the locus of the light chain seed seq is so we don't have to run both, but whatever
                         utils.replace_in_arglist(clist, '--seed-unique-id', seedid(ltmp))
+                    if args.sw_cachefname is None:
+                        clist += ['--sw-cachefname', '%s/sw-cache.yaml'%getpdir(ltmp)]
                     if tmpaction != 'cache-parameters':
                         utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname' if '--infname' in clist else None, has_arg=True)
                         if args.paired_outdir is None:
@@ -481,12 +483,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
                 assert args.input_metafname is None
                 utils.replace_in_arglist(clist, '--input-metafname', getofn(None, joint=True, lpair=lpair, input_meta=True))
-            elif args.input_metafname is None and os.path.exists(getifn('meta')):  # if it wasn't set on the command line, we want to look in a default-ish location to which e.g. write_merged_simu() writes it
+            elif args.input_metafname is None and os.path.exists(getifn('meta')):  # if it wasn't set on the command line, we want to look in a default-ish location to which e.g. paircluster.write_merged_simu() writes it
                 print '  note: adding --input-metafname from default location %s' % getifn('meta')
                 utils.replace_in_arglist(clist, '--input-metafname', getifn('meta'))
-
-            if args.sw_cachefname is None:
-                clist += ['--sw-cachefname', '%s/sw-cache.yaml'%getpdir(ltmp)]
 
             if tmpaction == 'annotate':
                 utils.remove_from_arglist(clist, '--queries-to-include-fname', has_arg=True)  # we end up with inconsistent sequences (well, it's just that one is N-padded and the other isn't)
@@ -497,6 +496,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
                 utils.remove_from_arglist(clist, '--is-simu')  # now that i'm making a tmp .fa file for this step's input, if i want to set --is-simu i'd need to pass in a simulation germline dir, but i think i don't have any reason to set --is-simu anyway?
+                utils.remove_from_arglist(clist, '--simultaneous-true-clonal-seqs')  # if this is set, it'll already be taken care of in --input-partition-fname
                 if os.path.exists(getofn(ltmp, joint=True, lpair=lpair, input_meta=True)):
                     utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # have to use the new, rewritten input meta file (with corrected pairing info)
                 clist[clist.index(args.action)] = 'annotate'
@@ -596,51 +596,6 @@ def run_all_loci(args, ig_or_tr='ig'):
             write_fasta_input()
             run_step('annotate', ltmp, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
-    def apportion_cells_to_droplets(outfos, metafos):
-        n_droplets = int(0.5 * float(len(outfos)) / args.mean_cells_per_droplet)  # (randomly) apportion cells among this many droplets (0.5 is because <outfos> includes both heavy and light sequences)
-        droplet_ids = [[] for _ in range(n_droplets)]  # list of sequence ids for each droplet
-        sfo_dict = {s['name'] : s for s in outfos}  # temp, to keep track of who still needs apportioning (but we do modify its sfos, which are shared with <outfos>)
-        while len(sfo_dict) > 0:
-            tid = next(iter(sfo_dict))
-            idrop = numpy.random.choice(range(len(droplet_ids)))
-            droplet_ids[idrop] += [tid] + metafos[tid]['paired-uids']  # add <tid> plus its paired ids to this drop (note that these are the original/correct paired ids, which is what we want)
-            for uid in [tid] + metafos[tid]['paired-uids']:
-                sfo_dict[uid]['droplet-ids'] = droplet_ids[idrop]
-                del sfo_dict[uid]
-        for sfo in outfos:
-            metafos[sfo['name']]['paired-uids'] = [u for u in sfo['droplet-ids'] if u != sfo['name']]
-        print '  apportioned %d seqs among %d droplets (mean/2 %.1f): %s' % (len(outfos), n_droplets, numpy.mean([len(d) for d in droplet_ids]) / 2, ' '.join(str(len(d)) for d in droplet_ids))
-    # ----------------------------------------------------------------------------------------
-    def remove_reads_from_droplets(outfos, metafos):
-        n_to_remove = int(args.fraction_of_reads_to_remove * len(outfos))
-        ifos_to_remove = numpy.random.choice(range(len(outfos)), size=n_to_remove, replace=False)
-        for ifo in ifos_to_remove:
-            del metafos[outfos[ifo]['name']]
-        outfos = [outfos[ifo] for ifo in range(len(outfos)) if ifo not in ifos_to_remove]
-        print '  removed %d / %d = %.2f seqs from outfos' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove))
-        return outfos
-    # ----------------------------------------------------------------------------------------
-    def write_merged_simu(antn_lists):  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
-        # merge together info from all loci into <outfos> and <metafos>
-        outfos, metafos = [], {}
-        for ltmp in antn_lists:
-            for tline in antn_lists[ltmp]:
-                for uid, seq, pids in zip(tline['unique_ids'], tline['input_seqs'], tline['paired-uids']):
-                    outfos.append({'name' : uid, 'seq' : seq})
-                    metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
-
-        if args.mean_cells_per_droplet is not None:
-            apportion_cells_to_droplets(outfos, metafos)
-        if args.fraction_of_reads_to_remove is not None:
-            outfos = remove_reads_from_droplets(outfos, metafos)
-
-        # write merged fasta and input meta files
-        with open(getmfn('all-seqs'), 'w') as outfile:
-            for sfo in outfos:
-                outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
-        with open(getmfn('meta'), 'w') as mfile:
-            json.dump(metafos, mfile)
-    # ----------------------------------------------------------------------------------------
     def handle_concatd_heavy_chain(lp_infos, headers):  # concatenate partitions+annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
         glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)
         # have to remove duplicates from heavy partition and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs)
@@ -662,7 +617,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         paircluster.write_lpair_output_files(spairs(), lp_infos, getofn, headers, use_pyyaml=args.write_full_yaml_output)  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
         glfos, antn_lists, cpaths = handle_concatd_heavy_chain(lp_infos, headers)
-        write_merged_simu(antn_lists)
+        paircluster.write_merged_simu(antn_lists, getmfn('all-seqs'), getmfn('meta'), mean_cells_per_droplet=args.mean_cells_per_droplet, fraction_of_reads_to_remove=args.fraction_of_reads_to_remove)  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
     # ----------------------------------------------------------------------------------------
     def get_true_partitions(cpaths, debug=False):
         if args.is_data or args.paired_indir is None:
@@ -701,9 +656,11 @@ def run_all_loci(args, ig_or_tr='ig'):
         return ccfs
     # ----------------------------------------------------------------------------------------
     def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):
+        if not os.path.exists(getplotdir(ltmp, single_chain=True)) or not os.path.exists(getplotdir(ltmp)):
+            return
         subd = 'partitions/sizes'
         titlestr = ltmp
-        if ccfs is not None:
+        if ccfs is not None and ltmp in ccfs:
             titlestr += ':@specif.%.2f'%ccfs[ltmp][0]
         cmdstr = './bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
         cmdstr += ' --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % titlestr
@@ -762,7 +719,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if utils.has_d_gene(ltmp):  # light chain in the paired subdirs is the same, so just link the results
                     run_step('plot-partitions', ltmp, joint=True)
                 else:
-                    utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
+                    if os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):
+                        utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
                 if args.plotdir is not None and not args.no_partition_plots:
                     run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
             if args.plotdir is not None and os.path.exists(cfpdir):
@@ -770,16 +728,14 @@ def run_all_loci(args, ig_or_tr='ig'):
                 import plotting
                 fnlist = sorted(fnoutstr.strip().split('\n'))
                 plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
-        if args.action in ['get-selection-metrics', 'view-output'] or args.get_selection_metrics:
-            for lpair in spairs():  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
+        if args.action in ['get-selection-metrics', 'view-output']:
+            for lpair in spairs():
                 for ltmp in lpair:
-                    run_step(args.action, ltmp, lpair=lpair, joint=True)
-            if args.action == 'get-selection-metrics':
-                lp_infos = {}
-                for lpair in spairs():
-                    lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
-                _ = read_qti_file(args)  # sets args.queries_to_include
-                treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/combo-selection-metrics', args=args)
+                    run_step(args.action, ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
+        if args.action == 'get-selection-metrics' or args.get_selection_metrics and not args.dry_run:
+            lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
+            _ = read_qti_file(args)  # sets args.queries_to_include
+            treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/combo-selection-metrics', args=args)
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         utils.rmdir(args.workdir, fnames=work_fnames)
@@ -933,6 +889,7 @@ parent_args.append({'name' : '--lb-tau', 'kwargs' : {'type' : float, 'default' :
 parent_args.append({'name' : '--lbr-tau-factor', 'kwargs' : {'type' : int, 'default' : treeutils.default_lbr_tau_factor, 'help' : 'factor by which to multiply --lb-tau in order to get the exponential decay length (tau) for local branching ratio (lbr). The ratio (lbr) should, in general, have tau much larger than for the index (lbi). See also --lb-tau.'}})  # default is set in treeutils so we can import it in bin/get-selection-metrics.py UPDATE deleted that script, so could probably move this
 parent_args.append({'name' : '--dont-normalize-lbi', 'kwargs' : {'action' : 'store_true', 'help' : 'By default, we normalize tau so that 0. is a rough minimum, and 1. is a fairly large value. But since you can\'t normalize for tau larger than 1/seq_len, it\'s useful to turn off normalization.'}})
 parent_args.append({'name' : '--include-relative-affy-plots', 'kwargs' : {'action' : 'store_true', 'help' : 'in addition to validation plots using actual affinity from simulation, also make plots using \'relative\' affinity (see bcr-phylo), i.e. a cell\'s affinity relative only to other cells alive at the same point in time. Useful because the selection metrics attempt to predict the effects of fitness on branchiness only at a given time (or: if you sample a lot of intermediate ancestors, your selection metric performance will look artificially bad because the ancestors, while having higher affinity than other cells alive at the same time, have affinity lower than the leaves).'}})
+parent_args.append({'name' : '--ab-choice-cfg', 'kwargs' : {'default' : partis_dir + '/data/selection-metrics/ab-choice.yaml', 'help' : 'yaml file with config info for how to choose abs.'}})
 
 parent_args.append({'name' : '--no-sw-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'By default, we get preliminary V annotations from vsearch that we pass to sw. This improves accuracy because the vsearch shm rate estimates let us separate sequences into groups by optimal sw match/mismatch scores, and improves speed by letting us reverse shm V indels before running sw (so fewer sw iterations; also vsearch is faster than sw). Setting this option skips the preliminary vsearch step (although if caching parameters, we still use vsearch to remove less-likely genes; but no vsearch info is passed to sw)'}})
 
@@ -1045,7 +1002,6 @@ subargs['view-output'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see
 subargs['view-output'].append({'name' : '--extra-print-keys', 'kwargs' : {'help' : 'add the value of these keys (colon-separated list) as a new column to the ascii art annotation'}})
 subargs['get-selection-metrics'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['get-selection-metrics'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
-subargs['get-selection-metrics'].append({'name' : '--ab-choice-cfg', 'kwargs' : {'default' : partis_dir + '/data/selection-metrics/ab-choice.yaml', 'help' : 'yaml file with config info for how to choose abs.'}})
 subargs['get-selection-metrics'].append({'name' : '--chosen-ab-fname', 'kwargs' : {'help' : 'csv file to which to write information on chosen antibody sequences'}})
 subargs['merge-paired-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['merge-paired-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)

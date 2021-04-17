@@ -191,7 +191,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     plotting.mpl_finish(pre_ax, plotdir, plotname, title=title, xlabel=xlabel) #, ylabel='generation') #, leg_loc=(0.7, 0.45)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_kd_vals(plotdir, event):
+def plot_bcr_phylo_kd_vals(plotdir, event, legstr=''):
     kd_changes = []
     dtree = treeutils.get_dendro_tree(treestr=event['tree'])
     for node in dtree.preorder_internal_node_iter():
@@ -224,10 +224,12 @@ def plot_bcr_phylo_kd_vals(plotdir, event):
     fig, ax = plotting.mpl_init()
     ax.scatter(plotvals['kd_vals'], plotvals['shm'], alpha=0.4)
     plotname = 'kd-vs-shm'
-    plotting.mpl_finish(ax, plotdir, plotname, xlabel='Kd', ylabel='N mutations') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    if legstr != '':
+        plotname += '-' + legstr
+    plotting.mpl_finish(ax, plotdir, plotname, xlabel='Kd', ylabel='N mutations', title=legstr) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_target_attraction(plotdir, event):  # plots of which sequences are going toward which targets
+def plot_bcr_phylo_target_attraction(plotdir, event, legstr=''):  # plots of which sequences are going toward which targets
     fig, ax = plotting.mpl_init()
 
     # affinity vs stuff:
@@ -242,20 +244,29 @@ def plot_bcr_phylo_target_attraction(plotdir, event):  # plots of which sequence
     hist.mpl_plot(ax, alpha=0.7, ignore_overflows=True)
 
     plotname = 'nearest-target-identities'
-    plotting.mpl_finish(ax, plotdir, plotname, xlabel='index (identity) of nearest target sequence', ylabel='counts') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    if legstr != '':
+        plotname += '-' + legstr
+    plotting.mpl_finish(ax, plotdir, plotname, xlabel='index (identity) of nearest target sequence', ylabel='counts', title=legstr) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_simulation(outdir, event, extrastr, metric_for_target_distance_label):
-    utils.prep_dir(outdir + '/plots', wildlings=['*.csv', '*.svg'])
+def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_target_distance_label, lpair=None):
+    utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
 
-    plot_bcr_phylo_kd_vals(outdir + '/plots', event)
-    plot_bcr_phylo_target_attraction(outdir + '/plots', event)
+    if lpair is None:
+        assert len(events) == 1
+        plot_bcr_phylo_kd_vals(plotdir, events[0])
+        plot_bcr_phylo_target_attraction(plotdir, events[0])
+    else:
+        assert len(events) == 2
+        for ltmp, evt in zip(lpair, events):
+            plot_bcr_phylo_kd_vals(plotdir, evt, legstr=ltmp)
+            plot_bcr_phylo_target_attraction(plotdir, evt, legstr=ltmp)
 
-    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-all-cells', title='all cells', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
-    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), outdir + '/plots', 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
-    plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), outdir + '/plots', 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
+    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-all-cells', title='all cells', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
+    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
+    plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), plotdir, 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
 
-    plotting.make_html(outdir + '/plots')
+    plotting.make_html(plotdir)
 
 # ----------------------------------------------------------------------------------------
 def get_tree_from_line(line, is_true_line):
@@ -616,6 +627,8 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
 # ----------------------------------------------------------------------------------------
 def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind of duplicates code in cf-tree-metrics.py (well except there we're averaging the *difference* between us and perfect
     non_empty_iclusts = [iclust for iclust in range(n_clusters) if 'iclust-%d'%iclust in ptile_vals and len(ptile_vals['iclust-%d'%iclust]['lb_ptiles']) > 0]
+    if len(non_empty_iclusts) == 0:
+        return {}  # not really sure this is right, adding it long after writing this
     if debug:
         if len(non_empty_iclusts) < n_clusters:
             print '  removed %d empty iclusts' % (n_clusters - len(non_empty_iclusts))
@@ -639,7 +652,7 @@ def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind
 
 # ----------------------------------------------------------------------------------------
 def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?', title=None, fnames=None, ptile_range_tuple=(50., 100., 1.), true_inf_str='?', n_clusters=None, iclust=None, within_cluster_average=False, xlist=None, affy_key='affinities'):
-    if len(tmp_ptvals['lb_ptiles']) == 0:
+    if 'lb_ptiles' not in tmp_ptvals or len(tmp_ptvals['lb_ptiles']) == 0:
         return
 
     fig, ax = plotting.mpl_init()

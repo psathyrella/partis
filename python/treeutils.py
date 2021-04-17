@@ -2075,6 +2075,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def find_cluster_pairs(lpair):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
         lp_antn_pairs = []
         lpk = tuple(lpair)
+        if None in lp_infos[lpk].values():
+            return lp_antn_pairs
         h_part, l_part = [sorted(lp_infos[lpk]['cpaths'][l].best(), key=len, reverse=True) for l in lpair]
         h_atn_dict, l_atn_dict = [utils.get_annotation_dict(lp_infos[lpk]['antn_lists'][l]) for l in lpair]
         for h_clust in h_part:
@@ -2085,7 +2087,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 continue
             l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
             if len(l_clusts) != 1:
-                print '  %s couldn\'t find a unique light cluster for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(h_atn), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
+                print '  %s couldn\'t find a unique light cluster (found %d, looked in %d) for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(l_part), len(h_atn), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
                 continue
             assert len(l_clusts) == 1
             l_atn = l_atn_dict[':'.join(l_clusts[0])]
