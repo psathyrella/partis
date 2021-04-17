@@ -511,8 +511,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if '--plotdir' not in clist:
                     clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
                 clist[clist.index(args.action)] = 'plot-partitions'
-            if tmpaction=='get-selection-metrics' and args.is_data:  # for simulation we still need it
-                utils.remove_from_arglist(clist, '--infname', has_arg=True)
+            if tmpaction == 'get-selection-metrics':
+                if args.is_data:  # for simulation we still need it
+                    utils.remove_from_arglist(clist, '--infname', has_arg=True)
+                utils.remove_from_arglist(clist, '--get-selection-metrics')
+                clist[clist.index(args.action)] = 'get-selection-metrics'
 
             return clist
         # ----------------------------------------------------------------------------------------
@@ -728,11 +731,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                 import plotting
                 fnlist = sorted(fnoutstr.strip().split('\n'))
                 plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
-        if args.action in ['get-selection-metrics', 'view-output']:
+        if args.action in ['get-selection-metrics', 'view-output'] or args.get_selection_metrics:
             for lpair in spairs():
                 for ltmp in lpair:
-                    run_step(args.action, ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
-        if args.action == 'get-selection-metrics' or args.get_selection_metrics and not args.dry_run:
+                    run_step('get-selection-metrics' if args.get_selection_metrics else args.action, ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
+        if (args.action == 'get-selection-metrics' or args.get_selection_metrics) and not args.dry_run:
             lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
             _ = read_qti_file(args)  # sets args.queries_to_include
             treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/combo-selection-metrics', args=args)
