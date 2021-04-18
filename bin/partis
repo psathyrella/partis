@@ -599,7 +599,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             write_fasta_input()
             run_step('annotate', ltmp, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
-    def handle_concatd_heavy_chain(lp_infos, headers):  # concatenate partitions+annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
+    def handle_concatd_heavy_chain(lp_infos, headers):  # concatenate partitions + annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
         glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)
         # have to remove duplicates from heavy partition and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs)
         hloc = utils.get_single_entry([l for l in utils.sub_loci(ig_or_tr) if utils.has_d_gene(l)])  # very convoluted way to get heavy chain
@@ -630,6 +630,34 @@ def run_all_loci(args, ig_or_tr='ig'):
             true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
         return true_partitions
     # ----------------------------------------------------------------------------------------
+    def print_joint_vs_input(input_cpaths, input_antn_lists, concat_cpaths, debug=False):
+        # ----------------------------------------------------------------------------------------
+        def getjcstr(u, jfamilies):  # str for length of <u>'s cluster in <jfamilies>
+            jfs = [f for f in jfamilies if u in f]
+            if len(jfs) == 0:
+                return utils.color('blue', '?')
+            else:
+                jf = utils.get_single_entry(jfs)
+                return ('%d: %s'%(len(jf), ' '.join(jf)))
+        # ----------------------------------------------------------------------------------------
+        tmpstrs = ['   N clusters with all seqs:'] \
+                  + ['%s %4d --> %-4d%s'  % (utils.locstr(l), len(input_cpaths[l].best()), len(concat_cpaths[l].best()), paircluster.chstr(len(input_cpaths[l].best()), len(concat_cpaths[l].best()))) for l in sloci()]
+        print '\n        '.join(tmpstrs)
+        if debug:
+            print 'annotations for initial partition clusters, showing (at right) the joint partition clusters into which they were split' # (%s: probably paired with other chain):' % utils.color('blue', '?')
+            for ltmp in sloci():
+                print '%s' % utils.color('green', ltmp)
+                print '  initial:'
+                input_cpaths[ltmp].print_partitions(n_to_print=1, extrastr='      ')
+                print '  joint:'
+                concat_cpaths[ltmp].print_partitions(n_to_print=1, extrastr='      ')
+                print '  annotations:'
+                input_antn_dict = utils.get_annotation_dict(input_antn_lists[ltmp])
+                for tclust in input_cpaths[ltmp].best():  # loop over clusters in the initial partition
+                    jfamilies = [c for c in concat_cpaths[ltmp].best() if len(set(tclust) & set(c)) > 0]  # clusters in the joint partition that overlap with this cluster
+                    uid_extra_strs = [getjcstr(u, jfamilies) for u in tclust]
+                    utils.print_reco_event(input_antn_dict[':'.join(tclust)], uid_extra_strs=uid_extra_strs, extra_str='      ')
+    # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         DBG = args.debug_paired_clustering
         single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=DBG)  # single chain cpaths (and other info)
@@ -649,10 +677,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                 continue
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=DBG)  # , iparts={'igl' : 7}
-            for ltmp in lpair:
+            for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs)
             lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
         _, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns))
+        print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_cpaths, debug=DBG)
         ccfs = {}
         for ltmp in [l for l in sloci() if l in concat_cpaths]:
             ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str='%s single vs joint concat\'d '%utils.locstr(ltmp), cf_label='single', ref_label='joint', debug=True) # antn_list=XXX

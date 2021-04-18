@@ -18,6 +18,11 @@ import treeutils
 naive_hamming_bound_type = 'naive-hamming' #'likelihood'
 
 # ----------------------------------------------------------------------------------------
+def chstr(n_before, n_after):  # empty if same number before and after, otherwise red +/-N
+    if n_before == n_after: return ''
+    else: return ' ' + utils.color('red', '%+d' % (n_after - n_before))
+
+# ----------------------------------------------------------------------------------------
 # return standardized file name (including subdirs) in directory structure that we use for paired heavy/light i/o
 def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig', actstr=None):  # if set, only file(s) for this <locus>, and/or only files for this <lpair> of loci. If <lpair> is set but <locus> is None, returns subdir name
     if lpair is not None:
