@@ -71,6 +71,9 @@ cluster_summary_cfg['affinity'] = (('top-quintile', lambda line, plotvals: mean_
 cluster_summary_cfg['fay-wu-h'] = (('fay-wu-h', lambda line, plotvals: -utils.fay_wu_h(line)), )
 cluster_summary_cfg['cons-dist-nuc'] = (('cons-seq-shm-nuc', lambda line, plotvals: treeutils.lb_cons_seq_shm(line, aa=False)), )  # NOTE the cluster_summary_cfg key doesn't really make sense here any more (used to be 'consensus'), but i'm not really using these cluster summary things any more, since it turns out to not work very well to choose entire families
 cluster_summary_cfg['cons-dist-aa'] = (('cons-seq-shm-aa', lambda line, plotvals: treeutils.lb_cons_seq_shm(line, aa=True)), )  # NOTE the cluster_summary_cfg key doesn't really make sense here any more (used to be 'consensus'), but i'm not really using these cluster summary things any more, since it turns out to not work very well to choose entire families
+# TODO
+cluster_summary_cfg['sum-cons-dist-aa'] = (('sum-cons-seq-shm-aa', lambda line, plotvals: treeutils.lb_cons_seq_shm(line, aa=True)), )  # NOTE this is wrong! i just don't want it to crash
+# ----------------------------------------------------------------------------------------
 cluster_summary_cfg['is_leaf'] = (('x-dummy-x', lambda line, plotvals: None), )  # just to keep things from breaking, doesn't actually get used
 def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]
@@ -78,9 +81,9 @@ def getptvar(xvar): return xvar if xvar == 'affinity' else 'n-ancestor'  # NOTE 
 def ungetptvar(xvar): return xvar if xvar == 'affinity' else 'delta-affinity'  # ok this name sucks, and these two functions are anyway shitty hacks
 def ungetptlabel(xvar): return xvar if xvar == 'affinity' else 'affinity change'
 
-per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'cons-lbi'] + treeutils.dtr_metrics
+per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'sum-cons-dist-aa', 'delta-lbi', 'cons-lbi'] + treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
-mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
+mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'sum-cons-dist-aa' : '- AA dist. to cons seq (h+l)', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
                            'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'in-family dtr', 'within-families-delta-affinity-dtr' : 'in-family dtr', 'among-families-affinity-dtr' : 'among-families dtr', 'among-families-delta-affinity-dtr' : 'among-families dtr'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'cons-seq-shm-nuc' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
 mtitle_shorts = {'cons-dist-aa' : 'AA cons dist', 'cons-dist-nuc' : 'nuc cons dist'}
@@ -192,6 +195,7 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_kd_vals(plotdir, event, legstr=''):
+    # make kd changes histogram
     kd_changes = []
     dtree = treeutils.get_dendro_tree(treestr=event['tree'])
     for node in dtree.preorder_internal_node_iter():
@@ -205,7 +209,6 @@ def plot_bcr_phylo_kd_vals(plotdir, event, legstr=''):
             ichild = event['unique_ids'].index(child.taxon.label)
             child_affinity = event['affinities'][ichild]
             kd_changes.append(1./child_affinity - 1./node_affinity)
-
     if len(kd_changes) > 0:
         hist = Hist(30, min(kd_changes), max(kd_changes))
         for val in kd_changes:
@@ -213,8 +216,11 @@ def plot_bcr_phylo_kd_vals(plotdir, event, legstr=''):
         fig, ax = plotting.mpl_init()
         hist.mpl_plot(ax, square_bins=True, errors=False)  #remove_empty_bins=True)
         plotname = 'kd-changes'
-        plotting.mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches', log='y') #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+        if legstr != '':
+            plotname += '-' + legstr
+        plotting.mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches', log='y', title=legstr) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
 
+    # scatter plot of kd vs shm
     plotvals = {'shm' : [], 'kd_vals' : []}
     for iseq, uid in enumerate(event['unique_ids']):
         plotvals['shm'].append(event['n_mutations'][iseq])
@@ -262,9 +268,10 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
             plot_bcr_phylo_kd_vals(plotdir, evt, legstr=ltmp)
             plot_bcr_phylo_target_attraction(plotdir, evt, legstr=ltmp)
 
-    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-all-cells', title='all cells', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
-    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-sampled-cells', plot_all=True, title='sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
-    plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), plotdir, 'n-mutated-nuc-all-cells', title='SHM all cells', xlabel='N nucleotide mutations to naive')
+    legstr = '' if lpair is None else '+'.join(lpair)+' '
+    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-all-cells', title=legstr+'all cells', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
+    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-sampled-cells', plot_all=True, title=legstr+'sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
+    plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), plotdir, 'n-mutated-nuc-all-cells', title=legstr+'SHM all cells', xlabel='N nucleotide mutations to naive')
 
     plotting.make_html(plotdir)
 
@@ -780,7 +787,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     if not only_csv:
         if sum(len(l['unique_ids']) for l in lines) < max_scatter_plot_size:
             make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist' if is_true_line else None,
-                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, add_jitter=is_true_line, use_relative_affy='relative' in affy_key)  # there's some code duplication between these two fcns, but oh well
+                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric, add_jitter=is_true_line, use_relative_affy='relative' in affy_key, add_stats='correlation')  # there's some code duplication between these two fcns, but oh well
             if make_distribution_plots:
                 plot_lb_distributions(lb_metric, baseplotdir, lines, fnames=fnames, is_true_line=is_true_line, only_overall=True)
         else:  # ok this is hackey

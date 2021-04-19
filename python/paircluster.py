@@ -886,9 +886,6 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     final_partition = [c for c in final_partition if len(c) > 0]
     if debug:
         print '    final: %s' % ' '.join([str(len(c)) for c in final_partition])
-    def chstr(n_before, n_after):
-        if n_before == n_after: return ''
-        else: return ' ' + utils.color('red', '%+d' % (n_after - n_before))
     tmpstrs = ['   N clusters without bad/unpaired seqs:'] \
               + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(init_partitions[tch]), len(final_partition), chstr(len(init_partitions[tch]), len(final_partition))) for tch in utils.chains]
     print '\n        '.join(tmpstrs)
@@ -932,26 +929,5 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     if true_partitions is not None:
         assert iparts is None  # just for now
         evaluate_joint_partitions(ploci, true_partitions, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, debug=debug)
-
-    tmpstrs = ['   N clusters with all seqs:'] \
-              + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]), chstr(len(input_cpaths[ploci[tch]].best()), len(joint_partitions[tch]))) for tch in utils.chains]
-    print '\n        '.join(tmpstrs)
-    if debug:
-        print 'annotations for initial partition clusters, showing (on right) also the joint partition clusters into which they were split (?: probably paired with other chain):'
-        for tch in utils.chains:
-            input_antn_dict = utils.get_annotation_dict(input_antn_lists[ploci[tch]])
-            print '%s' % utils.color('green', ploci[tch])
-            assert iparts is None  # just for now
-            for tclust in input_cpaths[ploci[tch]].best():  # loop over clusters in the initial partition
-                jfamilies = [c for c in joint_partitions[tch] if len(set(tclust) & set(c)) > 0]  # clusters in the joint partition that overlap with this cluster
-                uid_extra_strs = None
-                if len(jfamilies) == 0:  # couldn't find it (it was probably paired with the other light chain)
-                    uid_extra_strs = [utils.color('blue', '?') for _ in tclust]
-                else:
-                    def getjcstr(u):  # str for length of <u>'s cluster in <jfamilies>
-                        jfs = [f for f in jfamilies if u in f]
-                        return utils.color('blue', '?') if len(jfs)==0 else ('%d: %s'%(len(utils.get_single_entry(jfs)), ' '.join(jfs[0])))
-                    uid_extra_strs = [getjcstr(u) for u in tclust]
-                utils.print_reco_event(input_antn_dict[':'.join(tclust)], uid_extra_strs=uid_extra_strs, extra_str='      ')
 
     return {ploci[ch] : jp for ch, jp in joint_partitions.items()}

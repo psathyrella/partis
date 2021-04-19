@@ -1478,7 +1478,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
     start = time.time()
     print '           plotting to %s' % base_plotdir
 
-    # first make inferred plots
+    # inferred plots
     if true_lines_to_use is None:  # at least for now I'm turning off inferred plots when we have true lines, the only reason we want it (I think) is to compare the effect of true vs inferred tree, which I'm not doing now, and it's slow af
         has_affinities = any('affinities' in l for l in inf_lines_to_use)  # we'd expect that either all or none of the families have affinity info, but oh well this makes it more general
         inf_plotdir = base_plotdir + '/inferred-tree-metrics'
@@ -1501,7 +1501,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
             subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
             plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
 
-    # then make true plots
+    # true plots
     if true_lines_to_use is not None:
         if 'affinities' not in true_lines_to_use[0] or all(affy is None for affy in true_lines_to_use[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             # print '  %s no affinity information in this simulation, so can\'t plot lb/affinity stuff' % utils.color('yellow', 'note')
@@ -1512,6 +1512,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
         fnames = []
         for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
             lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'aa-lbi', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
+            lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'cons-dist-aa', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
             lbplotting.make_lb_scatter_plots('cons-dist-aa', true_plotdir, 'aa-lbi', true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
             lbplotting.make_lb_scatter_plots('aa-lbi', true_plotdir, 'lbi', true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True, add_jitter=False, add_stats='correlation')
@@ -2058,7 +2059,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
 
 # ----------------------------------------------------------------------------------------
-def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
+def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
     def getpids(line):
         all_ids = []
@@ -2190,8 +2191,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return 'chosen' if all(gsval(m, c, 'unique_ids') in iclust_chosen_ids for c in 'hl') else 'nope'
         def ustr(m):
             rstr = ''
-            # if waschosen(m):  # if this is commented, i think i can simplify this fcn a lot?
-            #     rstr = 'x'
+            if waschosen(m) == 'chosen':  # if this is commented, i think i can simplify this fcn a lot? UPDATE need the extra text for cases where lots of dots are on top of each other
+                rstr = 'x'
             if args.queries_to_include is not None and all(gsval(m, c, 'unique_ids') in args.queries_to_include for c in 'hl'):
                 common_chars = ''.join(c for c, d in zip(gsval(m, 'h', 'unique_ids'), gsval(m, 'l', 'unique_ids')) if c==d)
                 common_chars = common_chars.rstrip('-ig')
@@ -2305,19 +2306,36 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         for gs in gstrs[imp+1:]:  # if the cluster was smaller than gstrs, need to print the extra gstrs (this shouldn't really ever happen unless i make gstrs much longer))
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
+    # ----------------------------------------------------------------------------------------
+    def makeplots(metric_pairs, h_atn):
+        import plotting
+        import lbplotting
+        if is_simu:
+            # make performance plots for sum of h+l aa-cdist
+            mm = 'sum-cons-dist-aa'
+            h_atn['tree-info']['lb'][mm] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
+            for mfo in metric_pairs:
+                h_atn['tree-info']['lb'][mm][gsval(mfo, 'h', 'unique_ids')] = -sum(gsval(mfo, c, 'aa-cdist') for c in 'hl')
+            fnames = []
+            lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], mm, is_true_line=is_simu, fnames=fnames)
+            plotting.make_html(plotdir, fnames=fnames, extra_links=[(mm, '%s/%s/' % (plotdir, mm)),])
+        iclust_plotvals = {c+'_aa-cfrac' : [gsval(m, c, 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
+        add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs)  # add uids for the chosen ones
+        mstr = legtexts['cons-frac-aa']
+        lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
+        # for k in iclust_plotvals:
+        #     if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
+        #     all_plotvals[k] += iclust_plotvals[k]
 
     # ----------------------------------------------------------------------------------------
-    debug = True
-    if plotdir is not None:
-        import lbplotting
-        mstr = legtexts['cons-frac-aa']
+    debug = False
     all_chosen_mfos = []
     with open(args.ab_choice_cfg) as cfile:
         cfgfo = yaml.load(cfile, Loader=Loader)
     antn_pairs = []
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += find_cluster_pairs(lpair)
-    all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
+    # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
     for iclust, (h_atn, l_atn) in enumerate(sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)):
@@ -2347,13 +2365,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if debug:
             print_dbg(metric_pairs)
         if plotdir is not None:
-            iclust_plotvals = {c+'_aa-cfrac' : [gsval(m, c, 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
-            add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs)  # add uids for the chosen ones
-            lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
-            for k in iclust_plotvals:
-                if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
-                all_plotvals[k] += iclust_plotvals[k]
+            makeplots(metric_pairs, h_atn)
     if args.chosen_ab_fname is not None:
         write_chosen_file(all_chosen_mfos)
-    if plotdir is not None:  # NOTE set --dry when getting selection metrics to get these plots, but not the regular (single-chain) selection metric plots (which are slow, especially the tree ones)
-        lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')
+    # if plotdir is not None:  # eh, maybe there isn't a big reason for an overall one
+    #     lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')
