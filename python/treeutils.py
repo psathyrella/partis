@@ -2328,7 +2328,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         #     all_plotvals[k] += iclust_plotvals[k]
 
     # ----------------------------------------------------------------------------------------
-    debug = False
+    debug = not is_simu
     all_chosen_mfos = []
     with open(args.ab_choice_cfg) as cfile:
         cfgfo = yaml.load(cfile, Loader=Loader)
