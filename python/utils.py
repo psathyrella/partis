@@ -1316,7 +1316,6 @@ def cons_seq_of_line(line, aa=False, threshold=0.01, use_input_seqs=False):  # N
     unaligned_seqfos = None
     # if any(indelutils.has_indels_line(line, i) for i in range(len(line['unique_ids']))):  NOTE *don't* use this, only align if you need to
     if len(set(len(s['seq']) for s in aligned_seqfos)) > 1:  # this will probably only happen if use_input_seqs is set and there's shm indels
-        print '!!need aligning'
         unaligned_seqfos = aligned_seqfos
         aligned_seqfos = None
     return cons_seq(threshold, aligned_seqfos=aligned_seqfos, unaligned_seqfos=unaligned_seqfos, aa=aa) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')

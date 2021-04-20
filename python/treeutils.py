@@ -2382,6 +2382,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += find_cluster_pairs(lpair)
     # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
+    n_too_small = 0
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
     for iclust, (h_atn, l_atn) in enumerate(sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)):
@@ -2397,6 +2398,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '  paired light id %s missing' % lid
                 continue
             if any(len(l['unique_ids']) < min_cluster_size for l in (h_atn, l_atn)):
+                n_too_small += 1
                 continue
             mpfo = {'iclust' : iclust}
             for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
@@ -2410,6 +2412,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             all_chosen_mfos += iclust_mfos
         if debug:
             print_dbg(metric_pairs)
+        if n_too_small > 0:
+            print '    skipped %d clusters smaller than %d' % (n_too_small, min_cluster_size)
         if plotdir is not None:
             makeplots(metric_pairs, h_atn)
     if args.chosen_ab_fname is not None:
