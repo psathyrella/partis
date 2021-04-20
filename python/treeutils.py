@@ -2201,7 +2201,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 consfo.update({'iclust' : iclust, 'consensus' : True})
                 chosen_mfos.append(consfo)
                 if tdbg:
-                    print '      added cons seq'
+                    print '      %s: added cons seq' % utils.color('green', 'x')
         return chosen_mfos
     # ----------------------------------------------------------------------------------------
     def add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs):
