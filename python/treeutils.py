@@ -2178,7 +2178,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             sorted_mfos = sorted(metric_pairs, key=lambda m: sum(gsval(m, c, sortvar) for c in 'hl'), reverse=vcfg['sort']=='high')
             for mfo in sorted_mfos:
                 if any(gsval(mfo, c, 'has_shm_indels') for c in 'hl'):
-                    print '  %s chose ab with shm indel: the consensus sequence will *not* reflect the indels (it assumes most of the family doesn\'t have this indel, which may be incorrect), and you need to be *very* careful that you get the sequence you expect from the output file.  uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
+                    print '        %s chose ab with shm indel: the consensus sequence may or may not reflect the indels (see below), and you need to be *very* careful that you get the sequence you expect from the output file.  uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
                 if mfo in chosen_mfos:
                     n_already_chosen += 1
                     continue
@@ -2193,15 +2193,38 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if tdbg:
                 print '      %s: chose %d%s%s' % (sortvar, n_newly_chosen, '' if n_already_chosen==0 else ' (%d were in common with a previous var)'%n_already_chosen, '' if n_same_seqs==0 else ' (%d had seqs identical to previously-chosen ones)'%n_same_seqs)
         if cfgfo['include-cons-seqs']:
+            # ----------------------------------------------------------------------------------------
+            def use_iseqs(tch, mtmp):  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
+                hsil = mtmp[tch]['has_shm_indels']
+                tstr = '(%d / %d = %.2f)' % (hsil.count(True), len(hsil), hsil.count(True) / float(len(hsil)))
+                if hsil.count(True) / float(len(hsil)) > 0.5:
+                    print '        %s more than half %s of %s seqs have indels, so using *input* cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), tstr, tch)
+                    return True
+                else:
+                    if any(hsil):  # if none of them have indels, don't print anything
+                        print '        less than half %s of %s seqs have indels, so not using input seqs for cons seq' % (tstr, tch)
+                    return False
+            # ----------------------------------------------------------------------------------------
+            def getcseqs(tch, use_input_seqs, aa=False):  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
+                if use_input_seqs:
+                    return utils.cons_seq_of_line(mtmp[tch], aa=aa, use_input_seqs=True)
+                else:
+                    return mtmp[tch]['consensus_seq'+('_aa' if aa else '')]
+            # ----------------------------------------------------------------------------------------
             mtmp = metric_pairs[0]
-            if '+'.join(mtmp[c]['consensus_seq_aa'] for c in 'hl') in all_chosen_seqs:
-                print '      already added sequence with zero aa-cdist, so not adding cons seq'
+            uis = {c : use_iseqs(c, mtmp) for c in 'hl'}
+            cseqs = {c : getcseqs(c, uis[c], aa=True) for c in 'hl'}  # aa cons seqs
+            if '+'.join(cseqs[c] for c in 'hl') in all_chosen_seqs:
+                print '      already added sequence with zero aa-cdist, so not adding cons seq%s' % ((' (using %s input seq[s] because of indels)'%' '.join(c for c in 'hl' if uis[c])) if any(uis.values()) else '')
             else:
                 consfo = {c : mtmp[c] for c in 'hl'}
                 consfo.update({'iclust' : iclust, 'consensus' : True})
+                consfo.update({c+'_use_input_seqs' : uis[c] for c in 'hl'})
+                consfo.update({c+'_cseq_aa' : cseqs[c] for c in 'hl'})
+                consfo.update({c+'_cseq_nuc' : getcseqs(c, uis[c], aa=False) for c in 'hl'})
                 chosen_mfos.append(consfo)
                 if tdbg:
-                    print '      %s: added cons seq' % utils.color('green', 'x')
+                    print '      %s: added cons seq%s' % (utils.color('green', 'x'), (' (using %s input seq[s] becuase of indels)'%' '.join(c for c in 'hl' if consfo[c+'_use_input_seqs'])) if any(consfo[c+'_use_input_seqs'] for c in 'hl') else '')
         return chosen_mfos
     # ----------------------------------------------------------------------------------------
     def add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs):
@@ -2238,8 +2261,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             ofo.update([(c+'_family_size', len(mfo[c]['unique_ids'])) for c in 'hl'])
             ofo.update([(c+'_'+r+'_gene' , mfo[c][r+'_gene']) for r in utils.regions for c in 'hl'])
             if 'consensus' in mfo:
-                ofo.update([(c+'_seq_nuc', mfo[c]['consensus_seq']) for c in 'hl'])
-                ofo.update([(c+'_seq_aa', mfo[c]['consensus_seq_aa']) for c in 'hl'])
+                for tch in 'hl':
+                    ofo[tch+'_seq_aa'] = mfo[tch+'_cseq_aa']
+                    ofo[tch+'_seq_nuc'] = mfo[tch+'_cseq_nuc']
+                    ofo[tch+'_has_shm_indels'] = mfo[tch+'_use_input_seqs']
             else:
                 for ok, lk in [('has_shm_indels', None), ('cell_type', 'cell-types'), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None), ('seq_nuc', 'input_seqs'), ('seq_aa', 'input_seqs_aa')]:
                     ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]))) for c in 'hl'])

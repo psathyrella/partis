@@ -1167,7 +1167,7 @@ def color_chars(chars, col, seq):
     return ''.join(return_str)
 
 # ----------------------------------------------------------------------------------------
-def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
+def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False, aa=False, debug=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
     def outfile_fcn():
         if outfname is None:
             return tempfile.NamedTemporaryFile()
@@ -1194,6 +1194,8 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
                 outstr, errstr = simplerun('mafft --keeplength --add %s %s >%s' % (fin.name, existing_alignment_file.name, fout.name), shell=True, return_out_err=True, debug=False)  #  --reorder
 
         if outfname is not None:
+            if debug:
+                print '  align_many_seqs(): wrote aligned seqs to %s' % outfname
             return None
 
         msa_info = read_fastx(fout.name, ftype='fa')
@@ -1212,6 +1214,11 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
             print pad_lines(outstr)
             print pad_lines(errstr)
             raise Exception('error reading mafft output from %s (see previous lines)' % fin.name)
+
+    if debug:
+        w = max(len(s['name']) for s in msa_info)
+        for sfo in msa_info:
+            print color_mutants(msa_info[0]['seq'], sfo['seq'], ref_label=wfmt(msa_info[0]['name'], w)+' ', seq_label=wfmt(sfo['name'], w)+' ', amino_acid=aa)
 
     return msa_info
 
@@ -1266,8 +1273,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, ti
         seqfos = aligned_seqfos
     elif unaligned_seqfos is not None:
         assert aligned_seqfos is None
-        assert not aa  # not sure if the alignment fcn can handle aa seqs as it is (and i don't need it a.t.m.)
-        seqfos = align_many_seqs(unaligned_seqfos)
+        seqfos = align_many_seqs(unaligned_seqfos, aa=aa)
     else:
         assert False
 
@@ -1293,9 +1299,10 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, ti
     return cons_seq
 
 # ----------------------------------------------------------------------------------------
-def seqfos_from_line(line, aa=False, extra_keys=None):
+def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False):
     tstr = '_aa' if aa else ''
-    seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m if m is not None else 1} for u, s, m in zip(line['unique_ids'], line['seqs'+tstr], get_multiplicities(line))]
+    skey = 'input_seqs' if use_input_seqs else 'seqs'
+    seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m if m is not None else 1} for u, s, m in zip(line['unique_ids'], line[skey+tstr], get_multiplicities(line))]
     if extra_keys is not None:
         for iseq, sfo in enumerate(seqfos):
             for ekey in extra_keys:
@@ -1304,8 +1311,15 @@ def seqfos_from_line(line, aa=False, extra_keys=None):
 
 # ----------------------------------------------------------------------------------------
 # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
-def cons_seq_of_line(line, aa=False, threshold=0.01):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
-    return cons_seq(threshold, aligned_seqfos=seqfos_from_line(line, aa=aa), aa=aa) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+def cons_seq_of_line(line, aa=False, threshold=0.01, use_input_seqs=False):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
+    aligned_seqfos = seqfos_from_line(line, aa=aa, use_input_seqs=use_input_seqs)
+    unaligned_seqfos = None
+    # if any(indelutils.has_indels_line(line, i) for i in range(len(line['unique_ids']))):  NOTE *don't* use this, only align if you need to
+    if len(set(len(s['seq']) for s in aligned_seqfos)) > 1:  # this will probably only happen if use_input_seqs is set and there's shm indels
+        print '!!need aligning'
+        unaligned_seqfos = aligned_seqfos
+        aligned_seqfos = None
+    return cons_seq(threshold, aligned_seqfos=aligned_seqfos, unaligned_seqfos=unaligned_seqfos, aa=aa) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
 # ----------------------------------------------------------------------------------------
     # Leaving the old version below for the moment just for reference.
     # It got the aa cons seq just by translating the nuc one, which is *not* what we want, since it can give you spurious ambiguous bases in the aa cons seq, e.g. if A and C tie at a position (so nuc cons seq has N there), but with either base it still codes for the same aa.
