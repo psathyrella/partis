@@ -642,8 +642,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     def read_true_files(add_selection_metrics=None, debug=False):
         assert args.paired_indir is not None
         def ofn_fcn(ltmp, lpair=None): return paircluster.paired_fn(args.paired_indir, ltmp, lpair=lpair, suffix='.yaml')
-        def plotdir_fcn(ltmp, lpair=None): return getplotdir(ltmp, lpair=lpair) + '/true-selection-metrics'
-        lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if args.plotdir is None else plotdir_fcn, dont_add_implicit_info=not debug)
+        lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if args.plotdir is None else getplotdir, dont_add_implicit_info=not debug)
         return lp_infos
     # ----------------------------------------------------------------------------------------
     def print_joint_vs_input(input_cpaths, input_antn_lists, concat_cpaths, debug=False):
@@ -788,12 +787,10 @@ def run_all_loci(args, ig_or_tr='ig'):
                     for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
                         run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
             lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
-            _ = read_qti_file(args)  # sets args.queries_to_include
-            treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/inferred-combo-selection-metrics', args=args)
+            _ = read_qti_file(args)  # sets <args.queries_to_include>
+            treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/inferred-combo-selection-metrics', args=args)  # NOTE this is kind of weird that we don't set is_simu to true even if it is simu (we instead run again below) but i think it's right(ish)?
             if not args.is_data and args.paired_indir is not None:
-                # ok this is weird, but atm i don't like the idea of either rewriting the simulation files with selection metrics, or calculating them when i initially make the simulation, so we have to [re]calculate this stuff when we read them NOTE this also plots the selection metric
-                # TODO below
-                true_lp_infos = read_true_files(add_selection_metrics=['cons-dist-aa'])  # read true (input) files, and add selection metrics NOTE/TODO these will have already been plotted in the 'get-selection-metrics' call just above (albeit in a slightly different dir)
+                true_lp_infos = read_true_files(add_selection_metrics=['cons-dist-aa'])  # read true (input) files, and add selection metrics NOTE these will presumably already have been plotted (to the same dir) in the 'get-selection-metrics' call just above, but all the ways i can think of to avoid it are worse (underlying issue is i don't want to rewrite simulation file with selection metrics)
                 bpltdir = None if args.plotdir is None else getplotdir(None)+'/true-combo-selection-metrics'
                 treeutils.combine_selection_metrics(true_lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=bpltdir, args=args, is_simu=True)
 
