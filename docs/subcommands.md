@@ -221,14 +221,16 @@ sys.exit()
 
 Where we pass the `ref_glfo` as a template glfo, which makes it more likely to be able to figure out the cyst/tryp/phen info. And you'll probably want to pipe to `|less -RS`, especially if on a laptop.
 
-
 By default, if `--species` is set to human this only looks for alleles that are separated by point mutations from existing genes.
 This is appropriate for humans, since the known germline set is fairly complete.
 For species for which the known germline sets are much less complete (e.g. macaque and mice), it makes sense to also look for alleles that are separated by indels and/or many SNPs from existing genes.
 This is the default for non-human species, and is equivalent to turning on `--allele-cluster`.
 
+You can turn off all germline inference with `--leave-default-germline`; there are also commands to turn off the various component steps individually (see help for details).
+
 At the moment we only infer germline sets for V, and not for D and J (although we plan to fix this).
 This isn't horribly nonsensical, since there is much less variation in D and J, but it does mean that you should treat the D germline set, in particular, with quite a bit of skepticism.
+You may also be able to use [other tools](https://pubmed.ncbi.nlm.nih.gov/31134072/) to infer D genes.
 
 We unfortunately do not yet have a way to report simple confidence estimates for each gene in the inferred germline set.
 There is, however, a wealth of information that can be used to get a good sense of this confidence [here](germline-inference.md).
