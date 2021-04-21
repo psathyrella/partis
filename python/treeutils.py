@@ -2080,9 +2080,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return lp_antn_pairs
         h_part, l_part = [sorted(lp_infos[lpk]['cpaths'][l].best(), key=len, reverse=True) for l in lpair]
         h_atn_dict, l_atn_dict = [utils.get_annotation_dict(lp_infos[lpk]['antn_lists'][l]) for l in lpair]
+        n_no_info = 0
         for h_clust in h_part:
             h_atn = h_atn_dict[':'.join(h_clust)]
             if 'tree-info' not in h_atn:  # skip (presumably) the smaller ones
+                n_no_info += 1
                 continue
             if 'paired-uids' not in h_atn:  # seems to just be single-seq clusters, so i don't care
                 continue
@@ -2095,6 +2097,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
             l_atn['loci'] = [lpair[1] for _ in l_atn['unique_ids']]
             lp_antn_pairs.append((h_atn, l_atn))
+        if n_no_info > 0:
+            print '    no tree info in %d annotations (probably smaller than min tree metric cluster size)' % n_no_info
         return lp_antn_pairs
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname):
