@@ -515,6 +515,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                     clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
                 clist[clist.index(args.action)] = 'plot-partitions'
             if tmpaction == 'get-selection-metrics':
+                utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)  # remove these just to make the cmd line simpler/easier to read
+                utils.remove_from_arglist(clist, '--sw-cachefname', has_arg=True)
+                utils.remove_from_arglist(clist, '--input-metafname', has_arg=True)
                 if args.is_data:  # for simulation we still need it
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
@@ -522,19 +525,22 @@ def run_all_loci(args, ig_or_tr='ig'):
 
             return clist
         # ----------------------------------------------------------------------------------------
+        lpstr = utils.color('blue', ltmp if lpair is None else '+'.join(lpair))  # just for dbg
+        ltstr = '' if lpair is None else utils.color('blue', ' '+ltmp)  # just for dbg
+        def sdbgstr(dstr, fn): return '%s:%s %s, skipping %s (%s)' % (lpstr, ltstr, dstr, tmpaction, fn)
         if skip_missing_input:
             if not os.path.exists(getifn(ltmp)):
-                print '%s: no input file for %s, skipping  (%s)' % (utils.color('blue', ltmp), tmpaction, getifn(ltmp))
+                print sdbgstr('input file missing', getifn(ltmp))
                 return
             if os.stat(getifn(ltmp)).st_size == 0:
-                print '%s: zero length input file for %s, skipping  (%s)' % (utils.color('blue', ltmp), tmpaction, getifn(ltmp))
+                print sdbgstr('zero length input file', getifn(ltmp))
                 return
             if tmpaction in ['annotate', 'partition'] and not os.path.exists(getpdir(ltmp)):  # this probably means that no sequences had annotations (i.e. all failed) for this locus when parameter caching
-                print '%s: no parameter dir, skipping' % utils.color('blue', ltmp)
+                print sdbgstr('parameter dir missing', getpdir(ltmp))
                 return
         if skip_missing_output:
             if not os.path.exists(getofn(ltmp, joint=joint, lpair=lpair)):
-                print '%s: no%s output file, skipping  (%s)' % (utils.color('blue', ltmp if lpair is None else '+'.join(lpair)), '' if lpair is None else utils.color('blue', ' '+ltmp), getofn(ltmp, joint=joint, lpair=lpair))
+                print sdbgstr('output file missing', getofn(ltmp, joint=joint, lpair=lpair))
                 return
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
@@ -633,18 +639,11 @@ def run_all_loci(args, ig_or_tr='ig'):
             true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
         return true_partitions
     # ----------------------------------------------------------------------------------------
-    def add_selection_metrics(lp_infos):
-        for lpair in spairs():
-            if None in lp_infos[tuple(lpair)].values():
-                continue
-            for ltmp in lpair:
-                bpltdir = None if args.plotdir is None else getplotdir(ltmp)+'/true-combo-selection-metrics'
-                treeutils.calculate_individual_tree_metrics('cons-dist-aa', lp_infos[tuple(lpair)]['antn_lists'][ltmp], base_plotdir=bpltdir)
-    # ----------------------------------------------------------------------------------------
-    def read_true_files(debug=False):
+    def read_true_files(add_selection_metrics=None, debug=False):
         assert args.paired_indir is not None
         def ofn_fcn(ltmp, lpair=None): return paircluster.paired_fn(args.paired_indir, ltmp, lpair=lpair, suffix='.yaml')
-        lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, dont_add_implicit_info=not debug)
+        def plotdir_fcn(ltmp, lpair=None): return getplotdir(ltmp, lpair=lpair) + '/true-selection-metrics'
+        lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if args.plotdir is None else plotdir_fcn, dont_add_implicit_info=not debug)
         return lp_infos
     # ----------------------------------------------------------------------------------------
     def print_joint_vs_input(input_cpaths, input_antn_lists, concat_cpaths, debug=False):
@@ -719,7 +718,25 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not args.dry_run:
             import plotting
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
-
+    # ----------------------------------------------------------------------------------------
+    def plot_combined_partitions():
+        for lpair in spairs():  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
+            for ltmp in lpair:
+                run_step('plot-partitions', ltmp, lpair=lpair, joint=True, skip_missing_output=True)
+        cfpdir = '%s/cf-plots' % getodir(is_plotting=True)
+        for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
+            if utils.has_d_gene(ltmp):  # light chain in the paired subdirs is the same, so just link the results
+                run_step('plot-partitions', ltmp, joint=True)
+            else:
+                if os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):
+                    utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
+            if args.plotdir is not None and not args.no_partition_plots:
+                run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
+        if args.plotdir is not None and os.path.exists(cfpdir):
+            fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
+            import plotting
+            fnlist = sorted(fnoutstr.strip().split('\n'))
+            plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
     # ----------------------------------------------------------------------------------------
     paired_loci_actions = ['cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate']
     if args.action not in paired_loci_actions:
@@ -760,34 +777,23 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run:
             ccfs = combine_inf_chains()
         if args.action == 'plot-partitions' or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None) or args.plot_partitions:
-            for lpair in spairs():  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
-                for ltmp in lpair:
-                    run_step('plot-partitions', ltmp, lpair=lpair, joint=True, skip_missing_output=True)
-            cfpdir = '%s/cf-plots' % getodir(is_plotting=True)
-            for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
-                if utils.has_d_gene(ltmp):  # light chain in the paired subdirs is the same, so just link the results
-                    run_step('plot-partitions', ltmp, joint=True)
-                else:
-                    if os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):
-                        utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
-                if args.plotdir is not None and not args.no_partition_plots:
-                    run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
-            if args.plotdir is not None and os.path.exists(cfpdir):
-                fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
-                import plotting
-                fnlist = sorted(fnoutstr.strip().split('\n'))
-                plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
-        if args.action in ['get-selection-metrics', 'view-output'] or args.get_selection_metrics:
+            plot_combined_partitions()
+        if args.action == 'view-output':
             for lpair in spairs():
                 for ltmp in lpair:
-                    run_step('get-selection-metrics' if args.get_selection_metrics else args.action, ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
-        if (args.action == 'get-selection-metrics' or args.get_selection_metrics) and not args.dry_run:
+                    run_step(args.action, ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
+        if args.action == 'get-selection-metrics' or args.get_selection_metrics:
+            if args.action == 'get-selection-metrics':
+                for lpair in spairs():
+                    for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
+                        run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
             lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
             _ = read_qti_file(args)  # sets args.queries_to_include
             treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/inferred-combo-selection-metrics', args=args)
             if not args.is_data and args.paired_indir is not None:
-                true_lp_infos = read_true_files()
-                add_selection_metrics(true_lp_infos)  # ok this is weird, but atm i don't like the idea of either rewriting the simulation files with selection metrics, or calculating them when i initially make the simulation, so we have to [re]calculate this stuff when we read them
+                # ok this is weird, but atm i don't like the idea of either rewriting the simulation files with selection metrics, or calculating them when i initially make the simulation, so we have to [re]calculate this stuff when we read them NOTE this also plots the selection metric
+                # TODO below
+                true_lp_infos = read_true_files(add_selection_metrics=['cons-dist-aa'])  # read true (input) files, and add selection metrics NOTE/TODO these will have already been plotted in the 'get-selection-metrics' call just above (albeit in a slightly different dir)
                 bpltdir = None if args.plotdir is None else getplotdir(None)+'/true-combo-selection-metrics'
                 treeutils.combine_selection_metrics(true_lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=bpltdir, args=args, is_simu=True)
 

@@ -2215,7 +2215,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             uis = {c : use_iseqs(c, mtmp) for c in 'hl'}
             cseqs = {c : getcseqs(c, uis[c], aa=True) for c in 'hl'}  # aa cons seqs
             if '+'.join(cseqs[c] for c in 'hl') in all_chosen_seqs:
-                print '      already added sequence with zero aa-cdist, so not adding cons seq%s' % ((' (using %s input seq[s] because of indels)'%' '.join(c for c in 'hl' if uis[c])) if any(uis.values()) else '')
+                if tdbg:
+                    print '      already added sequence with zero aa-cdist, so not adding cons seq%s' % ((' (using %s input seq[s] because of indels)'%' '.join(c for c in 'hl' if uis[c])) if any(uis.values()) else '')
             else:
                 consfo = {c : mtmp[c] for c in 'hl'}
                 consfo.update({'iclust' : iclust, 'consensus' : True})
