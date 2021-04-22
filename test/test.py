@@ -26,6 +26,10 @@ from clusterpath import ClusterPath
 # ----------------------------------------------------------------------------------------
 class Tester(object):
     # ----------------------------------------------------------------------------------------
+    def dirs(self, tstr):
+        assert tstr in ['ref', 'new']
+        return 'test/%s-results' % tstr
+    # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
@@ -33,11 +37,10 @@ class Tester(object):
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
         self.dtypes = ['data', 'simu']
-        self.dirs = {'ref' : 'test/reference-results', 'new' : 'test/new-results'}
-        if not os.path.exists(self.dirs['new']):
-            os.makedirs(self.dirs['new'])
-        self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs[st] + '/' + self.label + '/simu.yaml' for dt in self.dtypes} for st in self.stypes}
-        self.param_dirs = { st : { dt : self.dirs[st] + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
+        if not os.path.exists(self.dirs('new')):
+            os.makedirs(self.dirs('new'))
+        self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs(st) + '/' + self.label + '/simu.yaml' for dt in self.dtypes} for st in self.stypes}
+        self.param_dirs = { st : { dt : self.dirs(st) + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
         self.common_extras = ['--seed', '1', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you changed the number of procs
 
         self.tiny_eps = 1e-4
@@ -61,7 +64,7 @@ class Tester(object):
         self.n_sim_events = 500
         self.n_data_queries = -1
         self.n_quick_queries = 100
-        self.logfname = self.dirs['new'] + '/test.log'
+        self.logfname = self.dirs('new') + '/test.log'
         self.sw_cache_paths = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in ['new']}  # self.stypes
 
@@ -111,7 +114,7 @@ class Tester(object):
             return
         if not args.dont_run:
             self.run(args)
-        if args.dryrun or args.bust_cache or args.quick:
+        if args.dry_run or args.bust_cache or args.quick:
             return
         self.compare_production_results(['cache-parameters-simu'])
         self.compare_stuff(input_stype='new')
@@ -148,19 +151,19 @@ class Tester(object):
             argfo['action'] = 'annotate'
         elif 'partition' in ptest:
             argfo['action'] = 'partition'
-            argfo['extras'] += ['--persistent-cachefname', self.dirs['new'] + '/' + self.cachefnames[input_stype]]
+            argfo['extras'] += ['--persistent-cachefname', self.dirs('new') + '/' + self.cachefnames[input_stype], '--no-partition-plots']
         elif 'get-selection-metrics' in ptest:
             argfo['action'] = 'get-selection-metrics'  # could really remove almost all of the arguments, mostly just need --outfname
         elif 'cache-parameters-' in ptest:
             argfo['action'] = 'cache-parameters'
             # if True:  #args.make_plots:
-            #     argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.label + '/plots/' + input_dtype]
+            #     argfo['extras'] += ['--plotdir', self.dirs('new') + '/' + self.label + '/plots/' + input_dtype]
         else:
             argfo['action'] = ptest
 
         if '--plot-annotation-performance' in argfo['extras']:
             self.perfdirs[ptest] = ptest + '-annotation-performance'
-            argfo['extras'] += ['--plotdir', self.dirs['new'] + '/' + self.perfdirs[ptest]]
+            argfo['extras'] += ['--plotdir', self.dirs('new') + '/' + self.perfdirs[ptest]]
 
         if '--plotdir' in argfo['extras']:
             argfo['extras'] += ['--only-csv-plots']
@@ -181,9 +184,9 @@ class Tester(object):
 
         # delete old partition cache file
         if name == 'partition-' + info['input_stype'] + '-simu':
-            this_cachefname = self.dirs['new'] + '/' + self.cachefnames[info['input_stype']]
+            this_cachefname = self.dirs('new') + '/' + self.cachefnames[info['input_stype']]
             if os.path.exists(this_cachefname):
-                if args.dryrun:
+                if args.dry_run:
                     print '   would remove %s' % this_cachefname
                 else:
                     check_call(['rm', '-v', this_cachefname])
@@ -195,7 +198,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
-        if not args.dryrun:
+        if not args.dry_run:
             open(self.logfname, 'w').close()
 
         for name, info in self.tests.items():
@@ -217,7 +220,7 @@ class Tester(object):
                 cmd_str += ' --outfname ' + self.infnames['new']['simu']
                 cmd_str += ' --indel-frequency 0.01 --indel-location v'
             elif 'get-selection-metrics-' in name:
-                cmd_str += ' --outfname %s/%s.yaml --selection-metric-fname %s/%s.yaml' % (self.dirs['new'], name.replace('get-selection-metrics-', 'partition-'), self.dirs['new'], name)
+                cmd_str += ' --outfname %s/%s.yaml --selection-metric-fname %s/%s.yaml' % (self.dirs('new'), name.replace('get-selection-metrics-', 'partition-'), self.dirs('new'), name)
                 clist = cmd_str.split()
                 utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)
@@ -225,12 +228,12 @@ class Tester(object):
                 utils.remove_from_arglist(clist, '--is-simu')
                 cmd_str = ' '.join(clist)
             elif 'cache-parameters-' not in name:
-                cmd_str += ' --outfname ' + self.dirs['new'] + '/' + name + '.yaml'
+                cmd_str += ' --outfname ' + self.dirs('new') + '/' + name + '.yaml'
 
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
             print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
-            if args.dryrun:
+            if args.dry_run:
                 continue
             logfile = open(self.logfname, 'a')
             logfile.write(logstr + '\n')
@@ -253,16 +256,16 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def remove_reference_results(self, expected_content):
         print '  removing ref files'
-        dir_content = set([os.path.basename(f) for f in glob.glob(self.dirs['ref'] + '/*')])
+        dir_content = set([os.path.basename(f) for f in glob.glob(self.dirs('ref') + '/*')])
         if len(dir_content - expected_content) > 0 or len(expected_content - dir_content) > 0:
             if len(dir_content - expected_content) > 0:
                 print 'in ref dir but not expected\n    %s' % (utils.color('red', ' '.join(dir_content - expected_content)))
             if len(expected_content - dir_content) > 0:
                 print 'expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content)))
             raise Exception('unexpected or missing content in reference dir (see above)')
-        for fname in [self.dirs['ref'] + '/' + ec for ec in expected_content]:
+        for fname in [self.dirs('ref') + '/' + ec for ec in expected_content]:
             print '    rm %s' % fname
-            if args.dryrun:
+            if args.dry_run:
                 continue
             if os.path.isdir(fname):
                 shutil.rmtree(fname)
@@ -281,10 +284,10 @@ class Tester(object):
         # copy over parameters, simulation, and plots
         print '  copy new files to ref'
         for fname in expected_content:
-            print '    mv %s   -->  %s/' % (fname, self.dirs['ref'])
-            if args.dryrun:
+            print '    mv %s   -->  %s/' % (fname, self.dirs('ref'))
+            if args.dry_run:
                 continue
-            shutil.move(self.dirs['new'] + '/' + fname, self.dirs['ref'] + '/')
+            shutil.move(self.dirs('new') + '/' + fname, self.dirs('ref') + '/')
 
     # ----------------------------------------------------------------------------------------
     def read_annotation_performance(self, version_stype, input_stype, these_are_cluster_annotations=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
@@ -327,7 +330,7 @@ class Tester(object):
             self.perf_info[version_stype][input_stype] = OrderedDict()
         if ptest not in self.perf_info[version_stype][input_stype]:
             self.perf_info[version_stype][input_stype][ptest] = OrderedDict()
-        perfdir = self.dirs[version_stype] + '/' + self.perfdirs[ptest]
+        perfdir = self.dirs(version_stype) + '/' + self.perfdirs[ptest]
         perffo = self.perf_info[version_stype][input_stype][ptest]
         for method in methods:
             perffo[method] = OrderedDict()  # arg, this is deeper than I'd like
@@ -354,7 +357,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def read_partition_performance(self, version_stype, input_stype, debug=False):
-        """ Read new partitions from self.dirs['new'], and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
+        """ Read new partitions from self.dirs('new'), and put the comparison numbers in self.perf_info (compare either to true, for simulation, or to the partition in reference dir, for data). """
 
         ptest_list = [k for k in self.tests.keys() if self.do_this_test('partition', input_stype, k)]
         if len(ptest_list) == 0:
@@ -368,10 +371,10 @@ class Tester(object):
         for ptest in ptest_list:
             if ptest not in pinfo:
                 pinfo[ptest] = OrderedDict()
-            _, _, cpath = utils.read_yaml_output(fname=self.dirs[version_stype] + '/' + ptest + '.yaml', skip_annotations=True)
+            _, _, cpath = utils.read_yaml_output(fname=self.dirs(version_stype) + '/' + ptest + '.yaml', skip_annotations=True)
             ccfs = cpath.ccfs[cpath.i_best]
             if None in ccfs:
-                raise Exception('none type ccf read from %s' % self.dirs[version_stype] + '/' + ptest + '.yaml')
+                raise Exception('none type ccf read from %s' % self.dirs(version_stype) + '/' + ptest + '.yaml')
             pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = ccfs
             if debug:
                 print '    %5.2f          %5.2f      %-28s   to true partition' % (pinfo[ptest]['purity'], pinfo[ptest]['completeness'], ptest)
@@ -389,7 +392,7 @@ class Tester(object):
         for ptest in ptest_list:
             if ptest not in pinfo:  # perf_info should already have all the parent keys cause we run read_partition_performance() first
                 pinfo[ptest] = OrderedDict([(m, []) for m in self.selection_metrics])
-            with open(self.dirs[version_stype] + '/' + ptest + '.yaml') as yfile:
+            with open(self.dirs(version_stype) + '/' + ptest + '.yaml') as yfile:
                 lbfos = yaml.load(yfile, Loader=yaml.CLoader)
             for lbfo in lbfos:  # one lbfo for each cluster
                 for metric in self.selection_metrics:
@@ -497,7 +500,7 @@ class Tester(object):
                 continue
             fname = self.tests[ptest]['output-path']  # this is kind of messy
             print '    %-30s' % fname,
-            cmd = 'diff -qbr ' + ' '.join(self.dirs[st] + '/' + fname for st in self.stypes)
+            cmd = 'diff -qbr ' + ' '.join(self.dirs(st) + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
             out, err = proc.communicate()
             if proc.returncode == 0:
@@ -507,7 +510,7 @@ class Tester(object):
                 onlylines = [ l for l in out.split('\n') if 'Only' in l]
                 print ''
                 if len(differlines) > 0:
-                    n_total_files = int(check_output('find ' + self.dirs['ref'] + '/' + fname + ' -type f | wc -l', shell=True))
+                    n_total_files = int(check_output('find ' + self.dirs('ref') + '/' + fname + ' -type f | wc -l', shell=True))
                     if n_total_files == 1:
                         assert len(differlines) == 1
                         print utils.color('red', '      file differs'),
@@ -515,7 +518,7 @@ class Tester(object):
                         print utils.color('red', '      %d / %d files differ' % (len(differlines), n_total_files)),
                 if len(onlylines) > 0:
                     for st in self.stypes:
-                        theseonlylines = [l for l in onlylines if self.dirs[st] + '/' + fname in l]
+                        theseonlylines = [l for l in onlylines if self.dirs(st) + '/' + fname in l]
                         if len(theseonlylines) > 0:
                             print utils.color('red', '      %d files only in %s' % (len(theseonlylines), st)),
                 if differlines == 0 and onlylines == 0:
@@ -526,7 +529,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def write_run_times(self):
-        with open(self.dirs['new'] + '/run-times.csv', 'w') as newfile:
+        with open(self.dirs('new') + '/run-times.csv', 'w') as newfile:
             writer = csv.DictWriter(newfile, ('name', 'seconds'))
             writer.writeheader()
             for name, seconds in self.run_times.items():
@@ -538,7 +541,7 @@ class Tester(object):
 
         def read_run_times(stype):
             times[stype] = {}
-            with open(self.dirs[stype] + '/run-times.csv') as timefile:
+            with open(self.dirs(stype) + '/run-times.csv') as timefile:
                 reader = csv.DictReader(timefile)
                 for line in reader:
                     times[stype][line['name']] = float(line['seconds'])
@@ -585,12 +588,12 @@ class Tester(object):
         # # if you want to do *all* the subdirs use this:
         # recursive_subdirs = []
         # for plotdir in plotdirs:
-        #     find_plotdirs_cmd = 'find ' + self.dirs['ref'] + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
+        #     find_plotdirs_cmd = 'find ' + self.dirs('ref') + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
         #     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True).split()
 
         for plotdir in plotdirs:
             print plotdir
-            check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs['ref'] + '/' + plotdir + ':' + self.dirs['new'] + '/' + plotdir
+            check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs('ref') + '/' + plotdir + ':' + self.dirs('new') + '/' + plotdir
             check_cmd += ' --outdir ' + www_dir + '/' + plotdir
             check_call(check_cmd.split())
         
@@ -630,8 +633,8 @@ class Tester(object):
                         cache['logprobs'][line['unique_ids']] = float(line['logprob'])
             return cache
 
-        refcache = readcache(self.dirs['ref'] + '/' + self.cachefnames[input_stype])
-        newcache = readcache(self.dirs['new'] + '/' + self.cachefnames[input_stype])
+        refcache = readcache(self.dirs('ref') + '/' + self.cachefnames[input_stype])
+        newcache = readcache(self.dirs('new') + '/' + self.cachefnames[input_stype])
 
         # work out intersection and complement
         refkeys, newkeys = {}, {}
@@ -692,7 +695,7 @@ class Tester(object):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--dont-run', action='store_true', help='don\'t actually run anything, just check the results')
-parser.add_argument('--dryrun', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
+parser.add_argument('--dry-run', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
 parser.add_argument('--quick', action='store_true')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--comparison-plots', action='store_true')
