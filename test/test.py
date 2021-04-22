@@ -156,7 +156,7 @@ class Tester(object):
             argfo['action'] = 'annotate'
         elif 'partition' in ptest:
             argfo['action'] = 'partition'
-            argfo['extras'] += ['--persistent-cachefname', self.dirs('new') + '/' + self.cachefnames[input_stype], '--no-partition-plots']
+            argfo['extras'] += ['--persistent-cachefname', self.dirs('new') + '/' + self.cachefnames[input_stype]]
         elif 'get-selection-metrics' in ptest:
             argfo['action'] = 'get-selection-metrics'  # could really remove almost all of the arguments, mostly just need --outfname
         elif 'cache-parameters-' in ptest:
@@ -172,6 +172,8 @@ class Tester(object):
 
         if '--plotdir' in argfo['extras']:
             argfo['extras'] += ['--only-csv-plots']
+            if 'partition' in ptest:
+                argfo['extras'] += ['--no-partition-plots']
 
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):
@@ -538,7 +540,7 @@ class Tester(object):
             writer = csv.DictWriter(newfile, ('name', 'seconds'))
             writer.writeheader()
             for name, seconds in self.run_times.items():
-                writer.writerow({'name' : name, 'seconds' : seconds})
+                writer.writerow({'name' : name, 'seconds' : '%.1f'%seconds})
 
     # ----------------------------------------------------------------------------------------
     def compare_run_times(self):
