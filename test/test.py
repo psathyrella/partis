@@ -31,14 +31,11 @@ class Tester(object):
         return 'test/%s-results%s' % (tstr, '-slow' if args.slow else '')
     # ----------------------------------------------------------------------------------------
     def nqr(self, act):
-        nqdict = {'partition' : 500, 'simu' : 2500, 'data' : -1, 'quick' : 100}
-        nq = nqdict[act]
-        if args.slow:
-            if nq == -1:
-                nq = 50
-            else:
-                nq = int(nq / 10)
-        return nq
+        if act == 'quick':  # bears no relation to the others, so makes sense to handle it differently
+            return 10
+        nqdict = {'normal' : {'simu' :   50, 'data' :   50},
+                    'slow' : {'simu' : 1000, 'data' :   -1}}
+        return nqdict['slow' if args.slow else 'normal'][act]
     # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
@@ -82,13 +79,12 @@ class Tester(object):
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
             self.tests['multi-annotate-' + input_stype + '-simu']    = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
-                '--n-max-queries', str(self.nqr('partition')),
                 '--n-precache-procs', '10',
                 '--plot-annotation-performance',
                 # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             ]}
-            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', str(self.nqr('partition'))]}
-            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', str(self.nqr('partition'))]}
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : []}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
             self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : []}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
         if args.quick:
@@ -202,7 +198,7 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(info['infname'], 5, 8, n_max_queries=self.nqr('partition'), debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(info['infname'], 5, 8, debug=False)  # , n_max_queries=self.nqr('partition')
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
@@ -227,7 +223,7 @@ class Tester(object):
 
             if name == 'simulate':
                 cmd_str += ' --outfname ' + self.infnames['new']['simu']
-                cmd_str += ' --indel-frequency 0.01 --indel-location v'
+                cmd_str += ' --indel-frequency 0.2'  # super high indel freq, partly because we want to make sure we have some even with the new smaller default number of seqs
             elif 'get-selection-metrics-' in name:
                 cmd_str += ' --outfname %s/%s.yaml --selection-metric-fname %s/%s.yaml' % (self.dirs('new'), name.replace('get-selection-metrics-', 'partition-'), self.dirs('new'), name)
                 clist = cmd_str.split()
@@ -720,13 +716,11 @@ args = parser.parse_args()
 assert not (args.quick and args.slow)  # it just doesn't make sense
 
 tester = Tester()
+tester.test(args)
 if args.bust_cache:
-    assert not args.slow  # needs implementing
-    tester.test(args)
     tester.bust_cache()
-else:
-    tester.test(args)
 
+# ----------------------------------------------------------------------------------------
 def get_typical_variances():
     raise Exception('needs updating to work as a function')
     # cp = ClusterPath(fname='tmp.csv')
