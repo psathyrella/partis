@@ -299,7 +299,7 @@ class HmmWriter(object):
             self.hmm.prnt(self.saniname)
         assert os.path.exists(self.outdir)
         with open(self.outdir + '/' + self.saniname + '.yaml', 'w') as outfile:
-            yaml.dump(self.hmm, outfile, width=150, Dumper=Dumper)
+            yaml.dump(self.hmm, outfile, width=150, Dumper=Dumper, default_flow_style=False)
         if self.n_conserved_codon_erosion_transitions > 0:
             print '  %s added %3d transition%s for conserved codon erosion for %s' % (utils.color('yellow', 'warning'), self.n_conserved_codon_erosion_transitions, utils.plural(self.n_conserved_codon_erosion_transitions), utils.color_gene(self.raw_name))
 
