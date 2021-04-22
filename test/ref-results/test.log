@@ -10,7 +10,7 @@ smith-waterman  (new-allele fitting)
     running 13 procs for 71 seqs
       info for 1370 / 1412 = 0.970   (removed: 42 failed)
       kept 437 (0.309) unproductive
-    water time: 1.9  (ig-sw 0.1  processing 0.2)
+    water time: 2.0  (ig-sw 0.1  processing 0.2)
   no queries for allele finding
 smith-waterman  (writing parameters)
   vsearch: 1264 / 1412 v annotations (148 failed) with 61 v genes in 0.2 sec
@@ -30,65 +30,65 @@ hmm
     reading output
         read 1370 hmm output lines with 1365 sequences in 1365 events  (5 failures)
           [91mwarning[0m no valid paths: -5294497590599348090 -1651760806376077044 -3094020580816257316 6182728664197942741 6880877555932742798
-    writing parameters to test/new-results/test/parameters/data/hmm (1.6 sec)
-         infra time: 2.6
-      hmm step time: 7.7
+    writing parameters to test/new-results/test/parameters/data/hmm (1.7 sec)
+         infra time: 2.7
+      hmm step time: 7.8
   writing hmms (0.8 sec)
-      total time: 16.7
+      total time: 16.8
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/new-results/test/parameters/data --n-sim-events 500 --n-trees 500 --n-leaf-distribution geometric --n-leaves 5 --seed 1 --n-procs 10 --outfname test/new-results/test/simu.yaml --indel-frequency 0.01 --indel-location v
 simulating
       --> proc 1
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 180 seqs in 8.5s (7.6s of which was running bppseqgen)
-      total time: 10.6
-
-      --> proc 5
-    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 186 seqs in 8.4s (7.5s of which was running bppseqgen)
-      total time: 10.6
+    made 50 events with 180 seqs in 8.8s (7.7s of which was running bppseqgen)
+      total time: 10.9
 
       --> proc 4
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 196 seqs in 8.9s (8.1s of which was running bppseqgen)
-      total time: 11.1
+    made 50 events with 196 seqs in 8.8s (8.0s of which was running bppseqgen)
+      total time: 11.0
 
-      --> proc 0
+      --> proc 5
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 218 seqs in 9.2s (8.3s of which was running bppseqgen)
-      total time: 11.4
-
-      --> proc 7
-    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 217 seqs in 9.1s (8.4s of which was running bppseqgen)
-      total time: 11.3
-
-      --> proc 2
-    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 235 seqs in 9.3s (8.4s of which was running bppseqgen)
-      total time: 11.5
+    made 50 events with 186 seqs in 8.9s (7.9s of which was running bppseqgen)
+      total time: 11.0
 
       --> proc 9
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 237 seqs in 9.3s (8.4s of which was running bppseqgen)
-      total time: 11.4
+    made 50 events with 237 seqs in 9.0s (8.3s of which was running bppseqgen)
+      total time: 11.2
 
       --> proc 8
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 241 seqs in 9.4s (8.5s of which was running bppseqgen)
-      total time: 11.6
+    made 50 events with 241 seqs in 9.2s (8.4s of which was running bppseqgen)
+      total time: 11.4
 
       --> proc 3
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 273 seqs in 9.6s (8.7s of which was running bppseqgen)
+    made 50 events with 273 seqs in 9.3s (8.4s of which was running bppseqgen)
+      total time: 11.5
+
+      --> proc 7
+    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
+    made 50 events with 217 seqs in 9.4s (8.6s of which was running bppseqgen)
+      total time: 11.5
+
+      --> proc 0
+    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
+    made 50 events with 218 seqs in 9.4s (8.5s of which was running bppseqgen)
+      total time: 11.6
+
+      --> proc 2
+    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
+    made 50 events with 235 seqs in 9.6s (8.7s of which was running bppseqgen)
       total time: 11.8
 
       --> proc 6
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 50 events with 283 seqs in 10.1s (9.2s of which was running bppseqgen)
-      total time: 12.3
+    made 50 events with 283 seqs in 9.7s (8.9s of which was running bppseqgen)
+      total time: 11.9
 
    read 500 events with 2266 seqs from 10 .yaml files
-      total time: 12.8
+      total time: 12.5
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --is-simu --seed 1 --n-procs 10
   note: running on a lot of sequences (2266) without setting --outfname. Which is ok, but there will be no persistent record of the results (except the parameter directory).
 caching parameters
@@ -104,15 +104,15 @@ smith-waterman  (new-allele fitting)
       kept 1241 (0.548) unproductive
     water time: 3.7  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 2254 / 2266 v annotations (12 failed) with 49 v genes in 0.4 sec
+  vsearch: 2254 / 2266 v annotations (12 failed) with 49 v genes in 0.5 sec
     running 10 procs for 2266 seqs
     running 12 procs for 3 seqs
       info for 2266 / 2266 = 1.000   (removed: 0 failed)
       kept 1241 (0.548) unproductive
         writing sw results to test/new-results/test/parameters/simu/sw-cache.yaml
     writing parameters to test/new-results/test/parameters/simu/sw (2.4 sec)
-    water time: 7.8  (ig-sw 3.8  processing 0.3)
-  writing hmms (0.9 sec)
+    water time: 7.8  (ig-sw 3.9  processing 0.3)
+  writing hmms (0.8 sec)
 hmm
     skipping matches from 3 genes without enough counts: [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m
         hmm prep time: 0.2
@@ -121,12 +121,12 @@ hmm
              min-max time:  3.6 - 3.9 sec
     reading output
         read 2266 hmm output lines with 2266 sequences in 2266 events  (0 failures)
-    writing parameters to test/new-results/test/parameters/simu/hmm (2.0 sec)
+    writing parameters to test/new-results/test/parameters/simu/hmm (2.1 sec)
     writing parameters to test/new-results/test/parameters/simu/true (2.2 sec)
-         infra time: 7.1
-      hmm step time: 11.3
-  writing hmms (0.9 sec)
-      total time: 27.0
+         infra time: 7.3
+      hmm step time: 11.4
+  writing hmms (1.8 sec)
+      total time: 28.2
 [92mannotate-new-simu[0m                /home/dralph/work/partis/bin/partis annotate --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results/annotate-new-simu-annotation-performance --only-csv-plots --seed 1 --n-procs 10 --outfname test/new-results/annotate-new-simu.yaml
 annotating    (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
@@ -149,8 +149,8 @@ hmm
     [93mwarning[0m skipped annotation performance evaluation on 5 queries with different true and inferred net shm indel lengths: 4822234142830276365 4538852765737638768 2621617219960191107 1988762973070217254 4435410814736337136
 (0.0 sec)
          infra time: 2.1
-      hmm step time: 6.0
-      total time: 8.8
+      hmm step time: 6.1
+      total time: 9.0
 [92mmulti-annotate-new-simu[0m          /home/dralph/work/partis/bin/partis annotate --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir test/new-results/multi-annotate-new-simu-annotation-performance --only-csv-plots --seed 1 --n-procs 10 --outfname test/new-results/multi-annotate-new-simu.yaml
 annotating    (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
@@ -161,12 +161,13 @@ smith-waterman
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 5 queries with different true and inferred net shm indel lengths: 4822234142830276365 4435410814736337136 4538852765737638768 1988762973070217254 2621617219960191107
 (0.0 sec)
-        water time: 1.5
+        water time: 1.6
 hmm
+  --simultaneous-true-clonal-seqs: grouping seqs according to true partition
   [93mwarning[0m split apart 2 clusters that contained multiple cdr3 lengths (total clusters: 482 --> 484)
       cluster splits:   4 --> 1 3,  10 --> 9 1
   subcluster annotating 484 clusters: 
-        hmm prep time: 0.1
+        hmm prep time: 0.2
     running 10 procs
                     calcd:         vtb  945        fwd    0
              min-max time:  2.6 - 2.9 sec
@@ -200,13 +201,13 @@ hmm
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 5 queries with different true and inferred net shm indel lengths: 1988762973070217254 4538852765737638768 4435410814736337136 4822234142830276365 2621617219960191107
 (0.0 sec)
-    subcluster annotation time 9.3
-      total time: 12.0
-[92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --plotdir test/new-results/partition-new-simu-annotation-performance --only-csv-plots --seed 1 --n-procs 10 --outfname test/new-results/partition-new-simu.yaml
+    subcluster annotation time 9.5
+      total time: 12.2
+[92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --n-max-queries 500 --n-precache-procs 10 --plot-annotation-performance --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --no-partition-plots --plotdir test/new-results/partition-new-simu-annotation-performance --only-csv-plots --seed 1 --n-procs 10 --outfname test/new-results/partition-new-simu.yaml
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 500 / 500 v annotations (0 failed) with 37 v genes in 0.2 sec
+  vsearch: 500 / 500 v annotations (0 failed) with 37 v genes in 0.1 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
       info for 500 / 500 = 1.000   (removed: 0 failed, 0 duplicates)
       kept 248 (0.496) unproductive
@@ -220,7 +221,7 @@ caching all 500 naive sequences
                 no/empty cache file
                     calcd:         vtb 500        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  1.5 - 1.6 sec
+             min-max time:  1.4 - 1.6 sec
       hmm step time: 1.7
    collapsed 500 queries into 269 clusters with identical naive seqs (0.0 sec)
 269 clusters with 10 procs
@@ -263,7 +264,7 @@ caching all 500 naive sequences
                    merged:       hfrac  18     lratio   4
              min-max time:  2.0 - 2.4 sec
          infra time: 0.1
-      hmm step time: 2.6
+      hmm step time: 2.5
 139 clusters with 2 procs
     running 2 procs
           read from cache:  naive-seqs 724   logprobs 277
@@ -277,7 +278,7 @@ caching all 500 naive sequences
           read from cache:  naive-seqs 737   logprobs 302
                     calcd:         vtb   2        fwd  13
                    merged:       hfrac   1     lratio   1
-             min-max time:  0.8 - 0.9 sec
+             min-max time:  0.8 - 0.8 sec
          infra time: 0.1
       hmm step time: 1.0
 126 clusters with 1 proc
@@ -288,7 +289,7 @@ caching all 500 naive sequences
                      time:  2.7 sec
       hmm step time: 2.8
   [93mnote[0m not merging entire cpath history
-      loop time: 15.9
+      loop time: 15.8
 getting annotations for final partition
   subcluster annotating 118 clusters: 
     running 10 procs
@@ -316,10 +317,9 @@ getting annotations for final partition
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 3 queries with different true and inferred net shm indel lengths: 4538852765737638768 4435410814736337136 4822234142830276365
 (0.0 sec)
-    subcluster annotation time 3.1
-  --only-csv-plots not implemented for partition plots, so returning without plotting
-      total time: 22.0
-[92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --n-max-queries 500 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed-unique-id 1836760677652930175 --seed 1 --n-procs 10 --outfname test/new-results/seed-partition-new-simu.yaml
+    subcluster annotation time 3.2
+      total time: 21.9
+[92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --n-max-queries 500 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --no-partition-plots --seed-unique-id 1836760677652930175 --seed 1 --n-procs 10 --outfname test/new-results/seed-partition-new-simu.yaml
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
@@ -338,8 +338,10 @@ hmm
                     calcd:         vtb  21        fwd  12
                    merged:       hfrac   2     lratio   0
              min-max time:  0.1 - 0.5 sec
+         infra time: 0.1
       hmm step time: 0.6
 51 clusters with 7 procs
+  [93mwarning[0m cluster occurs 8 times in the <nsets> we're sending to bcrham: 1503261064508280461:1836760677652930172:1836760677652930175:1836760677652930176
     running 7 procs
           read from cache:  naive-seqs 759   logprobs 408
                     calcd:         vtb   0        fwd   4
@@ -347,6 +349,7 @@ hmm
              min-max time:  0.0 - 0.4 sec
       hmm step time: 0.5
 48 clusters with 5 procs
+  [93mwarning[0m cluster occurs 5 times in the <nsets> we're sending to bcrham: 1503261064508280461:1836760677652930172:1836760677652930175:1836760677652930176
     running 5 procs
           read from cache:  naive-seqs 759   logprobs 412
                     calcd:         vtb   0        fwd   2
@@ -382,7 +385,7 @@ getting annotations for final partition
     subcluster annotation time 0.3
   seed cluster size in best partition: 8,  excluding --queries-to-include: 7
       total time: 2.5
-[92mvsearch-partition-new-simu[0m       /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --naive-vsearch --n-max-queries 500 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed 1 --n-procs 10 --outfname test/new-results/vsearch-partition-new-simu.yaml
+[92mvsearch-partition-new-simu[0m       /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --naive-vsearch --n-max-queries 500 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --no-partition-plots --seed 1 --n-procs 10 --outfname test/new-results/vsearch-partition-new-simu.yaml
   --n-max-queries: stopped after reading 500 queries from input file
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
@@ -404,8 +407,8 @@ getting annotations for final partition
              min-max time:  1.0 - 1.3 sec
     reading output
         read 219 hmm output lines with 500 sequences in 219 events  (0 failures)
-         infra time: 0.1
-      hmm step time: 1.4
+         infra time: 0.2
+      hmm step time: 1.5
     read 219 new subcluster annotations: added hashid 147   whole finished 72   subcl finished 0
     running 10 procs
                     calcd:         vtb  63        fwd   0
@@ -421,8 +424,8 @@ getting annotations for final partition
         read 12 hmm output lines with 26 sequences in 12 events  (0 failures)
       hmm step time: 0.4
     read 12 new subcluster annotations: added hashid 12   whole finished 0   subcl finished 12
-    subcluster annotation time 2.8
-      total time: 4.9
+    subcluster annotation time 2.9
+      total time: 5.0
 [92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --seed 1 --n-procs 10 --outfname test/new-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml
   note: --parameter-dir not set, so using default: xxx-dummy-xxx
 getting selection metrics
@@ -441,4 +444,4 @@ getting selection metrics
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 7/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       tree origins: 9 made from cpath
   writing selection metrics to test/new-results/get-selection-metrics-new-simu.yaml
-      total time: 1.5
+      total time: 1.4
