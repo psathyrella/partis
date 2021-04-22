@@ -28,7 +28,17 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def dirs(self, tstr):
         assert tstr in ['ref', 'new']
-        return 'test/%s-results' % tstr
+        return 'test/%s-results%s' % (tstr, '-slow' if args.slow else '')
+    # ----------------------------------------------------------------------------------------
+    def nqr(self, act):
+        nqdict = {'partition' : 500, 'simu' : 2500, 'data' : -1, 'quick' : 100}
+        nq = nqdict[act]
+        if args.slow:
+            if nq == -1:
+                nq = 50
+            else:
+                nq = int(nq / 10)
+        return nq
     # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
@@ -57,13 +67,11 @@ class Tester(object):
         self.eps_vals['purity']         = 0.08
         self.eps_vals['completeness']   = 0.08
 
+        self.n_simu_leaves = 5
+
         self.selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'aa-lbi', 'aa-lbr']  # NOTE kind of duplicates treeutils.selection_metrics, but I want to be able to change the latter
         self.expected_trees = ['tree', 'aa-tree']  # TODO might be worthwhile comparing the actual trees, although if they change the metrics will also change so maybe not
 
-        self.n_partition_queries = 500
-        self.n_sim_events = 500
-        self.n_data_queries = -1
-        self.n_quick_queries = 100
         self.logfname = self.dirs('new') + '/test.log'
         self.sw_cache_paths = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in ['new']}  # self.stypes
@@ -74,21 +82,22 @@ class Tester(object):
             self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
             self.tests['multi-annotate-' + input_stype + '-simu']    = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
-                '--n-max-queries', str(self.n_partition_queries),
+                '--n-max-queries', str(self.nqr('partition')),
                 '--n-precache-procs', '10',
                 '--plot-annotation-performance',
                 # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             ]}
-            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', str(self.n_partition_queries)]}
-            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', str(self.n_partition_queries)]}
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--n-max-queries', str(self.nqr('partition'))]}
+            self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch', '--n-max-queries', str(self.nqr('partition'))]}
             self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : []}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
         if args.quick:
-            self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.n_quick_queries)]}
+            self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.nqr('quick'))]}
         else:
-            pcache_data_args = {'extras' : ['--n-max-queries', str(self.n_data_queries)], 'output-path' : 'test/parameters/data'}
+            pcache_data_args = {'extras' : ['--n-max-queries', str(self.nqr('data'))], 'output-path' : 'test/parameters/data'}
             pcache_simu_args = {'extras' : [], 'output-path' : 'test/parameters/simu'}
-            simulate_args = {'extras' : ['--n-sim-events', str(self.n_sim_events), '--n-trees', str(self.n_sim_events), '--n-leaf-distribution', 'geometric', '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
+            n_events = int(self.nqr('simu') / float(self.n_simu_leaves))
+            simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
             if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
                 self.tests['cache-parameters-data'] = pcache_data_args
                 self.tests['simulate'] = simulate_args
@@ -193,7 +202,7 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            seed_uid, _ = utils.choose_seed_unique_id(info['infname'], 5, 8, n_max_queries=self.n_partition_queries, debug=False)
+            seed_uid, _ = utils.choose_seed_unique_id(info['infname'], 5, 8, n_max_queries=self.nqr('partition'), debug=False)
             info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
@@ -696,7 +705,8 @@ class Tester(object):
 parser = argparse.ArgumentParser()
 parser.add_argument('--dont-run', action='store_true', help='don\'t actually run anything, just check the results')
 parser.add_argument('--dry-run', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
-parser.add_argument('--quick', action='store_true')
+parser.add_argument('--quick', action='store_true', help='only run one command: cache-parameters on a small numbrer of simulation events')
+parser.add_argument('--slow', action='store_true', help='by default, we run tests on a fairly small number of sequences, which is sufficient for checking that *nothing* has changed. But --slow is for cases where you\'ve made changes that you know will affect results, and you want to look at the details of how they\'re affected, for which you need to run on more sequences. Note that whether --slow is set or not (runs all tests with more or less sequences) is separate from --quick (which only runs one test).')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--comparison-plots', action='store_true')
 parser.add_argument('--print-width', type=int, default=300)
@@ -707,9 +717,11 @@ parser.add_argument('--print-width', type=int, default=300)
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
+assert not (args.quick and args.slow)  # it just doesn't make sense
 
 tester = Tester()
 if args.bust_cache:
+    assert not args.slow  # needs implementing
     tester.test(args)
     tester.bust_cache()
 else:
