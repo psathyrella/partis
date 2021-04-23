@@ -282,6 +282,11 @@ def ambig_frac(seq, aa=False):
     # ambig_seq = filter(all_ambiguous_bases.__contains__, seq)
     # return float(len(ambig_seq)) / len(seq)
     return float(seq.count(ambig_base)) / len(seq)
+def n_variable_ambig(line, seq, aa=False):  # number of ambiguous basees in the variable region (start of v to end of j)
+    assert not aa  # not implemented
+    assert len(set(seq) - set(alphabet)) == 0  # and... just to make sure you don't accidentally pass in an aa sequence
+    istart, istop = len(line['fv_insertion']), len(seq) - len(line['jf_insertion'])
+    return seq[istart : istop].count(ambig_base)
 
 # ----------------------------------------------------------------------------------------
 def reverse_complement_warning():
