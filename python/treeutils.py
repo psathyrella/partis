@@ -2257,7 +2257,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         def getofo(mfo):
             ofo = collections.OrderedDict([('iclust', mfo['iclust'])])
             if 'consensus' in mfo:
-                def consid(mfo, c): return '%s-cons-%s' % (utils.uidhashstr(mfo[c]['consensus_seq_aa'])[:hash_len], mfo[c]['loci'][0])
+                def consid(mfo, c): return '%s-unobs-cons-%s' % (utils.uidhashstr(mfo[c]['consensus_seq_aa'])[:hash_len], mfo[c]['loci'][0])
                 ofo.update([(c+'_id', consid(mfo, c)) for c in 'hl'])
             else:
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
@@ -2383,6 +2383,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     all_chosen_mfos = []
     with open(args.ab_choice_cfg) as cfile:
         cfgfo = yaml.load(cfile, Loader=Loader)
+        if debug:
+            print '  ab choice cfg:'
+            outstr, _ = utils.simplerun('cat %s'%args.ab_choice_cfg, return_out_err=True)
+            print utils.pad_lines(outstr)
     antn_pairs = []
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += find_cluster_pairs(lpair)
