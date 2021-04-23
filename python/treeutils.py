@@ -2127,7 +2127,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return 100 * sumv(mpfo, 'n_mutations') / float(total_len)
     # ----------------------------------------------------------------------------------------
     def read_cfgfo():
-        allowed_keys = set(['n-families', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'max-ambig-bases', 'min-umis', 'min-median-nuc-shm-%'])
+        allowed_keys = set(['n-families', 'n-min-per-family', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'max-ambig-bases', 'min-umis', 'min-median-nuc-shm-%'])
                         # allowed_vars = []
         if debug:
             print '  ab choice cfg:'
@@ -2167,7 +2167,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return
         def nambig(c): return utils.n_variable_ambig(mtmp[c], getcseqs(c, uis[c], aa=False))
         if 'max-ambig-bases' in cfgfo and any(nambig(c) > cfgfo['max-ambig-bases'] for c in 'hl'):
-            print '    cons seq: too many ambiguous bases'
+            print '          cons seq: too many ambiguous bases'
             return
 
         consfo = {c : mtmp[c] for c in 'hl'}
@@ -2191,18 +2191,18 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs) > 0:
-                print '        skipped %d with cell type not among %s' % (n_before - len(metric_pairs), cfgfo['cell-types'])
+                print '          skipped %d with cell type not among %s' % (n_before - len(metric_pairs), cfgfo['cell-types'])
         if 'min-umis' in cfgfo and len(metric_pairs) > 0 and 'umis' in metric_pairs[0]['h']:  # TODO this (and the other ones) should really warn if it's in cfgfo but not in the info in metric_pairs
             def keepfcn(m): return sum(gsval(m, c, 'umis') for c in 'hl') > cfgfo['min-umis']
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs) > 0:
-                print '        skipped %d with umis less than %d' % (n_before - len(metric_pairs), cfgfo['min-umis'])
+                print '          skipped %d with umis less than %d' % (n_before - len(metric_pairs), cfgfo['min-umis'])
         if 'min-median-nuc-shm-%' in cfgfo and len(metric_pairs) > 0:
             median_shm = numpy.median([sum_nuc_shm_pct(m) for m in metric_pairs])
             skip_family = median_shm < cfgfo['min-median-nuc-shm-%']
             if tdbg:
-                print '        %s family: median h+l nuc shm %.2f%% %s than %.2f%%' % (utils.color('yellow', 'skipping entire') if skip_family else 'keeping', median_shm, 'less' if skip_family else 'greater', cfgfo['min-median-nuc-shm-%'])
+                print '          %s family: median h+l nuc shm %.2f%% %s than %.2f%%' % (utils.color('yellow', 'skipping entire') if skip_family else 'keeping', median_shm, 'less' if skip_family else 'greater', cfgfo['min-median-nuc-shm-%'])
             if skip_family:
                 return []
         if 'max-ambig-bases' in cfgfo:  # would be better to count ambiguous amino acid residues (for cases where the ambiguous nuc doesn't lead to ambig aa), but i don't feel like dealing with the difference
@@ -2210,7 +2210,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs):
-                print '        skipped %d with too many ambiguous bases (>%d)' % (n_before - len(metric_pairs), cfgfo['max-ambig-bases'])
+                print '          skipped %d with too many ambiguous bases (>%d)' % (n_before - len(metric_pairs), cfgfo['max-ambig-bases'])
 
         if len(metric_pairs) == 0:
             return []
@@ -2241,14 +2241,16 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     n_same_seqs += 1
                     continue
                 if any(gsval(mfo, c, 'has_shm_indels') for c in 'hl'):
-                    print '        %s choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
+                    print '          %s choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
                 chosen_mfos.append(mfo)
                 all_chosen_seqs.add('+'.join(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                 n_newly_chosen += 1
-                if n_newly_chosen >= n_var_choose:
+                if n_newly_chosen >= n_var_choose and 'n-min-per-family' in cfgfo and len(chosen_mfos) >= cfgfo['n-min-per-family']:
                     break
             if tdbg:
-                print '      %s: chose %d%s%s' % (sortvar, n_newly_chosen, '' if n_already_chosen==0 else ' (%d were in common with a previous var)'%n_already_chosen, '' if n_same_seqs==0 else ' (%d had seqs identical to previously-chosen ones)'%n_same_seqs)
+                print '        %s: chose %d%s%s' % (sortvar, n_newly_chosen, '' if n_already_chosen==0 else ' (%d were in common with a previous var)'%n_already_chosen, '' if n_same_seqs==0 else ' (%d had seqs identical to previously-chosen ones)'%n_same_seqs)
+        if tdbg:
+            print '      chose %d total' % len(chosen_mfos)
 
         return chosen_mfos
     # ----------------------------------------------------------------------------------------
@@ -2277,7 +2279,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         def getofo(mfo):
             ofo = collections.OrderedDict([('iclust', mfo['iclust'])])
             if 'consensus' in mfo:
-                def consid(mfo, c): return '%s-unobs-cons-%s' % (utils.uidhashstr(mfo[c]['consensus_seq_aa'])[:hash_len], mfo[c]['loci'][0])
+                def consid(mfo, c): return '%s-cons-%s' % (utils.uidhashstr(mfo[c]['consensus_seq_aa'])[:hash_len], mfo[c]['loci'][0])
                 ofo.update([(c+'_id', consid(mfo, c)) for c in 'hl'])
             else:
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
