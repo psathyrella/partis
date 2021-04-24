@@ -253,11 +253,21 @@ conserved_codons = {l : {'v' : 'cyst',
                      for l in loci}
 def get_all_codons():  # i'm only make these two fcns rather than globals since they use fcns that aren't defined til way down below
     return [''.join(c) for c in itertools.product('ACGT', repeat=3)]
-def get_all_amino_acids(no_stop=False):
+def get_all_amino_acids(no_stop=False, include_ambig=False):  # i'm not sure why i didn't include ambig by default originally, but i don't want to change it now
     all_aas = set(ltranslate(c) for c in get_all_codons())  # note: includes stop codons (*)
     if no_stop:
         all_aas.remove('*')
+    if include_ambig:
+        all_aas |= set(ambiguous_amino_acids)
     return all_aas
+def check_nuc_alphabet(seq):
+    if len(set(seq) - set(alphabet)) > 0:
+        raise Exception('unexpected nuc chars[s]: %s (expected %s' % (set(seq) - set(get_all_amino_acids()), ' '.join(alphabet)))
+def check_aa_alphabet(seq):
+    aa_alph = get_all_amino_acids(include_ambig=True)
+    if len(set(seq) - set(aa_alph)) > 0:
+        raise Exception('unexpected amino acid chars[s]: %s (expected %s' % (set(seq) - set(aa_alph), ' '.join(aa_alph)))
+
 
 def cdn(glfo, region):  # returns None for d
     return conserved_codons[glfo['locus']].get(region, None)
@@ -282,11 +292,24 @@ def ambig_frac(seq, aa=False):
     # ambig_seq = filter(all_ambiguous_bases.__contains__, seq)
     # return float(len(ambig_seq)) / len(seq)
     return float(seq.count(ambig_base)) / len(seq)
-def n_variable_ambig(line, seq, aa=False):  # number of ambiguous basees in the variable region (start of v to end of j)
-    assert not aa  # not implemented
-    assert len(set(seq) - set(alphabet)) == 0  # and... just to make sure you don't accidentally pass in an aa sequence
-    istart, istop = len(line['fv_insertion']), len(seq) - len(line['jf_insertion'])
-    return seq[istart : istop].count(ambig_base)
+def n_variable_ambig(line, seq, aa=False, nuc_seq=None):  # number of ambiguous basees in the variable region (start of v to end of j)
+    if aa:
+        check_aa_alphabet(seq)
+        istart, istop = int(len(line['fv_insertion']) / 3), len(seq) - int(math.ceil(len(line['jf_insertion']) / 3.))  # ceil() takes care of partial codons (at least i think it handles all cases)
+# TODO this is really hackey and i'm not sure it'll always work
+        if nuc_seq is not None and len(nuc_seq) % 3 > 0:
+            istop -=1
+        # if seq[istart : istop].count(ambiguous_amino_acids[0]) > 0:
+        #     print line['jf_insertion'], int(math.ceil(len(line['jf_insertion']) / 3.))
+        #     print len(nuc_seq) % 3, nuc_seq
+        #     print seq
+        #     print seq[istart : istop]
+        #     print seq[istart : istop].count(ambiguous_amino_acids[0])
+        return seq[istart : istop].count(ambiguous_amino_acids[0])
+    else:
+        check_nuc_alphabet(seq)
+        istart, istop = len(line['fv_insertion']), len(seq) - len(line['jf_insertion'])
+        return seq[istart : istop].count(ambig_base)
 
 # ----------------------------------------------------------------------------------------
 def reverse_complement_warning():

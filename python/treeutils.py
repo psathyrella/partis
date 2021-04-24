@@ -2165,7 +2165,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if tdbg:
                 print '      already added sequence with zero aa-cdist, so not adding cons seq%s' % ((' (using %s input seq[s] because of indels)'%' '.join(c for c in 'hl' if uis[c])) if any(uis.values()) else '')
             return
-        def nambig(c): return utils.n_variable_ambig(mtmp[c], getcseqs(c, uis[c], aa=False))
+        def nambig(c): return utils.n_variable_ambig(mtmp[c], cseqs[c], aa=True, nuc_seq=getcseqs(c, uis[c], aa=False))
         if 'max-ambig-bases' in cfgfo and any(nambig(c) > cfgfo['max-ambig-bases'] for c in 'hl'):
             print '          cons seq: too many ambiguous bases'
             return
@@ -2178,7 +2178,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         chosen_mfos.append(consfo)
         all_chosen_seqs.add('+'.join(cseqs[c] for c in 'hl'))
         if tdbg:
-            print '      %s: added cons seq%s' % (utils.color('green', 'x'), (' (using %s input seq[s] becuase of indels)'%' '.join(c for c in 'hl' if consfo[c+'_use_input_seqs'])) if any(consfo[c+'_use_input_seqs'] for c in 'hl') else '')
+            print '        %s: added cons seq%s' % (utils.color('green', 'x'), (' (using %s input seq[s] becuase of indels)'%' '.join(c for c in 'hl' if consfo[c+'_use_input_seqs'])) if any(consfo[c+'_use_input_seqs'] for c in 'hl') else '')
     # ----------------------------------------------------------------------------------------
     def choose_abs(metric_pairs, iclust, tdbg=False):
         # run through a bunch of options for skipping seqs/families
@@ -2206,7 +2206,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if skip_family:
                 return []
         if 'max-ambig-bases' in cfgfo:  # would be better to count ambiguous amino acid residues (for cases where the ambiguous nuc doesn't lead to ambig aa), but i don't feel like dealing with the difference
-            def keepfcn(m): return all(utils.n_variable_ambig(m[c], gsval(m, c, 'seqs')) <= cfgfo['max-ambig-bases'] for c in 'hl')
+            def keepfcn(m): return all(utils.n_variable_ambig(m[c], gsval(m, c, 'input_seqs_aa'), aa=True, nuc_seq=gsval(m, c, 'input_seqs')) <= cfgfo['max-ambig-bases'] for c in 'hl')
+# TODO should this be input_seqs? i'm not sure
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs):
@@ -2245,6 +2246,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 chosen_mfos.append(mfo)
                 all_chosen_seqs.add('+'.join(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                 n_newly_chosen += 1
+# ----------------------------------------------------------------------------------------
+# TODO check this
                 if n_newly_chosen >= n_var_choose and 'n-min-per-family' in cfgfo and len(chosen_mfos) >= cfgfo['n-min-per-family']:
                     break
             if tdbg:
@@ -2275,6 +2278,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         iclust_plotvals['chosen'] = [waschosen(m) for m in metric_pairs]
     # ----------------------------------------------------------------------------------------
     def write_chosen_file(all_chosen_mfos, hash_len=8):
+# TODO add checks that aa sec is translation of nuc seq (it won't be e.g. in some cases with ambiguous positions)
+# TODO check that things match input_info if that's available
         # ----------------------------------------------------------------------------------------
         def getofo(mfo):
             ofo = collections.OrderedDict([('iclust', mfo['iclust'])])
