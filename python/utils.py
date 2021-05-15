@@ -292,24 +292,22 @@ def ambig_frac(seq, aa=False):
     # ambig_seq = filter(all_ambiguous_bases.__contains__, seq)
     # return float(len(ambig_seq)) / len(seq)
     return float(seq.count(ambig_base)) / len(seq)
-def n_variable_ambig(line, seq, aa=False, nuc_seq=None):  # number of ambiguous basees in the variable region (start of v to end of j)
-    if aa:
-        check_aa_alphabet(seq)
-        istart, istop = int(len(line['fv_insertion']) / 3), len(seq) - int(math.ceil(len(line['jf_insertion']) / 3.))  # ceil() takes care of partial codons (at least i think it handles all cases)
-# TODO this is really hackey and i'm not sure it'll always work
-        if nuc_seq is not None and len(nuc_seq) % 3 > 0:
-            istop -=1
-        # if seq[istart : istop].count(ambiguous_amino_acids[0]) > 0:
-        #     print line['jf_insertion'], int(math.ceil(len(line['jf_insertion']) / 3.))
-        #     print len(nuc_seq) % 3, nuc_seq
-        #     print seq
-        #     print seq[istart : istop]
-        #     print seq[istart : istop].count(ambiguous_amino_acids[0])
-        return seq[istart : istop].count(ambiguous_amino_acids[0])
-    else:
-        check_nuc_alphabet(seq)
-        istart, istop = len(line['fv_insertion']), len(seq) - len(line['jf_insertion'])
-        return seq[istart : istop].count(ambig_base)
+
+# NOTE these fcns probably shouldn't exist -- what should really happen is we keep track of the regional/insertion boundaries for the aa seq as well... but that isn't really feasible, so for the moment we have this hack
+# ----------------------------------------------------------------------------------------
+def n_variable_ambig_nuc(line, nuc_seq):  # number of ambiguous bases in the variable region (start of v to end of j)
+    check_nuc_alphabet(nuc_seq)
+    istart, istop = line['regional_bounds']['v'][0], line['regional_bounds']['j'][1]
+    return nuc_seq[istart : istop].count(ambig_base)
+# ----------------------------------------------------------------------------------------
+def n_variable_ambig_aa(line, aa_seq, nuc_seq):  # omfg don't ask why it's better to have two different fcns
+    # NOTE this duplicates [is reverse of?] code in pad_seq_for_translation() (but not really sure how to clean up/combine them)
+    check_aa_alphabet(aa_seq)
+    istart = int(math.ceil(len(line['fv_insertion']) / 3.))  # add_seqs_aa() pads partial fv insertion codons, which will often [always?] be ambigous, so we don't want to include them here
+    istop = len(aa_seq) - int(math.ceil(len(line['jf_insertion']) / 3.))  # on the right we also want to chop off any partial codons (since they'll usually [always?] be ambiguous
+    if len(pad_seq_for_translation(line, nuc_seq)) % 3 != 0:  # furthermore, the 3' end of j seems to at least often not be a complete codon, which'll mean it's usually ambiguous, so we also need to get rid of it
+        istop -=1
+    return aa_seq[istart : istop].count(ambiguous_amino_acids[0])
 
 # ----------------------------------------------------------------------------------------
 def reverse_complement_warning():
@@ -2994,25 +2992,30 @@ def add_naive_seq_aa(line):  # NOTE similarity to block in add_extra_column()
     line['naive_seq_aa'] = ltranslate(line['naive_seq'])
 
 # ----------------------------------------------------------------------------------------
+def pad_seq_for_translation(line, tseq, debug=False):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
+    # NOTE this duplicates [is reverse of?] code in n_variable_ambig() (but not really sure how to clean up/combine them)
+    old_tseq = tseq  # just for dbg
+    fv_xtra, v_5p_xtra = 0, 0
+    if len(line['fv_insertion']) % 3 != 0:  # first base in v (i.e. after any fv insertion) is in frame, so have to align with that
+        fv_xtra = 3 - len(line['fv_insertion']) % 3  # e.g. if there's 1 fv insertion base, add 2 Ns to left side
+        tseq = fv_xtra * ambig_base + tseq
+    if line['v_5p_del'] % 3 != 0:
+        v_5p_xtra = line['v_5p_del'] % 3  # e.g. if there's 1 v 5p deleted base, add 1 N to left side
+        tseq = v_5p_xtra * ambig_base + tseq
+    if debug:
+        print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
+        print '    %s%s%s' % (color('blue', fv_xtra * ambig_base), color('blue', v_5p_xtra * ambig_base), color_mutants(old_tseq, old_tseq))
+    return tseq
+
+# ----------------------------------------------------------------------------------------
 def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_column()
     if 'seqs_aa' in line:
         return
-    def tmpseq(tseq):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
-        fv_xtra, v_5p_xtra = 0, 0
-        if len(line['fv_insertion']) % 3 != 0:
-            fv_xtra = 3 - len(line['fv_insertion']) % 3
-            tseq = fv_xtra * ambig_base + tseq
-        if line['v_5p_del'] % 3 != 0:
-            v_5p_xtra = line['v_5p_del'] % 3
-            tseq = v_5p_xtra * ambig_base + tseq
-        if debug:
-            print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
-        return tseq
-    line['seqs_aa'] = [ltranslate(tmpseq(s)) for s in line['seqs']]
-    line['input_seqs_aa'] = [ltranslate(tmpseq(inseq)) if indelutils.has_indels_line(line, iseq) else irseq_aa for iseq, (inseq, irseq_aa) in enumerate(zip(line['input_seqs'], line['seqs_aa']))]
+    line['seqs_aa'] = [ltranslate(pad_seq_for_translation(line, s, debug=debug)) for s in line['seqs']]
+    line['input_seqs_aa'] = [ltranslate(pad_seq_for_translation(line, inseq, debug=debug)) if indelutils.has_indels_line(line, iseq) else irseq_aa for iseq, (inseq, irseq_aa) in enumerate(zip(line['input_seqs'], line['seqs_aa']))]
     if debug:
         print pad_lines('\n'.join(line['seqs_aa']))
-        if any(h for h in line['has_shm_indels']):
+        if any(indelutils.has_indels_line(line, i) for i in range(len(line['unique_ids']))):
             print '%s in add_seqs_aa() one has an indel, input_seqs_aa debug needs to be implemented' % color('red', 'error')
 
 # ----------------------------------------------------------------------------------------
