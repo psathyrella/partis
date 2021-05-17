@@ -2195,13 +2195,16 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return []
         if tdbg:
             print '    iclust %d: choosing abs from joint cluster with size %d (marked with %s)' % (iclust, len(metric_pairs), utils.color('green', 'x'))
+        for ctk, ntk in [('cell-types', 'cell-types'), ('min-umis', 'umis')]:
+            if len(metric_pairs) > 0 and ctk in cfgfo and ntk not in metric_pairs[0]['h']:
+                print '  %s \'%s\' in cfgfo but \'%s\' info not in annotation' % (utils.color('yellow', 'warning'), ctk, ntk)
         if 'cell-types' in cfgfo and len(metric_pairs) > 0 and 'cell-types' in metric_pairs[0]['h']:
             def keepfcn(m): return all(gsval(m, c, 'cell-types') in cfgfo['cell-types'] for c in 'hl')  # kind of dumb to check both, they should be the same, but whatever it'll crash in the debug printing below if they're different
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs) > 0:
                 print '          skipped %d with cell type not among %s' % (n_before - len(metric_pairs), cfgfo['cell-types'])
-        if 'min-umis' in cfgfo and len(metric_pairs) > 0 and 'umis' in metric_pairs[0]['h']:  # TODO this (and the other ones) should really warn if it's in cfgfo but not in the info in metric_pairs
+        if 'min-umis' in cfgfo and len(metric_pairs) > 0 and 'umis' in metric_pairs[0]['h']:
             def keepfcn(m): return sum(gsval(m, c, 'umis') for c in 'hl') > cfgfo['min-umis']
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
@@ -2286,8 +2289,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         iclust_plotvals['chosen'] = [waschosen(m) for m in metric_pairs]
     # ----------------------------------------------------------------------------------------
     def write_chosen_file(all_chosen_mfos, hash_len=8):
-# TODO add checks that aa sec is translation of nuc seq (it won't be e.g. in some cases with ambiguous positions)
-# TODO check that things match input_info if that's available
         # ----------------------------------------------------------------------------------------
         def getofo(mfo):
             ofo = collections.OrderedDict([('iclust', mfo['iclust'])])
@@ -2308,6 +2309,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             else:
                 for ok, lk in [('has_shm_indels', None), ('cell_type', 'cell-types'), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None), ('seq_nuc', 'input_seqs'), ('seq_aa', 'input_seqs_aa')]:
                     ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]))) for c in 'hl'])
+            if 'consensus' not in mfo:  # check that the aa seqs are actually translations of the nuc seqs (for unobs cons seqs, we expect them to differ)
+                for tch in 'hl':
+                    if utils.ltranslate(ofo[tch+'_seq_nuc']) != ofo[tch+'_seq_aa']:
+                        print '  %s aa seq not translation of nuc seq for %s %s:' % (utils.color('yellow', 'warning'), tch, ofo[tch+'_id'])
+                        utils.color_mutants(utils.ltranslate(ofo[tch+'_seq_nuc']), ofo[tch+'_seq_aa'], amino_acid=True, print_result=True, extra_str='        ')
             return ofo
         # ----------------------------------------------------------------------------------------
         if debug:
