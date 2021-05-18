@@ -1432,7 +1432,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
 
     if amino_acid:
         tmp_ambigs = ambiguous_amino_acids
-        tmp_gaps = []
+        tmp_gaps = gap_chars #[]
     else:
         tmp_ambigs = all_ambiguous_bases
         tmp_gaps = gap_chars

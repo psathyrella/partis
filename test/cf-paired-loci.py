@@ -28,6 +28,7 @@ parser.add_argument('--label', default='cleanscan')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--no-plots', action='store_true')
+parser.add_argument('--extra-args', help='only for simu atm')
 args = parser.parse_args()
 
 args.actions = utils.get_arg_list(args.actions, choices=['simulate', 'cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics'])
@@ -42,6 +43,8 @@ def run_simu(ncells, nleaf):
     cmd = './bin/partis simulate --paired-loci --seed %d --parameter-dir %s --paired-outdir %s/simu --mean-cells-per-droplet %f' % (args.seed, in_param_dir, outdir, ncells)
     cmd += ' --n-sim-events %d --n-leaves %d --n-procs %d --no-per-base-mutation --allowed-cdr3-lengths %s' % (args.n_sim_events, nleaf, args.n_procs, args.allowed_cdr3_lengths)
     cmd += ' --mutation-multiplier %.2f --constant-number-of-leaves' % args.mutation_multiplier
+    if args.extra_args is not None:
+        cmd += ' %s' % args.extra_args
     utils.simplerun(cmd, logfname='%s/simu.log'%outdir, dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------

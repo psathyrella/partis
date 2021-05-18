@@ -2191,14 +2191,14 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             mfseqs = tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl')
             return mfseqs in all_chosen_seqs
         # ----------------------------------------------------------------------------------------
-        def too_close_to_chosen_seqs(all_chosen_seqs, mfo, hdist, ttdbg=True):
+        def too_close_to_chosen_seqs(all_chosen_seqs, mfo, hdist, ttdbg=False):
             if len(all_chosen_seqs) == 0:
                 return False
             def hd(s1, s2): return utils.hamming_distance(s1, s2, amino_acid=True)
             mfseqs = tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl')
             if ttdbg:
                 h_min, l_min = [min(hd(acseqs[i], mseq) for acseqs in all_chosen_seqs) for i, mseq in enumerate(mfseqs)]
-                print '%d %d %s' % (h_min, l_min, utils.color('red', 'x') if sum([h_min, l_min]) < hdist else '')
+                print '        %d %d %s' % (h_min, l_min, utils.color('red', 'x') if sum([h_min, l_min]) < hdist else '')
             return any(sum(hd(cseq, mseq) for mseq, cseq in zip(mfseqs, acseqs)) < hdist for acseqs in all_chosen_seqs)
         # ----------------------------------------------------------------------------------------
         # run through a bunch of options for skipping seqs/families
@@ -2395,15 +2395,19 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         gstrs = ['%s %s' % (utils.color_gene(h_atn[r+'_gene']), utils.color_gene(l_atn[r+'_gene']) if r!='d' else '') for r in utils.regions]
         gstr_len = max(utils.len_excluding_colors(s) for s in gstrs)  # don't really need this as long as it's the last column
         gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
-        h_cseq, l_cseq = [utils.color_mutants(l['consensus_seq_aa'], l['consensus_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-        h_nseq, l_nseq = [utils.color_mutants(l['consensus_seq_aa'], l['naive_seq_aa'], amino_acid=True) for l in (h_atn, l_atn)]
-        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s  %%shm  N aa mutations     sizes            %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), h_cseq, l_cseq)
+        h_cseq, l_cseq = [l['consensus_seq_aa'] for l in (h_atn, l_atn)]
+        if any('consensus' in m for m in iclust_mfos):
+            cons_mfo = utils.get_single_entry([m for m in iclust_mfos if 'consensus' in m])
+            h_cseq, l_cseq = [cons_mfo[c+'_cseq_aa'] if cons_mfo[c+'_use_input_seqs'] else cs for c, cs in zip('hl', (h_cseq, l_cseq))]
+        h_cseq_str, l_cseq_str = [utils.color_mutants(cs, cs, amino_acid=True) for cs in (h_cseq, l_cseq)]
+        h_nseq, l_nseq = [utils.color_mutants(cs, l['naive_seq_aa'], amino_acid=True, align_if_necessary=True) for l, cs in zip((h_atn, l_atn), (h_cseq, l_cseq))]
+        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s  %%shm  N aa mutations     sizes            %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), h_cseq_str, l_cseq_str)
         print ('             sum   h    l       h   l                           h  l   h l  %s  nuc   cons.     obs.   both   h   l       %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
         for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: sum(gsval(x, c, 'aa-cfrac') for c in 'hl'))):
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
             dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (hid, lid)])
             indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
-            h_seq, l_seq = [utils.color_mutants(l['consensus_seq_aa'], utils.per_seq_val(l, 'seqs_aa', u), amino_acid=True) for u, l in zip((hid, lid), (h_atn, l_atn))]
+            h_seq, l_seq = [utils.color_mutants(cs, utils.per_seq_val(l, 'input_seqs_aa', u), amino_acid=True, align_if_necessary=True) for u, l, cs in zip((hid, lid), (h_atn, l_atn), (h_cseq, l_cseq))]
             print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %s %20s  %s  %s   %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
                                                                                     100*sumv(mpfo, 'aa-cfrac'), 100*gsval(mpfo, 'h', 'aa-cfrac'), 100*gsval(mpfo, 'l', 'aa-cfrac'),
                                                                                     gsval(mpfo, 'h', 'aa-cdist'), gsval(mpfo, 'l', 'aa-cdist'),
