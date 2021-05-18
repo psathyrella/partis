@@ -2116,6 +2116,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return -smvals(cln, 'cons-dist-aa', iseq=iseq)
         elif vname in selection_metrics:
             return smvals(cln, vname, iseq=iseq)
+        elif vname == 'multipy':  # multiplicity
+            return utils.get_multiplicity(cln, iseq=iseq)
         else:
             raise Exception('unsupported sort var \'%s\'' % vname)
     # ----------------------------------------------------------------------------------------
@@ -2253,7 +2255,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if [get_n_choose(cfo, k) for cfo, k in [(vcfg, 'n'), (cfgfo, 'n-per-family')]].count(None) != 1:
                 raise Exception('specify exactly one of \'n-per-family\' and/or \'vars\': \'n\'')
             n_already_chosen, n_same_seqs, n_too_close, n_newly_chosen = 0, 0, 0, 0
-            sorted_mfos = sorted(metric_pairs, key=lambda m: sum(gsval(m, c, sortvar) for c in 'hl'), reverse=vcfg['sort']=='high')
+            sorted_mfos = metric_pairs
+            sorted_mfos = sorted(sorted_mfos, key=lambda m: sum(mtpys[c][gsval(m, c, 'input_seqs_aa')] for c in 'hl'), reverse=True)
+            sorted_mfos = sorted(sorted_mfos, key=lambda m: sum(gsval(m, c, sortvar) for c in 'hl'), reverse=vcfg['sort']=='high')
             for mfo in sorted_mfos:
                 if mfo in chosen_mfos:
                     n_already_chosen += 1
@@ -2401,9 +2405,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             h_cseq, l_cseq = [cons_mfo[c+'_cseq_aa'] if cons_mfo[c+'_use_input_seqs'] else cs for c, cs in zip('hl', (h_cseq, l_cseq))]
         h_cseq_str, l_cseq_str = [utils.color_mutants(cs, cs, amino_acid=True) for cs in (h_cseq, l_cseq)]
         h_nseq, l_nseq = [utils.color_mutants(cs, l['naive_seq_aa'], amino_acid=True, align_if_necessary=True) for l, cs in zip((h_atn, l_atn), (h_cseq, l_cseq))]
-        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s  %%shm  N aa mutations     sizes            %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), h_cseq_str, l_cseq_str)
-        print ('             sum   h    l       h   l                           h  l   h l  %s  nuc   cons.     obs.   both   h   l       %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
-        for imp, mpfo in enumerate(sorted(metric_pairs, key=lambda x: sum(gsval(x, c, 'aa-cfrac') for c in 'hl'))):
+        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s   N   %%shm   N aa mutations     sizes            %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), h_cseq_str, l_cseq_str)
+        print ('             sum   h    l       h   l                           h  l   h l  %s  h l   nuc   cons.     obs.   both   h   l       %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
+        sorted_mfos = sorted(metric_pairs, key=lambda m: sum(mtpys[c][gsval(m, c, 'input_seqs_aa')] for c in 'hl'), reverse=True)
+        for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(gsval(x, c, 'aa-cfrac') for c in 'hl'))):
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
             dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (hid, lid)])
             indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
@@ -2413,12 +2418,13 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                                                                                     gsval(mpfo, 'h', 'aa-cdist'), gsval(mpfo, 'l', 'aa-cdist'),
                                                                                     utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
                                                                                     get_didstr(dids), cids[0], cids[1], indelstr),
-            print ' %s %4.1f   %s  %2d %2d %2d  %s    %s   %s %s' % (' '.join(get_xstr(mpfo, xlens)),
-                                                                     sum_nuc_shm_pct(mpfo),
-                                                                     cdstr if imp==0 else ' '*len(cdstr),
-                                                                     sumv(mpfo, 'shm-aa'), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'),
-                                                                     sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
-                                                                     h_seq, l_seq)
+            print ' %s %2d %2d %4.1f   %s  %2d %2d %2d  %s    %s   %s %s' % (' '.join(get_xstr(mpfo, xlens)),
+                                                                             mtpys['h'][gsval(mpfo, 'h', 'input_seqs_aa')], mtpys['l'][gsval(mpfo, 'l', 'input_seqs_aa')],
+                                                                             sum_nuc_shm_pct(mpfo),
+                                                                             cdstr if imp==0 else ' '*len(cdstr),
+                                                                             sumv(mpfo, 'shm-aa'), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'),
+                                                                             sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
+                                                                             h_seq, l_seq)
 
         for gs in gstrs[imp+1:]:  # if the cluster was smaller than gstrs, need to print the extra gstrs (this shouldn't really ever happen unless i make gstrs much longer))
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
@@ -2445,6 +2451,13 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # for k in iclust_plotvals:
         #     if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
         #     all_plotvals[k] += iclust_plotvals[k]
+    # ----------------------------------------------------------------------------------------
+    def get_mtpys(metric_pairs):  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
+        mtpys = {}
+        for c in 'hl':
+            seqlist = [gsval(m, c, 'input_seqs_aa') for m in metric_pairs for _ in range(gsval(m, c, 'multipy'))]
+            mtpys[c] = {s : seqlist.count(s) for s in set(seqlist)}
+        return mtpys
 
     # ----------------------------------------------------------------------------------------
     debug = not is_simu or args.debug
@@ -2479,6 +2492,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             metric_pairs.append(mpfo)
         if len(metric_pairs) == 0:
             continue
+        mtpys = get_mtpys(metric_pairs)
         iclust_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
         if len(iclust_mfos) > 0:
             all_chosen_mfos += iclust_mfos
