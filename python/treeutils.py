@@ -2127,8 +2127,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return 100 * sumv(mpfo, 'n_mutations') / float(total_len)
     # ----------------------------------------------------------------------------------------
     def read_cfgfo():
-        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%'])
-                        # allowed_vars = []
+        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen'])
+        # allowed_vars = []
         if debug:
             print '  ab choice cfg:'
             outstr, _ = utils.simplerun('cat %s'%args.ab_choice_cfg, return_out_err=True)
@@ -2161,13 +2161,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         mtmp = metric_pairs[0]
         uis = {c : use_iseqs(c, mtmp) for c in 'hl'}
         cseqs = {c : getcseqs(c, uis[c], aa=True) for c in 'hl'}  # aa cons seqs
-        if '+'.join(cseqs[c] for c in 'hl') in all_chosen_seqs:  # don't need this any more now that we're adding unobs cons seqs first, but better to leave this here
-            if tdbg:
-                print '      already added sequence with zero aa-cdist, so not adding cons seq%s' % ((' (using %s input seq[s] because of indels)'%' '.join(c for c in 'hl' if uis[c])) if any(uis.values()) else '')
-            return
         def nambig(c): return utils.n_variable_ambig_aa(mtmp[c], cseqs[c], getcseqs(c, uis[c], aa=False))
-        if 'max-ambig-positions' in cfgfo and any(nambig(c) > cfgfo['max-ambig-positions'] for c in 'hl'):
-            print '          cons seq: too many ambiguous bases in %s' % ' '.join(c for c in 'hl' if nambig(c) > cfgfo['max-ambig-positions'])
+        if 'max-ambig-positions' in cfgfo and sum(nambig(c) for c in 'hl') > cfgfo['max-ambig-positions']:
+            print '          cons seq: too many ambiguous bases in h+l (%d > %d)' % (sum(nambig(c) for c in 'hl'), cfgfo['max-ambig-positions'])
             return
 
         consfo = {c : mtmp[c] for c in 'hl'}
@@ -2176,11 +2172,12 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         consfo.update({c+'_cseq_aa' : cseqs[c] for c in 'hl'})
         consfo.update({c+'_cseq_nuc' : getcseqs(c, uis[c], aa=False) for c in 'hl'})
         chosen_mfos.append(consfo)
-        all_chosen_seqs.add('+'.join(cseqs[c] for c in 'hl'))
+        all_chosen_seqs.add(tuple(cseqs[c] for c in 'hl'))
         if tdbg:
             print '        %s: added cons seq%s' % (utils.color('green', 'x'), (' (using %s input seq[s] becuase of indels)'%' '.join(c for c in 'hl' if consfo[c+'_use_input_seqs'])) if any(consfo[c+'_use_input_seqs'] for c in 'hl') else '')
     # ----------------------------------------------------------------------------------------
     def choose_abs(metric_pairs, iclust, tdbg=False):
+        # ----------------------------------------------------------------------------------------
         def get_n_choose(tcfg, key):
             if key not in tcfg:
                 return None
@@ -2189,6 +2186,20 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             else:  # specify a different number for each family
                 assert len(tcfg[key]) == cfgfo['n-families']
                 return tcfg[key][iclust]
+        # ----------------------------------------------------------------------------------------
+        def in_chosen_seqs(all_chosen_seqs, mfo):
+            mfseqs = tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl')
+            return mfseqs in all_chosen_seqs
+        # ----------------------------------------------------------------------------------------
+        def too_close_to_chosen_seqs(all_chosen_seqs, mfo, hdist, ttdbg=True):
+            if len(all_chosen_seqs) == 0:
+                return False
+            def hd(s1, s2): return utils.hamming_distance(s1, s2, amino_acid=True)
+            mfseqs = tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl')
+            if ttdbg:
+                h_min, l_min = [min(hd(acseqs[i], mseq) for acseqs in all_chosen_seqs) for i, mseq in enumerate(mfseqs)]
+                print '%d %d %s' % (h_min, l_min, utils.color('red', 'x') if sum([h_min, l_min]) < hdist else '')
+            return any(sum(hd(cseq, mseq) for mseq, cseq in zip(mfseqs, acseqs)) < hdist for acseqs in all_chosen_seqs)
         # ----------------------------------------------------------------------------------------
         # run through a bunch of options for skipping seqs/families
         if iclust >= cfgfo['n-families']:
@@ -2217,8 +2228,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '          %s family: median h+l nuc shm %.2f%% %s than %.2f%%' % (utils.color('yellow', 'skipping entire') if skip_family else 'keeping', median_shm, 'less' if skip_family else 'greater', cfgfo['min-median-nuc-shm-%'])
             if skip_family:
                 return []
-        if 'max-ambig-positions' in cfgfo:  # max number of ambiguous amino acid positions in each sequence
-            def keepfcn(m): return all(utils.n_variable_ambig_aa(m[c], gsval(m, c, 'input_seqs_aa'), gsval(m, c, 'input_seqs')) <= cfgfo['max-ambig-positions'] for c in 'hl')
+        if 'max-ambig-positions' in cfgfo:  # max number of ambiguous amino acid positions summed over h+l
+            def keepfcn(m):
+                def nambig(c): return utils.n_variable_ambig_aa(m[c], gsval(m, c, 'input_seqs_aa'), gsval(m, c, 'input_seqs'))
+                return sum(nambig(c) for c in 'hl') <= cfgfo['max-ambig-positions']
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs):
@@ -2228,7 +2241,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return []
 
         chosen_mfos = []  # includes unobs cons seqs plus seqs chosen from all sortvars
-        all_chosen_seqs = set()  # just for keeping track of the seqs we've chosen
+        all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen
 
         # maybe add the unobserved cons seq
         if 'include-unobs-cons-seqs' in cfgfo and cfgfo['include-unobs-cons-seqs']:
@@ -2239,19 +2252,22 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             assert vcfg['sort'] in ['low', 'high']
             if [get_n_choose(cfo, k) for cfo, k in [(vcfg, 'n'), (cfgfo, 'n-per-family')]].count(None) != 1:
                 raise Exception('specify exactly one of \'n-per-family\' and/or \'vars\': \'n\'')
-            n_already_chosen, n_same_seqs, n_newly_chosen = 0, 0, 0
+            n_already_chosen, n_same_seqs, n_too_close, n_newly_chosen = 0, 0, 0, 0
             sorted_mfos = sorted(metric_pairs, key=lambda m: sum(gsval(m, c, sortvar) for c in 'hl'), reverse=vcfg['sort']=='high')
             for mfo in sorted_mfos:
                 if mfo in chosen_mfos:
                     n_already_chosen += 1
                     continue
-                if '+'.join(gsval(mfo, c, 'input_seqs_aa') for c in 'hl') in all_chosen_seqs:
+                if in_chosen_seqs(all_chosen_seqs, mfo):
                     n_same_seqs += 1
+                    continue
+                if 'min-hdist-to-already-chosen' in cfgfo and too_close_to_chosen_seqs(all_chosen_seqs, mfo, cfgfo['min-hdist-to-already-chosen']):
+                    n_too_close += 1
                     continue
                 if any(gsval(mfo, c, 'has_shm_indels') for c in 'hl'):
                     print '          %s choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
                 chosen_mfos.append(mfo)
-                all_chosen_seqs.add('+'.join(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
+                all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                 n_newly_chosen += 1  # number chosen from this sortvar
 
                 # this takes the top <n> by <sortvar> (not including any unobs cons seq)
@@ -2262,7 +2278,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     break
 
             if tdbg:
-                print '        %s: chose %d%s%s' % (sortvar, n_newly_chosen, '' if n_already_chosen==0 else ' (%d were in common with a previous var)'%n_already_chosen, '' if n_same_seqs==0 else ' (%d had seqs identical to previously-chosen ones)'%n_same_seqs)
+                print '        %s: chose %d%s%s%s' % (sortvar, n_newly_chosen,
+                                                    '' if n_already_chosen==0 else ' (%d were in common with a previous var)'%n_already_chosen,
+                                                    '' if n_same_seqs==0 else ' (%d had seqs identical to previously-chosen ones)'%n_same_seqs,
+                                                    '' if n_too_close==0 else ' (%d had seqs too close to previously-chosen ones)'%n_too_close)
         if tdbg:
             print '      chose %d total' % len(chosen_mfos)
 
@@ -2309,7 +2328,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             else:
                 for ok, lk in [('has_shm_indels', None), ('cell_type', 'cell-types'), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None), ('seq_nuc', 'input_seqs'), ('seq_aa', 'input_seqs_aa')]:
                     ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]))) for c in 'hl'])
-            if 'consensus' not in mfo:  # check that the aa seqs are actually translations of the nuc seqs (for unobs cons seqs, we expect them to differ)
+            if 'consensus' not in mfo:  # check that the aa seqs are actually translations of the nuc seqs (for unobs cons seqs, we expect them to differ) NOTE i don't know if this is really worthwhile long term, but it makes me feel warm and fuzzy atm that it's here
                 for tch in 'hl':
                     if utils.ltranslate(ofo[tch+'_seq_nuc']) != ofo[tch+'_seq_aa']:
                         print '  %s aa seq not translation of nuc seq for %s %s:' % (utils.color('yellow', 'warning'), tch, ofo[tch+'_id'])
