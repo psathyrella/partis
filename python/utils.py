@@ -261,13 +261,13 @@ def get_all_amino_acids(no_stop=False, include_ambig=False):  # i'm not sure why
         all_aas |= set(ambiguous_amino_acids)
     return all_aas
 def check_nuc_alphabet(seq):
-    if len(set(seq) - set(alphabet)) > 0:
-        raise Exception('unexpected nuc chars[s]: %s (expected %s' % (set(seq) - set(get_all_amino_acids()), ' '.join(alphabet)))
+    nuc_alph = set(alphabet) | set(gap_chars)
+    if len(set(seq) - nuc_alph) > 0:
+        raise Exception('unexpected nuc chars[s]: %s (expected %s)' % (' '.join(set(seq) - nuc_alph), ' '.join(nuc_alph)))
 def check_aa_alphabet(seq):
-    aa_alph = get_all_amino_acids(include_ambig=True)
+    aa_alph = get_all_amino_acids(include_ambig=True) | set(gap_chars)
     if len(set(seq) - set(aa_alph)) > 0:
-        raise Exception('unexpected amino acid chars[s]: %s (expected %s' % (set(seq) - set(aa_alph), ' '.join(aa_alph)))
-
+        raise Exception('unexpected amino acid chars[s]: %s (expected %s)' % (' '.join(set(seq) - set(aa_alph)), ' '.join(aa_alph)))
 
 def cdn(glfo, region):  # returns None for d
     return conserved_codons[glfo['locus']].get(region, None)

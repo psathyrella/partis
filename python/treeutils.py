@@ -2196,7 +2196,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         def too_close_to_chosen_seqs(all_chosen_seqs, mfo, hdist, ttdbg=False):
             if len(all_chosen_seqs) == 0:
                 return False
-            def hd(s1, s2): return utils.hamming_distance(s1, s2, amino_acid=True)
+            def hd(s1, s2):
+                if len(s1) == len(s2):
+                    return utils.hamming_distance(s1, s2, amino_acid=True)
+                else:
+                    return max([len(s1), len(s2)])  # NOTE it's kind of weird and arbitrary to return the max seq len if they're different lengths, but if they're different lengths we don't care anyway cause we're just looking for very similar sequences
             mfseqs = tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl')
             if ttdbg:
                 h_min, l_min = [min(hd(acseqs[i], mseq) for acseqs in all_chosen_seqs) for i, mseq in enumerate(mfseqs)]
@@ -2405,8 +2409,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             h_cseq, l_cseq = [cons_mfo[c+'_cseq_aa'] if cons_mfo[c+'_use_input_seqs'] else cs for c, cs in zip('hl', (h_cseq, l_cseq))]
         h_cseq_str, l_cseq_str = [utils.color_mutants(cs, cs, amino_acid=True) for cs in (h_cseq, l_cseq)]
         h_nseq, l_nseq = [utils.color_mutants(cs, l['naive_seq_aa'], amino_acid=True, align_if_necessary=True) for l, cs in zip((h_atn, l_atn), (h_cseq, l_cseq))]
-        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s   N   %%shm   N aa mutations     sizes            %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), h_cseq_str, l_cseq_str)
-        print ('             sum   h    l       h   l                           h  l   h l  %s  h l   nuc   cons.     obs.   both   h   l       %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
+        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s    N    %%shm   N aa mutations     sizes            %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), h_cseq_str, l_cseq_str)
+        print ('             sum   h    l       h   l                           h  l   h l  %s  h   l   nuc   cons.     obs.   both   h   l       %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
         sorted_mfos = sorted(metric_pairs, key=lambda m: sum(mtpys[c][gsval(m, c, 'input_seqs_aa')] for c in 'hl'), reverse=True)
         for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(gsval(x, c, 'aa-cfrac') for c in 'hl'))):
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
@@ -2418,7 +2422,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                                                                                     gsval(mpfo, 'h', 'aa-cdist'), gsval(mpfo, 'l', 'aa-cdist'),
                                                                                     utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
                                                                                     get_didstr(dids), cids[0], cids[1], indelstr),
-            print ' %s %2d %2d %4.1f   %s  %2d %2d %2d  %s    %s   %s %s' % (' '.join(get_xstr(mpfo, xlens)),
+            print ' %s %3d %3d %4.1f   %s  %2d %2d %2d  %s    %s   %s %s' % (' '.join(get_xstr(mpfo, xlens)),
                                                                              mtpys['h'][gsval(mpfo, 'h', 'input_seqs_aa')], mtpys['l'][gsval(mpfo, 'l', 'input_seqs_aa')],
                                                                              sum_nuc_shm_pct(mpfo),
                                                                              cdstr if imp==0 else ' '*len(cdstr),
