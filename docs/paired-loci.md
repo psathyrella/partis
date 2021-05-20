@@ -31,6 +31,10 @@ If pairing info was available, there will be subdirs `igh+igk/` and `igh+igl/` s
 The joint/merged partitions are also written to these paired subdirs.
 Finally, the joint/merged heavy chain partitions from both paired subdirs are concatenated into `partition-igh.yaml` in the main/parent dir (there are also corresponding light chain files, but they're just links to the paired subdirs, since there'd be nothing to concatenate).
 
+### choosing antibodies
+
+In order to use the selection metrics to choose Abs, see [here](subcommands#choosing-antibodies).
+
 ### simulation
 
 Setting `--paired-loci` during simulation will result in paired heavy/light repertoires.
