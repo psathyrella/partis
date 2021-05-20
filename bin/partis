@@ -483,8 +483,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                             if not joint and lpair is None and getodir(single_chain=True) not in work_fnames:
                                 work_fnames.append(getodir(single_chain=True))
 
-            if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
-                assert args.input_metafname is None
+            if args.input_metafname is None and args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
                 utils.replace_in_arglist(clist, '--input-metafname', getofn(None, joint=True, lpair=lpair, input_meta=True))
             elif args.input_metafname is None and os.path.exists(getifn('meta')):  # if it wasn't set on the command line, we want to look in a default-ish location to which e.g. paircluster.write_merged_simu() writes it
                 print '  note: adding --input-metafname from default location %s' % getifn('meta')
