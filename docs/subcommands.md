@@ -152,7 +152,7 @@ If you'd like a modern, browser-based package for visualizing the families and t
 
 There is also infrastructure to facilitate actually choosing Abs based on the selection metrics.
 Abs are chosen whenever getting selection metrics on paired data, and if `--chosen-ab-fname` is set they are written to the indicated csv file.
-You probably also want to set `--debug 1` in order to get detailed ascii information of which Abs were chosen, which looks something like:
+You probably also want to set `--debug 1` in order to get detailed ascii information about which Abs were chosen, which looks something like:
 
 ![view-output](images/ab-choice.png)
 

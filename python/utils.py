@@ -4880,7 +4880,7 @@ def output_exists(args, outfname, outlabel=None, leave_zero_len=False, offset=No
         if not leave_zero_len and os.stat(outfname).st_size == 0:
             if debug:
                 print '%sdeleting zero length %s' % (offset * ' ', outfname)
-            os.remove(outfname)
+            os.rmdir(outfname) if os.path.isdir(outfname) else os.remove(outfname)  # zero len dir means it's empty
             return False
         elif args.overwrite:
             if debug:
