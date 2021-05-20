@@ -33,7 +33,7 @@ Finally, the joint/merged heavy chain partitions from both paired subdirs are co
 
 ### choosing antibodies
 
-In order to use the selection metrics to choose Abs, see [here](subcommands#choosing-antibodies).
+In order to use the selection metrics to choose Abs, see [here](subcommands.md#choosing-antibodies).
 
 ### simulation
 
