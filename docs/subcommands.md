@@ -3,7 +3,7 @@
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
   - [view-output](#view-output) print the partitions and/or annotations from an existing output file
-  - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, runs automatically before annotation and partitioning)
+  - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, this runs automatically before annotation and partitioning)
     - [germline sets](#germline-sets)
   - [simulate](#simulate) make simulated sequences
   - [miscellany](#miscellany)
@@ -130,11 +130,12 @@ Details [here](paired-loci.md).
 ### get-selection-metrics
 
 Calculate quantities for prediction of fitness/affinity.
-At the moment these are: AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr).
+At the moment these are: AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr, in both nucleotide and amino acid versions).
 aa-cdist is an excellent predictor of an antibody's affinity for an antigen, but it has no information about what that antigen is, so it should be paired with some method using non-sequence information, such as vaccination or cell sorting (see Discussion in selection metric [paper](https://arxiv.org/abs/2004.11868)).
-Given an antibody of interest and its inferred ancestral lineage lbr is an excellent predictor of which branches between those ancestors are likely to contain affinity-increasing mutations.
-In order to infer ancestral sequences, you should run a separate program that includes actual phylogenetic inference, such as [linearham](https://github.com/matsengrp/linearham/) or [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html).
-You can either run the `get-selection-metrics` action on an existing partis output file, or add `--get-selection-metrics` when running the `partition` action.
+Given an antibody of interest and its inferred ancestral lineage, lbr is an excellent predictor of which branches between those ancestors are likely to contain affinity-increasing mutations.
+In order to infer ancestral sequences, you should run a separate program that includes proper phylogenetic inference, such as [linearham](https://github.com/matsengrp/linearham/) or [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html).
+
+You can run the `get-selection-metrics` action either on an existing partis output file, or add `--get-selection-metrics` when running the `partition` action.
 The former is generally better, since you can then pass in your own separately-inferred trees with `--treefname`, and also run several different versions without having to re-partition.
 Both lbi and aa-cdist can include multiplicity information for each sequence (e.g. from expression levels), see [below](#input-meta-info).
 
@@ -146,6 +147,20 @@ If no clustering path information is available, FastTree is used to infer the tr
 This will make a tree for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc., or restricted with --cluster-index.
 
 If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](https://github.com/matsengrp/olmsted/).
+
+##### Choosing antibodies
+
+There is also infrastructure to facilitate actually choosing Abs based on the selection metrics.
+Abs are chosen whenever getting selection metrics on paired data, and if `--chosen-ab-fname` is set they are written to the indicated csv file.
+You probably also want to set `--debug 1` in order to get detailed ascii information of which Abs were chosen, which looks something like:
+
+![view-output](images/ab-choice.png)
+
+The many possible ways to choose Abs are controlled with a yaml config file, whose location is specified with `--ab-choice-cfg`, with default in `data/selection-metrics/ab-choice.yaml`.
+For instance, you might want to choose M, N, P Abs from each of the 3 largest families.
+To get the M Abs from the first family, you might take the top M sorted by aa-cdist, with additional criteria on [input meta info](#input-meta-info) like cell type or umis.
+Look in the default config file for further descriptions of parameters.
+If you want to just re-choose Abs (e.g. if you changed the config file) without recalculating selection metrics, set `--dry-run`.
 
 ### view-output
 
@@ -167,7 +182,8 @@ You can also send std out to a log file `>log.txt` instead of piping to `less -R
 
 ### cache-parameters
 
-This is run automatically if `--parameter-dir` doesn't exist (whether this directory is specified explicitly, or is left as default).
+Infer a set of parameters describing insertion, deletion, mutation, germline set, etc., which are used to write hmm yaml model files for later inference.
+This is run automatically if `--parameter-dir` doesn't exist (whether this directory is specified explicitly or not).
 So you do not, generally, need to run it on its own.
 
 When presented with a new data set, the first thing we need to do is infer a set of parameters, a task for which we need a preliminary annotation.
