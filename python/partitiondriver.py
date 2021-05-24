@@ -994,7 +994,7 @@ class PartitionDriver(object):
         cmd_str += ' --infile ' + csv_infname
         cmd_str += ' --outfile ' + csv_outfname
         cmd_str += ' --locus ' + self.args.locus
-        cmd_str += ' --random-seed ' + str(self.args.seed)
+        cmd_str += ' --random-seed ' + str(self.args.random_seed)
         if n_procs > 1:  # only cache vals for sequence sets with newly-calculated vals (initial cache file is copied to each subdir)
             cmd_str += ' --only-cache-new-vals'
 
@@ -1136,7 +1136,7 @@ class PartitionDriver(object):
             if False: # self.args.kmeans_subclusters:  # this gives you clusters that are "tighter" -- i.e. clusters similar sequences together
                 import mds  # this works fine, but it's not really different (on balance with kmeans is probably a bit worse) than the simple way. Which is weird, I would think it would help? but otoh it gives you non-equal-sized clusters, which sometimes i think is worse, although sometimes i also think is better
                 seqfos = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in superclust]
-                return_clusts = mds.run_sklearn_mds(None, n_clusters, seqfos, self.args.seed, aligned=True)
+                return_clusts = mds.run_sklearn_mds(None, n_clusters, seqfos, self.args.random_seed, aligned=True)
             else:
                 n_seq_list = [len(superclust) / n_clusters for _ in range(n_clusters)]  # start with the min possible number (without remainders) for each cluster
                 if sdbg:

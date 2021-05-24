@@ -82,6 +82,13 @@ def process(args):
         args.action = 'view-alternative-annotations'
     if args.seed_seq is not None:
         raise Exception('--seed-seq is deprecated, use --seed-unique-id and --queries-to-include-fname')
+    if args.seed is not None:
+        print '  note: moving value from deprecated arg --seed to --random-seed (you don\'t need to change anything unless you want this warning message to go away)'
+        args.random_seed = args.seed
+        delattr(args, 'seed')
+        assert '--seed' in sys.argv
+        utils.replace_in_arglist(sys.argv, '--seed', str(args.random_seed))  # have to also modify argv in case we're using it e.g. in paired locus stuff
+        sys.argv[utils.arglist_index(sys.argv, '--seed')] = '--random-seed'
 
     args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True, choices=['igk', 'igl'])
     if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):

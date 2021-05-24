@@ -4626,7 +4626,7 @@ def arglist_index(clist, argstr):
     return get_single_entry(imatches)
 
 # ----------------------------------------------------------------------------------------
-def is_in_arglist(clist, argstr):  # accounts for argparse unique/partial matches
+def is_in_arglist(clist, argstr):  # accounts for argparse unique/partial matches (update: we no longer allow partial matches)
     return len(arglist_imatches(clist, argstr)) > 0
 
 # ----------------------------------------------------------------------------------------

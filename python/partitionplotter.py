@@ -320,7 +320,7 @@ class PartitionPlotter(object):
                     if sfo['name'] in color_scale_vals:
                         csval = color_scale_vals[sfo['name']]
                     tmpfile.write('>%s%s\n%s\n' % (sfo['name'], (' %d' % csval) if csval is not None else '' , sfo['seq']))
-            cmdstr = '%s/bin/mds-run.py %s --aligned --plotdir %s --plotname %s --workdir %s --seed %d' % (utils.get_partis_dir(), tmpfname, plotdir, get_fname(iclust), subworkdir, self.args.seed)
+            cmdstr = '%s/bin/mds-run.py %s --aligned --plotdir %s --plotname %s --workdir %s --seed %d' % (utils.get_partis_dir(), tmpfname, plotdir, get_fname(iclust), subworkdir, self.args.random_seed)
             if queries_to_include is not None:
                 cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
             if title is not None:
@@ -363,7 +363,7 @@ class PartitionPlotter(object):
                 assert labels is None  # would need to implement this (or just switch to non-parallel version if you need to run with labels set)
                 cmdfos.append(prep_cmdfo(iclust, seqfos, queries_to_include, color_scale_vals, title))
             else:
-                mds.run_bios2mds(self.n_mds_components, None, seqfos, self.args.workdir, self.args.seed,
+                mds.run_bios2mds(self.n_mds_components, None, seqfos, self.args.workdir, self.args.random_seed,
                                  aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
                                  queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
                 if debug:

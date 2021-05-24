@@ -71,7 +71,7 @@ def rearrange():
     if utils.output_exists(args, naive_fname('igh'), outlabel='naive simu', offset=4):  # just look for the merged igh file, since it's about the last to be written (and both paired subdirs may not be there)
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
-    cmd += ' --debug %d --seed %d --n-sim-events %d' % (int(args.debug), args.seed, args.n_sim_events)
+    cmd += ' --debug %d --random-seed %d --n-sim-events %d' % (int(args.debug), args.seed, args.n_sim_events)
     if args.paired_loci:
         cmd += ' --paired-loci --paired-outdir %s' % spath('naive')
     else:
@@ -371,7 +371,7 @@ def simulate():
 def cache_parameters():
     if utils.output_exists(args, ifname('params'), outlabel='parameters', offset=4):
         return
-    cmd = './bin/partis cache-parameters --seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
+    cmd = './bin/partis cache-parameters --random-seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
     fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else ' --infname %s --parameter-dir %s'
     cmd += fstr % (spath('mutated'), ipath('params'))
     if args.n_procs > 1:
@@ -386,7 +386,7 @@ def cache_parameters():
 def partition():
     if utils.output_exists(args, ifname('partition'), outlabel='partition', offset=4):
         return
-    cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --seed %d' % args.seed
+    cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --random-seed %d' % args.seed
     fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else (' --infname %%s --parameter-dir %s --outfname %%s' % ipath('params'))
     cmd += fstr % (spath('mutated'), ipath('partition'))
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this

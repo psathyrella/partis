@@ -40,7 +40,7 @@ def run_simu(ncells, nleaf):
     if utils.all_outputs_exist(args, paircluster.paired_dir_fnames('%s/simu'%outdir, suffix='.yaml'), debug=False):
         print '    simulation output exists %s' % ('%s/simu'%outdir)
         return
-    cmd = './bin/partis simulate --paired-loci --seed %d --parameter-dir %s --paired-outdir %s/simu --mean-cells-per-droplet %f' % (args.seed, in_param_dir, outdir, ncells)
+    cmd = './bin/partis simulate --paired-loci --random-seed %d --parameter-dir %s --paired-outdir %s/simu --mean-cells-per-droplet %f' % (args.seed, in_param_dir, outdir, ncells)
     cmd += ' --n-sim-events %d --n-leaves %d --n-procs %d --no-per-base-mutation --allowed-cdr3-lengths %s' % (args.n_sim_events, nleaf, args.n_procs, args.allowed_cdr3_lengths)
     cmd += ' --mutation-multiplier %.2f --constant-number-of-leaves' % args.mutation_multiplier
     if args.extra_args is not None:
@@ -73,7 +73,7 @@ for ncells in args.cells_per_drop_list:
             if utils.output_exists(args, outpath(action)):
                 continue
             cmd = './bin/partis %s --paired-loci --paired-indir %s/simu --input-metafname %s/simu/meta.yaml --paired-outdir %s/inferred' % (action, outdir, outdir, outdir)
-            cmd += ' --seed %d' % args.seed
+            cmd += ' --random-seed %d' % args.seed
             cmd += ' --n-procs %d' % args.n_procs
             if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
                 cmd += ' --is-simu'

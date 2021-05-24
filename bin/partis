@@ -46,7 +46,7 @@ def run_simulation(args):
         import treegenerator
         tmp_shm_parameter_dir = utils.parameter_type_subdir(args, args.shm_parameter_dir) if args.shm_parameter_dir is not None else None
         treegen = treegenerator.TreeGenerator(args, tmp_shm_parameter_dir)
-        treegen.generate_trees(args.seed, args.outfname, args.workdir)
+        treegen.generate_trees(args.random_seed, args.outfname, args.workdir)
         return
 
     default_prevalence_fname = args.workdir + '/allele-prevalence.csv'
@@ -79,7 +79,7 @@ def run_simulation(args):
 
     # ----------------------------------------------------------------------------------------
     def make_events(n_events, workdir, outfname, random_ints):
-        reco = Recombinator(args, glfo, seed=args.seed, workdir=workdir)
+        reco = Recombinator(args, glfo, seed=args.random_seed, workdir=workdir)
         start = time.time()
         events = []
         for ievt in range(n_events):
@@ -119,7 +119,7 @@ def run_simulation(args):
             clist = copy.deepcopy(sys.argv)
             utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
             clist.append('--im-a-subproc')
-            utils.replace_in_arglist(clist, '--seed', str(args.seed + iproc))
+            utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
             utils.replace_in_arglist(clist, '--workdir', get_workdir(iproc))
             utils.replace_in_arglist(clist, '--outfname', get_outfname(iproc))
             utils.replace_in_arglist(clist, '--n-sim-events', str(n_sub_events))
@@ -443,9 +443,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
             utils.remove_from_arglist(clist, '--seed-loci', has_arg=True)
             if tmpaction in ['generate-trees', 'simulate']:
-                if '--seed' in clist:  # if it was set on the command line, we need to send different seeds to each pair (otherwise we'll get the same trees and same igh sequences in h+k and h+l)
-                    sval = hash('+'.join(lpair) + utils.get_val_from_arglist(clist, '--seed')) % 2**31  # % by max seed value (well it's 32) NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
-                    utils.replace_in_arglist(clist, '--seed', str(sval))
+                if '--random-seed' in clist:  # if it was set on the command line, we need to send different seeds to each pair (otherwise we'll get the same trees and same igh sequences in h+k and h+l)
+                    sval = hash('+'.join(lpair) + utils.get_val_from_arglist(clist, '--random-seed')) % 2**31  # % by max seed value (well it's 32) NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
+                    utils.replace_in_arglist(clist, '--random-seed', str(sval))
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
@@ -860,7 +860,8 @@ parent_args.append({'name' : '--dont-remove-framework-insertions', 'kwargs' : {'
 parent_args.append({'name' : '--dont-rescale-emissions', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t scale each hmm\'s emission probabilities to account for the branch length of each individual sequence.'}})
 parent_args.append({'name' : '--no-indels', 'kwargs' : {'action' : 'store_true', 'help' : 'Tell smith-waterman not to look for indels, by drastically increasing the gap-open penalty (you can also set the penalty directly).'}})
 parent_args.append({'name' : '--no-indel-gap-open-penalty', 'kwargs' : {'type' : int, 'default' : 1000, 'help' : 'set --gap-open-penalty to this when --no-indels is set (also used in python/waterer.py'}})
-parent_args.append({'name' : '--seed', 'kwargs' : {'type' : int, 'default' : int(time.time()), 'help' : 'Random seed used by many different things, but especially when reshuffling sequences between partitioning steps, and during simulation. Set this if you want to get exactly the same result when rerunning.'}})
+parent_args.append({'name' : '--random-seed', 'kwargs' : {'type' : int, 'default' : int(time.time()), 'help' : 'Random seed used by many different things, but especially when reshuffling sequences between partitioning steps, and during simulation. Set this if you want to get exactly the same result when rerunning.'}})
+parent_args.append({'name' : '--seed', 'kwargs' : {'type' : int, 'help' : 'DEPRECATED use --random-seed'}})
 parent_args.append({'name' : '--min-observations-per-gene', 'kwargs' : {'type' : int, 'default' : 20, 'help' : 'If a gene is observed fewer times than this, we average over other alleles/primary versions/etc. (e.g. in recombinator and hmmwriter). Also used as a more general "this isn\'t very many observations" value.'}})
 parent_args.append({'name' : '--no-per-base-mfreqs', 'kwargs' : {'action' : 'store_true', 'help' : 'When making the HMM model files, instead of the default of accounting for different rates to different bases (i.e. A->T vs A->G), do *not* account for the different rates to different bases. This is only really useful for testing the new simulation option --per-base-mutation.'}})
 parent_args.append({'name' : '--region-end-exclusion-length', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'when counting/writing parameters, ignore this many bases abutting non-templated insertions for calculating mutation frequencies (note: doesn\'t make a difference (hence set to 0 by default) probably because we\'re setting a strongish prior on these bases when writing hmms anyway'}})
@@ -1092,8 +1093,8 @@ if args.outfname is None and args.paired_outdir is None and runs_on_existing_out
     raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
 
 processargs.process(args)
-random.seed(args.seed)
-numpy.random.seed(args.seed)
+random.seed(args.random_seed)
+numpy.random.seed(args.random_seed)
 start = time.time()
 args.func(args)
 print '      total time: %.1f' % (time.time()-start)
