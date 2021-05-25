@@ -37,18 +37,45 @@ class Tester(object):
                     'slow' : {'simu' : 1000, 'data' :   -1}}
         return nqdict['slow' if args.slow else 'normal'][act]
     # ----------------------------------------------------------------------------------------
+    def label(self):
+        return 'paired' if args.paired else 'test'
+    # ----------------------------------------------------------------------------------------
+    def inpath(self, st, dt):
+        if dt == 'data':
+            return self.paired_datadir if args.paired else self.datafname
+        else:
+            spath = self.label() + '/simu.yaml'
+            if st is None:
+                return spath
+            return self.dirs(st) + '/' + spath
+    # ----------------------------------------------------------------------------------------
+    def pdir(self, st, dt):
+        pd = self.label() + '/parameters/' + dt
+        if st is None:
+            return pd
+        return self.dirs(st) + '/' + pd
+    # ----------------------------------------------------------------------------------------
+    def opath(self, ptest):
+        if 'cache-parameters' in ptest:
+            return self.pdir(None, ptest.split('-')[2])
+        elif ptest == 'simulate':
+            return self.inpath(None, 'simu')
+        else:
+            assert False
+    # ----------------------------------------------------------------------------------------
+    def is_prod_test(self, ptest):
+        return 'cache-parameters' in ptest or ptest == 'simulate'
+    # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
-        self.label = 'test'
+        self.paired_datadir = 'test/paired-data'  # generated with ./bin/split-loci.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta --outdir test/paired-data --input-metafname /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml --n-max-queries 100
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
         self.dtypes = ['data', 'simu']
         if not os.path.exists(self.dirs('new')):
             os.makedirs(self.dirs('new'))
-        self.infnames = {st : {dt : self.datafname if dt == 'data' else self.dirs(st) + '/' + self.label + '/simu.yaml' for dt in self.dtypes} for st in self.stypes}
-        self.param_dirs = { st : { dt : self.dirs(st) + '/' + self.label + '/parameters/' + dt for dt in self.dtypes} for st in self.stypes}  # muddafuggincomprehensiongansta
-        self.common_extras = ['--random-seed', '1', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you changed the number of procs
+        self.common_extras = ['--random-seed', '1', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you change the number of procs
 
         self.tiny_eps = 1e-4
         self.run_times = {}
@@ -70,7 +97,6 @@ class Tester(object):
         self.expected_trees = ['tree', 'aa-tree']  # TODO might be worthwhile comparing the actual trees, although if they change the metrics will also change so maybe not
 
         self.logfname = self.dirs('new') + '/test.log'
-        self.sw_cache_paths = {st : {dt : self.param_dirs[st][dt] + '/sw-cache' for dt in self.dtypes} for st in self.stypes}  # don't yet know the 'new' ones (they'll be the same only if the simulation is the same) #self.stypes}
         self.cachefnames = { st : 'cache-' + st + '-partition.csv' for st in ['new']}  # self.stypes
 
         self.tests = OrderedDict()
@@ -90,10 +116,10 @@ class Tester(object):
         if args.quick:
             self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.nqr('quick'))]}
         else:
-            pcache_data_args = {'extras' : ['--n-max-queries', str(self.nqr('data'))], 'output-path' : 'test/parameters/data'}
-            pcache_simu_args = {'extras' : [], 'output-path' : 'test/parameters/simu'}
+            pcache_data_args = {'extras' : ['--n-max-queries', str(self.nqr('data'))]}
+            pcache_simu_args = {'extras' : []}
             n_events = int(self.nqr('simu') / float(self.n_simu_leaves))
-            simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', '5'], 'output-path' : 'test/simu.yaml'}
+            simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', '5']}
             if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
                 self.tests['cache-parameters-data'] = pcache_data_args
                 self.tests['simulate'] = simulate_args
@@ -144,13 +170,14 @@ class Tester(object):
         argfo['bin'] = self.partis
 
         if ptest == 'simulate':
-            argfo['parameter-dir'] = self.param_dirs[input_stype]['data']
+            argfo['parameter-dir'] = self.pdir(input_stype, 'data')
         else:
-            argfo['infname'] = self.infnames['new' if args.bust_cache else 'ref'][input_dtype]
-            argfo['parameter-dir'] = self.param_dirs[input_stype][input_dtype]
+            argfo['infname'] = self.inpath('new' if args.bust_cache else 'ref', input_dtype)
+            argfo['parameter-dir'] = self.pdir(input_stype, input_dtype)
             if input_dtype == 'simu' and not args.quick:
                 argfo['extras'] += ['--is-simu']
-            argfo['sw-cachefname'] = self.sw_cache_paths[input_stype][input_dtype] + '.yaml'
+            argfo['sw-cachefname'] = self.pdir(input_stype, input_dtype) + '/sw-cache.yaml'
+            
 
         if 'annotate' in ptest:
             argfo['action'] = 'annotate'
@@ -162,7 +189,7 @@ class Tester(object):
         elif 'cache-parameters-' in ptest:
             argfo['action'] = 'cache-parameters'
             # if True:  #args.make_plots:
-            #     argfo['extras'] += ['--plotdir', self.dirs('new') + '/' + self.label + '/plots/' + input_dtype]
+            #     argfo['extras'] += ['--plotdir', self.dirs('new') + '/' + self.label() + '/plots/' + input_dtype]
         else:
             argfo['action'] = ptest
 
@@ -224,7 +251,7 @@ class Tester(object):
             cmd_str += ' %s' % ' '.join(info['extras'] + self.common_extras)
 
             if name == 'simulate':
-                cmd_str += ' --outfname ' + self.infnames['new']['simu']
+                cmd_str += ' --outfname ' + self.inpath('new', 'simu')
                 cmd_str += ' --indel-frequency 0.2'  # super high indel freq, partly because we want to make sure we have some even with the new smaller default number of seqs
             elif 'get-selection-metrics-' in name:
                 cmd_str += ' --outfname %s/%s.yaml --selection-metric-fname %s/%s.yaml' % (self.dirs('new'), name.replace('get-selection-metrics-', 'partition-'), self.dirs('new'), name)
@@ -281,8 +308,8 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def bust_cache(self):
-        test_outputs = [k + '.yaml' for k, tfo in self.tests.items() if 'output-path' not in tfo]
-        expected_content = set(test_outputs + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label])
+        test_outputs = [k + '.yaml' for k, tfo in self.tests.items() if not self.is_prod_test(k)]
+        expected_content = set(test_outputs + self.perfdirs.values() + self.cachefnames.values() + [os.path.basename(self.logfname), self.label()])
         expected_content.add('run-times.csv')
 
         # remove (very, very gingerly) whole reference dir
@@ -505,7 +532,7 @@ class Tester(object):
         for ptest in ptests:
             if args.quick and ptest not in self.quick_tests:
                 continue
-            fname = self.tests[ptest]['output-path']  # this is kind of messy
+            fname = self.opath(ptest)  # sometimes a dir, not a file
             print '    %-30s' % fname,
             cmd = 'diff -qbr ' + ' '.join(self.dirs(st) + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
@@ -706,6 +733,7 @@ parser.add_argument('--dry-run', action='store_true', help='do all preparations 
 parser.add_argument('--quick', action='store_true', help='only run one command: cache-parameters on a small numbrer of simulation events')
 parser.add_argument('--slow', action='store_true', help='by default, we run tests on a fairly small number of sequences, which is sufficient for checking that *nothing* has changed. But --slow is for cases where you\'ve made changes that you know will affect results, and you want to look at the details of how they\'re affected, for which you need to run on more sequences. Note that whether --slow is set or not (runs all tests with more or less sequences) is separate from --quick (which only runs one test).')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
+parser.add_argument('--paired', action='store_true')
 parser.add_argument('--comparison-plots', action='store_true')
 parser.add_argument('--print-width', type=int, default=300)
 # parser.add_argument('--make-plots', action='store_true')  # needs updating
