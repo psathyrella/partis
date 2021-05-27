@@ -66,10 +66,10 @@ class PartitionDriver(object):
         if self.args.outfname is not None:
             utils.prep_dir(dirname=None, fname=self.args.outfname, allow_other_files=True)
 
-        self.input_partition = None
+        self.input_partition, self.input_cpath = None, None
         if self.args.input_partition_fname is not None:
-            _, _, cpath = utils.read_yaml_output(self.args.input_partition_fname, skip_annotations=True)
-            self.input_partition = cpath.partitions[cpath.i_best if self.args.input_partition_index is None else self.args.input_partition_index]
+            _, _, self.input_cpath = utils.read_yaml_output(self.args.input_partition_fname, skip_annotations=True)
+            self.input_partition = self.input_cpath.partitions[self.input_cpath.i_best if self.args.input_partition_index is None else self.args.input_partition_index]
             print '  --input-partition-fname: read %s partition with %d sequences in %d clusters from %s' % ('best' if self.args.input_partition_index is None else 'index-%d'%self.args.input_partition_index, sum(len(c) for c in self.input_partition), len(self.input_partition), self.args.input_partition_fname)
 
         self.deal_with_persistent_cachefile()
@@ -295,7 +295,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True, partition=self.input_partition)
         if self.args.outfname is not None and self.current_action == self.all_actions[-1]:
-            self.write_output(annotations.values(), hmm_failures)
+            self.write_output(annotations.values(), hmm_failures, cpath=self.input_cpath)
         self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
@@ -312,7 +312,7 @@ class PartitionDriver(object):
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.outfname is not None:
-            self.write_output(annotations.values(), hmm_failures)
+            self.write_output(annotations.values(), hmm_failures, cpath=self.input_cpath)
         if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
             assert self.input_partition is not None
             partplotter = PartitionPlotter(self.args)
@@ -2295,7 +2295,7 @@ class PartitionDriver(object):
         partition_lines = None
         if cpath is not None:
             true_partition = utils.get_partition_from_reco_info(self.reco_info) if not self.args.is_data else None
-            partition_lines = cpath.get_partition_lines(self.args.is_data, reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
+            partition_lines = cpath.get_partition_lines(reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
             utils.add_linearham_info(self.sw_info, annotation_list, self.args.min_selection_metric_cluster_size)

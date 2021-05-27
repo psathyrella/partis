@@ -3233,7 +3233,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False, do
     outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
     mkdir(outdir)
 
-    write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines(True))  # set is_data to True since we can't pass in reco_info and whatnot anyway
+    write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines())
 
     return n_event_list, n_seq_list
 
@@ -3987,6 +3987,10 @@ def split_clusters_by_cdr3(partition, sw_info, warn=False):
 # ----------------------------------------------------------------------------------------
 def get_partition_from_annotation_list(annotation_list):
     return [copy.deepcopy(l['unique_ids']) for l in annotation_list]
+
+# ----------------------------------------------------------------------------------------
+def restrict_partition_to_ids(partition, ids):  # return copy of <partition> with any uids removed that aren't in <ids>
+    return [[u for u in c if u in ids] for c in partition]
 
 # ----------------------------------------------------------------------------------------
 def get_partition_from_reco_info(reco_info, ids=None):
@@ -5344,7 +5348,7 @@ def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=F
         write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=synth_single_seqs, glfo=glfo, failed_queries=failed_queries)
     elif getsuffix(fname) == '.yaml':
         if partition_lines is None:
-            partition_lines = clusterpath.ClusterPath(partition=get_partition_from_annotation_list(annotation_list)).get_partition_lines(True)  # setting is_data to True here since we can't pass in reco_info and whatnot anyway
+            partition_lines = clusterpath.ClusterPath(partition=get_partition_from_annotation_list(annotation_list)).get_partition_lines()
         write_yaml_output(fname, headers, glfo=glfo, annotation_list=annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
     else:
         raise Exception('unhandled file extension %s' % getsuffix(fname))

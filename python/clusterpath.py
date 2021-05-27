@@ -59,9 +59,9 @@ class ClusterPath(object):
         return [ip for ip in range(len(self.partitions)) if cluster in self.partitions[ip]]  # NOTE just returns zero-length list if it isn't there
 
     # ----------------------------------------------------------------------------------------
-    def get_headers(self, is_data):
+    def get_headers(self, is_simu):
         headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
-        if not is_data:
+        if is_simu:
             headers += ['n_true_clusters', 'ccf_under', 'ccf_over']
             # headers += ['bad_clusters']  # uncomment to also write the clusters that aren't perfect
         if self.seed_unique_id is not None:
@@ -161,7 +161,7 @@ class ClusterPath(object):
             self.add_partition(line['partition'], float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), ccfs=ccfs)
 
     # ----------------------------------------------------------------------------------------
-    def calculate_missing_values(self, reco_info, only_ip=None):
+    def calculate_missing_values(self, reco_info=None, true_partition=None, only_ip=None):  # NOTE adding true_partition argument very late, so there's probably lots of places that call the fcns that call this (printer + line getter) that would rather pass in true_partition and reco_info
         for ip in range(len(self.partitions)):
             if only_ip is not None and ip != only_ip:
                 continue
@@ -169,9 +169,14 @@ class ClusterPath(object):
             if self.ccfs[ip][0] is not None and self.ccfs[ip][1] is not None:  # already have them
                 continue
 
-            # NOTE this isn't really the true partition
-            true_partition = utils.get_partition_from_reco_info(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])  # can't use the true partition we might already have in the calling function, since we need this to only have uids from this partition (i.e. this isn't really the true partition)
-            new_vals = utils.per_seq_correct_cluster_fractions(self.partitions[ip], true_partition, reco_info=reco_info, seed_unique_id=self.seed_unique_id)
+            # NOTE this isn't the full true partition (it only includes certain ids)
+            if true_partition is not None:
+                partial_true_ptn = utils.restrict_partition_to_ids(true_partition, [uid for cluster in self.partitions[ip] for uid in cluster])
+            elif reco_info is not None:
+                partial_true_ptn = utils.get_partition_from_reco_info(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])  # can't use the true partition we might already have in the calling function, since we need this to only have uids from this partition (i.e. this isn't really the true partition)
+            else:
+                assert False  # have to pass in either true_partition or reco_info
+            new_vals = utils.per_seq_correct_cluster_fractions(self.partitions[ip], partial_true_ptn, reco_info=reco_info, seed_unique_id=self.seed_unique_id)  # it doesn't need reco_info, but having does save a step
             if None not in new_vals:  # if the function finds messed up partitions, it returns None, None (at this point, this seems to just happens when a uid was found in multiple clusters, which happens for earlier partitions (n_procs > 1) when seed_unique_id is set, since we pass seed_unique_id to all the subprocs)
                 self.ccfs[ip] = new_vals
                 self.we_have_a_ccf = True
@@ -229,10 +234,10 @@ class ClusterPath(object):
         print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, calc_missing_values='none', highlight_cluster_indices=None, print_partition_indices=False, ipart_center=None, sort_by_size=True):
+    def print_partitions(self, reco_info=None, true_partition=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, calc_missing_values='none', highlight_cluster_indices=None, print_partition_indices=False, ipart_center=None, sort_by_size=True):
         assert calc_missing_values in ['none', 'all', 'best']
-        if reco_info is not None and calc_missing_values == 'all':
-            self.calculate_missing_values(reco_info)
+        if (reco_info is not None or true_partition is not None) and calc_missing_values == 'all':
+            self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition)
 
         if print_header:
             print '    %s%7s %10s   %-7s %s%5s  %4s' % (' '*utils.len_excluding_colors(extrastr), '', 'logprob', 'delta', 'index  ' if print_partition_indices else '', 'clusters', 'n_procs'),
@@ -241,8 +246,8 @@ class ClusterPath(object):
             print ''
 
         for ip in self.get_surrounding_partitions(n_to_print, i_center=ipart_center):
-            if reco_info is not None and calc_missing_values == 'best' and ip == self.i_best:
-                self.calculate_missing_values(reco_info, only_ip=ip)
+            if (reco_info is not None or true_partition is not None) and calc_missing_values == 'best' and ip == self.i_best:
+                self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=ip)
             mark = '      '
             if ip == self.i_best:
                 mark = 'best  '
@@ -308,13 +313,13 @@ class ClusterPath(object):
             self.logweights[ip] = this_logweight
 
     # ----------------------------------------------------------------------------------------
-    def write(self, outfname, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', partition_lines=None):
+    def write(self, outfname, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', partition_lines=None):  # NOTE could now i think also remove is_data from here (like i just did for get_partition_lines())
         if utils.getsuffix(outfname) != '.csv':
             raise Exception('unhandled file extension %s' % outfname)
         if partition_lines is None:
-            partition_lines = self.get_partition_lines(is_data, reco_info=reco_info, true_partition=true_partition, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
+            partition_lines = self.get_partition_lines(reco_info=reco_info, true_partition=true_partition, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
         with open(outfname, 'w') as outfile:
-            writer = csv.DictWriter(outfile, self.get_headers(is_data))
+            writer = csv.DictWriter(outfile, self.get_headers(not is_data))
             writer.writeheader()
             for row in partition_lines:
                 row['partition'] = ';'.join([':'.join(cluster) for cluster in row['partition']])
@@ -323,14 +328,13 @@ class ClusterPath(object):
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def get_partition_lines(self, is_data, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None):  # we use this (instead of .write()) if we're writing a yaml file
-        if not is_data:
-            assert reco_info is not None and true_partition is not None  # we could get the true_partition if we have reco_info, but easier to just make the caller do it
+    def get_partition_lines(self, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None):  # we use this (instead of .write()) if we're writing a yaml file
         assert calc_missing_values in ['none', 'all', 'best']
-        if reco_info is not None and calc_missing_values == 'all':
-            self.calculate_missing_values(reco_info)
+        is_simu = (reco_info is not None or true_partition is not None) or any(cfs!=[None, None] for cfs in self.ccfs)  # second clause is for cases where we've read a cpath with simulation info (i.e. ccfs), but don't have reco_info or true_partition
+        if is_simu and calc_missing_values == 'all':
+            self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition)
 
-        headers = self.get_headers(is_data)
+        headers = self.get_headers(is_simu)  # NOTE it would be better (at least now, i think) to look at what is set e.g. in ccfs to determine headers, rather than use is_simu
         lines = []
         for ipart in self.get_surrounding_partitions(n_to_write):
             part = self.partitions[ipart]
@@ -340,14 +344,14 @@ class ClusterPath(object):
                    'n_procs' : self.n_procs[ipart],
                    'partition' : part}
             if 'ccf_under' in headers:
-                if reco_info is not None and calc_missing_values == 'best' and ipart == self.i_best:
-                    self.calculate_missing_values(reco_info, only_ip=ipart)
+                if is_simu and calc_missing_values == 'best' and ipart == self.i_best:
+                    self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=ipart)
                 if self.ccfs[ipart][0] is not None and self.ccfs[ipart][1] is not None:
                     row['ccf_under'], row['ccf_over'] = self.ccfs[ipart]  # for now assume we calculated the ccfs if we did adj mi
             if 'n_true_clusters' in headers:
-                row['n_true_clusters'] = len(true_partition)
+                row['n_true_clusters'] = '' if true_partition is None else len(true_partition)
             if 'bad_clusters' in headers:
-                row['bad_clusters'] = self.get_bad_clusters(part, reco_info, true_partition)
+                row['bad_clusters'] = '' if (reco_info is None or true_partition is None) else self.get_bad_clusters(part, reco_info, true_partition)
             if 'path_index' in headers:
                 row['path_index'] = path_index
                 row['logweight'] = self.logweights[ipart]
