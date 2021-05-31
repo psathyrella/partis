@@ -125,7 +125,7 @@ def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, add_s
     return lp_infos
 
 # ----------------------------------------------------------------------------------------
-def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=False):
+def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=False, dont_write_git_info=False):
     def glpf(p, k, l):  # NOTE duplicates code in concat_heavy_chain()
         if lp_infos[tuple(p)][k] is None:
             return None
@@ -134,16 +134,16 @@ def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=Fals
         for ltmp in lpair:
             if glpf(lpair, 'glfos', ltmp) is None:
                 continue
-            utils.write_annotations(ofn_fcn(ltmp, lpair=lpair), glpf(lpair, 'glfos', ltmp), glpf(lpair, 'antn_lists', ltmp), headers, use_pyyaml=use_pyyaml)
+            utils.write_annotations(ofn_fcn(ltmp, lpair=lpair), glpf(lpair, 'glfos', ltmp), glpf(lpair, 'antn_lists', ltmp), headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
 
 # ----------------------------------------------------------------------------------------
-def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_partitions=None):
+def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_partitions=None, dont_write_git_info=False):
     for ltmp in sorted(glfos):  # not really a reason to write igh first, but i guess it's nice to be consistent
         ofn = ofn_fcn(ltmp, joint=True)
         if utils.has_d_gene(ltmp):
             cp = clusterpath.ClusterPath(partition=get_partition_from_annotation_list(antn_lists[ltmp])) if cpaths is None else cpaths[ltmp]
-            partition_lines = cp.get_partition_lines(true_partition=true_partitions[ltmp], calc_missing_values='best')
-            utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, partition_lines=partition_lines, use_pyyaml=use_pyyaml)
+            partition_lines = cp.get_partition_lines(true_partition=None if true_partitions is None else true_partitions[ltmp], calc_missing_values='best')
+            utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
         else:
             utils.makelink(os.path.dirname(ofn), ofn_fcn(ltmp, lpair=utils.getlpair(ltmp)), ofn)
         if work_fnames is not None:
