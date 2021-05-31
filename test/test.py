@@ -79,8 +79,7 @@ class Tester(object):
                 cfn += self.dirs('new')
         if args.paired:
             assert lpair is not None and locus is not None
-# TODO oh wait shit should this be a csv?
-            cfn += '%s/persistent-cache-%s.yaml' % ('+'.join(lpair), locus)  # duplicates code in bin/partis getofn()
+            cfn += '%s/persistent-cache-%s.csv' % ('+'.join(lpair), locus)  # duplicates code in bin/partis getofn()
         else:
             cfn = '%s%scache-%s-partition.csv' % (cfn, '' if cfn=='' else '/', st)
         return cfn
@@ -216,7 +215,7 @@ class Tester(object):
             argfo['action'] = 'annotate'
         elif 'partition' in ptest:
             argfo['action'] = 'partition'
-            if not args.paired:  # eh, i don't think there's really a reason to do this for paired (although I partially implemented it)
+            if not args.paired:  # eh, i don't think there's really a reason to do this for paired (although I partially implemented -- i got the files in single-chain/, but then getting the igh+igk/ etc. was going to be more work)
                 argfo['extras'] += ['--persistent-cachefname', self.ptn_cachefn(input_stype, for_cmd=True)]
         elif 'get-selection-metrics' in ptest:
             argfo['action'] = 'get-selection-metrics'  # could really remove almost all of the arguments, mostly just need --outfname

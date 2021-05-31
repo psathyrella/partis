@@ -5393,7 +5393,7 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
     def check_ids():  # really just want to check that there's *some* overlap between the partitions and annotations. It's normal that there's annotations for only some uids in the partition, but if there is a partition, at least some of its uids should be in the annotations (usually the uids with annotations is a strict subset, but sometimes there might be annotations for uids from somewhere else)
         ptnids = set(u for p in partition_lines for c in p['partition'] for u in c)
         antnids = set(u for l in annotation_list for u in l['unique_ids'])  # note: doesn't include duplicates, but that's fine
-        if len(ptnids & antnids) == 0:
+        if len(ptnids) > 0 and len(antnids) > 0 and len(ptnids & antnids) == 0:
             print '  %s writing partitions (%d uids) and annotations (%d uids) with zero overlap to %s' % (color('yellow', 'warning'), len(ptnids), len(antnids), fname)
     # ----------------------------------------------------------------------------------------
     if annotation_list is None:

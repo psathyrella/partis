@@ -358,6 +358,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         elif args.action == 'simulate':
             return paircluster.paired_fn(getodir(), ltmp, lpair=lpair, suffix='.yaml')  # kind of weird that this getodir() call doesn't need any args
         else:
+            sfx = 'fa' if fasta else 'yaml'
             if args.action == 'simulate':
                 bstr = 'simu'
             elif input_meta:
@@ -366,9 +367,10 @@ def run_all_loci(args, ig_or_tr='ig'):
                 bstr = 'input-seqs'
             elif persistent_cache:
                 bstr = 'persistent-cache'
+                sfx = 'csv'
             else:
                 bstr ='partition'
-            bname = '%s%s.%s' % (bstr, '-'+ltmp if ltmp is not None else '', 'fa' if fasta else 'yaml')
+            bname = '%s%s.%s' % (bstr, '-'+ltmp if ltmp is not None else '', sfx)
         ofn = '%s/%s' % (getodir(lpair=lpair, single_chain=not joint and lpair is None), bname)
         if partition_only:
             ofn = utils.insert_before_suffix('-only-partition', ofn)
