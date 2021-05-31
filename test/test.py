@@ -41,7 +41,7 @@ class Tester(object):
         if dt == 'data':
             return self.paired_datadir if args.paired else self.datafname
         else:
-            spath = self.label + '/simu' + '' if args.paired else '.yaml'
+            spath = self.label + '/simu' + ('' if args.paired else '.yaml')
             if st is None:
                 return spath
             return self.dirs(st) + '/' + spath
@@ -69,7 +69,7 @@ class Tester(object):
                 return op
             return '%s/%s' % (self.dirs(st), op)
     # ----------------------------------------------------------------------------------------
-    def ptn_cachefn(self, st, for_cmd=False, lpair=None, locus=None):
+    def ptn_cachefn(self, st, for_cmd=False, lpair=None, locus=None):  # see note above for opath()
         assert st == 'new'  # i think?
         cfn = ''
         if for_cmd:
@@ -79,9 +79,10 @@ class Tester(object):
                 cfn += self.dirs('new')
         if args.paired:
             assert lpair is not None and locus is not None
+# TODO oh wait shit should this be a csv?
             cfn += '%s/persistent-cache-%s.yaml' % ('+'.join(lpair), locus)  # duplicates code in bin/partis getofn()
         else:
-            cfn += 'cache-' + st + '-partition.csv'
+            cfn = '%s%scache-%s-partition.csv' % (cfn, '' if cfn=='' else '/', st)
         return cfn
     # ----------------------------------------------------------------------------------------
     def all_ptn_cachefns(self):  # return all of them (ok atm it's juse the one, but we used to also have the 'ref' one, and maybe will want it in the future?)
@@ -265,7 +266,7 @@ class Tester(object):
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
             if args.paired:
                 raise Exception('seed choice not implemented for --paired')
-            ifn = info['infname']
+            ifn = info['inpath']
             seed_uid, _ = utils.choose_seed_unique_id(ifn, 5, 8, debug=False)  # , n_max_queries=self.nqr('partition')
             info['extras'] += ['--seed-unique-id', seed_uid]
 
@@ -350,7 +351,7 @@ class Tester(object):
         test_outputs = [self.opath(k) for k in self.tests if not self.is_prod_test(k)]
         expected_content = set(test_outputs + self.perfdirs.values() + [os.path.basename(self.logfname), self.label])
         if not args.paired:
-            expected_content += self.all_ptn_cachefns()  # they're in the partition outdir if --paired is set, so don't need to be moved
+            expected_content |= set(self.all_ptn_cachefns())  # they're in the partition outdir if --paired is set, so don't need to be moved
         expected_content.add('run-times.csv')
 
         # remove (very, very gingerly) whole reference dir
@@ -829,6 +830,7 @@ tester = Tester()
 tester.test(args)
 if args.bust_cache:
     tester.bust_cache()
+# TODO make sure bust_cache reruns all (normal + slow + all paired)
 
 # ----------------------------------------------------------------------------------------
 def get_typical_variances():
