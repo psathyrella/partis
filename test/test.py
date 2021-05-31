@@ -253,13 +253,12 @@ class Tester(object):
         # delete old partition cache file
         if name == 'partition-' + info['input_stype'] + '-simu':
             # cachefnames = [self.dirs('new') + '/' + self.ptn_cachefn(info['input_stype'], locus=l) for l in (utils.sub_loci(args.ig_or_tr) if args.paired else [None])]
-            cachefnames = self.all_ptn_cachefns()
-            for cfn in cachefnames:
-                if os.path.exists(cfn):
-                    if args.dry_run:
-                        print '   would remove %s' % this_cachefname
-                    else:
-                        check_call(['rm', '-v', this_cachefname])
+            cachefnames = ['%s/%s' % (self.dirs('new'), f) for f in self.all_ptn_cachefns()]
+            for cfn in [f for f in cachefnames if os.path.exists(f)]:
+                if args.dry_run:
+                    print '   would remove %s' % cfn
+                else:
+                    check_call(['rm', '-v', cfn])
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
