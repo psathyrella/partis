@@ -4291,7 +4291,7 @@ def remove_missing_uids_from_ref_partition(ref_partition, partition_with_missing
         ref_partition_with_uids_removed[iclust] = [u for u in cluster if u not in missing_ids]
     ref_partition_with_uids_removed = [c for c in ref_partition_with_uids_removed if len(c) > 0]  # remove any empty clusters
     n_remaining = sum([len(c) for c in ref_partition_with_uids_removed])
-    if debug or n_remaining:
+    if debug or n_remaining == 0:
         print '    %sremoved %d/%d uids (leaving %d) from ref partition that were not in other partition: %s' % ('' if n_remaining>0 else color('yellow', 'warning')+' ', len(missing_ids), sum([len(c) for c in ref_partition]), n_remaining, ' '.join(missing_ids))
     return ref_partition_with_uids_removed
 
