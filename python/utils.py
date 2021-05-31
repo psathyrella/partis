@@ -4290,8 +4290,9 @@ def remove_missing_uids_from_ref_partition(ref_partition, partition_with_missing
     for iclust, cluster in enumerate(ref_partition_with_uids_removed):
         ref_partition_with_uids_removed[iclust] = [u for u in cluster if u not in missing_ids]
     ref_partition_with_uids_removed = [c for c in ref_partition_with_uids_removed if len(c) > 0]  # remove any empty clusters
-    if debug:
-        print '    removed %d/%d uids (leaving %d) from ref partition that were not in other partition: %s' % (len(missing_ids), sum([len(c) for c in ref_partition]), sum([len(c) for c in ref_partition_with_uids_removed]), ' '.join(missing_ids))
+    n_remaining = sum([len(c) for c in ref_partition_with_uids_removed])
+    if debug or n_remaining:
+        print '    %sremoved %d/%d uids (leaving %d) from ref partition that were not in other partition: %s' % ('' if n_remaining>0 else color('yellow', 'warning')+' ', len(missing_ids), sum([len(c) for c in ref_partition]), n_remaining, ' '.join(missing_ids))
     return ref_partition_with_uids_removed
 
 # ----------------------------------------------------------------------------------------
@@ -5388,10 +5389,18 @@ def get_yamlfo_for_output(line, headers, glfo=None):
 
 # ----------------------------------------------------------------------------------------
 def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):
+    # ----------------------------------------------------------------------------------------
+    def check_ids():  # really just want to check that there's *some* overlap between the partitions and annotations. It's normal that there's annotations for only some uids in the partition, but if there is a partition, at least some of its uids should be in the annotations (usually the uids with annotations is a strict subset, but sometimes there might be annotations for uids from somewhere else)
+        ptnids = set(u for p in partition_lines for c in p['partition'] for u in c)
+        antnids = set(u for l in annotation_list for u in l['unique_ids'])  # note: doesn't include duplicates, but that's fine
+        if len(ptnids & antnids) == 0:
+            print '  %s writing partitions (%d uids) and annotations (%d uids) with zero overlap to %s' % (color('yellow', 'warning'), len(ptnids), len(antnids), fname)
+    # ----------------------------------------------------------------------------------------
     if annotation_list is None:
         annotation_list = []
     if partition_lines is None:
         partition_lines = []
+    check_ids()
 
     version_info = {'partis-yaml' : 0.1, 'partis-git' : '' if dont_write_git_info else get_version_info()}
     yaml_annotations = [get_yamlfo_for_output(l, headers, glfo=glfo) for l in annotation_list]

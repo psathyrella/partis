@@ -626,6 +626,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
             for hline, lline in paircluster.get_antn_pairs(lpair, lpfos):
                 treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
+            for ltmp in lpair:  # replace the old cpaths with new ones using the new uids (this should be faster than translating individual uids as we go)
+                lpfos['cpaths'][ltmp] = ClusterPath(partition=utils.get_partition_from_annotation_list(lpfos['antn_lists'][ltmp]))
         headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         paircluster.write_lpair_output_files(spairs(), lp_infos, getofn, headers, use_pyyaml=args.write_full_yaml_output)  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
         glfos, antn_lists, cpaths = handle_concatd_heavy_chain(lp_infos, headers)
