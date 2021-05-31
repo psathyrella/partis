@@ -1,0 +1,36 @@
+    cleaning paired files in test/paired-data/
+  --input-metafname: added meta info for 100 sequences from /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml: paired-uids
+    read pairing info for 100 seqs from input meta file
+  running vsearch on 100 sequences:
+    igh:   50 / 100 v annotations (50 failed) with 31 v genes in 0.1 sec
+    igk:   39 / 100 v annotations (61 failed) with 20 v genes in 0.1 sec
+    igl:   17 / 100 v annotations (83 failed) with 15 v genes in 0.1 sec
+totals: igh 48 igk 37 igl 15
+  removed 0 failed uids from paired_uids
+            count  frac  paired with
+       [94mh[0m      31   0.65   [95mk[0m
+              11   0.23   [92ml[0m
+               2   0.04   [94mh[0m [95mk[0m [92ml[0m
+               2   0.04   [94mh[0m [95mk[0m [95mk[0m
+               1   0.02   [92ml[0m [92ml[0m
+               1   0.02   [95mk[0m [92ml[0m
+       [95mk[0m      31   0.84   [94mh[0m
+               2   0.05   
+               2   0.05   [94mh[0m [94mh[0m [95mk[0m
+               1   0.03   [94mh[0m [92ml[0m
+               1   0.03   [94mh[0m [94mh[0m [92ml[0m
+       [92ml[0m      11   0.73   [94mh[0m
+               2   0.13   [94mh[0m [92ml[0m
+               1   0.07   [94mh[0m [95mk[0m
+               1   0.07   [94mh[0m [94mh[0m [95mk[0m
+writing to test/paired-data/
+  igh: 48 to paired-data/igh.fa
+  igk: 37 to paired-data/igk.fa
+  igl: 15 to paired-data/igl.fa
+  writing to paired subdirs
+    36/48 igh seqs pair with igk
+      igh: 36 to igh+igk/igh.fa
+      igk: 37 to igh+igk/igk.fa
+    15/48 igh seqs pair with igl
+      igh: 15 to igh+igl/igh.fa
+      igl: 15 to igh+igl/igl.fa
