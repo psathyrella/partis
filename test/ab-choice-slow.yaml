@@ -1,0 +1,12 @@
+n-families: 10
+include-unobs-cons-seqs: True
+vars:
+  # sort each family by the indicated variable, with direction <sort>, then take the top <n> seqs that haven't already been taken and that pass all other criteria
+  aa-cfrac: {sort: low, n: [15, 15, 15, 10, 10, 10, 5, 5, 5, 3]}
+  # shm-aa: {sort: high, n: [3, 3, 3, 3, 3, 2, 2, 2, 2, 2]}
+# cell-types: [pb]
+max-ambig-positions: 2  # summed over h+l amino acid seqs
+# min-umis: 1000
+# n-per-family: [3, 2]
+# min-median-nuc-shm-%: 2
+min-hdist-to-already-chosen: 3  # only choose abs whose h/l seqs are at least this far from previously-chosen seqs (in amino acid hamming distance, summed over h+l)
