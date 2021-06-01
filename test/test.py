@@ -103,8 +103,7 @@ class Tester(object):
         if not os.path.exists(self.dirs('new')):
             os.makedirs(self.dirs('new'))
         self.common_extras = ['--random-seed', '1', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you change the number of procs
-# TODO it seems like this really shouldn't be necessary
-        self.label = 'test'
+        self.label = 'test' #  i really don't think there's any reason to have this, but i don't feel like removing it atm since it's not really causing much complication
 
         self.tiny_eps = 1e-4
         self.run_times = {}
@@ -123,7 +122,7 @@ class Tester(object):
         self.n_simu_leaves = 5
 
         self.selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'aa-lbi', 'aa-lbr']  # NOTE kind of duplicates treeutils.selection_metrics, but I want to be able to change the latter
-        self.expected_trees = ['tree', 'aa-tree']  # TODO might be worthwhile comparing the actual trees, although if they change the metrics will also change so maybe not
+        self.expected_trees = ['tree', 'aa-tree']
 
         self.logfname = self.dirs('new') + '/test.log'
 
@@ -462,7 +461,7 @@ class Tester(object):
             else:
                 ccfs = read_cpath(self.opath(ptest, st=version_stype))  # self.dirs(version_stype) + '/' + ptest + '.yaml')
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = ccfs
-                if ptest in self.perfdirs:  # TODO add annotation performance for --paired
+                if ptest in self.perfdirs:
                     self.read_each_annotation_performance('single', version_stype, input_stype, these_are_cluster_annotations=True)
 
     # ----------------------------------------------------------------------------------------
@@ -478,10 +477,14 @@ class Tester(object):
                 print '      read lbfos for %d cluster%s from %s' % (len(lbfos), utils.plural(len(lbfos)), fname)
             return smfo
         # ----------------------------------------------------------------------------------------
+        def read_chosen_abs(fname):
+            with open(fname) as chfile:
+                chlines = list(csv.DictReader(chfile))
+            return set((l['h_id'], l['l_id']) for l in chlines)  # not really proper to key only by h_id, but the pairing info shouldn't be able to change, right?
+        # ----------------------------------------------------------------------------------------
         pinfo = self.perf_info[version_stype][input_stype]
         if debug:
             print '  version %s input %s selection metrics' % (version_stype, input_stype)
-# TODO also check chosen-ab fname
         ptest_list = [k for k in self.tests.keys() if self.do_this_test('get-selection', input_stype, k)]
         for ptest in ptest_list:
             if ptest not in pinfo:  # perf_info should already have all the parent keys cause we run read_partition_performance() first
@@ -493,6 +496,7 @@ class Tester(object):
                         read_smfile(smfname, pinfo[ptest])
                 if debug:
                     print '  total values read: %s' % '  '.join('%s %d'%(m, len(pinfo[ptest][m])) for m in self.selection_metrics)
+                pinfo[ptest]['chosen-abs'] = read_chosen_abs(self.opath(ptest, st=version_stype))
             else:
                 read_smfile(self.opath(ptest, st=version_stype), pinfo[ptest])
 
@@ -534,13 +538,13 @@ class Tester(object):
             'completeness' : 'compl.',
             'cons-dist-aa' : 'aa-cdist',
         }
-        pinfo = self.perf_info['ref'][input_stype]
+        refpfo, newpfo = [self.perf_info[st][input_stype] for st in ['ref', 'new']]
 
 
         # print annotation header
         print '%8s %9s' % ('', ''),
         for ptest in annotation_ptests:
-            for method in [m for m in pinfo[ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
+            for method in [m for m in refpfo[ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
                 printstr = method
                 if 'multi-annotate' in ptest:
                     printstr = 'multi %s' % method
@@ -550,16 +554,16 @@ class Tester(object):
         print ''
 
         # print values
-        if 'hmm' in pinfo[annotation_ptests[0]]:  # it's not in there for paired partition test, since (at least atm) we don't do annotation tests for it
-            allmetrics = [m for m in pinfo[annotation_ptests[0]]['hmm']]
+        if 'hmm' in refpfo[annotation_ptests[0]]:  # it's not in there for paired partition test, since (at least atm) we don't do annotation tests for it
+            allmetrics = [m for m in refpfo[annotation_ptests[0]]['hmm']]
             for metric in allmetrics:
                 alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
                 print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
                 for ptest in annotation_ptests:
-                    for method in [m for m in pinfo[ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
-                        if set(pinfo[ptest]) != set(self.perf_info['new'][input_stype][ptest]):
-                            raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(pinfo[ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
-                        print_comparison_str(pinfo[ptest][method][metric], self.perf_info['new'][input_stype][ptest][method][metric], self.eps_vals.get(metric, 0.1))
+                    for method in [m for m in refpfo[ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
+                        if set(refpfo[ptest]) != set(newpfo[ptest]):
+                            raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))
+                        print_comparison_str(refpfo[ptest][method][metric], newpfo[ptest][method][metric], self.eps_vals.get(metric, 0.1))
                 print ''
 
         # print partition header
@@ -571,12 +575,12 @@ class Tester(object):
             alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
             print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
             for ptest in partition_ptests:
-                if set(pinfo[ptest]) != set(self.perf_info['new'][input_stype][ptest]):
-                    raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(pinfo[ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
+                if set(refpfo[ptest]) != set(newpfo[ptest]):
+                    raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))
                 method = ptest.split('-')[0]
                 if metric != 'purity':
                     method = ''
-                print_comparison_str(pinfo[ptest][metric], self.perf_info['new'][input_stype][ptest][metric], self.eps_vals.get(metric, 0.1))
+                print_comparison_str(refpfo[ptest][metric], newpfo[ptest][metric], self.eps_vals.get(metric, 0.1))
             print ''
 
         # selection metrics
@@ -585,13 +589,23 @@ class Tester(object):
             print '             %5s' % mfname,
             for metric in self.selection_metrics:
                 for ptest in selection_metric_tests:  # this'll break if there's more than one selection metric ptest
-                    if set(pinfo[ptest]) != set(self.perf_info['new'][input_stype][ptest]):
-                        raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(pinfo[ptest]), sorted(self.perf_info['new'][input_stype][ptest])))
+                    if set(refpfo[ptest]) != set(newpfo[ptest]):
+                        raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))
                     ref_list, new_list = [self.perf_info[rn][input_stype][ptest][metric] for rn in ['ref', 'new']]
                     dp = 1 if metric=='cons-dist-aa' else 3
                     if mfname=='len': dp = 0
                     print_comparison_str(mfcn(ref_list), mfcn(new_list), self.eps_vals.get(metric, 0.1), dp=dp, pm=metric=='cons-dist-aa')
             print ''
+        if args.paired:
+            ptest = utils.get_single_entry(selection_metric_tests)
+            ref_abs, new_abs = refpfo[ptest]['chosen-abs'], newpfo[ptest]['chosen-abs']
+            n_ref, n_new = len(ref_abs), len(new_abs)
+            n_common = len(ref_abs & new_abs)
+            n_only_ref, n_only_new = len(ref_abs - new_abs), len(new_abs - ref_abs)
+            diffstr = '    ok'
+            if n_ref != n_new or n_only_ref > 0 or n_only_new > 0:
+                diffstr = '       %d in common, %s only in ref, %s only in new' % (n_common, utils.color(None if n_only_ref==0 else 'red',  str(n_only_ref)), utils.color(None if n_only_new==0 else 'red',  str(n_only_new)))
+            print '    chose %d abs %s%s' % (n_ref, '' if n_new==n_ref else utils.color('red', '--> %d'%n_new), diffstr)
 
     # ----------------------------------------------------------------------------------------
     def compare_production_results(self, ptests):
