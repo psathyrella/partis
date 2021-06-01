@@ -293,6 +293,8 @@ class Tester(object):
             elif 'get-selection-metrics-' in name:
                 cmd_str += ' --%s %s' % (self.astr('out'), self.opath(name.replace('get-selection-metrics-', 'partition-'), st='new'))
                 cmd_str += ' --%s %s' % ('chosen-ab-fname' if args.paired else 'selection-metric-fname', self.opath(name, st='new'))
+                if args.slow:
+                    cmd_str += ' --ab-choice-cfg %s/test/ab-choice-slow.yaml' % utils.get_partis_dir()
                 clist = cmd_str.split()
                 utils.remove_from_arglist(clist, '--%s'%self.astr('in'), has_arg=True)
                 utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)
@@ -604,7 +606,7 @@ class Tester(object):
             n_only_ref, n_only_new = len(ref_abs - new_abs), len(new_abs - ref_abs)
             diffstr = '    ok'
             if n_ref != n_new or n_only_ref > 0 or n_only_new > 0:
-                diffstr = '       %d in common, %s only in ref, %s only in new' % (n_common, utils.color(None if n_only_ref==0 else 'red',  str(n_only_ref)), utils.color(None if n_only_new==0 else 'red',  str(n_only_new)))
+                diffstr = '       %s in common, %s only in ref, %s only in new' % (utils.color(None if n_common==n_ref else 'red', str(n_common)), utils.color(None if n_only_ref==0 else 'red',  str(n_only_ref)), utils.color(None if n_only_new==0 else 'red',  str(n_only_new)))
             print '    chose %d abs %s%s' % (n_ref, '' if n_new==n_ref else utils.color('red', '--> %d'%n_new), diffstr)
 
     # ----------------------------------------------------------------------------------------
@@ -822,10 +824,6 @@ parser.add_argument('--quick', action='store_true', help='only run one command: 
 parser.add_argument('--slow', action='store_true', help='by default, we run tests on a fairly small number of sequences, which is sufficient for checking that *nothing* has changed. But --slow is for cases where you\'ve made changes that you know will affect results, and you want to look at the details of how they\'re affected, for which you need to run on more sequences. Note that whether --slow is set or not (runs all tests with more or less sequences) is separate from --quick (which only runs one test).')
 parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
 parser.add_argument('--paired', action='store_true')
-# ----------------------------------------------------------------------------------------
-# TODO
-# parser.add_argument('--tmp-locus', default='igh', help='in a couple places we (for now) want to just use one locus for something, so arbitrarily use this one until we implement looping over all of \'em')
-# ----------------------------------------------------------------------------------------
 parser.add_argument('--ig-or-tr', default='ig')
 parser.add_argument('--comparison-plots', action='store_true')
 parser.add_argument('--print-width', type=int, default=300)
