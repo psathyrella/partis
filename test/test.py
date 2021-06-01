@@ -9,6 +9,7 @@ import shutil
 import time
 from collections import OrderedDict
 from subprocess import Popen, PIPE, check_call, check_output, CalledProcessError
+import copy
 import colored_traceback.always
 import sys
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
@@ -822,7 +823,8 @@ parser.add_argument('--dont-run', action='store_true', help='don\'t actually run
 parser.add_argument('--dry-run', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
 parser.add_argument('--quick', action='store_true', help='only run one command: cache-parameters on a small numbrer of simulation events')
 parser.add_argument('--slow', action='store_true', help='by default, we run tests on a fairly small number of sequences, which is sufficient for checking that *nothing* has changed. But --slow is for cases where you\'ve made changes that you know will affect results, and you want to look at the details of how they\'re affected, for which you need to run on more sequences. Note that whether --slow is set or not (runs all tests with more or less sequences) is separate from --quick (which only runs one test).')
-parser.add_argument('--bust-cache', action='store_true', help='copy info from new dir to reference dir, i.e. overwrite old test info')
+parser.add_argument('--bust-cache', action='store_true', help='overwrite current ref info, i.e. run this when things have changed, but you\'ve decided they\'re fine')
+parser.add_argument('--only-bust-current', action='store_true', help='only bust cache for current command line args (as opposed to the default of busting caches for both slow and non-slow, paired and non-paired)')
 parser.add_argument('--paired', action='store_true')
 parser.add_argument('--ig-or-tr', default='ig')
 parser.add_argument('--comparison-plots', action='store_true')
@@ -836,11 +838,25 @@ parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 assert not (args.quick and args.slow)  # it just doesn't make sense
 
+if args.bust_cache and not args.only_bust_current:  # run all four combos
+    for slowval in [False, True]:
+        for pairedval in [False, True]:
+            clist = copy.deepcopy(sys.argv)
+            utils.remove_from_arglist(clist, '--slow')
+            utils.remove_from_arglist(clist, '--paired')
+            cmd_str = ' '.join(clist)
+            cmd_str += ' --only-bust-current'
+            if slowval:
+                cmd_str += ' --slow'
+            if pairedval:
+                cmd_str += ' --paired'
+            utils.simplerun(cmd_str, dryrun=args.dry_run)
+    sys.exit(0)
+
 tester = Tester()
 tester.test(args)
 if args.bust_cache:
     tester.bust_cache()
-# TODO make sure bust_cache reruns all (normal + slow + all paired)
 
 # ----------------------------------------------------------------------------------------
 def get_typical_variances():
