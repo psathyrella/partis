@@ -92,8 +92,9 @@ void State::RescaleOverallMuteFreq(double factor) {
     if(is_germline)
       old_mute_freq = 1. - exp(new_log_probs[ip]);  // subtract the old germline emission prob from 1.
   }
-  assert(old_mute_freq > 0.);  // make sure we found the germline base
+  assert(old_mute_freq >= 0.);  // make sure we found the germline base (adding the = long afterward since it was 0 once when new_log_probs[ip] was 1 (in a dummy light chain D gene)
   double new_mute_freq = min(0.95, factor*old_mute_freq);  // .95 is kind of arbitrary, but from looking at lots of plots, the only cases where the extrapolation flies above 1.0 is where we have little information, so .95 is probably a good compromise
+  new_mute_freq = max(EPS, new_mute_freq);  // adding this long afterward (see dummy D note above)
   if(new_mute_freq <= 0.0 || new_mute_freq >= 1.0)
     throw runtime_error("new_mute_freq not in (0,1) (" + to_string(new_mute_freq) + ") in State::RescaleOverallMuteFreq old: " + to_string(old_mute_freq) + " factor: " + to_string(factor));
 
