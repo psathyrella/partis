@@ -3798,7 +3798,7 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         returnstr = []
         for ltype in logtypes:
             if os.path.exists(logfname(ltype)) and os.stat(logfname(ltype)).st_size > 0:
-                returnstr += ['        std%s:           %s' % (ltype, logfname(ltype))]
+                returnstr += ['        %s           %s' % (color('red', 'std%s:'%ltype), logfname(ltype))]
                 returnstr += [pad_lines(subprocess.check_output(['cat', logfname(ltype)]), padwidth=12)]
         return '\n'.join(returnstr)
 
@@ -3808,11 +3808,7 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         return 'restart'
     else:
         failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
-        tmpstr = getlogstrs(['err'])
-        if len(tmpstr.strip()) == 0:  # bppseqgen puts it in stdout, so we have to look there
-            tmpstr += 'std out tail (err was empty):\n'
-            tmpstr += '\n'.join(getlogstrs(['out']).split('\n')[-30:])
-        failstr += tmpstr
+        failstr += getlogstrs()  # used to try to only print err/out as needed, but it was too easy to miss useful info
         if allow_failure:
             print '      %s\n      not raising exception for failed process' % failstr
             procs[iproc] = None  # let it keep running any other processes
@@ -4740,7 +4736,7 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
-def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes an extra info (beyond name and seq)
+def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes any extra info (beyond name and seq)
     mkdir(fname, isfile=True)
     with open(fname, 'w') as seqfile:
         json.dump(seqfos, seqfile)
