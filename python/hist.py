@@ -191,7 +191,10 @@ class Hist(object):
     # ----------------------------------------------------------------------------------------
     def get_filled_bin_xbounds(self, extra_pads=0):  # low edge of lowest filled bin, high edge of highest filled bin (for search: "ignores empty bins")
         fbins = self.get_filled_ibins()
-        imin, imax = fbins[0], fbins[-1]
+        if len(fbins) > 0:
+            imin, imax = fbins[0], fbins[-1]
+        else:
+            imin, imax = 0, self.n_bins + 2  # not sure this is really the best default, but i'm adding it long after writing the rest of the fcn and it seems ok?
         if extra_pads > 0:  # give a little extra space on either side
             imin = max(0, imin - extra_pads)
             imax = min(len(self.low_edges) - 1, imax + extra_pads)

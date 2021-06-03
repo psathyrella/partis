@@ -505,6 +505,8 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         if 'vollmers' in name:
             if '0.7' in name or '0.8' in name or '0.95' in name or '0.5' in name:
                 continue
+        if hist.integral(True) == 0:
+            continue
 
         tmpcolors.append(colors.get(name, 'grey' if len(hists)==1 else default_colors[ih%len(default_colors)]))
         alphas.append(0.7)
@@ -515,6 +517,9 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
             xmax = hxmax
         hist.title = legends.get(name, name)
         hist_list.append(hist)
+
+    if len(hist_list) == 0:
+        return
 
     if 'x' in log:
         if xmin < 1:  # the above gives us the bin low edge, which with log x scale is way too far left of the lowest point

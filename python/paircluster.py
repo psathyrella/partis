@@ -141,7 +141,7 @@ def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=F
     for ltmp in sorted(glfos):  # not really a reason to write igh first, but i guess it's nice to be consistent
         ofn = ofn_fcn(ltmp, joint=True)
         if utils.has_d_gene(ltmp):
-            cp = clusterpath.ClusterPath(partition=get_partition_from_annotation_list(antn_lists[ltmp])) if cpaths is None else cpaths[ltmp]
+            cp = ClusterPath(partition=utils.get_partition_from_annotation_list(antn_lists[ltmp])) if cpaths is None else cpaths[ltmp]
             partition_lines = cp.get_partition_lines(true_partition=None if true_partitions is None else true_partitions[ltmp], calc_missing_values='best')
             utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
         else:

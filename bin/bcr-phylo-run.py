@@ -391,7 +391,7 @@ def partition():
     cmd += fstr % (spath('mutated'), ipath('partition'))
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
     if not args.dont_get_tree_metrics:
-        cmd += ' --get-selection-metrics --plotdir %s' % ('paired-outdir' if args.paired_loci else ipath('plots'))
+        cmd += ' --get-selection-metrics --plotdir %s --no-partition-plots' % ('paired-outdir' if args.paired_loci else ipath('plots'))
     if args.lb_tau is not None:
         cmd += ' --lb-tau %f' % args.lb_tau
     if args.n_procs > 1:
