@@ -803,7 +803,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
 
     common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light', debug=True)  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
     if len(common_uids) == 0:
-        print '  %s no uids in common between heavy and light' % utils.color('yellow', 'warning')
+        if all(len(init_partitions[c]) > 0 for c in 'hl'):
+            print '  %s no uids in common between heavy (%d uids) and light (%d uids) partitions' % (utils.color('yellow', 'warning'), len(init_partitions['h']), len(init_partitions['l']))
         return {ploci[ch] : [] for ch in init_partitions}
 
     antn_dict = {ch : utils.get_annotation_dict(antn_lists[ploci[ch]]) for ch in ploci}
