@@ -629,7 +629,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)
         # have to remove duplicates from heavy partition and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs)
         hloc = utils.get_single_entry([l for l in utils.sub_loci(ig_or_tr) if utils.has_d_gene(l)])  # very convoluted way to get heavy chain
-        tmp_ptn = utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=True)[0]
+        tmp_ptn = utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=args.debug)[0]
         joint_cpaths[hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
         paircluster.write_concatd_output_files(glfos, antn_lists, getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=joint_cpaths, true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info)
         return glfos, antn_lists, joint_cpaths
