@@ -376,6 +376,17 @@ class ClusterPath(object):
             return seed_clusters[0]
 
     # ----------------------------------------------------------------------------------------
+    def print_seed_cluster_size(self, ipart=None, queries_to_include=None, lstr=''):
+        seed_cluster = self.seed_cluster(ipart=ipart)
+        qtistr = 'excluding seed seq%s:' % ('' if (queries_to_include is None or queries_to_include==[self.seed_unique_id]) else ' and --queries-to-include')
+        if queries_to_include is None:
+            queries_to_include = []
+        non_qti_size = len(set(seed_cluster) - set(queries_to_include + [self.seed_unique_id]))  # NOTE don't modify queries_to_include
+        qtistr = '%s %d' % (qtistr, non_qti_size)
+        pstr = '%spartition' % lstr
+        print '  seed cluster size in %s: %d, %s' % (('best %s'%pstr) if ipart is None else '%s with index %d (best at index %d)'%(pstr, ipart, self.i_best), len(seed_cluster), qtistr)
+
+    # ----------------------------------------------------------------------------------------
     def get_bad_clusters(self, partition, reco_info, true_partition):
         bad_clusters = []  # inferred clusters that aren't really all from the same event
         for ic in range(len(partition)):

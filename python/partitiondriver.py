@@ -888,12 +888,7 @@ class PartitionDriver(object):
             partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], all_annotations, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
 
         if self.args.seed_unique_id is not None:
-            seed_cluster = cpath.seed_cluster()
-            qtistr = ''
-            if self.args.queries_to_include is not None:
-                non_qti_size = len([u for u in seed_cluster if u not in self.args.queries_to_include])
-                qtistr = ',  excluding --queries-to-include: %d' % non_qti_size
-            print '  seed cluster size in best partition: %d%s' % (len(seed_cluster), qtistr)
+            cpath.print_seed_cluster_size(queries_to_include=self.args.queries_to_include)
 
         if self.args.debug:
             print 'final'

@@ -382,6 +382,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         return '%s/%s.%s' % (getodir(), ftype, 'fa' if 'seqs' in ftype else 'yaml')
     # ----------------------------------------------------------------------------------------
     def seedid(ltmp):
+        if args.seed_unique_id is None:
+            return None
         assert len(args.seed_unique_id) == 2 and len(args.seed_loci) == 2  # yes, this is also tested elsewhere
         return utils.get_single_entry([u for u, l in zip(args.seed_unique_id, args.seed_loci) if l == ltmp])
     # ----------------------------------------------------------------------------------------
@@ -608,7 +610,10 @@ def run_all_loci(args, ig_or_tr='ig'):
                 # print '      %3d: %s' % (len(jclust), ' '.join('%3d/%3d'%(len(set(c) & set(jclust)), len(c)) for c in overlap_clusters))
         if len(missing_clusters) > 0:  # we also get the annotations for the non-missing ones, which should end up the same so it's a bit of a waste, but it's nice to not have to re-read the output file and rewrite it with the non-missing ones
             print '  need to get annotations for %d/%d joint %s clusters' % (len(missing_clusters), len(joint_partition), ltmp)
-        partition_lines = ClusterPath(partition=joint_partition).get_partition_lines(true_partition=true_partitions[ltmp], calc_missing_values='best')  # we could get annotations only for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
+        jcp = ClusterPath(partition=joint_partition, seed_unique_id=seedid(ltmp))
+        if args.seed_unique_id is not None:
+            jcp.print_seed_cluster_size(queries_to_include=args.queries_to_include, lstr='joint ')
+        partition_lines = jcp.get_partition_lines(true_partition=true_partitions[ltmp], calc_missing_values='best')  # we could get annotations only for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
         if not os.path.exists(getpdir(ltmp)):  # no parameter dir, so can't get new annotations
             print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), ltmp)
@@ -624,7 +629,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)
         # have to remove duplicates from heavy partition and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs)
         hloc = utils.get_single_entry([l for l in utils.sub_loci(ig_or_tr) if utils.has_d_gene(l)])  # very convoluted way to get heavy chain
-        joint_cpaths[hloc] = ClusterPath(partition=utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=True)[0])  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
+        tmp_ptn = utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=True)[0]
+        joint_cpaths[hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
         paircluster.write_concatd_output_files(glfos, antn_lists, getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=joint_cpaths, true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info)
         return glfos, antn_lists, joint_cpaths
     # ----------------------------------------------------------------------------------------
@@ -639,7 +645,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             for hline, lline in paircluster.get_antn_pairs(lpair, lpfos):
                 treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
             for ltmp in lpair:  # replace the old cpaths with new ones using the new uids (this should be faster than translating individual uids as we go)
-                lpfos['cpaths'][ltmp] = ClusterPath(partition=utils.get_partition_from_annotation_list(lpfos['antn_lists'][ltmp]))
+                lpfos['cpaths'][ltmp] = ClusterPath(partition=utils.get_partition_from_annotation_list(lpfos['antn_lists'][ltmp]), seed_unique_id=seedid(ltmp))
         headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         paircluster.write_lpair_output_files(spairs(), lp_infos, getofn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
         glfos, antn_lists, cpaths = handle_concatd_heavy_chain(lp_infos, headers)
