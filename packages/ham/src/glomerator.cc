@@ -357,9 +357,16 @@ string Glomerator::ParentalString(pair<string, string> *parents) {
 
 // ----------------------------------------------------------------------------------------
 // count the number of members in a cluster's colon-separated name string
-int Glomerator::CountMembers(string namestr) {
+int Glomerator::CountMembers(string namestr, bool exclude_extra_seeds) {
   int n_colons = (int)count(namestr.begin(), namestr.end(), ':');
-  return n_colons + 1;
+  int n_members(n_colons + 1);
+  if(exclude_extra_seeds && args_->seed_unique_id() != "") {  // i'm adding this option long afterwards and remember nothing about this code, so there could be something already that could accomplish this
+    vector<string> namevector(SplitString(namestr, ":"));
+    int n_seeds = (int)count(namevector.begin(), namevector.end(), args_->seed_unique_id());
+    if(n_seeds > 0)
+      n_members -= n_seeds - 1;
+  }
+  return n_members;
 }
 
 // ----------------------------------------------------------------------------------------
@@ -491,7 +498,7 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
 
   // first decide which indices we'll choose
   set<int> ichosen;
-  vector<int> ichosen_vec;  // don't really need both of these... but maybe it's faster
+  vector<int> ichosen_vec;  // don't really need both this and the set... but maybe it's faster
   set<string> chosen_strs;  // make sure we don't choose seed unique id more than once
   for(size_t iname=0; iname<unsigned(n_max); ++iname) {
     int ich(-1);
@@ -541,7 +548,7 @@ string Glomerator::GetNaiveSeqNameToCalculate(string actual_queries) {
     return naive_seq_name_translations_[actual_queries];
 
   // if cluster is less than half again larger than N, just use <actual_queries>
-  if(CountMembers(actual_queries) < 1.5 * args_->biggest_naive_seq_cluster_to_calculate())  // if <<actual_queries>> is small return all of 'em
+  if(CountMembers(actual_queries, true) < 1.5 * args_->biggest_naive_seq_cluster_to_calculate())  // if <<actual_queries>> is small return all of 'em
     return actual_queries;
 
   // but if it's bigger than this, replace it with a subset of size N
@@ -562,7 +569,7 @@ string Glomerator::GetLogProbNameToCalculate(string queries, int n_max) {
     queries_to_calc = logprob_asymetric_translations_[queries];
   } 
 
-  if(CountMembers(queries_to_calc) > n_max) {
+  if(CountMembers(queries_to_calc, true) > n_max) {
     return ChooseSubsetOfNames(queries_to_calc, n_max);
   } else {
     return queries_to_calc;

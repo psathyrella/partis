@@ -86,7 +86,7 @@ private:
   void WriteStatus();  // write some progress info to file
 
   string ParentalString(pair<string, string> *parents);
-  int CountMembers(string namestr);
+  int CountMembers(string namestr, bool exclude_extra_seeds=false);
   unsigned LargestClusterSize(Partition &partition);
   string ClusterSizeString(Partition *partition);
   string JoinNames(string name1, string name2, string delimiter=":");
