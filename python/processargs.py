@@ -277,13 +277,15 @@ def process(args):
 
     if args.calculate_alternative_annotations and args.outfname is None and args.paired_outdir is None:
         raise Exception('have to specify --outfname in order to calculate alternative annotations')
+    if args.calculate_alternative_annotations and args.outfname is not None and utils.getsuffix(args.outfname) == '.csv':
+        raise Exception('old-style .csv output files no longer supported for alternative annotations (use yaml)')
     if args.subcluster_annotation_size == 'None':  # i want it turned on by default, but also to be able to turn it off on the command line
         args.subcluster_annotation_size = None
     else:
         args.subcluster_annotation_size = int(args.subcluster_annotation_size)  # can't set it in add_argument(), sigh
     if args.subcluster_annotation_size is not None:
         if args.calculate_alternative_annotations or args.write_additional_cluster_annotations is not None:
-            raise Exception('can\'t set either --calculate-alternative-annotations or --write-additional-cluster-annotations if --subcluster-annotation-size is also set (you get duplicate annotations, which confuses and crashes things, plus it doesn\'t really make sense -- alternative annotations should be calculated on the subcluster annotations now)')
+            raise Exception('can\'t set either of --calculate-alternative-annotations or --write-additional-cluster-annotations if --subcluster-annotation-size is also set (you get duplicate annotations, which confuses and crashes things, plus it doesn\'t really make sense -- alternative annotations should be calculated on the subcluster annotations now)')
     if args.action == 'view-alternative-annotations' and args.persistent_cachefname is None:  # handle existing old-style output
         assert args.outfname is not None
         if os.path.exists(utils.getprefix(args.outfname) + '-hmm-cache.csv'):
