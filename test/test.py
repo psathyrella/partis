@@ -98,6 +98,7 @@ class Tester(object):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         self.paired_datadir = 'test/paired-data'  # generated with ./bin/split-loci.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta --outdir test/paired-data --input-metafname /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml --n-max-queries 100
+        self.input_metafname = 'test/input-meta.yaml'
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
         self.dtypes = ['data', 'simu']
@@ -234,6 +235,9 @@ class Tester(object):
             argfo['extras'] += ['--only-csv-plots']
             if 'partition' in ptest:
                 argfo['extras'] += ['--no-partition-plots']
+
+        if '-data' in ptest and not args.paired:  # would be cleaner to check that inpath is self.datafname
+            argfo['extras'] += ['--input-metafname', self.input_metafname]
 
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):
@@ -828,7 +832,7 @@ parser.add_argument('--only-bust-current', action='store_true', help='only bust 
 parser.add_argument('--paired', action='store_true')
 parser.add_argument('--ig-or-tr', default='ig')
 parser.add_argument('--comparison-plots', action='store_true')
-parser.add_argument('--print-width', type=int, default=300)
+parser.add_argument('--print-width', type=int, default=300, help='set to 0 for infinite')
 # parser.add_argument('--make-plots', action='store_true')  # needs updating
 # example to make comparison plots:
 #   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
@@ -837,6 +841,9 @@ parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 assert not (args.quick and args.slow)  # it just doesn't make sense
+
+if args.print_width == 0:
+    args.print_width = 99999
 
 if args.bust_cache and not args.only_bust_current:  # run all four combos
     for slowval in [False, True]:
