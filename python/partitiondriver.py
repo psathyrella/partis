@@ -378,6 +378,8 @@ class PartitionDriver(object):
 
         clusters_to_use = cpath.partitions[cpath.i_best] if self.args.queries is None else [self.args.queries]
         for cluster in sorted(clusters_to_use, key=len, reverse=True):
+            if len(cluster) < 5:
+                continue
             self.process_alternative_annotations(cluster, cluster_annotations, cpath=cpath, debug=True)
 
         print '  note: rewriting output file with newly-calculated alternative annotation info'
@@ -852,6 +854,8 @@ class PartitionDriver(object):
         if self.args.calculate_alternative_annotations:
             for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
                 if len(set(cluster) & hmm_failures) == len(cluster):
+                    continue
+                if len(cluster) < 5:
                     continue
                 self.process_alternative_annotations(cluster, all_annotations, cpath=cpath, debug=self.args.debug)  # NOTE modifies the annotations (adds 'alternative-annotations' key)
 
@@ -1394,8 +1398,15 @@ class PartitionDriver(object):
                 true_naive_seqs = list(set([self.reco_info[u]['naive_seq'] for u in uids_of_interest]))
                 if len(true_naive_seqs) > 1:  # the true_str will be the wrong width if there's ever actually more than one, but whatever
                     print '    %s multiple true naive seqs for uids in cluster of interest (they\'re probably not really clonal)' % utils.color('yellow', 'warning')
-                true_hdists = [utils.hamming_distance(ts, naive_seq, align_if_necessary=True) for ts in true_naive_seqs]
-                true_str = ' '.join(utils.color('green', str(d)) for d in true_hdists)  # something's wrong if we need to align, but it probably just means they're not clonal *and* there's a clusterfuck of shm indels, so whatever
+                if any(len(ts) < len(naive_seq) for ts in true_naive_seqs):  # try to apply padding to left side of naive seqs (this is a pretty shitty way of doing this)
+                    true_naive_seqs = [utils.ambig_base * max(0, (len(naive_seq) - len(ts))) + ts for ts in true_naive_seqs]
+                true_hdists = [utils.hamming_distance(ts, naive_seq, align_if_necessary=True) for ts in true_naive_seqs]  # , align_if_necessary=True  # something's wrong if we need to align, but it probably just means they're not clonal *and* there's a clusterfuck of shm indels, so whatever
+                def tcolor(d):
+                    if d == 0: return 'blue_bkg'
+                    elif d < 4: return None
+                    elif d < 7: return 'yellow'
+                    else: return 'red'
+                true_str = ' '.join(utils.color(tcolor(d), str(d), width=2) for d in true_hdists)
                 true_str = ' %s      ' % true_str
             if self.args.print_all_annotations:
                 print '  printing annotations for all clusters supporting naive seq with fraction %.3f:' % final_info['naive-seqs'][naive_seq]
