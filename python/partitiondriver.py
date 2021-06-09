@@ -1273,6 +1273,7 @@ class PartitionDriver(object):
 
         annotation_list = [final_annotations[skey(c)] for c in init_partition if skey(c) in final_annotations]  # the missing ones should all be in all_hmm_failures
         if self.args.calculate_alternative_annotations:
+            print '    --calculate-alternative-annotations: adding annotations for initial subcluster annotation step (each with size ~%d)' % self.args.subcluster_annotation_size
             annotation_list += [l for l in final_annotations.values() if l not in annotation_list]
         self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug and not dont_print_annotations)
         print '    subcluster annotation time %.1f' % (time.time() - subc_start)
@@ -1388,9 +1389,17 @@ class PartitionDriver(object):
             if uidstr_of_interest in uid_str_list:
                 pre_str = utils.color('blue', '-->', width=5)
                 post_str = utils.color('blue', ' <-- requested uids', width=5)
+            true_str = ''
+            if print_simu:
+                true_naive_seqs = list(set([self.reco_info[u]['naive_seq'] for u in uids_of_interest]))
+                if len(true_naive_seqs) > 1:  # the true_str will be the wrong width if there's ever actually more than one, but whatever
+                    print '    %s multiple true naive seqs for uids in cluster of interest (they\'re probably not really clonal)' % utils.color('yellow', 'warning')
+                true_hdists = [utils.hamming_distance(ts, naive_seq, align_if_necessary=True) for ts in true_naive_seqs]
+                true_str = ' '.join(utils.color('green', str(d)) for d in true_hdists)  # something's wrong if we need to align, but it probably just means they're not clonal *and* there's a clusterfuck of shm indels, so whatever
+                true_str = ' %s      ' % true_str
             if self.args.print_all_annotations:
                 print '  printing annotations for all clusters supporting naive seq with fraction %.3f:' % final_info['naive-seqs'][naive_seq]
-            print ('%5s %s  %4d  %4.2f     %s     %s    %s%s') % (pre_str, utils.color_mutants(line_of_interest['naive_seq'], naive_seq), n_independent_seqs, final_info['naive-seqs'][naive_seq], gene_str, other_gene_str, ' '.join(cluster_size_strs), post_str)
+            print ('%5s %s  %s%4d  %4.2f     %s     %s    %s%s') % (pre_str, utils.color_mutants(line_of_interest['naive_seq'], naive_seq), true_str, n_independent_seqs, final_info['naive-seqs'][naive_seq], gene_str, other_gene_str, ' '.join(cluster_size_strs), post_str)
             if self.args.print_all_annotations:
                 for uidstr in sorted(uid_str_list, key=lambda x: x.count(':'), reverse=True):
                     if uidstr in cluster_annotations:
@@ -1405,8 +1414,8 @@ class PartitionDriver(object):
             utils.print_reco_event(utils.synthesize_single_seq_line(line_of_interest, iseq=0), extra_str='      ', label='annotation for a single (arbitrary) sequence from the cluster:')
             print ''
             print ''
-            print '%s          unique       inconsistent (%s: missing info)     cluster' % (' ' * len(line_of_interest['naive_seq']), utils.color('blue', 'x'))  # 'missing info' means that we didn\'t have an annotation for at least one of the clusters in that line. This is probably because we're using an old hmm cache file, and at best passed in the sw cache file annotations, which are only single-sequence.
-            print '%s        seqs  frac     regions         genes               sizes (+singletons)' % (' ' * len(line_of_interest['naive_seq']))
+            print '%s       %s   unique       inconsistent (%s: missing info)     cluster' % (' ' * len(line_of_interest['naive_seq']), 'hdist ' if print_simu else '', utils.color('blue', 'x'))  # 'missing info' means that we didn\'t have an annotation for at least one of the clusters in that line. This is probably because we're using an old hmm cache file, and at best passed in the sw cache file annotations, which are only single-sequence.
+            print '%s       %s seqs  frac     regions         genes               sizes (+singletons)' % (' ' * len(line_of_interest['naive_seq']), 'to true ' if print_simu else '')
         # ----------------------------------------------------------------------------------------
         def init_dicts(region, gene_call):  # ick
             unique_seqs_for_each_gene[region][gene_call] = set()
@@ -1436,6 +1445,7 @@ class PartitionDriver(object):
                                 print '    %s missing from cluster annotations' % uidstr
                         print '\n'
         # ----------------------------------------------------------------------------------------
+        print_simu = self.args.infname is not None and self.reco_info is not None
         if self.args.seed_unique_id is not None and debug and self.args.seed_unique_id not in uids_of_interest:
             print '  note: only printing alternative annotations for seed clusters (the rest are still written to disk, but if you want to print the others, don\'t set --seed-unique-id)'
             debug = False
