@@ -377,9 +377,8 @@ class PartitionDriver(object):
         cluster_annotations, cpath = self.read_existing_output(ignore_args_dot_queries=True, read_partitions=True, read_annotations=True)  # note that even if we don't need the cpath to re-write output below, we need to set read_annotations=True, since the fcn gets confused otherwise and doesn't read the right cluster annotation file (for deprecated csv files)
 
         clusters_to_use = cpath.partitions[cpath.i_best] if self.args.queries is None else [self.args.queries]
-        clusters_in_partitions = set([':'.join(c) for partition in cpath.partitions for c in partition])
         for cluster in sorted(clusters_to_use, key=len, reverse=True):
-            self.process_alternative_annotations(cluster, cluster_annotations, clusters_in_partitions, debug=True)
+            self.process_alternative_annotations(cluster, cluster_annotations, cpath=cpath, debug=True)
 
         print '  note: rewriting output file with newly-calculated alternative annotation info'
         self.write_output(cluster_annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
@@ -711,7 +710,7 @@ class PartitionDriver(object):
             print ''
 
         n_before, n_after = self.args.n_partitions_to_write, self.args.n_partitions_to_write  # this takes more than we need, since --n-partitions-to-write is the *full* width, not half-width, but oh, well
-        if self.args.debug or self.args.calculate_alternative_annotations or self.args.get_selection_metrics:  # take all of 'em
+        if self.args.debug or (self.args.calculate_alternative_annotations and self.args.subcluster_annotation_size is None) or self.args.get_selection_metrics:  # take all of 'em
             n_before, n_after = sys.maxint, sys.maxint
         elif self.args.write_additional_cluster_annotations is not None:
             n_before, n_after = [max(waca, n_) for waca, n_ in zip(self.args.write_additional_cluster_annotations, (n_before, n_after))]
@@ -823,7 +822,7 @@ class PartitionDriver(object):
                 istop = min(len(cpath.partitions), cpath.i_best + 1 + self.args.write_additional_cluster_annotations[1])
                 for ip in range(istart, istop):
                     additional_clusters |= set([tuple(c) for c in cpath.partitions[ip]])
-            if self.args.calculate_alternative_annotations:  # add every cluster from the entire clustering history NOTE stuff that's in self.hmm_cachefname (which we used to use for this), but not in the cpath progress files: translated clusters, clusters that we calculated but didn't merge (maybe? not sure)
+            if (self.args.calculate_alternative_annotations and self.args.subcluster_annotation_size is None):  # add every cluster from the entire clustering history NOTE stuff that's in self.hmm_cachefname (which we used to use for this), but not in the cpath progress files: translated clusters, clusters that we calculated but didn't merge (maybe? not sure)
                 additional_clusters |= set([(uid,) for cluster in cpath.partitions[cpath.i_best] for uid in cluster])  # add the singletons separately, since we don't write a singleton partition before collapsing naive sequences before the first clustering step
                 additional_clusters |= set([tuple(cluster) for partition in cpath.partitions for cluster in partition])  # kind of wasteful to re-add clusters from the best partition here, but oh well
             if self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None:  # add the clusters from the last partition
@@ -851,11 +850,10 @@ class PartitionDriver(object):
             self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
         if self.args.calculate_alternative_annotations:
-            clusters_in_partitions = set([':'.join(c) for partition in cpath.partitions for c in partition])
             for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
                 if len(set(cluster) & hmm_failures) == len(cluster):
                     continue
-                self.process_alternative_annotations(cluster, all_annotations, clusters_in_partitions, debug=self.args.debug)  # NOTE modifies the annotations (adds 'alternative-annotations' key)
+                self.process_alternative_annotations(cluster, all_annotations, cpath=cpath, debug=self.args.debug)  # NOTE modifies the annotations (adds 'alternative-annotations' key)
 
         if self.args.outfname is not None:
             self.write_output(all_annotations.values(), hmm_failures, cpath=cpath)
@@ -1210,9 +1208,12 @@ class PartitionDriver(object):
                         mphfracs = [utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in c]) for c in subclusters]
                         mean_weighted_pw_hfrac = numpy.average(mphfracs, weights=[len(c) / float(len(tclust)) for c in subclusters])
                         print '       %4d      %s      %s      %3d      %4.2f      %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), mean_weighted_pw_hfrac, ' '.join(str(len(c)) for c in subclusters))
-            _, annotations, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, n_procs=n_procs, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
+            _, step_antns, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, n_procs=n_procs, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
+            if istep == 0 and self.args.calculate_alternative_annotations:  # could do this in one of the loops below, but it's nice to have it separate since it doesn't really have anything to do with subcluster annotation
+                for tline in step_antns.values():
+                    final_annotations[skey(tline['unique_ids'])] = tline
             # make sure all missing cluster are accounted for in <step_failures>
-            missing_clusters = [c for c in clusters_to_run if skey(c) not in annotations]
+            missing_clusters = [c for c in clusters_to_run if skey(c) not in step_antns]
             if len(missing_clusters) > 0:
                 print '    missing %d annotations' % len(missing_clusters)
             for mclust in missing_clusters:
@@ -1225,12 +1226,12 @@ class PartitionDriver(object):
             # process each annotation that we just got back from bcrham: store inferred naive/hash seq if it's a subcluster, or add to final annotations if it's a simple/whole cluster
             n_hashed, n_whole_finished = 0, 0
             failed_super_clusters = []
-            for super_uidstr, subcluster_lists in subd_clusters.items():  # we used to loop over <annotations>, which was cleaner in some ways, but then it was hard to make sure the hashid seqs stayed in the same order, which is important if we're not using kmeans
+            for super_uidstr, subcluster_lists in subd_clusters.items():  # we used to loop over <step_antns>, which was cleaner in some ways, but then it was hard to make sure the hashid seqs stayed in the same order, which is important if we're not using kmeans
                 if any(sclust in missing_clusters for sclust in subcluster_lists[-1]):
                     failed_super_clusters.append(super_uidstr)
                     continue
                 for sclust in subcluster_lists[-1]:
-                    sline = annotations[skey(sclust)]
+                    sline = step_antns[skey(sclust)]
                     hashid = hashstr(sline['unique_ids'])
                     if super_uidstr not in naive_ancestor_hashes:
                         naive_ancestor_hashes[super_uidstr] = []
@@ -1241,8 +1242,8 @@ class PartitionDriver(object):
                 print '    giving up on size %d cluster with failed seqs (was just split into %d subclusters): %s' % (len(skey_inverse(fsclust)), len(subd_clusters[fsclust][-1]), fsclust)
                 clusters_still_to_do.remove(skey_inverse(fsclust))
                 del subd_clusters[fsclust]
-            for sclust in [c for c in clusters_still_to_do if skey(c) in annotations]:  # non-subclustered/simple/whole clusters (only happens first time through) [there's simpler ways to get these, but we need to account for failures]
-                final_annotations[skey(sclust)] = annotations[skey(sclust)]
+            for sclust in [c for c in clusters_still_to_do if skey(c) in step_antns]:  # non-subclustered/simple/whole clusters (only happens first time through) [there's simpler ways to get these, but we need to account for failures]
+                final_annotations[skey(sclust)] = step_antns[skey(sclust)]
                 clusters_still_to_do.remove(sclust)
                 n_whole_finished += 1
             # finalize any subclustered clusters that're finished (i.e. that only had one subcluster this time through)
@@ -1253,7 +1254,7 @@ class PartitionDriver(object):
                 sclust = skey_inverse(uidstr)
                 if debug:
                     print '  %s cluster with original size %d and split history: %s' % (utils.color('blue', 'finishing'), len(sclust), '   '.join(' '.join(str(len(c)) for c in sclist) for sclist in subcluster_lists))
-                line = annotations[skey(subcluster_lists[-1][0])]
+                line = step_antns[skey(subcluster_lists[-1][0])]
                 sfos_to_add = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in sclust]  # original "leaf" seqs that we actually care about (i.e. not inferred hashid naive seqs)
                 utils.replace_seqs_in_line(line, sfos_to_add, self.glfo, try_to_fix_padding=True, refuse_to_align=True)  # i think aligning should be unnecessary here, and it's really slow so we don't want to do it by accident (but trimming Ns off the ends seems pretty harmless and it might be enough)
                 self.add_per_seq_sw_info(line)
@@ -1261,7 +1262,7 @@ class PartitionDriver(object):
                 clusters_still_to_do.remove(sclust)
                 del subd_clusters[uidstr]
                 n_sub_finished += 1
-            print '    read %d new subcluster annotation%s: added hashid %d   whole finished %d   subcl finished %d' % (len(annotations), utils.plural(len(annotations)), n_hashed, n_whole_finished, n_sub_finished)
+            print '    read %d new subcluster annotation%s: added hashid %d   whole finished %d   subcl finished %d' % (len(step_antns), utils.plural(len(step_antns)), n_hashed, n_whole_finished, n_sub_finished)
             istep += 1
 
         for uid in subcluster_hash_seqs:
@@ -1271,6 +1272,8 @@ class PartitionDriver(object):
                 del self.reco_info[uid]
 
         annotation_list = [final_annotations[skey(c)] for c in init_partition if skey(c) in final_annotations]  # the missing ones should all be in all_hmm_failures
+        if self.args.calculate_alternative_annotations:
+            annotation_list += [l for l in final_annotations.values() if l not in annotation_list]
         self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug and not dont_print_annotations)
         print '    subcluster annotation time %.1f' % (time.time() - subc_start)
 
@@ -1346,8 +1349,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     # compare annotations for all clusters with overlap with uids_of_interest (i.e., all the "alternative" annotations for uids_of_interest for which there's info in cluster_annotations)
-    def process_alternative_annotations(self, uids_of_interest, cluster_annotations, clusters_in_partitions, debug=False):
-        # <clusters_in_partitions> is a list of the clusters that actually occur in one of the partitions in the clusterpath. It's so we can ignore annotations for clusters that were never actually formed, i.e. where we got the annotation for a potential cluster, but decided not to make the merge (at least, I think this is why some annotations don't correspond to clusters in the cluster path)
+    def process_alternative_annotations(self, uids_of_interest, cluster_annotations, cpath=None, debug=False):
         # NOTE that when seed partitioning, in the steps before we throw out non-seeded clusters, there's *tons* of very overlapping clusters, since I think we take the the biggest seeded cluster, and pass that to all the subprocs, so then if a different sequence gets added to it in each subproc you end up with lots of different versions (including potentially lots of different orderings of the exact same cluster)
         # ----------------------------------------------------------------------------------------
         def print_naive_line(other_genes, uid_str_list, naive_seq, n_independent_seqs, max_len_other_gene_str=20):
@@ -1398,7 +1400,7 @@ class PartitionDriver(object):
                 print '\n'
         # ----------------------------------------------------------------------------------------
         def print_header():
-            print '  subcluster naive sequences for:\n    %s\n   (in %s below)' % (uidstr_of_interest, utils.color('blue', 'blue'))
+            print '  alternative annotations for cluster with %d seqs:\n    %s\n   (in %s below)' % (uidstr_of_interest.count(':') + 1, uidstr_of_interest, utils.color('blue', 'blue'))
             print ''
             utils.print_reco_event(utils.synthesize_single_seq_line(line_of_interest, iseq=0), extra_str='      ', label='annotation for a single (arbitrary) sequence from the cluster:')
             print ''
@@ -1438,20 +1440,27 @@ class PartitionDriver(object):
             print '  note: only printing alternative annotations for seed clusters (the rest are still written to disk, but if you want to print the others, don\'t set --seed-unique-id)'
             debug = False
 
+        # <clusters_in_partitions> is by default None (it's only used for old-style, i.e. non-subcluster-annotation, alternative annotations) (cpath should actually always be set, but i want it a kw arg to make clear that it's basically optional)
+        clusters_in_partitions = None if (self.args.subcluster_annotation_size is not None or cpath is None) else set([':'.join(c) for partition in cpath.partitions for c in partition])  # this is a list of the clusters that actually occur in one of the partitions in the clusterpath. It's so we can ignore annotations for clusters that were never actually formed, i.e. where we got the annotation for a potential cluster, but decided not to make the merge (at least, I think this is why some annotations don't correspond to clusters in the cluster path)
         uids_of_interest = set(uids_of_interest)
         uidstr_of_interest = None  # we don't yet know in what order the uids in <uids_of_interest> appear in the file
         sub_info = {}  # map from naive seq : sub uid strs
         final_info = {'naive-seqs' : OrderedDict(), 'gene-calls' : {r : OrderedDict() for r in utils.regions}}  # this is the only info that's persistent, it get's added to the cluster annotation corresponding to <uids_of_interest>
 
         # find all the clusters that have any overlap with <uids_of_interest>
+        sum_of_used_cluster_sizes = 0
+        if debug:
+            print '  processing alternative annotations with %s' % ('partition path clusters' if self.args.subcluster_annotation_size is None else 'subcluster annotations')  # NOTE this has no way of knowing if you're running 'view-alternative-annotations' with different options than what you used to write the file
+            print '    looking among %d annotations for overlap with %d uids of interest' % (len(cluster_annotations), len(uids_of_interest))
         for uidstr, info in cluster_annotations.items():
             if info['naive_seq'] == '':  # hmm cache file lines that only have logprobs UPDATE no longer support reading hmm cache files, but maybe this is also what failed queries look like sometimes?
                 continue
             uid_set = set(info['unique_ids'])
             if len(uid_set & uids_of_interest) == 0:
                 continue
-            if ':' in uidstr and uidstr not in clusters_in_partitions:  # first bit is because singletons are not in general all in a partition, since the first partition is from after initial naive seq merging (at least seems to be? I kind of thought I added the singleton partition, but I guess not)
+            if clusters_in_partitions is not None and ':' in uidstr and uidstr not in clusters_in_partitions:  # first bit is because singletons are not in general all in a partition, since the first partition is from after initial naive seq merging (at least seems to be? I kind of thought I added the singleton partition, but I guess not)
                 continue
+            sum_of_used_cluster_sizes += len(uid_set)
             naive_seq = cluster_annotations[uidstr]['naive_seq']
             if naive_seq not in sub_info:
                 sub_info[naive_seq] = []
@@ -1461,6 +1470,8 @@ class PartitionDriver(object):
 
         if uidstr_of_interest is None:
             raise Exception('alternative annotations: output file doesn\'t have a cluster with the exact requested uids (run without setting --queries to get a list of available clusters): %s' % uids_of_interest)
+        if self.args.subcluster_annotation_size is not None and sum_of_used_cluster_sizes > 2.1 * len(uids_of_interest):  # if the annotations are from subcluster annotation, it should actually be exactly 2 times (since atm we just add each small cluster in the first round of subcluster annotation, plus the final cluster at the end)
+            raise Exception('--subcluster-annotation-size is non-None (so we expect to see each uid only ~twice in alternative annotations) but sum of chosen cluster sizes is %d (vs %d uids of interest): you probably wrote the output file with --subcluster-annotation-size turned off (None), but didn\'t set that option when running \'view-alternative-annotations\'' % (sum_of_used_cluster_sizes, len(uids_of_interest)))
 
         line_of_interest = cluster_annotations[uidstr_of_interest]
         genes_of_interest = {r : line_of_interest[r + '_gene'] for r in utils.regions}
