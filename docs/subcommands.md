@@ -1,17 +1,20 @@
+  - [Overview](#overview)
   - [annotate](#annotate) find most likely annotation for each sequence
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
   - [view-output](#view-output) print the partitions and/or annotations from an existing output file
-  - [cache-parameters](#cache-parameters) write parameter values and HMM model files for a given data set (if needed, this runs automatically before annotation and partitioning)
+  - [cache-parameters](#cache-parameters) write parameter values and HMM model files for later inference (runs automatically, if needed)
     - [germline sets](#germline-sets)
   - [simulate](#simulate) make simulated sequences
-  - [miscellany](#miscellany)
-    - [naive probability estimates](#naive-probability-estimates)
+  - [other topics](#other-topics)
+    - [subcluster annotation](#subcluster-annotation)
+	- [annotation uncertainties (alternative annotations)](#annotation-uncertainties-(alternative-annotations))
+    - [naive rearrangement probability estimates](#naive-rearrangement-probability-estimates)
     - [input meta info](#input-meta-info)
 	- [naive sequence comparison with linearham](#naive-sequence-comparison-with-linearham)
 
-### Subcommands
+### Overview
 
 `partis` takes a single positional argument specifying the action to run:
 
@@ -74,22 +77,6 @@ If you're mostly interested in larger clonal families, you can tell it to cluste
 
 Cases where memory is a limiting factor typically stem from a sample with several very large families. Some recent optimizations mean that this doesn't really happen any more, but limiting clonal family size with `--max-cluster-size N` nevertheless can reduce memory usage. Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
 
-##### annotation uncertainties
-
-In order to get an idea of the uncertainty on a given cluster's naive sequence and gene calls, you can specify `--calculate-alternative-annotations` during the partition step.
-This will write all the annotations for intermediate sub-clusters to the output file so that it counts up how many subclusters "voted" for each alternative naive sequence or gene call.
-Since most annotation uncertainty in large-ish families boils down to two sub-families disagreeing about, say, which is the correct D gene, this approach typically does a decent job of spanning the real uncertainty (despite being quite heuristic).
-The resulting information can be accessed either by pulling out the resulting ['alternative-annotations' key](output-formats.md#description-of-keys) from the output file, or by running view-alternative-annotations (or running the partition step with `--debug 1`).
-For instance:
-
-```
-partis partition --infname test/example.fa --outfname _output/example.yaml --calculate-alternative-annotations
-partis view-alternative-annotations --outfname _output/example.yaml  # pipe this to less by adding "| less -RS"
-```
-
-If you only care about one cluster, you can print only the cluster corresponding to a given set of queries by setting `--queries <queries:of:interest>` in the second step.
-This second command prints an ascii representation of the various naive sequences and gene calls, as well as summaries of how many unique sequences and clusters of various sizes voted for each naive sequence and gene call.
-
 ##### progress file
 
 Since individual steps of the partition algorithm can be somewhat time consuming, during each step we periodically update a file with clustering status information so you can monitor progress.
@@ -125,6 +112,7 @@ The columns are:
 ### merge-paired-partitions
 
 Refine the separate single-chain partitions (igh, igk, igl) using heavy/light pairing information (e.g. from 10x single cell data).
+Runs automatically after partitioning if `--paired-loci` is set -- this action is for running only the merge step on an existing paired output dir.
 Details [here](paired-loci.md).
 
 ### get-selection-metrics
@@ -394,9 +382,54 @@ You can then add novel alleles to the germline set by telling it how many novel 
 | `--allele-prevalence-freqs <f1:f2:...>` | colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)
 
 
-### Miscellany
+### other topics
 
-##### naive probability estimates
+##### subcluster annotation
+
+When calculating emission probabilities for a multi-sequence annotation, partis (well, bcrham) treats each sequence's emission at a position as independent.
+This is extremely fast -- just multiply a floating point number for each sequence -- but is equivalent to assuming a star tree phylogeny among the sequences.
+A star tree interprets each point mutation in each sequence as a separate mutation event, which is of course a poor assumption for many families.
+If there's lots of shared mutation (e.g. trees with long asymmetric trunks), partis will often reduce this apparent large number of independent mutation events (which it correclty views as unlikely) by over-expanding non-templated insertions and/or deletions.
+This, anyway, was how partis worked until [late 2020](https://github.com/psathyrella/partis/issues/308), when we figured out a workaround.
+
+The basic idea is that everything is well-approximated by a star tree if you just zoom in far enough.
+So when calculating annotations, we divide up large families into (much) smaller subclusters, where each subcluster is small enough that it's star-like, and run annotation on those subclusters.
+We then "replace" each subcluster with its inferred naive sequence, group those naive sequences into a new round of subclusters, and repeat until we have a single final subcluster whose annotation represents the entire original cluster.
+This procedure, by performing a kind of weighted average annotation over the family, can be thought of as replacing the star tree assumption with a very crude form of phylogenetics.
+
+If you want to do real phylogenetics during annotation, and get proper posteriors on trees and naive sequences, you should use [linearham](https://github.com/matsengrp/linearham), which implements a Bayesian phylogenetic hidden Markov model.
+
+##### annotation uncertainties (alternative annotations)
+
+In order to get an idea of the uncertainty on a given cluster's naive sequence and gene calls (and what likely alternatives are), you can specify `--calculate-alternative-annotations` during the partition step.
+This will save the annotations for all of the initial "subclusters" (see [above](#subcluster-annotation)), together with the annotation for the full cluster, and count up how many clusters "voted" for each alternative naive sequence or gene call.
+Since most annotation uncertainty boils down to two sub-families (i.e. two branches in the tree) disagreeing about, say, which is the correct D gene or how long a deletion was, this approach typically does a decent job of spanning the real uncertainty (despite being quite heuristic).
+
+The resulting information can be accessed either by pulling out the resulting ['alternative-annotations' key](output-formats.md#description-of-keys) from the output file, or by running `view-alternative-annotations` (or running the partition step with `--debug 1`).
+For instance:
+
+```
+partis partition --infname test/example.fa --outfname _output/example.yaml --calculate-alternative-annotations
+partis view-alternative-annotations --outfname _output/example.yaml  # pipe this to less by adding "| less -RS"
+```
+
+If you only care about one cluster, you can print only the cluster corresponding to a given set of queries by setting `--queries <queries:of:interest>` in the second step.
+This second command prints an ascii representation of the various naive sequences and gene calls, as well as summaries of how many unique sequences and clusters of various sizes voted for each naive sequence and gene call.
+For example it might look like this:
+![view-output](images/alt-antns/ascii-full.png)
+Here we first print the annotation for a single arbitrary sequence (just for reference), and then print a line for each "alternative" naive sequence, i.e. naive sequence that at least one subcluster voted for.
+This is a 15-sequence family, and as you might expect the full-family annotation ("requested uids" in blue) is the first line, i.e. the most likely naive sequence.
+In this case the five three-sequence subclusters all voted for different naive sequences; they are on the following lines.
+We represent the "probability" of each naive sequence by the fraction of unique sequences that voted for it -- the "frac" column.
+Since each sequence appears twice here (once in the full family, and once in its subcluster), the full-family annotation has fraction 0.5.
+These fractions are what is reported under the 'alternative-annotations' key in the [output file](output-formats.md#description-of-keys).
+We zoom in on this part here:
+![view-output](images/alt-antns/ascii-right-zoom.png)
+The same calculations are made for alternative gene calls, zoomed in on here:
+![view-output](images/alt-antns/ascii-left-zoom.png)
+These aren't very interesting, since everyone voted for the same genes.
+
+##### naive rearrangement probability estimates
 
 The script `bin/get-naive-probabilities.py` is designed to answer the question "What is the probability of a particular rearrangement in this sample?".
 It uses the `all-probs.csv` file that is written to each parameter directory, which contains a line counting how many times we saw each unique rearrangement in that sample.

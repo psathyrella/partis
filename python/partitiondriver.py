@@ -2171,7 +2171,7 @@ class PartitionDriver(object):
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
 
-                # if self.args.correct_multi_hmm_boundaries and len(padded_line['unique_ids']) > 1:  # lots of details/bkg here: https://github.com/psathyrella/partis/issues/308
+                # if self.args.correct_multi_hmm_boundaries and len(padded_line['unique_ids']) > 1:  # lots of details/bkg here: https://github.com/psathyrella/partis/issues/308 (tldr: no point in this any more since we have subcluster annotation)
                 #     self.correct_multi_hmm_boundaries(padded_line, first_line=len(eroded_annotations)+len(padded_annotations)==0)
 
                 try:
