@@ -9,7 +9,7 @@
   - [simulate](#simulate) make simulated sequences
   - [other topics](#other-topics)
     - [subcluster annotation](#subcluster-annotation)
-	- [annotation uncertainties (alternative annotations)](#annotation-uncertainties-(alternative-annotations))
+	- [annotation uncertainties (alternative annotations)](#annotation-uncertainties-alternative-annotations)
     - [naive rearrangement probability estimates](#naive-rearrangement-probability-estimates)
     - [input meta info](#input-meta-info)
 	- [naive sequence comparison with linearham](#naive-sequence-comparison-with-linearham)
