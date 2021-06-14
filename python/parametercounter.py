@@ -10,6 +10,7 @@ from hist import Hist
 import hutils
 import plotconfig
 from mutefreqer import MuteFreqer
+from corrcounter import CorrCounter
 
 # ----------------------------------------------------------------------------------------
 class ParameterCounter(object):
@@ -19,6 +20,7 @@ class ParameterCounter(object):
         self.glfo = glfo
         self.args = args
         self.mfreqer = MuteFreqer(self.glfo, exclusions=args.region_end_exclusions)
+        self.corrcounter = CorrCounter() if self.args.count_correlations else None
         self.reco_total = 0  # total number of recombination events
         self.mute_total = 0  # total number of sequences
         self.counts = {}
@@ -117,9 +119,14 @@ class ParameterCounter(object):
                     continue
                 self.counts[bound + '_insertion_content'][nuke] += 1
 
+        if self.corrcounter is not None:
+            self.corrcounter.increment(info)
+
     # ----------------------------------------------------------------------------------------
     def clean_plots(self, plotdir):
         self.mfreqer.clean_plots(plotdir + '/mute-freqs')
+        if self.corrcounter is not None:
+            self.corrcounter.clean_plots(plotdir + '/correlations')
         utils.prep_dir(plotdir + '/overall', wildlings=('*.csv', '*.svg'))
         for column in self.counts:
             if column in self.columns_to_subset_by_gene:
@@ -136,6 +143,8 @@ class ParameterCounter(object):
         self.clean_plots(plotdir)
 
         self.mfreqer.plot(plotdir + '/mute-freqs', only_csv=only_csv, only_overall=only_overall, make_per_base_plots=make_per_base_plots)
+        if self.corrcounter is not None:
+            self.corrcounter.plot(plotdir + '/correlations', only_csv=only_csv)
 
         overall_plotdir = plotdir + '/overall'
 
@@ -188,7 +197,10 @@ class ParameterCounter(object):
         if os.path.exists(base_outdir + '/' + glutils.glfo_dir):
             for tmploc in [l for l in utils.loci if os.path.exists(base_outdir + '/' + glutils.glfo_dir + '/' + l)]:
                 glutils.remove_glfo_files(base_outdir + '/' + glutils.glfo_dir, tmploc, print_warning=False)
-        utils.prep_dir(base_outdir, subdirs=('hmms', 'mute-freqs', glutils.glfo_dir), wildlings=('*.csv', '*.yaml', '*.fasta'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
+        subdirs = ['hmms', 'mute-freqs', glutils.glfo_dir]
+        if self.corrcounter is not None:
+            subdirs.append('correlations')
+        utils.prep_dir(base_outdir, subdirs=subdirs, wildlings=('*.csv', '*.yaml', '*.fasta'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
 
         self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files)
         genes_with_counts = [g[0] for r in utils.regions for g in self.counts[r + '_gene'].keys()]

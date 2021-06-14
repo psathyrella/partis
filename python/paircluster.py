@@ -422,6 +422,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
     def make_final_plots(initial_seqs_per_seq, initial_flcounts):
         final_seqs_per_seq = plot_n_pseqs_per_seq('after')
         import plotting
+        smatrix, xbins, ybins, n_skipped = get_smatrix_from_xy_dicts(xvals, yvals, kfcn=kfcn, n_max_bins=n_max_bins)
         plotting.plot_smatrix(plotdir, 'pseq-matrix', final_seqs_per_seq, initial_seqs_per_seq, n_max_bins=12, xlabel='after', ylabel='before', lfcn=lambda x: 'miss.' if x==-1 else str(x), title='N paired seqs per seq')
         final_flcounts = {}  # note that this has to be per seq (even though that kind of double counts) since otherwise we wouldn't have a way to determine correspondence between initial and final
         for ltmp in sorted(cpaths):

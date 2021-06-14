@@ -773,7 +773,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
                xbounds=(0, axis_max), ybounds=(0, axis_max))
 
 # ----------------------------------------------------------------------------------------
-def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lfcn=lambda x: x, xlabel='', ylabel='', title='', tdbg=False):
+def get_smatrix_from_xy_dicts(xvals, yvals, kfcn=None, n_max_bins=None):  # NOTE lots of duplication with next fcn (but I think it's cleaner to have them separate)
     xbins, ybins = [[-1] + sorted(set(td.values()), key=kfcn) for td in (xvals, yvals)]
     if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
         print '    truncating x bins %d --> %d and ybins %d --> %d' % (len(xbins), n_max_bins, len(ybins), n_max_bins)
@@ -790,6 +790,39 @@ def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lf
         smatrix[ybins.index(yv)][xbins.index(xv)] += 1
         if tdbg > 1:
             uid_matrix[ybins.index(yv)][xbins.index(xv)].append(uid)
+    if tdbg > 1:
+        print '  uids in smatrix'
+        for iy, yb in enumerate(ybins):
+            for ix, xb in enumerate(xbins):
+                print ('  %'+lb+'s   %'+lb+'s    %4d   %s') % (yb, xb, len(uid_matrix[iy][ix]), ':'.join(uid_matrix[iy][ix]))
+
+    return smatrix, xbins, ybins, n_skipped
+
+# ----------------------------------------------------------------------------------------
+def get_smatrix_from_xy_lists(xvals, yvals, kfcn=None, n_max_bins=None):  # NOTE lots of duplication with previous fcn (but I think it's cleaner to have them separate)
+    assert len(xvals) == len(yvals)
+    xbins, ybins = [sorted(set(tl), key=kfcn) for tl in (xvals, yvals)]
+    if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
+        print '    truncating x bins %d --> %d and ybins %d --> %d' % (len(xbins), n_max_bins, len(ybins), n_max_bins)
+        xbins, ybins = xbins[:n_max_bins], ybins[:n_max_bins]
+    smatrix = [[0 for _ in xbins] for _ in ybins]
+    n_skipped = 0
+    for xv, yv in zip(xvals, yvals):
+        # if yv not in ybins or xv not in xbins:  # not sure if this is possible here (i think it is in the previous fcn)
+        #     n_skipped += 1
+        #     continue
+        smatrix[ybins.index(yv)][xbins.index(xv)] += 1
+
+    return smatrix, xbins, ybins, n_skipped
+
+# ----------------------------------------------------------------------------------------
+def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max_bins=None, lfcn=lambda x: str(x), y_lfcn=None, xlabel='', ylabel='', title='', tdbg=False):
+    assert xydicts is not None or xylists is not None  # specify exactly one of them
+    if y_lfcn is None:
+        y_lfcn = lfcn
+    sfcn = get_smatrix_from_xy_dicts if xydicts is not None else get_smatrix_from_xy_lists
+    xvals, yvals = utils.non_none([xydicts, xylists])
+    smatrix, xbins, ybins, n_skipped = sfcn(xvals, yvals, kfcn=kfcn, n_max_bins=n_max_bins)
     if tdbg:
         lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
         print '  detailed smatrix'
@@ -798,11 +831,6 @@ def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lf
             for ii, ib in enumerate(ybins):
                 print ('%s %'+lb+'d') % ((('%'+lb+'s')%fb) if ii==0 else '', smatrix[ii][iff]),
             print ''
-        if tdbg > 1:
-            print '  uids in smatrix'
-            for iy, yb in enumerate(ybins):
-                for ix, xb in enumerate(xbins):
-                    print ('  %'+lb+'s   %'+lb+'s    %4d   %s') % (yb, xb, len(uid_matrix[iy][ix]), ':'.join(uid_matrix[iy][ix]))
 
     fig, ax = mpl_init()
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
@@ -811,7 +839,7 @@ def plot_smatrix(plotdir, plotname, xvals, yvals, kfcn=None, n_max_bins=None, lf
     cbar = plt.colorbar(heatmap, label=('counts (skipped %d)'%n_skipped) if n_skipped > 0 else 'counts', pad=0.12)
     mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,
                xticks=[n - 0.5 for n in range(1, len(xbins) + 1)], yticks=[n - 0.5 for n in range(1, len(ybins) + 1)],
-               xticklabels=[lfcn(b) for b in xbins], yticklabels=[lfcn(b) for b in ybins],
+               xticklabels=[lfcn(b) for b in xbins], yticklabels=[y_lfcn(b) for b in ybins],
                xticklabelsize=15, yticklabelsize=15)
 
 # ----------------------------------------------------------------------------------------

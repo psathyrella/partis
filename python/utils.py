@@ -356,7 +356,6 @@ column_dependencies['fv_insertion'] = []
 column_dependencies['vd_insertion'] = ['d_gene']
 column_dependencies['dj_insertion'] = ['j_gene']
 column_dependencies['jf_insertion'] = []
-
 # column_dependencies['vd_insertion_content'] = []
 # column_dependencies['dj_insertion_content'] = []
 
@@ -368,6 +367,7 @@ for column, deps in column_dependencies.iteritems():
     tmp_list.extend(deps)
     column_dependency_tuples.append(tuple(tmp_list))
 
+# ----------------------------------------------------------------------------------------
 adaptive_headers = {
     'seqs' : 'nucleotide',
     'v_gene' : 'vMaxResolved',
