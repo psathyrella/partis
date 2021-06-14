@@ -422,14 +422,13 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
     def make_final_plots(initial_seqs_per_seq, initial_flcounts):
         final_seqs_per_seq = plot_n_pseqs_per_seq('after')
         import plotting
-        smatrix, xbins, ybins, n_skipped = get_smatrix_from_xy_dicts(xvals, yvals, kfcn=kfcn, n_max_bins=n_max_bins)
-        plotting.plot_smatrix(plotdir, 'pseq-matrix', final_seqs_per_seq, initial_seqs_per_seq, n_max_bins=12, xlabel='after', ylabel='before', lfcn=lambda x: 'miss.' if x==-1 else str(x), title='N paired seqs per seq')
+        plotting.plot_smatrix(plotdir, 'pseq-matrix', xydicts=(final_seqs_per_seq, initial_seqs_per_seq), n_max_bins=12, xlabel='after', ylabel='before', lfcn=lambda x: 'miss.' if x==-1 else str(x), title='N paired seqs per seq')
         final_flcounts = {}  # note that this has to be per seq (even though that kind of double counts) since otherwise we wouldn't have a way to determine correspondence between initial and final
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 final_flcounts.update({u : lgstr(set([u] + pids), for_plot=True) for u, pids in zip(atn['unique_ids'], atn['paired-uids'])})  # have to make sure <u> is included in <pids> (as well as that there's no duplicates)
-        plotting.plot_smatrix(plotdir, 'flcount-matrix', final_flcounts, initial_flcounts, kfcn=len, n_max_bins=15,
+        plotting.plot_smatrix(plotdir, 'flcount-matrix', xydicts=(final_flcounts, initial_flcounts), kfcn=len, n_max_bins=15,
                               lfcn=lambda x: 'miss.' if x==-1 else ('none' if x=='' else str(x)), xlabel='after', ylabel='before', title='pair combo (per seq)', tdbg=2 if debug else False)
     # ----------------------------------------------------------------------------------------
     def getloc(uid):
