@@ -773,74 +773,82 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
                xbounds=(0, axis_max), ybounds=(0, axis_max))
 
 # ----------------------------------------------------------------------------------------
-def get_smatrix_from_xy_dicts(xvals, yvals, kfcn=None, n_max_bins=None):  # NOTE lots of duplication with next fcn (but I think it's cleaner to have them separate)
-    xbins, ybins = [[-1] + sorted(set(td.values()), key=kfcn) for td in (xvals, yvals)]
-    if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
+def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max_bins=None, smatrix=None, xybins=None, float_vals=False, lfcn=lambda x: str(x), y_lfcn=None, xlabel='', ylabel='', title='', blabel='counts', tdbg=False):
+    # ----------------------------------------------------------------------------------------
+    def truncate_bins(xbins, ybins, n_max_bins):
         print '    truncating x bins %d --> %d and ybins %d --> %d' % (len(xbins), n_max_bins, len(ybins), n_max_bins)
-        xbins, ybins = xbins[:n_max_bins], ybins[:n_max_bins]
-    smatrix = [[0 for _ in xbins] for _ in ybins]
-    if tdbg > 1:
-        uid_matrix = [[[] for _ in xbins] for _ in ybins]
-    n_skipped = 0
-    for uid in set(yvals) | set(xvals):
-        yv, xv = yvals.get(uid, -1), xvals.get(uid, -1)
-        if yv not in ybins or xv not in xbins:
-            n_skipped += 1
-            continue
-        smatrix[ybins.index(yv)][xbins.index(xv)] += 1
+        return xbins[:n_max_bins], ybins[:n_max_bins]
+    # ----------------------------------------------------------------------------------------
+    def get_smatrix_from_xy_dicts(xvals, yvals, kfcn=None, n_max_bins=None):  # NOTE lots of duplication with next fcn (but I think it's cleaner to have them separate)
+        xbins, ybins = [[-1] + sorted(set(td.values()), key=kfcn) for td in (xvals, yvals)]
+        if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
+            xbins, ybins = truncate_bins(xbins, ybins, n_max_bins)
+        smatrix = [[0 for _ in xbins] for _ in ybins]
         if tdbg > 1:
-            uid_matrix[ybins.index(yv)][xbins.index(xv)].append(uid)
-    if tdbg > 1:
-        print '  uids in smatrix'
-        for iy, yb in enumerate(ybins):
-            for ix, xb in enumerate(xbins):
-                print ('  %'+lb+'s   %'+lb+'s    %4d   %s') % (yb, xb, len(uid_matrix[iy][ix]), ':'.join(uid_matrix[iy][ix]))
+            uid_matrix = [[[] for _ in xbins] for _ in ybins]
+        n_skipped = 0
+        for uid in set(yvals) | set(xvals):
+            yv, xv = yvals.get(uid, -1), xvals.get(uid, -1)
+            if yv not in ybins or xv not in xbins:
+                n_skipped += 1
+                continue
+            smatrix[ybins.index(yv)][xbins.index(xv)] += 1
+            if tdbg > 1:
+                uid_matrix[ybins.index(yv)][xbins.index(xv)].append(uid)
+        if tdbg > 1:
+            print '  uids in smatrix'
+            for iy, yb in enumerate(ybins):
+                for ix, xb in enumerate(xbins):
+                    print ('  %'+lb+'s   %'+lb+'s    %4d   %s') % (yb, xb, len(uid_matrix[iy][ix]), ':'.join(uid_matrix[iy][ix]))
 
-    return smatrix, xbins, ybins, n_skipped
+        return smatrix, xbins, ybins, n_skipped
+    # ----------------------------------------------------------------------------------------
+    def get_smatrix_from_xy_lists(xvals, yvals, kfcn=None, n_max_bins=None):  # NOTE lots of duplication with previous fcn (but I think it's cleaner to have them separate)
+        assert len(xvals) == len(yvals)
+        xbins, ybins = [sorted(set(tl), key=kfcn) for tl in (xvals, yvals)]
+        if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
+            xbins, ybins = truncate_bins(xbins, ybins, n_max_bins)
+        smatrix = [[0 for _ in xbins] for _ in ybins]
+        for xv, yv in zip(xvals, yvals):
+            smatrix[ybins.index(yv)][xbins.index(xv)] += 1
 
-# ----------------------------------------------------------------------------------------
-def get_smatrix_from_xy_lists(xvals, yvals, kfcn=None, n_max_bins=None):  # NOTE lots of duplication with previous fcn (but I think it's cleaner to have them separate)
-    assert len(xvals) == len(yvals)
-    xbins, ybins = [sorted(set(tl), key=kfcn) for tl in (xvals, yvals)]
-    if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
-        print '    truncating x bins %d --> %d and ybins %d --> %d' % (len(xbins), n_max_bins, len(ybins), n_max_bins)
-        xbins, ybins = xbins[:n_max_bins], ybins[:n_max_bins]
-    smatrix = [[0 for _ in xbins] for _ in ybins]
-    n_skipped = 0
-    for xv, yv in zip(xvals, yvals):
-        # if yv not in ybins or xv not in xbins:  # not sure if this is possible here (i think it is in the previous fcn)
-        #     n_skipped += 1
-        #     continue
-        smatrix[ybins.index(yv)][xbins.index(xv)] += 1
-
-    return smatrix, xbins, ybins, n_skipped
-
-# ----------------------------------------------------------------------------------------
-def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max_bins=None, lfcn=lambda x: str(x), y_lfcn=None, xlabel='', ylabel='', title='', tdbg=False):
-    assert xydicts is not None or xylists is not None  # specify exactly one of them
+        return smatrix, xbins, ybins, 0
+    # ----------------------------------------------------------------------------------------
+    assert xydicts is not None or xylists is not None or smatrix is not None  # specify exactly one of them
     if y_lfcn is None:
         y_lfcn = lfcn
-    sfcn = get_smatrix_from_xy_dicts if xydicts is not None else get_smatrix_from_xy_lists
-    xvals, yvals = utils.non_none([xydicts, xylists])
-    smatrix, xbins, ybins, n_skipped = sfcn(xvals, yvals, kfcn=kfcn, n_max_bins=n_max_bins)
+    if smatrix is None:
+        sfcn = get_smatrix_from_xy_dicts if xydicts is not None else get_smatrix_from_xy_lists
+        xvals, yvals = utils.non_none([xydicts, xylists])
+        smatrix, xbins, ybins, n_skipped = sfcn(xvals, yvals, kfcn=kfcn, n_max_bins=n_max_bins)
+    else:
+        n_skipped = 0
+        if xybins is None:  # you probably want to pass in the bins, but if not they just get set to the 0-based row/column index
+            xbins, ybins = list(range(len(smatrix[0]))), list(range(len(smatrix)))
+        else:
+            xbins, ybins = xybins
     if tdbg:
+        def vstr(v):
+            if v is None: return ''
+            return ('%.2f' if float_vals else '%d') % v
         lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
         print '  detailed smatrix'
         print '%s' % ''.join((('  %'+lb+'s')%ib for ib in [''] + ybins))
         for iff, fb in enumerate(xbins):
             for ii, ib in enumerate(ybins):
-                print ('%s %'+lb+'d') % ((('%'+lb+'s')%fb) if ii==0 else '', smatrix[ii][iff]),
+                print ('%s %'+lb+'s') % ((('%'+lb+'s')%fb) if ii==0 else '', vstr(smatrix[ii][iff])),
             print ''
 
     fig, ax = mpl_init()
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
-    heatmap = ax.pcolor(numpy.array(smatrix), cmap='viridis', vmin=0.5) #, vmax=1.) #, norm=mpl.colors.LogNorm()
-    cbar = plt.colorbar(heatmap, label=('counts (skipped %d)'%n_skipped) if n_skipped > 0 else 'counts', pad=0.12)
+    heatmap = ax.pcolor(numpy.array(smatrix), cmap='viridis', vmin=0.0 if float_vals else 0.5) #, vmax=1.) #, norm=mpl.colors.LogNorm()
+    cbar = plt.colorbar(heatmap, label=('%s (skipped %d)'%(blabel, n_skipped)) if n_skipped > 0 else blabel, pad=0.12)
+    def ltsize(n): return 15 if n < 15 else 8
     mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,
                xticks=[n - 0.5 for n in range(1, len(xbins) + 1)], yticks=[n - 0.5 for n in range(1, len(ybins) + 1)],
                xticklabels=[lfcn(b) for b in xbins], yticklabels=[y_lfcn(b) for b in ybins],
-               xticklabelsize=15, yticklabelsize=15)
+               xticklabelsize=ltsize(len(xbins)), yticklabelsize=ltsize(len(ybins)))
 
 # ----------------------------------------------------------------------------------------
 def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None, extra_links=None):
