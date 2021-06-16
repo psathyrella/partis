@@ -842,7 +842,11 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
     fig, ax = mpl_init()
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
-    heatmap = ax.pcolor(numpy.array(smatrix), cmap='viridis', vmin=0.0 if float_vals else 0.5) #, vmax=1.) #, norm=mpl.colors.LogNorm()
+    vmin = 0. if float_vals else 0.5
+    # smatrix = [[utils.non_none([v, vmin]) for v in vl] for vl in smatrix]  # we *want* the Nones, since that's what makes them blank (rather than all freaking purple)
+    if float_vals and any(v is not None and v < vmin for vl in smatrix for v in vl):  # would be easy to fiddle with this but i don't want to right now, and I'm only plotting positive values atm
+        raise Exception('value(s) %s less than vmin %.2f in plot_smatrix()' % ([v for vl in smatrix for v in vl if v < vmin], vmin))
+    heatmap = ax.pcolor(numpy.array(smatrix), cmap='viridis', vmin=vmin) #, vmax=1.) #, norm=mpl.colors.LogNorm()
     cbar = plt.colorbar(heatmap, label=('%s (skipped %d)'%(blabel, n_skipped)) if n_skipped > 0 else blabel, pad=0.12)
     def ltsize(n): return 15 if n < 15 else 8
     mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,

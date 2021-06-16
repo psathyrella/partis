@@ -62,9 +62,9 @@ class CorrCounter(object):
                 plotting.plot_smatrix(plotdir, '-vs-'.join(hk), xylists=(xvals, yvals), xlabel=plotconfig.plot_titles.get(hk[0], hk[0]), ylabel=plotconfig.plot_titles.get(hk[1], hk[1]), lfcn=lfcn, y_lfcn=y_lfcn, tdbg=debug)
 
         if not only_csv:
-            plotting.plot_smatrix(plotdir, 'adj-mis', smatrix=corr_vals, xybins=[[plotconfig.plot_titles.get(h, h) for h in self.all_headers] for _ in range(2)], float_vals=True, blabel='norm. mutual info.', tdbg=debug)
+            plotting.plot_smatrix(plotdir, 'mutual-infos', smatrix=corr_vals, xybins=[[plotconfig.plot_titles.get(h, h) for h in self.all_headers] for _ in range(2)], float_vals=True, blabel='norm. mutual info.', tdbg=debug)
 
             n_per_row = 3
             fnames = ['%s.svg' % '-vs-'.join(hk) for hk in self.hpairs]
-            fnames = [['adj-mis.svg']] + [fnames[i:i+n_per_row] for i in range(0, len(fnames), n_per_row)]
+            fnames = [['mutual-infos.svg']] + [fnames[i:i+n_per_row] for i in range(0, len(fnames), n_per_row)]
             plotting.make_html(plotdir, fnames=fnames)
