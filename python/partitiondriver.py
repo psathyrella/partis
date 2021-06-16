@@ -505,7 +505,7 @@ class PartitionDriver(object):
         """ Partition sequences in <self.input_info> into clonally related lineages """
         print 'partitioning     (with %s)' % self.sub_param_dir
         if self.sw_info is None:
-            self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile, count_parameters=self.args.count_parameters)  # run smith-waterman
+            self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile, count_parameters=False)  # self.args.count_parameters)  # run smith-waterman
         if len(self.sw_info['queries']) == 0:
             if self.args.outfname is not None:
                 self.write_output([], set())
