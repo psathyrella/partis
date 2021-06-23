@@ -145,9 +145,6 @@ class ParameterCounter(object):
         self.mfreqer.plot(plotdir + '/mute-freqs', only_csv=only_csv, only_overall=only_overall, make_per_base_plots=make_per_base_plots)
         if self.corrcounter is not None:
             self.corrcounter.plot(plotdir + '/correlations', only_csv=only_csv)
-        else:
-            if os.path.isdir(plotdir + '/correlations'):
-                os.rmdir(plotdir + '/correlations')
 
         overall_plotdir = plotdir + '/overall'
 
@@ -202,6 +199,8 @@ class ParameterCounter(object):
                 glutils.remove_glfo_files(base_outdir + '/' + glutils.glfo_dir, tmploc, print_warning=False)
         subdirs = ['hmms', 'mute-freqs', 'correlations', glutils.glfo_dir]  # need to clean correlations even if we're not writing it, since they might already be there from a previous run
         utils.prep_dir(base_outdir, subdirs=subdirs, wildlings=('*.csv', '*.yaml', '*.fasta'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
+        if self.corrcounter is None and os.path.isdir(base_outdir + '/correlations'):  # but if it is there, we want to rm it
+            os.rmdir(base_outdir + '/correlations')
 
         self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files)
         genes_with_counts = [g[0] for r in utils.regions for g in self.counts[r + '_gene'].keys()]
