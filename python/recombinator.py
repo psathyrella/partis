@@ -47,7 +47,7 @@ class Recombinator(object):
             for model in ['gtr', 'gamma']:
                 self.mute_models[region][model] = {}
 
-        self.allele_prevalence_freqs = glutils.read_allele_prevalence_freqs(args.allele_prevalence_fname) if args.allele_prevalence_fname is not None else {}
+        self.allele_prevalence_freqs = None if args.allele_prevalence_fname is None else glutils.read_allele_prevalence_freqs(args.allele_prevalence_fname)
         self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data (none if rearranging from scratch)
         self.insertion_content_probs = self.read_insertion_content()  # dummy/uniform if rearranging from scratch
         self.all_mute_freqs = {}  # NOTE see description of the difference in hmmwriter.py
@@ -306,17 +306,53 @@ class Recombinator(object):
         assert len(tmpline['in_frames']) == 1
 
     # ----------------------------------------------------------------------------------------
+    # restrict options according to the specified correlation value (corr of 1 means 1 option, of 0 means take all options)
+    def restrict_options_for_correlation(self, pthis, this_options, tmpline, all_other_options, probs=None, debug=True):  # return <this_options> (allowed values for parameter <pthis>) that has been restricted according to any correlations specified in self.correlation_values that are for keys already in <tmpline> (<all_other_options> contains the options for other ones)
+        for (param_pair), corr_val in self.args.correlation_values.items():
+            if pthis not in param_pair:
+                continue
+            pother = utils.get_single_entry([p for p in param_pair if p != pthis])
+            if pother not in tmpline:
+                continue
+            n_before = len(this_options)
+            iother = all_other_options[pother].index(tmpline[pother])
+            istart = iother % len(this_options)
+            n_to_take = max(1, int((1. - corr_val) * float(len(this_options))))
+            i_taken = [i % len(this_options) for i in range(istart, istart + n_to_take)]  # start from <istart> and add <n_to_take>, wrapping around to index 0 if necessary
+            if self.args.debug > 1:
+                def cstr(i, cfcn): return utils.color('red' if cfcn(i) else None, str(i), width=3)
+                print '     %s %s correlation: %.2f, taking max(1, (1 - %.2f) * %d) = %d starting from index %d %% %d = %d' % (param_pair[0], param_pair[1], corr_val, corr_val, len(this_options), n_to_take, iother, len(this_options), istart)
+                print '      %10s: %s' % (param_pair[0], ' '.join(cstr(i, lambda x: x==iother) for i in range(len(all_other_options[pother]))))
+                print '      %10s: %s' % (param_pair[1], ' '.join(cstr(i, lambda x: x in i_taken) for i in range(len(this_options))))
+            this_options = [this_options[i] for i in i_taken]
+            if probs is not None:
+                assert len(probs) == n_before
+                probs = [probs[i] for i in i_taken]
+                tot = sum(probs)
+                probs = [p / tot for p in probs]
+            if self.args.debug:
+                print '        reducing options for %s (after choosing %s) from %d to %d' % (pthis, pother, n_before, len(this_options))
+        return this_options, probs  # could just modify <this_options> but this makes it more obvious in the caller what's going on
+
+    # ----------------------------------------------------------------------------------------
     def get_scratchline(self):
         tmpline = {}
 
         # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
+        if self.args.correlation_values is not None:
+            original_allowed_genes = {}
         for region in utils.regions:
             if len(self.glfo['seqs'][region]) == 0:
                 raise Exception('no genes to choose from for %s' % region)
             probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
-            if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
-                probs = [self.allele_prevalence_freqs[region][g] for g in self.glfo['seqs'][region].keys()]
-            tmpline[region + '_gene'] = str(numpy.random.choice(self.glfo['seqs'][region].keys(), p=probs))  # order is arbitrary, but guaranteed to be the same as the previous line (https://docs.python.org/2/library/stdtypes.html#dict.items)
+            allowed_genes = sorted(self.glfo['seqs'][region].keys())  # sorted is really just to make the correlation stuff feel more repeatable (.keys() should have repeatable order within a version: https://docs.python.org/2/library/stdtypes.html#dict.items)
+            if self.allele_prevalence_freqs is not None:
+                if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
+                    probs = [self.allele_prevalence_freqs[region][g] for g in allowed_genes]
+            if self.args.correlation_values is not None:
+                original_allowed_genes[region+'_gene'] = copy.deepcopy(allowed_genes)
+                allowed_genes, probs = self.restrict_options_for_correlation(region+'_gene', allowed_genes, tmpline, original_allowed_genes, probs=probs)
+            tmpline[region + '_gene'] = str(numpy.random.choice(allowed_genes, p=probs))
         for effrode in utils.effective_erosions:
             tmpline[effrode + '_del'] = 0
         for effbound in utils.effective_boundaries:

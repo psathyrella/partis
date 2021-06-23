@@ -29,7 +29,8 @@ class CorrCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def clean_plots(self, plotdir):
-        utils.prep_dir(plotdir, wildlings=(('*.csv', '*.svg')))
+        pass
+        # utils.prep_dir(plotdir, wildlings=(('*.csv', '*.svg')))
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, debug=False):

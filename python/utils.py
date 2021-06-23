@@ -367,6 +367,8 @@ for column, deps in column_dependencies.iteritems():
     tmp_list.extend(deps)
     column_dependency_tuples.append(tuple(tmp_list))
 
+available_simu_correlations = [('v_gene', 'd_gene'), ('d_gene', 'j_gene'), ('v_gene', 'j_gene')]  # pairs of parameters for which you're allowed to specify correlations in simulation
+
 # ----------------------------------------------------------------------------------------
 adaptive_headers = {
     'seqs' : 'nucleotide',

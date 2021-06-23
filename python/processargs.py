@@ -381,6 +381,17 @@ def process(args):
         if args.fraction_of_reads_to_remove is not None:
             assert args.fraction_of_reads_to_remove > 0. and args.fraction_of_reads_to_remove < 1.
 
+        if args.correlation_values is not None:
+            args.correlation_values = utils.get_arg_list(args.correlation_values, key_val_pairs=True, floatify=True)
+            for kpstr in args.correlation_values.keys():
+                ppair = tuple(kpstr.split('.'))
+                if ppair not in utils.available_simu_correlations:
+                    raise Exception('parameter pair %s in --correlation-values not among allowed ones (%s)' % (ppair, ', '.join(str(p) for p in utils.available_simu_correlations)))
+                if args.correlation_values[kpstr] < 0. or args.correlation_values[kpstr] > 1.:
+                    raise Exception('correlation value %f not in [0, 1]' % args.correlation_values[kpstr])
+                args.correlation_values[ppair] = args.correlation_values[kpstr]
+                del args.correlation_values[kpstr]
+
     if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')
         if os.path.exists(args.parameter_dir):
