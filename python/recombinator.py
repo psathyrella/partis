@@ -11,6 +11,7 @@ import os
 import re
 import math
 import subprocess
+import scipy.stats
 
 import paramutils
 import utils
@@ -261,8 +262,48 @@ class Recombinator(object):
         return version_freq_table
 
     # ----------------------------------------------------------------------------------------
-    def try_scratch_erode_insert(self, tmpline, debug=False):
+    # restrict options according to the specified correlation value (corr of 1 means 1 option, of 0 means take all options)
+    def restrict_options_for_correlation(self, pthis, this_options, tmpline, all_other_options, probs=None, mean_max=None, debug=True):  # return <this_options> (allowed values for parameter <pthis>) that has been restricted according to any correlations specified in self.correlation_values that are for keys already in <tmpline> (<all_other_options> contains the options for other ones)
+        # NOTE this needs to be called even for parameters we don't want to restrict, at least for the all_other_options stuff at the bottom
+        if mean_max is not None:  # need to init list of possible values + probs
+            assert probs is None and this_options is None
+            mean_len, max_len = mean_max
+            this_options, probs = zip(*[(l - 1, scipy.stats.geom.pmf(l, 1. / mean_len)) for l in range(1, max_len + 1)])  # NOTE use of geometric distribution has to match len_fcn in try_scratch_erode_insert() NOTE also probs aren't normalized here, but that shouldn't matter NOTE also l-1 is to match similar subtractions in non-correlation code
+
+        for (param_pair), corr_val in self.args.correlation_values.items():
+            if pthis not in param_pair:
+                continue
+            pother = utils.get_single_entry([p for p in param_pair if p != pthis])
+            if pother not in tmpline:
+                continue
+            n_before = len(this_options)
+            iother = all_other_options[pother].index(tmpline[pother])
+            istart = iother % len(this_options)
+            n_to_take = max(1, int((1. - corr_val) * float(len(this_options))))
+            i_taken = [i % len(this_options) for i in range(istart, istart + n_to_take)]  # start from <istart> and add <n_to_take>, wrapping around to index 0 if necessary
+            if self.args.debug > 1:
+                def cstr(i, cfcn): return utils.color('red' if cfcn(i) else None, str(i), width=3)
+                print '     %s %s correlation: %.2f, taking max(1, (1 - %.2f) * %d) = %d starting from index %d %% %d = %d' % (param_pair[0], param_pair[1], corr_val, corr_val, len(this_options), n_to_take, iother, len(this_options), istart)
+                print '      %10s: %s' % (param_pair[0], ' '.join(cstr(i, lambda x: x==iother) for i in range(len(all_other_options[pother]))))
+                print '      %10s: %s' % (param_pair[1], ' '.join(cstr(i, lambda x: x in i_taken) for i in range(len(this_options))))
+            this_options = [this_options[i] for i in i_taken]
+            if probs is not None:
+                assert len(probs) == n_before
+                probs = [probs[i] for i in i_taken]
+            if self.args.debug:
+                print '        reducing options for %s (given previous choice of %s) from %d to %d' % (pthis, pother, n_before, len(this_options))
+
+        assert pthis not in all_other_options
+        all_other_options[pthis] = copy.deepcopy(this_options)  # NOTE maybe this should be before restricting them, rather than after? should be ok though
+
+        return this_options, utils.normalize(probs)  # could just modify <this_options> but this makes it more obvious in the caller what's going on
+
+    # ----------------------------------------------------------------------------------------
+    def try_scratch_erode_insert(self, tmpline, original_allowed_values=None, debug=False):
+        len_fcn = numpy.random.geometric  # has to match fcn in get_probs_for_correlation() NOTE also the -1 in several places
         utils.remove_all_implicit_info(tmpline)
+        if self.args.correlation_values is not None:
+            local_original_allowed_values = copy.deepcopy(original_allowed_values)
         for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
             region = erosion[0]
             gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
@@ -278,12 +319,25 @@ class Recombinator(object):
                     elif '5p' in erosion:
                         n_bases_to_codon = codon_pos
                     max_erosion = min(max_erosion, n_bases_to_codon)
-                tmpline[erosion + '_del'] = min(max_erosion, numpy.random.geometric(1. / utils.scratch_mean_erosion_lengths[self.args.locus][erosion]) - 1)
+                mean_len = utils.scratch_mean_erosion_lengths[self.args.locus][erosion]
+                if self.args.correlation_values is None:
+                    e_len = min(max_erosion, len_fcn(1. / mean_len) - 1)
+                else:
+                    lens, probs = self.restrict_options_for_correlation(erosion+'_del', None, tmpline, local_original_allowed_values, mean_max=(mean_len, max_erosion))
+                    e_len = numpy.random.choice(lens, p=probs)
+                tmpline[erosion + '_del'] = e_len
         for bound in utils.boundaries:
-            mean_length = utils.scratch_mean_insertion_lengths[self.args.locus][bound]
-            length = 0 if mean_length == 0 else numpy.random.geometric(1. / mean_length) - 1
-            probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
-            tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=length, p=probs))
+            mean_len = utils.scratch_mean_insertion_lengths[self.args.locus][bound]
+            if mean_len == 0:
+                i_len = 0  # mean_len if 0 means it *needs* to be zero, e.g. vd insertion for light chain
+            else:
+                if self.args.correlation_values is None:
+                    i_len = len_fcn(1. / mean_len) - 1
+                else:
+                    lens, probs = self.restrict_options_for_correlation(bound+'_insertion', None, tmpline, local_original_allowed_values, mean_max=(mean_len, 2*int(mean_len)))  # it's kind of weird to just limit it to twice the mean length here, but since restrict_options_for_correlation() doesn't account for probs when choosing which to keep, if we make it bigger we choose those super large values too frequently
+                    i_len = numpy.random.choice(lens, p=probs)  # maybe this should also always be 0 if mean_len is 0?
+            cnt_probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
+            tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=i_len, p=cnt_probs))
 
         if debug:
             print '    erosions:  %s' % ('   '.join([('%s %d' % (e, tmpline[e + '_del'])) for e in utils.real_erosions]))
@@ -306,41 +360,12 @@ class Recombinator(object):
         assert len(tmpline['in_frames']) == 1
 
     # ----------------------------------------------------------------------------------------
-    # restrict options according to the specified correlation value (corr of 1 means 1 option, of 0 means take all options)
-    def restrict_options_for_correlation(self, pthis, this_options, tmpline, all_other_options, probs=None, debug=True):  # return <this_options> (allowed values for parameter <pthis>) that has been restricted according to any correlations specified in self.correlation_values that are for keys already in <tmpline> (<all_other_options> contains the options for other ones)
-        for (param_pair), corr_val in self.args.correlation_values.items():
-            if pthis not in param_pair:
-                continue
-            pother = utils.get_single_entry([p for p in param_pair if p != pthis])
-            if pother not in tmpline:
-                continue
-            n_before = len(this_options)
-            iother = all_other_options[pother].index(tmpline[pother])
-            istart = iother % len(this_options)
-            n_to_take = max(1, int((1. - corr_val) * float(len(this_options))))
-            i_taken = [i % len(this_options) for i in range(istart, istart + n_to_take)]  # start from <istart> and add <n_to_take>, wrapping around to index 0 if necessary
-            if self.args.debug > 1:
-                def cstr(i, cfcn): return utils.color('red' if cfcn(i) else None, str(i), width=3)
-                print '     %s %s correlation: %.2f, taking max(1, (1 - %.2f) * %d) = %d starting from index %d %% %d = %d' % (param_pair[0], param_pair[1], corr_val, corr_val, len(this_options), n_to_take, iother, len(this_options), istart)
-                print '      %10s: %s' % (param_pair[0], ' '.join(cstr(i, lambda x: x==iother) for i in range(len(all_other_options[pother]))))
-                print '      %10s: %s' % (param_pair[1], ' '.join(cstr(i, lambda x: x in i_taken) for i in range(len(this_options))))
-            this_options = [this_options[i] for i in i_taken]
-            if probs is not None:
-                assert len(probs) == n_before
-                probs = [probs[i] for i in i_taken]
-                tot = sum(probs)
-                probs = [p / tot for p in probs]
-            if self.args.debug:
-                print '        reducing options for %s (after choosing %s) from %d to %d' % (pthis, pother, n_before, len(this_options))
-        return this_options, probs  # could just modify <this_options> but this makes it more obvious in the caller what's going on
-
-    # ----------------------------------------------------------------------------------------
     def get_scratchline(self):
         tmpline = {}
 
         # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
         if self.args.correlation_values is not None:
-            original_allowed_genes = {}
+            original_allowed_values = {}  # have to keep track of all the option we had for each parameter, in case a later parameter wants to be correlated with it
         for region in utils.regions:
             if len(self.glfo['seqs'][region]) == 0:
                 raise Exception('no genes to choose from for %s' % region)
@@ -350,8 +375,7 @@ class Recombinator(object):
                 if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
                     probs = [self.allele_prevalence_freqs[region][g] for g in allowed_genes]
             if self.args.correlation_values is not None:
-                original_allowed_genes[region+'_gene'] = copy.deepcopy(allowed_genes)
-                allowed_genes, probs = self.restrict_options_for_correlation(region+'_gene', allowed_genes, tmpline, original_allowed_genes, probs=probs)
+                allowed_genes, probs = self.restrict_options_for_correlation(region+'_gene', allowed_genes, tmpline, original_allowed_values, probs=probs)
             tmpline[region + '_gene'] = str(numpy.random.choice(allowed_genes, p=probs))
         for effrode in utils.effective_erosions:
             tmpline[effrode + '_del'] = 0
@@ -371,7 +395,7 @@ class Recombinator(object):
         # then choose the things that we may need to try a few times (physical deletions/insertions)
         itry = 0
         while itry == 0 or keep_trying(tmpline):  # keep trying until it's both in frame and has no stop codons
-            self.try_scratch_erode_insert(tmpline)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
+            self.try_scratch_erode_insert(tmpline, original_allowed_values=original_allowed_values)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
             itry += 1
             if itry % 50 == 0:
                 print '%s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry)

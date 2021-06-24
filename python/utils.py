@@ -156,6 +156,12 @@ def is_normed(probs, this_eps=eps):
         return math.fabs(probs - 1.0) < this_eps
 
 # ----------------------------------------------------------------------------------------
+# return copy of vlist with floats normalized to 1 (I kind of thought there was already a fcn that did this? maybe not)
+def normalize(vlist):
+    tot = sum(vlist)
+    return [v / float(tot) for v in vlist]
+
+# ----------------------------------------------------------------------------------------
 def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
@@ -367,7 +373,16 @@ for column, deps in column_dependencies.iteritems():
     tmp_list.extend(deps)
     column_dependency_tuples.append(tuple(tmp_list))
 
-available_simu_correlations = [('v_gene', 'd_gene'), ('d_gene', 'j_gene'), ('v_gene', 'j_gene')]  # pairs of parameters for which you're allowed to specify correlations in simulation
+# pairs of parameters for which you're allowed to specify correlations in simulation (note that the behavior is highly dependent on the order in which we choose to simulate parameter choice in scratch rearrangement)
+available_simu_correlations = [('v_gene', 'd_gene'), ('d_gene', 'j_gene'), ('v_gene', 'j_gene'),
+                               ('v_gene', 'v_3p_del'),
+                               ('d_gene', 'd_5p_del'), ('d_gene', 'd_3p_del'),
+                               ('j_gene', 'j_5p_del'),
+                               ('v_gene', 'vd_insertion'),
+                               ('d_gene', 'vd_insertion'),
+                               ('d_gene', 'dj_insertion'),
+                               ('j_gene', 'dj_insertion'),
+]
 
 # ----------------------------------------------------------------------------------------
 adaptive_headers = {
