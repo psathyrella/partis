@@ -165,7 +165,7 @@ class AlleleClusterer(object):
         clusterfos = []
         for cluster in partition:
             cfo = {'seqfos' : [{'name' : uid, 'seq' : all_seqs[uid]} for uid in cluster]}  # note that vsearch clustering also adds 'centroid', but I think it isn't subsequently used
-            cfo['cons_seq'] = utils.cons_seq(0.1, unaligned_seqfos=cfo['seqfos'])
+            cfo['cons_seq'] = utils.cons_seq(unaligned_seqfos=cfo['seqfos'])  # NOTE switching to the new fcn from old_bio_cons_seq() without testing
             clusterfos.append(cfo)
         return clusterfos
 

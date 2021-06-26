@@ -66,7 +66,7 @@ class PartitionPlotter(object):
     #         ref_label = 'seed seq'
     #         xref = annotation['n_mutations'][seed_index]
     #     else:
-    #         ref_seq = utils.cons_seq(0.1, aligned_seqfos=[{'name' : cluster[iseq], 'seq' : annotation['seqs'][iseq]} for iseq in range(len(cluster))])
+    #         ref_seq = utils.cons_seq(aligned_seqfos=[{'name' : cluster[iseq], 'seq' : annotation['seqs'][iseq]} for iseq in range(len(cluster))])
     #         ref_label = 'consensus seq'
     #         xref = utils.hamming_distance(annotation['naive_seq'], ref_seq)
 

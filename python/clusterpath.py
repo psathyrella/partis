@@ -532,7 +532,8 @@ class ClusterPath(object):
                 csc_str = '  (reduced: %s)' % ' '.join([str(csc) for csc in child_cons_seq_counts]) if total_descendent_leaves > n_max_cons_seqs else ''
                 print '      desc leaves per child: %s%s' % (' '.join(str(c.n_descendent_leaves) for c in node.child_node_iter()), csc_str)
             child_seqfos = [{'name' : cn.taxon.label + '-leaf-' + str(il), 'seq' : cn.seq} for cn, count in zip(node.child_node_iter(), child_cons_seq_counts) for il in range(count)]
-            node.seq = utils.cons_seq(0.01, aligned_seqfos=child_seqfos, tie_resolver_seq=getline(root_label)['naive_seq'])  #, debug=debug)  # the consensus has an N at every position where the constituent sequences gave a tie. But Ns screw up the distances (especially because once we *get* an N, we can't get rid of it and it's propagated all the way up the tree), and in almost all cases the correct choice should be the naive base, so we use that
+            # node.seq = utils.old_bio_cons_seq(0.01, aligned_seqfos=child_seqfos, tie_resolver_seq=getline(root_label)['naive_seq'])  #, debug=debug)  # the consensus has an N at every position where the constituent sequences gave a tie. But Ns screw up the distances (especially because once we *get* an N, we can't get rid of it and it's propagated all the way up the tree), and in almost all cases the correct choice should be the naive base, so we use that
+            node.seq = utils.cons_seq(aligned_seqfos=child_seqfos)  # UPDATE using new fcn that just picks one if there's a tie (and is ten times faster)
             node.n_descendent_leaves = total_descendent_leaves
             for edge in node.child_edge_iter():
                 from_fasttree = False

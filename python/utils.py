@@ -266,14 +266,21 @@ def get_all_amino_acids(no_stop=False, include_ambig=False):  # i'm not sure why
     if include_ambig:
         all_aas |= set(ambiguous_amino_acids)
     return all_aas
-def check_nuc_alphabet(seq):
-    nuc_alph = set(alphabet) | set(gap_chars)
-    if len(set(seq) - nuc_alph) > 0:
-        raise Exception('unexpected nuc chars[s]: %s (expected %s)' % (' '.join(set(seq) - nuc_alph), ' '.join(nuc_alph)))
-def check_aa_alphabet(seq):
-    aa_alph = get_all_amino_acids(include_ambig=True) | set(gap_chars)
-    if len(set(seq) - set(aa_alph)) > 0:
-        raise Exception('unexpected amino acid chars[s]: %s (expected %s)' % (' '.join(set(seq) - set(aa_alph)), ' '.join(aa_alph)))
+def check_nuc_alphabet(seq, only_warn=False):
+    check_alphabet(seq, aa=False)
+def check_aa_alphabet(seq, only_warn=False):
+    check_alphabet(seq, aa=True)
+def check_alphabet(seq, aa=False, only_warn=False):
+    if aa:
+        alph = get_all_amino_acids(include_ambig=True) | set(gap_chars)
+    else:
+        alph = set(alphabet) | set(gap_chars)
+    if len(set(seq) - set(alph)) > 0:
+        fstr = 'unexpected %s chars[s]: %s (expected %s)' % ('amino acid' if aa else 'nuc', ' '.join(set(seq) - set(alph)), ' '.join(alph))
+        if only_warn:
+            print '  %s %s' % (color('yellow', 'warning'), fstr)
+        else:
+            raise Exception(fstr)
 
 def cdn(glfo, region):  # returns None for d
     return conserved_codons[glfo['locus']].get(region, None)
@@ -1293,7 +1300,7 @@ def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq
             mstr = '%-3d' % sfo['multiplicity']
             if sfo['multiplicity'] > 1:
                 mstr = color('blue', mstr)
-        post_str = '   %2d  %5.2f    %s' % (sfo[ckey], sfo.get(hfkey, -1), mstr)
+        post_str = '   %2d  %5.2f    %s' % (sfo.get(ckey, -1), sfo.get(hfkey, -1), mstr)
         if 'cell-types' in sfo:  # if it's in one, it should be in all of 'em
             cl = str(max(len(str(s['cell-types'])) for s in seqfos))  # wasteful (but cleaner) to do this for eery sfo (also, str call is in case it's None)
             post_str += (' %'+cl+'s') % sfo['cell-types']
@@ -1303,10 +1310,67 @@ def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq
                       post_str='    tie resolver%s'%('' if tie_resolver_label is None else (' (%s)'%tie_resolver_label)), extra_str='  ', print_n_snps=True)
 
 # ----------------------------------------------------------------------------------------
-def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, tie_resolver_seq=None, tie_resolver_label=None, debug=False):
+# return consensus of either aligned or unaligned sequences, in chunks of length <codon_len>, with tied positions *not* ambiguous but instead chosen as the alphabetically first character[s]
+def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, debug=False):  # should maybe call it "chunk" rather than "codon", but if len is 3 it's a codon
+    if aligned_seqfos is not None:
+        assert unaligned_seqfos is None
+        seqfos = aligned_seqfos
+    elif unaligned_seqfos is not None:
+        assert aligned_seqfos is None
+        seqfos = align_many_seqs(unaligned_seqfos, aa=aa)
+    else:
+        assert False
+
+    for sfo in seqfos:
+        check_alphabet(sfo['seq'], aa=aa, only_warn=True)
+
+    seq_len = get_single_entry(list(set([len(s['seq']) for s in seqfos])))  # if this fails then the seqs that were passed in aren't all the same length
+    if debug:
+        print '  taking consensus of %d seqs with len %d in chunks of len %d' % (len(seqfos), seq_len, codon_len)
+        dbgfo = []
+        all_counts = {}  # keep track of usage of each codon/base/aa over full sequence for sorting of dbg info at end
+    cseq = []
+    for ipos in range(0, seq_len, codon_len):
+        pos_counts = {}
+        for sfo in seqfos:
+            mtpy = sfo['multiplicity'] if 'multiplicity' in sfo else 1
+            chnk = sfo['seq'][ipos : ipos + codon_len]  # if there's a partial codon at the end, it'll just stay as partial here, which seems fine (we could pad with pad_nuc_seq() if we wanted)
+            if chnk not in pos_counts:
+                pos_counts[chnk] = 0
+            pos_counts[chnk] += mtpy
+            if debug:
+                if chnk not in all_counts:
+                    all_counts[chnk] = 0
+                all_counts[chnk] += mtpy
+        srt_chunks = sorted(pos_counts.items(), key=operator.itemgetter(1), reverse=True)
+        n_max = srt_chunks[0][1]
+        best_chunks = [c for c, n in pos_counts.items() if n == n_max]
+        if debug:
+            # print '      %3d  %s' % (ipos, '  '.join('%s %d'%(color('red' if c in best_chunks and len(best_chunks) > 1 else None, c), n) for c, n in srt_chunks))
+            dbgfo.append({'best' : best_chunks, 'cnts' : pos_counts})
+        cseq.append(sorted(best_chunks)[0])  # if there's more than one tied for most, take the first sorted alphabetically (arbitrary, but at least repeatable)
+
+    if debug:
+        print '       ties: %s  (%s)' % (''.join(wfmt(len(dfo['best']), codon_len, fmt='d') if len(dfo['best'])>1 else ' '*codon_len for dfo in dbgfo), ',  '.join('%d: %s'%(i, ' '.join(sorted(dfo['best']))) for i, dfo in enumerate(dbgfo) if len(dfo['best'])>1))
+        print '   cons seq: %s' % ''.join(color('blue_bkg' if len(dfo['best'])>1 else None, c) for c, dfo in zip(cseq, dbgfo))
+        if debug > 1:
+            prlen = max(4, codon_len)
+            print '         ipos %s' % ''.join(wfmt(i, prlen, fmt='d') for i in range(len(dbgfo)))
+            for cstr, _ in sorted(all_counts.items(), key=operator.itemgetter(1), reverse=True):
+                print '         %s %s' % (wfmt(cstr, prlen), ''.join(wfmt(dfo['cnts'][cstr], prlen, fmt='d') if cstr in dfo['cnts'] else ' '*prlen for dfo in dbgfo))
+
+    cseq = ''.join(cseq)
+
+    if debug:
+        print_cons_seq_dbg(seqfos, cseq, aa=aa, align=aligned_seqfos is None)
+
+    return cseq
+
+# ----------------------------------------------------------------------------------------
+def old_bio_cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, tie_resolver_seq=None, tie_resolver_label=None, debug=False):
     """ return consensus sequence from either aligned or unaligned seqfos """
     # <threshold>: If the percentage*0.01 of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added. e.g. 0.1 means if fewer than 10% of sequences have the most common base, it gets an N.
-    # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (for us, this is usually the naive sequence) NOTE if you *don't* set this argument, all tied bases will be Ns
+    # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (we used to use the naive sequence for this, but now I don't think that makes sense) NOTE if you *don't* set this argument, all tied bases will be Ns
     from cStringIO import StringIO
     from Bio.Align import AlignInfo
     import Bio.AlignIO
@@ -1326,7 +1390,7 @@ def cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=False, ti
     else:
         fastalist = [fstr(sfo) for sfo in seqfos]
     alignment = Bio.AlignIO.read(StringIO('\n'.join(fastalist) + '\n'), 'fasta')
-    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous=ambiguous_amino_acids[0] if aa else ambig_base))
+    cons_seq = str(AlignInfo.SummaryInfo(alignment).gap_consensus(threshold, ambiguous=ambiguous_amino_acids[0] if aa else ambig_base))  # NOTE this is reliably *ten* goddamn times slower than my silly fcn ^ (*just* the gap_consensus() call, i.e. excluding everything else)
 
     if tie_resolver_seq is not None:  # huh, maybe it'd make more sense to just pass in the tie-breaker sequence to the consensus fcn?
         assert len(tie_resolver_seq) == len(cons_seq)
@@ -1354,27 +1418,27 @@ def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False):
 
 # ----------------------------------------------------------------------------------------
 # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
-def cons_seq_of_line(line, aa=False, threshold=0.01, use_input_seqs=False):  # NOTE unlike general version above, this sets a default threshold (since we mostly want to use it for lb calculations)
+def cons_seq_of_line(line, aa=False, use_input_seqs=False):
     aligned_seqfos = seqfos_from_line(line, aa=aa, use_input_seqs=use_input_seqs)
     unaligned_seqfos = None
     # if any(indelutils.has_indels_line(line, i) for i in range(len(line['unique_ids']))):  NOTE *don't* use this, only align if you need to
     if len(set(len(s['seq']) for s in aligned_seqfos)) > 1:  # this will probably only happen if use_input_seqs is set and there's shm indels
         unaligned_seqfos = aligned_seqfos
         aligned_seqfos = None
-    return cons_seq(threshold, aligned_seqfos=aligned_seqfos, unaligned_seqfos=unaligned_seqfos, aa=aa) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+    return cons_seq(aligned_seqfos=aligned_seqfos, unaligned_seqfos=unaligned_seqfos, aa=aa) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
 # ----------------------------------------------------------------------------------------
     # Leaving the old version below for the moment just for reference.
     # It got the aa cons seq just by translating the nuc one, which is *not* what we want, since it can give you spurious ambiguous bases in the aa cons seq, e.g. if A and C tie at a position (so nuc cons seq has N there), but with either base it still codes for the same aa.
     # if aa:
-    #     cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line, aa=False, threshold=threshold)  # get the nucleotide cons seq, calculating it if it isn't already there NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
+    #     cseq = line['consensus_seq'] if 'consensus_seq' in line else cons_seq_of_line(line, aa=False)  # get the nucleotide cons seq, calculating it if it isn't already there NOTE do *not* use .get(), since in python all function arguments are evaluated *before* the call is excecuted, i.e. it'll call the consensus fcn even if the key is already there
     #     return ltranslate(cseq)
     # else:  # this is fairly slow
     #     aligned_seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m} for u, s, m in zip(line['unique_ids'], line['seqs'], get_multiplicities(line))]
-    #     return cons_seq(threshold, aligned_seqfos=aligned_seqfos) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+    #     return cons_seq(aligned_seqfos=aligned_seqfos) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
 # ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
-def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=None, threshold=0.01, debug=False):  # yeah yeah the name is too long, but it's clear, isn't it?
+def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=None, debug=False):  # yeah yeah the name is too long, but it's clear, isn't it?
     # NOTE i started to write this so that for small n_sampled it took several different subsamples, but i think that isn't a good idea since we want to make sure they're independent
     def get_step(n_sampled):
         if n_sample_step is not None:  # calling fcn can set it explicitly
@@ -1412,7 +1476,7 @@ def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=
     info = {ct : {'n_sampled' : [], 'cseqs' : [], 'hdists' : None} for ct in ctypes}
     for n_sampled in get_n_sample_list(n_total):
         seqfos = [{'name' : line['unique_ids'][i], 'seq' : line['seqs'][i]} for i in numpy.random.choice(range(n_total), size=n_sampled, replace=False)]
-        cseq = cons_seq(threshold, aligned_seqfos=seqfos)  # if we're sampling few enough that ties are frequent, then this doesn't really do what we want (e.g. there's a big oscillation for odd vs even n_sampled, I think because even ones have more ambiguous bases which don't count against them). But it doesn't matter, since ties are only at all frequent for families smaller than we care about (like, less than 10).
+        cseq = cons_seq(aligned_seqfos=seqfos)  # if we're sampling few enough that ties are frequent, then this doesn't really do what we want (e.g. there's a big oscillation for odd vs even n_sampled, I think because even ones have more ambiguous bases which don't count against them). But it doesn't matter, since ties are only at all frequent for families smaller than we care about (like, less than 10).
         for ctype in ctypes:
             info[ctype]['n_sampled'].append(n_sampled)
         info['nuc']['cseqs'].append(cseq)
@@ -1485,7 +1549,8 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
     if print_result:
         lwidth = max(len_excluding_colors(ref_label), len_excluding_colors(seq_label))
         if not only_print_seq:
-            print '%s%s%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_seq, '  hdist' if print_n_snps else '', post_ref_str)
+            ref_print_str = ''.join([color('blue' if c in tmp_ambigs + tmp_gaps else None, c) for c in ref_seq])
+            print '%s%s%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_print_str, '  hdist' if print_n_snps else '', post_ref_str)
         print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + n_snp_str + post_str + isnp_str + hfrac_str)
 
     return_list = [extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str]

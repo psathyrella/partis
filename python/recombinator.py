@@ -264,7 +264,7 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     # restrict options according to the specified correlation value (corr of 1 means 1 option, of 0 means take all options)
     def restrict_options_for_correlation(self, pthis, this_options, tmpline, all_other_options, probs=None, mean_max=None, debug=True):  # return <this_options> (allowed values for parameter <pthis>) that has been restricted according to any correlations specified in self.correlation_values that are for keys already in <tmpline> (<all_other_options> contains the options for other ones)
-        # NOTE this needs to be called even for parameters we don't want to restrict, at least for the all_other_options stuff at the bottom
+        # NOTE this needs to be called even for parameters we don't want to restrict, for the all_other_options stuff at the bottom (plus maybe other stuff)
         if mean_max is not None:  # need to init list of possible values + probs
             assert probs is None and this_options is None
             mean_len, max_len = mean_max
@@ -300,7 +300,7 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def try_scratch_erode_insert(self, tmpline, original_allowed_values=None, debug=False):
-        len_fcn = numpy.random.geometric  # has to match fcn in get_probs_for_correlation() NOTE also the -1 in several places
+        len_fcn = numpy.random.geometric  # has to match fcn in restrict_options_for_correlation() NOTE also the -1 in several places
         utils.remove_all_implicit_info(tmpline)
         if self.args.correlation_values is not None:
             local_original_allowed_values = copy.deepcopy(original_allowed_values)
