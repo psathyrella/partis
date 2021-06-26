@@ -6,19 +6,20 @@ caching parameters
     keeping 23 / 220 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 48 / 48 v annotations (0 failed) with 23 v genes in 0.1 sec
+  removing old sw cache test/paired/new-results/test/parameters/data/igh/sw-cache.yaml
     running 10 procs for 48 seqs
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
-    water time: 0.1  (ig-sw 0.0  processing 0.1)
+    water time: 0.2  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 48 / 48 v annotations (0 failed) with 23 v genes in 0.1 sec
     running 10 procs for 48 seqs
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
         writing sw results to test/paired/new-results/test/parameters/data/igh/sw-cache.yaml
-    writing parameters to test/paired/new-results/test/parameters/data/igh/sw (1.9 sec)
-    water time: 2.2  (ig-sw 2.0  processing 0.2)
-  writing hmms (0.3 sec)
+    writing parameters to test/paired/new-results/test/parameters/data/igh/sw (1.8 sec)
+    water time: 2.1  (ig-sw 2.0  processing 0.2)
+  writing hmms (0.2 sec)
 hmm
     running 10 procs
                     calcd:         vtb 48        fwd  0
@@ -29,13 +30,14 @@ hmm
          infra time: 1.7
       hmm step time: 2.2
   writing hmms (0.2 sec)
-      total time: 5.5
+      total time: 5.4
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igk --n-max-queries 50 --random-seed 1 --n-procs 10 --infname test/paired-data/igk.fa --sw-cachefname test/paired/new-results/test/parameters/data/igk/sw-cache.yaml
 caching parameters
   vsearch: 37 / 37 v annotations (0 failed) with 17 v genes in 0.1 sec
     keeping 16 / 58 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
+  removing old sw cache test/paired/new-results/test/parameters/data/igk/sw-cache.yaml
     running 10 procs for 37 seqs
       info for 37 / 37 = 1.000   (removed: 0 failed)
       kept 1 (0.027) unproductive
@@ -48,7 +50,7 @@ smith-waterman  (writing parameters)
         writing sw results to test/paired/new-results/test/parameters/data/igk/sw-cache.yaml
     writing parameters to test/paired/new-results/test/parameters/data/igk/sw (1.3 sec)
     water time: 1.6  (ig-sw 1.4  processing 0.1)
-  writing hmms (0.1 sec)
+  writing hmms (0.2 sec)
 hmm
     running 10 procs
                     calcd:         vtb 37        fwd  0
@@ -66,6 +68,7 @@ caching parameters
     keeping 10 / 70 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.0 sec
+  removing old sw cache test/paired/new-results/test/parameters/data/igl/sw-cache.yaml
     running 10 procs for 15 seqs
       info for 15 / 15 = 1.000   (removed: 0 failed)
     water time: 0.1  (ig-sw 0.0  processing 0.1)
@@ -75,7 +78,7 @@ smith-waterman  (writing parameters)
       info for 15 / 15 = 1.000   (removed: 0 failed)
         writing sw results to test/paired/new-results/test/parameters/data/igl/sw-cache.yaml
     writing parameters to test/paired/new-results/test/parameters/data/igl/sw (0.9 sec)
-    water time: 1.1  (ig-sw 1.0  processing 0.1)
+    water time: 1.0  (ig-sw 0.9  processing 0.1)
   writing hmms (0.1 sec)
 hmm
     running 10 procs
@@ -84,169 +87,170 @@ hmm
     reading output
         read 15 hmm output lines with 15 sequences in 15 events  (0 failures)
     writing parameters to test/paired/new-results/test/parameters/data/igl/hmm (0.7 sec)
-         infra time: 0.7
+         infra time: 0.8
       hmm step time: 0.9
   writing hmms (0.1 sec)
       total time: 2.5
-      total time: 12.6
+      total time: 12.7
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --paired-loci --parameter-dir test/paired/new-results/test/parameters/data --n-sim-events 10 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/test/simu --indel-frequency 0.2
+    cleaning paired files in test/paired/new-results/test/simu/
 [94migh+igk[0m: simulating 7 events
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-trees 7 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 845101047 --indel-frequency 0.2 --generate-trees --outfname test/paired/new-results/test/simu/igh+igk/trees.nwk
   generating 7 trees, n-leaves from geometric distribution with parameter 5.0
     mean over 7 trees:   depth 0.04071   leaves 6.71
     writing trees to test/paired/new-results/test/simu/igh+igk/trees.nwk
-      total time: 1.0
+      total time: 1.3
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 845101047 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --input-simulation-treefname test/paired/new-results/test/simu/igh+igk/trees.nwk --outfname test/paired/new-results/test/simu/igh+igk/igh.yaml
   note: reducing --n-procs to 7 (was 10) so it isn't bigger than --n-sim-events
 simulating
-      --> proc 6
-    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/211043/trees-sub-6.nwk
-    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.1
-
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/211043/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/648364/trees-sub-1.nwk
     made 1 event with 4 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.5
+
+      --> proc 6
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/648364/trees-sub-6.nwk
+    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 0.4
 
       --> proc 4
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/211043/trees-sub-4.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/648364/trees-sub-4.nwk
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.4
 
       --> proc 5
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/211043/trees-sub-5.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/648364/trees-sub-5.nwk
     made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.4
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/211043/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/648364/trees-sub-2.nwk
     made 1 event with 7 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.5
 
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/211043/trees-sub-0.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/648364/trees-sub-0.nwk
     made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.6
 
       --> proc 3
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/211043/trees-sub-3.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/648364/trees-sub-3.nwk
     made 1 event with 21 seqs in 0.3s (0.3s of which was running bppseqgen)
-      total time: 0.3
+      total time: 0.6
 
    read 7 events with 47 seqs from 7 .yaml files
-      total time: 0.8
+      total time: 1.2
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igk --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 845101047 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --input-simulation-treefname test/paired/new-results/test/simu/igh+igk/trees.nwk --outfname test/paired/new-results/test/simu/igh+igk/igk.yaml
   note: reducing --n-procs to 7 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 4
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8321/trees-sub-4.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/703178/trees-sub-4.nwk
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.1
-
-      --> proc 6
-    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8321/trees-sub-6.nwk
-    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.1
-
-      --> proc 5
-    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8321/trees-sub-5.nwk
-    made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.1
+      total time: 0.4
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8321/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/703178/trees-sub-1.nwk
     made 1 event with 4 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.4
+
+      --> proc 5
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/703178/trees-sub-5.nwk
+    made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 0.4
+
+      --> proc 6
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/703178/trees-sub-6.nwk
+    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 0.4
 
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8321/trees-sub-0.nwk
-    made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.2
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/703178/trees-sub-0.nwk
+    made 1 event with 10 seqs in 0.2s (0.1s of which was running bppseqgen)
+      total time: 0.5
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8321/trees-sub-2.nwk
-    made 1 event with 7 seqs in 0.2s (0.1s of which was running bppseqgen)
-      total time: 0.2
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/703178/trees-sub-2.nwk
+    made 1 event with 7 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 0.4
 
       --> proc 3
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8321/trees-sub-3.nwk
-    made 1 event with 21 seqs in 0.3s (0.2s of which was running bppseqgen)
-      total time: 0.3
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/703178/trees-sub-3.nwk
+    made 1 event with 21 seqs in 0.3s (0.3s of which was running bppseqgen)
+      total time: 0.6
 
    read 7 events with 47 seqs from 7 .yaml files
-      total time: 0.7
+      total time: 1.2
 [94migh+igl[0m: simulating 3 events
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-trees 3 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 848101038 --indel-frequency 0.2 --generate-trees --outfname test/paired/new-results/test/simu/igh+igl/trees.nwk
   generating 3 trees, n-leaves from geometric distribution with parameter 5.0
     mean over 3 trees:   depth 0.01833   leaves 8.00
     writing trees to test/paired/new-results/test/simu/igh+igl/trees.nwk
-      total time: 1.1
+      total time: 1.2
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 848101038 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --input-simulation-treefname test/paired/new-results/test/simu/igh+igl/trees.nwk --outfname test/paired/new-results/test/simu/igh+igl/igh.yaml
   note: reducing --n-procs to 3 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/129849/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/646320/trees-sub-1.nwk
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.1
+      total time: 0.4
 
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/129849/trees-sub-0.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/646320/trees-sub-0.nwk
     made 1 event with 13 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.5
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/129849/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/646320/trees-sub-2.nwk
     made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.4
 
    read 3 events with 24 seqs from 3 .yaml files
-      total time: 0.6
+      total time: 0.9
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igl --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 848101038 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --input-simulation-treefname test/paired/new-results/test/simu/igh+igl/trees.nwk --outfname test/paired/new-results/test/simu/igh+igl/igl.yaml
   note: reducing --n-procs to 3 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/208697/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/934034/trees-sub-1.nwk
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.1
+      total time: 0.3
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/208697/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/934034/trees-sub-2.nwk
     made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.4
 
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/208697/trees-sub-0.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/934034/trees-sub-0.nwk
     made 1 event with 13 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.2
+      total time: 0.5
 
    read 3 events with 24 seqs from 3 .yaml files
-      total time: 0.5
+      total time: 1.0
 [94migh+igk[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results/test/simu/igh+igk/
 [94migh+igl[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results/test/simu/igh+igl/
 [91mrun[0m cd test/paired/new-results/test/simu && ln -sf igh+igk/igk.yaml igk.yaml
 [91mrun[0m cd test/paired/new-results/test/simu && ln -sf igh+igl/igl.yaml igl.yaml
-      total time: 6.4
+      total time: 8.6
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
   note: adding --input-metafname from default location test/paired/new-results/test/simu/meta.yaml
@@ -258,6 +262,7 @@ caching parameters
     [91mmissing[0m 19 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-18[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-46[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-8[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-5[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-33[0m[93m01[0m 10  [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-66[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-74[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-31[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-4[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-59[0m[93mi02[0m 0
 smith-waterman  (new-allele fitting)
   vsearch: 71 / 71 v annotations (0 failed) with 5 v genes in 0.1 sec
+  removing old sw cache test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
     running 10 procs for 71 seqs
     running 11 procs for 3 seqs
       info for 71 / 71 = 1.000   (removed: 0 failed)
@@ -279,12 +284,12 @@ hmm
              min-max time:  0.2 - 0.3 sec
     reading output
         read 71 hmm output lines with 71 sequences in 71 events  (0 failures)
-    writing parameters to test/paired/new-results/test/parameters/simu/igh/hmm (0.3 sec)
+    writing parameters to test/paired/new-results/test/parameters/simu/igh/hmm (0.4 sec)
     writing parameters to test/paired/new-results/test/parameters/simu/igh/true (0.3 sec)
          infra time: 0.8
-      hmm step time: 1.1
+      hmm step time: 1.2
   writing hmms (0.1 sec)
-      total time: 2.8
+      total time: 2.9
   note: adding --input-metafname from default location test/paired/new-results/test/simu/meta.yaml
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results/test/simu/igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafname test/paired/new-results/test/simu/meta.yaml
   --input-metafname: added meta info for 47 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
@@ -294,6 +299,7 @@ caching parameters
     [91mmissing[0m 9 simulation genes (counts): [95mk[0m[91mv[0m[95m1[0m[95m-12[0m[93m02[0m 0  [95mk[0m[91mv[0m[95m1[0m[95m-13[0m[93m02[0m 0  [95mk[0m[91mv[0m[95m1[0m[95m-27[0m[93m01[0m 0  [95mk[0m[91mv[0m[95m1[0m[95m-33[0m[93m01[0m 0  [95mk[0m[91mv[0m[95m1[0m[95m-5[0m[93m01[0m 0  [95mk[0m[91mv[0m[95m1[0m[95m-8[0m[93m01[0m 0  [95mk[0m[91mv[0m[95m1[0m[95m-9[0m[93m01[0m 0  [95mk[0m[91mv[0m[95m4[0m[95m-1[0m[93m01[0m 0  [95mk[0m[91mv[0m[95m6[0m[95m-21[0m[93m01[0m 0
 smith-waterman  (new-allele fitting)
   vsearch: 47 / 47 v annotations (0 failed) with 7 v genes in 0.1 sec
+  removing old sw cache test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
     running 10 procs for 47 seqs
     running 11 procs for 3 seqs
       info for 47 / 47 = 1.000   (removed: 0 failed)
@@ -317,10 +323,10 @@ hmm
         read 47 hmm output lines with 47 sequences in 47 events  (0 failures)
     writing parameters to test/paired/new-results/test/parameters/simu/igk/hmm (0.5 sec)
     writing parameters to test/paired/new-results/test/parameters/simu/igk/true (0.5 sec)
-         infra time: 1.1
+         infra time: 1.2
       hmm step time: 1.4
   writing hmms (0.1 sec)
-      total time: 3.1
+      total time: 3.2
   note: adding --input-metafname from default location test/paired/new-results/test/simu/meta.yaml
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results/test/simu/igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafname test/paired/new-results/test/simu/meta.yaml
   --input-metafname: added meta info for 24 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
@@ -330,13 +336,14 @@ caching parameters
     [91mmissing[0m 7 simulation genes (counts): [95ml[0m[91mv[0m[95m1[0m[95m-51[0m[93m02[0m 0  [95ml[0m[91mv[0m[95m2[0m[95m-14[0m[93m01[0m 0  [95ml[0m[91mv[0m[95m2[0m[95m-23[0m[93m02[0m 0  [95ml[0m[91mv[0m[95m3[0m[95m-19[0m[93m01[0m 0  [95ml[0m[91mv[0m[95m4[0m[95m-60[0m[93m03[0m 0  [95ml[0m[91mv[0m[95m7[0m[95m-46[0m[93m01[0m 0  [95ml[0m[91mv[0m[95m8[0m[95m-61[0m[93m01[0m 0
 smith-waterman  (new-allele fitting)
   vsearch: 24 / 24 v annotations (0 failed) with 3 v genes in 0.1 sec
+  removing old sw cache test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
     running 10 procs for 24 seqs
     running 11 procs for 2 seqs
       info for 24 / 24 = 1.000   (removed: 0 failed)
       kept 15 (0.625) unproductive
     water time: 0.2  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 24 / 24 v annotations (0 failed) with 3 v genes in 0.0 sec
+  vsearch: 24 / 24 v annotations (0 failed) with 3 v genes in 0.1 sec
     running 10 procs for 24 seqs
     running 11 procs for 2 seqs
       info for 24 / 24 = 1.000   (removed: 0 failed)
@@ -354,10 +361,10 @@ hmm
     writing parameters to test/paired/new-results/test/parameters/simu/igl/hmm (0.2 sec)
     writing parameters to test/paired/new-results/test/parameters/simu/igl/true (0.2 sec)
          infra time: 0.5
-      hmm step time: 0.6
+      hmm step time: 0.7
   writing hmms (0.1 sec)
-      total time: 1.9
-      total time: 8.7
+      total time: 2.0
+      total time: 9.0
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --n-precache-procs 10 --plot-annotation-performance --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/partition-new-simu
   note: adding --input-metafname from default location test/paired/new-results/test/simu/meta.yaml
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --n-precache-procs 10 --plot-annotation-performance --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igh --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igh.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafname test/paired/new-results/test/simu/meta.yaml
@@ -396,7 +403,6 @@ caching all 71 naive sequences
                     calcd:         vtb 11        fwd  5
                    merged:       hfrac  6     lratio  1
              min-max time:  0.0 - 0.2 sec
-         infra time: 0.1
       hmm step time: 0.3
 26 clusters with 5 procs
     running 5 procs
@@ -417,14 +423,14 @@ caching all 71 naive sequences
           read from cache:  naive-seqs 100   logprobs 33
                     calcd:         vtb  6        fwd  2
                    merged:       hfrac  5     lratio  0
-             min-max time:  0.1 - 0.4 sec
+             min-max time:  0.1 - 0.3 sec
       hmm step time: 0.4
 17 clusters with 1 proc
     running 1 proc
           read from cache:  naive-seqs 106   logprobs 35
                     calcd:         vtb  4        fwd 19
                    merged:       hfrac  4     lratio  0
-                     time:  0.8 sec
+                     time:  0.7 sec
       hmm step time: 0.8
   [93mnote[0m not merging entire cpath history
       loop time: 2.6
@@ -446,7 +452,7 @@ getting annotations for final partition
     read 10 new subcluster annotations: added hashid 10   whole finished 0   subcl finished 3
     running 10 procs
                     calcd:         vtb   3        fwd   0
-             min-max time:  0.0 - 0.2 sec
+             min-max time:  0.0 - 0.1 sec
     reading output
         read 3 hmm output lines with 7 sequences in 3 events  (0 failures)
       hmm step time: 0.2
@@ -485,7 +491,7 @@ caching all 47 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/956187/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/482322/hmm_cached_info.csv
          infra time: 0.1
       hmm step time: 0.2
 10 clusters with 7 procs
@@ -508,7 +514,7 @@ caching all 47 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/956187/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/482322/hmm_cached_info.csv
       hmm step time: 0.1
 9 clusters with 2 procs
     running 2 procs
@@ -516,7 +522,7 @@ caching all 47 naive sequences
                     calcd:         vtb  1        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.1 sec
-      hmm step time: 0.2
+      hmm step time: 0.1
 9 clusters with 1 proc
     running 1 proc
           read from cache:  naive-seqs 52   logprobs  0
@@ -529,9 +535,10 @@ getting annotations for final partition
   subcluster annotating 9 clusters: 
     running 9 procs
                     calcd:         vtb 20        fwd  0
-             min-max time:  0.1 - 0.1 sec
+             min-max time:  0.1 - 0.2 sec
     reading output
         read 20 hmm output lines with 47 sequences in 20 events  (0 failures)
+         infra time: 0.1
       hmm step time: 0.3
     read 20 new subcluster annotations: added hashid 15   whole finished 5   subcl finished 0
     running 9 procs
@@ -543,7 +550,7 @@ getting annotations for final partition
     read 6 new subcluster annotations: added hashid 6   whole finished 0   subcl finished 3
     running 9 procs
                     calcd:         vtb  1        fwd  0
-             min-max time:  0.0 - 0.0 sec
+             min-max time:  0.0 - 0.1 sec
     reading output
         read 1 hmm output lines with 3 sequences in 1 events  (0 failures)
       hmm step time: 0.1
@@ -563,7 +570,7 @@ smith-waterman
       info for 24 / 24 = 1.000   (removed: 0 failed, 0 duplicates)
       kept 15 (0.625) unproductive
   plotting performance (0.0 sec)
-        water time: 0.3
+        water time: 0.4
 hmm
 caching all 24 naive sequences
     running 10 procs
@@ -580,7 +587,7 @@ caching all 24 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/551535/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/781387/hmm_cached_info.csv
     [91mwarning[0m null partition (one of the processes probably got passed zero sequences)
     [91mwarning[0m null partition (one of the processes probably got passed zero sequences)
     [91mwarning[0m null partition (one of the processes probably got passed zero sequences)
@@ -596,7 +603,7 @@ caching all 24 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/551535/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/781387/hmm_cached_info.csv
     [91mwarning[0m null partition (one of the processes probably got passed zero sequences)
     [91mwarning[0m null partition (one of the processes probably got passed zero sequences)
     [91mwarning[0m null partition (one of the processes probably got passed zero sequences)
@@ -608,7 +615,7 @@ caching all 24 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/551535/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/781387/hmm_cached_info.csv
     [91mwarning[0m null partition (one of the processes probably got passed zero sequences)
     [91mwarning[0m null partition (one of the processes probably got passed zero sequences)
       hmm step time: 0.1
@@ -618,7 +625,7 @@ caching all 24 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/551535/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/781387/hmm_cached_info.csv
       hmm step time: 0.1
 3 clusters with 2 procs
     running 2 procs
@@ -626,7 +633,7 @@ caching all 24 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/551535/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/781387/hmm_cached_info.csv
       hmm step time: 0.1
 3 clusters with 1 proc
     running 1 proc
@@ -661,7 +668,7 @@ getting annotations for final partition
     read 2 new subcluster annotations: added hashid 2   whole finished 0   subcl finished 2
   plotting performance (0.0 sec)
     subcluster annotation time 0.5
-      total time: 2.0
+      total time: 2.1
     truncating x bins 2 --> 12 and ybins 2 --> 12
     truncating x bins 3 --> 15 and ybins 3 --> 15
 [94migh+igk[0m: synchronizing heavy and light chain cluster paths
@@ -695,7 +702,7 @@ hmm
              min-max time:  0.1 - 0.2 sec
     reading output
         read 21 hmm output lines with 47 sequences in 21 events  (0 failures)
-      hmm step time: 0.3
+      hmm step time: 0.2
     read 21 new subcluster annotations: added hashid 15   whole finished 6   subcl finished 0
     running 10 procs
                     calcd:         vtb  6        fwd  0
@@ -709,7 +716,7 @@ hmm
              min-max time:  0.0 - 0.1 sec
     reading output
         read 1 hmm output lines with 3 sequences in 1 events  (0 failures)
-      hmm step time: 0.1
+      hmm step time: 0.2
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
     subcluster annotation time 0.6
       total time: 0.7
@@ -733,7 +740,7 @@ hmm
              min-max time:  0.1 - 0.1 sec
     reading output
         read 21 hmm output lines with 47 sequences in 21 events  (0 failures)
-      hmm step time: 0.3
+      hmm step time: 0.2
     read 21 new subcluster annotations: added hashid 15   whole finished 6   subcl finished 0
     running 10 procs
                     calcd:         vtb  6        fwd  0
@@ -799,7 +806,7 @@ hmm
       hmm step time: 0.2
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
     subcluster annotation time 0.5
-      total time: 0.6
+      total time: 0.7
   need to get annotations for 4/5 joint igl clusters
     removed 2 arg strs that were specific to action 'partition': --n-precache-procs 10
   note: adding --input-metafname from default location test/paired/new-results/test/simu/meta.yaml
@@ -831,13 +838,13 @@ hmm
     read 3 new subcluster annotations: added hashid 3   whole finished 0   subcl finished 1
     running 10 procs
                     calcd:         vtb  1        fwd  0
-             min-max time:  0.0 - 0.0 sec
+             min-max time:  0.0 - 0.1 sec
     reading output
         read 1 hmm output lines with 2 sequences in 1 events  (0 failures)
       hmm step time: 0.1
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
     subcluster annotation time 0.4
-      total time: 0.4
+      total time: 0.5
 [91mrun[0m cd test/paired/new-results/partition-new-simu && ln -sf igh+igk/partition-igk.yaml partition-igk.yaml
 [91mrun[0m cd test/paired/new-results/partition-new-simu && ln -sf igh+igl/partition-igl.yaml partition-igl.yaml
    N clusters with all seqs:
@@ -863,7 +870,7 @@ hmm
       purity:       20.4 / 24 = 0.848
       completeness: 24.0 / 24 = 1.000
   [93mwarning[0m ignoring --plot-annotation-performance for paired clustering since it's going to be a bit fiddly to implement
-      total time: 14.9
+      total time: 15.0
 [92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --paired-loci --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/partition-new-simu --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igh.yaml
   note: --parameter-dir not set, so using default: xxx-dummy-xxx
@@ -875,7 +882,7 @@ getting selection metrics
     (AA inf tree, iclust 0): calculating normalized lb metrics with tau values 0.0025 (lbi) and 0.0025 * 20 = 0.0500 (lbr)
       tree origins: 1 made from cpath
   writing selection metrics to test/paired/new-results/partition-new-simu/igh+igk/partition-igh-selection-metrics.yaml
-      total time: 0.3
+      total time: 0.2
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igk --dont-write-git-info --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igk.yaml
   note: --parameter-dir not set, so using default: xxx-dummy-xxx
 getting selection metrics
@@ -927,56 +934,5 @@ getting selection metrics
     no tree info in 9 annotations (probably smaller than min tree metric cluster size)
     no tree info in 4 annotations (probably smaller than min tree metric cluster size)
     2 h/l pairs: 19 19,  12 12
-    iclust 0: choosing abs from joint cluster with size 19 (marked with [92mx[0m)
-        less than half (5 / 19 = 0.26) of h seqs have indels, so not using input seqs for cons seq
-        less than half (6 / 19 = 0.32) of l seqs have indels, so not using input seqs for cons seq
-        [92mx[0m: added cons seq
-          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 3005348913031667846-igh 3005348913031667846-igk
-          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 3554160421567371456-igh 3554160421567371456-igk
-        aa-cfrac: chose 5
-      chose 6 total
-             aa-cfrac (%)      aa-cdist         droplet        contig indels    N    %shm   N aa mutations     sizes               genes    cons: [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGFTFSIYAMHWVRQAPGKGLEWVAVISYDGSNKYYADSVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYCARED*LNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             sum   h    l       h   l                           h  l   h l    h   l   nuc   cons.     obs.   both   h   l                  naive: [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGFTFS[91mS[0mYAMHWVRQAPGKGLEWVAVISYDGSNKYYADSVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYCARED[91mY[0mLNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-       [94mh[0m [95mk[0m   3.4  3.4  0.0      4   0   [92mx[0m  8307041308782013021  h  k           1   2  1.8    2  0   6  6  0    19   19  19    [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m04[0m [95mk[0m[91mv[0m[95m1[0m[95m-39[0m[93m01[0m   [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGFTFSIYAMHWVRQAPGKG[91mV[0mEWVAVIS[91mN[0mDGSNK[91mS[0mYADSVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYC[91mS[0mRED*LNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             3.5  2.5  0.9      3   1   [92mx[0m  3005348913031667846  h  k     [91my[0m     1   1  1.0           4  3  1                   [95mh[0m[91md[0m[95m4[0m[95m-17[0m[93m01[0m            [94mX[0m[94mX[0mQVQLVESGGGV[91mL[0mQPGRSLRLSCAASGFTFSIYAMHWVRQAPGKGLEWVAVISYDGSNKYYADSVKGRFTISRDNSKNTLYLQMN[91mI[0mLRAEDTAVYYCARED[91mY[0mLNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVG[94mL[0m[94mT[0m[94mE[0m[94mS[0m[91mP[0m[91mS[0m[91mL[0m[91mA[0m[91mG[0m[91mQ[0m[91mV[0mRA[91mL[0m[91mA[0m[91mA[0mI[91mI[0m[91mG[0m[94m-[0m[91mI[0m[91mS[0m[91mR[0m[91mN[0mQ[91mG[0mKP[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mL[0m[91mS[0mSS[91mM[0m[91mL[0m[91mH[0m[91mP[0mV[91mC[0m[91mK[0m[91mV[0m[91mG[0mS[91mH[0m[91mQ[0mGS[94m-[0m[91mV[0m[91mA[0m[91mV[0m[91mD[0mL[91mG[0m[91mQ[0m[91mI[0mSL[91mS[0mP[94m-[0m[94m-[0m[94m-[0m[91mS[0m[91mA[0m[91mR[0m[91mF[0mC[91mN[0m[91mL[0m[91mL[0m[91mL[0mST[94mE[0m[94mL[0m[94mQ[0m[94mY[0mP[91mS[0m[91mV[0m[91mQ[0mF[91mW[0m[91mP[0mG[91mD[0m[91mQ[0m[91mA[0m[91mG[0m[91mD[0m[91mQ[0m[94mT[0m
-             5.1  5.1  0.0      6   0   [92mx[0m  9143423818586413705  h  k           1   2  1.2           6  6  0                   [95mh[0m[91mj[0m[95m3[0m[93m02[0m [95mk[0m[91mj[0m[95m2[0m[93m03[0m         [94mX[0m[94mX[0mQVQLVESGGGVVQP[91mV[0mRSLRLSCAASGFTFSIYAMHWVRQAPGKGLEWVAVISYDGSNKYYADSVKGRFTISRDNSKNTL[91mN[0mLQMNSLRAE[91mY[0mTAVYYCARE[91mN[0m[91mY[0mLNAFDIWGQGT[91mI[0mVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             5.1  5.1  0.0      6   0   [92mx[0m  3554160421567371456  h  k   [91my[0m [91my[0m     1   1  1.0           6  6  0                                       [94mX[0m[94mX[0mQVQLVESGGGVVQP[91mV[0mRSLRLSCAASGFTFSIYAMHWVRQAPGKGLEWVAVISYDGSNKYYADSVKGRFTISRDNSKNTL[91mN[0m[91mV[0mQM[91mT[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mYC[91mV[0mR[91mR[0m[91mT[0m[91mA[0m[91mE[0m[94mL[0m[94mS[0m[94mT[0m[94mR[0m[94mL[0m[91mC[0m[91mI[0m[91mT[0m[91mV[0m[91mR[0mG[91mR[0m[91mT[0mT[94mS[0mM[91mL[0m[91mL[0m[91mI[0mS[91mG[0m[94mA[0m[94mK[0m[94mG[0m[94mQ[0m[94mW[0m[94mS[0m[94mP[0m[94mS[0m[94mL[0m[94mQ[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVT[91mT[0m[91mH[0m[91mH[0m[91mL[0m[91mP[0m[91mG[0m[91mK[0mS[91mE[0m[91mH[0m[94m-[0m[94m-[0m[94m-[0m[91mQ[0m[91mL[0m[91mF[0mQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             5.2  4.2  0.9      5   1   [92mx[0m  7296526929170766275  h  k           1   1  1.2           6  5  1                                       [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGFTFSIYAMHWVRQAPGKGLEWVAVISYDGSNKYYA[91mH[0mSVK[91mC[0mRFTIS[91mS[0mDNSKNTL[91mN[0mLQMNSLRAEDTAVYYCARED[91mY[0mLNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYST[91mH[0mPYSFGQGTKLEIK[94mX[0m
-             5.2  3.4  1.9      4   2      7490527208110107849  h  k           1   4  1.9           8  6  2                                       [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGFTFSIY[91mD[0m[91mI[0mHWVRQAPGKGLEWVAVISYDGSNKYYADSVKGRFT[91mK[0mSRDNSKNTL[91mN[0mLQMNSLRAEDTAVYYCARED*LNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSP[91mP[0mSLSASVGDRVTITCRASQSIS[91mI[0mYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             5.2  3.4  1.9      4   2      8662055972274132030  h  k           1   4  1.6           8  6  2                                       [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGFTFSIY[91mD[0m[91mI[0mHWVRQAPGKGLEWVAVISYDGSNKYYADSVKGRFT[91mN[0mSRDNSKNTL[91mN[0mLQMNSLRAEDTAVYYCARED*LNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSP[91mP[0mSLSASVGDRVTITCRASQSIS[91mI[0mYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             6.0  5.1  0.9      6   1      6984296818736019448  h  k     [91my[0m     1   1  1.8           8  7  1                                       [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGFTFSIYAMHWVRQAPGKGLEWVAVISYDGSN[91mT[0mYYA[91mA[0mS[91mG[0mKGRFTISRDNSKNTLYLQMN[91mC[0mLRAEDTAVYYCARED[91mC[0mLNAFDIWGQGTMVTV[91mF[0mS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0m[91mV[0mIQMTQSPSSLSASVGDRVT[91mR[0m[94m-[0m[94m-[0mRA[94mT[0mS[91mR[0mS[91mL[0m[91mA[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mG[91mQ[0m[91mV[0m[91mR[0m[91mA[0mL[91mA[0m[91mA[0m[91mI[0m[91mI[0m[91mG[0m[91mI[0mS[91mR[0m[91mN[0m[91mQ[0mG[91mK[0mP[91mL[0m[91mS[0m[91mS[0mS[94mM[0m[94mL[0m[94mH[0m[94mP[0m[94mV[0m[94mC[0m[94mK[0m[94mV[0mGS[91mH[0m[91mQ[0mG[91mS[0m[94mV[0m[91mA[0m[91mV[0m[91mD[0mL[91mG[0m[91mQ[0m[91mI[0mSL[91mS[0mP[91mS[0m[91mA[0m[91mV[0m[91mC[0m[91mN[0m[91mL[0m[91mK[0m[91mI[0m[91mL[0mQ[91mL[0m[91mT[0m[91mT[0m[91mV[0m[91mN[0m[91mR[0m[91mV[0m[91mT[0m[91mV[0m[91mP[0m[91mL[0m[91mR[0mT[91mV[0mL[91mA[0m[91mR[0m[91mG[0m[94mP[0m[94mS[0m[94mW[0m[94mR[0m[94mS[0m[94mN[0m
-            79.7 78.8  0.9     93   1      5928592009359694319  h  k   [91my[0m       1   1  1.0           7  6  1                                       [94mX[0m[94mX[0mQVQLVESGGGVVQ[91mS[0mGRS[91mP[0m[91m*[0m[91mD[0mS[91mP[0m[91mV[0m[91mQ[0m[91mP[0m[91mL[0m[91mD[0m[91mS[0m[91mP[0mS[91mV[0m[91mS[0m[91mM[0m[91mL[0m[91mY[0m[91mT[0m[91mG[0m[91mS[0m[91mA[0m[91mR[0m[91mL[0m[91mQ[0m[91mA[0m[91mR[0m[91mG[0m[91mW[0m[91mS[0m[91mG[0m[91mW[0m[91mQ[0m[91mL[0m[91mY[0m[91mH[0m[91mM[0m[91mM[0m[91mE[0m[91mV[0m[91mI[0m[91mH[0m[91mT[0m[91mT[0m[91mQ[0m[91mT[0m[91mP[0m[91m*[0m[91mR[0m[91mA[0m[91mD[0m[91mS[0m[91mP[0mS[91mP[0m[91mE[0m[91mK[0m[91mI[0m[91mP[0m[91mR[0mT[91mR[0m[91mC[0m[91mI[0m[91mC[0m[91mK[0m[91m*[0m[91mT[0m[91mA[0m[91m*[0m[91mE[0m[91mL[0m[91mR[0mT[91mR[0m[91mL[0m[91mC[0m[91mI[0m[91mT[0m[91mV[0mR[91mA[0m[91mR[0m[91mT[0m[91mT[0m[91mS[0m[91mM[0m[91mL[0m[91mL[0mI[91mS[0mG[91mA[0m[91mK[0m[91mG[0m[91mQ[0m[91mW[0m[91mS[0m[91mP[0mS[91mL[0m[94mQ[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSG[91mT[0mGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             6.1  4.2  1.9      5   2      6497699239514779927  h  k           1   1  2.1           8  6  2                                       [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGFTFSIYAMHWVRQAPGKG[91mV[0mEWVAVIS[91mN[0mDGSNKYYADSVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYC[91mS[0mRED[91mQ[0mLNAFDIWGQGTM[91mA[0mTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAAS[91mR[0mLQSGVPSRFSGSGSGT[91mE[0mFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             6.9  5.1  1.9      6   2      1839495652645702378  h  k   [91my[0m       1   4  2.1          10  8  2                                       [94mX[0m[94mX[0mQVQLVESGGGVVQPGR[91mC[0mLRLSCAASGFTFSIY[91mD[0m[91mI[0mHWVRQAPGKGLE[91mR[0mVAVISYDGSNKYYADSVKGRFTI[94m-[0m[94m-[0mD[91mK[0mSKNTL[91mN[0mLQMNSLRAEDTAVYYCAREDLNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSP[91mP[0mSLSASVGDRVTITCRASQSIS[91mI[0mYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             6.9  5.1  1.9      6   2      8577301151953782759  h  k           1   4  2.1          10  8  2                                       [94mX[0m[94mX[0mQVQLVES[91mW[0mGGVVQPGRSLRLSC[91mT[0mASGFTFSIY[91mD[0mM[91mN[0mW[91mG[0mRQAPGKGLEWVAVISYDGSNKYYADSVKGRFTISRDNSKNTL[91mN[0mLQMNSLRAEDTAVYYCARED*LNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSP[91mP[0mSLSASVGDRVTITCRASQSIS[91mI[0mYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             7.8  5.9  1.9      7   2      3086420735207056661  h  k     [91my[0m     1   1  1.6           9  7  2                                       [94mX[0m[94mX[0mQVQLVESGGGVVQ[91mS[0mGRSLR[91mR[0mSCAASGFTFSIYA[91mI[0mHWVRQAPGKGLEWVAVISYDGSN[91mT[0mYYADSVKGRFTISR[91mE[0mNSKNTLYLQMNSLRAEDTAVYYCA[91mS[0mED[91mY[0mLNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRA[91mR[0m[91mR[0mS[91mE[0m[91mH[0m[91mQ[0m[91mL[0m[91mF[0m[91mK[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mL[0m[91mV[0m[91mS[0mA[91mE[0m[91mT[0m[91mR[0m[91mE[0mS[91mP[0m[91mA[0mP[94mD[0m[94mL[0m[94mC[0m[94mC[0m[94mI[0m[94mQ[0m[94mF[0m[94mA[0m[94mK[0m[94mW[0m[94mG[0m[94mP[0m[94mI[0m[94mK[0m[94mV[0m[94mQ[0m[94mW[0m[94mQ[0m[94mR[0m[94mN[0m[94mW[0m[91mD[0mRF[91mH[0m[91mS[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mH[0m[91mH[0m[91mQ[0m[91mQ[0m[91mS[0mAT[91mR[0m[91mF[0mC[91mN[0m[91mL[0m[91mL[0m[91mL[0mST[94mE[0m[94mL[0m[94mQ[0m[94mY[0mP[91mS[0m[91mV[0m[91mQ[0mF[91mW[0m[91mP[0mG[91mD[0m[91mQ[0m[91mA[0m[91mG[0m[91mD[0m[91mQ[0m[94mT[0m
-             8.6  7.6  0.9      9   1      0153959521125826892  h  k   [91my[0m       1   2  2.2          12 11  1                                       [94mX[0m[94mX[0m[91mL[0mVQLVESGGGVVQPGRS[91mR[0mRLSCAASGFTF[91mN[0mIYAMHWVRQAP[91mD[0mKG[91mV[0mEWVAVIS[91mN[0mDGSNKYYADSVKGRFTISRDNSKNTLYLQM[91mT[0mSL[91mP[0m[91mQ[0m[91mS[0m[91mG[0m[94mH[0m[94mG[0m[94mC[0m[94mV[0m[94mL[0m[94mL[0m[94mF[0m[94mE[0m[94mG[0m[94mG[0m[94mL[0mT[91mK[0m[91mC[0m[91mF[0mY[91mL[0m[91mV[0m[91mP[0m[91mR[0mD[94m-[0mN[91mG[0m[91mH[0m[91mR[0m[91mL[0m[91mF[0m[94mX[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQ[91mH[0mEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-            53.5 52.5  0.9     62   1      7577753084500923753  h  k   [91my[0m       1   2  2.1          12 11  1                                       [94mX[0m[94mX[0m[91mL[0mVQLVESGGGVVQPGRS[91mR[0mRLSCAASGFTFSIYAMHWVRQAP[91mD[0mKG[91mV[0mEWVAVIS[91mN[0mDGSNK[91mI[0m[91mL[0m[91mR[0m[91mR[0m[91mL[0m[91mR[0m[91mE[0mG[91mP[0m[91mI[0m[91mH[0m[91mH[0m[91mL[0m[91mQ[0m[91mR[0m[91mQ[0m[91mF[0m[91mQ[0m[91mE[0m[91mH[0m[91mA[0m[91mV[0m[91mS[0m[91mA[0m[91mN[0m[91mD[0m[91mQ[0m[91mP[0m[91mE[0m[91mS[0m[91mL[0m[91mG[0m[91mH[0m[91mG[0m[91mC[0m[91mV[0m[91mL[0m[91mL[0m[91mF[0m[91mE[0m[91mG[0m[91mG[0m[91mL[0m[91mT[0m[91mQ[0m[91mC[0mF[91m*[0m[91mY[0m[91mL[0mG[91mP[0m[91mR[0m[91mD[0m[91mN[0m[91mG[0m[91mH[0m[91mR[0m[91mL[0m[91mF[0m[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQ[91mH[0mEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-             8.6  7.6  0.9      9   1      2399945326928250123  h  k     [91my[0m     1   1  2.1          12 11  1                                       [94mX[0m[94mX[0m[91mL[0mVQLVESGGGVVQPGRSLRLSCAASGFTFSIYA[91mI[0mHWVRQAP[91mD[0mKG[91mV[0mEWVAVIS[91mN[0mDGSNKYYADSVKGRFTISRDNSKNTLYLQM[91mT[0mSLRAEDTAVYYC[91mS[0m[91mG[0mE[91mE[0m*LNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTD[91mS[0m[91mP[0m[91mS[0m[91mA[0m[91mV[0m[91mC[0m[91mN[0m[91mM[0m[91mK[0m[91mI[0m[91mL[0m[91mQ[0m[91mL[0m[91mT[0mT[91mV[0m[91mS[0m[91mT[0m[91mE[0m[91mL[0m[91mQ[0mY[94m-[0m[94m-[0mP[91mS[0m[91mV[0m[91mQ[0mF[91mW[0m[91mP[0mG[91mD[0m[91mQ[0m[91mA[0m[91mG[0m[91mD[0m[91mQ[0m[94mT[0m
-            10.3  8.5  1.9     10   2      6385380145105579391  h  k           1   1  2.4          14 12  2                                       [94mX[0m[94mX[0m[91mL[0mVQLVESGGGVVQPGRS[91mR[0mRLSCAASGFTF[91mN[0mIYAMHWVRQAP[91mD[0mKG[91mV[0mEWVAVIS[91mN[0mDGSNK[91mD[0mYADSVKGRFTISRDNSKNTLYLQM[91mT[0mSLRAEDTAVYYC[91mS[0mRED*LNAFDIW[91mC[0mQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQ[91mT[0mISSYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQ[91mH[0mEDFATYYCQQSYSTPPYSFGQGTKLEIK[94mX[0m
-            10.4  7.6  2.8      9   3      0999434601279802785  h  k           1   1  2.4          12  9  3                                       [94mX[0m[94mX[0mQVQLVESGGGV[91mI[0mQPG[91mK[0mSLRLSCAASGFTF[91mT[0mIYAMHWVRQAPGKGLE[91mG[0mVA[91mG[0mIS[91mS[0mDGS[91mY[0mKYYADSVKGRFTISRDNSKNTLYLQMNSLRAEDTAVYYCARED[91mY[0mLNAFDIWGQGTMV[91mP[0mVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQSISSYLNWYQQKPGKAP[91m*[0mLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQ[91mT[0mYSTPPYSFG[91mH[0mGTKLEIK[94mX[0m
-            32.0  4.2 27.8      5  30      8455414709152250142  h  k     [91my[0m     1   1  1.8           9  7  2                                       [94mX[0m[94mX[0mQVQLVESGGGVVQPGRSLRLSCAASGF[91mI[0mFSIY[91mD[0m[91mI[0mHWVRQAPGKGLEWVAVISYDGSNKYYADSVKGRFT[91mM[0mSRDNSKNTL[91mN[0mLQMNSLRAEDTAVYYCARED*LNAFDIWGQGTMVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSP[91mP[0mSLSASVGDRVTITCRASQSIS[91mI[0mYLNWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTIS[91m*[0m[91mS[0m[91mA[0m[91mT[0m[91m*[0m[91mR[0mF[91mC[0m[91mN[0m[91mL[0m[91mL[0m[91mL[0m[91mS[0m[91mT[0m[91mE[0m[91mL[0m[91mQ[0m[91mY[0mP[91mS[0m[91mV[0m[91mQ[0mF[91mW[0m[91mP[0mG[91mD[0m[91mQ[0m[91mA[0m[91mG[0m[91mD[0m[91mQ[0m[94mT[0m
-
-    iclust 1: choosing abs from joint cluster with size 12 (marked with [92mx[0m)
-        less than half (1 / 12 = 0.08) of h seqs have indels, so not using input seqs for cons seq
-        less than half (2 / 12 = 0.17) of l seqs have indels, so not using input seqs for cons seq
-          cons seq: too many ambiguous bases in h+l (3 > 2)
-        aa-cfrac: chose 3
-      chose 3 total
-             aa-cfrac (%)      aa-cdist         droplet        contig indels    N    %shm   N aa mutations     sizes               genes    cons: QMQMVESGGGVVQPGRSLRLSCAACGFTFSSYAMHWVRQAPGKGLEWVAVISYDGSDKCYADSV*GRFTISRD[94mX[0mSRNTLYLQMNSLRDEDAAEYYCARRDYTPA[94mX[0mDIWGQGTMVTVSS[94mX[0m QSVLTQPPSVSGAPGQRVTVSGTGSSSNIGAGYDVHWYQQLPGTAPKLLIYGNSNRPSGVPDRFSGSKSGTSASLAITGLQAE[94mX[0mEAV*YCQSYDSSLSGYVFGTGTKVTVL[94mX[0m
-             sum   h    l       h   l                           h  l   h l    h   l   nuc   cons.     obs.   both   h   l                  naive: Q[91mV[0mQ[91mL[0mVESGGGVVQPGRSLRLSCAA[91mS[0mGFTFSSYAMHWVRQAPGKGLEWVAVISYDGS[91mN[0mK[91mY[0mYADSV[91mK[0mGRFTISRD[94mN[0mS[91mK[0mNTLYLQMNSLR[91mA[0mED[91mT[0mA[91mV[0mYYCAR[91mS[0m[91mY[0mYTPA[94mF[0mDIWGQGTMVTVSS[94mX[0m QSVLTQPPSVSGAPGQRVT[91mI[0mS[91mC[0mTGSSSNIGAGYDVHWYQQLPGTAPKLLIYGNSNRPSGVPDRFSGSKSGTSASLAITGLQAE[94mD[0mEA[91mD[0m[91mY[0mYCQSYDSSLSGYVFGTGTKVTVL[94mX[0m
-       [94mh[0m [92ml[0m  19.2 14.7  4.5     17   5   [92mx[0m  2524299643587536994  h  l           1   1  7.7   12  4  38 30  8    12   12  12    [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m04[0m [95ml[0m[91mv[0m[95m1[0m[95m-40[0m[93m01[0m   Q[91mI[0mQMVESGGGV[91mG[0mQPGRSLRLSCA[91mG[0mCGFT[91mL[0mSSYAMHWVRQAP[91mV[0mKGLE[91m*[0mVAVISY[91mV[0mGSDKCY[91mT[0mDSV*GR[91mV[0mTISRD[94mS[0mSRN[91mR[0mLY[91mQ[0mQM[91mD[0mSLRD[91m*[0mDA[91mD[0mEYYCARRDYT[91mS[0mA[94mL[0mDIWGQG[91mA[0mMV[91mP[0mVSS[94mX[0m QSVLTQPPSVSGAPGQRVT[91mL[0mSGTGSSSNI[91mA[0mAGYDVHWYQQLP[91mS[0mTAPKLLI[91mD[0mGNSNRPSGVPDRFSGSKSGTSASLAIT[91mE[0mLQAE[94mD[0mEAV*YCQSYDSSLSGYVFGTGTKVTVL[94mX[0m
-            21.6 19.8  1.8     23   2   [92mx[0m  5008198777729419500  h  l           1   1  7.0          39 32  7                   [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m            QMQMVESGG[91mW[0mVVQ[91mT[0mG[91mG[0mS[91mR[0mRL[91mA[0mCAACGFTFSSYAMH[91m*[0m[91mG[0mRQAPG[91mT[0m[91mW[0mL[91mK[0m[91mL[0mVAVISYDG[91mT[0mDKC[91mN[0mADSV[91mQ[0m[91mV[0mRFTISRD[94mS[0mSRNTLYLQMNSLRD[91mD[0m[91mA[0mAA[91mA[0m[91mN[0m[91mN[0mCAR[91mS[0mDY[91mN[0mPA[94mF[0mDIWG[91mL[0mGTMVTVSS[94mX[0m Q[91mF[0mVLTQP[91mL[0mSVSGAPGQRVTVSGTGSSSNIGAGYDVHWYQQLPGTAPKLLIYGNSNRPSGVPDRFSGSKSGTSASLAITGLQAE[94mN[0mEAV*YCQSYDSSLSGYVFGTGTKVTVL[94mX[0m
-            21.8 16.4  5.5     19   6   [92mx[0m  5878683340536299992  h  l           1   1  7.7          41 31 10                   [95mh[0m[91mj[0m[95m3[0m[93m02[0m [95ml[0m[91mj[0m[95m1[0m[93m01[0m         QMQMVESGGGV[91mG[0mQPGRSLRLSCA[91mV[0mC[91mA[0mFTFSS[91m*[0mAMHW[91mI[0mRQA[91mS[0mGKGLE[91mY[0mVAVISYDGSDKCY[91mT[0mD[91mW[0mV[91mW[0m[91mA[0mRFTISRD[94mS[0mSRN[91mR[0m[91mV[0mY[91mQ[0mQMNSLRD[91m*[0mDA[91mG[0mEYYCARR[91mA[0mYTP[91mD[0m[94mL[0mDIWGQGTMV[91mP[0mVSS[94mX[0m QS[91mL[0mLTQPPSVSGAPGQRVTVSGTGSSSNI[91mA[0m[91mS[0mGYDVHWYQQLP[91mA[0mTAPKLLIYGNSNRPSGVPDRF[91mP[0mGSKSGTSASLAIT[91mE[0mLQAE[94mD[0mEAV*YCQSYDSSLSGYVFGTGTKVTVL[94mX[0m
-            22.6 18.1  4.5     21   5      9127527955809948665  h  l           1   1  7.1          35 26  9                                       Q[91mL[0mQ[91mL[0mVE[91mF[0m[91mW[0mGGVVQPG[91mW[0mSLRLSCAA[91mY[0mGFTFSSYAMHWVRQ[91mT[0mPGKGLEWVAVISYDGSDKCYA[91mN[0mSV*GR[91mL[0mTISR[91mE[0m[94mN[0m[91mH[0m[91mK[0mNTL[91m*[0m[91mM[0mQMNSLR[91mH[0mE[91mE[0m[91mS[0mAEYYCA[91mG[0mRD[91m*[0mTPA[94mL[0mDIWGQG[91mP[0mMVTV[91mF[0mS[94mX[0m QSV[91mM[0mTQPPSVSGAPGQRVTVSGT[91mW[0mSSSNIGAGYDVHWYQQLPGTAPKLLIYGNSNRPSGVPDRFSGSKSGTSA[91mC[0m[91mP[0mAITGLQAE[94mD[0mEAV*YCQSYDSSLSGYVFG[91mP[0mGTKVTVL[94mX[0m
-            22.7 16.4  6.4     19   7      4002085624480594070  h  l   [91my[0m [91my[0m     1   1  7.7          37 25 12                                       [91mH[0mMQ[91mL[0mVE[91mF[0mGGGVVQPG[91mW[0mSLRLS[91mF[0mAA[91mN[0mGFTFSSYAMHW[91mI[0mRQ[91mT[0mPGKGLEW[91mM[0mAVISYDGSDKCYA[91mN[0mSVGRFTISRD[94mN[0m[91mH[0m[91mK[0mNTLY[94m-[0m[94m-[0m[94m-[0m[94m-[0mSLR[91mH[0mE[91mE[0m[91mS[0mAEYYCA[91mG[0mRD[91mE[0mTPA[94mL[0mDIWGQ[94mG[0m[94mP[0m[94mH[0mG[91mD[0m[91mR[0mV[91mF[0m[94mX[0m[94m-[0m[94m-[0m[94m-[0m Q[91mT[0mVLTQPPSVSGAPGQRVTVSGT[91mW[0mSSSNIGAGYDVHWYQQLP[91mR[0m[91mK[0mAPKLLIYGNSNRPSGVPDRFSGSKSG[91mS[0mSA[91mY[0mLAITGLQAE[94mG[0mEAV*YCQSYDSSLSGYVFG[91mP[0mGT[91mQ[0m[91mG[0m[91mH[0m[91mR[0m[91mP[0m[94mX[0m
-            23.6 18.1  5.5     21   6      6801596680630379737  h  l           1   1  7.7          38 27 11                                       [91mH[0mMQ[91mL[0mVE[91mF[0mGGGVVQPG[91mW[0mSLRLS[91mF[0mAA[91mN[0mGFTFSSYAMHW[91mI[0mRQ[91mT[0mPGKGLEW[91mM[0mAVISYDGSDKCYA[91mN[0mSV*GRFTISRD[94mN[0m[91mH[0m[91mK[0mNTL[91m*[0mLQMNSLR[91mH[0mE[91mE[0m[91mS[0mAEYYCA[91mG[0mRD[91mE[0mTPA[94mL[0mDIWGQG[91mP[0mMVT[91mL[0m[91mY[0mS[94mX[0m QSVLTQPPSVSGAPGQRVTVSGT[91mW[0mSSSNIGAGYDVHWYQQLP[91mR[0m[91mK[0mAPKLLIYGNSNRPSGVPDRFSGSKSG[91mS[0mSA[91mY[0mLAITGLQAE[94mG[0mEAV*YCQSYDSSLSGYVFG[91mP[0mGTKVTVL[94mX[0m
-            24.5 18.1  6.4     21   7      0845922569234869914  h  l           1   1  8.3          44 32 12                                       [91mR[0mMQM[91mL[0mESGGGVVQPGRS[91mR[0m[91mS[0mLSCAACGFTFSSY[91mS[0m[91mI[0mHWVRQA[91mS[0mG[91mE[0mGLEWVAVISYDG[91mC[0mDKCYADS[91mG[0m*GRFTISRD[94mC[0mSR[91mD[0mTLYLQMNSL[91mS[0m[91mV[0mEDAAEY[91mN[0mC[91mE[0mRR[91mS[0m[91mH[0mTPA[94mF[0mDIWGQ[91mE[0mTM[91mI[0mT[91mL[0mS[91mP[0m[94mX[0m QSVLTQPPS[91mL[0mSGAPGQRV[91mN[0mVSGTGSSSNIGAGYDVH[91mR[0m[91mD[0mQQLPG[91mI[0mAP[91mN[0mLLIYGNSNRPSG[91mA[0mPDRFSGSKSGTSASLAITGLQAE[94mN[0mEAV*YCQSYDSSLSGYVFGTGTKVTVL[94mX[0m
-            25.2 20.7  4.5     24   5      8223303464888430991  h  l           1   1  8.4          43 33 10                                       QMQMVESGGGVVQPGRS[91mR[0mRLSC[91mG[0mAC[91mV[0mFTFSSY[91mS[0m[91mI[0mHWVRQA[91mT[0mGK[91mV[0mLEW[91mL[0mAVI[91m*[0mYDG[91mC[0mDKCYADS[91mW[0m[91mQ[0mGRF[91mS[0mISRD[94mS[0mS[91mG[0mNTL[91m*[0mLQ[91mI[0mNSLRD[91mD[0mD[91mP[0mA[91mG[0mY[91mN[0mC[91mE[0mRRDYT[91mR[0mA[94mF[0mDIWGQGTM[91mI[0mT[91mF[0mSS[94mX[0m QSVLTQ[91mS[0mPSVSGAPGQRVTVSGTGSSSNIGAGYDVHW[91mD[0mQQLPGTAPKLLIYGNSNRPSGVPDRFSG[91mY[0mKSGTSASL[91mV[0mITGLQAE[94mN[0mEAV*YCQSYDSSLSGYVFGTG[91mS[0mKVTVL[94mX[0m
-            25.3 19.8  5.5     23   6      7604803563720705520  h  l           1   1  7.4          38 28 10                                       Q[91mL[0m[91mP[0m[91mL[0mVE[91mF[0m[91mW[0mGGVVQPG[91mW[0mSLRLSCAA[91mY[0mGFTFSSY[91mV[0mMHWVRQ[91mT[0mPGKGLEWVAVISYDGSDKCYA[91mN[0mSV*GR[91mL[0mTISR[91mE[0m[94mN[0m[91mH[0m[91mK[0mNTL[91m*[0m[91mM[0mQMNSLR[91mH[0mE[91mE[0m[91mS[0mAEYYCA[91mG[0mRD[91m*[0mTPA[94mL[0mDIWGQG[91mP[0mMVTV[91mF[0mS[94mX[0m QSV[91mM[0mTQPPSVSGAPGQRVTVSGT[91mW[0mSSSNIGAGYDVHWYQQLPGTAPKLLIYGNSNRP[91mP[0mGVPDRFSGSKSGTSA[91mC[0m[91mP[0mAITGLQAE[94mD[0mEAV*YCQSYDSSLSGYVFG[91mP[0mGTKVTVL[94mX[0m
-            26.1 20.7  5.5     24   6      6241531532959272980  h  l     [91my[0m     1   1  8.1          46 36 10                                       QMQMVESGG[91mR[0mVVQPGRS[91mR[0mRLSCA[91mG[0mCGFTFSSY[91mS[0m[91mI[0mHWVRQA[91mS[0mGK[91mV[0mLEW[91mE[0mAVI[91m*[0mYDG[91mC[0mDK[91m*[0mYADS[91mE[0m*GRF[91mS[0mISRD[94mS[0mSRNTL[91mD[0mLQ[91mI[0m[91mS[0m[91mR[0mLRDEDAAEY[91mN[0mC[91mE[0mRRD[91mD[0m[91mN[0mPA[94mF[0mDIWGQGTM[91mI[0mT[91mF[0m[91mA[0mS[94mX[0m Q[91mP[0mVLTQPPSVSGAPGQRVTVSGTGSSSN[91mS[0mGAGYDVHW[91mD[0mQQLPGTAPKLLIYGNSNRPSGVPDR[91mL[0mSGSKSGTSASLAITGLQAE[94mN[0mEAV[94mK[0mYCQSYD[91mR[0mSLSGYVF[94m-[0mT[91mS[0m[91mE[0m[91mE[0m[91mL[0m[91mG[0m[91mP[0m[91mI[0m[94mG[0m[94mH[0m[94mR[0m[94mP[0m[94mX[0m
-            27.9 21.6  6.4     25   7      4699955307001741265  h  l           1   1  8.9          49 37 12                                       [91mR[0mMQM[91mL[0mESGGGVVQPGR[91mC[0m[91mR[0m[91mS[0mLSCAAC[91mR[0mFTFSSY[91mS[0m[91mI[0mHWVRQA[91mS[0mGKGLEWVAVISY[91mE[0mG[91mC[0mDKCYADS[91mG[0m*GRFTI[91mA[0mRD[94mC[0mSR[91mD[0mT[91mM[0mYLQMNS[91mP[0m[91m*[0mDEDAAEY[91mN[0mC[91mE[0mRR[91m*[0mYTP[91mP[0m[94mF[0mDIWGQGTM[91mI[0mT[91mL[0m[91mT[0m[91mP[0m[94mX[0m QSVLTQPPSVS[91mV[0mAPGQRV[91mN[0mVSGTGSSSNIGAGYDVHW[91mD[0mQQLPGTAPKLLIYGNSNRPSGVPDR[91mI[0mSGSKSGTSASLAITGL[91mH[0mAE[94mN[0m[91mQ[0mAV*YC[91m*[0mSYDSSLSGYVFGTGTKVTVL[94mX[0m
-            31.6 19.8 11.8     23  13      0067555983830820788  h  l           1   1  9.0          47 30 17                                       [91mH[0mMQ[91mL[0mVESGGGVVQPG[91mW[0mSLR[91mR[0mSC[91mT[0mACGFTFSSYA[91mT[0mHWVRQAPG[91mM[0mGLEWVAVI[91m*[0mY[91mH[0mG[91mT[0mD[91mQ[0mCYAD[91mH[0mV*G[91mQ[0mFTISRD[94mN[0mS[91mK[0mNTLYLQMNSL[91mG[0mD[91mQ[0m[91mE[0mAA[91mK[0mY[91m*[0mCARRD[91m*[0mTPA[94mF[0m[91mN[0mIWG[91mH[0mGTMVTV[91mT[0mS[94mX[0m QSVLTQPPSV[91mY[0mGAPGQ[91mT[0mVTV[91mA[0mGTGSSSNIGAGYDVHW[91m*[0mQQLPGTAP[91mT[0mL[91mP[0mI[91mS[0mG[91mD[0mSNRPSGVP[91mA[0mRFSGSKSG[91mS[0mSASLAITGL[91mH[0mAE[94mD[0mEAV*YCQSY[91mE[0mSSLSGYVFG[91mP[0mGTKVTVL[94mX[0m
-
-      writing 9 chosen abs to test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
-      total time: 3.8
+      writing 0 chosen abs to test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
+      total time: 1.8
