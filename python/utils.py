@@ -1311,7 +1311,8 @@ def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq
 
 # ----------------------------------------------------------------------------------------
 # return consensus of either aligned or unaligned sequences, in chunks of length <codon_len>, with tied positions *not* ambiguous but instead chosen as the alphabetically first character[s]
-def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, debug=False):  # should maybe call it "chunk" rather than "codon", but if len is 3 it's a codon
+# if doing a nuc cons seq with codon_len=3, and <aa_ref_seq> is set, we look for the most common nuc codon *only* among those that code for the aa that appears at that position in <aa_ref_seq>
+def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, aa_ref_seq=None, debug=False):  # should maybe call it "chunk" rather than "codon", but if len is 3 it's a codon
     if aligned_seqfos is not None:
         assert unaligned_seqfos is None
         seqfos = aligned_seqfos
@@ -1321,10 +1322,13 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
     else:
         assert False
 
-    for sfo in seqfos:
-        check_alphabet(sfo['seq'], aa=aa, only_warn=True)
+    # for sfo in seqfos:  # this is pretty darn fast, but probably doesn't really need to be turned on
+    #     check_alphabet(sfo['seq'], aa=aa, only_warn=True)
 
     seq_len = get_single_entry(list(set([len(s['seq']) for s in seqfos])))  # if this fails then the seqs that were passed in aren't all the same length
+    if aa_ref_seq is not None:
+        assert codon_len == 3 and not aa
+        assert 3 * len(aa_ref_seq) == len(pad_nuc_seq(seqfos[0]['seq']))
     if debug:
         print '  taking consensus of %d seqs with len %d in chunks of len %d' % (len(seqfos), seq_len, codon_len)
         dbgfo = []
@@ -1335,6 +1339,8 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
         for sfo in seqfos:
             mtpy = sfo['multiplicity'] if 'multiplicity' in sfo else 1
             chnk = sfo['seq'][ipos : ipos + codon_len]  # if there's a partial codon at the end, it'll just stay as partial here, which seems fine (we could pad with pad_nuc_seq() if we wanted)
+            if any(g in chnk for g in gap_chars):  # ok i probably shouldn't just skip them, but whatever
+                continue
             if chnk not in pos_counts:
                 pos_counts[chnk] = 0
             pos_counts[chnk] += mtpy
@@ -1343,21 +1349,32 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
                     all_counts[chnk] = 0
                 all_counts[chnk] += mtpy
         srt_chunks = sorted(pos_counts.items(), key=operator.itemgetter(1), reverse=True)
+        if aa_ref_seq is not None:  # (try to) remove any that don't code for the residue in aa_ref_seq
+            aa_match_chunks = [c for c, _ in srt_chunks if ltranslate(c) == aa_ref_seq[ipos / 3]]
+            if debug > 1: removed_chunks = []  # arg
+            if len(aa_match_chunks) > 0:  # if none match, we just have to keep all of them (this should be rare)
+                if debug > 1:
+                    removed_chunks = [c for c, _ in srt_chunks if c not in aa_match_chunks]
+                srt_chunks = [(c, n) for c, n in srt_chunks if c in aa_match_chunks]
         n_max = srt_chunks[0][1]
-        best_chunks = [c for c, n in pos_counts.items() if n == n_max]
+        best_chunks = [c for c, n in srt_chunks if n == n_max]
         if debug:
-            # print '      %3d  %s' % (ipos, '  '.join('%s %d'%(color('red' if c in best_chunks and len(best_chunks) > 1 else None, c), n) for c, n in srt_chunks))
-            dbgfo.append({'best' : best_chunks, 'cnts' : pos_counts})
+            # print '      %3d  %s  %s' % (ipos, '  '.join('%s %d'%(color('red' if c in best_chunks and len(best_chunks) > 1 else None, c), n) for c, n in srt_chunks), '(removed %s)'%' '.join(removed_chunks) if aa_ref_seq is not None and debug>1 and len(removed_chunks)>0 else '')
+            dbgfo.append({'best' : best_chunks, 'cnts' : pos_counts, 'rmd' : removed_chunks if aa_ref_seq is not None and debug>1 else []})
         cseq.append(sorted(best_chunks)[0])  # if there's more than one tied for most, take the first sorted alphabetically (arbitrary, but at least repeatable)
 
     if debug:
-        print '       ties: %s  (%s)' % (''.join(wfmt(len(dfo['best']), codon_len, fmt='d') if len(dfo['best'])>1 else ' '*codon_len for dfo in dbgfo), ',  '.join('%d: %s'%(i, ' '.join(sorted(dfo['best']))) for i, dfo in enumerate(dbgfo) if len(dfo['best'])>1))
-        print '   cons seq: %s' % ''.join(color('blue_bkg' if len(dfo['best'])>1 else None, c) for c, dfo in zip(cseq, dbgfo))
+        prlen = max(4, codon_len) if debug > 1 else codon_len
+        print '       ties: %s  (%s)' % (''.join(wfmt(len(dfo['best']), prlen, fmt='d') if len(dfo['best'])>1 else ' '*prlen for dfo in dbgfo), ',  '.join('%d: %s'%(codon_len*i, ' '.join(sorted(dfo['best']))) for i, dfo in enumerate(dbgfo) if len(dfo['best'])>1))
+        if codon_len == 3:
+            print '             %s' % ''.join(wfmt(ltranslate(c), prlen) for c in cseq)
+        print '   cons seq: %s' % ''.join(color('blue_bkg' if len(dfo['best'])>1 else None, c, width=prlen if debug>1 else 1) for c, dfo in zip(cseq, dbgfo))
         if debug > 1:
-            prlen = max(4, codon_len)
-            print '         ipos %s' % ''.join(wfmt(i, prlen, fmt='d') for i in range(len(dbgfo)))
+            def tcol(cstr, dfo): return 'blue' if cstr in dfo['best'] else ('red' if cstr in dfo['rmd'] and dfo['cnts'][cstr]>=dfo['cnts'][dfo['best'][0]] else None)
+            print '        ipos %s' % ''.join(wfmt(codon_len*i, prlen, fmt='d') for i in range(len(dbgfo)))
             for cstr, _ in sorted(all_counts.items(), key=operator.itemgetter(1), reverse=True):
-                print '         %s %s' % (wfmt(cstr, prlen), ''.join(wfmt(dfo['cnts'][cstr], prlen, fmt='d') if cstr in dfo['cnts'] else ' '*prlen for dfo in dbgfo))
+                print '        %s %s' % (wfmt(cstr, prlen), ''.join(color(tcol(cstr, dfo), str(dfo['cnts'][cstr]), width=prlen) if cstr in dfo['cnts'] else ' '*prlen for dfo in dbgfo))
+            print '      colors: %s %s %s' % (color('blue_bkg', 'ties'), color('blue', 'best'), color('red', 'removed (not aa_ref_seq)') if aa_ref_seq is not None else '')
 
     cseq = ''.join(cseq)
 
@@ -1418,14 +1435,18 @@ def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False):
 
 # ----------------------------------------------------------------------------------------
 # NOTE does *not* add either 'consensus_seq' or 'consensus_seq_aa' to <line> (we want that to happen in the calling fcns)
-def cons_seq_of_line(line, aa=False, use_input_seqs=False):
+def cons_seq_of_line(line, aa=False, use_input_seqs=False, codon_len=1, aa_ref_seq=None, debug=False):
+# NOTE at least for now I'm not by default adding the codon_len=3 argument for the new cons seq fcn (on the theory that here we want the "regular" nuc cons seq, whereas the weird/fancy codon-based one is atm just when choosing abs)
     aligned_seqfos = seqfos_from_line(line, aa=aa, use_input_seqs=use_input_seqs)
     unaligned_seqfos = None
     # if any(indelutils.has_indels_line(line, i) for i in range(len(line['unique_ids']))):  NOTE *don't* use this, only align if you need to
     if len(set(len(s['seq']) for s in aligned_seqfos)) > 1:  # this will probably only happen if use_input_seqs is set and there's shm indels
         unaligned_seqfos = aligned_seqfos
         aligned_seqfos = None
-    return cons_seq(aligned_seqfos=aligned_seqfos, unaligned_seqfos=unaligned_seqfos, aa=aa) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+    return cons_seq(aligned_seqfos=aligned_seqfos, unaligned_seqfos=unaligned_seqfos, aa=aa, codon_len=codon_len, aa_ref_seq=aa_ref_seq, debug=debug) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
+# ----------------------------------------------------------------------------------------
+# and after that (below) we used to do this:
+    # return old_bio_cons_seq(0.01, aligned_seqfos=aligned_seqfos, unaligned_seqfos=unaligned_seqfos, aa=aa, codon_len=codon_len) # NOTE if you turn the naive tie resolver back on, you also probably need to uncomment in treeutils.add_cons_dists(), tie_resolver_seq=line['naive_seq'], tie_resolver_label='naive seq')
 # ----------------------------------------------------------------------------------------
     # Leaving the old version below for the moment just for reference.
     # It got the aa cons seq just by translating the nuc one, which is *not* what we want, since it can give you spurious ambiguous bases in the aa cons seq, e.g. if A and C tie at a position (so nuc cons seq has N there), but with either base it still codes for the same aa.

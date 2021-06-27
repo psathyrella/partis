@@ -2141,7 +2141,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             raise Exception('unexpected key[s] in ab choice cfg: %s (choose from: %s)' % (' '.join(set(cfgfo) - allowed_keys), ' '.join(allowed_keys)))
         return cfgfo
     # ----------------------------------------------------------------------------------------
-    def add_unobs_cseqs(metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=False):
+    def get_cons_mfo(metric_pairs, tdbg=False):
         # ----------------------------------------------------------------------------------------
         def use_iseqs(tch, mtmp):  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
             hsil = mtmp[tch]['has_shm_indels']
@@ -2154,27 +2154,34 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     print '        less than half %s of %s seqs have indels, so not using input seqs for cons seq' % (tstr, tch)
                 return False
         # ----------------------------------------------------------------------------------------
-        def getcseqs(tch, use_input_seqs, aa=False):
-            if use_input_seqs:
-                return utils.cons_seq_of_line(mtmp[tch], aa=aa, use_input_seqs=True)
-            else:
-                return mtmp[tch]['consensus_seq'+('_aa' if aa else '')]
+        def getcseqs(tch, use_input_seqs, aa=False, aa_ref_seq=None):
+            return utils.cons_seq_of_line(mtmp[tch], aa=aa, use_input_seqs=use_input_seqs, codon_len=1 if aa else 3, aa_ref_seq=aa_ref_seq)  # if we're not using input seqs and it's aa (so codon_len is 1) then it *should* be the same as the one that's already in the line
         # ----------------------------------------------------------------------------------------
         mtmp = metric_pairs[0]
         uis = {c : use_iseqs(c, mtmp) for c in 'hl'}  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
         cseqs = {c : getcseqs(c, uis[c], aa=True) for c in 'hl'}  # aa cons seqs
-        def nambig(c): return utils.n_variable_ambig_aa(mtmp[c], cseqs[c], getcseqs(c, uis[c], aa=False))
-        if 'max-ambig-positions' in cfgfo and sum(nambig(c) for c in 'hl') > cfgfo['max-ambig-positions']:
-            print '          cons seq: too many ambiguous bases in h+l (%d > %d)' % (sum(nambig(c) for c in 'hl'), cfgfo['max-ambig-positions'])
-            return
 
         consfo = {c : mtmp[c] for c in 'hl'}
         consfo.update({'iclust' : iclust, 'consensus' : True})
         consfo.update({c+'_use_input_seqs' : uis[c] for c in 'hl'})
         consfo.update({c+'_cseq_aa' : cseqs[c] for c in 'hl'})
-        consfo.update({c+'_cseq_nuc' : getcseqs(c, uis[c], aa=False) for c in 'hl'})
+        consfo.update({c+'_cseq_nuc' : getcseqs(c, uis[c], aa=False, aa_ref_seq=cseqs[c]) for c in 'hl'})
+
+        if any(utils.ltranslate(consfo[c+'_cseq_nuc']) != consfo[c+'_cseq_aa'] for c in 'hl'):
+            print '  %s nuc cons seq translation differs from aa cons seq:' % utils.color('yellow', 'warning')
+            print '              aa cons: %s %s' % tuple([consfo[c+'_cseq_aa'] for c in 'hl'])
+            print '      nuc cons trans.: %s %s' % tuple([utils.color_mutants(consfo[c+'_cseq_aa'], utils.ltranslate(consfo[c+'_cseq_nuc']), amino_acid=True) for c in 'hl'])
+
+        return consfo
+    # ----------------------------------------------------------------------------------------
+    def add_unobs_cseqs(metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=False):
+        consfo = get_cons_mfo(metric_pairs)
+        def nambig(c): return utils.n_variable_ambig_aa(metric_pairs[0][c], consfo[c+'_cseq_aa'], consfo[c+'_cseq_nuc'])
+        if 'max-ambig-positions' in cfgfo and sum(nambig(c) for c in 'hl') > cfgfo['max-ambig-positions']:
+            print '          cons seq: too many ambiguous bases in h+l (%d > %d)' % (sum(nambig(c) for c in 'hl'), cfgfo['max-ambig-positions'])
+            return
         chosen_mfos.append(consfo)
-        all_chosen_seqs.add(tuple(cseqs[c] for c in 'hl'))
+        all_chosen_seqs.add(tuple(consfo[c+'_cseq_aa'] for c in 'hl'))
         if tdbg:
             print '        %s: added cons seq%s' % (utils.color('green', 'x'), (' (using %s input seq[s] becuase of indels)'%' '.join(c for c in 'hl' if consfo[c+'_use_input_seqs'])) if any(consfo[c+'_use_input_seqs'] for c in 'hl') else '')
     # ----------------------------------------------------------------------------------------
@@ -2361,7 +2368,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 for ofo in outfos:
                     writer.writerow(ofo)
     # ----------------------------------------------------------------------------------------
-    def print_dbg(metric_pairs):
+    def print_dbg(metric_pairs, print_nuc_seqs=True):
         # ----------------------------------------------------------------------------------------
         def init_xtras():
             xtra_heads = [('cell-types', ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c_gene', ''])]
@@ -2398,11 +2405,20 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 didstr = 'see error'
             return didstr
         # ----------------------------------------------------------------------------------------
-        def getcdist(cons_mfo, mpfo, tch, frac=False):  # can't just use gsval() for cases where we used the "input" (indel'd) cons seq (although note that there's probably some other places where the orginal/indel-reversed version is used)
+        def getcdist(mpfo, tch, frac=False):  # can't just use gsval() for cases where we used the "input" (indel'd) cons seq (although note that there's probably some other places where the orginal/indel-reversed version is used)
             defval = gsval(mpfo, tch, 'aa-c'+('frac' if frac else 'dist'))
-            if cons_mfo is None:
-                return defval
-            return local_hdist_aa(gsval(mpfo, tch, 'input_seqs_aa'), cons_mfo[c+'_cseq_aa'], defval=defval, frac=frac)
+            # if cons_mfo is None:
+            #     return defval
+            return local_hdist_aa(gsval(mpfo, tch, 'input_seqs_aa'), cons_mfo[tch+'_cseq_aa'], defval=defval, frac=frac)
+        # ----------------------------------------------------------------------------------------
+        def cstr(c, s2=None, aa=False):
+            if not aa and not print_nuc_seqs: return ''
+            cseq = cons_mfo['%s_cseq_%s' % (c, 'aa' if aa else 'nuc')]
+            return utils.color_mutants(cseq, cseq if s2 is None else s2, amino_acid=aa, align_if_necessary=s2 is not None)  # align if necessary for naive seq, i.e. from nstr()
+        # ----------------------------------------------------------------------------------------
+        def nstr(c, aa=False):
+            nseq = (h_atn if c=='h' else l_atn)['naive_seq'+('_aa' if aa else '')]
+            return cstr(c, s2=nseq, aa=aa)
         # ----------------------------------------------------------------------------------------
         xtrafo, xheads, xlens = init_xtras()
 
@@ -2413,34 +2429,34 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         gstrs = ['%s %s' % (utils.color_gene(h_atn[r+'_gene']), utils.color_gene(l_atn[r+'_gene']) if r!='d' else '') for r in utils.regions]
         gstr_len = max(utils.len_excluding_colors(s) for s in gstrs)  # don't really need this as long as it's the last column
         gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
-        h_cseq, l_cseq = [l['consensus_seq_aa'] for l in (h_atn, l_atn)]
-        cons_mfo = None
-        if any('consensus' in m for m in iclust_mfos):
+        if any('consensus' in m for m in iclust_mfos):  # if the unobserved consensus was added for this cluster, we need to use the cons seq from cons_mfo for either of h/l that had enough shm indels that we used input seqs to calculate the cons seq (i.e. for which h/l_use_input_seqs was set)
             cons_mfo = utils.get_single_entry([m for m in iclust_mfos if 'consensus' in m])
-            h_cseq, l_cseq = [cons_mfo[c+'_cseq_aa'] if cons_mfo[c+'_use_input_seqs'] else cs for c, cs in zip('hl', (h_cseq, l_cseq))]
-        h_cseq_str, l_cseq_str = [utils.color_mutants(cs, cs, amino_acid=True) for cs in (h_cseq, l_cseq)]
-        h_nseq, l_nseq = [utils.color_mutants(cs, l['naive_seq_aa'], amino_acid=True, align_if_necessary=True) for l, cs in zip((h_atn, l_atn), (h_cseq, l_cseq))]
-        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s    N    %%shm   N aa mutations     sizes            %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), h_cseq_str, l_cseq_str)
-        print ('             sum   h    l       h   l                           h  l   h l  %s  h   l   nuc   cons.     obs.   both   h   l       %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), h_nseq, l_nseq)
+        else:
+            cons_mfo = get_cons_mfo(metric_pairs)  # if we didn't choose a cons seq, we need to get the cons seqs/info (since both aa and nuc "chosen" cons seqs can differ from the one in the annotation: both if there's lots of shm indels, and the nuc because of codon_len=3
+        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s    N    %%shm   N aa mutations     sizes            %s %s %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), cstr('h', aa=True), cstr('l', aa=True), cstr('h'), cstr('l'))
+        print ('             sum   h    l       h   l                           h  l   h l  %s  h   l   nuc   cons.     obs.   both   h   l       %s %s %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), nstr('h', aa=True), nstr('l', aa=True), nstr('h'), nstr('l'))
         sorted_mfos = sorted(metric_pairs, key=lambda m: sum(mtpys[c][gsval(m, c, 'input_seqs_aa')] for c in 'hl'), reverse=True)
-        for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(getcdist(cons_mfo, x, c, frac=True) for c in 'hl'))):
+        for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(getcdist(x, c, frac=True) for c in 'hl'))):
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
             dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True) for u in (hid, lid)])
             indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
-            h_seq, l_seq = [utils.color_mutants(cs, utils.per_seq_val(l, 'input_seqs_aa', u), amino_acid=True, align_if_necessary=True) for u, l, cs in zip((hid, lid), (h_atn, l_atn), (h_cseq, l_cseq))]
-            h_cfrac, l_cfrac = [getcdist(cons_mfo, mpfo, c, frac=True) for c in 'hl']
-            h_cdist, l_cdist = [getcdist(cons_mfo, mpfo, c) for c in 'hl']
+            h_seq, l_seq = [utils.color_mutants(cons_mfo[c+'_cseq_aa'], utils.per_seq_val(l, 'input_seqs_aa', u), amino_acid=True, align_if_necessary=True) for c, u, l in zip('hl', (hid, lid), (h_atn, l_atn))]
+            h_nuc_seq, l_nuc_seq = '', ''
+            if print_nuc_seqs:
+                h_nuc_seq, l_nuc_seq = [utils.color_mutants(cons_mfo[c+'_cseq_nuc'], utils.per_seq_val(l, 'input_seqs', u), align_if_necessary=True) for c, u, l in zip('hl', (hid, lid), (h_atn, l_atn))]
+            h_cfrac, l_cfrac = [getcdist(mpfo, c, frac=True) for c in 'hl']
+            h_cdist, l_cdist = [getcdist(mpfo, c) for c in 'hl']
             print '       %s  %4.1f %4.1f %4.1f   %4d%4d   %s %20s  %s  %s   %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
                                                                                     100*sum([h_cfrac, l_cfrac]), 100*h_cfrac, 100*l_cfrac, h_cdist, l_cdist,
                                                                                     utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
                                                                                     get_didstr(dids), cids[0], cids[1], indelstr),
-            print ' %s %3d %3d %4.1f   %s  %2d %2d %2d  %s    %s   %s %s' % (' '.join(get_xstr(mpfo, xlens)),
-                                                                             mtpys['h'][gsval(mpfo, 'h', 'input_seqs_aa')], mtpys['l'][gsval(mpfo, 'l', 'input_seqs_aa')],
-                                                                             sum_nuc_shm_pct(mpfo),
-                                                                             cdstr if imp==0 else ' '*len(cdstr),
-                                                                             sumv(mpfo, 'shm-aa'), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'),
-                                                                             sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
-                                                                             h_seq, l_seq)
+            print ' %s %3d %3d %4.1f   %s  %2d %2d %2d  %s    %s   %s %s %s %s' % (' '.join(get_xstr(mpfo, xlens)),
+                                                                                   mtpys['h'][gsval(mpfo, 'h', 'input_seqs_aa')], mtpys['l'][gsval(mpfo, 'l', 'input_seqs_aa')],
+                                                                                   sum_nuc_shm_pct(mpfo),
+                                                                                   cdstr if imp==0 else ' '*len(cdstr),
+                                                                                   sumv(mpfo, 'shm-aa'), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'),
+                                                                                   sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
+                                                                                   h_seq, l_seq, h_nuc_seq, l_nuc_seq)
 
         for gs in gstrs[imp+1:]:  # if the cluster was smaller than gstrs, need to print the extra gstrs (this shouldn't really ever happen unless i make gstrs much longer))
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
@@ -2489,7 +2505,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     for iclust, (h_atn, l_atn) in enumerate(sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)):
         for ltmp in (h_atn, l_atn):
             utils.add_seqs_aa(ltmp)
-            add_cons_seqs(ltmp, aa=True)  # this also adds the nuc one if it isn't there
         metric_pairs = []
         for hid, pids in zip(h_atn['unique_ids'], h_atn['paired-uids']):
             if pids is None or len(pids) == 0:  # should only have the latter now (set with .get() call in rewrite_input_metafo())
