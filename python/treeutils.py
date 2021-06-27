@@ -2159,13 +2159,12 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # ----------------------------------------------------------------------------------------
         mtmp = metric_pairs[0]
         uis = {c : use_iseqs(c, mtmp) for c in 'hl'}  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
-        cseqs = {c : getcseqs(c, uis[c], aa=True) for c in 'hl'}  # aa cons seqs
 
         consfo = {c : mtmp[c] for c in 'hl'}
         consfo.update({'iclust' : iclust, 'consensus' : True})
         consfo.update({c+'_use_input_seqs' : uis[c] for c in 'hl'})
-        consfo.update({c+'_cseq_aa' : cseqs[c] for c in 'hl'})
-        consfo.update({c+'_cseq_nuc' : getcseqs(c, uis[c], aa=False, aa_ref_seq=cseqs[c]) for c in 'hl'})
+        consfo.update({c+'_cseq_aa' : getcseqs(c, uis[c], aa=True) for c in 'hl'})
+        consfo.update({c+'_cseq_nuc' : getcseqs(c, uis[c], aa=False, aa_ref_seq=consfo[c+'_cseq_aa']) for c in 'hl'})
 
         if any(utils.ltranslate(consfo[c+'_cseq_nuc']) != consfo[c+'_cseq_aa'] for c in 'hl'):
             print '  %s nuc cons seq translation differs from aa cons seq:' % utils.color('yellow', 'warning')
