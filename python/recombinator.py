@@ -395,7 +395,7 @@ class Recombinator(object):
         # then choose the things that we may need to try a few times (physical deletions/insertions)
         itry = 0
         while itry == 0 or keep_trying(tmpline):  # keep trying until it's both in frame and has no stop codons
-            self.try_scratch_erode_insert(tmpline, original_allowed_values=original_allowed_values)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
+            self.try_scratch_erode_insert(tmpline, original_allowed_values=original_allowed_values if self.args.correlation_values is not None else None)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
             itry += 1
             if itry % 50 == 0:
                 print '%s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry)
