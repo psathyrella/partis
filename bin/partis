@@ -780,7 +780,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not args.dry_run:
             combine_simu_chains()
         if args.paired_outdir is None:
-            work_fnames.extend(paircluster.paired_dir_fnames(getodir(), suffix='.yaml'))  # using extend() rather than += in a few places because of local variable/scoping behavior
+            work_fnames.extend(paircluster.paired_dir_fnames(getodir(), suffix='.yaml') + [getmfn('all-seqs'), getmfn('meta')])  # using extend() rather than += in a few places because of local variable/scoping behavior
     else:
         if args.action != 'cache-parameters' and auto_cache_params():  # ick. we can't just let the normal auto-parameter caching happen within each locus pair below, since it'll infer separately on the igh seqs paired with igk vs igl
             if args.seed_unique_id is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)

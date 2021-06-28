@@ -3005,7 +3005,7 @@ def rmdir(dname, fnames=None):
         clean_files(fnames)
     remaining_files = os.listdir(dname)
     if len(remaining_files) > 0:
-        raise Exception('files remain in %s, so can\'t rm dir: %s' % (dname, ' '.join(remaining_files)))
+        raise Exception('files remain in %s so can\'t rm dir: %s' % (dname, ' '.join(remaining_files)))
     os.rmdir(dname)
 
 # ----------------------------------------------------------------------------------------
