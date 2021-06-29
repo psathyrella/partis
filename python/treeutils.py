@@ -2119,7 +2119,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         elif vname == 'multipy':  # multiplicity
             return utils.get_multiplicity(cln, iseq=iseq)
         else:
-            allowed_svars = ['cell-types', 'aa-cfrac', 'shm-aa', 'aa-cdist', 'multipy'] + selection_metrics
+            allowed_svars = ['cell-types', 'aa-cfrac', 'shm-aa', 'aa-cdist', 'multipy'] + selection_metrics  # arg, this isn't actually all the allowed ones (ignores first clause, if vname in cln)
             raise Exception('unsupported sort var \'%s\' (choose from %s, or edit code/ask, it\'s easy to add them)' % (vname, ' '.join(allowed_svars)))
     # ----------------------------------------------------------------------------------------
     def sumv(mfo, kstr):
@@ -2130,7 +2130,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return 100 * sumv(mpfo, 'n_mutations') / float(total_len)
     # ----------------------------------------------------------------------------------------
     def read_cfgfo():
-        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen'])
+        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids'])
         # allowed_vars = []
         if debug:
             print '  ab choice cfg:'
@@ -2276,6 +2276,17 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return []
 
         all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen
+
+        if 'droplet-ids' in cfgfo:  # add some specific seqs
+            for mfo in metric_pairs:
+                did = utils.get_single_entry(list(set([utils.get_droplet_id(gsval(mfo, c, 'unique_ids')) for c in 'hl'])))
+                if did in cfgfo['droplet-ids']:
+                    chosen_mfos.append(mfo)
+                    all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
+                    if tdbg:
+                        print '        chose ab with droplet id %s' % did
+        if finished():
+            return chosen_mfos
 
         # maybe add the unobserved cons seq
         if 'include-unobs-cons-seqs' in cfgfo and cfgfo['include-unobs-cons-seqs']:

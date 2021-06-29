@@ -159,6 +159,7 @@ max-ambig-positions: 2  # summed over h+l amino acid seqs
 # n-per-family: [3, 2]  # specify either this *or* 'n:' for each of the 'vars:'
 # min-median-nuc-shm-%: 2
 min-hdist-to-already-chosen: 3  # only choose abs whose h/l seqs are at least this far from previously-chosen seqs (in amino acid hamming distance, summed over h+l)
+# droplet-ids: [TGACGGCGTCACCCAG-1, AGACGTTTCAACCAAC-1]  # choose specific droplet ids, before applying other criteria
 ```
 For instance, you might want to choose M, N, P Abs from each of the 3 largest families.
 To get the M Abs from the first family, you might take the top M sorted by aa-cdist, with additional criteria on [input meta info](#input-meta-info) like cell type or umis.
