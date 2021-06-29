@@ -145,6 +145,21 @@ You probably also want to set `--debug 1` in order to get detailed ascii informa
 ![view-output](images/ab-choice.png)
 
 The many possible ways to choose Abs are controlled with a yaml config file, whose location is specified with `--ab-choice-cfg`, with default in `data/selection-metrics/ab-choice.yaml`.
+Here is an example:
+```
+n-families: 2
+include-unobs-cons-seqs: True
+vars:
+  # sort each family by the indicated variable, with direction <sort>, then take the top <n> seqs that haven't already been taken and that pass all other criteria
+  aa-cfrac: {sort: low, n: [5, 3]}  # specity either 'n:' here *or* 'n-per-family:' below
+  # shm-aa: {sort: high, n: [3, 3, 3, 3, 3, 2, 2, 2, 2, 2]}
+# cell-types: [pb]
+max-ambig-positions: 2  # summed over h+l amino acid seqs
+# min-umis: 1000
+# n-per-family: [3, 2]  # specify either this *or* 'n:' for each of the 'vars:'
+# min-median-nuc-shm-%: 2
+min-hdist-to-already-chosen: 3  # only choose abs whose h/l seqs are at least this far from previously-chosen seqs (in amino acid hamming distance, summed over h+l)
+```
 For instance, you might want to choose M, N, P Abs from each of the 3 largest families.
 To get the M Abs from the first family, you might take the top M sorted by aa-cdist, with additional criteria on [input meta info](#input-meta-info) like cell type or umis.
 Look in the default config file for further descriptions of parameters.

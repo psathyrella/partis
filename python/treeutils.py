@@ -2119,7 +2119,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         elif vname == 'multipy':  # multiplicity
             return utils.get_multiplicity(cln, iseq=iseq)
         else:
-            raise Exception('unsupported sort var \'%s\'' % vname)
+            allowed_svars = ['cell-types', 'aa-cfrac', 'shm-aa', 'aa-cdist', 'multipy'] + selection_metrics
+            raise Exception('unsupported sort var \'%s\' (choose from %s, or edit code/ask, it\'s easy to add them)' % (vname, ' '.join(allowed_svars)))
     # ----------------------------------------------------------------------------------------
     def sumv(mfo, kstr):
         return sum(gsval(mfo, c, kstr) for c in 'hl')
@@ -2139,6 +2140,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             cfgfo = yaml.load(cfile, Loader=Loader)
         if len(set(cfgfo) - allowed_keys) > 0:
             raise Exception('unexpected key[s] in ab choice cfg: %s (choose from: %s)' % (' '.join(set(cfgfo) - allowed_keys), ' '.join(allowed_keys)))
+        for sortvar, vcfg in cfgfo['vars'].items():
+            if vcfg['sort'] not in ['low', 'high']:
+                raise Exception('value of sort var \'%s\' must be \'low\' or \'high\' (got \'%s\')' %(sortvar, vcfg['sort']))
+        if 'n-per-family' in cfgfo and any('n' in vcfg for vcfg in cfgfo['vars'].values()):
+            raise Exception('\'n-per-family\' was set, but also found key \'n\' in sort var[s] \'%s\' (can only specify number to take in one place)' % (' '.join(v for v, vcfg in cfgfo['vars'].items())))
         return cfgfo
     # ----------------------------------------------------------------------------------------
     def get_cons_mfo(metric_pairs, tdbg=False):
@@ -2201,7 +2207,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if isinstance(tcfg[key], int):  # take the same number from each family
                 return tcfg[key]
             else:  # specify a different number for each family
-                assert len(tcfg[key]) == cfgfo['n-families']
+                if len(tcfg[key]) != cfgfo['n-families']:
+                    raise Exception('length of n per family list for key %s (%d) not equal to n-families (%d)' % (key, len(tcfg[key]), cfgfo['n-families']))
                 return tcfg[key][iclust]
         # ----------------------------------------------------------------------------------------
         def in_chosen_seqs(all_chosen_seqs, mfo):
@@ -2217,9 +2224,21 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '        %d %d %s' % (h_min, l_min, utils.color('red', 'x') if sum([h_min, l_min]) < hdist else '')
             return any(sum(local_hdist_aa(cseq, mseq) for mseq, cseq in zip(mfseqs, acseqs)) < hdist for acseqs in all_chosen_seqs)
         # ----------------------------------------------------------------------------------------
+        def finished(tcfg=None, n_newly_chosen=None):
+            if tcfg is not None:
+                assert n_newly_chosen is not None
+                # this takes the top <n> by <sortvar> (not including any unobs cons seq)
+                if get_n_choose(tcfg, 'n') is not None and n_newly_chosen >= get_n_choose(tcfg, 'n'):  # number to choose for this var in this family
+                    return True
+            # whereas this makes sure we have N from the family over all sort vars (including any unobs cons seq), while still sorting by <sortvar>. It probably does *not* make sense to specify both versions
+            return get_n_choose(cfgfo, 'n-per-family') is not None and len(chosen_mfos) >= get_n_choose(cfgfo, 'n-per-family')
+        # ----------------------------------------------------------------------------------------
         # run through a bunch of options for skipping seqs/families
         if iclust >= cfgfo['n-families']:
             return []
+        chosen_mfos = []  # includes unobs cons seqs plus seqs chosen from all sortvars
+        if finished():  # return if we weren't supposed to get any from this family
+            return chosen_mfos
         if tdbg:
             print '    iclust %d: choosing abs from joint cluster with size %d (marked with %s)' % (iclust, len(metric_pairs), utils.color('green', 'x'))
         for ctk, ntk in [('cell-types', 'cell-types'), ('min-umis', 'umis')]:
@@ -2256,18 +2275,16 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if len(metric_pairs) == 0:
             return []
 
-        chosen_mfos = []  # includes unobs cons seqs plus seqs chosen from all sortvars
         all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen
 
         # maybe add the unobserved cons seq
         if 'include-unobs-cons-seqs' in cfgfo and cfgfo['include-unobs-cons-seqs']:
             add_unobs_cseqs(metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=tdbg)  # well, doesn't necessarily add it, but at least checks to see if we should
+        if finished():
+            return chosen_mfos
 
         # actually choose them, sorted by the various specified vars
         for sortvar, vcfg in cfgfo['vars'].items():
-            assert vcfg['sort'] in ['low', 'high']
-            if [get_n_choose(cfo, k) for cfo, k in [(vcfg, 'n'), (cfgfo, 'n-per-family')]].count(None) != 1:
-                raise Exception('specify exactly one of \'n-per-family\' and/or \'vars\': \'n\'')
             n_already_chosen, n_same_seqs, n_too_close, n_newly_chosen = 0, 0, 0, 0
             sorted_mfos = metric_pairs
             sorted_mfos = sorted(sorted_mfos, key=lambda m: sum(mtpys[c][gsval(m, c, 'input_seqs_aa')] for c in 'hl'), reverse=True)
@@ -2288,11 +2305,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                 n_newly_chosen += 1  # number chosen from this sortvar
 
-                # this takes the top <n> by <sortvar> (not including any unobs cons seq)
-                if get_n_choose(vcfg, 'n') is not None and n_newly_chosen >= get_n_choose(vcfg, 'n'):  # number to choose for this var in this family
-                    break
-                # whereas this makes sure we have N from the family over all sort vars (including any unobs cons seq), while still sorting by <sortvar>. It probably does *not* make sense to specify both versions
-                if get_n_choose(cfgfo, 'n-per-family') is not None and len(chosen_mfos) >= get_n_choose(cfgfo, 'n-per-family'):  # number to choose for all vars in this family (it's kind of weird/confusing to have this inside the sortvar loop, but i think it actually makes sense)
+                if finished(tcfg=vcfg, n_newly_chosen=n_newly_chosen):
                     break
 
             if tdbg:
@@ -2300,8 +2313,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                                                     '' if n_already_chosen==0 else ' (%d were in common with a previous var)'%n_already_chosen,
                                                     '' if n_same_seqs==0 else ' (%d had seqs identical to previously-chosen ones)'%n_same_seqs,
                                                     '' if n_too_close==0 else ' (%d had seqs too close to previously-chosen ones)'%n_too_close)
-        if tdbg:
-            print '      chose %d total' % len(chosen_mfos)
 
         return chosen_mfos
     # ----------------------------------------------------------------------------------------
@@ -2526,6 +2537,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         iclust_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
         if len(iclust_mfos) > 0:
             all_chosen_mfos += iclust_mfos
+            if debug:
+                print '      chose %d total' % len(iclust_mfos)
         if debug:
             print_dbg(metric_pairs)
         if n_too_small > 0:
