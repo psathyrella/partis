@@ -1039,7 +1039,7 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
     return cigarstr
 
 # ----------------------------------------------------------------------------------------
-def get_airr_line(line, iseq, partition=None, debug=False):
+def get_airr_line(line, iseq, partition=None, extra_columns=None, debug=False):
     qr_gap_seq = line['seqs'][iseq]
     gl_gap_seq = line['naive_seq']
     if indelutils.has_indels(line['indelfos'][iseq]):
@@ -1097,18 +1097,29 @@ def get_airr_line(line, iseq, partition=None, debug=False):
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
 
+    if extra_columns is not None:
+        for key in extra_columns:
+            if key in line:
+                aline[key] = line[key][iseq] if key in linekeys['per_seq'] else line[key]
+            else:
+                add_extra_column(key, line, aline)
+                if key in linekeys['per_seq']:  # have to restrict to iseq
+                    aline[key] = aline[key][iseq]
+
     return aline
 
 # ----------------------------------------------------------------------------------------
-def write_airr_output(outfname, annotation_list, cpath, failed_queries, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
+def write_airr_output(outfname, annotation_list, cpath, failed_queries, extra_columns=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
+    if extra_columns is None:
+        extra_columns = []
     print '   writing airr annotations to %s' % outfname
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
     with open(outfname, 'w') as outfile:
-        writer = csv.DictWriter(outfile, airr_headers.keys(), delimiter='\t')
+        writer = csv.DictWriter(outfile, airr_headers.keys() + extra_columns, delimiter='\t')
         writer.writeheader()
         for line in annotation_list:
             for iseq in range(len(line['unique_ids'])):
-                aline = get_airr_line(line, iseq, partition=cpath.partitions[cpath.i_best] if cpath is not None else None, debug=debug)
+                aline = get_airr_line(line, iseq, partition=cpath.partitions[cpath.i_best] if cpath is not None else None, extra_columns=extra_columns, debug=debug)
                 writer.writerow(aline)
 
         # and write empty lines for seqs that failed either in sw or the hmm
@@ -3147,7 +3158,8 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
     if key == 'cdr3_seqs':
         outfo[key] = [get_cdr3_seq(info, iseq) for iseq in range(len(info['unique_ids']))]
     elif key == 'full_coding_naive_seq':
-        assert glfo is not None
+        if glfo is None:
+            raise Exception('have to pass in glfo for extra annotation column \'%s\'' % key)
         delstr_5p = glfo['seqs']['v'][info['v_gene']][ : info['v_5p_del']]  # bit missing from the input sequence
         outfo[key] = delstr_5p + info['naive_seq']
         if info['j_3p_del'] > 0:
