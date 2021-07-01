@@ -37,9 +37,10 @@ class RecombinationEvent(object):
         self.tree = None
 
         self.line = None  # dict with info in format of utils.py/output files
+        self.h_corr_line = None  # HACK to allow passing heavy chain rearrangement info to the light chain rearrangement (to allow heavy/light correlations)
 
     # ----------------------------------------------------------------------------------------
-    def set_vdj_combo(self, vdj_combo_label, glfo, debug=False, mimic_data_read_length=False):
+    def set_vdj_combo(self, vdj_combo_label, glfo, debug=False, mimic_data_read_length=False, h_corr_line=None):
         """ Set the label which labels the gene/length choice (a tuple of strings) as well as it's constituent parts """
         self.vdj_combo_label = vdj_combo_label
         for region in utils.regions:
@@ -57,6 +58,10 @@ class RecombinationEvent(object):
                 self.effective_erosions[erosion] = int(vdj_combo_label[utils.index_keys[erosion + '_del']])
             else:  # otherwise ignore data, and keep the entire v and j genes
                 self.effective_erosions[erosion] = 0
+
+        if h_corr_line is not None:  # this is ugly and sucks, but it's just a result of originally using <event>s rather than <line>s in simulation (and not yet completing switching)
+            assert 'heavy-chain-correlation-info' in h_corr_line
+            self.h_corr_line = h_corr_line
 
         if debug:
             self.print_gene_choice()
@@ -144,6 +149,10 @@ class RecombinationEvent(object):
         line['loci'] = [self.glfo['locus'] for _ in range(len(line['input_seqs']))]  # this is annoying to make it per-seq, but that makes it easier to deal with it when it's input meta info
 
         utils.add_implicit_info(self.glfo, line)
+
+        if self.h_corr_line is not None:  # just for heavy/light correlation info
+            assert 'heavy-chain-correlation-info' in self.h_corr_line
+            line['heavy-chain-correlation-info'] = self.h_corr_line['heavy-chain-correlation-info']
 
         self.line = line
 

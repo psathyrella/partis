@@ -77,13 +77,19 @@ def run_simulation(args):
             working_gldir = args.workdir + '/' + glutils.glfo_dir
             glutils.write_glfo(working_gldir, glfo)
 
+# TODO apportion among multiple procs
+    assert args.n_procs == 1
+    heavy_chain_events = None
+    if args.paired_correlation_values is not None and not utils.has_d_gene(args.locus):  # if we're doing paired correlations and this is light chain, we need to read the heavy chain annotations so we can pass the proper igh event into each light chain rearrangement
+        _, heavy_chain_events, _ = utils.read_output(args.heavy_chain_event_fname, dont_add_implicit_info=True)
+
     # ----------------------------------------------------------------------------------------
-    def make_events(n_events, workdir, outfname, random_ints):
-        reco = Recombinator(args, glfo, seed=args.random_seed, workdir=workdir)
+    def make_events(n_events, workdir, outfname, random_ints, heavy_chain_events=None):
+        reco = Recombinator(args, glfo, seed=args.random_seed, workdir=workdir, heavy_chain_events=heavy_chain_events)
         start = time.time()
         events = []
         for ievt in range(n_events):
-            event = reco.combine(random_ints[ievt], i_choose_tree=ievt if args.choose_trees_in_order else None)
+            event = reco.combine(random_ints[ievt], i_choose_tree=ievt if args.choose_trees_in_order else None, i_heavy_event=ievt if heavy_chain_events is not None else None)
             events.append(event)
         if args.check_tree_depths or args.debug:
             reco.print_validation_values()
@@ -95,7 +101,7 @@ def run_simulation(args):
 
     n_per_proc_list, work_fnames = [], []
     if args.n_procs == 1:
-        make_events(args.n_sim_events, args.workdir, args.outfname, [random.randint(0, numpy.iinfo(numpy.int32).max) for _ in range(args.n_sim_events)])
+        make_events(args.n_sim_events, args.workdir, args.outfname, [random.randint(0, numpy.iinfo(numpy.int32).max) for _ in range(args.n_sim_events)], heavy_chain_events=heavy_chain_events)
     else:
         # ----------------------------------------------------------------------------------------
         def get_workdir(iproc):
@@ -470,6 +476,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.insert_in_arglist(clist, ['--locus', ltmp], args.action)
                 if args.action == 'simulate':
                     clist += ['--choose-trees-in-order', '--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair), '--outfname', getofn(ltmp, lpair=lpair)]
+                    if args.paired_correlation_values is not None and not utils.has_d_gene(ltmp):
+                        clist += ['--heavy-chain-event-fname', getofn('igh', lpair=lpair)]
+# TODO figure out n procs > 1
                     utils.replace_in_arglist(clist, '--n-sim-events', str(get_n_events(lpair[1], args.n_sim_events)), insert_after='--choose-trees-in-order')
                 else:
                     if auto_cache:
@@ -1064,6 +1073,8 @@ subargs['simulate'].append({'name' : '--scratch-mute-freq', 'kwargs' : {'type' :
 subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm rate (--scratch-mute-freq) for all positions (in practice it\'s not that much flatter than the Gamma that is used by default --mutate-from-scratch). For use with --mutate-from-scratch.'}})
 subargs['simulate'].append({'name' : '--same-mute-freq-for-all-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm rate (--scratch-mute-freq) for all sequences. For use with --mutate-from-scratch. NOTE: this means we tell bppseqgen to use the same expected rate for every sequence -- there\'s still variance in the resulting number of output mutation per sequence.'}})
 subargs['simulate'].append({'name' : '--correlation-values', 'kwargs' : {'help' : 'By default, scratch rearrangement has no correlations between parameters, but this arg lets you turn them on. Each correlation is specified as a \'.\'-separated pair of parameter names, separated by \',\' from a float in [0, 1] specifying the magnitude of the correlation, with multiple correlations separated by \':\', e.g. \'v_gene.d_gene,0.1:d_gene.j_gene,0.7\'. Currently allowed parameter pairs are %s. Note that the correlation model is just one (fairly arbitrary) choice for how to set things up, for details consult the code. Note also that non-scratch simulation, i.e. from inferred parameters, includes correlations among all parameters.' % ', '.join(str(p) for p in utils.available_simu_correlations)}})
+subargs['simulate'].append({'name' : '--paired-correlation-values', 'kwargs' : {'help' : 'like --correlation-values, except that the first parameter is in the heavy chain rearrangmeent, and the second is in the light chain rearrangement.'}})
+subargs['simulate'].append({'name' : '--heavy-chain-event-fname', 'kwargs' : {'help' : 'for internal use by --paired-correlation-values: file with heavy chain events so the light chain rearrangement knows what was in the heavy chain rearrangement.'}})
 # new allele/germline set generation (this is also for from-scratch)
 subargs['simulate'].append({'name' : '--generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Choose a realistic germline set from the available genes. Turned on automatically when --rearrange-from-scratch or --simulate-from-scratch are set.'}})
 subargs['simulate'].append({'name' : '--force-dont-generate-germline-set', 'kwargs' : {'action' : 'store_true', 'help' : 'Force --generate-germline-set to False in situations in which it would otherwise be turned on (I know, this is kind of messy, but I think it\'s the best available solution).'}})

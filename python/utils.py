@@ -390,6 +390,8 @@ available_simu_correlations = [('v_gene', 'd_gene'), ('d_gene', 'j_gene'), ('v_g
                                ('d_gene', 'dj_insertion'),
                                ('j_gene', 'dj_insertion'),
 ]
+paired_available_simu_correlations = available_simu_correlations + [(p, p) for p in set(q for qpair in available_simu_correlations for q in qpair)]  # all the single-chain ones, plus each parameter with itself
+paired_available_simu_correlations = [ppair for ppair in paired_available_simu_correlations if ppair[1] not in ['d_gene', 'd_5p_del', 'd_3p_del', 'vd_insertion']]  # doesn't make sense to have d gene stuff since there's only one option for light chain (and these are all correlations on choosing the light chain)
 
 # ----------------------------------------------------------------------------------------
 adaptive_headers = {
@@ -462,7 +464,7 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors', 'tree-info', 'alternative-annotations'] + [r + '_per_gene_support' for r in regions]
 linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights']
-linekeys['simu'] = ['reco_id', 'affinities', 'relative_affinities', 'lambdas', 'tree', 'target_seqs', 'nearest_target_indices']
+linekeys['simu'] = ['reco_id', 'affinities', 'relative_affinities', 'lambdas', 'tree', 'target_seqs', 'nearest_target_indices', 'heavy-chain-correlation-info']
 
 # keys that are added by add_implicit_info()
 implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs'] + \

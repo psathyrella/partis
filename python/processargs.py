@@ -381,16 +381,30 @@ def process(args):
         if args.fraction_of_reads_to_remove is not None:
             assert args.fraction_of_reads_to_remove > 0. and args.fraction_of_reads_to_remove < 1.
 
-        if args.correlation_values is not None:
-            args.correlation_values = utils.get_arg_list(args.correlation_values, key_val_pairs=True, floatify=True)
-            for kpstr in args.correlation_values.keys():
+        # ----------------------------------------------------------------------------------------
+        def process_corr_values(cvals, estr=''):
+            if cvals is None:
+                return cvals
+            if not args.rearrange_from_scratch:
+                raise Exception('--%scorrelation-values has no effect unless --rearrange-from-scratch (or --simulate-from-scratch) is set' % estr)
+            cvals = utils.get_arg_list(cvals, key_val_pairs=True, floatify=True)
+            for kpstr in cvals.keys():
                 ppair = tuple(kpstr.split('.'))
-                if ppair not in utils.available_simu_correlations:
-                    raise Exception('parameter pair %s in --correlation-values not among allowed ones (%s)' % (ppair, ', '.join(str(p) for p in utils.available_simu_correlations)))
-                if args.correlation_values[kpstr] < 0. or args.correlation_values[kpstr] > 1.:
-                    raise Exception('correlation value %f not in [0, 1]' % args.correlation_values[kpstr])
-                args.correlation_values[ppair] = args.correlation_values[kpstr]
-                del args.correlation_values[kpstr]
+                avail_corrs = utils.available_simu_correlations if estr=='' else utils.paired_available_simu_correlations
+                if ppair not in avail_corrs:
+                    raise Exception('parameter pair %s in --%scorrelation-values not among allowed ones (%s)' % (ppair, estr, ', '.join(str(p) for p in avail_corrs)))
+                if cvals[kpstr] < 0. or cvals[kpstr] > 1.:
+                    raise Exception('correlation value %f not in [0, 1]' % cvals[kpstr])
+                cvals[ppair] = cvals[kpstr]
+                del cvals[kpstr]
+            return cvals
+        # ----------------------------------------------------------------------------------------
+        args.correlation_values = process_corr_values(args.correlation_values)
+        args.paired_correlation_values = process_corr_values(args.paired_correlation_values, estr='paired-')
+        if args.correlation_values is not None and args.paired_correlation_values is not None:
+            raise Exception('can\'t yet handle single-chain --correlation-values and --paired-correlation-values at the same time')
+        if args.locus is not None and not utils.has_d_gene(args.locus) and args.paired_correlation_values is not None and args.heavy_chain_event_fname is None:
+            raise Exception('if --paired-correlation-values is set for light chain, you have to also set --heavy-chain-event-fname')
 
     if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')

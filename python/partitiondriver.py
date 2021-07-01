@@ -2280,7 +2280,7 @@ class PartitionDriver(object):
             utils.write_presto_annotations(presto_annotation_fname, annotation_list, failed_queries=failed_queries)
             return
         elif self.args.airr_output:
-            utils.write_airr_output(utils.replace_suffix(outfname, '.tsv'), annotation_list, cpath=cpath, failed_queries=failed_queries)  # suffix may already be .tsv, but that's fine
+            utils.write_airr_output(utils.replace_suffix(outfname, '.tsv'), annotation_list, cpath=cpath, failed_queries=failed_queries, extra_columns=self.args.extra_annotation_columns)  # suffix may already be .tsv, but that's fine
             if utils.getsuffix(outfname) == '.tsv':  # if it isn't .tsv, we also write the regular partis file
                 return
 

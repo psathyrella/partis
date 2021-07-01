@@ -26,7 +26,7 @@ dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length 
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
-    def __init__(self, args, glfo, seed, workdir):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir> # rm workdir
+    def __init__(self, args, glfo, seed, workdir, heavy_chain_events=None):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir> # rm workdir
         self.args = args
         self.glfo = glfo
         if len(glfo['seqs']['v']) > 100:  # this is kind of a shitty criterion, but I don't know what would be better (we basically just want to warn people if they're simulating from data/germlines/human)
@@ -78,6 +78,8 @@ class Recombinator(object):
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
         self.validation_values['bpp-times'] = []
+
+        self.heavy_chain_events = heavy_chain_events
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
@@ -152,21 +154,21 @@ class Recombinator(object):
             self.all_mute_counts[gene] = paramutils.read_mute_counts(self.shm_parameter_dir, gene, utils.get_locus(gene), extra_genes=per_base_extra_genes)
 
     # ----------------------------------------------------------------------------------------
-    def combine(self, initial_irandom, i_choose_tree=None):
+    def combine(self, initial_irandom, i_choose_tree=None, i_heavy_event=None):
         """ keep running self.try_to_combine() until you get a good event """
         line = None
         itry = 0
         while line is None:
             if itry > 0 and self.args.debug:
                 print '    unproductive event -- rerunning (try %d)  ' % itry  # probably a weirdly long v_3p or j_5p deletion
-            line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree)
+            line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event)
             itry += 1
             if itry > 9999:
                 raise Exception('too many tries %d in recombinator' % itry)
         return line
 
     # ----------------------------------------------------------------------------------------
-    def try_to_combine(self, irandom, i_choose_tree=None):
+    def try_to_combine(self, irandom, i_choose_tree=None, i_heavy_event=None):
         """
         Create a recombination event and write it to disk
         <irandom> is used as the seed for the myriad random number calls.
@@ -178,7 +180,7 @@ class Recombinator(object):
         random.seed(irandom)
 
         reco_event = RecombinationEvent(self.glfo)
-        self.choose_vdj_combo(reco_event)
+        self.choose_vdj_combo(reco_event, i_heavy_event=i_heavy_event)
         self.erode_and_insert(reco_event)
 
         # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over (update: we should no longer ever encounter Vs that're screwed up like this)
@@ -262,29 +264,35 @@ class Recombinator(object):
         return version_freq_table
 
     # ----------------------------------------------------------------------------------------
-    # restrict options according to the specified correlation value (corr of 1 means 1 option, of 0 means take all options)
-    def restrict_options_for_correlation(self, pthis, this_options, tmpline, all_other_options, probs=None, mean_max=None, debug=True):  # return <this_options> (allowed values for parameter <pthis>) that has been restricted according to any correlations specified in self.correlation_values that are for keys already in <tmpline> (<all_other_options> contains the options for other ones)
-        # NOTE this needs to be called even for parameters we don't want to restrict, for the all_other_options stuff at the bottom (plus maybe other stuff)
+    # keep track of allowed options, and if specified also restrict options according to the specified correlation value (corr of 1 means 1 option, of 0 means take all options)
+    def handle_options_for_correlation(self, pthis, this_options, corr_vals, allowed_vals, parent_line, probs=None, mean_max=None):  # return <this_options> (allowed values for parameter <pthis>) that has been restricted according to any correlations specified in self.correlation_values that are for keys already in <parent_line> (<allowed_vals> contains the options for other ones)
+        # NOTE this needs to be called even for parameters we don't want to restrict, in order to add <this_options> to allowed_vals['current']
+
         if mean_max is not None:  # need to init list of possible values + probs
             assert probs is None and this_options is None
             mean_len, max_len = mean_max
-            this_options, probs = zip(*[(l - 1, scipy.stats.geom.pmf(l, 1. / mean_len)) for l in range(1, max_len + 1)])  # NOTE use of geometric distribution has to match len_fcn in try_scratch_erode_insert() NOTE also probs aren't normalized here, but that shouldn't matter NOTE also l-1 is to match similar subtractions in non-correlation code
+            this_options, probs = zip(*[(l - 1, scipy.stats.geom.pmf(l, 1. / mean_len)) for l in range(1, max_len + 1)])  # NOTE has to match numpy.random.geometric below NOTE also probs aren't normalized here, but that shouldn't matter NOTE also l-1 is to match similar subtractions in non-correlation code
 
-        for (param_pair), corr_val in self.args.correlation_values.items():
-            if pthis not in param_pair:
+        allowed_vals['current'][pthis] = this_options  # note that this means all the modifications to <this_options> below are also modifying the list in allowed_vals['current']
+        if corr_vals is None:
+            return this_options, utils.normalize(probs)
+
+        for (param_pair), corr_val in corr_vals.items():
+            if pthis != param_pair[1]:
                 continue
-            pother = utils.get_single_entry([p for p in param_pair if p != pthis])
-            if pother not in tmpline:
-                continue
+            # pother = utils.get_single_entry([p for p in param_pair if p != pthis])  # param in param_pair that isn't pthis
+            pother = param_pair[0]
             n_before = len(this_options)
-            iother = all_other_options[pother].index(tmpline[pother])
+            iother = allowed_vals['parent'][pother].index(parent_line[pother])  # pother should (now) always already be in parent_line, since we're enforcing the ordering of the allowed correltaion pairs
             istart = iother % len(this_options)
             n_to_take = max(1, int((1. - corr_val) * float(len(this_options))))
             i_taken = [i % len(this_options) for i in range(istart, istart + n_to_take)]  # start from <istart> and add <n_to_take>, wrapping around to index 0 if necessary
             if self.args.debug > 1:
                 def cstr(i, cfcn): return utils.color('red' if cfcn(i) else None, str(i), width=3)
-                print '     %s %s correlation: %.2f, taking max(1, (1 - %.2f) * %d) = %d starting from index %d %% %d = %d' % (param_pair[0], param_pair[1], corr_val, corr_val, len(this_options), n_to_take, iother, len(this_options), istart)
-                print '      %10s: %s' % (param_pair[0], ' '.join(cstr(i, lambda x: x==iother) for i in range(len(all_other_options[pother]))))
+                pair_lstrs = ('', '') if self.args.paired_correlation_values is None else [' (%s)  '%utils.color('blue', l) for l in (utils.get_locus(parent_line['v_gene']), self.args.locus)]
+                print '     %s%s %s%s correlation: %.2f, parent val %s iother %d, restricting to max(1, (1 - %.2f) * %d) = %d values starting from index %d %% %d = %d' % (param_pair[0], pair_lstrs[0], param_pair[1], pair_lstrs[1],
+                                                                                                                                                            corr_val, parent_line[pother], iother, corr_val, len(this_options), n_to_take, iother, len(this_options), istart)
+                print '      %10s: %s' % (param_pair[0], ' '.join(cstr(i, lambda x: x==iother) for i in range(len(allowed_vals['parent'][pother]))))
                 print '      %10s: %s' % (param_pair[1], ' '.join(cstr(i, lambda x: x in i_taken) for i in range(len(this_options))))
             this_options = [this_options[i] for i in i_taken]
             if probs is not None:
@@ -293,17 +301,12 @@ class Recombinator(object):
             if self.args.debug:
                 print '        reducing options for %s (given previous choice of %s) from %d to %d' % (pthis, pother, n_before, len(this_options))
 
-        assert pthis not in all_other_options
-        all_other_options[pthis] = copy.deepcopy(this_options)  # NOTE maybe this should be before restricting them, rather than after? should be ok though
-
-        return this_options, utils.normalize(probs)  # could just modify <this_options> but this makes it more obvious in the caller what's going on
+        return this_options, utils.normalize(probs)
 
     # ----------------------------------------------------------------------------------------
-    def try_scratch_erode_insert(self, tmpline, original_allowed_values=None, debug=False):
-        len_fcn = numpy.random.geometric  # has to match fcn in restrict_options_for_correlation() NOTE also the -1 in several places
+    def try_scratch_erode_insert(self, tmpline, corr_vals=None, allowed_vals=None, parent_line=None, debug=False):  # non-None corr_vals determines if we're applying correlations
+        len_fcn = numpy.random.geometric  # has to match scipy.stats.geom above NOTE also the -1 in several places
         utils.remove_all_implicit_info(tmpline)
-        if self.args.correlation_values is not None:
-            local_original_allowed_values = copy.deepcopy(original_allowed_values)
         for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
             region = erosion[0]
             gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
@@ -320,10 +323,10 @@ class Recombinator(object):
                         n_bases_to_codon = codon_pos
                     max_erosion = min(max_erosion, n_bases_to_codon)
                 mean_len = utils.scratch_mean_erosion_lengths[self.args.locus][erosion]
-                if self.args.correlation_values is None:
+                if corr_vals is None and allowed_vals is None:  # the case where they're different is heavy chain for paired correlation, when corr_vals is None so we don't apply any correlations, but allowed_vals is *not* None so we can keep track of allowed values
                     e_len = min(max_erosion, len_fcn(1. / mean_len) - 1)
                 else:
-                    lens, probs = self.restrict_options_for_correlation(erosion+'_del', None, tmpline, local_original_allowed_values, mean_max=(mean_len, max_erosion))
+                    lens, probs = self.handle_options_for_correlation(erosion+'_del', None, corr_vals, allowed_vals, parent_line, mean_max=(mean_len, max_erosion))
                     e_len = numpy.random.choice(lens, p=probs)
                 tmpline[erosion + '_del'] = e_len
         for bound in utils.boundaries:
@@ -331,10 +334,10 @@ class Recombinator(object):
             if mean_len == 0:
                 i_len = 0  # mean_len if 0 means it *needs* to be zero, e.g. vd insertion for light chain
             else:
-                if self.args.correlation_values is None:
+                if corr_vals is None and allowed_vals is None:
                     i_len = len_fcn(1. / mean_len) - 1
                 else:
-                    lens, probs = self.restrict_options_for_correlation(bound+'_insertion', None, tmpline, local_original_allowed_values, mean_max=(mean_len, 2*int(mean_len)))  # it's kind of weird to just limit it to twice the mean length here, but since restrict_options_for_correlation() doesn't account for probs when choosing which to keep, if we make it bigger we choose those super large values too frequently
+                    lens, probs = self.handle_options_for_correlation(bound+'_insertion', None, corr_vals, allowed_vals, parent_line, mean_max=(mean_len, 2*int(mean_len)))  # it's kind of weird to just limit it to twice the mean length here, but since handle_options_for_correlation() doesn't account for probs when choosing which to keep, if we make it bigger we choose those super large values too frequently
                     i_len = numpy.random.choice(lens, p=probs)  # maybe this should also always be 0 if mean_len is 0?
             cnt_probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
             tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=i_len, p=cnt_probs))
@@ -358,14 +361,31 @@ class Recombinator(object):
         tmpline['indelfos'] = [indelutils.get_empty_indel(), ]
         utils.add_implicit_info(self.glfo, tmpline)
         assert len(tmpline['in_frames']) == 1
+        if self.args.paired_correlation_values is not None and utils.has_d_gene(self.args.locus):  # if this is heavy chain and we're doing heavy/light correlations, we need to write some extra info to the output file
+            tmpline['heavy-chain-correlation-info'] = allowed_vals['current']
 
     # ----------------------------------------------------------------------------------------
-    def get_scratchline(self):
+    def get_scratchline(self, i_heavy_event=None):
         tmpline = {}
 
-        # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
+        assert self.args.correlation_values is None or self.args.paired_correlation_values is None  # this is already checked elsewhere, but having it here makes it clearer how things work
+        corr_vals, allowed_vals, parent_line = None, None, None  # allowed_vals is to keep track of all the options we had for each parameter, for when a later parameter wants to be correlated with it (note: could probably include allowed_genes and whatnot in allowed_vals now)
         if self.args.correlation_values is not None:
-            original_allowed_values = {}  # have to keep track of all the option we had for each parameter, in case a later parameter wants to be correlated with it
+            corr_vals = self.args.correlation_values
+            allowed_vals = {'current' : {}}
+            allowed_vals['parent'] = allowed_vals['current']
+            parent_line = tmpline
+        elif self.args.paired_correlation_values is not None:
+            allowed_vals = {'current' : {}, 'parent' : None}
+            if not utils.has_d_gene(self.args.locus):  # we only *apply* paired correlations in light chain (whereas for heavy chain we need to keep track of original options but without applying any correlations)
+                corr_vals = self.args.paired_correlation_values
+                assert i_heavy_event is not None
+                allowed_vals['parent'] = self.heavy_chain_events[i_heavy_event]['heavy-chain-correlation-info']
+                parent_line = self.heavy_chain_events[i_heavy_event]
+                if self.args.debug:
+                    print '    taking parent values for correlation from heavy chain event with: %s  %s  %s  cdr3: %d' % (utils.color_gene(parent_line['v_gene']), utils.color_gene(parent_line['d_gene']), utils.color_gene(parent_line['j_gene']), parent_line['cdr3_length'])
+
+        # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
         for region in utils.regions:
             if len(self.glfo['seqs'][region]) == 0:
                 raise Exception('no genes to choose from for %s' % region)
@@ -374,8 +394,8 @@ class Recombinator(object):
             if self.allele_prevalence_freqs is not None:
                 if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
                     probs = [self.allele_prevalence_freqs[region][g] for g in allowed_genes]
-            if self.args.correlation_values is not None:
-                allowed_genes, probs = self.restrict_options_for_correlation(region+'_gene', allowed_genes, tmpline, original_allowed_values, probs=probs)
+            if corr_vals is not None or allowed_vals is not None:
+                allowed_genes, probs = self.handle_options_for_correlation(region+'_gene', allowed_genes, corr_vals, allowed_vals, parent_line, probs=probs)
             tmpline[region + '_gene'] = str(numpy.random.choice(allowed_genes, p=probs))
         for effrode in utils.effective_erosions:
             tmpline[effrode + '_del'] = 0
@@ -395,7 +415,9 @@ class Recombinator(object):
         # then choose the things that we may need to try a few times (physical deletions/insertions)
         itry = 0
         while itry == 0 or keep_trying(tmpline):  # keep trying until it's both in frame and has no stop codons
-            self.try_scratch_erode_insert(tmpline, original_allowed_values=original_allowed_values if self.args.correlation_values is not None else None)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
+            if self.args.debug and itry > 0:
+                print '    %s: retrying scratch rearrangement' % utils.color('blue', 'itry %d'%itry)
+            self.try_scratch_erode_insert(tmpline, corr_vals=corr_vals, allowed_vals=allowed_vals, parent_line=parent_line)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
             itry += 1
             if itry % 50 == 0:
                 print '%s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry)
@@ -407,12 +429,16 @@ class Recombinator(object):
         return tmpline
 
     # ----------------------------------------------------------------------------------------
-    def choose_vdj_combo(self, reco_event):  # NOTE similarity to hist.sample()
+    def choose_vdj_combo(self, reco_event, i_heavy_event=None):  # NOTE similarity to hist.sample()
         """ Choose the set of rearrangement parameters """
 
         vdj_choice = None
+        h_corr_line = None
         if self.args.rearrange_from_scratch:  # generate an event without using the parameter directory
-            vdj_choice = self.freqtable_index(self.get_scratchline())
+            tmpline = self.get_scratchline(i_heavy_event=i_heavy_event)
+            vdj_choice = self.freqtable_index(tmpline)
+            if self.args.paired_correlation_values is not None and utils.has_d_gene(self.args.locus):
+                h_corr_line = tmpline
         else:  # use real parameters from a directory
             iprob = numpy.random.uniform(0, 1)
             sum_prob = 0.0
@@ -424,7 +450,7 @@ class Recombinator(object):
 
             assert vdj_choice is not None  # shouldn't fall through to here
 
-        reco_event.set_vdj_combo(vdj_choice, self.glfo, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length)
+        reco_event.set_vdj_combo(vdj_choice, self.glfo, debug=self.args.debug, mimic_data_read_length=self.args.mimic_data_read_length, h_corr_line=h_corr_line)
 
     # ----------------------------------------------------------------------------------------
     def erode(self, erosion, reco_event):
