@@ -280,10 +280,9 @@ class Recombinator(object):
         for (param_pair), corr_val in corr_vals.items():
             if pthis != param_pair[1]:
                 continue
-            # pother = utils.get_single_entry([p for p in param_pair if p != pthis])  # param in param_pair that isn't pthis
             pother = param_pair[0]
             n_before = len(this_options)
-            iother = allowed_vals['parent'][pother].index(parent_line[pother])  # pother should (now) always already be in parent_line, since we're enforcing the ordering of the allowed correltaion pairs
+            iother = allowed_vals['parent'][pother].index(parent_line[pother])  # pother should (now) always already be in parent_line, since we're enforcing the ordering of the allowed correlation pairs
             istart = iother % len(this_options)
             n_to_take = max(1, int((1. - corr_val) * float(len(this_options))))
             i_taken = [i % len(this_options) for i in range(istart, istart + n_to_take)]  # start from <istart> and add <n_to_take>, wrapping around to index 0 if necessary

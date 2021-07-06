@@ -34,6 +34,71 @@ import paircluster
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
+    # ----------------------------------------------------------------------------------------
+    def run_sub_cmds(working_gldir):
+        # ----------------------------------------------------------------------------------------
+        def get_sub_events(iproc):
+            n_sub_events = args.n_sim_events / args.n_procs
+            if iproc == 0 and args.n_sim_events % args.n_procs > 0:  # do any extra ones in the first proc
+                n_sub_events += args.n_sim_events % args.n_procs
+            n_per_proc_list.append(n_sub_events)
+            return n_sub_events
+        # ----------------------------------------------------------------------------------------
+        def get_workdir(iproc):
+            return args.workdir + '/sub-' + str(iproc)
+        # ----------------------------------------------------------------------------------------
+        def get_outfname(iproc):
+            return get_workdir(iproc) + '/' + os.path.basename(args.outfname)
+        # ----------------------------------------------------------------------------------------
+        def write_sub_tree_file(iproc, n_sub_events):
+            subtreefname = '%s/trees-sub-%d.nwk' % (args.workdir, iproc)
+            utils.replace_in_arglist(clist, '--input-simulation-treefname', subtreefname)
+            n_sub_trees = len(treelines) / args.n_procs
+            sub_tree_lines = treelines[iproc * n_sub_trees : (iproc + 1) * n_sub_trees]
+            if iproc == 0 and len(treelines) % args.n_procs > 0:  # add any extra ones to the first proc
+                sub_tree_lines += treelines[args.n_procs * n_sub_trees : ]
+            if len(sub_tree_lines) == 0:
+                raise Exception('couldn\'t split up %d trees among %d procs' % (len(treelines), args.n_procs))
+            if len(sub_tree_lines) < n_sub_events:
+                print '  note: number of trees %d smaller than number of events %d for sub proc %d (of %d)' % (len(sub_tree_lines), n_sub_events, iproc, args.n_procs)
+            work_fnames.append(subtreefname)
+            with open(subtreefname, 'w') as stfile:
+                stfile.writelines(sub_tree_lines)
+        # ----------------------------------------------------------------------------------------
+        if args.input_simulation_treefname is not None:  # split up the input trees among the sub procs
+            with open(args.input_simulation_treefname) as tfile:
+                treelines = tfile.readlines()
+            if len(treelines) < args.n_sim_events:
+                print '  note: total number of trees %d less than --n-sim-events %d' % (len(treelines), args.n_sim_events)
+
+        cmdfos = []
+        for iproc in range(args.n_procs):
+            n_sub_events = get_sub_events(iproc)
+            clist = copy.deepcopy(sys.argv)
+            utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
+            clist.append('--im-a-subproc')
+            utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
+            utils.replace_in_arglist(clist, '--workdir', get_workdir(iproc))
+            utils.replace_in_arglist(clist, '--outfname', get_outfname(iproc))
+            utils.replace_in_arglist(clist, '--n-sim-events', str(n_sub_events))
+            if working_gldir is not None:
+                utils.replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
+            if args.allele_prevalence_fname is not None:
+                utils.replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
+            if args.input_simulation_treefname is not None:
+                write_sub_tree_file(iproc, n_sub_events)
+            cmdstr = ' '.join(clist)
+            if args.debug:
+                print '  %s %s' % (utils.color('red', 'run'), cmdstr)
+            cmdfos.append({'cmd_str' : cmdstr, 'workdir' : get_workdir(iproc), 'logdir' : args.workdir+'/log-'+str(iproc), 'outfname' : get_outfname(iproc)})  # logdirs have to be different than <workdirs> since ./bin/partis (rightfully) barfs if its workdir already exists
+
+        utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, batch_config_fname=args.batch_config_fname, debug='print')
+        file_list = [cmdfos[i]['outfname'] for i in range(args.n_procs)]
+        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns),  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
+                                      n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc_list, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
+
+        return cmdfos
+    # ----------------------------------------------------------------------------------------
     if args.paired_loci:
         run_all_loci(args)
         return
@@ -103,61 +168,7 @@ def run_simulation(args):
     if args.n_procs == 1:
         make_events(args.n_sim_events, args.workdir, args.outfname, [random.randint(0, numpy.iinfo(numpy.int32).max) for _ in range(args.n_sim_events)], heavy_chain_events=heavy_chain_events)
     else:
-        # ----------------------------------------------------------------------------------------
-        def get_workdir(iproc):
-            return args.workdir + '/sub-' + str(iproc)
-        # ----------------------------------------------------------------------------------------
-        def get_outfname(iproc):
-            return get_workdir(iproc) + '/' + os.path.basename(args.outfname)
-        # ----------------------------------------------------------------------------------------
-        if args.input_simulation_treefname is not None:  # split up the input trees among the sub procs
-            with open(args.input_simulation_treefname) as tfile:
-                treelines = tfile.readlines()
-            if len(treelines) < args.n_sim_events:
-                print '  note: total number of trees %d less than --n-sim-events %d' % (len(treelines), args.n_sim_events)
-        cmdfos = []
-        for iproc in range(args.n_procs):
-            n_sub_events = args.n_sim_events / args.n_procs
-            if iproc == 0 and args.n_sim_events % args.n_procs > 0:  # do any extra ones in the first proc
-                n_sub_events += args.n_sim_events % args.n_procs
-            n_per_proc_list.append(n_sub_events)
-
-            clist = copy.deepcopy(sys.argv)
-            utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
-            clist.append('--im-a-subproc')
-            utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
-            utils.replace_in_arglist(clist, '--workdir', get_workdir(iproc))
-            utils.replace_in_arglist(clist, '--outfname', get_outfname(iproc))
-            utils.replace_in_arglist(clist, '--n-sim-events', str(n_sub_events))
-            if working_gldir is not None:
-                utils.replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
-            if args.allele_prevalence_fname is not None:
-                utils.replace_in_arglist(clist, '--allele-prevalence-fname', args.allele_prevalence_fname)
-
-            if args.input_simulation_treefname is not None:
-                subtreefname = '%s/trees-sub-%d.nwk' % (args.workdir, iproc)
-                utils.replace_in_arglist(clist, '--input-simulation-treefname', subtreefname)
-                n_sub_trees = len(treelines) / args.n_procs
-                sub_tree_lines = treelines[iproc * n_sub_trees : (iproc + 1) * n_sub_trees]
-                if iproc == 0 and len(treelines) % args.n_procs > 0:  # add any extra ones to the first proc
-                    sub_tree_lines += treelines[args.n_procs * n_sub_trees : ]
-                if len(sub_tree_lines) == 0:
-                    raise Exception('couldn\'t split up %d trees among %d procs' % (len(treelines), args.n_procs))
-                if len(sub_tree_lines) < n_sub_events:
-                    print '  note: number of trees %d smaller than number of events %d for sub proc %d (of %d)' % (len(sub_tree_lines), n_sub_events, iproc, args.n_procs)
-                work_fnames.append(subtreefname)
-                with open(subtreefname, 'w') as stfile:
-                    stfile.writelines(sub_tree_lines)
-
-            cmdstr = ' '.join(clist)
-            if args.debug:
-                print '  %s %s' % (utils.color('red', 'run'), cmdstr)
-            cmdfos.append({'cmd_str' : cmdstr, 'workdir' : get_workdir(iproc), 'logdir' : args.workdir + '/log-' + str(iproc),'outfname' : get_outfname(iproc)})  # logdirs have to be different than <workdirs> since ./bin/partis (rightfully) barfs if its workdir already exists
-
-        utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, batch_config_fname=args.batch_config_fname, debug='print')
-        file_list = [cmdfos[i]['outfname'] for i in range(args.n_procs)]
-        utils.merge_simulation_files(args.outfname, file_list, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns),  # list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
-                                      n_total_expected=args.n_sim_events, n_per_proc_expected=n_per_proc_list, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
+        cmdfos = run_sub_cmds(working_gldir)
 
     if not args.im_a_subproc and args.allele_prevalence_fname is not None:  # check final prevalence freqs
         glutils.check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname, only_region='v', debug=args.debug>1)
