@@ -50,7 +50,7 @@ class CorrCounter(object):
             import plotting
             import plotconfig
 
-        corr_vals = [[None for _ in self.all_headers] for _ in self.all_headers]
+        corr_vals = [[0 for _ in self.all_headers] for _ in self.all_headers]  # the default used to be None, but now that's crashing. Maybe different mpl versions?
         for hk in self.cvecs:
             xvals, yvals = zip(*self.cvecs[hk])
             if len(set(xvals)) > 1 and len(set(yvals)) > 1:
