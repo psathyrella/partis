@@ -672,7 +672,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         make_final_plots(initial_seqs_per_seq, initial_flcounts)
 
 # ----------------------------------------------------------------------------------------
-def compare_partition_pair(cfpart, refpart, remove_from_ref=False, antn_list=None, dbg_str=None, cf_label='inferred', ref_label='true', debug=False):
+def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_to_ref=False, antn_list=None, dbg_str=None, cf_label='inferred', ref_label='true', debug=False):
     # ----------------------------------------------------------------------------------------
     def incorporate_duplicates(tpart):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
         for tclust in tpart:
@@ -690,7 +690,9 @@ def compare_partition_pair(cfpart, refpart, remove_from_ref=False, antn_list=Non
     if len(dup_dict) > 0:
         incorporate_duplicates(cfpart)
     if remove_from_ref:  # we could also use add_missing_uids_to_partition()
-        refpart = utils.remove_missing_uids_from_ref_partition(refpart, cfpart, debug=debug)  # returns a new/copied partition, doesn't modify original
+        refpart = utils.remove_missing_uids_from_partition(refpart, cfpart, debug=debug)  # returns a new/copied partition, doesn't modify original
+    if add_to_ref:
+        refpart = utils.add_missing_uids_to_partition(refpart, cfpart)
     return utils.per_seq_correct_cluster_fractions(cfpart, refpart, dbg_str=dbg_str, inf_label=cf_label, true_label=ref_label, debug=debug)
     # TODO figure out which cases of 'missing' uids should really be removed, and which should be singletons
 

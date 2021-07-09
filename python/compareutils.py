@@ -968,7 +968,7 @@ def run_changeo(args, label, n_leaves, mut_mult, seqfname):
     true_partition = None
     if args.is_simu:
         true_partition = utils.get_partition_from_reco_info(reco_info)
-        # subset_of_true_partition = utils.remove_missing_uids_from_ref_partition(true_partition, partition)
+        # subset_of_true_partition = utils.remove_missing_uids_from_partition(true_partition, partition)
         # print 'removed from true: %.3f' % utils.adjusted_mutual_information(subset_of_true_partition, partition)
 
         adj_mi = utils.adjusted_mutual_information(true_partition, partition_with_uids_added)

@@ -4385,17 +4385,17 @@ def adjusted_mutual_information(partition_a, partition_b):
     # return sklearn.metrics.cluster.adjusted_mutual_info_score(clusts_a, clusts_b)
 
 # ----------------------------------------------------------------------------------------
-def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, debug=True):  # NOTE that in this fcn, ref_partition (often the true_partition) is left unchanged, whereas in the next fcn it is modified
+def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, debug=True):
     """ return a copy of <partition_with_missing_uids> which has had any uids which were missing inserted as singletons (i.e. uids which were in <ref_partition>) """
     ref_ids, pmiss_ids = set(u for c in ref_partition for u in c), set(u for c in partition_with_missing_uids for u in c)
     missing_ids = ref_ids - pmiss_ids
     partition_with_uids_added = copy.deepcopy(partition_with_missing_uids) + [[u] for u in missing_ids]
     if debug:
-        print '  %d (of %d) ids missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in ref_partition]), ' '.join(missing_ids))
+        print '  added %d (of %d) ids that were missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in ref_partition]), ' '.join(missing_ids))
     return partition_with_uids_added
 
 # ----------------------------------------------------------------------------------------
-def remove_missing_uids_from_ref_partition(ref_partition, partition_with_missing_uids, debug=True):  # NOTE see note on previous fcn
+def remove_missing_uids_from_partition(ref_partition, partition_with_missing_uids, debug=True):
     """ return a copy of <ref_partition> which has had any uids which do not occur in <partition_with_missing_uids> removed """
     ref_ids, pmiss_ids = set(u for c in ref_partition for u in c), set(u for c in partition_with_missing_uids for u in c)
     missing_ids = ref_ids - pmiss_ids
