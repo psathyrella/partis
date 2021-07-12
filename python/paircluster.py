@@ -104,7 +104,9 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
             if debug:
                 print '%s: no %s %s output file, skipping: %s' % (utils.color('blue', '+'.join(lpair) if lpair is not None else ltmp), ltmp, dbgstr, ofn)
             continue
-        lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], lpfos['cpaths'][ltmp] = utils.read_output(ofn, dont_add_implicit_info=dont_add_implicit_info, skip_failed_queries=True, debug=debug)
+        lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], lpfos['cpaths'][ltmp] = utils.read_output(ofn, dont_add_implicit_info=dont_add_implicit_info, skip_failed_queries=True)
+        if debug:
+            print '    read %d %s annotations from %s' % (len(lpfos['antn_lists'][ltmp]), ltmp, ofn)
         if read_selection_metrics and os.path.exists(treeutils.smetric_fname(ofn)):  # if it doesn't exist, the info should be in the regular output file
             read_smetrics(ofn, lpfos['antn_lists'][ltmp])
         if add_selection_metrics is not None:
@@ -164,28 +166,108 @@ def get_both_lpair_antn_pairs(lpairs, lp_infos):  # ok this name sucks, but this
     return antn_pairs
 
 # ----------------------------------------------------------------------------------------
+# NOTE the deep copies are really important, since we later deduplicate the concatd partitions + annotations (they didn't used to be there, which caused a bug/crash) [well even if we didn't deduplicate, it was fucking stupid to not deep copy them)
 def concat_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
-    def glpf(p, k, l):  # NOTE duplicates code in write_lpair_output_files
+    # ----------------------------------------------------------------------------------------
+    def glpf(p, k, l):  # short for "get key (k) from lp_infos for lpair (p) and locus (l) NOTE duplicates code in write_lpair_output_files
         if tuple(p) not in lp_infos or lp_infos[tuple(p)][k] is None:
             return None
         return lp_infos[tuple(p)][k].get(l)
+    # ----------------------------------------------------------------------------------------
     glfos, antn_lists, joint_cpaths = {}, {}, {}
     for lpair in lpairs:
         for ltmp in lpair:
             if glpf(lpair, 'glfos', ltmp) is None:  # this lpair's output files were empty
                 continue
-            if ltmp in glfos:  # merge heavy chain glfos from those paired with igk and with igl
+            if ltmp in glfos:  # heavy chain, second time through: merge chain glfos from those paired with igk and with igl
                 glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
-                antn_lists[ltmp] += glpf(lpair, 'antn_lists', ltmp)
+                antn_lists[ltmp] += copy.deepcopy(glpf(lpair, 'antn_lists', ltmp))
                 if glpf(lpair, 'cpaths', ltmp) is not None:
-                    assert len(joint_cpaths[ltmp].partitions) == 1
-                    joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + glpf(lpair, 'cpaths', ltmp).best())
-            else:
-                glfos[ltmp] = glpf(lpair, 'glfos', ltmp)
-                antn_lists[ltmp] = glpf(lpair, 'antn_lists', ltmp)
+                    assert len(joint_cpaths[ltmp].partitions) == 1  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
+                    joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + copy.deepcopy(glpf(lpair, 'cpaths', ltmp).best()))
+            else:  # light + heavy chain first time through
+                glfos[ltmp] = copy.deepcopy(glpf(lpair, 'glfos', ltmp))
+                antn_lists[ltmp] = copy.deepcopy(glpf(lpair, 'antn_lists', ltmp))
                 if glpf(lpair, 'cpaths', ltmp) is not None:
-                    joint_cpaths[ltmp] = glpf(lpair, 'cpaths', ltmp)
+                    joint_cpaths[ltmp] = copy.deepcopy(glpf(lpair, 'cpaths', ltmp))
     return glfos, antn_lists, joint_cpaths
+
+# ----------------------------------------------------------------------------------------
+# NOTE i'm really not sure that this fcn needs to exist -- don't the joint partitions for h and l end up ordered i.e. with each cluster tied to its partner? Or at least I should be able to keep track of who goes with who so I don't need to reconstruct it here
+def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
+    # ----------------------------------------------------------------------------------------
+    def getpids(line):  # return uids of all seqs paired with any seq in <line>
+        all_ids = []
+        for ip, pids in enumerate(line['paired-uids']):
+            if pids is None or len(pids) == 0:
+                continue
+            elif len(pids) == 1:
+                # assert pids[0] not in all_ids  # this is kind of slow, and maybe it's ok to comment it?
+                all_ids.append(pids[0])
+            else:
+                raise Exception('too many paired ids (%d) for %s: %s' % (len(pids), line['unique_ids'][ip], ' '.join(pids)))
+        return all_ids
+    # ----------------------------------------------------------------------------------------
+    if required_keys is None:
+        required_keys = []
+    if 'paired-uids' not in required_keys:
+        required_keys.append('paired-uids')
+
+    lp_antn_pairs = []
+    lpk = tuple(lpair)
+    if None in lp_infos[lpk].values():
+        return lp_antn_pairs
+    h_part, l_part = [sorted(lp_infos[lpk]['cpaths'][l].best(), key=len, reverse=True) for l in lpair]
+    h_atn_dict, l_atn_dict = [utils.get_annotation_dict(lp_infos[lpk]['antn_lists'][l], cpath=lp_infos[lpk]['cpaths'][l]) for l in lpair]
+    if debug:
+        print '  finding cluster pairs for %s partitions with cluster sizes:\n     %s: %s\n     %s: %s' % ('+'.join(lpair), lpair[0], ' '.join(str(len(c)) for c in h_part), lpair[1], ' '.join(str(len(c)) for c in l_part))
+        print '          sizes'
+        print '          h   l    l index'
+    n_skipped = {k : 0 for k in required_keys + ['zero-len-paired-uids']}
+    unpaired_l_clusts = [c for c in l_part]
+    for h_clust in h_part:
+        if debug:
+            print '        %3d' % len(h_clust),
+        h_atn = h_atn_dict[':'.join(h_clust)]
+
+        if any(k not in h_atn for k in required_keys):  # skip any annotations that are missing any of these keys (atm, only used to skip ones without 'tree-info', which usually means clusters that were smaller than min selection metric cluster size
+            for rk in set(required_keys) - set(h_atn):
+                n_skipped[rk] += 1
+            if debug:
+                print '  skipped (%s)' % ' '.join(sorted(set(required_keys) - set(h_atn)))
+            continue
+        if len(getpids(h_atn)) == 0:
+            if debug:
+                print '   skipped (no paired uids in heavy annotation)'
+            n_skipped['zero-len-paired-uids'] += 1
+            continue
+
+        l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
+        if len(l_clusts) != 1:
+            print '  %s couldn\'t find a unique light cluster (found %d, looked in %d) for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(l_part), len(h_clust), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
+            continue
+        assert len(l_clusts) == 1
+        l_atn = l_atn_dict[':'.join(l_clusts[0])]
+        h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
+        l_atn['loci'] = [lpair[1] for _ in l_atn['unique_ids']]
+        lp_antn_pairs.append((h_atn, l_atn))
+        unpaired_l_clusts.remove(l_clusts[0])
+        if debug:
+            print '%3d   %3d' % (len(l_clusts[0]), l_part.index(l_clusts[0]))
+    if len(unpaired_l_clusts) > 0:
+        print '    %s: %d unpaired light cluster%s after finding h/l cluster pairs' % ('+'.join(lpair), len(unpaired_l_clusts), utils.plural(len(unpaired_l_clusts)))
+        for lc in unpaired_l_clusts:
+            lpids = getpids(l_atn_dict[':'.join(lc)])
+            hpclusts = [c for c in h_part if len(set(lpids) & set(c)) > 0]
+            if len(hpclusts) > 0:  # i think this would mean that the pairing info was non-reciprocal, which probably isn't really possible?
+                print '       %s unpaired light cluster with size %d overlaps with heavy cluster(s): %s' % (utils.color('yellow', 'warning'), len(lc), ' '.join(str(len(c)) for c in hpclusts))
+    if any(n > 0 for k, n in n_skipped.items() if k!='zero-len-paired-uids'):
+        print '    %s: skipped %d annotations missing required keys: %s' % ('+'.join(lpair), sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids'))
+    if n_skipped['zero-len-paired-uids'] > 0:
+            print '    %s: skipped %d annotations with zero length paired uids' % ('+'.join(lpair), n_skipped['zero-len-paired-uids'])
+    if debug:
+        print '  '
+    return lp_antn_pairs
 
 # ----------------------------------------------------------------------------------------
 def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet):

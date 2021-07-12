@@ -796,6 +796,7 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
             if tdbg > 1:
                 uid_matrix[ybins.index(yv)][xbins.index(xv)].append(uid)
         if tdbg > 1:
+            lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
             print '  uids in smatrix'
             for iy, yb in enumerate(ybins):
                 for ix, xb in enumerate(xbins):
@@ -833,8 +834,9 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
             return ('%.2f' if float_vals else '%d') % v
         lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
         print '  detailed smatrix'
-        print '%s' % ''.join((('  %'+lb+'s')%ib for ib in [''] + ybins))
+        print '        %s' % ''.join((('  %'+lb+'s')%ib for ib in [''] + ybins))
         for iff, fb in enumerate(xbins):
+            print '       ',
             for ii, ib in enumerate(ybins):
                 print ('%s %'+lb+'s') % ((('%'+lb+'s')%fb) if ii==0 else '', vstr(smatrix[ii][iff])),
             print ''

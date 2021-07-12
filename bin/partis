@@ -649,11 +649,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             run_step('annotate', ltmp, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
     def handle_concatd_heavy_chain(lp_infos, headers, true_partitions=None):  # concatenate partitions + annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
-        glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)
-        # have to remove duplicates from heavy partition and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs)
+        glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
         hloc = utils.get_single_entry([l for l in utils.sub_loci(ig_or_tr) if utils.has_d_gene(l)])  # very convoluted way to get heavy chain
-        tmp_ptn = utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=args.debug)[0]
-        joint_cpaths[hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
+        tmp_ptn = utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=args.debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
+        joint_cpaths[hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))
         paircluster.write_concatd_output_files(glfos, antn_lists, getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=joint_cpaths, true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info)
         return glfos, antn_lists, joint_cpaths
     # ----------------------------------------------------------------------------------------
@@ -831,7 +830,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for lpair in spairs():
                     for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
                         run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
-            lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
+            lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')  # for --get-selection-metrics we shouldn't need to read any annotations here (could be passed from combine_inf_chains()) but oh well
             _ = read_qti_file(args)  # sets <args.queries_to_include>
             treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/inferred-combo-selection-metrics', args=args)  # NOTE this is kind of weird that we don't set is_simu to true even if it is simu (we instead run again below) but i think it's right(ish)?
             if not args.is_data and args.paired_indir is not None:
