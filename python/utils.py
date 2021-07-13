@@ -595,7 +595,7 @@ def get_contig_id(uid, dtype='10x', sep='_'):
     return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
 
 # ----------------------------------------------------------------------------------------
-def get_annotation_dict(annotation_list, duplicate_resolution_key=None):
+def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=None):
     annotation_dict = OrderedDict()
     for line in annotation_list:
         uidstr = ':'.join(line['unique_ids'])
@@ -609,6 +609,11 @@ def get_annotation_dict(annotation_list, duplicate_resolution_key=None):
                     raise Exception('duplicate key even after adding duplicate resolution key: \'%s\'' % uidstr)
         assert uidstr not in annotation_dict
         annotation_dict[uidstr] = line
+
+    if cpath is not None:  # check that all the clusters in <cpath>.best() are in the annotation dict
+        miss_clusts = [c for c in cpath.best() if ':'.join(c) not in annotation_dict]
+        if len(miss_clusts) > 0:
+            print '    %s missing annotations for %d/%d clusters when getting annotation dict: %s' % (color('yellow', 'warning'), len(miss_clusts), len(annotation_dict), ' '.join(':'.join(c) for c in miss_clusts))
     return annotation_dict
 
 # ----------------------------------------------------------------------------------------

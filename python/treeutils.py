@@ -2061,46 +2061,6 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
 # ----------------------------------------------------------------------------------------
 def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
-    def getpids(line):
-        all_ids = []
-        for ip, pids in enumerate(line['paired-uids']):
-            if pids is None or len(pids) == 0:
-                continue
-            elif len(pids) == 1:
-                # assert pids[0] not in all_ids  # this is kind of slow, and maybe it's ok to comment it?
-                all_ids.append(pids[0])
-            else:
-                raise Exception('too many paired ids (%d) for %s: %s' % (len(pids), line['unique_ids'][ip], ' '.join(pids)))
-        return all_ids
-    # ----------------------------------------------------------------------------------------
-    def find_cluster_pairs(lpair):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
-        lp_antn_pairs = []
-        lpk = tuple(lpair)
-        if None in lp_infos[lpk].values():
-            return lp_antn_pairs
-        h_part, l_part = [sorted(lp_infos[lpk]['cpaths'][l].best(), key=len, reverse=True) for l in lpair]
-        h_atn_dict, l_atn_dict = [utils.get_annotation_dict(lp_infos[lpk]['antn_lists'][l]) for l in lpair]
-        n_no_info = 0
-        for h_clust in h_part:
-            h_atn = h_atn_dict[':'.join(h_clust)]
-            if 'tree-info' not in h_atn:  # skip (presumably) the smaller ones
-                n_no_info += 1
-                continue
-            if 'paired-uids' not in h_atn:  # seems to just be single-seq clusters, so i don't care
-                continue
-            l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
-            if len(l_clusts) != 1:
-                print '  %s couldn\'t find a unique light cluster (found %d, looked in %d) for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(l_part), len(h_atn), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
-                continue
-            assert len(l_clusts) == 1
-            l_atn = l_atn_dict[':'.join(l_clusts[0])]
-            h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
-            l_atn['loci'] = [lpair[1] for _ in l_atn['unique_ids']]
-            lp_antn_pairs.append((h_atn, l_atn))
-        if n_no_info > 0:
-            print '    no tree info in %d annotations (probably smaller than min tree metric cluster size)' % n_no_info
-        return lp_antn_pairs
-    # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname):
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
         if vname in cln:
@@ -2518,7 +2478,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     cfgfo = read_cfgfo()
     antn_pairs = []
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
-        antn_pairs += find_cluster_pairs(lpair)
+        antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, required_keys='tree-info')
     # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
     n_too_small = 0
     if debug:

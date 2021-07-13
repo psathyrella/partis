@@ -317,8 +317,8 @@ def process(args):
     if args.make_per_gene_per_base_plots and not args.make_per_gene_plots:  # the former doesn't do anything unless the latter is turned on
         args.make_per_gene_plots = True
 
-    if args.count_correlations and args.action != 'cache-parameters' and not args.count_parameters:
-        raise Exception('--count-correlations has no effect for action \'%s\' unless you also turn on --count-parameters' % args.action)
+    if not args.paired_loci and args.count_correlations and args.action != 'cache-parameters' and not args.count_parameters:
+        raise Exception('--count-correlations has no effect for action \'%s\' unless --paired-loci is set, or you also turn on --count-parameters' % args.action)
 
     if args.action == 'simulate':
         if args.n_trees is None and not args.paired_loci:

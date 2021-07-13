@@ -31,6 +31,7 @@ import seqfileopener
 from partitiondriver import PartitionDriver
 from clusterpath import ClusterPath
 import paircluster
+from corrcounter import CorrCounter
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -737,6 +738,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs, true_partitions=true_partitions)
             lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
+            if args.count_correlations:
+                ccounter = CorrCounter(paired=True)
+                ccounter.incr_cluster_pairs(lp_infos, lpair)
+                ccounter.plot('%s/correlations'%getplotdir(None, lpair=lpair), only_mi=True, only_csv=args.only_csv_plots)
         _, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), true_partitions=true_partitions)
         print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_cpaths, debug=DBG)
         ccfs = {}

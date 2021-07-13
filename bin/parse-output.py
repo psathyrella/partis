@@ -28,6 +28,7 @@ formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
 parser.add_argument('infile', help='partis output file from which to read input')
 parser.add_argument('outfile', help='file to which to write output extracted from <infile> (fasta or csv/tsv)')
+parser.add_argument('--paired-loci', action='store_true', help='if set, <infile> should be a paired output dir, rather than a single file')
 parser.add_argument('--extra-columns', help='colon-separated list of additional partis output columns (beyond sequences), to write to the output file. If writing to a fasta file, the column values are appended after the sequence name, separated by --fasta-info-separator. If writing to csv/tsv, they\'re written as proper, labeled columns.')
 parser.add_argument('--partition-index', type=int, help='if set, use the partition at this index in the cluster path, rather than the default of using the best partition')
 parser.add_argument('--seed-unique-id', help='if set, take sequences only from the cluster containing this seed sequence, rather than the default of taking all sequences from all clusters')
@@ -54,23 +55,51 @@ default_glfo_dir = partis_dir + '/data/germlines/human'
 if utils.getsuffix(args.infile) == '.csv' and args.glfo_dir is None:
     print '  note: reading deprecated csv format, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir
     args.glfo_dir = default_glfo_dir
-glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
 
-if args.plotdir is not None:
+if args.paired_loci:
+    import paircluster
+    def getofn(ltmp, lpair=None):
+        ofn = paircluster.paired_fn(args.infile, ltmp, lpair=lpair, suffix='.yaml')
+        if not os.path.exists(ofn):  # first look for simy file (just e.g. igh.yaml), if it's not there look for the partition output file
+            ofn = paircluster.paired_fn(args.infile, ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
+        return ofn
+    lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs['ig'], getofn)
+else:
+    glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
+
+# ----------------------------------------------------------------------------------------
+def count_plot(tglfo, tlist, plotdir):
+    if args.paired_loci:
+        assert tglfo is None  # can't handle parameter counter below atm
+        assert args.only_count_correlations
     if args.only_count_correlations:
         from corrcounter import CorrCounter
-        ccounter = CorrCounter()
-        for line in annotation_list:
-            ccounter.increment(line)
-        ccounter.plot(args.plotdir + '/correlations')
-        sys.exit(0)
+        ccounter = CorrCounter(paired=args.paired_loci)
+        for line in tlist:
+            if args.paired_loci:
+                line, l_info = line
+            ccounter.increment(line, l_info=l_info)
+        ccounter.plot(plotdir + '/correlations', only_mi=True)
+        return
     from parametercounter import ParameterCounter
     setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})  # hackity hackity hackity
-    pcounter = ParameterCounter(glfo, args)
-    for line in annotation_list:
+    pcounter = ParameterCounter(tglfo, args)
+    for line in tlist:
         pcounter.increment(line)
-    pcounter.plot(args.plotdir) #, make_per_base_plots=True) #, only_overall=True, make_per_base_plots=True
+    pcounter.plot(plotdir) #, make_per_base_plots=True) #, only_overall=True, make_per_base_plots=True
+# ----------------------------------------------------------------------------------------
+if args.plotdir is not None:
+    if args.paired_loci:
+        for lpair in utils.locus_pairs['ig']:
+            antn_pairs = paircluster.find_cluster_pairs(lp_infos, lpair) #, debug=True)
+            count_plot(None, antn_pairs, '%s/%s'%(args.plotdir, '+'.join(lpair)))
+            # for ltmp in lpair:
+            #     count_plot(lp_infos[tuple(lpair)]['glfos'][ltmp], lp_infos[tuple(lpair)]['antn_lists'][ltmp], '%s/%s'%(args.plotdir, '+'.join(lpair)))
+    else:
+        count_plot(glfo, annotation_list, args.plotdir)
     sys.exit(0)
+
+assert not args.paired_loci  # only handled for plotting above atm
 
 if cpath is None or cpath.i_best is None:
     clusters_to_use = [l['unique_ids'] for l in annotation_list]

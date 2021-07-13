@@ -17,14 +17,14 @@ in_param_dir = '_output/paired-simulation/parameters'  # TODO
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simulate:cache-parameters:partition')
 parser.add_argument('--n-sim-events', type=int, default=10)
-parser.add_argument('--n-leaf-list', default='2:3:4:10') #1 5; do10)
+parser.add_argument('--n-leaf-list', default='1') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--cells-per-drop-list', default='1') #0.8 2 3 5 10; do #1.1; do
 parser.add_argument('--allowed-cdr3-lengths', default='30:33:36:42:45:48')
 parser.add_argument('--mutation-multiplier', type=float, default=1)
 parser.add_argument('--n-procs', type=int, default=10)
 parser.add_argument('--seed', type=int, default=1)
-parser.add_argument('--version', default='v3')
-parser.add_argument('--label', default='cleanscan')
+parser.add_argument('--version', default='v0')
+parser.add_argument('--label', default='test')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--no-plots', action='store_true')
@@ -63,7 +63,8 @@ def outpath(action):
 for ncells in args.cells_per_drop_list:
     for nleaf in args.n_leaf_list:
         ncstr = ('%.0f'%ncells) if int(ncells)==ncells else '%.1f'%ncells
-        outdir = '%s/partis/paired-loci/%s-%d-%s-%s' % (os.getenv('fs'), args.label, nleaf, ncstr, args.version)
+        outlabel = '%s%s%s-%s' % (args.label, '-'+str(nleaf) if len(args.n_leaf_list)>1 else '', '-'+ncstr if len(args.cells_per_drop_list)>1 else '', args.version)
+        outdir = '%s/partis/paired-loci/%s' % (os.getenv('fs'), outlabel)
         out_param_dir = '%s/params' % outdir
 
         for action in args.actions:
