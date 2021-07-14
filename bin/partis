@@ -475,9 +475,11 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
             utils.remove_from_arglist(clist, '--seed-loci', has_arg=True)
             if tmpaction in ['generate-trees', 'simulate']:
-                if '--random-seed' in clist:  # if it was set on the command line, we need to send different seeds to each pair (otherwise we'll get the same trees and same igh sequences in h+k and h+l)
-                    sval = hash('+'.join(lpair) + utils.get_val_from_arglist(clist, '--random-seed')) % 2**31  # % by max seed value (well it's 32) NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
-                    utils.replace_in_arglist(clist, '--random-seed', str(sval))
+                rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
+                # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
+                hashval = hash(ltmp + '+'.join(lpair) + rseedstr)  # NOTE sends same seed to tree generation and igh, which i think is fine?
+                sval = hashval % 2**31  # % by max seed value (well it's really 32 not 31)
+                utils.replace_in_arglist(clist, '--random-seed', str(sval))
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
