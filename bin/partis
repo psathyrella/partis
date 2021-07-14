@@ -68,7 +68,7 @@ def run_simulation(args):
                 with open(subfname, 'w') as sfile:
                     sfile.writelines(sub_obj_list)
             else:
-                utils.write_annotations(subfname, heavy_chain_glfo, heavy_chain_events, utils.simulation_headers)  # there shouldn't be any reason to add the extra headers here, since it's just for input to light chain correlations
+                utils.write_annotations(subfname, heavy_chain_glfo, sub_obj_list, utils.simulation_headers)  # there shouldn't be any reason to add the extra headers here, since it's just for input to light chain correlations
         # ----------------------------------------------------------------------------------------
         if args.input_simulation_treefname is not None:  # split up the input trees among the sub procs
             with open(args.input_simulation_treefname) as tfile:
