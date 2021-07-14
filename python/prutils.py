@@ -326,7 +326,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
 
     if one_line:
         outstrs = outstrs[-1:]  # remove all except the query seq line
-    elif not utils.has_d_gene(utils.get_locus(line['v_gene'])):
+    elif not utils.has_d_gene(utils.get_locus(line['v_gene'])) and len(vj_delstr) == 0:
         outstrs.pop(1)  # remove the d germline line
 
     print ''.join(outstrs),

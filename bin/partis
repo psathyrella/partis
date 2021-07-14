@@ -152,6 +152,7 @@ def run_simulation(args):
     heavy_chain_events, heavy_chain_glfo = None, None
     if args.paired_correlation_values is not None and not utils.has_d_gene(args.locus):  # if we're doing paired correlations and this is light chain, we need to read the heavy chain annotations so we can pass the proper igh event into each light chain rearrangement
         heavy_chain_glfo, heavy_chain_events, _ = utils.read_output(args.heavy_chain_event_fname, dont_add_implicit_info=True)
+        print '    read %d heavy chain events from %s for paired correlations: %s' % (len(heavy_chain_events), args.heavy_chain_event_fname, ' '.join(':'.join(l['unique_ids']) for l in heavy_chain_events))
 
     # ----------------------------------------------------------------------------------------
     def make_events(n_events, workdir, outfname, random_ints, heavy_chain_events=None):
