@@ -40,7 +40,7 @@ def run_simulation(args):
         # ----------------------------------------------------------------------------------------
         def get_sub_events(iproc):
             n_sub_events = args.n_sim_events / args.n_procs
-            if iproc == 0 and args.n_sim_events % args.n_procs > 0:  # do any extra ones in the first proc
+            if iproc == args.n_procs - 1 and args.n_sim_events % args.n_procs > 0:  # do any extra ones in the last proc (has to match sub file writer below)
                 n_sub_events += args.n_sim_events % args.n_procs
             n_per_proc_list.append(n_sub_events)
             return n_sub_events
@@ -57,7 +57,7 @@ def run_simulation(args):
             utils.replace_in_arglist(clist, '--input-simulation-treefname' if subtype=='trees' else '--heavy-chain-event-fname', subfname)
             n_sub_objs = len(objlist) / args.n_procs
             sub_obj_list = objlist[iproc * n_sub_objs : (iproc + 1) * n_sub_objs]
-            if iproc == 0 and len(objlist) % args.n_procs > 0:  # add any extra ones to the first proc
+            if iproc == args.n_procs - 1 and len(objlist) % args.n_procs > 0:  # add any extra ones to the last proc (has to match n_sub_events above) NOTE it's important that we add them to the *last* proc (it used to be the first one), since otherwise the h/l paired correlations are wrong, since things end up in a different order after you read files
                 sub_obj_list += objlist[args.n_procs * n_sub_objs : ]
             if len(sub_obj_list) == 0:
                 raise Exception('couldn\'t split up %d %s among %d procs' % (len(objlist), subtype, args.n_procs))
