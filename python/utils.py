@@ -2387,7 +2387,10 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
             else:
                 vlist = treeutils.smvals(line, ekey, nullval='?')  # don't really want to try to recalculate if they're not there, since for some we'd need trees, and yadda yadda
         else:
-            vlist = line.get(ekey, ['?' for _ in line['unique_ids']])
+            if ekey in line and ekey in linekeys['per_seq']:
+                vlist = line[ekey]
+            else:
+                vlist = [line.get(ekey, '?') for _ in line['unique_ids']]
         # tw = str(max(len(ekey), max(len(vstr(v)) for v in vlist)))  # maybe include len of ekey in width?
         tw = str(max(len(vstr(v)) for v in vlist))
         uid_extra_str_label += ('%'+tw+'s') % ekey
@@ -4736,7 +4739,7 @@ def arglist_imatches(clist, argstr):
 def reduce_imatches(imatches, clist, argstr):  # restrict <imatches> to exact matches in an effort to get it down to one unique match
     imatches = [i for i in imatches if clist[i]==argstr]  # see if any of them are exact matches
     if len(imatches) > 1:
-        raise Exception('multiple matches for argstr \'%s\' in cmd (this is likely caused by not typing out the entirety of an arg string): %s' % (argstr, ' '.join(clist[i] for i in imatches)))
+        raise Exception('multiple matches for argstr \'%s\' in cmd (this may be caused by not typing out the entirety of an arg string): %s' % (argstr, ' '.join(clist[i] for i in imatches)))
     return imatches
 
 # ----------------------------------------------------------------------------------------

@@ -275,7 +275,7 @@ class Recombinator(object):
 
         allowed_vals['current'][pthis] = this_options  # note that this means all the modifications to <this_options> below are also modifying the list in allowed_vals['current']
         if corr_vals is None:
-            return this_options, utils.normalize(probs)
+            return this_options, None if probs is None else utils.normalize(probs)
 
         for (param_pair), corr_val in corr_vals.items():
             if pthis != param_pair[1]:
@@ -300,7 +300,7 @@ class Recombinator(object):
             if self.args.debug:
                 print '        reducing options for %s (given previous choice of %s) from %d to %d' % (pthis, pother, n_before, len(this_options))
 
-        return this_options, utils.normalize(probs)
+        return this_options, None if probs is None else utils.normalize(probs)
 
     # ----------------------------------------------------------------------------------------
     def try_scratch_erode_insert(self, tmpline, corr_vals=None, allowed_vals=None, parent_line=None, debug=False):  # non-None corr_vals determines if we're applying correlations
@@ -382,7 +382,7 @@ class Recombinator(object):
                 allowed_vals['parent'] = self.heavy_chain_events[i_heavy_event]['heavy-chain-correlation-info']
                 parent_line = self.heavy_chain_events[i_heavy_event]
                 if self.args.debug:
-                    print '    taking parent values for correlation from heavy chain event with: %s  %s  %s  cdr3: %d' % (utils.color_gene(parent_line['v_gene']), utils.color_gene(parent_line['d_gene']), utils.color_gene(parent_line['j_gene']), parent_line['cdr3_length'])
+                    print '    taking parent values for correlation from heavy chain event with: %s  %s  %s  cdr3: %d  uids: %s' % (utils.color_gene(parent_line['v_gene']), utils.color_gene(parent_line['d_gene']), utils.color_gene(parent_line['j_gene']), parent_line['cdr3_length'], ' '.join(parent_line['unique_ids']))
 
         # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
         for region in utils.regions:
