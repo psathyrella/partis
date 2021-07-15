@@ -218,7 +218,7 @@ class Waterer(object):
             assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.info['failed-queries']) == len(self.input_info)
 
         if self.count_parameters:
-            pcounter = ParameterCounter(self.glfo, self.args)
+            pcounter = ParameterCounter(self.glfo, self.args, count_correlations=self.args.count_correlations)
             for qname in self.info['queries']:
                 pcounter.increment(self.info[qname])
         if self.plot_annotation_performance:

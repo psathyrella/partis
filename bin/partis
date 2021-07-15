@@ -31,6 +31,7 @@ import seqfileopener
 from partitiondriver import PartitionDriver
 from clusterpath import ClusterPath
 import paircluster
+from parametercounter import ParameterCounter
 from corrcounter import CorrCounter
 
 # ----------------------------------------------------------------------------------------
@@ -544,6 +545,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if os.path.exists(getofn(ltmp, joint=True, lpair=lpair, input_meta=True)):
                     utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # have to use the new, rewritten input meta file (with corrected pairing info)
                 clist[clist.index(args.action)] = 'annotate'
+            if tmpaction in ['annotate', 'partition']:  # eh, it's better to do this stuff after reading all the annotations
+                utils.remove_from_arglist(clist, '--count-parameters')  # we want to only write these for the annotation step, with the merged partition
+                utils.remove_from_arglist(clist, '--count-correlations')
 
             if args.plotdir is not None and tmpaction != 'annotate':
                 utils.replace_in_arglist(clist, '--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction))
@@ -719,6 +723,24 @@ def run_all_loci(args, ig_or_tr='ig'):
                     uid_extra_strs = [getjcstr(u, jfamilies) for u in tclust]
                     utils.print_reco_event(input_antn_dict[':'.join(tclust)], uid_extra_strs=uid_extra_strs, extra_str='      ')
     # ----------------------------------------------------------------------------------------
+    def count_parameter_things(lp_infos, lpair):  # NOTE this duplicates a ton of code in partitiondriver.process_annotation_output()
+        # TODO should add perf plotter here as well
+        # TODO maybe also write parameters (+hmms)?
+        lpk = tuple(lpair)
+        if lp_infos[lpk]['glfos'] is None:
+            return
+        if args.count_parameters:
+            for ltmp in lpair:
+                pcounter = ParameterCounter(lp_infos[lpk]['glfos'][ltmp], args, count_correlations=args.count_correlations)  # count within-locus correlations
+                for tline in lp_infos[lpk]['antn_lists'][ltmp]:
+                    pcounter.increment(tline)
+                if args.plotdir is not None:
+                    pcounter.plot(getplotdir(ltmp, lpair=lpair), only_csv=args.only_csv_plots, only_overall=not args.make_per_gene_plots, make_per_base_plots=args.make_per_gene_per_base_plots)
+        if args.count_correlations:
+            ccounter = CorrCounter(paired_loci=lpair)  # count between-locus correlations
+            ccounter.incr_cluster_pairs(lp_infos, lpair)
+            ccounter.plot('%s/correlations'%getplotdir(None, lpair=lpair), only_mi=True, only_csv=args.only_csv_plots)
+    # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         DBG = args.debug_paired_clustering
         single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=DBG)  # single chain cpaths (and other info)
@@ -740,11 +762,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=DBG)  # , iparts={'igl' : 7}
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs, true_partitions=true_partitions)
-            lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
-            if args.count_correlations:
-                ccounter = CorrCounter(paired=True)
-                ccounter.incr_cluster_pairs(lp_infos, lpair)
-                ccounter.plot('%s/correlations'%getplotdir(None, lpair=lpair), only_mi=True, only_csv=args.only_csv_plots)
+            lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering and not args.count_parameters, dbgstr='partition')
+            count_parameter_things(lp_infos, lpair)
         _, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), true_partitions=true_partitions)
         print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_cpaths, debug=DBG)
         ccfs = {}

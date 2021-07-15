@@ -247,6 +247,10 @@ def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the
             print '  %s couldn\'t find a unique light cluster (found %d, looked in %d) for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(l_part), len(h_clust), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
             continue
         assert len(l_clusts) == 1
+        if ':'.join(l_clusts[0]) not in l_atn_dict:
+            print '  %s missing annotation for light chain %s paired with %s when finding cluster pairs' % (utils.color('yellow', 'warning'), ':'.join(l_clusts[0]), ':'.join(h_clust))
+            unpaired_l_clusts.remove(l_clusts[0])  # i guess i want to remove it from here? i guess we know who it's paired with, but there's no annotation so we can't do anything with it
+            continue
         l_atn = l_atn_dict[':'.join(l_clusts[0])]
         h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
         l_atn['loci'] = [lpair[1] for _ in l_atn['unique_ids']]

@@ -16,11 +16,11 @@ from corrcounter import CorrCounter
 class ParameterCounter(object):
     """ class to keep track of how many times we've seen each gene version, erosion length,
     insertion (length and base content), and mutation """
-    def __init__(self, glfo, args):
+    def __init__(self, glfo, args, count_correlations=False):
         self.glfo = glfo
         self.args = args
         self.mfreqer = MuteFreqer(self.glfo, exclusions=args.region_end_exclusions)
-        self.corrcounter = CorrCounter() if self.args.count_correlations else None
+        self.corrcounter = CorrCounter() if count_correlations else None  # NOTE if you want paired h/l correlations you have to use corr counter outside of the parameter counter
         self.reco_total = 0  # total number of recombination events
         self.mute_total = 0  # total number of sequences
         self.counts = {}

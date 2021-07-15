@@ -317,6 +317,8 @@ class PartitionDriver(object):
             assert self.input_partition is not None
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, no_mds_plots=self.args.no_mds_plots) #, cpath=cpath) cpath is only used for laplacian spectra
+        if self.args.count_parameters and not self.args.dont_write_parameters:
+            self.write_hmms(utils.non_none([self.args.parameter_out_dir, self.multi_hmm_param_dir]))  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
     def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
@@ -2068,8 +2070,8 @@ class PartitionDriver(object):
             self.print_results(None, worst_annotations[:self.args.print_n_worst_annotations], dont_sort=True, label_list=perf_strs[:self.args.print_n_worst_annotations], extra_str='  ')
 
         # ----------------------------------------------------------------------------------------
-        pcounter = ParameterCounter(self.glfo, self.args) if count_parameters else None
-        true_pcounter = ParameterCounter(self.simglfo, self.args) if (count_parameters and not self.args.is_data) else None
+        pcounter = ParameterCounter(self.glfo, self.args, count_correlations=self.args.count_correlations) if count_parameters else None
+        true_pcounter = ParameterCounter(self.simglfo, self.args, count_correlations=self.args.count_correlations) if (count_parameters and not self.args.is_data) else None
         perfplotter = PerformancePlotter('hmm') if self.args.plot_annotation_performance else None
 
         if self.args.print_n_worst_annotations:

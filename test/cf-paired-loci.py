@@ -28,7 +28,7 @@ parser.add_argument('--label', default='test')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--no-plots', action='store_true')
-parser.add_argument('--extra-args', help='only for simu atm')
+parser.add_argument('--extra-args')
 args = parser.parse_args()
 
 args.actions = utils.get_arg_list(args.actions, choices=['simulate', 'cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics'])
@@ -82,6 +82,8 @@ for ncells in args.cells_per_drop_list:
         	cmd += ' --plotdir paired-outdir'
                 if action in ['partition', 'merge-paired-partitions']:
                     cmd += ' --no-partition-plots' #--no-mds-plots' #
+            if args.extra_args is not None:
+                cmd += ' %s' % args.extra_args
             utils.simplerun(cmd, logfname='%s/%s.log'%(outdir, action), dryrun=args.dry)
         break
 

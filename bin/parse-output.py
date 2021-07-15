@@ -85,7 +85,7 @@ def count_plot(tglfo, tlist, plotdir, paired_loci=None):
     assert not args.paired  # only handled for correlation counting atm
     from parametercounter import ParameterCounter
     setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})  # hackity hackity hackity
-    pcounter = ParameterCounter(tglfo, args)
+    pcounter = ParameterCounter(tglfo, args)  # NOTE doesn't count correlations by default
     for line in tlist:
         pcounter.increment(line)
     pcounter.plot(plotdir) #, make_per_base_plots=True) #, only_overall=True, make_per_base_plots=True
