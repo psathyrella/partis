@@ -360,8 +360,11 @@ class Recombinator(object):
         tmpline['indelfos'] = [indelutils.get_empty_indel(), ]
         utils.add_implicit_info(self.glfo, tmpline)
         assert len(tmpline['in_frames']) == 1
-        if self.args.paired_correlation_values is not None and utils.has_d_gene(self.args.locus):  # if this is heavy chain and we're doing heavy/light correlations, we need to write some extra info to the output file
-            tmpline['heavy-chain-correlation-info'] = allowed_vals['current']
+        if self.args.paired_correlation_values is not None:
+            if utils.has_d_gene(self.args.locus):  # if we're doing heavy/light correlations we need to write some extra info to the output file: either allowed vals (if this is heavy chain, so we can use them to determine light chain rearrangement parameters) or heavy chain uids (if this is light chain, so we can later make sure we pair the correct h/l events together)
+                tmpline['heavy-chain-correlation-info'] = allowed_vals['current']
+            else:
+                tmpline['heavy-chain-correlation-info'] = None if parent_line is None else {'heavy-chain-uids' : parent_line['unique_ids']}
 
     # ----------------------------------------------------------------------------------------
     def get_scratchline(self, i_heavy_event=None):
@@ -436,7 +439,7 @@ class Recombinator(object):
         if self.args.rearrange_from_scratch:  # generate an event without using the parameter directory
             tmpline = self.get_scratchline(i_heavy_event=i_heavy_event)
             vdj_choice = self.freqtable_index(tmpline)
-            if self.args.paired_correlation_values is not None and utils.has_d_gene(self.args.locus):
+            if self.args.paired_correlation_values:
                 h_corr_line = tmpline
         else:  # use real parameters from a directory
             iprob = numpy.random.uniform(0, 1)

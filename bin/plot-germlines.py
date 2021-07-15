@@ -166,7 +166,7 @@ def plotheatmap(plotdir, plotname, difftype, genelist=None, genesets=None, title
     data = numpy.array(smatrix)
     cmap = plt.cm.Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
-    heatmap = ax.pcolor(data, cmap=cmap, vmin=0., vmax=0.5)  #vmax=numpy.amax(smatrix))
+    heatmap = ax.pcolormesh(data, cmap=cmap, vmin=0., vmax=0.5)  #vmax=numpy.amax(smatrix))
     cbar = plt.colorbar(heatmap, shrink=0.9, pad=0.01)
     cbar.set_label(xtitle, rotation=270, labelpad=30)
     cbar.ax.tick_params(labelsize=10) 

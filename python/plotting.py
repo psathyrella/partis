@@ -758,7 +758,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     data = numpy.array(smatrix)
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
-    heatmap = ax.pcolor(data, cmap=cmap, vmin=0., vmax=1.)
+    heatmap = ax.pcolormesh(data, cmap=cmap, vmin=0., vmax=1.)
     cbar = plt.colorbar(heatmap, label='fractional overlap', pad=0.09)
     
     modulo = 2
@@ -830,7 +830,7 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
             xbins, ybins = xybins
     if tdbg:
         def vstr(v):
-            if v is None: return ''
+            if v is None or numpy.isnan(v): return ''
             return ('%.2f' if float_vals else '%d') % v
         lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
         print '  detailed smatrix'
@@ -844,11 +844,12 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
     fig, ax = mpl_init()
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
-    vmin = 0. if float_vals else 0.5
+    smtx_min = min([v for r in smatrix for v in r])
+    vmin = min(0., smtx_min) if float_vals else 0.5
     # smatrix = [[utils.non_none([v, vmin]) for v in vl] for vl in smatrix]  # we *want* the Nones, since that's what makes them blank (rather than all freaking purple)
     if float_vals and any(v is not None and v < vmin for vl in smatrix for v in vl):  # would be easy to fiddle with this but i don't want to right now, and I'm only plotting positive values atm
         raise Exception('value(s) %s less than vmin %.2f in plot_smatrix()' % ([v for vl in smatrix for v in vl if v < vmin], vmin))
-    heatmap = ax.pcolor(numpy.array(smatrix), cmap='viridis', vmin=vmin) #, vmax=1.) #, norm=mpl.colors.LogNorm()
+    heatmap = ax.pcolormesh(numpy.ma.array(smatrix, mask=numpy.isnan(smatrix)), cmap='viridis', vmin=vmin) #, vmax=1.) #, norm=mpl.colors.LogNorm()
     cbar = plt.colorbar(heatmap, label=('%s (skipped %d)'%(blabel, n_skipped)) if n_skipped > 0 else blabel, pad=0.12)
     def ltsize(n): return 15 if n < 15 else 8
     mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,

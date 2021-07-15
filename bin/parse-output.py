@@ -28,7 +28,7 @@ formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
 parser.add_argument('infile', help='partis output file from which to read input')
 parser.add_argument('outfile', help='file to which to write output extracted from <infile> (fasta or csv/tsv)')
-parser.add_argument('--paired-loci', action='store_true', help='if set, <infile> should be a paired output dir, rather than a single file')
+parser.add_argument('--paired', action='store_true', help='if set, <infile> should be a paired output dir, rather than a single file')
 parser.add_argument('--extra-columns', help='colon-separated list of additional partis output columns (beyond sequences), to write to the output file. If writing to a fasta file, the column values are appended after the sequence name, separated by --fasta-info-separator. If writing to csv/tsv, they\'re written as proper, labeled columns.')
 parser.add_argument('--partition-index', type=int, help='if set, use the partition at this index in the cluster path, rather than the default of using the best partition')
 parser.add_argument('--seed-unique-id', help='if set, take sequences only from the cluster containing this seed sequence, rather than the default of taking all sequences from all clusters')
@@ -39,6 +39,7 @@ parser.add_argument('--locus', default='igh', help='only used for old-style csv 
 parser.add_argument('--plotdir', help='if set, plot annotation parameters from infile to --plotdir and exit (you still have to set outfile, sorry, since it\'s nice having it be a positional arg, but it doesn\'t get used for this). To add e.g. per-gene-per-position plots comment/uncomment args in the call below.')
 parser.add_argument('--only-count-correlations', action='store_true', help='instead of counting/plotting all parameters, including correlations, only count and plot correlations (no effect if --plotdir isn\'t set)')
 parser.add_argument('--fasta-info-separator', default=' ', help='character to use ')
+parser.add_argument('--debug', type=int, default=0)
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
     print '  note: running deprecated script %s, which currently is just a link pointing to %s' % (os.path.basename(sys.argv[0]), os.path.basename(os.path.realpath( __file__)))
@@ -56,7 +57,7 @@ if utils.getsuffix(args.infile) == '.csv' and args.glfo_dir is None:
     print '  note: reading deprecated csv format, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir
     args.glfo_dir = default_glfo_dir
 
-if args.paired_loci:
+if args.paired:
     import paircluster
     def getofn(ltmp, lpair=None):
         ofn = paircluster.paired_fn(args.infile, ltmp, lpair=lpair, suffix='.yaml')
@@ -69,17 +70,20 @@ else:
 
 # ----------------------------------------------------------------------------------------
 def count_plot(tglfo, tlist, plotdir):
-    if args.paired_loci:
+    if len(tlist) == 0:
+        return
+    if args.paired:
         assert tglfo is None  # can't handle parameter counter below atm
         assert args.only_count_correlations
     if args.only_count_correlations:
         from corrcounter import CorrCounter
-        ccounter = CorrCounter(paired=args.paired_loci)
+        paired_loci = [l['loci'][0] for l in tlist[0]] if args.paired else None
+        ccounter = CorrCounter(paired_loci=paired_loci)
         for line in tlist:
-            if args.paired_loci:
+            if args.paired:
                 line, l_info = line
             ccounter.increment(line, l_info=l_info)
-        ccounter.plot(plotdir + '/correlations', only_mi=True)
+        ccounter.plot(plotdir + '/correlations', only_mi=True, debug=args.debug)
         return
     from parametercounter import ParameterCounter
     setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})  # hackity hackity hackity
@@ -89,7 +93,7 @@ def count_plot(tglfo, tlist, plotdir):
     pcounter.plot(plotdir) #, make_per_base_plots=True) #, only_overall=True, make_per_base_plots=True
 # ----------------------------------------------------------------------------------------
 if args.plotdir is not None:
-    if args.paired_loci:
+    if args.paired:
         for lpair in utils.locus_pairs['ig']:
             antn_pairs = paircluster.find_cluster_pairs(lp_infos, lpair) #, debug=True)
             count_plot(None, antn_pairs, '%s/%s'%(args.plotdir, '+'.join(lpair)))
@@ -99,7 +103,7 @@ if args.plotdir is not None:
         count_plot(glfo, annotation_list, args.plotdir)
     sys.exit(0)
 
-assert not args.paired_loci  # only handled for plotting above atm
+assert not args.paired  # only handled for plotting above atm
 
 if cpath is None or cpath.i_best is None:
     clusters_to_use = [l['unique_ids'] for l in annotation_list]

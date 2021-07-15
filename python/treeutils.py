@@ -630,6 +630,8 @@ def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=
         print '      light:'
         print utils.pad_lines(get_ascii_tree(treestr=lline['tree']))
 
+    if 'heavy-chain-correlation-info' in lline:  # if doing paired h/l correlations, we need to make sure we're pairing togethether the same events here that were used to determine the correlations (they got out of sync before because things got out of order when writing/reading events from subprocesses)
+        assert hline['unique_ids'] == lline['heavy-chain-correlation-info']['heavy-chain-uids']
     assert len(hline['unique_ids']) == len(lline['unique_ids'])
     lpair = [hline, lline]
     joint_reco_id = utils.uidhashstr(hline['reco_id'] + lline['reco_id'])
