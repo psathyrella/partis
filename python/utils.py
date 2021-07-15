@@ -466,7 +466,9 @@ linekeys['hmm'] = ['logprob', 'errors', 'tree-info', 'alternative-annotations'] 
 linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights']
 linekeys['simu'] = ['reco_id', 'affinities', 'relative_affinities', 'lambdas', 'tree', 'target_seqs', 'nearest_target_indices', 'heavy-chain-correlation-info']
 
-# keys that are added by add_implicit_info()
+# keys that are required to specify a naive rearrangement event
+minimal_linekeys = [r+'_gene' for r in regions] + [b+'_insertion' for b in boundaries] + [e+'_del' for e in real_erosions]
+# keys that are added by add_implicit_info() (these are *not* all the non-minimal ones)
 implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs'] + \
                         [r + '_gl_seq' for r in regions] + \
                         ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])

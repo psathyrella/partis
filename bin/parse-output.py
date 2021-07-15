@@ -69,22 +69,20 @@ else:
     glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
 
 # ----------------------------------------------------------------------------------------
-def count_plot(tglfo, tlist, plotdir):
+def count_plot(tglfo, tlist, plotdir, paired_loci=None):
     if len(tlist) == 0:
         return
-    if args.paired:
-        assert tglfo is None  # can't handle parameter counter below atm
-        assert args.only_count_correlations
     if args.only_count_correlations:
         from corrcounter import CorrCounter
-        paired_loci = [l['loci'][0] for l in tlist[0]] if args.paired else None
         ccounter = CorrCounter(paired_loci=paired_loci)
         for line in tlist:
-            if args.paired:
+            l_info = None
+            if paired_loci is not None:
                 line, l_info = line
             ccounter.increment(line, l_info=l_info)
-        ccounter.plot(plotdir + '/correlations', only_mi=True, debug=args.debug)
+        ccounter.plot(plotdir + '/correlations', debug=args.debug)
         return
+    assert not args.paired  # only handled for correlation counting atm
     from parametercounter import ParameterCounter
     setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})  # hackity hackity hackity
     pcounter = ParameterCounter(tglfo, args)
@@ -95,10 +93,12 @@ def count_plot(tglfo, tlist, plotdir):
 if args.plotdir is not None:
     if args.paired:
         for lpair in utils.locus_pairs['ig']:
+            if lp_infos[tuple(lpair)]['glfos'] is None:
+                continue
+            for ltmp in lpair:
+                count_plot(lp_infos[tuple(lpair)]['glfos'][ltmp], lp_infos[tuple(lpair)]['antn_lists'][ltmp], '%s/%s/%s'%(args.plotdir, '+'.join(lpair), ltmp))
             antn_pairs = paircluster.find_cluster_pairs(lp_infos, lpair) #, debug=True)
-            count_plot(None, antn_pairs, '%s/%s'%(args.plotdir, '+'.join(lpair)))
-            # for ltmp in lpair:
-            #     count_plot(lp_infos[tuple(lpair)]['glfos'][ltmp], lp_infos[tuple(lpair)]['antn_lists'][ltmp], '%s/%s'%(args.plotdir, '+'.join(lpair)))
+            count_plot(None, antn_pairs, '%s/%s'%(args.plotdir, '+'.join(lpair)), paired_loci=[l['loci'][0] for l in antn_pairs[0]])
     else:
         count_plot(glfo, annotation_list, args.plotdir)
     sys.exit(0)

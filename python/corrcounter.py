@@ -8,20 +8,27 @@ import utils
 import glutils
 import paircluster
 
+min_mi_to_plot = 0.1
+
 # ----------------------------------------------------------------------------------------
 class CorrCounter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, paired=False):  # set paired if measuring correlations between paired heavy and light rearrangement events; otherwise they're within a single event
+    def __init__(self, paired_loci=None):  # set paired if measuring correlations between paired heavy and light rearrangement events; otherwise they're within a single event
         combo_headers = ['v_gene', 'd_gene', 'j_gene']  # we want all pairwise combos of these with each other
         pair_headers = [('v_3p_del', 'v_gene'),  # whereas for these we specify each individual pair
                         ('d_5p_del', 'd_gene'), ('d_3p_del', 'd_gene'),
                         ('j_5p_del', 'j_gene'),
-                        ('v_gene', 'cdr3_length'), ('d_gene', 'cdr3_length'), ('j_gene', 'cdr3_length'),
+                        # ('v_gene', 'cdr3_length'), ('d_gene', 'cdr3_length'), ('j_gene', 'cdr3_length'),
                         ('vd_insertion', 'v_gene'), ('vd_insertion', 'd_gene'), ('dj_insertion', 'd_gene'), ('dj_insertion', 'j_gene')]
+        self.non_light_chain_headers = ['d_gene', 'd_5p_del', 'd_3p_del', 'vd_insertion']
         self.all_headers = combo_headers + list(sorted(set([h for hp in pair_headers for h in hp if h not in combo_headers])))
-        self.hpairs = list(itertools.combinations(self.all_headers, 2)) if paired else list(itertools.combinations(combo_headers, 2)) + pair_headers  # pairs with some chance of being correlated, i.e. for which it's worth making a pairwise plot (for paired correlations we need all of them)
+        if paired_loci is None:
+            self.hpairs = list(itertools.combinations(combo_headers, 2)) + pair_headers  # pairs with some chance of being correlated, i.e. for which it's worth making a pairwise plot
+        else:
+            self.hpairs = list(itertools.permutations(self.all_headers, 2))  # for paired correlations we need all of them
         self.cvecs = {(a, b) : [] for a, b in self.hpairs}
-        self.paired = paired
+        self.paired = paired_loci is not None
+        self.paired_loci = paired_loci
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info, l_info=None):
@@ -58,28 +65,35 @@ class CorrCounter(object):
         if not only_csv:
             import plotting
             import plotconfig
+        utils.prep_dir(plotdir, wildlings=('*.svg', '*.csv'))
 
-        corr_vals = [[0 for _ in self.all_headers] for _ in self.all_headers]  # the default used to be None, but now that's crashing. Maybe different mpl versions?
+        corr_vals = [[float('nan') for _ in self.all_headers] for _ in self.all_headers]
+        fnames = []
         for hk in self.cvecs:
+            if self.paired and hk[1] in self.non_light_chain_headers:
+                continue
             xvals, yvals = zip(*self.cvecs[hk])
-            if len(set(xvals)) > 1 and len(set(yvals)) > 1:
-                iheads = [self.all_headers.index(h) for h in hk]
-                corr_vals[iheads[0]][iheads[1]] = get_corr(hk, xvals, yvals)
-                corr_vals[iheads[1]][iheads[0]] = corr_vals[iheads[0]][iheads[1]]  # just to make it symmetric, which it isn't because of the hand-ordering in the headers above (it might be nicer to only fill in one half, but whatever)
+            if len(set(xvals)) == 1 or len(set(yvals)) == 1:
+                continue
 
-            if not only_csv and not only_mi:
+            iheads = [self.all_headers.index(h) for h in hk]
+            norm_mi = get_corr(hk, xvals, yvals)
+            corr_vals[iheads[1]][iheads[0]] = norm_mi
+
+            if norm_mi > min_mi_to_plot and not only_csv and not only_mi:
                 lfcn, y_lfcn = [utils.shorten_gene_name if '_gene' in h else str for h in hk]
                 xlabel, ylabel = [plotconfig.plot_titles.get(h, h) for h in hk]
                 if self.paired:
                     xlabel, ylabel = ['%s %s'%(tch, l) for tch, l in zip(('heavy', 'light'), (xlabel, ylabel))]
                 plotting.plot_smatrix(plotdir, '-vs-'.join(hk), xylists=(xvals, yvals), xlabel=xlabel, ylabel=ylabel, lfcn=lfcn, y_lfcn=y_lfcn, tdbg=debug)
+                fnames.append('-vs-'.join(hk) + '.svg')
 
         if not only_csv:
             lfcn = lambda x: x.replace('length', 'len').replace('deletion', 'del')
-            xlabel, ylabel = ('heavy', 'light') if self.paired else (None, None)
-            plotting.plot_smatrix(plotdir, 'mutual-infos', smatrix=corr_vals, xybins=[[plotconfig.plot_titles.get(h, h) for h in self.all_headers] for _ in range(2)], float_vals=True, xlabel=xlabel, ylabel=ylabel, blabel='norm. mutual info.', lfcn=lfcn, tdbg=debug)
+            xlabel, ylabel = ('heavy', 'light') if self.paired else ('', '')
+            plotting.plot_smatrix(plotdir, 'mutual-infos', smatrix=corr_vals, xybins=[[plotconfig.plot_titles.get(h, h) for h in self.all_headers] for _ in range(2)], float_vals=True,
+                                  xlabel=xlabel, ylabel=ylabel, blabel='norm. mutual info.', lfcn=lfcn, tdbg=debug)
 
             n_per_row = 3
-            fnames = [] if only_mi else ['%s.svg' % '-vs-'.join(hk) for hk in self.hpairs]
             fnames = [['mutual-infos.svg']] + [fnames[i:i+n_per_row] for i in range(0, len(fnames), n_per_row)]
             plotting.make_html(plotdir, fnames=fnames)

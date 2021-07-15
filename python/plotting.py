@@ -773,6 +773,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
                xbounds=(0, axis_max), ybounds=(0, axis_max))
 
 # ----------------------------------------------------------------------------------------
+# NOTE set unset/empty values to float('nan') to keep them transparent
 def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max_bins=None, smatrix=None, xybins=None, float_vals=False, lfcn=lambda x: str(x), y_lfcn=None, xlabel='', ylabel='', title='', blabel='counts', tdbg=False):
     # ----------------------------------------------------------------------------------------
     def truncate_bins(xbins, ybins, n_max_bins):
