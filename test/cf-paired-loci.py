@@ -40,7 +40,7 @@ def run_simu(ncells, nleaf):
     if utils.all_outputs_exist(args, paircluster.paired_dir_fnames('%s/simu'%outdir, suffix='.yaml'), debug=False):
         print '    simulation output exists %s' % ('%s/simu'%outdir)
         return
-    cmd = './bin/partis simulate --paired-loci --random-seed %d --parameter-dir %s --paired-outdir %s/simu --mean-cells-per-droplet %f' % (args.seed, in_param_dir, outdir, ncells)
+    cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --random-seed %d --paired-outdir %s/simu --mean-cells-per-droplet %f' % (args.seed, outdir, ncells)  #  --parameter-dir %s in_param_dir
     cmd += ' --n-sim-events %d --n-leaves %d --n-procs %d --no-per-base-mutation --allowed-cdr3-lengths %s' % (args.n_sim_events, nleaf, args.n_procs, args.allowed_cdr3_lengths)
     cmd += ' --mutation-multiplier %.2f --constant-number-of-leaves' % args.mutation_multiplier
     if args.extra_args is not None:
