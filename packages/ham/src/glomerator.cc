@@ -493,6 +493,9 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
 
   // assert(seq_info_.count(queries) || tmp_cachefo_.count(queries));
   vector<string> namevector(SplitString(queries, ":"));
+  set<string> nameset(namevector.begin(), namevector.end());
+  if(nameset.size() < unsigned(n_max))  // with seed clustering you can get a lot of duplicate seqs (not just the seed seq), and I *think* this is maybe an ok way to avoid the runtime error below? But i'm adding this long afterwards so i'm not sure
+    n_max = nameset.size();
 
   srand(hash<string>{}(queries));  // make sure we get the same subset each time we pass in the same queries (well, if there's different thresholds for naive_seqs annd logprobs they'll each get their own [very correlated] subset)
 
@@ -506,8 +509,9 @@ string Glomerator::ChooseSubsetOfNames(string queries, int n_max) {
     while(ich < 0 || ichosen.count(ich) || chosen_strs.count(namevector[ich])) {
       ich = rand() % namevector.size();
       ++n_tries;
-      if(n_tries > 1e6)
-	throw runtime_error("too many tries in Glomerator::ChooseSubsetOfNames() -- maybe too many copies of the seed unique id?");
+      if(n_tries > 1e6) {
+	throw runtime_error("too many tries in Glomerator::ChooseSubsetOfNames() -- probably too many copies of some seqs during seed partitioning (choosing " + to_string(n_max) + " of " + to_string(namevector.size()) + " from " + queries);
+      }
     }
     ichosen.insert(ich);
     chosen_strs.insert(namevector[ich]);
