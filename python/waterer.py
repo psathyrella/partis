@@ -168,8 +168,6 @@ class Waterer(object):
 
         glutils.write_glfo(self.my_gldir, self.glfo)
 
-        # if self.input_info is None:
-        #     self.input_info = OrderedDict([(q, self.info[q]) for q in self.info['passed-queries']])  # only the keys get used in finalize
         self.finalize(cachefname=None, just_read_cachefile=True, ignore_seed_unique_id=ignore_seed_unique_id)
         print '        water time: %.1f' % (time.time()-start)
 
