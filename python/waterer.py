@@ -35,9 +35,9 @@ class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, glfo, input_info, simglfo, reco_info,
                  count_parameters=False, parameter_out_dir=None, plot_annotation_performance=False,
-                 duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None, vs_info=None):
+                 duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None, vs_info=None, locus=None):
         self.args = args
-        self.input_info = input_info  # NOTE do *not* modify this, since it's this original input info from partitiondriver
+        self.input_info = input_info if input_info is not None else OrderedDict()  # NOTE do *not* modify <input_info>, since it's this original input info from partitiondriver
         self.reco_info = reco_info
         self.glfo = glfo  # NOTE gets overwritten by read_cachefile()
         self.count_parameters = count_parameters  # NOTE *not* the same as <self.args.cache_parameters>
@@ -81,7 +81,10 @@ class Waterer(object):
         self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
 
         self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
-        glutils.write_glfo(self.my_gldir, self.glfo)  # NOTE gets overwritten by read_cachefile()
+        if self.glfo is None:  # reading cache file from bin/partis, rather than normal operation from python/partitiondriver.py
+            self.args.locus = locus
+        else:  # default, normal operation
+            glutils.write_glfo(self.my_gldir, self.glfo)  # NOTE gets overwritten by read_cachefile()
 
         if not os.path.exists(self.args.ig_sw_binary):
             raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
@@ -125,7 +128,7 @@ class Waterer(object):
             glutils.remove_glfo_files(cache_path + '-glfo', self.args.locus)
 
     # ----------------------------------------------------------------------------------------
-    def read_cachefile(self, cachefname):
+    def read_cachefile(self, cachefname, dont_add_implicit_info=False, ignore_seed_unique_id=False):
         start = time.time()
         print '        reading sw results from %s' % cachefname
 
@@ -149,18 +152,25 @@ class Waterer(object):
                     del line[key]
             assert len(line['unique_ids']) == 1  # would only fail if this was not actually an sw cache file, but it's still nice to check since so many places in waterer assume it's length 1
             uid = line['unique_ids'][0]
-            if uid not in self.input_info:
-                continue
-            utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
+            if ignore_seed_unique_id:  # this means we're reading the cache file from bin/partis for paired clustering, so don't have input info available, so have to make it here
+                self.input_info[uid] = line
+            else:  # normal operation
+                if uid not in self.input_info:
+                    continue
+            if not dont_add_implicit_info:
+                utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
             if indelutils.has_indels(line['indelfos'][0]):
                 self.info['indels'][uid] = line['indelfos'][0]
             self.add_to_info(line)
-            self.remaining_queries -= set(line['duplicates'][0])
+            if len(self.remaining_queries) > 0:
+                self.remaining_queries -= set(line['duplicates'][0])
             self.duplicates[uid] = line['duplicates'][0]  # Note that <self.duplicates> is really just so partitiondriver can pass in previous duplicates, but then now that we have the information in two places we need to keep it synchronized (see similar code in self.remove_duplicate_sequences())
 
         glutils.write_glfo(self.my_gldir, self.glfo)
 
-        self.finalize(cachefname=None, just_read_cachefile=True)
+        # if self.input_info is None:
+        #     self.input_info = OrderedDict([(q, self.info[q]) for q in self.info['passed-queries']])  # only the keys get used in finalize
+        self.finalize(cachefname=None, just_read_cachefile=True, ignore_seed_unique_id=ignore_seed_unique_id)
         print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
@@ -179,7 +189,7 @@ class Waterer(object):
         utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], utils.sw_cache_headers, use_pyyaml=self.args.write_full_yaml_output, dont_write_git_info=self.args.dont_write_git_info)
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, cachefname=None, just_read_cachefile=False):
+    def finalize(self, cachefname=None, just_read_cachefile=False, ignore_seed_unique_id=False):
         if self.debug:
             print '%s' % utils.color('green', 'finalizing')
 
@@ -227,7 +237,7 @@ class Waterer(object):
                 perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
 
         # remove queries with cdr3 length different to the seed sequence
-        if self.args.seed_unique_id is not None:
+        if self.args.seed_unique_id is not None and not ignore_seed_unique_id:
             assert not self.count_parameters  # informative exception is raised in bin/partis
             if self.args.seed_unique_id in self.info['queries']:
                 seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']
@@ -919,7 +929,8 @@ class Waterer(object):
 
         if not utils.is_functional(self.info[qname], iseq=0):
             self.kept_unproductive_queries.add(qname)
-        self.remaining_queries.remove(qname)
+        if len(self.remaining_queries) > 0:
+            self.remaining_queries.remove(qname)
 
     # ----------------------------------------------------------------------------------------
     def summarize_query(self, qinfo):

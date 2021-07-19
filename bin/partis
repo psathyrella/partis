@@ -33,6 +33,7 @@ from clusterpath import ClusterPath
 import paircluster
 from parametercounter import ParameterCounter
 from corrcounter import CorrCounter
+from waterer import Waterer
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -747,7 +748,9 @@ def run_all_loci(args, ig_or_tr='ig'):
     def reinstate_missing_uids(single_outfos):
         input_antns = {}
         for ltmp in utils.sub_loci(ig_or_tr):
-            _, input_antns[ltmp], _ = utils.read_output('%s/sw-cache.yaml'%getpdir(ltmp), dont_add_implicit_info=not args.debug_paired_clustering)
+            waterer = Waterer(args, None, None, None, None, locus=ltmp)
+            waterer.read_cachefile('%s/sw-cache.yaml'%getpdir(ltmp), dont_add_implicit_info=not args.debug_paired_clustering, ignore_seed_unique_id=True)
+            input_antns[ltmp] = [waterer.info[q] for q in waterer.info['queries']]
         print '      reinstating uids from sw info that were missing from single chain partition output (i.e. that were removed with different cdr3 lengths to seed seqs)' 
         print '           locus   before     after  added'
         uids_to_add = set([u for alist in single_outfos['antn_lists'].values() for l in alist for pids in l['paired-uids'] for u in pids])  # only add ids that are paired with an id that's in the existing output
