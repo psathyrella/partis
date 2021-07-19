@@ -129,8 +129,9 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def read_cachefile(self, cachefname, dont_add_implicit_info=False, ignore_seed_unique_id=False):
-        start = time.time()
-        print '        reading sw results from %s' % cachefname
+        if not ignore_seed_unique_id:
+            start = time.time()
+            print '        reading sw results from %s' % cachefname
 
         if utils.getsuffix(cachefname) == '.csv':  # old way
             cachebase = utils.getprefix(cachefname)
@@ -169,7 +170,8 @@ class Waterer(object):
         glutils.write_glfo(self.my_gldir, self.glfo)
 
         self.finalize(cachefname=None, just_read_cachefile=True, ignore_seed_unique_id=ignore_seed_unique_id)
-        print '        water time: %.1f' % (time.time()-start)
+        if not ignore_seed_unique_id:
+            print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
     def write_cachefile(self, cachefname):
@@ -198,17 +200,18 @@ class Waterer(object):
             print '%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning')
             sys.exit(0)
 
-        # kind of messy, but if we just read the cache file then we need to print duplicates, but if we didn't just read the cache file then we haven't yet removed duplicates so we can't
-        dupl_str, n_dupes = '', 0
-        if just_read_cachefile:
-            n_dupes = sum([len(dupes) for dupes in self.duplicates.values()])
-            dupl_str = ', %d duplicates' % n_dupes
-        tmp_pass_frac = float(len(self.info['queries']) + n_dupes) / len(self.input_info)
-        print '      info for %d / %d = %.3f   (removed: %d failed%s)' % (len(self.info['queries']) + n_dupes, len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
-        if tmp_pass_frac < 0.80:
-            print '  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning())
-        if len(self.kept_unproductive_queries) > 0:
-            print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
+        if not ignore_seed_unique_id:  # don't want any debug printing if we're ignoring seed id (i.e. just reading cache file for paired h/l seed clustering)
+            # kind of messy, but if we just read the cache file then we need to print duplicates, but if we didn't just read the cache file then we haven't yet removed duplicates so we can't
+            dupl_str, n_dupes = '', 0
+            if just_read_cachefile:
+                n_dupes = sum([len(dupes) for dupes in self.duplicates.values()])
+                dupl_str = ', %d duplicates' % n_dupes
+            tmp_pass_frac = float(len(self.info['queries']) + n_dupes) / len(self.input_info)
+            print '      info for %d / %d = %.3f   (removed: %d failed%s)' % (len(self.info['queries']) + n_dupes, len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
+            if tmp_pass_frac < 0.80:
+                print '  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning())
+            if len(self.kept_unproductive_queries) > 0:
+                print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
 
         if not just_read_cachefile:  # it's past tense!
             if len(self.skipped_unproductive_queries) > 0:
