@@ -531,6 +531,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 assert args.persistent_cachefname == 'paired-outdir'
                 utils.replace_in_arglist(clist, '--persistent-cachefname', getofn(ltmp, lpair=lpair, persistent_cache=True))
 
+            if args.plot_partitions or tmpaction in ['annotate', 'view-output', 'get-selection-metrics', 'plot-partitions']:
+                clist[clist.index(args.action)] = tmpaction
             if tmpaction == 'annotate':
                 utils.remove_from_arglist(clist, '--queries-to-include-fname', has_arg=True)  # we end up with inconsistent sequences (well, it's just that one is N-padded and the other isn't)
                 utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)  # we're no longer running on the initial input file, so theis (and --n-random-queries) screws everything up if e.g. --queries-to-include-fname is set by not reading all the seqs
@@ -545,7 +547,6 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.remove_from_arglist(clist, '--simultaneous-true-clonal-seqs')  # if this is set, it'll already be taken care of in --input-partition-fname
                 if os.path.exists(getofn(ltmp, joint=True, lpair=lpair, input_meta=True)):
                     utils.replace_in_arglist(clist, '--input-metafname', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # have to use the new, rewritten input meta file (with corrected pairing info)
-                clist[clist.index(args.action)] = 'annotate'
             if tmpaction in ['annotate', 'partition']:  # eh, it's better to do this stuff after reading all the annotations
                 utils.remove_from_arglist(clist, '--count-parameters')  # we want to only write these for the annotation step, with the merged partition
                 utils.remove_from_arglist(clist, '--count-correlations')
@@ -559,7 +560,6 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 if '--plotdir' not in clist:
                     clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
-                clist[clist.index(args.action)] = 'plot-partitions'
             if tmpaction == 'get-selection-metrics':
                 utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)  # remove these just to make the cmd line simpler/easier to read
                 utils.remove_from_arglist(clist, '--sw-cachefname', has_arg=True)
@@ -567,7 +567,6 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if args.is_data:  # for simulation we still need it
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
-                clist[clist.index(args.action)] = 'get-selection-metrics'
 
             return clist
         # ----------------------------------------------------------------------------------------
@@ -775,8 +774,7 @@ def run_all_loci(args, ig_or_tr='ig'):
 
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
-        DBG = args.debug_paired_clustering
-        single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=DBG)  # single chain cpaths (and other info)
+        single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=args.debug_paired_clustering)  # single chain cpaths (and other info)
         if args.seed_unique_id is not None:
             reinstate_missing_uids(single_outfos)
         if None in single_outfos.values():
@@ -784,8 +782,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
             print '  no paired uids in any annotations, not merging single chain partitions'
             return None
-        true_partitions = get_true_partitions(debug=DBG)
-        paircluster.clean_pair_info(single_outfos['cpaths'], single_outfos['antn_lists'], is_data=args.is_data, plotdir=getplotdir(None) if args.plotdir is not None else None, debug=DBG) #, max_hdist=4
+        true_partitions = get_true_partitions(debug=args.debug_paired_clustering)
+        paircluster.clean_pair_info(single_outfos['cpaths'], single_outfos['antn_lists'], is_data=args.is_data, plotdir=getplotdir(None) if args.plotdir is not None else None, debug=args.debug_paired_clustering) #, max_hdist=4
         lp_infos = {}
         for lpair in spairs():
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
@@ -793,17 +791,19 @@ def run_all_loci(args, ig_or_tr='ig'):
             if any(l not in single_outfos['antn_lists'] for l in lpair):
                 print '    no single chain output'
                 continue
-            lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=DBG)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
-            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=DBG)  # , iparts={'igl' : 7}
+            lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=args.debug_paired_clustering)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
+            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs, true_partitions=true_partitions)
             lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering and not args.count_parameters, dbgstr='partition')
             count_parameter_things(lp_infos, lpair)
         _, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), true_partitions=true_partitions)
-        print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_cpaths, debug=DBG)
+        print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_cpaths, debug=args.debug_paired_clustering)
         ccfs = {}
         for ltmp in [l for l in sloci() if l in concat_cpaths]:
             ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str='%s single vs joint concat\'d '%utils.locstr(ltmp), cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
+        # if args.debug_paired_clustering or args.debug:
+        #     run_step('view-output', ltmp, skip_missing_input=True)
         return ccfs
     # ----------------------------------------------------------------------------------------
     def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):
@@ -883,10 +883,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning')
         if args.action == 'plot-partitions' or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None and not args.no_partition_plots) or args.plot_partitions:
             plot_combined_partitions()
-        if args.action == 'view-output':
+        if args.action == 'view-output' or args.debug_paired_clustering or args.debug:
             for lpair in spairs():
                 for ltmp in lpair:
-                    run_step(args.action, ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
+                    run_step('view-output', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
         if args.action == 'get-selection-metrics' or args.get_selection_metrics:
             if args.action == 'get-selection-metrics':
                 for lpair in spairs():
