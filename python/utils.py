@@ -2769,7 +2769,7 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         raise Exception('not sure what this was supposed to do (or did in the past), but it doesn\'t do anything now! (a.t.m. it seems to only be set in bin/plot-germlines.py, which I think doesn\'t do anything useful any more)')
     if align or (align_if_necessary and len(seq1) != len(seq2)):  # way the hell slower if you have to align, of course
         if align_if_necessary:
-            print '  %s unequal length sequences %d %d:\n  %s\n  %s' % (color('yellow', 'warning'), len(seq1), len(seq2), seq1, seq2)
+            print '  %s unequal length sequences %d %d (so aligning):\n  %s\n  %s' % (color('yellow', 'warning'), len(seq1), len(seq2), seq1, seq2)
         seq1, seq2 = align_seqs(seq1, seq2)
     if len(seq1) != len(seq2):
         raise Exception('unequal length sequences %d %d:\n  %s\n  %s' % (len(seq1), len(seq2), seq1, seq2))

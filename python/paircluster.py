@@ -106,7 +106,7 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
             continue
         lpfos['glfos'][ltmp], lpfos['antn_lists'][ltmp], lpfos['cpaths'][ltmp] = utils.read_output(ofn, dont_add_implicit_info=dont_add_implicit_info, skip_failed_queries=True)
         if debug:
-            print '    read %d %s annotations from %s' % (len(lpfos['antn_lists'][ltmp]), ltmp, ofn)
+            print '    read %d %s annotations with %d seqs from %s' % (len(lpfos['antn_lists'][ltmp]), ltmp, sum(len(l['unique_ids']) for l in lpfos['antn_lists'][ltmp]), ofn)
         if read_selection_metrics and os.path.exists(treeutils.smetric_fname(ofn)):  # if it doesn't exist, the info should be in the regular output file
             read_smetrics(ofn, lpfos['antn_lists'][ltmp])
         if add_selection_metrics is not None:

@@ -84,6 +84,15 @@ class ClusterPath(object):
                 break
 
     # ----------------------------------------------------------------------------------------
+    # NOTE this will presumably screw up self.logprobs, self.n_procs, self.ccfs, and self.logweights
+    def add_cluster_to_all_partitions(self, cluster):
+        assert len(cluster) > 0
+        for iptn in range(len(self.partitions)):
+            if any(len(set(cluster) & set(c)) > 0 for c in self.partitions[iptn]):
+                raise Exception('adding cluster with uids already in partition')  # maybe don't really need to crash
+            self.partitions[iptn].append(cluster)
+
+    # ----------------------------------------------------------------------------------------
     def add_partition(self, partition, logprob, n_procs, logweight=None, ccfs=None):
         if ccfs is None:
             ccfs = [None, None]

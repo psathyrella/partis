@@ -587,6 +587,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if not os.path.exists(getofn(ltmp, joint=joint, lpair=lpair)):
                 print sdbgstr('output file missing', getofn(ltmp, joint=joint, lpair=lpair))
                 return
+        print '%s %s' % (utils.color('blue_bkg', tmpaction), utils.color('blue', ltmp))
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
     def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
@@ -741,9 +742,39 @@ def run_all_loci(args, ig_or_tr='ig'):
             ccounter.incr_cluster_pairs(lp_infos, lpair)
             ccounter.plot('%s/correlations'%getplotdir(None, lpair=lpair), only_mi=True, only_csv=args.only_csv_plots)
     # ----------------------------------------------------------------------------------------
+    # when seed clustering, each single-chain process starts by removing all seqs with cdr3 len different to the seed seqs, but here we have to put them back in.
+    # Otherwise the seqs they're paired with would show up as unpaired, so we wouldn't be able to properly split during paired clustering, and they'd end up overmerged
+    def reinstate_missing_uids(single_outfos):
+        input_antns = {}
+        for ltmp in utils.sub_loci(ig_or_tr):
+            _, input_antns[ltmp], _ = utils.read_output('%s/sw-cache.yaml'%getpdir(ltmp), dont_add_implicit_info=not args.debug_paired_clustering)
+        print '      reinstating uids from sw info that were missing from single chain partition output (i.e. that were removed with different cdr3 lengths to seed seqs)' 
+        print '           locus   before     after  added'
+        uids_to_add = set([u for alist in single_outfos['antn_lists'].values() for l in alist for pids in l['paired-uids'] for u in pids])  # only add ids that are paired with an id that's in the existing output
+        for ltmp in utils.sub_loci(ig_or_tr):  # sloci(single_outfos['glfos']):
+            existing_uids = []  # uids that *weren't* removed during seed clustering
+            if ltmp in single_outfos['glfos']:
+                existing_uids += [u for c in single_outfos['cpaths'][ltmp].best() for u in c]  # NOTE there are in general lots of duplicate uids in antn_lists, i.e. *don't* use antn_lists here, i.e. *don't* ever use the antn_lists as a partition
+            else:
+                single_outfos['cpaths'][ltmp] = ClusterPath(partition=[])  # this should be the light chain locus that *wasn't* the seed seq's
+                single_outfos['antn_lists'][ltmp] = []
+            n_added = 0
+            for line in input_antns[ltmp]:
+                uid = utils.get_single_entry(line['unique_ids'])
+                if uid in existing_uids or uid not in uids_to_add:
+                    continue
+                # NOTE i'm not going to bother merging the glfos, which maybe is ok?
+                single_outfos['cpaths'][ltmp].add_cluster_to_all_partitions([uid])
+                single_outfos['antn_lists'][ltmp].append(line)
+                n_added += 1
+            print '            %s   %5d     %5d   %5d' % (ltmp, len(existing_uids), sum(len(c) for c in single_outfos['cpaths'][ltmp].best()), n_added)
+
+    # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         DBG = args.debug_paired_clustering
         single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=DBG)  # single chain cpaths (and other info)
+        if args.seed_unique_id is not None:
+            reinstate_missing_uids(single_outfos)
         if None in single_outfos.values():
             return None
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
