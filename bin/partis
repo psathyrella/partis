@@ -510,7 +510,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if tmpaction != 'view-output' or not args.is_data:
                         utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
-                    if args.seed_unique_id is not None and tmpaction in ['partition', 'plot-partitions', 'view-output', 'get-selection-metrics']:  # it would be nice to work out what the locus of the light chain seed seq is so we don't have to run both, but whatever
+                    if args.seed_unique_id is not None and tmpaction in ['partition', 'plot-partitions', 'view-output', 'get-selection-metrics']:
                         utils.replace_in_arglist(clist, '--seed-unique-id', seedid(ltmp))
                     if args.sw_cachefname is None:
                         clist += ['--sw-cachefname', '%s/sw-cache.yaml'%getpdir(ltmp)]
@@ -723,7 +723,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for tclust in input_cpaths[ltmp].best():  # loop over clusters in the initial partition
                     jfamilies = [c for c in concat_cpaths[ltmp].best() if len(set(tclust) & set(c)) > 0]  # clusters in the joint partition that overlap with this cluster
                     uid_extra_strs = [getjcstr(u, jfamilies) for u in tclust]
-                    utils.print_reco_event(input_antn_dict[':'.join(tclust)], uid_extra_strs=uid_extra_strs, extra_str='      ')
+                    utils.print_reco_event(input_antn_dict[':'.join(tclust)], uid_extra_strs=uid_extra_strs, extra_str='      ', queries_to_emphasize=args.seed_unique_id)
     # ----------------------------------------------------------------------------------------
     def count_parameter_things(lp_infos, lpair):  # NOTE this duplicates a ton of code in partitiondriver.process_annotation_output()
         # TODO should add perf plotter here as well
@@ -751,7 +751,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         input_antns = {}
         for ltmp in utils.sub_loci(ig_or_tr):
             waterer = Waterer(args, None, None, None, None, locus=ltmp)
-            waterer.read_cachefile('%s/sw-cache.yaml'%getpdir(ltmp), dont_add_implicit_info=not args.debug_paired_clustering, ignore_seed_unique_id=True)
+            waterer.read_cachefile('%s/sw-cache.yaml'%getpdir(ltmp), ignore_seed_unique_id=True)
             input_antns[ltmp] = [waterer.info[q] for q in waterer.info['queries']]
         print '           locus  before     after  added'
         uids_to_add = set([u for alist in single_outfos['antn_lists'].values() for l in alist for pids in l['paired-uids'] for u in pids])  # only add ids that are paired with an id that's in the existing output

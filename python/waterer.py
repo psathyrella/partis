@@ -128,7 +128,7 @@ class Waterer(object):
             glutils.remove_glfo_files(cache_path + '-glfo', self.args.locus)
 
     # ----------------------------------------------------------------------------------------
-    def read_cachefile(self, cachefname, dont_add_implicit_info=False, ignore_seed_unique_id=False):
+    def read_cachefile(self, cachefname, ignore_seed_unique_id=False):
         if not ignore_seed_unique_id:
             start = time.time()
             print '        reading sw results from %s' % cachefname
@@ -158,9 +158,8 @@ class Waterer(object):
             else:  # normal operation
                 if uid not in self.input_info:
                     continue
-            if not dont_add_implicit_info:
-                utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
-            if indelutils.has_indels(line['indelfos'][0]):
+            utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
+            if indelutils.has_indels_line(line, 0):
                 self.info['indels'][uid] = line['indelfos'][0]
             self.add_to_info(line)
             if len(self.remaining_queries) > 0:
