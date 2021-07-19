@@ -767,7 +767,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if uid in existing_uids or uid not in uids_to_add:
                     continue
                 # NOTE i'm not going to bother merging the glfos, which maybe is ok?
-                single_outfos['cpaths'][ltmp].add_cluster_to_all_partitions([uid])
+                single_outfos['cpaths'][ltmp].add_cluster_to_all_partitions([uid], allow_duplicates=args.seed_unique_id is not None)
                 single_outfos['antn_lists'][ltmp].append(line)
                 n_added += 1
             print '             %s   %5d     %5d   %5d' % (utils.locstr(ltmp), len(existing_uids), sum(len(c) for c in single_outfos['cpaths'][ltmp].best()), n_added)
