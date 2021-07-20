@@ -505,7 +505,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                         clist[clist.index(args.action)] = 'cache-parameters'
                     elif args.action != 'cache-parameters':
                         clist += ['--refuse-to-cache-parameters']
-                    if auto_cache or tmpaction in ['annotate', 'plot-partitions']:
+                    if auto_cache or tmpaction in ['annotate', 'plot-partitions', 'view-output']:
                         remove_action_specific_args(clist, args.action, tmpaction)
                     if tmpaction != 'view-output' or not args.is_data:
                         utils.replace_in_arglist(clist, '--infname', getifn(ltmp))
@@ -773,8 +773,17 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '             %s   %5d     %5d   %5d' % (utils.locstr(ltmp), len(existing_uids), sum(len(c) for c in single_outfos['cpaths'][ltmp].best()), n_added)
 
     # ----------------------------------------------------------------------------------------
+    def restrict_to_single_partition(single_outfos):  # replace the cpaths with new ones that have only a single partition (the paired clustering atm only handles one partition, and the simplest way to control/enforce which is to restrict to a single one to start with)
+        pfcn = 'best'
+        if args.n_final_clusters is not None or args.min_largest_cluster_size is not None:
+            pfcn = 'last'
+            print '    %s%s: using last partition (rather than best) from single-locus output cpaths' % ('--n-final-clusters' if args.n_final_clusters else '', '--min-largest-cluster-size' if args.min_largest_cluster_size else '')  # i think you can't specify both at once anyway
+        for ltmp in sloci():
+            single_outfos['cpaths'][ltmp] = ClusterPath(partition=getattr(single_outfos['cpaths'][ltmp], pfcn)(), seed_unique_id=seedid(ltmp))
+    # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=args.debug_paired_clustering)  # single chain cpaths (and other info)
+        restrict_to_single_partition(single_outfos)
         if args.seed_unique_id is not None:
             reinstate_missing_uids(single_outfos)
         if None in single_outfos.values():
@@ -1175,6 +1184,8 @@ subargs['get-selection-metrics'].append({'name' : '--seed-loci', 'kwargs' : {'he
 subargs['get-selection-metrics'].append({'name' : '--chosen-ab-fname', 'kwargs' : {'help' : 'csv file to which to write information on chosen antibody sequences'}})
 subargs['merge-paired-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['merge-paired-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+subargs['merge-paired-partitions'].append({'name' : '--n-final-clusters', 'kwargs' : {'type' : int, 'help' : 'see help for this option under \'partition\' action'}})
+subargs['merge-paired-partitions'].append({'name' : '--min-largest-cluster-size', 'kwargs' : {'type' : int, 'help' : 'see help for this option under \'partition\' action'}})
 subargs['plot-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 
