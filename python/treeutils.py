@@ -2111,11 +2111,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def get_cons_mfo(metric_pairs, tdbg=False):
         # ----------------------------------------------------------------------------------------
-        def use_iseqs(tch, mtmp):  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
+        def use_iseqs(tch, mtmp, threshold=0.75):  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
             hsil = mtmp[tch]['has_shm_indels']
             tstr = '(%d / %d = %.2f)' % (hsil.count(True), len(hsil), hsil.count(True) / float(len(hsil)))
-            if hsil.count(True) / float(len(hsil)) > 0.5:
-                print '        %s more than half %s of %s seqs have indels, so using *input* cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), tstr, tch)
+            if hsil.count(True) / float(len(hsil)) > threshold:
+                print '        %s more than %.2f %s of %s seqs have indels, so using *input* cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), tstr, tch)
                 return True
             else:
                 if any(hsil):  # if none of them have indels, don't print anything
@@ -2479,8 +2479,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     all_chosen_mfos = []
     cfgfo = read_cfgfo()
     antn_pairs = []
+    import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
-        antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, required_keys='tree-info')
+        antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, required_keys=['tree-info'])
     # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
     n_too_small = 0
     if debug:

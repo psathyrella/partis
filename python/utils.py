@@ -1348,7 +1348,9 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
     seq_len = get_single_entry(list(set([len(s['seq']) for s in seqfos])))  # if this fails then the seqs that were passed in aren't all the same length
     if aa_ref_seq is not None:
         assert codon_len == 3 and not aa
-        assert 3 * len(aa_ref_seq) == len(pad_nuc_seq(seqfos[0]['seq']))
+        if 3 * len(aa_ref_seq) != len(pad_nuc_seq(seqfos[0]['seq'])):
+            print '\n'.join(s['seq'] for s in seqfos)  # TODO this probably means we're using input seqs for a family with lots of *different* indels, which needs to be fixed/avoided
+            raise Exception('aa ref seq length doesn\'t correspond to padded nuc seq:\n    %s\n    %s' % ('  '.join(aa_ref_seq), pad_nuc_seq(seqfos[0]['seq'])))
     if debug:
         print '  taking consensus of %d seqs with len %d in chunks of len %d' % (len(seqfos), seq_len, codon_len)
         dbgfo = []

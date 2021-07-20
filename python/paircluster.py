@@ -261,6 +261,9 @@ def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the
     if len(unpaired_l_clusts) > 0:
         print '    %s: %d unpaired light cluster%s after finding h/l cluster pairs' % ('+'.join(lpair), len(unpaired_l_clusts), utils.plural(len(unpaired_l_clusts)))
         for lc in unpaired_l_clusts:
+            if ':'.join(lc) not in l_atn_dict:
+                print '  %s missing annotation for unpaired light chain %s when finding cluster pairs' % (utils.color('yellow', 'warning'), ':'.join(lc))
+                continue
             lpids = getpids(l_atn_dict[':'.join(lc)])
             hpclusts = [c for c in h_part if len(set(lpids) & set(c)) > 0]
             if len(hpclusts) > 0:  # i think this would mean that the pairing info was non-reciprocal, which probably isn't really possible?
