@@ -4090,7 +4090,7 @@ def remove_ambiguous_ends(seq):
     return seq[i_seq_start : i_seq_end]
 
 # ----------------------------------------------------------------------------------------
-def split_clusters_by_cdr3(partition, sw_info, warn=False):
+def split_clusters_by_cdr3(partition, sw_info, warn=False):  # NOTE maybe should combine this with some of the following fcns?
     new_partition = []
     all_cluster_splits = []
     for cluster in partition:
@@ -4106,6 +4106,52 @@ def split_clusters_by_cdr3(partition, sw_info, warn=False):
         print '  %s split apart %d cluster%s that contained multiple cdr3 lengths (total clusters: %d --> %d)' % (color('yellow', 'warning'), len(all_cluster_splits), plural(len(all_cluster_splits)), len(partition), len(new_partition))
         print '      cluster splits: %s' % ', '.join(('%3d --> %s'%(cl, ' '.join(str(l) for l in spls))) for cl, spls in all_cluster_splits)
     return new_partition
+
+# ----------------------------------------------------------------------------------------
+def split_partition_with_criterion(partition, criterion_fcn):  # this would probably be faster if I used the itertools stuff from collapse_naive_seqs()
+    true_cluster_indices = [ic for ic in range(len(partition)) if criterion_fcn(partition[ic])]  # indices of clusters for which <criterion_fcn()> is true
+    true_clusters = [partition[ic] for ic in true_cluster_indices]
+    false_clusters = [partition[ic] for ic in range(len(partition)) if ic not in true_cluster_indices]
+    return true_clusters, false_clusters
+
+# ----------------------------------------------------------------------------------------
+def group_seqs_by_value(queries, keyfunc):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
+    return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
+
+# ----------------------------------------------------------------------------------------
+def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  # <split_by_cdr3> is only needed when we're getting synthetic sw info that's a mishmash of hmm and sw annotations
+    start = time.time()
+    if queries is None:
+        queries = swfo['queries']  # don't modify this
+
+    def keyfunc(q):  # while this is no longer happening before fwk insertion trimming (which was bad), it is still happening on N-padded sequences, which should be kept in mind
+        if split_by_cdr3:
+            return swfo[q]['cdr3_length'], swfo[q]['naive_seq']
+        else:
+            return swfo[q]['naive_seq']
+
+    partition = group_seqs_by_value(queries, keyfunc)
+
+    if debug:
+        print '   collapsed %d queries into %d cluster%s with identical naive seqs (%.1f sec)' % (len(queries), len(partition), plural(len(partition)), time.time() - start)
+
+    return partition
+
+# ----------------------------------------------------------------------------------------
+def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is (atm) only used for naive vsearch clustering
+    naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
+    naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
+    for uid, naive_seq in naive_seq_list:
+        hashstr = str(hash(naive_seq))
+        if hashstr not in naive_seq_hashes:  # first sequence that has this naive
+            cdr3_length = sw_info[uid]['cdr3_length']
+            if cdr3_length not in naive_seq_map:
+                naive_seq_map[cdr3_length] = {}
+            naive_seq_map[cdr3_length][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
+            naive_seq_hashes[hashstr] = []
+        naive_seq_hashes[hashstr].append(uid)
+    print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
+    return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
 def get_partition_from_annotation_list(annotation_list):
@@ -4815,52 +4861,6 @@ def kbound_str(kbounds):
             return_str.append(' [%s-%s)' % (str(rkb.get('min', ' ')), str(rkb.get('max', ' '))))
         return_str.append('  ')
     return ''.join(return_str).strip()
-
-# ----------------------------------------------------------------------------------------
-def split_partition_with_criterion(partition, criterion_fcn):  # this would probably be faster if I used the itertools stuff from collapse_naive_seqs()
-    true_cluster_indices = [ic for ic in range(len(partition)) if criterion_fcn(partition[ic])]  # indices of clusters for which <criterion_fcn()> is true
-    true_clusters = [partition[ic] for ic in true_cluster_indices]
-    false_clusters = [partition[ic] for ic in range(len(partition)) if ic not in true_cluster_indices]
-    return true_clusters, false_clusters
-
-# ----------------------------------------------------------------------------------------
-def group_seqs_by_value(queries, keyfunc):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
-    return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
-
-# ----------------------------------------------------------------------------------------
-def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  # <split_by_cdr3> is only needed when we're getting synthetic sw info that's a mishmash of hmm and sw annotations
-    start = time.time()
-    if queries is None:
-        queries = swfo['queries']  # don't modify this
-
-    def keyfunc(q):  # while this is no longer happening before fwk insertion trimming (which was bad), it is still happening on N-padded sequences, which should be kept in mind
-        if split_by_cdr3:
-            return swfo[q]['cdr3_length'], swfo[q]['naive_seq']
-        else:
-            return swfo[q]['naive_seq']
-
-    partition = group_seqs_by_value(queries, keyfunc)
-
-    if debug:
-        print '   collapsed %d queries into %d cluster%s with identical naive seqs (%.1f sec)' % (len(queries), len(partition), plural(len(partition)), time.time() - start)
-
-    return partition
-
-# ----------------------------------------------------------------------------------------
-def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is (atm) only used for naive vsearch clustering
-    naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
-    naive_seq_hashes = {}  # X[hash(naive_seq)] : [uid1, uid2, uid3...]
-    for uid, naive_seq in naive_seq_list:
-        hashstr = str(hash(naive_seq))
-        if hashstr not in naive_seq_hashes:  # first sequence that has this naive
-            cdr3_length = sw_info[uid]['cdr3_length']
-            if cdr3_length not in naive_seq_map:
-                naive_seq_map[cdr3_length] = {}
-            naive_seq_map[cdr3_length][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
-            naive_seq_hashes[hashstr] = []
-        naive_seq_hashes[hashstr].append(uid)
-    print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
-    return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
 def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes any extra info (beyond name and seq)

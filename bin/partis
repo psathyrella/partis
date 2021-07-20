@@ -794,6 +794,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=args.debug_paired_clustering)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
+                if args.seed_unique_id is not None:
+                    n_before = len(joint_partitions[ltmp])
+                    joint_partitions[ltmp], _ = utils.split_partition_with_criterion(joint_partitions[ltmp], lambda cluster: seedid(ltmp) in cluster)
+                    print '     removed %d unseeded clusters (of %d total) from %s joint partition' % (n_before - len(joint_partitions[ltmp]), n_before, ltmp)
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs, true_partitions=true_partitions)
             lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering and not args.count_parameters, dbgstr='partition')
             count_parameter_things(lp_infos, lpair)
@@ -802,8 +806,6 @@ def run_all_loci(args, ig_or_tr='ig'):
         ccfs = {}
         for ltmp in [l for l in sloci() if l in concat_cpaths]:
             ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str='%s single vs joint concat\'d '%utils.locstr(ltmp), cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
-        # if args.debug_paired_clustering or args.debug:
-        #     run_step('view-output', ltmp, skip_missing_input=True)
         return ccfs
     # ----------------------------------------------------------------------------------------
     def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):
