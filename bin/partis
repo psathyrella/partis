@@ -757,7 +757,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         for ltmp in utils.sub_loci(ig_or_tr):  # sloci(single_outfos['glfos']):
             existing_uids = []  # uids that *weren't* removed during seed clustering
             if ltmp in single_outfos['glfos']:
-                existing_uids += [u for c in single_outfos['cpaths'][ltmp].best() for u in c]  # NOTE there are in general lots of duplicate uids in antn_lists, i.e. *don't* use antn_lists here, i.e. *don't* ever use the antn_lists as a partition
+                existing_uids += [u for c in single_outfos['cpaths'][ltmp].best() for u in c]  # NOTE there are in general lots of duplicate uids in antn_lists, i.e. *don't* use antn_lists here, i.e. *don't* ever use the antn_lists as a partition (also note that different partitions have different uids, especially for seed partitioning)
             else:
                 single_outfos['cpaths'][ltmp] = ClusterPath(partition=[])  # this should be the light chain locus that *wasn't* the seed seq's
                 single_outfos['antn_lists'][ltmp] = []
@@ -767,7 +767,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if uid in existing_uids or uid not in uids_to_add:
                     continue
                 # NOTE i'm not going to bother merging the glfos, which maybe is ok?
-                single_outfos['cpaths'][ltmp].add_cluster_to_all_partitions([uid], allow_duplicates=args.seed_unique_id is not None)
+                single_outfos['cpaths'][ltmp].add_cluster_to_all_partitions([uid], skip_duplicates=args.seed_unique_id is not None)
                 single_outfos['antn_lists'][ltmp].append(line)
                 n_added += 1
             print '             %s   %5d     %5d   %5d' % (utils.locstr(ltmp), len(existing_uids), sum(len(c) for c in single_outfos['cpaths'][ltmp].best()), n_added)

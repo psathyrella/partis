@@ -85,19 +85,25 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     # NOTE this will presumably screw up self.logprobs, self.n_procs, self.ccfs, and self.logweights
-    def add_cluster_to_all_partitions(self, cluster, allow_duplicates=False, debug=False):
+    def add_cluster_to_all_partitions(self, cluster, allow_duplicates=False, skip_duplicates=False, debug=True):
+        # ----------------------------------------------------------------------------------------
+        def check(iptn, cluster, duplicate_ids):
+            new_duplicates = set(cluster) & set(u for c in self.partitions[iptn] for u in c)
+            if not allow_duplicates:
+                raise Exception('adding cluster with uids %s already in partition' % ' '.join(new_duplicates))
+            if debug:
+                duplicate_ids |= set(new_duplicates)
+        # ----------------------------------------------------------------------------------------
         assert len(cluster) > 0
-        n_duplicates, duplicate_ids = 0, set()
+        duplicate_ids = set()
         for iptn in range(len(self.partitions)):
             if any(len(set(cluster) & set(c)) > 0 for c in self.partitions[iptn]):
-                if not allow_duplicates:
-                    raise Exception('adding cluster with uids already in partition')  # maybe don't really need to crash
-                new_duplicates = [u for c in [c for c in self.partitions[iptn] if len(set(cluster) & set(c)) > 0] for u in c]
-                n_duplicates += len(duplicate_ids)
-                duplicate_ids |= set(new_duplicates)
+                if skip_duplicates:
+                    continue
+                check(iptn, cluster, duplicate_ids)
             self.partitions[iptn].append(cluster)
-        if debug and n_duplicates > 0:
-            print '  %s %d uids appeared multiple times when adding cluster to all partitions (%d in total over %d partitions)%s' % (utils.color('yellow', 'warning'), len(duplicate_ids), n_duplicates, len(self.partitions), ': '+' '.join(duplicate_ids) if len(duplicate_ids) < 10 else '')
+        if debug and len(duplicate_ids) > 0:
+            print '  %s %d uid%s appeared multiple times when adding cluster to all partitions%s' % (utils.color('yellow', 'warning'), len(duplicate_ids), utils.plural(len(duplicate_ids)), ': '+' '.join(duplicate_ids) if len(duplicate_ids) < 10 else '')
 
     # ----------------------------------------------------------------------------------------
     def add_partition(self, partition, logprob, n_procs, logweight=None, ccfs=None):
