@@ -227,19 +227,13 @@ def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the
     n_skipped = {k : 0 for k in required_keys + ['zero-len-paired-uids']}
     unpaired_l_clusts = [c for c in l_part]
     for h_clust in h_part:
-        if debug:
-            print '        %3d' % len(h_clust),
         h_atn = h_atn_dict[':'.join(h_clust)]
 
         if any(k not in h_atn for k in required_keys):  # skip any annotations that are missing any of these keys (atm, only used to skip ones without 'tree-info', which usually means clusters that were smaller than min selection metric cluster size
             for rk in set(required_keys) - set(h_atn):
                 n_skipped[rk] += 1
-            if debug:
-                print '  skipped (%s)' % ' '.join(sorted(set(required_keys) - set(h_atn)))
             continue
         if len(getpids(h_atn)) == 0:
-            if debug:
-                print '   skipped (no paired uids in heavy annotation)'
             n_skipped['zero-len-paired-uids'] += 1
             continue
 
@@ -258,7 +252,7 @@ def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the
         lp_antn_pairs.append((h_atn, l_atn))
         unpaired_l_clusts.remove(l_clusts[0])
         if debug:
-            print '%3d   %3d' % (len(l_clusts[0]), l_part.index(l_clusts[0]))
+            print '        %3d %3d   %3d' % (len(h_clust), len(l_clusts[0]), l_part.index(l_clusts[0]))
     if len(unpaired_l_clusts) > 0:
         print '    %s: %d unpaired light cluster%s after finding h/l cluster pairs' % ('+'.join(lpair), len(unpaired_l_clusts), utils.plural(len(unpaired_l_clusts)))
         # this is just too verbose atm (and hopefully not necessary?)

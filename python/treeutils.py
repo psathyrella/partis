@@ -2482,11 +2482,12 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, required_keys=['tree-info'])
+    antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)
     # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
     n_too_small = 0
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
-    for iclust, (h_atn, l_atn) in enumerate(sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)):
+    for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
         for ltmp in (h_atn, l_atn):
             utils.add_seqs_aa(ltmp)
         metric_pairs = []
