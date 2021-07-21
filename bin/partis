@@ -504,7 +504,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if auto_cache:
                         clist[clist.index(args.action)] = 'cache-parameters'
                     elif args.action != 'cache-parameters':
-                        clist += ['--refuse-to-cache-parameters']
+                        if '--refuse-to-cache-parameters' not in clist:
+                            clist += ['--refuse-to-cache-parameters']
                     if auto_cache or tmpaction in ['annotate', 'plot-partitions', 'view-output']:
                         remove_action_specific_args(clist, args.action, tmpaction)
                     if tmpaction != 'view-output' or not args.is_data:

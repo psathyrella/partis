@@ -249,7 +249,7 @@ def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the
             continue
         assert len(l_clusts) == 1
         if ':'.join(l_clusts[0]) not in l_atn_dict:
-            print '  %s missing annotation for light chain %s paired with %s when finding cluster pairs' % (utils.color('yellow', 'warning'), ':'.join(l_clusts[0]), ':'.join(h_clust))
+            print '      %s missing annotation for light chain when finding cluster pairs: %s (paired with %s)' % (utils.color('yellow', 'warning'), ':'.join(l_clusts[0]), ':'.join(h_clust))
             unpaired_l_clusts.remove(l_clusts[0])  # i guess i want to remove it from here? i guess we know who it's paired with, but there's no annotation so we can't do anything with it
             continue
         l_atn = l_atn_dict[':'.join(l_clusts[0])]
@@ -261,14 +261,15 @@ def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the
             print '%3d   %3d' % (len(l_clusts[0]), l_part.index(l_clusts[0]))
     if len(unpaired_l_clusts) > 0:
         print '    %s: %d unpaired light cluster%s after finding h/l cluster pairs' % ('+'.join(lpair), len(unpaired_l_clusts), utils.plural(len(unpaired_l_clusts)))
-        for lc in unpaired_l_clusts:
-            if ':'.join(lc) not in l_atn_dict:
-                print '  %s missing annotation for unpaired light chain %s when finding cluster pairs' % (utils.color('yellow', 'warning'), ':'.join(lc))
-                continue
-            lpids = getpids(l_atn_dict[':'.join(lc)])
-            hpclusts = [c for c in h_part if len(set(lpids) & set(c)) > 0]
-            if len(hpclusts) > 0:  # i think this would mean that the pairing info was non-reciprocal, which probably isn't really possible?
-                print '       %s unpaired light cluster with size %d overlaps with heavy cluster(s): %s' % (utils.color('yellow', 'warning'), len(lc), ' '.join(str(len(c)) for c in hpclusts))
+        # this is just too verbose atm (and hopefully not necessary?)
+        # for lc in unpaired_l_clusts:
+        #     if ':'.join(lc) not in l_atn_dict:
+        #         print '        %s missing annotation for unpaired light chain when finding cluster pairs: %s' % (utils.color('yellow', 'warning'), ':'.join(lc))
+        #         continue
+        #     lpids = getpids(l_atn_dict[':'.join(lc)])
+        #     hpclusts = [c for c in h_part if len(set(lpids) & set(c)) > 0]0
+        #     if len(hpclusts) > 0:  # i think this would mean that the pairing info was non-reciprocal, which probably isn't really possible?
+        #         print '       %s unpaired light cluster with size %d overlaps with heavy cluster(s): %s' % (utils.color('yellow', 'warning'), len(lc), ' '.join(str(len(c)) for c in hpclusts))
     if any(n > 0 for k, n in n_skipped.items() if k!='zero-len-paired-uids'):
         print '    %s: skipped %d annotations missing required keys: %s' % ('+'.join(lpair), sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids'))
     if n_skipped['zero-len-paired-uids'] > 0:
