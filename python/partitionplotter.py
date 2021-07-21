@@ -335,13 +335,14 @@ class PartitionPlotter(object):
             if not run_in_parallel:
                 print '    making mds plots starting with %d clusters' % len(sorted_clusters)
                 print '       size (+naive)   mds    plot   total'
-        skipped_cluster_lengths = []
+        plotted_cluster_lengths, skipped_cluster_lengths = [], []
         fnames = [[]]
         cmdfos = []
         for iclust in range(len(sorted_clusters)):
             if not self.plot_this_cluster(sorted_clusters, iclust, plottype='mds'):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
+            plotted_cluster_lengths.append(len(sorted_clusters[iclust]))
 
             seqfos, color_scale_vals, queries_to_include, title = get_cluster_info(sorted_clusters[iclust], iclust)
 
@@ -379,7 +380,7 @@ class PartitionPlotter(object):
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
 
-        print '    made %d mds plots (%.1fs)' % (sum(len(x) for x in fnames), time.time() - start)
+        print '    made %d mds plots (%.1fs) with sizes %s' % (sum(len(x) for x in fnames), time.time() - start, ' '.join(str(n) for n in plotted_cluster_lengths))
 
         return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 

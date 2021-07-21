@@ -2115,11 +2115,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             hsil = mtmp[tch]['has_shm_indels']
             tstr = '(%d / %d = %.2f)' % (hsil.count(True), len(hsil), hsil.count(True) / float(len(hsil)))
             if hsil.count(True) / float(len(hsil)) > threshold:
-                print '        %s more than %.2f %s of %s seqs have indels, so using *input* cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), tstr, tch)
+                print '        %s more than %.2f %s of %s seqs have indels, so using *input* cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), threshold, tstr, tch)
                 return True
             else:
                 if any(hsil):  # if none of them have indels, don't print anything
-                    print '        less than half %s of %s seqs have indels, so not using input seqs for cons seq' % (tstr, tch)
+                    print '        less than %.2f %s of %s seqs have indels, so not using input seqs for cons seq' % (threshold, tstr, tch)
                 return False
         # ----------------------------------------------------------------------------------------
         def getcseqs(tch, use_input_seqs, aa=False, aa_ref_seq=None):

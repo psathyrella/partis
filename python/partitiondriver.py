@@ -394,6 +394,8 @@ class PartitionDriver(object):
         seed_uid = self.args.seed_unique_id
         true_partition = None
         if cpath is not None:
+            if len(annotation_list) > 0:  # this is just because it prints a warning if any of the clusters in the best partition are missing from the annotations
+                _ = utils.get_annotation_dict(annotation_list, cpath=cpath)
             # it's expected that sometimes you'll write a seed partition cpath, but then when you read the file you don't bother to seed the seed id on the command line. The reverse, however, shouldn't happen
             if seed_uid is not None and cpath.seed_unique_id != seed_uid:
                 print '  %s seed uids from args and cpath don\'t match %s %s ' % (utils.color('red', 'error'), self.args.seed_unique_id, cpath.seed_unique_id)

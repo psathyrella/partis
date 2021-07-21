@@ -167,6 +167,7 @@ def get_both_lpair_antn_pairs(lpairs, lp_infos):  # ok this name sucks, but this
 
 # ----------------------------------------------------------------------------------------
 # NOTE the deep copies are really important, since we later deduplicate the concatd partitions + annotations (they didn't used to be there, which caused a bug/crash) [well even if we didn't deduplicate, it was fucking stupid to not deep copy them)
+# NOTE also that you'll probably have duplicates in both the partitions and annotations after this
 def concat_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
     # ----------------------------------------------------------------------------------------
     def glpf(p, k, l):  # short for "get key (k) from lp_infos for lpair (p) and locus (l) NOTE duplicates code in write_lpair_output_files
