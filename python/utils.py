@@ -68,7 +68,7 @@ def timeprinter(fcn):
 # get string to print with a specific width
 # NOTE there are many many many places where i could use this
 # see it's short for "width format"...
-def wfmt(val, width, fmt='s', jfmt='+'):  # return string with <val> formatted to <width> and format <fmt> (the necessary parentheses really make stuff hard to read without this fcn)
+def wfmt(val, width, fmt='s', jfmt=''):  # return string with <val> formatted to <width> and format <fmt> (the necessary parentheses really make stuff hard to read without this fcn)
     return ('%' + jfmt + str(width) + fmt) % val
 
 # ----------------------------------------------------------------------------------------
