@@ -65,10 +65,11 @@ def timeprinter(fcn):
     return wrapper
 
 # ----------------------------------------------------------------------------------------
+# get string to print with a specific width
 # NOTE there are many many many places where i could use this
 # see it's short for "width format"...
-def wfmt(val, width, fmt='s'):  # return <val> formatted with with <width> and format <fmt> (the necessary parentheses really make stuff hard to read without this fcn)
-    return ('%' + str(width) + fmt) % val
+def wfmt(val, width, fmt='s', jfmt='+'):  # return string with <val> formatted to <width> and format <fmt> (the necessary parentheses really make stuff hard to read without this fcn)
+    return ('%' + jfmt + str(width) + fmt) % val
 
 # ----------------------------------------------------------------------------------------
 parameter_type_choices = ('multi-hmm', 'hmm', 'sw')  # NOTE this order determines default priority, i.e. if not set on the command line we choose the first one in this order that exists
@@ -2383,7 +2384,10 @@ def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_p
 
 # ----------------------------------------------------------------------------------------
 def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_label):
-    def vstr(v): return ('%.2f'%v) if isinstance(v, float) else str(v)  # this is not going to be sufficient to look nice
+    def vstr(val):
+        if isinstance(val, float): return ('%.3f'%val)
+        elif isinstance(val, list): return ':'.join(str(w) for w in val)
+        else: return str(v)
     if uid_extra_strs is None:
         uid_extra_strs = ['' for _ in line['unique_ids']]
     if uid_extra_str_label is None:
@@ -2400,10 +2404,10 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
             else:
                 vlist = [line.get(ekey, '?') for _ in line['unique_ids']]
         # tw = str(max(len(ekey), max(len(vstr(v)) for v in vlist)))  # maybe include len of ekey in width?
-        tw = str(max(len(vstr(v)) for v in vlist))
-        uid_extra_str_label += ('%'+tw+'s') % ekey
+        tw = max([len(vstr(v)) for v in vlist] + [len(ekey)])
+        uid_extra_str_label += '  ' + wfmt(ekey, tw, jfmt='-')
         assert len(vlist) == len(uid_extra_strs)
-        uid_extra_strs = [(('%s%'+tw+'s')%(e, vstr(v))) for v, e in zip(vlist, uid_extra_strs)]
+        uid_extra_strs = [('%s  %s'%(e, wfmt(vstr(v), tw, jfmt='-'))) for v, e in zip(vlist, uid_extra_strs)]
     return uid_extra_strs, uid_extra_str_label
 
 # ----------------------------------------------------------------------------------------

@@ -778,7 +778,12 @@ def run_all_loci(args, ig_or_tr='ig'):
         pfcn = 'best'
         if args.n_final_clusters is not None or args.min_largest_cluster_size is not None:
             pfcn = 'last'
-            print '    %s%s: using last partition (rather than best) from single-locus output cpaths' % ('--n-final-clusters' if args.n_final_clusters else '', '--min-largest-cluster-size' if args.min_largest_cluster_size else '')  # i think you can't specify both at once anyway
+            print '    %s%s: using last partition (rather than best) from single-locus output cpaths' % ('--n-final-clusters' if args.n_final_clusters else '', '--min-largest-cluster-size' if args.min_largest_cluster_size else '')
+            print '                     N clusters     N uids'
+            print '                   best   last   best   last'
+            for ltmp in sloci():
+                bptn, lptn = [getattr(single_outfos['cpaths'][ltmp], pf)() for pf in ('best', 'last')]
+                print '            %s   %5d %6d   %5d %6d' % (utils.locstr(ltmp), len(bptn), len(lptn), sum(len(c) for c in bptn), sum(len(c) for c in lptn))
         for ltmp in sloci():
             single_outfos['cpaths'][ltmp] = ClusterPath(partition=getattr(single_outfos['cpaths'][ltmp], pfcn)(), seed_unique_id=seedid(ltmp))
     # ----------------------------------------------------------------------------------------
