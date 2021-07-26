@@ -757,7 +757,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         make_final_plots(initial_seqs_per_seq, initial_flcounts)
 
 # ----------------------------------------------------------------------------------------
-def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_to_ref=False, antn_list=None, dbg_str=None, cf_label='inferred', ref_label='true', debug=False):
+def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_to_ref=False, antn_list=None, seed_unique_id=None, dbg_str=None, cf_label='inferred', ref_label='true', debug=False):
     # ----------------------------------------------------------------------------------------
     def incorporate_duplicates(tpart):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
         for tclust in tpart:
@@ -778,17 +778,19 @@ def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_to_ref=Fa
         refpart = utils.remove_missing_uids_from_partition(refpart, cfpart, debug=debug)  # returns a new/copied partition, doesn't modify original
     if add_to_ref:
         refpart = utils.add_missing_uids_to_partition(refpart, cfpart)
-    return utils.per_seq_correct_cluster_fractions(cfpart, refpart, dbg_str=dbg_str, inf_label=cf_label, true_label=ref_label, debug=debug)
+    return utils.per_seq_correct_cluster_fractions(cfpart, refpart, seed_unique_id=seed_unique_id, dbg_str=dbg_str, inf_label=cf_label, true_label=ref_label, debug=debug)
     # TODO figure out which cases of 'missing' uids should really be removed, and which should be singletons
 
 # ----------------------------------------------------------------------------------------
-def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, debug=False):
+def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, seed_unique_ids=None, debug=False):
+    if seed_unique_ids is not None and set(ploci.values()) != set(seed_unique_ids):  # skip non-seed light locus pair
+        return
     # NOTE that <joint_partitions> can have many fewer seqs than <init_partitions> since in making <joint_partitions> we remove seqs paired with the other light chain (the weighted average ccfs over the h joint partitions corresponding to both light chains would be exactly comparable to the <init_partitions>, but I think this is fine as it is)
     for tch in utils.chains:
         ltmp = ploci[tch]
         ccfs = {}
         for dstr, cfpart in [('single', init_partitions[tch]), ('joint', joint_partitions[tch])]:
-            ccfs[dstr] = compare_partition_pair(cfpart, true_partitions[ltmp], remove_from_ref=True,  # removes from the true ptn any uids that are missing from the inferred ptn
+            ccfs[dstr] = compare_partition_pair(cfpart, true_partitions[ltmp], seed_unique_id=None if seed_unique_ids is None else seed_unique_ids[ltmp], remove_from_ref=True,  # removes from the true ptn any uids that are missing from the inferred ptn
                                                 antn_list=antn_lists[ltmp], dbg_str='%s %s '%(utils.locstr(ltmp), dstr), debug=debug)
         print '  %s ccfs:     purity  completeness' % utils.locstr(ltmp)
         print '      single  %6.3f %6.3f' % (ccfs['single'][0], ccfs['single'][1])
@@ -796,7 +798,7 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
-def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
     dbgids = None #['1437084736471665213-igh']  # None
     # ----------------------------------------------------------------------------------------
     def akey(klist):
@@ -831,7 +833,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             jstrs = ['           %s %3d  %s' % ('vs %2d with sizes:'%len(cluster_list) if i==0 else '                 ', len(c), ':'.join(c)) for i, c in enumerate(cluster_list)]
             print '\n'.join(jstrs)
             print '     split into %d cdr3 group%s' % (len(cdr3_groups), utils.plural(len(cdr3_groups)))
-        lo_hbound, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))  # these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
+        lo_hbound, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))
         return_clusts = []
         for icdr, cdrgroup in enumerate(cdr3_groups):  # within each cdr3 group, split (i.e. use the cluster boundaries from cluster_list rather than single_cluster) if naive hfrac is > hi_hbound (but then there's shenanigans to adjudicate between different possibilities)
             if tdbg: print '      %s' % utils.color('purple', 'icdr %d' % icdr)
@@ -1024,6 +1026,6 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
 
     if true_partitions is not None:
         assert iparts is None  # just for now
-        evaluate_joint_partitions(ploci, true_partitions, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, debug=debug)
+        evaluate_joint_partitions(ploci, true_partitions, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, seed_unique_ids=seed_unique_ids, debug=debug)
 
     return {ploci[ch] : jp for ch, jp in joint_partitions.items()}

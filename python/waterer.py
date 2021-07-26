@@ -86,6 +86,8 @@ class Waterer(object):
         else:  # default, normal operation
             glutils.write_glfo(self.my_gldir, self.glfo)  # NOTE gets overwritten by read_cachefile()
 
+        self.n_removed_dbg = None  # hack
+
         if not os.path.exists(self.args.ig_sw_binary):
             raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
 
@@ -128,8 +130,9 @@ class Waterer(object):
             glutils.remove_glfo_files(cache_path + '-glfo', self.args.locus)
 
     # ----------------------------------------------------------------------------------------
-    def read_cachefile(self, cachefname, ignore_seed_unique_id=False):
-        if not ignore_seed_unique_id:
+    def read_cachefile(self, cachefname, ignore_seed_unique_id=False, quiet=False):
+        no_input_info = len(self.input_info) == 0
+        if not quiet:  # ok i'm also using this as an indicator of how much dbg i want, which maybe is dumb
             start = time.time()
             print '        reading sw results from %s' % cachefname
 
@@ -153,7 +156,7 @@ class Waterer(object):
                     del line[key]
             assert len(line['unique_ids']) == 1  # would only fail if this was not actually an sw cache file, but it's still nice to check since so many places in waterer assume it's length 1
             uid = line['unique_ids'][0]
-            if ignore_seed_unique_id:  # this means we're reading the cache file from bin/partis for paired clustering, so don't have input info available, so have to make it here
+            if no_input_info:  # this means we're reading the cache file from bin/partis for paired clustering, so don't have input info available, so have to make it here
                 self.input_info[uid] = line
             else:  # normal operation
                 if uid not in self.input_info:
@@ -168,8 +171,8 @@ class Waterer(object):
 
         glutils.write_glfo(self.my_gldir, self.glfo)
 
-        self.finalize(cachefname=None, just_read_cachefile=True, ignore_seed_unique_id=ignore_seed_unique_id)
-        if not ignore_seed_unique_id:
+        self.finalize(cachefname=None, just_read_cachefile=True, ignore_seed_unique_id=ignore_seed_unique_id, quiet=quiet)
+        if not quiet:
             print '        water time: %.1f' % (time.time()-start)
 
     # ----------------------------------------------------------------------------------------
@@ -188,7 +191,7 @@ class Waterer(object):
         utils.write_annotations(cachefname, self.glfo, [self.info[q]for q in self.info['queries']], utils.sw_cache_headers, use_pyyaml=self.args.write_full_yaml_output, dont_write_git_info=self.args.dont_write_git_info)
 
     # ----------------------------------------------------------------------------------------
-    def finalize(self, cachefname=None, just_read_cachefile=False, ignore_seed_unique_id=False):
+    def finalize(self, cachefname=None, just_read_cachefile=False, ignore_seed_unique_id=False, quiet=False):
         if self.debug:
             print '%s' % utils.color('green', 'finalizing')
 
@@ -199,7 +202,7 @@ class Waterer(object):
             print '%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning')
             sys.exit(0)
 
-        if not ignore_seed_unique_id:  # don't want any debug printing if we're ignoring seed id (i.e. just reading cache file for paired h/l seed clustering)
+        if not quiet:  # don't want any debug printing if we're ignoring seed id (i.e. just reading cache file for paired h/l seed clustering)
             # kind of messy, but if we just read the cache file then we need to print duplicates, but if we didn't just read the cache file then we haven't yet removed duplicates so we can't
             dupl_str, n_dupes = '', 0
             if just_read_cachefile:
@@ -249,8 +252,9 @@ class Waterer(object):
                 if self.info[query]['cdr3_length'] != seed_cdr3_length:
                     self.remove_query(query)
             n_removed = initial_n_queries - len(self.info['queries'])
-            if n_removed > 0:
+            if n_removed > 0 and not quiet:
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
+            self.n_removed_dbg = {'n-removed' : n_removed, 'n-initial' : initial_n_queries}  # hack
 
         seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']], keys_not_to_overwrite=['multiplicities'] if just_read_cachefile else None)  # need to do this before removing duplicates, so the duplicate info (from waterer) can get combined with multiplicities (from input metafo). And, if we just read the cache file, then we already collapsed duplicates so we don't want to overwrite multiplicity info
         if self.args.is_data and not self.args.dont_remove_framework_insertions:  # it's too much trouble updating reco_info on simulation, and I don't think we can add fwk insertions in simulation atm anyway

@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simulate:cache-parameters:partition')
 parser.add_argument('--n-sim-events', type=int, default=10)
 parser.add_argument('--n-leaf-list', default='1') #'2:3:4:10') #1 5; do10)
-parser.add_argument('--cells-per-drop-list', default='1') #0.8 2 3 5 10; do #1.1; do
+parser.add_argument('--cells-per-drop-list') #, default='1') #0.8 2 3 5 10; do #1.1; do
 parser.add_argument('--allowed-cdr3-lengths', default='30:33:36:42:45:48')
 parser.add_argument('--mutation-multiplier', type=float, default=1)
 parser.add_argument('--n-procs', type=int, default=10)
@@ -34,13 +34,17 @@ args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions, choices=['simulate', 'cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics'])
 args.n_leaf_list = utils.get_arg_list(args.n_leaf_list, intify=True)
 args.cells_per_drop_list = utils.get_arg_list(args.cells_per_drop_list, floatify=True)
+if args.cells_per_drop_list is None:
+    args.cells_per_drop_list = [None]
 
 # ----------------------------------------------------------------------------------------
 def run_simu(ncells, nleaf):
     if utils.all_outputs_exist(args, paircluster.paired_dir_fnames('%s/simu'%outdir, suffix='.yaml'), debug=False):
         print '    simulation output exists %s' % ('%s/simu'%outdir)
         return
-    cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --random-seed %d --paired-outdir %s/simu --mean-cells-per-droplet %f' % (args.seed, outdir, ncells)  #  --parameter-dir %s in_param_dir
+    cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --random-seed %d --paired-outdir %s/simu' % (args.seed, outdir)  #  --parameter-dir %s in_param_dir
+    if ncells is not None:
+        cmd += '--mean-cells-per-droplet %f' % ncells
     cmd += ' --n-sim-events %d --n-leaves %d --n-procs %d --no-per-base-mutation --allowed-cdr3-lengths %s' % (args.n_sim_events, nleaf, args.n_procs, args.allowed_cdr3_lengths)
     cmd += ' --mutation-multiplier %.2f --constant-number-of-leaves' % args.mutation_multiplier
     if args.extra_args is not None:
@@ -62,7 +66,9 @@ def outpath(action):
 # ----------------------------------------------------------------------------------------
 for ncells in args.cells_per_drop_list:
     for nleaf in args.n_leaf_list:
-        ncstr = ('%.0f'%ncells) if int(ncells)==ncells else '%.1f'%ncells
+        ncstr = ''
+        if ncells is not None:
+            ncstr = ('%.0f'%ncells) if int(ncells)==ncells else '%.1f'%ncells
         outlabel = '%s%s%s-%s' % (args.label, '-'+str(nleaf) if len(args.n_leaf_list)>1 else '', '-'+ncstr if len(args.cells_per_drop_list)>1 else '', args.version)
         outdir = '%s/partis/paired-loci/%s' % (os.getenv('fs'), outlabel)
         out_param_dir = '%s/params' % outdir
