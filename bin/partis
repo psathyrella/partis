@@ -670,6 +670,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     def handle_concatd_heavy_chain(lp_infos, headers, true_partitions=None):  # concatenate partitions + annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
         glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
         hloc = utils.get_single_entry([l for l in utils.sub_loci(ig_or_tr) if utils.has_d_gene(l)])  # very convoluted way to get heavy chain
+        if len(glfos) == 0:
+            return glfos, antn_lists, joint_cpaths
         tmp_ptn = utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc], glfo=glfos[hloc], debug=args.debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
         joint_cpaths[hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))
         paircluster.write_concatd_output_files(glfos, antn_lists, getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=joint_cpaths, true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info)
@@ -762,8 +764,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             return [waterer.info[q] for q in waterer.info['queries']], waterer.n_removed_dbg
         print '   removing seqs very different from seed seq'
         print '    reading cached sw results '
-        print '                            removed'
-        print '           locus  before  cdr3  hfrac  after'
+        print '                            removed            kept'
+        print '           locus  before  cdr3  hfrac  after   frac'
         sw_antns = {}
         for ltmp in args.seed_loci:
             sw_antns[ltmp], cdr3_dbgfo = read_sw(ltmp)
@@ -772,14 +774,14 @@ def run_all_loci(args, ig_or_tr='ig'):
             def hfrac(tl): return utils.hamming_fraction(tl['naive_seq'], seed_naive_seq, align_if_necessary=True)  # shouldn't need to align, but if it does it'll print a warning
             n_before = len(sw_antns[ltmp])
             sw_antns[ltmp] = [l for l in sw_antns[ltmp] if hfrac(l) < hi_hbound]
-            print '             %s   %5d  %5d  %5d   %5d' % (utils.locstr(ltmp), n_before, cdr3_dbgfo['n-removed'], n_before - len(sw_antns[ltmp]), len(sw_antns[ltmp]))
+            print '             %s   %5d   %5d  %5d %5d    %.2f' % (utils.locstr(ltmp), n_before, cdr3_dbgfo['n-removed'], n_before - len(sw_antns[ltmp]), len(sw_antns[ltmp]), len(sw_antns[ltmp]) / float(n_before))
         required_uids = set([u for alist in sw_antns.values() for l in alist for pids in l['paired-uids'] for u in pids])  # all uids that're paired with a uid that we kept from the two seeded loci
         required_uids -= set(u for alist in sw_antns.values() for l in alist for u in l)  # may as well remove the uids from the two seeded loci
         non_seed_locus = utils.get_single_entry([l for l in utils.sub_loci(ig_or_tr) if l not in args.seed_loci])  # unseeded light chain locus (that doesn't correspond to the seed ab)
         sw_antns[non_seed_locus], _ = read_sw(non_seed_locus)  # as of *now*, sw_antns has all three loci (it's very important before here that it doesn't)
         n_before = len(sw_antns[non_seed_locus])
         sw_antns[non_seed_locus] = [l for l in sw_antns[non_seed_locus] if utils.get_single_entry(l['unique_ids']) in required_uids]
-        print '             %s   %5d  %5d  %5s   %5d' % (utils.locstr(non_seed_locus), n_before, n_before - len(sw_antns[non_seed_locus]), '-', len(sw_antns[non_seed_locus]))
+        print '             %s   %5d   %5d  %5s %5d    %.2f' % (utils.locstr(non_seed_locus), n_before, n_before - len(sw_antns[non_seed_locus]), '-', len(sw_antns[non_seed_locus]), len(sw_antns[non_seed_locus]) / float(n_before))
         for ltmp in utils.sub_loci(ig_or_tr):  # NOTE that e.g. --n-random-queries and --n-max-queries get applied *after* this, in the single chain partition steps (which may or may not be what you want, since that means they're being applied after you've removed sequences in the previous lines)
             if len(sw_antns[ltmp]) == 0:
                 continue
@@ -787,7 +789,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             work_fnames.append(getofn(ltmp, fasta=True))
 #     # ----------------------------------------------------------------------------------------
 # # NOTE god damnit, this doesn't work -- you can't just add them as singletons, since then paired clustering thinks they're supposed to be split, which fucks up the paired partitions
-#     # when seed clustering, each single-chain process starts by removing all seqs with cdr3 len different to the seed seqs, but here we have to put them back in.
+#     # when seed clustering, each single-chain process starts by removing all seqs with cdr3 len different to the seed seqs, but here we have to put some of them back in.
 #     # Otherwise the seqs they're paired with would show up as unpaired, so we wouldn't be able to properly split during paired clustering, and they'd end up overmerged
 #     def reinstate_missing_uids(single_outfos):
 #         print '    reinstating uids from sw info that were missing from single chain partition output (i.e. that were removed with cdr3 length different to seed seq)'
@@ -833,6 +835,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     def combine_inf_chains():
         single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=args.debug_paired_clustering)  # single chain cpaths (and other info)
         restrict_to_single_partition(single_outfos)
+        # doesn't work: (see note above)
         # if args.seed_unique_id is not None:
         #     reinstate_missing_uids(single_outfos)
         if None in single_outfos.values():
@@ -850,7 +853,10 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print '    no single chain output'
                 continue
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=args.debug_paired_clustering)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
-            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], seed_unique_ids=None if args.seed_unique_id is None else {l : u for l, u in zip(args.seed_loci, args.seed_unique_id)}, debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
+            if all(len(alist)==0 for alist in lp_antn_lists.values()):
+                print '    %s zero sequences remain after removing un/badly paired seqs. Maybe you\'re missing pairing info?' % utils.color('yellow', 'warning')
+                continue
+            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], seed_unique_ids=None if args.seed_unique_id is None else {l : u for l, u in zip(args.seed_loci, args.seed_unique_id)}, n_final_clusters=args.n_final_clusters, debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 if args.seed_unique_id is not None:  # NOTE it's kind of dumb/shitty to keep the non-seeded h/l pair all the way through this (i.e. to do paired clustering on igl when the seed seq is igh+igk), but we really need to not lose the seqs in there, since then we lose track of their chain, which means it looks like the seqs they're paired with that we *do* care about are unpaired, which screws up their joint partition
                     n_before = len(joint_partitions[ltmp])
@@ -863,7 +869,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_cpaths, debug=args.debug_paired_clustering)
         ccfs = {}
         for ltmp in sloci(tdict=concat_cpaths):
-            ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str='%s single vs joint concat\'d '%utils.locstr(ltmp), cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
+            dbg_str = '%s single vs joint concat\'d '%utils.locstr(ltmp)
+            ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str=dbg_str, cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
         return ccfs
     # ----------------------------------------------------------------------------------------
     def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):

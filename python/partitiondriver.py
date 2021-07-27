@@ -121,7 +121,7 @@ class PartitionDriver(object):
     def run(self, actions):
         self.all_actions = actions
         for tmpaction in actions:
-            self.current_action = tmpaction  # NOTE gets changed on the fly below, I think just in self.get_cluster_annotations() (which is kind of hackey, but I can't figure out a way to improve on it that wouldn't involve wasting a foolish amount of time rewriting things. Bottom line is that the control flow for different actions is really complicated, and that complexity is going to show up somewhere)
+            self.current_action = tmpaction  # NOTE gets changed on the fly below, I think just in self.get_annotations_for_partitions() (which is kind of hackey, but I can't figure out a way to improve on it that wouldn't involve wasting a foolish amount of time rewriting things. Bottom line is that the control flow for different actions is really complicated, and that complexity is going to show up somewhere)
             self.action_fcns[tmpaction]()
 
     # ----------------------------------------------------------------------------------------

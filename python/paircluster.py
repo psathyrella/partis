@@ -421,25 +421,30 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
 # ----------------------------------------------------------------------------------------
 def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None, debug=False):
     # ----------------------------------------------------------------------------------------
-    def check_droplet_id_groups(all_uids, tdbg=False):
+    def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
         if not is_data:
             # print '  note: couldn\'t get droplet id from \'%s\', so assuming this isn\'t 10x data' % next(iter(all_uids))  # NOTE i'm not sure that this gives the same one as the previous line
             return False
+        if len(set(len(g) for g in pid_groups)) == 1:
+            print '    %s all pid groups are length 1 in check_droplet_id_groups(). Maybe you\'re missing pairing info?' % utils.color('yellow', 'warning')
+            return False
         # check against the droplet id method (we could just do it this way, but it would only work for 10x, and only until they change their naming convention)
-        pgroup_strs = set(':'.join(sorted(pg)) for pg in pid_groups)
+        pgroup_strs = set(':'.join(sorted(pg)) for pg in pid_groups)  # <pid_groups>: list of pid groups, i.e. each element is the uids from a single droplet (for 10x), so <pgroup_strs> converts each group into an indexable key
         n_not_found = 0
-        for dropid, drop_queries in itertools.groupby(sorted(all_uids, key=utils.get_droplet_id), key=utils.get_droplet_id):
+        if tdbg:
+            print '              found?   drop id           contigs     overlaps (with any non-identical groups)'
+        for dropid, drop_queries in itertools.groupby(sorted(all_uids, key=utils.get_droplet_id), key=utils.get_droplet_id):  # group all queries into droplets (assuming they conform to 10x convention for droplet ids)
             dqlist = list(drop_queries)
-            found = ':'.join(sorted(dqlist)) in pgroup_strs
-            if not found:
+            found = ':'.join(sorted(dqlist)) in pgroup_strs  # was this exact combination of queries in pid_groups?
+            if not found:  # if not, see if any pid groups have some of these queries
                 overlaps = [g for g in pgroup_strs if dropid in g]  # this should essentially always be length 1, except when we're missing pairing info in simulation (in which case i know we don't even want to be running this simulation, but whatever I'm testing edge cases)
                 n_not_found += 1
             if tdbg or not found:
                 ostr = ' '.join(sorted(utils.get_contig_id(q) for q in overlaps[0].split(':'))) if len(overlaps)==1 else 'multiple'
-                print '  %25s %s  %s  %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q) for q in dqlist)),
-                                             utils.color('red', ostr if not found else ''))
+                print '  %25s    %s   %-8s   %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q) for q in dqlist)),
+                                                    utils.color('red', ostr if not found else ''))
         if n_not_found > 0:
-            print '  %s droplet id group check failed for %d groups' % (utils.color('red', 'error'), n_not_found)
+            print '  %s droplet id group check failed for %d groups (maybe pairing info is messed up or missing?)' % (utils.color('red', 'error'), n_not_found)
         return True
     # ----------------------------------------------------------------------------------------
     def plot_uids_before(plotdir, pid_groups, all_antns):
@@ -651,7 +656,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         return pfamilies
 
     # ----------------------------------------------------------------------------------------
-    antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
+    antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
     all_uids = set(u for p in cpaths.values() for c in p.best() for u in c)  # all uids that occur in a partition (should I think be the same as the ones for which we have valid/non-failed annotations)
 
     # first make a map from each uid (for all loci) to its annotation
@@ -694,7 +699,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
     # for ipg, pg in enumerate(pid_groups):
     #     print '  %3d %s' % (ipg, ' '.join(pg))
 
-    idg_ok = check_droplet_id_groups(all_uids)  # NOTE not using the return value here, but I may need to in the future
+    idg_ok = check_droplet_id_groups(pid_groups, all_uids)  # NOTE not using the return value here, but I may need to in the future
     if plotdir is not None:
         initial_flcounts = plot_uids_before(plotdir, pid_groups, all_antns)
         initial_seqs_per_seq = plot_n_pseqs_per_seq('before')
@@ -983,7 +988,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         print '    removing %d/%d empty clusters' % (final_partition.count([]), len(final_partition))
     final_partition = [c for c in final_partition if len(c) > 0]
     if debug:
-        print '    final: %s' % ' '.join([str(len(c)) for c in final_partition])
+        ptn_strs = [str(len(c)) for c in sorted([c for c in final_partition if len(c)>1], key=len)]
+        print '    final: %s (+%d singletons)' % (' '.join(ptn_strs), len([c for c in final_partition if len(c)==1]))
     tmpstrs = ['   N clusters without bad/unpaired seqs:'] \
               + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(init_partitions[tch]), len(final_partition), chstr(len(init_partitions[tch]), len(final_partition))) for tch in utils.chains]
     print '\n        '.join(tmpstrs)
