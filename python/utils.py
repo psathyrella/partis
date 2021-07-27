@@ -598,7 +598,31 @@ def get_contig_id(uid, dtype='10x', sep='_'):
     return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
 
 # ----------------------------------------------------------------------------------------
-def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=None):
+def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotation_dict, use_last=False, debug=False):
+    pfcn = 'last' if use_last else 'best'
+    partition = getattr(cpath, pfcn)()
+    miss_clusts = [c for c in partition if ':'.join(c) not in annotation_dict]
+    extra_antns = [l for l in annotation_list if l['unique_ids'] not in partition]
+    if len(miss_clusts) == 0 and debug:
+        estr = '' if len(extra_antns)==0 else ' (%d extra%s with size%s: %s)' % (len(extra_antns), plural(len(extra_antns)), plural(len(extra_antns)), ' '.join(str(len(l['unique_ids'])) for l in extra_antns))
+        print '    get_annotation_dict(): annotations for all %d clusters in %s partition%s' % (len(partition), pfcn, estr)
+    if len(miss_clusts) > 0:
+        def pstr(ptn): return ', '.join(str(len(c)) for c in sorted(ptn, key=len, reverse=True))
+        print '    %s get_annotation_dict(): missing annotations for %d/%d clusters in %s partition with size%s: %s (present: %s)' % (color('yellow', 'warning'), len(miss_clusts), len(partition), pfcn, plural(len(miss_clusts)), pstr(miss_clusts), pstr([c for c in partition if c not in miss_clusts]))
+        if len(extra_antns) > 0:
+            print '        %d extra annotations (i.e. they\'re for clusters not in %s partition) with sizes: %s' % (len(extra_antns), pfcn, ' '.join(str(len(l['unique_ids'])) for l in extra_antns))
+    for mclust in miss_clusts:
+        overlap_antns = [l for l in annotation_list if len(set(mclust) & set(l['unique_ids'])) > 0]
+        if len(overlap_antns) > 0:
+            print '          missing \'%s\' cluster with size %d overlaps with the following (overlap/size): %s' % (pfcn, len(mclust), '  '.join('%d/%d'%(len(set(mclust) & set(ol['unique_ids'])), len(ol['unique_ids'])) for ol in overlap_antns))
+    if len(miss_clusts) > 0:  # don't really care about extra ones unless there's missing ones that we might want to account for
+        for eline in extra_antns:
+            overlap_clusts = [c for c in partition if len(set(eline['unique_ids']) & set(c)) > 0]
+            if len(overlap_clusts) > 0:
+                print '          extra annotation with size %d overlaps with the following %s clusters (overlap/size): %s' % (len(eline['unique_ids']), pfcn, '  '.join('%d/%d'%(len(set(eline['unique_ids']) & set(c)), len(c)) for c in overlap_clusts))
+
+# ----------------------------------------------------------------------------------------
+def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=None, use_last=False):
     annotation_dict = OrderedDict()
     for line in annotation_list:
         uidstr = ':'.join(line['unique_ids'])
@@ -614,13 +638,7 @@ def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=No
         annotation_dict[uidstr] = line
 
     if cpath is not None:  # check that all the clusters in <cpath>.best() are in the annotation dict
-        miss_clusts = [c for c in cpath.best() if ':'.join(c) not in annotation_dict]
-        if len(miss_clusts) > 0:
-            print '    %s missing annotations for %d/%d clusters when getting annotation dict: %s' % (color('yellow', 'warning'), len(miss_clusts), len(annotation_dict), ' '.join(':'.join(c) for c in miss_clusts))
-        for mclust in miss_clusts:
-            overlap_antns = [l for l in annotation_list if len(set(mclust) & set(l['unique_ids'])) > 0]
-            if len(overlap_antns) > 0:
-                print '          missing cluster with size %d overlaps with the following (overlap/size): %s' % (len(mclust), '  '.join('%d/%d'%(len(set(mclust) & set(ol['unique_ids'])), len(ol['unique_ids'])) for ol in overlap_antns))
+        check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotation_dict, use_last=use_last)
     return annotation_dict
 
 # ----------------------------------------------------------------------------------------
