@@ -832,7 +832,7 @@ class PartitionDriver(object):
                 additional_clusters |= set([(uid,) for cluster in cpath.best() for uid in cluster])  # add the singletons separately, since we don't write a singleton partition before collapsing naive sequences before the first clustering step
                 additional_clusters |= set([tuple(cluster) for partition in cpath.partitions for cluster in partition])  # kind of wasteful to re-add clusters from the best partition here, but oh well
             if self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None:  # add the clusters from the last partition
-                additional_clusters |= set([tuple(c) for c in cpath.last())
+                additional_clusters |= set([tuple(c) for c in cpath.last()])
             if len(additional_clusters) > 0 and any(list(c) not in clusters_to_annotate for c in additional_clusters):
                 cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
                 clusters_to_annotate = [list(c) for c in cluster_set]
