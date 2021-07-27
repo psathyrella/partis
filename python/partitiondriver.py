@@ -821,22 +821,24 @@ class PartitionDriver(object):
     def get_annotations_for_partitions(self, cpath):  # we used to try to have glomerator.cc try to guess what annoations to write (using ::WriteAnnotations()), but now we go back and rerun a separate bcrham process just to get the annotations we want, partly for that control, but also partly because we typically want all these annotations calculated without any uid translation.
         # ----------------------------------------------------------------------------------------
         def get_clusters_to_annotate():
-            clusters_to_annotate = cpath.partitions[cpath.i_best]
-            additional_clusters = set()  # note that we can in general add clusters to <additional_clusters> that also occur in the best partition
+            clusters_to_annotate = cpath.best()
+            additional_clusters = set()  # note that we can in general add clusters to <additional_clusters> that also occur in the best partition (but then don't add duplicates to <clusters_to_annotate>)
             if self.args.write_additional_cluster_annotations is not None:
                 istart = max(0, cpath.i_best - self.args.write_additional_cluster_annotations[0])
                 istop = min(len(cpath.partitions), cpath.i_best + 1 + self.args.write_additional_cluster_annotations[1])
                 for ip in range(istart, istop):
                     additional_clusters |= set([tuple(c) for c in cpath.partitions[ip]])
             if (self.args.calculate_alternative_annotations and self.args.subcluster_annotation_size is None):  # add every cluster from the entire clustering history NOTE stuff that's in self.hmm_cachefname (which we used to use for this), but not in the cpath progress files: translated clusters, clusters that we calculated but didn't merge (maybe? not sure)
-                additional_clusters |= set([(uid,) for cluster in cpath.partitions[cpath.i_best] for uid in cluster])  # add the singletons separately, since we don't write a singleton partition before collapsing naive sequences before the first clustering step
+                additional_clusters |= set([(uid,) for cluster in cpath.best() for uid in cluster])  # add the singletons separately, since we don't write a singleton partition before collapsing naive sequences before the first clustering step
                 additional_clusters |= set([tuple(cluster) for partition in cpath.partitions for cluster in partition])  # kind of wasteful to re-add clusters from the best partition here, but oh well
             if self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None:  # add the clusters from the last partition
-                additional_clusters |= set([tuple(c) for c in cpath.partitions[len(cpath.partitions) - 1]])
+                additional_clusters |= set([tuple(c) for c in cpath.last())
             if len(additional_clusters) > 0 and any(list(c) not in clusters_to_annotate for c in additional_clusters):
                 cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
                 clusters_to_annotate = [list(c) for c in cluster_set]
-                print '    added %d clusters (in addition to the %d from the best partition) before running cluster annotations' % (len(clusters_to_annotate) - len(cpath.partitions[cpath.i_best]), len(cpath.partitions[cpath.i_best]))
+                actual_new_clusters = [c for c in clusters_to_annotate if c not in cpath.best()]
+                print '    added %d cluster%s with size%s %s (in addition to the %d from the best partition) before running cluster annotations' % (len(actual_new_clusters), utils.plural(len(actual_new_clusters)), utils.plural(len(actual_new_clusters)),
+                                                                                                                                                    ' '.join(str(len(c)) for c in actual_new_clusters), len(cpath.best()))
                 if self.args.debug:
                     print '       %s these additional clusters will also be printed below, since --debug is greater than 0' % utils.color('yellow', 'note:')
             return clusters_to_annotate
@@ -850,13 +852,13 @@ class PartitionDriver(object):
         self.current_action = 'annotate'
         clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
-        print 'getting annotations for final partition%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.partitions[cpath.i_best]) else '')
+        print 'getting annotations for final partition%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '')
         _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
         if self.args.calculate_alternative_annotations:
-            for cluster in sorted(cpath.partitions[cpath.i_best], key=len, reverse=True):
+            for cluster in sorted(cpath.best(), key=len, reverse=True):
                 if len(set(cluster) & hmm_failures) == len(cluster):
                     continue
                 if len(cluster) < 5:
@@ -873,7 +875,7 @@ class PartitionDriver(object):
 
         if self.args.plotdir is not None and not self.args.no_partition_plots:
             partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], all_annotations, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
+            partplotter.plot(self.args.plotdir + '/partitions', cpath.best(), all_annotations, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
 
         if self.args.seed_unique_id is not None:
             cpath.print_seed_cluster_size(queries_to_include=self.args.queries_to_include)

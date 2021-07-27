@@ -295,6 +295,8 @@ def process(args):
     if args.min_largest_cluster_size is not None or args.n_final_clusters is not None:
         if args.seed_unique_id is not None and args.n_procs == 1:
             raise Exception('--n-procs must be set to greater than 1 if --seed-unique-id, and either --min-largest-cluster-size or --n-final-clusters, are set (so that a second clustering iteration is run after removing)')  # yes, this could also be fixed by making the algorithm that decides when to stop clustering smarter, but that would be hard
+        args.n_partitions_to_write = 999  # need to make sure to get all the ones after the best partition, and this is a somewhat hackey way to do that
+        print '  note: setting --n-partitions-to-write to 999 since either --min-largest-cluster-size or --n-final-clusters was set'  # bcrham argument parser barfs if you use sys.maxint
 
     if not args.paired_loci and (args.action == 'get-selection-metrics' or args.get_selection_metrics):
         if args.outfname is None and args.selection_metric_fname is None:
