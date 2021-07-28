@@ -757,6 +757,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     def remove_unseeded_seqs(debug=True):
         # ----------------------------------------------------------------------------------------
         def read_sw(ltmp):
+            if not os.path.exists('%s/sw-cache.yaml'%getpdir(ltmp)):
+                return []
             wargs = copy.deepcopy(args)
             wargs.seed_unique_id = seedid(ltmp) if ltmp in args.seed_loci else None
             wargs.locus = ltmp
@@ -765,43 +767,51 @@ def run_all_loci(args, ig_or_tr='ig'):
             return [waterer.info[q] for q in waterer.info['queries']]
         # ----------------------------------------------------------------------------------------
         print '   removing seqs very different from seed seq'
-        if debug:
-            print '                            removed            kept'
-            print '           locus  before  cdr3  hfrac  after   frac'
-        sw_antns, final_antns = {}, {}
-        for ltmp in utils.sub_loci(ig_or_tr):
-            final_antns[ltmp] = []
-            sw_antns[ltmp] = read_sw(ltmp)
-            if ltmp not in args.seed_loci:
+        sw_antns = {l : read_sw(l) for l in utils.sub_loci(ig_or_tr)}
+        final_antns = {l : [] for l in utils.sub_loci(ig_or_tr)}
+        seed_lines = [utils.get_single_entry([l for l in sw_antns[ltmp] if l['unique_ids'][0]==seedid(ltmp)]) for ltmp in args.seed_loci]
+        def hbfcn(ltmp): return utils.get_naive_hamming_bounds('likelihood', overall_mute_freq=numpy.mean([f for l in sw_antns[ltmp] for f in l['mut_freqs']]))  # with 'likelihood', these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
+        _, hi_hbounds = zip(*[hbfcn(l) for l in args.seed_loci])
+        def hfracs(tlines): return [utils.hamming_fraction(tl['naive_seq'], sl['naive_seq'], align_if_necessary=True) for tl, sl in zip(tlines, seed_lines)]  # shouldn't need to align, but if it does it'll print a warning, which is probably better than crashing? but if it's aligning i think something is probably pretty wrong
+
+        n_removed = {'cdr3' : 0, 'hfrac' : 0}
+        antn_pairs = paircluster.find_cluster_pairs(None, args.seed_loci, antn_lists={l : sw_antns[l] for l in args.seed_loci}, quiet=True)
+        for tlines in antn_pairs:
+            if any(tl['cdr3_length'] != sl['cdr3_length'] for tl, sl in zip(tlines, seed_lines)):
+                n_removed['cdr3'] += 1
                 continue
-            seed_line = utils.get_single_entry([l for l in sw_antns[ltmp] if l['unique_ids'][0]==seedid(ltmp)])
-            _, hi_hbound = utils.get_naive_hamming_bounds('likelihood', overall_mute_freq=numpy.mean([f for l in sw_antns[ltmp] for f in l['mut_freqs']]))  # with 'likelihood', these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
-            def hfrac(tl): return utils.hamming_fraction(tl['naive_seq'], seed_line['naive_seq'], align_if_necessary=True)  # shouldn't need to align, but if it does it'll print a warning, which is probably better than crashing? but if it's aligning i think something is probably pretty wrong
-            final_antns[ltmp] += [l for l in sw_antns[ltmp] if l['cdr3_length']==seed_line['cdr3_length'] and hfrac(l) < hi_hbound]
-            if debug:
-                n_cdr3_removed = len([l for l in sw_antns[ltmp] if l['cdr3_length'] != seed_line['cdr3_length']])
+            if args.n_final_clusters is None and args.min_largest_cluster_size is None and any(hf > hb for hf, hb in zip(hfracs(tlines), hi_hbounds)):
+                n_removed['hfrac'] += 1
+                continue
+            for ltmp, tline in zip(args.seed_loci, tlines):
+                final_antns[ltmp].append(tline)
+        if debug:
+            print '                           wrong/no     removed             kept'
+            print '           locus  before   pairing    cdr3  hfrac    after  frac'
+            for ltmp in args.seed_loci:
                 n_init, n_final = len(sw_antns[ltmp]), len(final_antns[ltmp])
-                print '             %s   %5d   %5d  %5d %5d    %.2f' % (utils.locstr(ltmp), n_init, n_cdr3_removed, n_init - n_final - n_cdr3_removed, n_final, n_final / float(n_init))
+                print '             %s    %5d    %5d    %5d  %5d   %5d    %.2f' % (utils.locstr(ltmp), n_init, n_init - len(antn_pairs), n_removed['cdr3'], n_removed['hfrac'], n_final, n_final / float(n_init))
 
         taken_uids = [u for alist in final_antns.values() for l in alist for u in l['unique_ids']]  # uids that we actually want, that might be related to the seed ab
         all_paired_uids = set([u for alist in final_antns.values() for l in alist for pids in l['paired-uids'] for u in pids])  # all uids that're paired with a uid that we took (includes ones that we took)
         missing_paired_uids = set(all_paired_uids) - set(taken_uids)  # uids that we need to get in the next step
-
-        if debug:
-            print '     adding seqs paired with uids we kept'
-            print '           locus  before  added  after  kept frac'
-        for ltmp in utils.sub_loci(ig_or_tr):
-            n_before = len(final_antns[ltmp])
-            final_antns[ltmp] += [l for l in sw_antns[ltmp] if utils.get_single_entry(l['unique_ids']) in missing_paired_uids]
+        if len(missing_paired_uids) > 0:  # shouldn't happen any more (we used to remove by cdr3/hfrac on single chains), but it's really bad if we miss one, since then it looks like its partner is unpaired, which screws up paired clustering
             if debug:
-                print '             %s   %5d   %5d  %5d    %.2f' % (utils.locstr(ltmp), n_before, len(final_antns[ltmp]) - n_before, len(final_antns[ltmp]), len(final_antns[ltmp]) / float(len(sw_antns[ltmp])))
-        final_uids = [u for alist in final_antns.values() for l in alist for u in l['unique_ids']]
-        missing_uids = missing_paired_uids - set(final_uids)
-        if debug:
-            print '      taken %d, paired with taken %d (total %d)' % (len(taken_uids), len(missing_paired_uids), len(taken_uids) + len(missing_paired_uids))
-            # print '             final %d%s' % (len(final_uids), ' (missing %d)'%len(missing_uids) if len(missing_uids)>0 else '')
-        if len(missing_uids) > 0:
-            print '  %s missing %d expected uids paired with seqs maybe clonal to seed ab' % (utils.color('red', 'error'), len(missing_uids))
+                print '     adding seqs paired with uids we kept'
+                print '           locus  before  added  after  kept frac'
+            for ltmp in utils.sub_loci(ig_or_tr):
+                n_before = len(final_antns[ltmp])
+                final_antns[ltmp] += [l for l in sw_antns[ltmp] if utils.get_single_entry(l['unique_ids']) in missing_paired_uids]
+                if debug:
+                    print '             %s   %5d   %5d  %5d    %.2f' % (utils.locstr(ltmp), n_before, len(final_antns[ltmp]) - n_before, len(final_antns[ltmp]), 0 if len(sw_antns[ltmp])==0 else len(final_antns[ltmp]) / float(len(sw_antns[ltmp])))
+            final_uids = [u for alist in final_antns.values() for l in alist for u in l['unique_ids']]
+            missing_uids = missing_paired_uids - set(final_uids)
+            if debug:
+                print '      taken %d, paired with taken %d (total %d)' % (len(taken_uids), len(missing_paired_uids), len(taken_uids) + len(missing_paired_uids))
+                # print '             final %d%s' % (len(final_uids), ' (missing %d)'%len(missing_uids) if len(missing_uids)>0 else '')
+            if len(missing_uids) > 0:
+                print '  %s missing %d expected uids paired with seqs maybe clonal to seed ab' % (utils.color('red', 'error'), len(missing_uids))
+
         for ltmp in utils.sub_loci(ig_or_tr):  # NOTE that e.g. --n-random-queries and --n-max-queries get applied *after* this, in the single chain partition steps (which may or may not be what you want, since that means they're being applied after you've removed sequences in the previous lines)
             if len(final_antns[ltmp]) == 0:
                 continue

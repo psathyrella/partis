@@ -195,7 +195,8 @@ def concat_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i wan
 
 # ----------------------------------------------------------------------------------------
 # NOTE i'm really not sure that this fcn needs to exist -- don't the joint partitions for h and l end up ordered i.e. with each cluster tied to its partner? Or at least I should be able to keep track of who goes with who so I don't need to reconstruct it here
-def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
+def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, quiet=False, debug=False):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
+    # can set <antn_lists> if you don't already have lp_infos (and don't need glfos)
     # ----------------------------------------------------------------------------------------
     def getpids(line):  # return uids of all seqs paired with any seq in <line>
         all_ids = []
@@ -209,6 +210,9 @@ def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the
                 raise Exception('too many paired ids (%d) for %s: %s' % (len(pids), line['unique_ids'][ip], ' '.join(pids)))
         return all_ids
     # ----------------------------------------------------------------------------------------
+    if antn_lists is not None:
+        assert lp_infos is None
+        lp_infos = {tuple(lpair) : {'antn_lists' : {l : antn_lists[l] for l in lpair}, 'cpaths' : {ltmp : ClusterPath(partition=[l['unique_ids'] for l in antn_lists[ltmp]]) for ltmp in lpair}}}
     if required_keys is None:
         required_keys = []
     if 'paired-uids' not in required_keys:
@@ -239,7 +243,8 @@ def find_cluster_pairs(lp_infos, lpair, required_keys=None, debug=False):  # the
 
         l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
         if len(l_clusts) != 1:
-            print '  %s couldn\'t find a unique light cluster (found %d, looked in %d) for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(l_part), len(h_clust), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
+            if not quiet:
+                print '  %s couldn\'t find a unique light cluster (found %d, looked in %d) for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(l_part), len(h_clust), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
             continue
         assert len(l_clusts) == 1
         if ':'.join(l_clusts[0]) not in l_atn_dict:
