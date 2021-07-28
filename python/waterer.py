@@ -86,8 +86,6 @@ class Waterer(object):
         else:  # default, normal operation
             glutils.write_glfo(self.my_gldir, self.glfo)  # NOTE gets overwritten by read_cachefile()
 
-        self.n_removed_dbg = None  # hack
-
         if not os.path.exists(self.args.ig_sw_binary):
             raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
 
@@ -254,7 +252,6 @@ class Waterer(object):
             n_removed = initial_n_queries - len(self.info['queries'])
             if n_removed > 0 and not quiet:
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
-            self.n_removed_dbg = {'n-removed' : n_removed, 'n-initial' : initial_n_queries}  # hack
 
         seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']], keys_not_to_overwrite=['multiplicities'] if just_read_cachefile else None)  # need to do this before removing duplicates, so the duplicate info (from waterer) can get combined with multiplicities (from input metafo). And, if we just read the cache file, then we already collapsed duplicates so we don't want to overwrite multiplicity info
         if self.args.is_data and not self.args.dont_remove_framework_insertions:  # it's too much trouble updating reco_info on simulation, and I don't think we can add fwk insertions in simulation atm anyway
