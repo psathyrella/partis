@@ -808,7 +808,7 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
-def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, overmerge=False, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
     dbgids = None #['1437084736471665213-igh']  # None
     # ----------------------------------------------------------------------------------------
     def akey(klist):
@@ -843,7 +843,10 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             jstrs = ['           %s %3d  %s' % ('vs %2d with sizes:'%len(cluster_list) if i==0 else '                 ', len(c), ':'.join(c)) for i, c in enumerate(cluster_list)]
             print '\n'.join(jstrs)
             print '     split into %d cdr3 group%s' % (len(cdr3_groups), utils.plural(len(cdr3_groups)))
-        lo_hbound, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))
+        if not overmerge:  # default/normal
+            _, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))  # these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
+        else:  # don't do any naive hamming splitting (correct only for --n-final-clusters 1)
+            hi_hbound = 1.
         return_clusts = []
         for icdr, cdrgroup in enumerate(cdr3_groups):  # within each cdr3 group, split (i.e. use the cluster boundaries from cluster_list rather than single_cluster) if naive hfrac is > hi_hbound (but then there's shenanigans to adjudicate between different possibilities)
             if tdbg: print '      %s' % utils.color('purple', 'icdr %d' % icdr)

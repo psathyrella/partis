@@ -927,7 +927,13 @@ def run_all_loci(args, ig_or_tr='ig'):
             if all(len(alist)==0 for alist in lp_antn_lists.values()):
                 print '    %s zero sequences remain after removing un/badly paired seqs. Maybe you\'re missing pairing info?' % utils.color('yellow', 'warning')
                 continue
-            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'], seed_unique_ids=None if args.seed_unique_id is None else {l : u for l, u in zip(args.seed_loci, args.seed_unique_id)}, n_final_clusters=args.n_final_clusters, debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
+            seedids = None if args.seed_unique_id is None else {l : u for l, u in zip(args.seed_loci, args.seed_unique_id)}
+            if args.n_final_clusters is not None:
+                print '    %s: --n-final-clusters is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently this means we over-merge as far as possible (which is correct only if you set --n-final-clusters to 1)' % utils.color('yellow', 'warning')
+            if args.min_largest_cluster_size is not None:
+                print '    %s: --min-largest-cluster-size is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently we don\'t do anything specific for --min-largest-cluster-size during paired clustering, so you\'ll probably get smaller clusters than you want. If this is a problem, you can try using --n-final-clusters 1 instead.' % utils.color('yellow', 'warning')
+            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
+                                                        seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 if args.seed_unique_id is not None:  # NOTE it's kind of dumb/shitty to keep the non-seeded h/l pair all the way through this (i.e. to do paired clustering on igl when the seed seq is igh+igk), but we really need to not lose the seqs in there, since then we lose track of their chain, which means it looks like the seqs they're paired with that we *do* care about are unpaired, which screws up their joint partition
                     n_before = len(joint_partitions[ltmp])
