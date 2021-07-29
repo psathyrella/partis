@@ -763,8 +763,11 @@ class PartitionDriver(object):
         self.istep = 0
         start = time.time()
         while n_procs > 0:
-            print '%d clusters with %d proc%s' % (len(cpath.partitions[cpath.i_best_minus_x]), n_procs, utils.plural(n_procs))  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
-            cpath, _, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.partitions[cpath.i_best_minus_x], shuffle_input=True)  # note that this annihilates the old <cpath>, which is a memory optimization (but we write all of them to the cpath progress dir)
+            if n_procs > len(cpath.bmx()):
+                print '  reducing n procs to number of clusters: %d --> %d' % (n_procs, len(cpath.bmx()))
+                n_procs = len(cpath.bmx())
+            print '%d clusters with %d proc%s' % (len(cpath.bmx()), n_procs, utils.plural(n_procs))  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
+            cpath, _, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.bmx(), shuffle_input=True)  # note that this annihilates the old <cpath>, which is a memory optimization (but we write all of them to the cpath progress dir)
             self.n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
                 break

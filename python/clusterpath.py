@@ -53,6 +53,10 @@ class ClusterPath(object):
         return self.partitions[len(self.partitions) - 1]
 
     # ----------------------------------------------------------------------------------------
+    def bmx(self):
+        return self.partitions[self.i_best_minus_x]
+
+    # ----------------------------------------------------------------------------------------
     def n_seqs(self, ip=0):  # number of sequences in each partition (shouldn't depend on which partition, but I'm not sure that I absolutely forbid the number to change)
         if len(self.partitions) == 0:
             return 0
