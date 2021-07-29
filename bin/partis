@@ -831,7 +831,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '           locus  before   pairing    cdr3  hfrac    added   after  frac%s' % ('' if args.is_data else '   true ids')
             for ltmp in args.seed_loci:
                 n_init, n_final = len(sw_antns[ltmp]), len(final_antns[ltmp])
-                print '             %s    %5d    %5d     %5d %5d    %5d   %5d   %.2f%s' % (utils.locstr(ltmp), n_init, n_init - len(antn_pairs), n_removed['cdr3'], n_removed['hfrac'], n_single_added[ltmp], n_final, n_final / float(n_init), mtruestr)
+                print '             %s    %5d    %5d     %5d %5d    %5d   %5d   %.3f%s' % (utils.locstr(ltmp), n_init, n_init - len(antn_pairs), n_removed['cdr3'], n_removed['hfrac'], n_single_added[ltmp], n_final, n_final / float(n_init), mtruestr)
 
         taken_uids = [u for alist in final_antns.values() for l in alist for u in l['unique_ids']]  # uids that we actually want, that might be related to the seed ab
         all_paired_uids = set([u for alist in final_antns.values() for l in alist for pids in l['paired-uids'] for u in pids])  # all uids that're paired with a uid that we took (includes ones that we took)
@@ -844,7 +844,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 n_before = len(final_antns[ltmp])
                 final_antns[ltmp] += [l for l in sw_antns[ltmp] if utils.get_single_entry(l['unique_ids']) in missing_paired_uids]
                 if debug:
-                    print '             %s   %5d   %5d  %5d    %.2f' % (utils.locstr(ltmp), n_before, len(final_antns[ltmp]) - n_before, len(final_antns[ltmp]), 0 if len(sw_antns[ltmp])==0 else len(final_antns[ltmp]) / float(len(sw_antns[ltmp])))
+                    print '             %s   %5d   %5d  %5d    %.3f' % (utils.locstr(ltmp), n_before, len(final_antns[ltmp]) - n_before, len(final_antns[ltmp]), 0 if len(sw_antns[ltmp])==0 else len(final_antns[ltmp]) / float(len(sw_antns[ltmp])))
             final_uids = [u for alist in final_antns.values() for l in alist for u in l['unique_ids']]
             missing_uids = missing_paired_uids - set(final_uids)
             if debug:
@@ -853,10 +853,14 @@ def run_all_loci(args, ig_or_tr='ig'):
             if len(missing_uids) > 0:
                 print '  %s missing %d expected uids paired with seqs maybe clonal to seed ab' % (utils.color('red', 'error'), len(missing_uids))
 
+        qti_queries = []
+        if args.queries_to_include_fname is not None:  # need to exclude these, so the single-chain partition procs don't then read them from both infname and queries to include file
+            rfcn = utils.read_seqfos if utils.getsuffix(args.queries_to_include_fname) in ['.yaml', '.json'] else utils.read_fastx
+            qti_queries = [s['name'] for s in rfcn(args.queries_to_include_fname)]
         for ltmp in utils.sub_loci(ig_or_tr):  # NOTE that e.g. --n-random-queries and --n-max-queries get applied *after* this, in the single chain partition steps (which may or may not be what you want, since that means they're being applied after you've removed sequences in the previous lines)
             if len(final_antns[ltmp]) == 0:
                 continue
-            utils.write_fasta(getofn(ltmp, fasta=True), [utils.get_single_entry(utils.seqfos_from_line(l)) for l in final_antns[ltmp]])
+            utils.write_fasta(getofn(ltmp, fasta=True), [utils.get_single_entry(utils.seqfos_from_line(l)) for l in final_antns[ltmp] if l['unique_ids'][0] not in qti_queries])
             work_fnames.append(getofn(ltmp, fasta=True))
 #     # ----------------------------------------------------------------------------------------
 # # NOTE god damnit, this doesn't work -- you can't just add them as singletons, since then paired clustering thinks they're supposed to be split, which fucks up the paired partitions
