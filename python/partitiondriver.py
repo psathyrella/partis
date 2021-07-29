@@ -837,6 +837,7 @@ class PartitionDriver(object):
                 cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
                 clusters_to_annotate = [list(c) for c in cluster_set]
                 actual_new_clusters = [c for c in clusters_to_annotate if c not in cpath.best()]
+                self.added_extra_clusters_to_annotate = True
                 print '    added %d cluster%s with size%s %s (in addition to the %d from the best partition) before running cluster annotations' % (len(actual_new_clusters), utils.plural(len(actual_new_clusters)), utils.plural(len(actual_new_clusters)),
                                                                                                                                                     ' '.join(str(len(c)) for c in actual_new_clusters), len(cpath.best()))
                 if self.args.debug:
@@ -844,6 +845,7 @@ class PartitionDriver(object):
             return clusters_to_annotate
 
         # ----------------------------------------------------------------------------------------
+        self.added_extra_clusters_to_annotate = False
         clusters_to_annotate = get_clusters_to_annotate()
         if len(clusters_to_annotate) == 0:
             print '  no final clusters'
@@ -1163,9 +1165,10 @@ class PartitionDriver(object):
                         for mfcn in [min, max]:
                             mn = mfcn.__name__
                             swhfo[kn][mn] = mfcn(swhfo[kn][mn], self.sw_info[tid][kn][mn])
-            if hashid in self.sw_info:  # I *think* it's ok to just return now, but I'm still a little worried about it
+            if hashid in self.sw_info:
                 # raise Exception('hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (hashid, ':'.join(line['unique_ids'])))
-                print '  %s hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (utils.color('yellow', 'warning'), hashid, ':'.join(line['unique_ids']))
+                if not self.added_extra_clusters_to_annotate:
+                    print '  %s hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (utils.color('yellow', 'warning'), hashid, ':'.join(line['unique_ids']))
                 return
             self.sw_info[hashid] = swhfo
             if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
