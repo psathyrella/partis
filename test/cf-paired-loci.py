@@ -44,7 +44,7 @@ def run_simu(ncells, nleaf):
         return
     cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --random-seed %d --paired-outdir %s/simu' % (args.seed, outdir)  #  --parameter-dir %s in_param_dir
     if ncells is not None:
-        cmd += '--mean-cells-per-droplet %f' % ncells
+        cmd += ' --mean-cells-per-droplet %f' % ncells
     cmd += ' --n-sim-events %d --n-leaves %d --n-procs %d --no-per-base-mutation --allowed-cdr3-lengths %s' % (args.n_sim_events, nleaf, args.n_procs, args.allowed_cdr3_lengths)
     cmd += ' --mutation-multiplier %.2f --constant-number-of-leaves' % args.mutation_multiplier
     if args.extra_args is not None:

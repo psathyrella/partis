@@ -654,9 +654,9 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                     fid_counter += 1
                 pfamilies[fkey]['count'] += 1
         if debug and len(cline['unique_ids']) > 1:
-            print '    %6s N  size  id  cdr3' % extra_str
+            print '    %7s N  size  id  cdr3' % extra_str
             for fkey, fdict in sorted(pfamilies.items(), key=lambda x: x[1]['count'], reverse=True):
-                print '       %s %3d  %3d   %2d %s  %3d' % (utils.locstr(fdict['locus']), fdict['count'], len(antn_dicts[fdict['locus']][fkey]['unique_ids']), fdict['id'], fidstr(fdict['id']), antn_dicts[fdict['locus']][fkey]['cdr3_length'])
+                print '       %s  %3d  %3d  %2d %s  %3d' % (utils.locstr(fdict['locus']), fdict['count'], len(antn_dicts[fdict['locus']][fkey]['unique_ids']), fdict['id'], fidstr(fdict['id']), antn_dicts[fdict['locus']][fkey]['cdr3_length'])
 
         return pfamilies
 
