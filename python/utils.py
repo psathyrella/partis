@@ -2376,29 +2376,35 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):  # could have ca
             print '% restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None) needs sw_info to re-add existing \'linearham-info\' key to an annotation' % color('yellow', 'warning')
 
 # ----------------------------------------------------------------------------------------
-def print_true_events(glfo, reco_info, line, print_naive_seqs=False, full_true_partition=None, extra_str='    '):
-    """ print the true events which contain the seqs in <line> """
-    true_naive_seqs = []
-    true_partition_of_line_uids = get_partition_from_reco_info(reco_info, ids=line['unique_ids'])  # *not* in general the same clusters as in the complete true partition, since <line['unique_ids']> may not contain all uids from all clusters from which it contains representatives
+def print_true_events(glfo, reco_info, inf_line, print_naive_seqs=False, full_true_partition=None, extra_str='    '):
+    """ print the true events which contain the seqs in <inf_line> """
+    if print_naive_seqs:
+        true_naive_seqs = []
+    true_partition_of_line_uids = get_partition_from_reco_info(reco_info, ids=uids_and_dups(inf_line))  # *not* in general the same clusters as in the complete true partition, since <inf_line['unique_ids']> may not contain all uids from all clusters from which it contains representatives
+    if len(true_partition_of_line_uids) > 1:
+        print '%s true clusters %d for this inferred cluster (size %d including duplicates)' % (color('red', 'multiple'), len(true_partition_of_line_uids), len(uids_and_dups(inf_line)))
     if full_true_partition is None:
         full_true_partition = get_partition_from_reco_info(reco_info)
-    for uids in true_partition_of_line_uids:  # make a multi-seq line that has all the seqs from this clonal family
-        full_true_clusters = [c for c in full_true_partition if len(set(c) & set(uids_and_dups(line))) > 0]
-        if len(full_true_clusters) != 1:
-            raise Exception('expected exactly 1 true cluster overlapping with inf cluster, but got %d:\n    inf: %s\n    true: %s' % (len(full_true_clusters), ':'.join(uids_and_dups(line)), '  '.join(':'.join(c) for c in full_true_clusters)))
-        missing_uids = set(full_true_clusters[0]) - set(uids_and_dups(line))
-        missing_str = '' if len(missing_uids) == 0 else '   missing %d/%d sequences from actual true cluster (but includes %d duplicates not shown below)' % (len(missing_uids), len(full_true_clusters[0]), len(uids_and_dups(line)) - len(uids))
+    for itc, tpl_ids in enumerate(true_partition_of_line_uids):  # <tpl_ids>: ids in inf_line, split according to true partition
+        full_true_cluster = get_single_entry([c for c in full_true_partition if len(set(c) & set(tpl_ids)) > 0])
+        multiple_str = '' if len(true_partition_of_line_uids)==1 else '  true cluster index %d %s for inf cluster of size %d' % (itc, color('red', '(of %d)' % len(true_partition_of_line_uids)), len(uids_and_dups(inf_line)))
+        missing_uids = set(full_true_cluster) - set(tpl_ids)
+        missing_str = ''
+        if len(missing_uids) > 0:
+            n_dups = len(uids_and_dups(inf_line)) - len(tpl_ids)
+            missing_str = '   %s %d/%d sequences from actual true cluster%s' % (color('red', 'missing'), len(missing_uids), len(full_true_cluster), ' (but includes %d duplicates not shown below)'%n_dups if n_dups>0 else '')
 
-        multiline = synthesize_multi_seq_line_from_reco_info(uids, reco_info)
-        if line['fv_insertion'] != '' and multiline['fv_insertion'] == '':
-            extra_str = ' '*len(line['fv_insertion']) + extra_str  # aligns true + inferred vertically
-        print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:') + missing_str)
-        true_naive_seqs.append(multiline['naive_seq'])
+        multiline = synthesize_multi_seq_line_from_reco_info(tpl_ids, reco_info)
+        if inf_line['fv_insertion'] != '' and multiline['fv_insertion'] == '':
+            extra_str = ' '*len(inf_line['fv_insertion']) + extra_str  # aligns true + inferred vertically
+        print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:') + multiple_str + missing_str)
+        if print_naive_seqs:
+            true_naive_seqs.append(multiline['naive_seq'])
 
     if print_naive_seqs:
         print '      naive sequences:'
         for tseq in true_naive_seqs:
-            color_mutants(tseq, line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
+            color_mutants(tseq, inf_line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
 # ----------------------------------------------------------------------------------------
 def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_label):
