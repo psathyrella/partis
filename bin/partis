@@ -285,7 +285,7 @@ def default_parameter_dir(args):
     else:
         assert args.action in processargs.actions_not_requiring_input
         return 'xxx-dummy-xxx'  # this is a shitty convention, but code further on crashes if I let the parameter dir be None
-    return '_output/%s' % instr[ : instr.rfind('.')].replace('/', '_')
+    return '_output/%s' % utils.getprefix(instr).replace('/', '_')
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
