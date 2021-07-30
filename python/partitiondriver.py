@@ -472,6 +472,8 @@ class PartitionDriver(object):
 
         annotation_list = self.parse_existing_annotations(annotation_list, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')  # NOTE modifies <annotation_list>
         if len(annotation_list) == 0:
+            if cpath is not None:
+                self.print_results(cpath, [])  # used to just return, but now i want to at least see the cpath
             print 'zero annotations to print, exiting'
             return
         annotation_dict = utils.get_annotation_dict(annotation_list)  # returns none type if there's duplicate annotations

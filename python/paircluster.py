@@ -784,7 +784,7 @@ def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_to_ref=Fa
     cfpart = copy.deepcopy(cfpart)  # don't want to modify opject pointed to by <cfpart)
     if len(dup_dict) > 0:
         incorporate_duplicates(cfpart)
-    if remove_from_ref:  # we could also use add_missing_uids_to_partition()
+    if remove_from_ref:
         refpart = utils.remove_missing_uids_from_partition(refpart, cfpart, debug=debug)  # returns a new/copied partition, doesn't modify original
     if add_to_ref:
         refpart = utils.add_missing_uids_to_partition(refpart, cfpart)

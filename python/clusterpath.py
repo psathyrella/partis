@@ -192,6 +192,8 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def calculate_missing_values(self, reco_info=None, true_partition=None, only_ip=None):  # NOTE adding true_partition argument very late, so there's probably lots of places that call the fcns that call this (printer + line getter) that would rather pass in true_partition and reco_info
+        if true_partition is None and reco_info is not None:
+            true_partition = utils.get_partition_from_reco_info(reco_info)  # full true partition, which we may have to modify below
         for ip in range(len(self.partitions)):
             if only_ip is not None and ip != only_ip:
                 continue
@@ -199,14 +201,17 @@ class ClusterPath(object):
             if self.ccfs[ip][0] is not None and self.ccfs[ip][1] is not None:  # already have them
                 continue
 
-            # NOTE this isn't the full true partition (it only includes certain ids)
-            if true_partition is not None:
-                partial_true_ptn = utils.restrict_partition_to_ids(true_partition, [uid for cluster in self.partitions[ip] for uid in cluster])
-            elif reco_info is not None:
-                partial_true_ptn = utils.get_partition_from_reco_info(reco_info, ids=[uid for cluster in self.partitions[ip] for uid in cluster])  # can't use the true partition we might already have in the calling function, since we need this to only have uids from this partition (i.e. this isn't really the true partition)
-            else:
-                assert False  # have to pass in either true_partition or reco_info
-            new_vals = utils.per_seq_correct_cluster_fractions(self.partitions[ip], partial_true_ptn, reco_info=reco_info, seed_unique_id=self.seed_unique_id)  # it doesn't need reco_info, but having does save a step
+            cfpart = self.partitions[ip]
+            cfids = [uid for cluster in cfpart for uid in cluster]
+            if self.seed_unique_id is not None and true_partition is not None:  # for seed clustering, we need to add to the inferred partition any ids from the true seed cluster that we missed
+                true_seed_cluster = utils.get_single_entry([c for c in true_partition if self.seed_unique_id in c])
+                missing_ids = list(set(true_seed_cluster) - set(cfids))
+                if len(missing_ids) > 0:
+                    cfpart = copy.deepcopy(cfpart)  # make sure not to modify self.partitions[ip]
+                    cfpart.append(missing_ids)  # i guess it's ok to add them as a cluster, i mean we probably had them all together
+                    cfids += missing_ids
+            partial_true_ptn = utils.restrict_partition_to_ids(true_partition, cfids)
+            new_vals = utils.per_seq_correct_cluster_fractions(cfpart, partial_true_ptn, reco_info=reco_info, seed_unique_id=self.seed_unique_id)  # it doesn't need reco_info, but having does save a step
             if None not in new_vals:  # if the function finds messed up partitions, it returns None, None (at this point, this seems to just happens when a uid was found in multiple clusters, which happens for earlier partitions (n_procs > 1) when seed_unique_id is set, since we pass seed_unique_id to all the subprocs)
                 self.ccfs[ip] = new_vals
                 self.we_have_a_ccf = True
