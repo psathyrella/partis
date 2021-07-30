@@ -201,9 +201,9 @@ class ClusterPath(object):
 
             cfpart = self.partitions[ip]
             cfids = [uid for cluster in cfpart for uid in cluster]
-            if self.seed_unique_id is not None and (true_partition is not None or reco_info is not None):  # for seed clustering, we need to add to the inferred partition any ids from the true seed cluster that we missed
-                if true_partition is None:
-                    true_partition = utils.get_partition_from_reco_info(reco_info)  # full true partition, which we may have to modify below
+            if true_partition is None and reco_info is not None:
+                true_partition = utils.get_partition_from_reco_info(reco_info)  # full true partition, which we may have to modify below
+            if self.seed_unique_id is not None:  # for seed clustering, we need to add to the inferred partition any ids from the true seed cluster that we missed
                 true_seed_cluster = utils.get_single_entry([c for c in true_partition if self.seed_unique_id in c])
                 missing_ids = list(set(true_seed_cluster) - set(cfids))
                 if len(missing_ids) > 0:

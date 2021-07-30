@@ -4483,13 +4483,13 @@ def adjusted_mutual_information(partition_a, partition_b):
     # return sklearn.metrics.cluster.adjusted_mutual_info_score(clusts_a, clusts_b)
 
 # ----------------------------------------------------------------------------------------
-def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, debug=True):
+def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, miss_label='', ref_label='', debug=True):
     """ return a copy of <partition_with_missing_uids> which has had any uids which were missing inserted as singletons (i.e. uids which were in <ref_partition>) """
     ref_ids, pmiss_ids = set(u for c in ref_partition for u in c), set(u for c in partition_with_missing_uids for u in c)
     missing_ids = ref_ids - pmiss_ids
     partition_with_uids_added = copy.deepcopy(partition_with_missing_uids) + [[u] for u in missing_ids]
     if debug:
-        print '  added %d (of %d) ids that were missing from partition (%s)' % (len(missing_ids), sum([len(c) for c in ref_partition]), ' '.join(missing_ids))
+        print '  added %d (of %d) ids from %spartition that were missing from %spartition (%s)' % (len(missing_ids), sum([len(c) for c in ref_partition]), ref_label+' ' if ref_label is not None else '', miss_label+' ' if miss_label is not None else '', ' '.join(missing_ids))
     return partition_with_uids_added
 
 # ----------------------------------------------------------------------------------------

@@ -762,6 +762,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             wargs = copy.deepcopy(args)
             wargs.seed_unique_id = seedid(ltmp) if ltmp in args.seed_loci else None
             wargs.locus = ltmp
+            wargs.is_data = True  # don't need the simu info, and it would complicate things to make it work
             waterer = Waterer(wargs, None, None, None, None, locus=ltmp)
             waterer.read_cachefile('%s/sw-cache.yaml'%getpdir(ltmp), ignore_seed_unique_id=True, quiet=True)
             return [waterer.info[q] for q in waterer.info['queries']]

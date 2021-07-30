@@ -787,7 +787,7 @@ def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_to_ref=Fa
     if remove_from_ref:
         refpart = utils.remove_missing_uids_from_partition(refpart, cfpart, debug=debug)  # returns a new/copied partition, doesn't modify original
     if add_to_ref:
-        refpart = utils.add_missing_uids_to_partition(refpart, cfpart)
+        refpart = utils.add_missing_uids_to_partition(refpart, cfpart, miss_label=ref_label, ref_label=cf_label)  # NOTE order is reversed here
     return utils.per_seq_correct_cluster_fractions(cfpart, refpart, seed_unique_id=seed_unique_id, dbg_str=dbg_str, inf_label=cf_label, true_label=ref_label, debug=debug)
     # TODO figure out which cases of 'missing' uids should really be removed, and which should be singletons
 
