@@ -95,6 +95,9 @@ class Tester(object):
     def is_prod_test(self, ptest):
         return 'cache-parameters' in ptest or ptest == 'simulate'
     # ----------------------------------------------------------------------------------------
+    def sclust_sizes(self):  # NOTE depends on self.n_simu_leaves
+        return (15, 20) if args.slow else (5, 10)
+    # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
@@ -154,7 +157,7 @@ class Tester(object):
             pcache_data_args = {'extras' : ['--n-max-queries', str(self.nqr('data'))]}
             pcache_simu_args = {'extras' : []}
             n_events = int(self.nqr('simu') / float(self.n_simu_leaves))
-            simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', '5']}
+            simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', str(self.n_simu_leaves)]}
             if args.paired:
                 simulate_args['extras'] += ['--min-observations-per-gene', '5']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
             if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
@@ -271,7 +274,7 @@ class Tester(object):
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
             ifn = info['inpath']
-            seed_uid, _ = utils.choose_seed_unique_id(ifn, 5, 8, paired=args.paired)  # , n_max_queries=self.nqr('partition')
+            seed_uid, _ = utils.choose_seed_unique_id(ifn, self.sclust_sizes()[0], self.sclust_sizes()[1], paired=args.paired)  # , n_max_queries=self.nqr('partition')
             if args.paired:
                 seed_uid, seed_loci = seed_uid
                 info['extras'] += ['--seed-unique-id', ':'.join(seed_uid), '--seed-loci', ':'.join(seed_loci)]
