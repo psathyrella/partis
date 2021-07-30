@@ -23,6 +23,7 @@ import utils
 import glutils
 from hist import Hist
 from clusterpath import ClusterPath
+import paircluster
 
 # ----------------------------------------------------------------------------------------
 class Tester(object):
@@ -142,8 +143,8 @@ class Tester(object):
                 '--plot-annotation-performance',
                 # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             ]}
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : []}
             if not args.paired:
-                self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : []}
                 self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
             self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : []}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
@@ -269,11 +270,13 @@ class Tester(object):
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
-            if args.paired:
-                raise Exception('seed choice not implemented for --paired')
             ifn = info['inpath']
-            seed_uid, _ = utils.choose_seed_unique_id(ifn, 5, 8, debug=False)  # , n_max_queries=self.nqr('partition')
-            info['extras'] += ['--seed-unique-id', seed_uid]
+            seed_uid, _ = utils.choose_seed_unique_id(ifn, 5, 8, paired=args.paired)  # , n_max_queries=self.nqr('partition')
+            if args.paired:
+                seed_uid, seed_loci = seed_uid
+                info['extras'] += ['--seed-unique-id', ':'.join(seed_uid), '--seed-loci', ':'.join(seed_loci)]
+            else:
+                info['extras'] += ['--seed-unique-id', seed_uid]
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
@@ -373,7 +376,7 @@ class Tester(object):
             shutil.move(self.dirs('new') + '/' + fname, self.dirs('ref') + '/')
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_performance(self, version_stype, input_stype, these_are_cluster_annotations=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
+    def read_annotation_performance(self, version_stype, input_stype, these_are_cluster_annotations=False):
         for sequence_multiplicity in ['single', 'multi']:
             self.read_each_annotation_performance(sequence_multiplicity, version_stype, input_stype, these_are_cluster_annotations=these_are_cluster_annotations)
 
@@ -466,7 +469,13 @@ class Tester(object):
             if args.paired:
                 l_ccfs = []
                 for locus in utils.sub_loci(args.ig_or_tr):
-                    l_ccfs.append(read_cpath('%s/partition-%s.yaml' % (self.opath(ptest, st=version_stype), locus)))
+                    ofn = '%s/partition-%s.yaml' % (self.opath(ptest, st=version_stype), locus)
+                    if 'seed-' in ptest:
+                        sfns = glob.glob(ofn.replace('/partition-', '/seeds/*/partition-'))
+                        if len(sfns) == 0:  # non-seed light chain
+                            continue
+                        ofn = sfns[0]
+                    l_ccfs.append(read_cpath(ofn))
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = [numpy.mean(lcfs) for lcfs in zip(*l_ccfs)]
             else:
                 ccfs = read_cpath(self.opath(ptest, st=version_stype))  # self.dirs(version_stype) + '/' + ptest + '.yaml')

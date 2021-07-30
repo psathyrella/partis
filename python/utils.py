@@ -116,6 +116,9 @@ def locstr(l):
 def sub_loci(ig_or_tr):  # ok i probably should have just split <loci> by ig/tr, but too late now
     return [l for l in loci if ig_or_tr in l]
 
+def heavy_locus(ig_or_tr):
+    return get_single_entry([l for l in sub_loci(ig_or_tr) if has_d_gene(l)])
+
 def getlpair(ltmp):  # return heavy/light locus pair for light chain locus <ltmp>
     if has_d_gene(ltmp): raise Exception('only makes sense for light chain, but got %s' % ltmp)
     return get_single_entry([lp for lplist in locus_pairs.values() for lp in lplist if ltmp in lp])
@@ -4779,22 +4782,39 @@ def find_genes_that_have_hmms(parameter_dir):
     return genes
 
 # ----------------------------------------------------------------------------------------
-def choose_seed_unique_id(simfname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, debug=True):
-    _, annotation_list, _ = read_output(simfname, n_max_queries=n_max_queries, dont_add_implicit_info=True)
-    true_partition = [l['unique_ids'] for l in annotation_list]
+# takes the first uid from the first cluster in the best partition that meets the size criteria
+#   - for paired, pass in the output dir
+# <iseed>: skip this many clusters that meet the other criteria (then choose the next one)
+def choose_seed_unique_id(infname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, paired=False, ig_or_tr='ig', debug=True):
+    if paired:
+        import paircluster  # it barfs if i import at the top, and i know that means i'm doing something dumb, but whatever
+        infname = paircluster.paired_fn(infname, heavy_locus(ig_or_tr), suffix='.yaml')  # heavy chains seqs paired with either light chain
+    _, annotation_list, cpath = read_output(infname, n_max_queries=n_max_queries, dont_add_implicit_info=True)
 
-    nth_seed = 0  # don't always take the first one we find
-    for cluster in true_partition:
+    nth_seed = 0  # numbrer of clusters we've passed that meet the other criteria
+    sid, scluster = None, None
+    for cluster in cpath.best():
         if len(cluster) < seed_cluster_size_low or len(cluster) > seed_cluster_size_high:
             continue
         if iseed is not None and int(iseed) > nth_seed:
             nth_seed += 1
             continue
-        if debug:
-            print '    chose seed %s in cluster %s with size %d' % (cluster[0], reco_info[cluster[0]]['reco_id'], len(cluster))
-        return cluster[0], len(cluster)  # arbitrarily use the first member of the cluster as the seed
+        sid, scluster = cluster[0], cluster
+        break
+    if sid is None:
+        raise Exception('couldn\'t find seed in cluster between size %d and %d' % (seed_cluster_size_low, seed_cluster_size_high))
 
-    raise Exception('couldn\'t find seed in cluster between size %d and %d' % (seed_cluster_size_low, seed_cluster_size_high))
+    if paired:
+        antn_dict = get_annotation_dict(annotation_list)
+        pid = get_single_entry(per_seq_val(antn_dict[':'.join(scluster)], 'paired-uids', sid))
+        plocus = pid.split('-')[-1]
+        if plocus not in loci:
+            raise Exception('couldn\'t get allowed locus (got \'%s\') from uid \'%s\'' % (plocus, pid))
+        return ([sid, pid], [heavy_locus(ig_or_tr), plocus]), len(cluster)
+    else:
+        # if debug:
+        #     print '    chose seed %s in cluster %s with size %d' % (cluster[0], reco_info[cluster[0]]['reco_id'], len(cluster))
+        return sid, len(cluster)
 
 # ----------------------------------------------------------------------------------------
 # Takes two logd values and adds them together, i.e. takes (log a, log b) --> log a+b
