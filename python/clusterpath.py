@@ -192,8 +192,6 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def calculate_missing_values(self, reco_info=None, true_partition=None, only_ip=None):  # NOTE adding true_partition argument very late, so there's probably lots of places that call the fcns that call this (printer + line getter) that would rather pass in true_partition and reco_info
-        if true_partition is None and reco_info is not None:
-            true_partition = utils.get_partition_from_reco_info(reco_info)  # full true partition, which we may have to modify below
         for ip in range(len(self.partitions)):
             if only_ip is not None and ip != only_ip:
                 continue
@@ -203,7 +201,9 @@ class ClusterPath(object):
 
             cfpart = self.partitions[ip]
             cfids = [uid for cluster in cfpart for uid in cluster]
-            if self.seed_unique_id is not None and true_partition is not None:  # for seed clustering, we need to add to the inferred partition any ids from the true seed cluster that we missed
+            if self.seed_unique_id is not None and (true_partition is not None or reco_info is not None):  # for seed clustering, we need to add to the inferred partition any ids from the true seed cluster that we missed
+                if true_partition is None:
+                    true_partition = utils.get_partition_from_reco_info(reco_info)  # full true partition, which we may have to modify below
                 true_seed_cluster = utils.get_single_entry([c for c in true_partition if self.seed_unique_id in c])
                 missing_ids = list(set(true_seed_cluster) - set(cfids))
                 if len(missing_ids) > 0:
