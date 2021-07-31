@@ -115,8 +115,6 @@ def process(args):
         else:
             if args.seed_loci is not None:
                 raise Exception('doesn\'t make sense to set --seed-loci without also setting --seed-unique-id')
-        if args.random_seed_seq:
-            raise Exception('--random-seed-seq not implemented for --paired-loci... please open an issue if you\'d like to use it')
         if args.persistent_cachefname is not None:
             assert args.persistent_cachefname == 'paired-outdir'
     else:

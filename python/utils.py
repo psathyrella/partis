@@ -4785,16 +4785,21 @@ def find_genes_that_have_hmms(parameter_dir):
 # takes the first uid from the first cluster in the best partition that meets the size criteria
 #   - for paired, pass in the output dir
 # <iseed>: skip this many clusters that meet the other criteria (then choose the next one)
-def choose_seed_unique_id(infname, seed_cluster_size_low, seed_cluster_size_high, iseed=None, n_max_queries=-1, paired=False, ig_or_tr='ig', debug=True):
+def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=None, n_max_queries=-1, choose_random=False, paired=False, ig_or_tr='ig', debug=True):
     if paired:
         import paircluster  # it barfs if i import at the top, and i know that means i'm doing something dumb, but whatever
         infname = paircluster.paired_fn(infname, heavy_locus(ig_or_tr), suffix='.yaml')  # heavy chains seqs paired with either light chain
     _, annotation_list, cpath = read_output(infname, n_max_queries=n_max_queries, dont_add_implicit_info=True)
+    if choose_random:
+        assert iseed is None  # <iseed> if you want to specify a specific cluster, <choose_random> is if you want us to choose one at random from the whole file
+        iseed = random.randint(0, len(cpath.best()) - 1)  # inclusive
 
     nth_seed = 0  # numbrer of clusters we've passed that meet the other criteria
     sid, scluster = None, None
     for cluster in cpath.best():
-        if len(cluster) < seed_cluster_size_low or len(cluster) > seed_cluster_size_high:
+        if min_cluster_size is not None and len(cluster) < min_cluster_size:
+            continue
+        if max_cluster_size is not None and len(cluster) > max_cluster_size:
             continue
         if iseed is not None and int(iseed) > nth_seed:
             nth_seed += 1
@@ -4802,7 +4807,7 @@ def choose_seed_unique_id(infname, seed_cluster_size_low, seed_cluster_size_high
         sid, scluster = cluster[0], cluster
         break
     if sid is None:
-        raise Exception('couldn\'t find seed in cluster between size %d and %d' % (seed_cluster_size_low, seed_cluster_size_high))
+        raise Exception('couldn\'t find seed in cluster between size %d and %d' % (min_cluster_size, max_cluster_size))
 
     if paired:
         antn_dict = get_annotation_dict(annotation_list)
@@ -4810,10 +4815,16 @@ def choose_seed_unique_id(infname, seed_cluster_size_low, seed_cluster_size_high
         plocus = pid.split('-')[-1]
         if plocus not in loci:
             raise Exception('couldn\'t get allowed locus (got \'%s\') from uid \'%s\'' % (plocus, pid))
+        if debug:
+            print '    chose seed uids %s %s with loci %s %s from cluster with size %d%s%s%s' % (sid, pid, heavy_locus(ig_or_tr), plocus, len(cluster), ' (chosen at random)' if choose_random else '',
+                                                                                                 '' if nth_seed==0 else ', after skipping %d/%d other cluster%s'%(nth_seed, len(cpath.best()), plural(nth_seed)),
+                                                                                                 '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size))
         return ([sid, pid], [heavy_locus(ig_or_tr), plocus]), len(cluster)
     else:
-        # if debug:
-        #     print '    chose seed %s in cluster %s with size %d' % (cluster[0], reco_info[cluster[0]]['reco_id'], len(cluster))
+        if debug:
+            print '    chose seed uid %s from cluster with size %d%s%s%s' % (sid, len(cluster), ' (chosen at random)' if choose_random else '',
+                                                                             '' if nth_seed==0 else ', after skipping %d/%d other cluster%s'%(nth_seed, len(cpath.best()), plural(nth_seed)),
+                                                                             '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size))
         return sid, len(cluster)
 
 # ----------------------------------------------------------------------------------------
