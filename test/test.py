@@ -477,6 +477,8 @@ class Tester(object):
                         sfns = glob.glob(ofn.replace('/partition-', '/seeds/*/partition-'))
                         if len(sfns) == 0:  # non-seed light chain
                             continue
+                        if len(sfns) > 1:
+                            raise Exception('multiple seed subdirs in %s/seeds/, you probably changed the seed seq and need to delete the old dir (yes --bust-cache should do this, but doesn\'t atm)' % ofn)
                         ofn = sfns[0]
                     l_ccfs.append(read_cpath(ofn))
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = [numpy.mean(lcfs) for lcfs in zip(*l_ccfs)]
