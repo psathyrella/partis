@@ -1026,7 +1026,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.random_seed_seq:
             (args.seed_unique_id, args.seed_loci), _ = utils.choose_seed_unique_id(os.path.dirname(getifn(utils.heavy_locus)), None, None, paired=True, choose_random=True)
         if args.action not in ['merge-paired-partitions', 'get-selection-metrics', 'view-output']:  # NOTE this skips printing the single-chain results for 'view-output', since presumably we don't really care about them
-            if args.seed_unique_id is not None and args.action  == 'partition':
+            if args.seed_unique_id is not None and args.action == 'partition':
                 remove_unseeded_seqs()
             for ltmp in sloci():
                 run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions')
