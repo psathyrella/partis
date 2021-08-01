@@ -2,6 +2,13 @@
 
 bin=./test/cf-paired-loci.py
 
-# label=v
-# testlabel=test-old
-# testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times 100 --carry-cap 1000 --n-generations-list 4:5"
+for act in simulate cache-parameters partition; do
+    actstr="--actions simulate"
+
+    largs="--label n-final-test"
+    echo $bin $largs $actstr --version v1 --n-sim-events 10  --n-leaf-list 30  --allowed-cdr3-lengths 33:36:42:45 --mutation-multiplier 7
+    break
+    # $bin $largs $actstr --version v2 --n-sim-events 100 --n-leaf-list 30  --allowed-cdr3-lengths 33:36:42:45 --mutation-multiplier 7
+    # $bin $largs $actstr --version v3 --n-sim-events 3   --n-leaf-list 300 --allowed-cdr3-lengths 33:36:42:45 --mutation-multiplier 7
+    # $bin $largs $actstr --version v4 --n-sim-events 10  --n-leaf-list 30  --allowed-cdr3-lengths 33:36:42:45 --mutation-multiplier 7 --cells-per-drop-list 1
+done

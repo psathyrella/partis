@@ -476,6 +476,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--paired-outdir', has_arg=True)
             utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
             utils.remove_from_arglist(clist, '--seed-loci', has_arg=True)
+            utils.remove_from_arglist(clist, '--random-seed-seq')
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
@@ -767,8 +768,6 @@ def run_all_loci(args, ig_or_tr='ig'):
             waterer.read_cachefile('%s/sw-cache.yaml'%getpdir(ltmp), ignore_seed_unique_id=True, quiet=True)
             return [waterer.info[q] for q in waterer.info['queries']]
         # ----------------------------------------------------------------------------------------
-        if args.random_seed_seq:
-            (args.seed_unique_id, args.seed_loci), _ = utils.choose_seed_unique_id(os.path.dirname(getifn(utils.heavy_locus)), None, None, paired=True, choose_random=True)
         print '   removing seqs very different from seed seq'
         sw_antns = {l : read_sw(l) for l in utils.sub_loci(ig_or_tr)}
         seed_lines = [utils.get_single_entry([l for l in sw_antns[ltmp] if l['unique_ids'][0]==seedid(ltmp)]) for ltmp in args.seed_loci]
@@ -927,7 +926,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         for lpair in spairs():
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
-            if any(l not in single_outfos['antn_lists'] for l in lpair):
+            if any(l not in single_outfos['antn_lists'] or len(single_outfos['antn_lists'][l])==0 for l in lpair):
                 print '    no single chain output'
                 continue
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=args.debug_paired_clustering)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
@@ -1024,8 +1023,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  missing %d locus parameter dirs (%s), so caching a new set of parameters before running action \'%s\':  %s' % (len(missing_pdir_loci), ' '.join(missing_pdir_loci), args.action, ' '.join(getpdir(l) for l in missing_pdir_loci))
             for ltmp in sloci():
                 run_step('cache-parameters', ltmp, auto_cache=True, skip_missing_input=True)
+        if args.random_seed_seq:
+            (args.seed_unique_id, args.seed_loci), _ = utils.choose_seed_unique_id(os.path.dirname(getifn(utils.heavy_locus)), None, None, paired=True, choose_random=True)
         if args.action not in ['merge-paired-partitions', 'get-selection-metrics', 'view-output']:  # NOTE this skips printing the single-chain results for 'view-output', since presumably we don't really care about them
-            if (args.seed_unique_id is not None or args.random_seed_seq) and args.action == 'partition':
+            if args.seed_unique_id is not None and args.action  == 'partition':
                 remove_unseeded_seqs()
             for ltmp in sloci():
                 run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions')
@@ -1326,6 +1327,7 @@ subargs['get-selection-metrics'].append({'name' : '--seed-loci', 'kwargs' : {'he
 subargs['get-selection-metrics'].append({'name' : '--chosen-ab-fname', 'kwargs' : {'help' : 'csv file to which to write information on chosen antibody sequences'}})
 subargs['merge-paired-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['merge-paired-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
+subargs['merge-paired-partitions'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['merge-paired-partitions'].append({'name' : '--n-final-clusters', 'kwargs' : {'type' : int, 'help' : 'see help for this option under \'partition\' action'}})
 subargs['merge-paired-partitions'].append({'name' : '--min-largest-cluster-size', 'kwargs' : {'type' : int, 'help' : 'see help for this option under \'partition\' action'}})
 subargs['plot-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
