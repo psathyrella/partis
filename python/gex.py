@@ -346,13 +346,14 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
     # return barcode_vals, rotation_vals, umap_vals, cluster_vals
 
 # ----------------------------------------------------------------------------------------
-def run_gex(feature_matrix_fname, mname, outdir, make_plots=True):
+def run_gex(feature_matrix_path, mname, outdir, make_plots=True):
+    allowed_mnames = ['hvg', 'fabio', 'waick', 'msigdb']
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     rcmds = [loadcmd(l) for l in ['DropletUtils', 'scater', 'scran', 'pheatmap', 'celldex', 'SingleR', 'GSEABase', 'AUCell']]
     rcmds += [
         'options(width=1000)',
-        'sce <- read10xCounts("%s")' % feature_matrix_fname,
+        'sce <- read10xCounts("%s")' % feature_matrix_path,
         'rownames(sce) <- uniquifyFeatureNames(rowData(sce)$ID, rowData(sce)$Symbol)',
         # quality control
         'is.mito <- grepl("^MT-", rownames(sce))',  # figure out which genes are mitochondrial
@@ -388,7 +389,7 @@ def run_gex(feature_matrix_fname, mname, outdir, make_plots=True):
             'msigdb.markers <- read.csv("%s", header=T)' % msigdbfname,  # see <msdsets> above -- I just searched through the G7 sets for ones with plasma{blast,cell} and took the nearby ones
         ]
     else:
-        assert False
+        raise Exception('mname must be among %s (but got %s)' % (' '.join(allowed_mnames), mname))
         # 'all_genes <- c(fabio.markers$gene, waick.markers$gene, hvg)',  # don't do this, the hvgs overwhelm everything
 
     mname_markers = mname

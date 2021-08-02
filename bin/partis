@@ -538,7 +538,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
             if args.seed_unique_id is not None and tmpaction == 'partition':
-                utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))
+                utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))  # this does almost the same thing as the line under 'annotate', but note that the tmp .fa files end up in different dirs, since lpair is unset here, whereas it's set for 'annotate'
                 utils.remove_from_arglist(clist, '--is-simu')  # at least for now, doing this since we're using fasta input file (which maybe is ok permanently?)
                 utils.remove_from_arglist(clist, '--seed-unique-id', has_arg=True)
             if tmpaction == 'annotate':
