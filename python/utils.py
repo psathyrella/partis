@@ -4874,6 +4874,11 @@ def is_in_arglist(clist, argstr):  # accounts for argparse unique/partial matche
     return len(arglist_imatches(clist, argstr)) > 0
 
 # ----------------------------------------------------------------------------------------
+def has_arg_val(clist, argstr):  # return true if <argstr> has an accompanying value (i.e. is not a boolean)
+    iarg = arglist_index(clist, argstr)
+    return iarg < len(clist) - 1 and clist[iarg+1].find('--') != 0
+
+# ----------------------------------------------------------------------------------------
 def get_val_from_arglist(clist, argstr):
     imatch = arglist_index(clist, argstr)
     if imatch == len(clist) - 1:
@@ -4920,6 +4925,28 @@ def insert_in_arglist(clist, new_arg_strs, argstr, has_arg=False, before=False):
     if argstr is not None:
         i_insert = clist.index(argstr) + (2 if has_arg else 1)
     clist[i_insert : i_insert] = new_arg_strs
+
+# ----------------------------------------------------------------------------------------
+# return new arg list with args + values from both clist_1 and clist_2. Any args that are in both with different values will cause a crash
+def merge_arg_lists(clist_1, clist_2, debug=False):
+    if debug:
+        print '    clist_1: %s' % ' '.join(clist_1)
+        print '    clist_2: %s' % ' '.join(clist_2)
+    argnames = [v for v in clist_1 if v.find('--')==0] + [v for v in clist_2 if v.find('--')==0 and v not in clist_1]  # would use a set, but then the order gets messed up
+    new_clist = []
+    for astr in argnames:
+        alist = [astr]
+        tclist = clist_1 if astr in clist_1 else clist_2
+        if has_arg_val(tclist, astr):
+            if astr in clist_1 and astr in clist_2:
+                assert has_arg_val(clist_1, astr) and has_arg_val(clist_2, astr)
+                if get_val_from_arglist(clist_1, astr) != get_val_from_arglist(clist_2, astr):  # if this arg has a value, make sure it's the same in both 
+                    raise Exception('arg \'%s\' has different values in the two arg lists \'%s\' vs \'%s\'' % (astr, get_val_from_arglist(clist_1, astr), get_val_from_arglist(clist_2, astr)))
+            alist.append(get_val_from_arglist(tclist, astr))
+        new_clist += alist
+    if debug:
+        print '  new_clist: %s' % ' '.join(new_clist)
+    return new_clist
 
 # ----------------------------------------------------------------------------------------
 def kbound_str(kbounds):
@@ -5066,6 +5093,9 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 break
 
     if n_random_queries is not None:
+        if n_random_queries > len(finfo):
+            print '  %s asked for n_random_queries %d from file with only %d entries, so just taking all of them (%s)' % (color('yellow', 'warning'), n_random_queries, len(finfo), fname)
+            n_random_queries = len(finfo)
         finfo = numpy.random.choice(finfo, n_random_queries, replace=False)
 
     return finfo
