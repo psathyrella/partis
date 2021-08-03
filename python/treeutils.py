@@ -1501,7 +1501,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
             if ete_path is not None:
                 lbplotting.plot_lb_trees(['aa-lbi', 'lbr', 'cons-dist-aa'], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
             subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
-            plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/%s/' % (inf_plotdir, subd)) for subd in subdirs])
+            plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs]) # extra_links used to have inf_plotdir in it, but that seemed to not work?
 
     # true plots
     if true_lines_to_use is not None:
@@ -1535,7 +1535,7 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
             #     lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, inf_lines_to_use, lb_metric, fnames=fnames)
             # lbplotting.plot_cons_seq_accuracy(true_plotdir, true_lines_to_use, fnames=fnames)
             subdirs = [d for d in os.listdir(true_plotdir) if os.path.isdir(true_plotdir + '/' + d)]
-            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in subdirs])
+            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/' % subd) for subd in subdirs])  # extra_links used to have true_plotdir in it, but that seemed not to work?
 
     print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 
