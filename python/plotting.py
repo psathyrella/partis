@@ -1232,12 +1232,13 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
             if cluster_indices is not None:  # add the (global) cluster index (i.e. 1 - rank) and cluster size as text on the right side of the plot
                 xtext = x1vals[-1] if plot_high_x else fixed_xmax
+                xtext -= 3
                 xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_x else fixed_xmax
                 if iclust_global == 0:
-                    ax.text(0.05 * xwidth + xtext - 3, yval + 1, 'index', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
-                    ax.text(0.12 * xwidth + xtext - 1, yval + 1, 'size', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.05 * xwidth + xtext - 3, yval + 0.5, 'index', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                    ax.text(0.12 * xwidth + xtext - 2, yval + 0.5, 'size', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
-                ax.text(0.12 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                ax.text(0.10 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
 
             iclust_global += 1
 
