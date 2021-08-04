@@ -71,8 +71,8 @@ class PartitionPlotter(object):
                 xval, yval = numpy.mean(getnmutelist(cluster)), len(cluster)
                 if log_cluster_size:
                     yval = math.log(yval)
-                ax.plot([xval], [yval], color='red', marker='.', markersize=15)
-                ax.text(xval + 0.1, yval + 0.1, ' '.join(tqtis), color='red', fontsize=8)
+                ax.plot([xval], [yval], color='red', marker='.', markersize=5)
+                ax.text(xval + 0.1, yval + (0.01 if log_cluster_size else 0.1), ' '.join(tqtis), color='red', fontsize=8)
 
         # ----------------------------------------------------------------------------------------
         import matplotlib.pyplot as plt
