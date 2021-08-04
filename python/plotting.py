@@ -1061,7 +1061,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # ----------------------------------------------------------------------------------------
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
-                        cluster_indices=None, title=None, queries_to_include=None, global_max_vals=None, debug=False):
+                        cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, global_max_vals=None, debug=False):
     import lbplotting
     all_metrics = treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
@@ -1102,17 +1102,24 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # ----------------------------------------------------------------------------------------
     def add_hist(xkey, xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
         qti_x_vals = {}
+        tqtis = {}  # queries to emphasize in this cluster (map from actual uid to the label we want)
         if queries_to_include is not None:
-            queries_to_include_in_this_cluster = set(cluster) & set(queries_to_include)
-            if len(queries_to_include_in_this_cluster) > 0:
-                qti_x_vals = get_xval_dict(queries_to_include_in_this_cluster, xkey)  # add a red line for each of 'em (i.e. color that hist bin red)
-                if plot_high_x:
-                    xfac = 1.1
-                elif float(median_x1) / fixed_x1max < 0.5:
-                    xfac = 0.75
-                else:
-                    xfac = 0.1
-                ax.text(xfac * fixed_x1max, yval, ' '.join(sorted(queries_to_include_in_this_cluster, key=lambda q: qti_x_vals[q])), color='red', fontsize=8)
+            tqtis.update({u : u for u in set(cluster) & set(queries_to_include)})
+        if meta_info_to_emphasize is not None:
+            antn = annotations[':'.join(cluster)]
+            key, val = meta_info_to_emphasize
+            if key in antn and any(v==val for v in antn[key]):
+                tqtis.update({u : val for u in cluster if utils.per_seq_val(antn, key, u) == val})
+        if len(tqtis) > 0:
+            qti_x_vals = get_xval_dict(tqtis, xkey)  # add a red line for each of 'em (i.e. color that hist bin red)
+            if plot_high_x:
+                xfac = 1.1
+            elif float(median_x1) / fixed_x1max < 0.5:
+                xfac = 0.75
+            else:
+                xfac = 0.1
+            qtistrs = [tqtis[u] for u in sorted(tqtis, key=lambda q: qti_x_vals[q])]  # sort by x value, then label with value from tqtis
+            ax.text(xfac * fixed_x1max, yval, ' '.join(qtistrs), color='red', fontsize=8)
 
         if debug:
             fstr = '6.1f' if xkey == 'n_mutations' else '6.4f'

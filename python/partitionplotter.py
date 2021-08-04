@@ -53,45 +53,28 @@ class PartitionPlotter(object):
         title = utils.ltranslate(naive_cdr3_seq) + title
         return title
 
-    # # ----------------------------------------------------------------------------------------
-    # def make_single_hexbin_shm_vs_identity_plot(self, cluster, annotation, plotdir, plotname, debug=False):
-    #     """ shm (identity to naive sequence) vs identity to some reference sequence """
-    #     import matplotlib.pyplot as plt
-
-    #     fig, ax = self.plotting.mpl_init()
-
-    #     if self.args.seed_unique_id is not None and self.args.seed_unique_id in cluster:
-    #         seed_index = cluster.index(self.args.seed_unique_id)
-    #         ref_seq = annotation['seqs'][seed_index]
-    #         ref_label = 'seed seq'
-    #         xref = annotation['n_mutations'][seed_index]
-    #     else:
-    #         ref_seq = utils.cons_seq(aligned_seqfos=[{'name' : cluster[iseq], 'seq' : annotation['seqs'][iseq]} for iseq in range(len(cluster))])
-    #         ref_label = 'consensus seq'
-    #         xref = utils.hamming_distance(annotation['naive_seq'], ref_seq)
-
-    #     xvals, yvals = zip(*[[annotation['n_mutations'][iseq], utils.hamming_distance(ref_seq, annotation['seqs'][iseq])] for iseq in range(len(cluster))])
-    #     hb = ax.hexbin(xvals, yvals, gridsize=40, cmap=plt.cm.Blues, bins='log')
-
-    #     # add a red mark for the reference sequence
-    #     yref = 0
-    #     ax.plot([xref], [yref], color='red', marker='.', markersize=10)
-    #     ax.text(xref, yref, ref_label, color='red', fontsize=8)
-
-    #     if self.args.queries_to_include is not None:  # note similarity to code in make_single_hexbin_size_vs_shm_plot()
-    #         queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
-    #         for uid in queries_to_include_in_this_cluster:
-    #             iseq = cluster.index(uid)
-    #             xval = annotation['n_mutations'][iseq]
-    #             yval = utils.hamming_distance(ref_seq, annotation['seqs'][iseq])
-    #             ax.plot([xval], [yval], color='red', marker='.', markersize=10)
-    #             ax.text(xval, yval, uid, color='red', fontsize=8)
-
-    #     ylabel = 'identity to %s' % ref_label
-    #     self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='N mutations', ylabel=ylabel, title='%d sequences'  % len(cluster))
-
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, repfrac_ylabel=True, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
+        # ----------------------------------------------------------------------------------------
+        def add_emph_clusters(sorted_clusters):
+            for cluster in sorted_clusters:
+                if len(cluster) < self.size_vs_shm_min_cluster_size:
+                    continue
+                tqtis = set()  # queries to emphasize in this cluster
+                if self.args.queries_to_include is not None:
+                    tqtis |= set(cluster) & set(self.args.queries_to_include)
+                if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(annotations, cluster):
+                    _, val = self.args.meta_info_to_emphasize
+                    tqtis.add(val)
+                if len(tqtis) == 0:
+                    continue
+                xval, yval = numpy.mean(getnmutelist(cluster)), len(cluster)
+                if log_cluster_size:
+                    yval = math.log(yval)
+                ax.plot([xval], [yval], color='red', marker='.', markersize=15)
+                ax.text(xval + 0.1, yval + 0.1, ' '.join(tqtis), color='red', fontsize=8)
+
+        # ----------------------------------------------------------------------------------------
         import matplotlib.pyplot as plt
         def getnmutelist(cluster):
             return annotations[':'.join(cluster)]['n_mutations']
@@ -122,19 +105,9 @@ class PartitionPlotter(object):
             ytlfcn = lambda yt: ('%.0f' % yt) if yt > 5 else ('%.1f' % yt)
         yticklabels = [ytlfcn(math.exp(yt) if log_cluster_size else yt) for yt in yticks]
 
-        if self.args.queries_to_include is not None:  # TODO merge with similar code in make_single_hexbin_shm_vs_identity_plot
-            for cluster in sorted_clusters:  # NOTE just added <clusters_to_use>, and I'm not sure if I should use <sorted_clusters> or <clusters_to_use> here, but I think it's ok how it is
-                queries_to_include_in_this_cluster = set(cluster) & set(self.args.queries_to_include)
-                if len(queries_to_include_in_this_cluster) == 0:
-                    continue
-                if len(cluster) < self.size_vs_shm_min_cluster_size:
-                    continue
-                xval = numpy.mean(getnmutelist(cluster))
-                yval = len(cluster)
-                if log_cluster_size:
-                    yval = math.log(yval)
-                ax.plot([xval], [yval], color='red', marker='.', markersize=15)
-                ax.text(xval + 0.1, yval + 0.1, ' '.join(queries_to_include_in_this_cluster), color='red', fontsize=8)
+        # if necessary, add red labels to clusters
+        if self.args.queries_to_include is not None or self.args.meta_info_to_emphasize is not None:
+            add_emph_clusters(sorted_clusters)
 
         ylabel = ('family size\n(frac. of %d)' % repertoire_size) if repfrac_ylabel else 'clonal family size'
         if log_cluster_size:
@@ -153,7 +126,17 @@ class PartitionPlotter(object):
             fnames[-1].append(fname)
 
     # ----------------------------------------------------------------------------------------
-    def plot_this_cluster(self, sorted_clusters, iclust, plottype=None):
+    def meta_emph(self, annotations, cluster, uid):  # return True if <uid> from <cluster> satisfies criteria in self.args.meta_info_to_emphasize
+        antn = annotations[':'.join(cluster)]
+        key, val = self.args.meta_info_to_emphasize
+        return key in antn and utils.per_seq_val(antn, key, uid) == val
+
+    # ----------------------------------------------------------------------------------------
+    def any_meta_emph(self, annotations, cluster):
+        return any(self.meta_emph(annotations, cluster, u) for u in cluster)
+
+    # ----------------------------------------------------------------------------------------
+    def plot_this_cluster(self, sorted_clusters, iclust, annotations, plottype=None):
         if len(sorted_clusters[iclust]) == 1:
             return False
         if plottype == 'mds' and len(sorted_clusters[iclust]) > self.mds_max_cluster_size:
@@ -162,6 +145,8 @@ class PartitionPlotter(object):
         if iclust < self.n_biggest_to_plot:
             return True
         if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:  # seed is added to <args.queries_to_include> in bin/partis
+            return True
+        if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(annotations, sorted_clusters[iclust]):
             return True
         return False  # falls through if <iclust> is too big, or if there's no --queries-to-include (which includes the seed)
 
@@ -192,13 +177,15 @@ class PartitionPlotter(object):
             if iclustergroup > self.n_max_joy_plots:  # note that when this is activated, the high mutation plot is no longer guaranteed to have every high mutation cluster (but it should have every high mutation cluster that was bigger than the cluster size when we started skipping here)
                 continue
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
-            high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, debug=debug)
+            high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title,
+                                                                        high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, debug=debug)
             if len(fnames[-1]) < self.n_joyplots_in_html:
                 self.addfname(fnames, get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
         if len(high_mutation_clusters) > self.n_clusters_per_joy_plot and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
-        self.plotting.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations, high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, debug=debug)
+        self.plotting.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations,
+                                          high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, debug=debug)
         self.addfname(fnames, get_fname(high_mutation=True))
 
         # size vs shm hexbin plots
@@ -211,29 +198,6 @@ class PartitionPlotter(object):
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True)
 
         return [[subd + '/' + fn for fn in [fnames[0][0]] + fnames[-1]]]  # take the first joy plot, and the two hexbin plots
-
-    # # ----------------------------------------------------------------------------------------
-    # def make_shm_vs_inverse_identity_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
-    #     def get_fname(cluster_rank):
-    #         return 'shm-vs-identity-icluster-%d' % cluster_rank
-    #     plotdir = base_plotdir + '/shm-vs-identity'
-    #     utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
-
-    #     skipped_cluster_lengths = []
-    #     fnames = [[]]
-    #     for iclust in range(len(sorted_clusters)):
-    #         if not self.plot_this_cluster(sorted_clusters, iclust):
-    #             skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
-    #             continue
-    #         self.make_single_hexbin_shm_vs_identity_plot(sorted_clusters[iclust], annotations[':'.join(sorted_clusters[iclust])], plotdir, get_fname(cluster_rank=iclust))
-    #         self.addfname(fnames, get_fname(cluster_rank=iclust))
-
-    #     print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths]))
-
-    #     if not self.args.only_csv_plots:
-    #         self.plotting.make_html(plotdir, fnames=fnames)
-
-    #     return fnames
 
     # ----------------------------------------------------------------------------------------
     def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, debug=False):
@@ -254,7 +218,7 @@ class PartitionPlotter(object):
                 if not found:
                     seqfos.append({'name' : name, 'seq' : seq})
                 color_scale_vals[name] = 0
-                queries_to_include.append(name)
+                tqtis[name] = name  # i think if we're calling this fcn we always want to label with its actual name
             # ----------------------------------------------------------------------------------------
             full_info = annotations[':'.join(full_cluster)]
             # title = '%s   (size: %d)' % (self.get_cdr3_title(full_info), len(full_cluster))
@@ -274,8 +238,10 @@ class PartitionPlotter(object):
                 uids_to_choose_from = set([full_cluster[i] for i in kept_indices])  # note similarity to code in seqfileopener.post_process()
                 if self.args.queries_to_include is not None:
                     uids_to_choose_from -= set(self.args.queries_to_include)
+                if self.args.meta_info_to_emphasize is not None:
+                    uids_to_choose_from -= set([u for u in uids_to_choose_from if self.meta_emph(annotations, full_cluster, u)])
                 n_to_remove = len(kept_indices) - max_cluster_size
-                if n_to_remove >= len(uids_to_choose_from):  # i.e. if we'd have to start removing queries that are in <queries_to_include>
+                if n_to_remove >= len(uids_to_choose_from):  # i.e. if we'd have to start removing queries that are in <self.args.queries_to_include>
                     removed_uids = uids_to_choose_from
                 else:
                     removed_uids = numpy.random.choice(list(uids_to_choose_from), n_to_remove, replace=False)  # i think this'll still crash if len(uids_to_choose_from) is zero, but, meh
@@ -285,13 +251,16 @@ class PartitionPlotter(object):
             seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices]
             color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
 
-            queries_to_include = []
+            tqtis = {}
             addseq('_naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
             addseq('_consensus', utils.cons_seq_of_line(full_info))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
             if self.args.queries_to_include is not None:
-                queries_to_include += self.args.queries_to_include
+                tqtis.update({u : u for u in self.args.queries_to_include})
+            if self.args.meta_info_to_emphasize is not None:
+                _, val = self.args.meta_info_to_emphasize
+                tqtis.update({full_cluster[i] : '_'+val for i in kept_indices if self.meta_emph(annotations, full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
 
-            return seqfos, color_scale_vals, queries_to_include, title
+            return seqfos, color_scale_vals, tqtis, title
 
         # ----------------------------------------------------------------------------------------
         def get_labels_for_coloring(full_cluster, color_rule):
@@ -310,7 +279,7 @@ class PartitionPlotter(object):
             return labels
 
         # ----------------------------------------------------------------------------------------
-        def prep_cmdfo(iclust, seqfos, queries_to_include, color_scale_vals, title):
+        def prep_cmdfo(iclust, seqfos, tqtis, color_scale_vals, title):
             subworkdir = '%s/mds-%d' % (self.args.workdir, iclust)
             utils.prep_dir(subworkdir)
             tmpfname = '%s/seqs.fa' % subworkdir
@@ -321,8 +290,8 @@ class PartitionPlotter(object):
                         csval = color_scale_vals[sfo['name']]
                     tmpfile.write('>%s%s\n%s\n' % (sfo['name'], (' %d' % csval) if csval is not None else '' , sfo['seq']))
             cmdstr = '%s/bin/mds-run.py %s --aligned --plotdir %s --plotname %s --workdir %s --seed %d' % (utils.get_partis_dir(), tmpfname, plotdir, get_fname(iclust), subworkdir, self.args.random_seed)
-            if queries_to_include is not None:
-                cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
+            if tqtis is not None:
+                cmdstr += ' --queries-to-include %s' % ':'.join(','.join([u, l]) for u, l in tqtis.items())
             if title is not None:
                 cmdstr += ' --title=%s' % title.replace(' ', '@')
             return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : '%s/%s.svg' % (plotdir, get_fname(iclust)), 'workfnames' : [tmpfname]}
@@ -339,12 +308,12 @@ class PartitionPlotter(object):
         fnames = [[]]
         cmdfos = []
         for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust, plottype='mds'):
+            if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='mds'):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
             plotted_cluster_lengths.append(len(sorted_clusters[iclust]))
 
-            seqfos, color_scale_vals, queries_to_include, title = get_cluster_info(sorted_clusters[iclust], iclust)
+            seqfos, color_scale_vals, tqtis, title = get_cluster_info(sorted_clusters[iclust], iclust)
 
             labels = None
             if color_rule is not None:
@@ -362,11 +331,11 @@ class PartitionPlotter(object):
 
             if run_in_parallel:
                 assert labels is None  # would need to implement this (or just switch to non-parallel version if you need to run with labels set)
-                cmdfos.append(prep_cmdfo(iclust, seqfos, queries_to_include, color_scale_vals, title))
+                cmdfos.append(prep_cmdfo(iclust, seqfos, tqtis, color_scale_vals, title))
             else:
                 mds.run_bios2mds(self.n_mds_components, None, seqfos, self.args.workdir, self.args.random_seed,
                                  aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
-                                 queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
+                                 queries_to_include=tqtis, meta_info_to_emphasize=self.args.meta_info_to_emphasize, color_scale_vals=color_scale_vals, labels=labels, title=title)
                 if debug:
                     print '  %5.1f' % (time.time() - substart)
             self.addfname(fnames, '%s' % get_fname(iclust))
@@ -390,7 +359,7 @@ class PartitionPlotter(object):
 
         fnames = [[]]
         for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust):
+            if not self.plot_this_cluster(sorted_clusters, iclust, annotations):
                 continue
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             if len(annotation['unique_ids']) < self.laplacian_spectra_min_clusters_size:
@@ -435,11 +404,12 @@ class PartitionPlotter(object):
 
         fnames = [[]]
         for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust):
+            if not self.plot_this_cluster(sorted_clusters, iclust, annotations):
                 continue
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotation, restrict_to_region=restrict_to_region)
             red_text = None
+            assert args.meta_info_to_emphasize is None  # would need to be implemented
             if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:
                 red_text = '%s' % ' '.join(set(self.args.queries_to_include) & set(sorted_clusters[iclust]))
             addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'icluster-%d' % iclust, self.get_cdr3_title(annotation), red_text=red_text)

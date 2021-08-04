@@ -119,11 +119,11 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
                 plt.scatter(vals[ipair], vals[ipair + 1], color=color_map.get(uid, single_color), alpha=0.4 if labels is not None else 1.)
 
         if queries_to_include is not None:
-            queries_to_include_in_this_cluster = set(pcvals) & set(queries_to_include)
-            for uid in queries_to_include_in_this_cluster:
+            tqtis = {u : l for u, l in queries_to_include.items() if u in pcvals}
+            for uid, ulabel in tqtis.items():
                 xval, yval = pcvals[uid]
                 ax.plot([xval], [yval], color='red', marker='.', markersize=10)
-                ax.text(xval, yval, uid, color='red', fontsize=8)
+                ax.text(xval, yval, ulabel, color='red', fontsize=8)
 
         # smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         # smap.set_array([])

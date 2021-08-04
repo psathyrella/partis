@@ -127,6 +127,7 @@ def process(args):
     args.only_genes = utils.get_arg_list(args.only_genes)
     args.queries = utils.get_arg_list(args.queries)
     args.queries_to_include = utils.get_arg_list(args.queries_to_include)
+    args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize)
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
     if args.istartstop is not None:

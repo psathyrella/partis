@@ -25,7 +25,7 @@ parser.add_argument('--workdir', default='/tmp/dralph/mds/' + str(random.randint
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--aligned', action='store_true')
 args = parser.parse_args()
-args.queries_to_include = utils.get_arg_list(args.queries_to_include)
+args.queries_to_include = utils.get_arg_list(args.queries_to_include, key_val_pairs=True)
 if args.title is not None:
     args.title = args.title.replace('@', ' ')  # this is kind of hackey
 
