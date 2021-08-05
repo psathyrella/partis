@@ -603,8 +603,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
         old_metafos = {}
-        if os.path.exists(getofn(None, joint=True, input_meta=True)):
-            old_metafos = utils.read_json_yaml(getofn(None, joint=True, input_meta=True))  # NOTE the underlying dicts get modified
+        if any(os.path.exists(f) for f in getofn(None, joint=True, input_meta=True)):
+            old_metafos = utils.read_json_yamls(getofn(None, joint=True, input_meta=True))
         if args.queries_to_include_fname is not None and utils.getsuffix(args.queries_to_include_fname) == '.yaml':  # this kind of sucks, but if you want to add weird extra edge case functionality, it's gonna make your code messier
             for sfo in utils.read_seqfos(args.queries_to_include_fname):
                 if sfo['name'] not in old_metafos:

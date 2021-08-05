@@ -5742,6 +5742,27 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
     return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 
 # ----------------------------------------------------------------------------------------
+# NOTE if there's multiple files with conflicting info this will *not* detect it (unlike in seqfileopener, which will)
+# NOTE also this'll only merge correctly input-metafo style yaml/json files, i.e. that're a simple dict at top level
+def read_json_yamls(fnames):  # try to read <fname> as json (since it's faster), on exception fall back to yaml
+    # ----------------------------------------------------------------------------------------
+    def merge_yfos(tfo, yfo):
+        for uid in tfo:
+            if uid in yfo:
+                yfo[uid].update(tfo[uid])
+            else:
+                yfo[uid] = tfo[uid]
+    # ----------------------------------------------------------------------------------------
+    yamlfo = None
+    for fn in fnames:
+        tmpfo = read_json_yaml(fn)
+        if yamlfo is None:
+            yamlfo = tmpfo
+        else:
+            merge_yfos(tmpfo, yamlfo)
+    return yamlfo
+
+# ----------------------------------------------------------------------------------------
 def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), on exception fall back to yaml
     with open(fname) as yamlfile:
         try:
