@@ -1107,9 +1107,9 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             tqtis.update({u : u for u in set(cluster) & set(queries_to_include)})
         if meta_info_to_emphasize is not None:
             antn = annotations[':'.join(cluster)]
-            key, val = meta_info_to_emphasize
-            if key in antn and any(v==val for v in antn[key]):
-                tqtis.update({u : val for u in cluster if utils.per_seq_val(antn, key, u) == val})
+            key, val = meta_info_to_emphasize.items()[0]
+            if key in antn and any(utils.meta_info_equal(val, v) for v in antn[key]):
+                tqtis.update({u : utils.meta_emph_str(key, val) for u, v in zip(cluster, antn[key]) if utils.meta_info_equal(val, v)})
         if len(tqtis) > 0:
             qti_x_vals = get_xval_dict(tqtis, xkey)  # add a red line for each of 'em (i.e. color that hist bin red)
             if plot_high_x:

@@ -64,8 +64,8 @@ class PartitionPlotter(object):
                 if self.args.queries_to_include is not None:
                     tqtis |= set(cluster) & set(self.args.queries_to_include)
                 if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(annotations, cluster):
-                    _, val = self.args.meta_info_to_emphasize
-                    tqtis.add(val)
+                    key, val = self.args.meta_info_to_emphasize.items()[0]
+                    tqtis.add(utils.meta_emph_str(key, val))
                 if len(tqtis) == 0:
                     continue
                 xval, yval = numpy.mean(getnmutelist(cluster)), len(cluster)
@@ -128,8 +128,8 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def meta_emph(self, annotations, cluster, uid):  # return True if <uid> from <cluster> satisfies criteria in self.args.meta_info_to_emphasize
         antn = annotations[':'.join(cluster)]
-        key, val = self.args.meta_info_to_emphasize
-        return key in antn and utils.per_seq_val(antn, key, uid) == val
+        key, val = self.args.meta_info_to_emphasize.items()[0]
+        return key in antn and utils.meta_info_equal(val, utils.per_seq_val(antn, key, uid))
 
     # ----------------------------------------------------------------------------------------
     def any_meta_emph(self, annotations, cluster):
@@ -257,7 +257,7 @@ class PartitionPlotter(object):
             if self.args.queries_to_include is not None:
                 tqtis.update({u : u for u in self.args.queries_to_include})
             if self.args.meta_info_to_emphasize is not None:
-                _, val = self.args.meta_info_to_emphasize
+                _, val = self.args.meta_info_to_emphasize.items()[0]
                 tqtis.update({full_cluster[i] : '_'+val for i in kept_indices if self.meta_emph(annotations, full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
 
             return seqfos, color_scale_vals, tqtis, title

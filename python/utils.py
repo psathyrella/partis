@@ -170,7 +170,7 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, translation=None, list_of_lists=False, key_val_pairs=False, choices=None, forbid_duplicates=False):  # make lists from args that are passed as strings of colon-separated values
+def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, boolify=False, translation=None, list_of_lists=False, key_val_pairs=False, choices=None, forbid_duplicates=False):  # make lists from args that are passed as strings of colon-separated values
     if arg is None:
         return None
 
@@ -187,6 +187,8 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, tr
         convert_fcn = iwr_fcn
     elif floatify:
         convert_fcn = float
+    elif boolify:
+        convert_fcn = bool
 
     arglist = arg.strip().split(':')  # to allow ids with minus signs, you can add a space (if you don't use --name=val), which you then have to strip() off
     if list_of_lists or key_val_pairs:
@@ -461,7 +463,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'reads', 'umis', 'c_genes', 'cell-types',
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'reads', 'umis', 'c_genes', 'cell-types', 'chosens',
                        'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
@@ -506,6 +508,7 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'umis' : 'umis',
     'reads' : 'reads',
     'c_gene' : 'c_genes',
+    'chosen' : 'chosens',
 }
 if any(k not in linekeys['per_seq'] for k in input_metafile_keys.values()):
     raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence (add to linekeys[\'per_seq\']): %s' % ' '.join(k for k in input_metafile_keys.values() if k not in linekeys['per_seq']))
@@ -518,6 +521,24 @@ def input_metafile_defaults(mkey):  # default values to use if the info isn't th
         return None
 
 reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
+
+def meta_emph_str(key, val):  # ick
+    if isinstance(val, float):
+        return '%.2f' % v
+    elif isinstance(val, bool) or val in ['True', 'False']:
+        return key.rstrip('s') if val else 'nope'  # not sure what to do if it's False, but probably you'll only call it asking for True? (rstrip removes plural, and yes will probably break something at some point)
+    else:
+        return str(val)
+def meta_info_equal(val1, val2):  # also ick (don't have another way to convert the value from the command line arg to the proper thing [the values coming from yaml file will be properly converted)
+    cfcn = lambda x: x
+    for tname in [bool, float, int]:
+        if any(isinstance(v, tname) for v in [val1, val2]):
+            bstrs = ['True', 'False']
+            if tname == bool and any(str(v) not in bstrs for v in [val1, val2]):
+                raise Exception('bool string[s] %s not among %s' % ([v for v in [val1, val2] if str(v) not in bstrs], bstrs))
+            cfcn = tname
+            break
+    return cfcn(val1) == cfcn(val2)
 
 # ----------------------------------------------------------------------------------------
 special_indel_columns_for_output = ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)
