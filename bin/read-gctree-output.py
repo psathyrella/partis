@@ -79,7 +79,7 @@ def write_input():
 
 # ----------------------------------------------------------------------------------------
 write_input()
-cmd = './bin/partis cache-parameters --infname %s --input-metafname %s --locus %s --species %s --parameter-dir %s/parameters' % (infname, metafname, args.locus, args.species, args.outdir)
+cmd = './bin/partis cache-parameters --infname %s --input-metafnames %s --locus %s --species %s --parameter-dir %s/parameters' % (infname, metafname, args.locus, args.species, args.outdir)
 utils.simplerun(cmd, logfname='%s/cache-parameters.log'%args.outdir)
 cmd = './bin/partis annotate --infname %s --locus %s --species %s --parameter-dir %s/parameters --all-seqs-simultaneous --outfname %s' % (infname, args.locus, args.species, args.outdir, outfname)
 utils.simplerun(cmd, logfname='%s/annotate.log'%args.outdir)

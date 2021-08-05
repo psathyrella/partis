@@ -244,7 +244,7 @@ class Tester(object):
                 argfo['extras'] += ['--no-partition-plots']
 
         if '-data' in ptest and not args.paired:  # would be cleaner to check that inpath is self.datafname
-            argfo['extras'] += ['--input-metafname', self.input_metafname]
+            argfo['extras'] += ['--input-metafnames', self.input_metafname]
 
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):

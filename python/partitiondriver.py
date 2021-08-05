@@ -324,8 +324,8 @@ class PartitionDriver(object):
     def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
         if annotation_list is None:
             annotation_list = annotation_dict.values()
-        if self.current_action == 'get-selection-metrics' and self.args.input_metafname is not None:  # presumably if you're running 'get-selection-metrics' with --input-metafname set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
-            seqfileopener.read_input_metafo(self.args.input_metafname, annotation_list)
+        if self.current_action == 'get-selection-metrics' and self.args.input_metafnames is not None:  # presumably if you're running 'get-selection-metrics' with --input-metafnames set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
+            seqfileopener.read_input_metafo(self.args.input_metafnames, annotation_list)
         if self.args.seed_unique_id is not None:  # restrict to seed cluster in the best partition (clusters from non-best partition have duplicate uids, which then make fasttree barf, and it doesn't seem worth the trouble to fix it now)
             print '    --seed-unique-id: restricting selection metric calculation to seed cluster in best partition (mostly to avoid fasttree crash on duplicate uids)'
             annotation_dict = OrderedDict([(uidstr, line) for uidstr, line in annotation_dict.items() if self.args.seed_unique_id in line['unique_ids'] and line['unique_ids'] in cpath.partitions[cpath.i_best]])
@@ -2142,7 +2142,7 @@ class PartitionDriver(object):
         line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
         def gv(lkey, uid): return self.sw_info[uid][lkey][0] if lkey in self.sw_info[uid] else utils.input_metafile_defaults(lkey)
         for lkey in utils.input_metafile_keys.values():
-            if any(lkey in self.sw_info[u] for u in uids):  # it used to be that if it was in one it had to be in all, but now no longer (see comments in seqfileopener.read_input_metafo()
+            if any(lkey in self.sw_info[u] for u in uids):  # it used to be that if it was in one it had to be in all, but now no longer (see comments in input meta info reading in seqfileopener)
                 line[lkey] = [gv(lkey, u) for u in uids]
 
     # ----------------------------------------------------------------------------------------

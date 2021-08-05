@@ -15,7 +15,12 @@ import utils
 delimit_info = {'.csv' : ',', '.tsv' : '\t'}
 
 # ----------------------------------------------------------------------------------------
-def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=10, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info> (wait so at this point it sounds like this fcn and the next one should be merged [although that would be hard and dangerous, so i'm not doing it now)
+def read_input_metafo(input_metafnames, annotation_list, required_keys=None, n_warn_print=10, debug=False):
+    for mfname in input_metafnames:
+        read_single_input_metafo(mfname, annotation_list, required_keys=required_keys, n_warn_print=n_warn_print, debug=debug)
+
+# ----------------------------------------------------------------------------------------
+def read_single_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=None, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info> (wait so at this point it sounds like this fcn and the next one should be merged [although that would be hard and dangerous, so i'm not doing it now)
     # NOTE <annotation_list> doesn't need to be real annotations, it only uses the 'unique_ids' key
     metafo = utils.read_json_yaml(input_metafname)
     if any(isinstance(tkey, int) for tkey in metafo):  # would be better to check for not being a string, but that's harder, and this probably only happens for my simulation hash ids
@@ -64,7 +69,7 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
         print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
     added_keys = set(k for k, us in usets['added'].items() if len(us) > 0)
     added_uids = set(u for us in usets['added'].values() for u in us)
-    print '  --input-metafname: added meta info for %d sequences from %s: %s' % (len(added_uids), input_metafname, ' '.join(added_keys))
+    print '  --input-metafnames: added meta info for %d sequences from %s: %s' % (len(added_uids), input_metafname, ' '.join(added_keys))
     if debug:
         print '  read_input_metafo(): add input metafo from meta file to annotations'
         print '                       uids      uids     lines  lines'
@@ -75,8 +80,8 @@ def read_input_metafo(input_metafname, annotation_list, required_keys=None, n_wa
             print '     %15s   %3d      %3d       %3d    %3d' % (lk, len(usets['no-info'][lk]), len(usets['added'][lk]), len(llists['no-info'][lk]), len(llists['added'][lk]))
 
 # ----------------------------------------------------------------------------------------
-def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_max_warn_print=10, debug=False):  # transfer input metafo from <input_info> (i.e. what was in --input-metafname) to <annotation_list>
-    # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafname, from <input_info>, from <sw_info>. If it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
+def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_max_warn_print=10, debug=False):  # transfer input metafo from <input_info> (i.e. what was in --input-metafnames) to <annotation_list>
+    # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafnames, from <input_info>, from <sw_info>. If it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
     # NOTE <keys_not_to_overwrite> should be the *line* key
     usets = {c : {lk : set() for lk in utils.input_metafile_keys.values()} for c in ['no-info', 'with-info', 'one-source', 'identical', 'not-overwritten', 'replaced']}
     n_warn_printed = 0
@@ -286,8 +291,8 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             if simglfo is not None:
                 utils.add_implicit_info(simglfo, reco_info[uid])
             for line_key in utils.input_metafile_keys.values():
-                if line_key in reco_info[uid]:  # this is kind of weird to copy from sim info to input info, but it makes sense because affinity is really meta info (the only other place affinity could come from is --input-metafname below). Where i'm defining meta info more or less as any input info besides name and sequence (i think the distinction is only really important because we want to support fastas, which can't [shouldn't!] handle anything else))
-                    input_info[uid][line_key] = copy.deepcopy(reco_info[uid][line_key])  # note that the args.input_metafname stuff below should print a warning if you've also specified that (which you shouldn't, if it's simulation)
+                if line_key in reco_info[uid]:  # this is kind of weird to copy from sim info to input info, but it makes sense because affinity is really meta info (the only other place affinity could come from is --input-metafnames below). Where i'm defining meta info more or less as any input info besides name and sequence (i think the distinction is only really important because we want to support fastas, which can't [shouldn't!] handle anything else))
+                    input_info[uid][line_key] = copy.deepcopy(reco_info[uid][line_key])  # note that the args.input_metafnames stuff below should print a warning if you've also specified that (which you shouldn't, if it's simulation)
 
         n_queries_added += 1
         if n_max_queries > 0 and n_queries_added >= n_max_queries:
@@ -311,8 +316,8 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         if args is not None and args.seed_unique_id is not None and args.seed_unique_id in more_input_info:
             found_seed = True
         input_info.update(more_input_info)
-    if args is not None and args.input_metafname is not None:
-        read_input_metafo(args.input_metafname, input_info.values())
+    if args is not None and args.input_metafnames is not None:
+        read_input_metafo(args.input_metafnames, input_info.values())
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 
     if len(input_info) == 0:

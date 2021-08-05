@@ -89,6 +89,11 @@ def process(args):
         assert '--seed' in sys.argv
         utils.replace_in_arglist(sys.argv, '--seed', str(args.random_seed))  # have to also modify argv in case we're using it e.g. in paired locus stuff
         sys.argv[utils.arglist_index(sys.argv, '--seed')] = '--random-seed'
+    if args.input_metafname is not None:
+        print '  note: moving value from deprecated arg --input-metafname to --input-metafnames [note plural] (you don\'t need to change anything unless you want this warning message to go away)'
+        assert args.input_metafnames is None
+        args.input_metafnames = args.input_metafname
+        delattr(args, 'input_metafname')
 
     args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True, choices=['igk', 'igl'])
     if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
@@ -141,6 +146,7 @@ def process(args):
     if args.write_additional_cluster_annotations is not None and len(args.write_additional_cluster_annotations) != 2:
         raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
     args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
+    args.input_metafnames = utils.get_arg_list(args.input_metafnames)
 
     args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)
 
