@@ -344,12 +344,12 @@ class PartitionPlotter(object):
             utils.run_cmds(cmdfos, clean_on_success=True)  #, debug='print')
 
         if debug and len(skipped_cluster_lengths) > 0:
-            print '    skipped %d clusters with lengths: %s (+%d singletons)' % (len(skipped_cluster_lengths), ' '.join(['%d' % l for l in skipped_cluster_lengths if l > 1]), skipped_cluster_lengths.count(1))
+            print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), utils.cluster_size_str(skipped_cluster_lengths, only_passing_lengths=True))
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
 
-        print '    made %d mds plots (%.1fs) with sizes %s' % (sum(len(x) for x in fnames), time.time() - start, ' '.join(str(n) for n in plotted_cluster_lengths))
+        print '    made %d mds plots (%.1fs) with sizes %s' % (sum(len(x) for x in fnames), time.time() - start, utils.cluster_size_str(plotted_cluster_lengths, only_passing_lengths=True))
 
         return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 

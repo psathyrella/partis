@@ -1390,19 +1390,6 @@ class PartitionDriver(object):
             if no_info:  # at least one cluster didn't have an annotation
                 other_gene_str = '%s %s' % (utils.color('blue', 'x'), other_gene_str)
 
-            cluster_size_strs = []
-            n_singletons = 0
-            for uidstr in uid_str_list:
-                size_str = str(uidstr.count(':') + 1)
-                if size_str == '1':
-                    n_singletons += 1
-                    continue
-                if uidstr_of_interest == uidstr:
-                    size_str = utils.color('blue', size_str)
-                cluster_size_strs.append(size_str)
-            if n_singletons > 0:
-                cluster_size_strs.append('(+%d)' % n_singletons)
-
             pre_str, post_str = '', ''
             if uidstr_of_interest in uid_str_list:
                 pre_str = utils.color('blue', '-->', width=5)
@@ -1424,7 +1411,8 @@ class PartitionDriver(object):
                 true_str = ' %s      ' % true_str
             if self.args.print_all_annotations:
                 print '  printing annotations for all clusters supporting naive seq with fraction %.3f:' % final_info['naive-seqs'][naive_seq]
-            print ('%5s %s  %s%4d  %4.2f     %s     %s    %s%s') % (pre_str, utils.color_mutants(line_of_interest['naive_seq'], naive_seq), true_str, n_independent_seqs, final_info['naive-seqs'][naive_seq], gene_str, other_gene_str, ' '.join(cluster_size_strs), post_str)
+            csize_str = utils.cluster_size_str(uid_str_list, split_strs=True, clusters_to_emph=[uidstr_of_interest], short=True)
+            print ('%5s %s  %s%4d  %4.2f     %s     %s    %s%s') % (pre_str, utils.color_mutants(line_of_interest['naive_seq'], naive_seq), true_str, n_independent_seqs, final_info['naive-seqs'][naive_seq], gene_str, other_gene_str, csize_str, post_str)
             if self.args.print_all_annotations:
                 for uidstr in sorted(uid_str_list, key=lambda x: x.count(':'), reverse=True):
                     if uidstr in cluster_annotations:
@@ -1457,11 +1445,7 @@ class PartitionDriver(object):
                     csizes = cluster_sizes_for_each_gene[region][gene_call]
                     if self.args.print_all_annotations:
                         print '  printing annotations for all clusters supprting gene call with fraction %.3f:' % final_info['gene-calls'][region][gene_call]
-                    cluster_size_strs = ['%d' % cs for cs in sorted(csizes, reverse=True) if cs > 1]
-                    n_singletons = csizes.count(1)
-                    if n_singletons > 0:
-                        cluster_size_strs.append('(+%d)' % n_singletons)
-                    print '      %s %4d  %4.2f             %s' % (utils.color_gene(gene_call, width=15), len(uids), final_info['gene-calls'][region][gene_call], ' '.join(cluster_size_strs))
+                    print '      %s %4d  %4.2f             %s' % (utils.color_gene(gene_call, width=15), len(uids), final_info['gene-calls'][region][gene_call], utils.cluster_size_str(csizes, only_passing_lengths=True, short=True))
                     if self.args.print_all_annotations:
                         for uidstr in sorted(uidstrs_for_each_gene[region][gene_call], key=lambda x: x.count(':'), reverse=True):
                             if uidstr in cluster_annotations:

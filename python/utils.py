@@ -601,6 +601,29 @@ for region in regions:
 conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
+def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, clusters_to_emph=None, short=False):  # NOTE doesn't need to be a partition, i.e. can have duplicate clusters
+    def cl_str(c):
+        rstr = str(len(c))
+        if clusters_to_emph is not None and c in clusters_to_emph:
+            rstr = color('blue', rstr)
+        return rstr
+    if split_strs:  # set this if you're passing in a list of ':'.joined clusters, rather than actual clusters
+        partition = [cstr.split(':') for cstr in partition]
+        if clusters_to_emph is not None:
+            clusters_to_emph = [cstr.split(':') for cstr in clusters_to_emph]
+    if only_passing_lengths:  # <partition> just contains cluster lengths, not actual clusters
+        partition = [['x' for _ in range(l)] for l in partition]
+    ptn_strs = [cl_str(c) for c in sorted([c for c in partition if len(c)>1], key=len, reverse=True)]
+    fstr = ' '.join(ptn_strs)
+    singletons = [c for c in partition if len(c)==1]
+    if len(singletons) > 0:
+        emph_str = ''
+        if clusters_to_emph is not None and any(len(c)==1 for c in clusters_to_emph) and any(c in clusters_to_emph for c in singletons):  # second term is just a speed optimization
+            emph_str = ', %s' % color('blue', '%d emph'%len([c for c in singletons if c in clusters_to_emph]))
+        fstr = '%s (+%d%s%s)' % (fstr, len(singletons), '' if short else ' singletons', emph_str)
+    return fstr
+
+# ----------------------------------------------------------------------------------------
 def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False):
     if uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation
         ulist = uid.split('-')
@@ -4297,7 +4320,7 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
                     n_removed += len(cluster) - len(new_cluster)
         if debug:
             print '      %d uids appeared more than once (and %d total were removed)%s' % (len(duplicated_uids), n_removed, (':  ' + ' '.join(duplicated_uids)) if len(duplicated_uids) < 10 else '')
-            n_singletons = dbg_strs.count('1/1')
+            n_singletons = dbg_strs.count('1/1')  # NOTE similarity to utils.cluster_size_str()
             print '           removed uids/from clusters with size: %s (+%d singletons)' % ('  '.join(s for s in dbg_strs if s!='1/1'), n_singletons)
     return new_partitions
 
@@ -5596,7 +5619,7 @@ def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=F
             partition_lines = clusterpath.ClusterPath(partition=get_partition_from_annotation_list(annotation_list)).get_partition_lines()
         write_yaml_output(fname, headers, glfo=glfo, annotation_list=annotation_list, synth_single_seqs=synth_single_seqs, failed_queries=failed_queries, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
     else:
-        raise Exception('unhandled file extension %s' % getsuffix(fname))
+        raise Exception('unhandled file extension \'%s\' on %s' % (getsuffix(fname), fname))
 
 # ----------------------------------------------------------------------------------------
 def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False, glfo=None, failed_queries=None):
@@ -5721,7 +5744,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
         glfo, annotation_list, cpath = read_yaml_output(fname, n_max_queries=n_max_queries, synth_single_seqs=synth_single_seqs,
                                                         dont_add_implicit_info=dont_add_implicit_info, seed_unique_id=seed_unique_id, cpath=cpath, skip_annotations=skip_annotations, debug=debug)
     else:
-        raise Exception('unhandled file extension %s' % getsuffix(fname))
+        raise Exception('unhandled file extension \'%s\' on %s' % (getsuffix(fname), fname))
 
     if cpath is not None and len(cpath.partitions) == 0 and not skip_annotations:  # old simulation files didn't write the partition separately, but we may as well get it
         cpath.add_partition(get_partition_from_annotation_list(annotation_list), -1., 1)

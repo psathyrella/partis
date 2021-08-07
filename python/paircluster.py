@@ -996,8 +996,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         print '    removing %d/%d empty clusters' % (final_partition.count([]), len(final_partition))
     final_partition = [c for c in final_partition if len(c) > 0]
     if debug:
-        ptn_strs = [str(len(c)) for c in sorted([c for c in final_partition if len(c)>1], key=len)]
-        print '    final: %s (+%d singletons)' % (' '.join(ptn_strs), len([c for c in final_partition if len(c)==1]))
+        print '    final: %s' % utils.cluster_size_str(final_partition)
     tmpstrs = ['   N clusters without bad/unpaired seqs:'] \
               + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(init_partitions[tch]), len(final_partition), chstr(len(init_partitions[tch]), len(final_partition))) for tch in utils.chains]
     print '\n        '.join(tmpstrs)
