@@ -393,15 +393,24 @@ class PartitionDriver(object):
             assert len(label_list) == len(annotation_list)
         seed_uid = self.args.seed_unique_id
         true_partition = None
+        restricted_clusters = None
         if cpath is not None:
-            if len(annotation_list) > 0:  # this is just because it prints a warning if any of the clusters in the best partition are missing from the annotations
+            if len(annotation_list) > 0:  # this is here just so we get a warning if any of the clusters in the best partition are missing from the annotations
                 _ = utils.get_annotation_dict(annotation_list, cpath=cpath)
             # it's expected that sometimes you'll write a seed partition cpath, but then when you read the file you don't bother to seed the seed id on the command line. The reverse, however, shouldn't happen
             if seed_uid is not None and cpath.seed_unique_id != seed_uid:
                 print '  %s seed uids from args and cpath don\'t match %s %s ' % (utils.color('red', 'error'), self.args.seed_unique_id, cpath.seed_unique_id)
+            if self.args.cluster_indices is not None:
+                tptn = cpath.best() if self.args.partition_index_to_print is None else cpath.partitions[self.args.partition_index_to_print]
+                restricted_clusters = [tptn[i] for i in self.args.cluster_indices]
             seed_uid = cpath.seed_unique_id
+            n_to_print, ipart_center = None, None
+            if self.args.partition_index_to_print is not None:
+                print '  --partition-index-to-print using non-default partition with index %d' % self.args.partition_index_to_print
+                n_to_print, ipart_center = 1, self.args.partition_index_to_print
             print '%s%s' % (extra_str, utils.color('green', 'partitions:'))
-            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices, calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'), print_partition_indices=True)
+            cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices,
+                                   calc_missing_values=('all' if cpath.n_seqs() < 500 else 'best'), print_partition_indices=True, n_to_print=n_to_print, ipart_center=ipart_center)
             if not self.args.is_data and self.reco_info is not None:  # if we're reading existing output, it's pretty common to not have the reco info even when it's simulation, since you have to also pass in the simulation input file on the command line
                 true_partition = utils.get_partition_from_reco_info(self.reco_info)
                 true_cp = ClusterPath(seed_unique_id=self.args.seed_unique_id)
@@ -417,7 +426,14 @@ class PartitionDriver(object):
             else:
                 sorted_annotations = sorted(annotation_list, key=lambda l: len(l['unique_ids']), reverse=True)
             if self.args.cluster_indices is not None:
-                sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]
+                print '    --cluster-indices: restricting to %d cluster%s with indices: %s' % (len(self.args.cluster_indices), utils.plural(len(self.args.cluster_indices)), ' '.join(str(i) for i in self.args.cluster_indices))
+                # sorted_annotations = [sorted_annotations[iclust] for iclust in self.args.cluster_indices]  # this is what it used to be, but this is wrong
+                antn_dict = utils.get_annotation_dict(sorted_annotations)
+                sorted_annotations = [antn_dict.get(':'.join(rc)) for rc in restricted_clusters]
+                if None in sorted_annotations:
+                    print '    %s missing %d requested annotations' % (utils.color('yellow', 'warning'), sorted_annotations.count(None))
+                    sorted_annotations = [l for l in sorted_annotations if l is not None]
+
             for iline, line in enumerate(sorted_annotations):
                 if self.args.only_print_best_partition and cpath is not None and cpath.i_best is not None and line['unique_ids'] not in cpath.partitions[cpath.i_best]:
                     continue
