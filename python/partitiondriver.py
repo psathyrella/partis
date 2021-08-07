@@ -402,6 +402,7 @@ class PartitionDriver(object):
                 print '  %s seed uids from args and cpath don\'t match %s %s ' % (utils.color('red', 'error'), self.args.seed_unique_id, cpath.seed_unique_id)
             if self.args.cluster_indices is not None:
                 tptn = cpath.best() if self.args.partition_index_to_print is None else cpath.partitions[self.args.partition_index_to_print]
+                tptn = sorted(tptn, key=len, reverse=True)  # NOTE this should always be sorted, i.e. dont_sort doesn't apply to this, since here we're only doing --cluster-indices, which says in its help message that we sort
                 restricted_clusters = [tptn[i] for i in self.args.cluster_indices]
             seed_uid = cpath.seed_unique_id
             n_to_print, ipart_center = None, None
