@@ -1074,7 +1074,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         diff = bpair[-1] - bpair[0]
         return [bpair[0] - fuzz * diff, bpair[1] + fuzz * diff]
     # ----------------------------------------------------------------------------------------
-    def get_xval_list(cluster, xkey):
+    def get_xval_list(cluster, xkey):  # NOTE this *has* to return values in the same order they're in line['unique_ids']
         line = annotations[':'.join(cluster)]
         if xkey in all_metrics:
             return [line['tree-info']['lb'][xkey][u] for u in line['unique_ids']]  # we can't use .values() because there's lb values in the dict in 'tree-info' that don't correspond to uids in 'unique_ids' (and we don't want to include those values)
@@ -1107,9 +1107,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             tqtis.update({u : u for u in set(cluster) & set(queries_to_include)})
         if meta_info_to_emphasize is not None:
             antn = annotations[':'.join(cluster)]
-            key, val = meta_info_to_emphasize.items()[0]
-            if key in antn and any(utils.meta_info_equal(val, v) for v in antn[key]):
-                tqtis.update({u : utils.meta_emph_str(key, val) for u, v in zip(cluster, antn[key]) if utils.meta_info_equal(val, v)})
+            if meta_key in antn and any(utils.meta_info_equal(meta_val, v) for v in antn[meta_key]):
+                tqtis.update({u : utils.meta_emph_str(meta_key, meta_val) for u, v in zip(cluster, antn[meta_key]) if utils.meta_info_equal(meta_val, v)})
         if len(tqtis) > 0:
             qti_x_vals = get_xval_dict(tqtis, xkey)  # add a red line for each of 'em (i.e. color that hist bin red)
             if plot_high_x:
@@ -1138,12 +1137,16 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         max_contents = max(hist.bin_contents)
         for ibin in range(1, hist.n_bins + 1):
             barheight = utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
-            color = base_color
-            if offset is None:
+            if meta_info_to_emphasize is not None:
+                bin_ids = [u for u, x in zip(antn['unique_ids'], xvals) if hist.find_bin(x)==ibin]  # uids in this bin
+                me_vals = [utils.per_seq_val(antn, meta_key, u) if meta_key in antn else None for u in bin_ids]  # meta info values for the uids in this bin
+                me_color_fracs = [(c, me_vals.count(v) / float(len(me_vals))) for v, c in emph_colors if v in me_vals]
+            bin_color = base_color
+            if offset is None:  # default: bar extends equally above + below center
                 y_lower, y_upper = yval - barheight/2, yval + barheight/2
-            else:
+            else:  # this bar is only up or down (and presumably a different bar is being drawn the other direction)
                 y_lower, y_upper = yval, yval
-                color = offcolor(offset)
+                bin_color = offcolor(offset)
                 if offset == 'up':
                     y_upper += barheight / 2
                 elif offset == 'down':
@@ -1154,14 +1157,24 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             # alpha = utils.intexterpolate(0, min_alpha, max_contents, max_alpha, hist.bin_contents[ibin])
             for xtmp in qti_x_vals.values():
                 if hist.find_bin(xtmp) == ibin:
-                    color = 'red'
+                    bin_color = 'red'
             if hist.bin_contents[ibin] == 0.:
-                color = 'grey'
+                bin_color = 'grey'
                 alpha = 0.4
             xlo, xhi = hist.low_edges[ibin], hist.low_edges[ibin+1]
             if xkey == x2key:  # if it's the second one, we need to rescale the x vals to correspond to the existing x1key x axis
                 xlo, xhi = [utils.intexterpolate(xbounds[x2key][0], xbounds[x1key][0], xbounds[x2key][1], xbounds[x1key][1], x) for x in [xlo, xhi]]
-            ax.fill_between([xlo, xhi], [y_lower, y_lower], [y_upper, y_upper], color=color, alpha=alpha)
+            if meta_info_to_emphasize is None or hist.bin_contents[ibin] == 0.:  # normal/default: one bin color
+                ax.fill_between([xlo, xhi], [y_lower, y_lower], [y_upper, y_upper], color=bin_color, alpha=alpha)
+            else:  # color different fractions of the bar according to input meta info
+                t_y_lo = y_lower
+                for tcol, tfrac in me_color_fracs:
+                    t_y_hi = t_y_lo + tfrac * (y_upper - y_lower)
+                    ax.fill_between([xlo, xhi], [t_y_lo, t_y_lo], [t_y_hi, t_y_hi], color=tcol, alpha=alpha)
+                    t_y_lo = t_y_hi
+                if bin_color == 'red':
+                    xmid, delta_x = xlo + 0.5 * (xhi - xlo), (xhi - xlo) / 8.
+                    ax.fill_between([xmid - delta_x, xmid + delta_x], [y_lower, y_lower], [t_y_hi, t_y_hi], color=bin_color, alpha=alpha)
 
     # ----------------------------------------------------------------------------------------
     colors = ['#006600', '#3399ff', '#ffa500']
@@ -1192,6 +1205,11 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     if any(xbounds[xk] is None for xk in xbounds):
         return 'no values' if high_x_val is None else high_x_clusters  # 'no values' isn't really a file name, it just shows up as a dead link in the html
     fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
+    if meta_info_to_emphasize is not None:
+        tme_colors = colors + [c for c in frozen_pltcolors if c not in colors]
+        meta_key, meta_val = meta_info_to_emphasize.items()[0]
+        all_emph_vals = set(v for c in sorted_clusters for v in annotations.get(':'.join(c), {}).get(meta_key, [])) - set([None])  # set of all possible values that this meta info key takes on in any cluster
+        emph_colors = [(None, 'grey')] + [(v, tme_colors[i%len(tme_colors)]) for i, v in enumerate(sorted(all_emph_vals))]
 
     if debug:
         print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%x1key) if plot_high_x else '')
@@ -1221,7 +1239,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             yticks.append(yval)
             yticklabels.append(repfracstr if x2key is None else '%d'%csize)
 
-            base_color = colors[iclust_global % len(colors)]
+            base_color = colors[iclust_global % len(colors)] if meta_info_to_emphasize is None else 'black'
 
             add_hist(x1key, x1vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset=None if x2key is None else 'up')
             if x2key is not None:
