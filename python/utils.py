@@ -463,7 +463,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'reads', 'umis', 'c_genes', 'cell-types', 'chosens',
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'reads', 'umis', 'c_genes', 'cell-types', 'chosens', 'paireds',
                        'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
@@ -509,6 +509,7 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'reads' : 'reads',
     'c_gene' : 'c_genes',
     'chosen' : 'chosens',
+    'paired' : 'paireds',
 }
 if any(k not in linekeys['per_seq'] for k in input_metafile_keys.values()):
     raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence (add to linekeys[\'per_seq\']): %s' % ' '.join(k for k in input_metafile_keys.values() if k not in linekeys['per_seq']))
