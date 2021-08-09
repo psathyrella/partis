@@ -21,7 +21,7 @@ class PartitionPlotter(object):
         import plotting
         self.plotting = sys.modules['plotting']
 
-        self.n_clusters_per_joy_plot = 50 if self.args.meta_info_to_emphasize is None else 30
+        self.n_clusters_per_joy_plot = 50 if self.args.meta_info_key_to_color is None else 30
         self.n_max_joy_plots = 30
         self.n_max_mutations = 65
         self.n_joyplots_in_html = 4  # the rest of them are still in the dir, they're just not displayed in the html
@@ -177,18 +177,18 @@ class PartitionPlotter(object):
             if iclustergroup > self.n_max_joy_plots:  # note that when this is activated, the high mutation plot is no longer guaranteed to have every high mutation cluster (but it should have every high mutation cluster that was bigger than the cluster size when we started skipping here)
                 continue
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
-            high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title,
-                                                                        high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize,
-                                                                        make_legend=self.args.meta_info_to_emphasize is not None and iclustergroup==0, debug=debug)
+            high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations,
+                                                                        queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color,
+                                                                        make_legend=self.args.meta_info_key_to_color is not None and iclustergroup==0, debug=debug)
             if len(fnames[-1]) < self.n_joyplots_in_html:
                 self.addfname(fnames, get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
-        if self.args.meta_info_to_emphasize is not None:
+        if self.args.meta_info_key_to_color is not None:
             self.addfname(fnames, get_fname(iclustergroup=0)+'-legend')
         if len(high_mutation_clusters) > self.n_clusters_per_joy_plot and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
         self.plotting.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations,
-                                          high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, debug=debug)
+                                          high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, debug=debug)
         self.addfname(fnames, get_fname(high_mutation=True))
 
         # size vs shm hexbin plots
@@ -201,7 +201,7 @@ class PartitionPlotter(object):
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True)
 
         rfnames = [fnames[0][0]] + fnames[-1]  # take the first joy plot, and the two hexbin plots
-        if self.args.meta_info_to_emphasize is not None:
+        if self.args.meta_info_key_to_color is not None:
             rfnames.insert(0, fnames[0][len(fnames[0])-2])  # and the meta info legend
         return [[subd + '/' + fn for fn in rfnames]]
 
