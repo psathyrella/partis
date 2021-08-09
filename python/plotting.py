@@ -693,7 +693,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     if not no_legend:
         handles, labels = ax.get_legend_handles_labels()
-        if len(handles) > 0 or no_legend:
+        if len(handles) > 0:
             if len(handles) > 5:
                 leg_loc = leg_loc[0], leg_loc[1] - 0.15
             legend = ax.legend(handles, labels, loc=leg_loc, prop=leg_prop, title=leg_title, fontsize=legend_fontsize)
