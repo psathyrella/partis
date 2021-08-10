@@ -731,7 +731,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
 
     fullname = plotdir + '/' + plotname + '.' + suffix
     plt.savefig(fullname)
-    plt.close()
+    plt.close('all')
     # subprocess.check_call(['chmod', '664', fullname])
     return fullname  # this return is being added long after this fcn was written, so it'd be nice to go through all the places where it's called and take advantage of the return value
 
@@ -1129,12 +1129,15 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                 fixed_x1max = 1.05 + max(qti_x_vals.values())
             if plot_high_x:
                 xfac = 1.1
-            elif float(median_x1) / fixed_x1max < 0.5:
-                xfac = 0.75
-            else:
+            elif float(median_x1) / fixed_x1max < 0.5:  # if seqs are mostly on the left, put text on right
+                xfac = min(0.75, max(xvals) / float(fixed_x1max) + 0.1)
+            else:  # vice versa
                 xfac = 0.1
             qtistrs = [tqtis[u] for u in sorted(tqtis, key=lambda q: qti_x_vals[q])]  # sort by x value, then label with value from tqtis
-            ax.text(xfac * fixed_x1max, yval, ' '.join(qtistrs), color='red', fontsize=8)
+            if any(qtistrs.count(s)>1 for s in set(qtistrs)):
+                for qstr in [s for s in set(qtistrs) if qtistrs.count(s)>1]:
+                    qtistrs = [s for s in qtistrs if s!=qstr] + ['%s(x%d)' % (qstr, qtistrs.count(qstr))]
+            ax.text(xfac * fixed_x1max, yval, ', '.join(qtistrs), color='red', fontsize=8)
 
         if debug:
             fstr = '6.1f' if xkey == 'n_mutations' else '6.4f'
@@ -1186,8 +1189,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                     ax.fill_between([xlo, xhi], [t_y_lo, t_y_lo], [t_y_hi, t_y_hi], color=tcol, alpha=alpha)
                     t_y_lo = t_y_hi
             if any(hist.find_bin(x)==ibin for x in qti_x_vals.values()):
-                xmid, delta_x = xlo + 0.5 * (xhi - xlo), (xhi - xlo) / 8.
-                ymin, ymax = yval - max_bar_height/2., yval + max_bar_height/2.
+                xmid, delta_x = xlo + 0.5 * (xhi - xlo), (xhi - xlo) / 12.
+                ymin, ymax = yval - max_bar_height/4., yval + max_bar_height/4.
                 ax.fill_between([xmid - delta_x, xmid + delta_x], [ymin, ymin], [ymax, ymax], color='red', alpha=alpha)
         return fixed_x1max  # ick ick ick
 
@@ -1200,8 +1203,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # grey '#808080'
 
     dpi = 80
-    xpixels = 450
-    min_ypixels = 400
+    xpixels = 550 #450
+    min_ypixels = 500 #400
     total_delta_y = len(sorted_clusters)
     y_bar_pixels = 12 if x2key is None else 25
     if meta_info_key_to_color is not None:

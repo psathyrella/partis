@@ -133,7 +133,10 @@ def process(args):
     args.queries = utils.get_arg_list(args.queries)
     args.queries_to_include = utils.get_arg_list(args.queries_to_include)
     args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
-    assert args.meta_info_to_emphasize is None or len(args.meta_info_to_emphasize) == 1  # should at some point let there be more than one key
+    if args.meta_info_to_emphasize is not None:
+        if any(k not in utils.input_metafile_keys.values() for k in args.meta_info_to_emphasize):
+            print '  %s meta info key[s] %s in --meta-info-to-emphasize not among expected choices: %s' % (utils.color('yellow', 'warning'), [k for k in args.meta_info_to_emphasize if k not in utils.input_metafile_keys.values()], utils.input_metafile_keys.values())
+        assert len(args.meta_info_to_emphasize) == 1  # should at some point let there be more than one key
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
     if args.istartstop is not None:

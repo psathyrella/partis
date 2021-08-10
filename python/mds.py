@@ -123,7 +123,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
             for uid, ulabel in tqtis.items():
                 xval, yval = pcvals[uid]
                 ax.plot([xval], [yval], color='red', marker='.', markersize=10)
-                ax.text(xval, yval, ulabel, color='red', fontsize=8)
+                ax.text(xval, yval, ulabel.replace('@', ' '), color='red', fontsize=8)
 
         # smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         # smap.set_array([])
