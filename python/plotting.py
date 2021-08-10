@@ -1090,7 +1090,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     def get_xval_list(cluster, xkey):  # NOTE this *has* to return values in the same order they're in line['unique_ids']
         line = annotations[':'.join(cluster)]
         if xkey in all_metrics:
-            return [line['tree-info']['lb'][xkey][u] for u in line['unique_ids']]  # we can't use .values() because there's lb values in the dict in 'tree-info' that don't correspond to uids in 'unique_ids' (and we don't want to include those values)
+            return [line['tree-info']['lb'][xkey][u] for u in line['unique_ids']]  # we can't use .values() because there's lb values in the dict in 'tree-info' that don't correspond to uids in 'unique_ids' (and we don't want to include those values) (plus the order wouldn't be right)
         else:
             return line[xkey]
     # ----------------------------------------------------------------------------------------
@@ -1113,7 +1113,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     def uselog(xkey):  # the low end (zero bin) of these distributions always dominates, but we're actually interested in the upper tail, so logify it
         return xkey in all_metrics or xkey == 'affinities'
     # ----------------------------------------------------------------------------------------
-    def add_hist(xkey, xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
+    def add_hist(xkey, sorted_xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
         qti_x_vals = {}
         tqtis = {}  # queries to emphasize in this cluster (map from actual uid to the label we want)
         if queries_to_include is not None:
@@ -1130,7 +1130,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             if plot_high_x:
                 xfac = 1.1
             elif float(median_x1) / fixed_x1max < 0.5:  # if seqs are mostly on the left, put text on right
-                xfac = min(0.75, max(xvals) / float(fixed_x1max) + 0.1)
+                xfac = min(0.75, max(sorted_xvals) / float(fixed_x1max) + 0.1)
             else:  # vice versa
                 xfac = 0.1
             qtistrs = [tqtis[u] for u in sorted(tqtis, key=lambda q: qti_x_vals[q])]  # sort by x value, then label with value from tqtis
@@ -1141,15 +1141,15 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
         if debug:
             fstr = '6.1f' if xkey == 'n_mutations' else '6.4f'
-            print ('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, numpy.median(xvals), numpy.mean(xvals))
+            print ('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, numpy.median(sorted_xvals), numpy.mean(sorted_xvals))
 
         if xkey == 'n_mutations':
-            nbins = xvals[-1] - xvals[0] + 1
-            hist = Hist(nbins, xvals[0] - 0.5, xvals[-1] + 0.5)
+            nbins = sorted_xvals[-1] - sorted_xvals[0] + 1
+            hist = Hist(nbins, sorted_xvals[0] - 0.5, sorted_xvals[-1] + 0.5)
         else:
             nbins = 30 if xkey in all_metrics else 15
             hist = Hist(nbins, *bexpand(xbounds[xkey], fuzz=0.01))
-        hist.list_fill(xvals)
+        hist.list_fill(sorted_xvals)
         if uselog(xkey):
             hist.logify(0.3)  # the factor is kind of arbitrary, but we need to set the scale for the smallest bin contents (in this case 1)
         assert hist.overflow_contents() == 0.  # includes underflows
@@ -1157,8 +1157,9 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         for ibin in range(1, hist.n_bins + 1):
             barheight = utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
             if meta_info_key_to_color is not None:
-                bin_ids = [u for u, x in zip(antn['unique_ids'], xvals) if hist.find_bin(x)==ibin]  # uids in this bin
-                me_vals = [utils.per_seq_val(antn, meta_info_key_to_color, u) if meta_info_key_to_color in antn else None for u in bin_ids]  # meta info values for the uids in this bin
+                bin_ids = [u for u, x in zip(antn['unique_ids'], get_xval_list(cluster, xkey)) if hist.find_bin(x)==ibin]  # uids in this bin
+                def psfcn(u): return utils.per_seq_val(antn, meta_info_key_to_color, u, use_default=True)
+                me_vals = [psfcn(u) for u in bin_ids]  # meta info values for the uids in this bin
                 me_color_fracs = [(c, me_vals.count(v) / float(len(me_vals))) for v, c in emph_colors if v in me_vals]
             bin_color = base_color
             if offset is None:  # default: bar extends equally above + below center

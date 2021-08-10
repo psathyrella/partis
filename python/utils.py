@@ -694,9 +694,11 @@ def get_non_vj_len(line):
     return line['regional_bounds']['j'][0] - line['regional_bounds']['v'][1]
 
 # ----------------------------------------------------------------------------------------
-def per_seq_val(line, key, uid):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand (for search: iseq)
+def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand (for search: iseq)
     if key not in linekeys['per_seq']:
         raise Exception('key \'%s\' not in per-sequence keys' % key)
+    if use_default and key not in line:
+        return default_val
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
 
 # ----------------------------------------------------------------------------------------
@@ -2395,6 +2397,10 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
         add_alignments(glfo, aligned_gl_seqs, line)
 
     re_sort_per_gene_support(line)  # in case it was read from json.dump()'d file
+
+    # for pskey in set(linekeys['per_seq']) & set(line):  # make sure all the per-seq keys have the right length (it happened once, admittedly cause i was editing by hand, but the consequences were extremely bad)
+    #     if len(line[pskey]) != len(line['unique_ids']):
+    #         raise Exception('line with %d uids has %d values for key \'%s\'' % (len(line['unique_ids']), len(line[pskey]), pskey))
 
     if check_line_keys:
         new_keys = set(line) - initial_keys
