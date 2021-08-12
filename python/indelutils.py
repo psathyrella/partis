@@ -19,8 +19,8 @@ def get_empty_indel():
     return emptdel
 
 # ----------------------------------------------------------------------------------------
-def has_indels_line(line, iseq):  # arg it sucks that these fcns both exist, but I can't change all the instances that use the older one (below) right now (the basic reason this fcn exists is that sometimes only 'indelfos' is there, and sometimes only 'has_shm_indels' is there (I think if reading a file without adding implicit info?)
-    if 'has_shm_indels' in line:
+def has_indels_line(line, iseq):  # arg it sucks that these fcns both exist, but I can't change all the instances that use the older one (below) right now
+    if 'has_shm_indels' in line:  # this is the key that's written to files, but it gets removed during implicit info adding [UPDATE no longer removing it. I think I originally wanted to remove all three file-style keys (this and the gap seqs) so there was no redundancy, but has_shm_indels is really convenient (and i accidentally used it in treeutils) so I think it's worth keeping)
         return line['has_shm_indels'][iseq]
     else:
         return has_indels(line['indelfos'][iseq])
@@ -413,7 +413,7 @@ def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this f
             reconstruct_indelfo_from_indel_list(line['indelfos'][iseq], line, iseq, debug=debug)
     elif 'has_shm_indels' in line:  # we're reading a new-style file (reverse of this happens in utils.transfer_indel_info())
         line['indelfos'] = [reconstruct_indelfo_from_gap_seqs_and_naive_seq(line['qr_gap_seqs'][iseq], line['gl_gap_seqs'][iseq], {r : line[r + '_gene'] for r in utils.regions}, line, iseq, debug=debug) for iseq in range(len(line['unique_ids']))]
-        for key in ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs']:
+        for key in ['qr_gap_seqs', 'gl_gap_seqs']:  # NOTE uesd to also remove has_shm_indels, but i think it's better to not remove it
             if key in line:
                 del line[key]
 

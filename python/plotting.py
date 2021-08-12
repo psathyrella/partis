@@ -1234,6 +1234,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         emph_colors = [(v, tme_colors[i%len(tme_colors)]) for i, v in enumerate(sorted(all_emph_vals))] + [(None, 'grey')]
     if meta_info_to_emphasize is not None:
         meta_emph_key, meta_emph_val = meta_info_to_emphasize.items()[0]
+        if all(meta_emph_key not in l for l in annotations.values()):
+            print '  %s emphasis key \'%s\' not found in any of %d annotations' % (utils.color('yellow', 'warning'), meta_emph_key, len(annotations))
 
     if debug:
         print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%x1key) if plot_high_x else '')
