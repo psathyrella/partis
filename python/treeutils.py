@@ -2322,6 +2322,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     ofo.update([('sum_'+kn, sum(gsval(mfo, c, kn) for c in 'hl'))])
             ofo.update([(c+'_family_size', len(mfo[c]['unique_ids'])) for c in 'hl'])
             ofo.update([(c+'_'+r+'_gene' , mfo[c][r+'_gene']) for r in utils.regions for c in 'hl'])
+            ofo.update([(c+'_locus', mfo[c]['loci'][0]) for r in utils.regions for c in 'hl'])
             if 'consensus' in mfo:
                 for tch in 'hl':
                     ofo[tch+'_seq_aa'] = mfo[tch+'_cseq_aa']

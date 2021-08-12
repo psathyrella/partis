@@ -3,6 +3,7 @@
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
+    - [choosing antibodies](#choosing-antibodies)
   - [view-output](#view-output) print the partitions and/or annotations from an existing output file
   - [cache-parameters](#cache-parameters) write parameter values and HMM model files for later inference (runs automatically, if needed)
     - [germline sets](#germline-sets)
