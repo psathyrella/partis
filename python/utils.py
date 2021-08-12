@@ -542,7 +542,7 @@ def meta_info_equal(val1, val2):  # also ick (don't have another way to convert 
     return cfcn(val1) == cfcn(val2)
 
 # ----------------------------------------------------------------------------------------
-special_indel_columns_for_output = ['has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)
+special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)  NOTE used to also include has_shm_indels'
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
