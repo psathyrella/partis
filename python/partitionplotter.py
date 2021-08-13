@@ -445,12 +445,41 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_cluster_size_distribution(self, base_plotdir, partition):
+    def make_cluster_size_distribution(self, base_plotdir, sorted_clusters, annotations):
         subd, plotdir = self.init_subd('sizes', base_plotdir)
         fname = 'cluster-sizes'
-        csize_hists = {'best' : hutils.make_hist_from_list_of_values([len(c) for c in partition], 'int', fname)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want
-        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists)
-        csize_hists['best'].write(plotdir + '/' + fname + '.csv')
+        hcolors = None
+        csize_hists = {'best' : hutils.make_hist_from_list_of_values([len(c) for c in sorted_clusters], 'int', fname)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want
+        if self.args.meta_info_key_to_color is not None:  # plot mean fraction of cluster that's X for each cluster size
+            mekey = self.args.meta_info_key_to_color
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, sorted_clusters, annotations)
+            hcolors = {utils.meta_emph_str(mekey, v) : c for v, c in emph_colors}
+            plotvals = {v : [] for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
+            for csize, cluster_group in itertools.groupby(sorted_clusters, key=len):
+                for tclust in cluster_group:
+                    antn = annotations.get(':'.join(tclust))
+                    if antn is None or self.args.meta_info_key_to_color not in antn:
+                        continue
+                    vgroups = utils.group_seqs_by_value(tclust, lambda x: utils.per_seq_val(antn, self.args.meta_info_key_to_color, x), return_values=True)
+                    emph_fracs = {v : len(grp) / float(csize) for v, grp in vgroups}
+                    for v, frac in emph_fracs.items():
+                        plotvals[v].append((csize, frac))
+            bhist = csize_hists['best']
+            csize_hists.update({utils.meta_emph_str(mekey, v) : Hist(n_bins=bhist.n_bins, xmin=bhist.xmin, xmax=bhist.xmax) for v in all_emph_vals})  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
+            del csize_hists['best']
+            for e_val, cvals in plotvals.items():
+                ehist = csize_hists[utils.meta_emph_str(mekey, e_val)]
+                for ibin in ehist.ibiniter(include_overflows=True):
+                    ib_vals = [f for s, f in cvals if ehist.find_bin(s)==ibin]  # fracs whose cluster sizes fall in this bin (should all be quite similar in size if our bins are sensible, so shouldn't need to do an average weighted for cluster size)
+                    if len(ib_vals) == 0:
+                        continue
+                    mval = numpy.mean(ib_vals)
+                    err = mval / math.sqrt(2) if len(ib_vals) == 1 else numpy.std(ib_vals, ddof=1) / math.sqrt(len(ib_vals))  # that isn't really right for len 1, but whatever
+                    ehist.set_ibin(ibin, mval, err)
+
+        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors)
+        for hname, thist in csize_hists.items():
+            thist.write('%s/%s%s.csv' % (plotdir, fname, '' if hname=='best' else '-'+hname))
         return [[subd + '/' + fname + '.svg']]
 
     # ----------------------------------------------------------------------------------------
@@ -484,7 +513,7 @@ class PartitionPlotter(object):
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
         # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
         # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
-        csfns = self.make_cluster_size_distribution(plotdir, partition)
+        csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)
         fnames[0] += csfns[0]
 
         subdirs = ['shm-vs-size', 'mds'] #, 'laplacian-spectra']  # , 'sfs

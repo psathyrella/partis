@@ -49,6 +49,14 @@ plot_ratios = {
     'j' : (8, 3)
 }
 
+# ----------------------------------------------------------------------------------------
+def meta_emph_init(meta_info_key_to_color, sorted_clusters, antn_dict):
+    # tme_colors = alt_colors + [c for c in frozen_pltcolors if c not in alt_colors]
+    tme_colors = [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
+    all_emph_vals = set(v for c in sorted_clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [])) - set([None])  # set of all possible values that this meta info key takes on in any cluster
+    emph_colors = [(v, tme_colors[i%len(tme_colors)]) for i, v in enumerate(sorted(all_emph_vals))] + [(None, 'grey')]
+    return all_emph_vals, emph_colors
+
 # # ----------------------------------------------------------------------------------------
 # def _hls2hex(rgb_tuple):
 #     h, l, s, alpha = rgb_tuple
@@ -497,7 +505,7 @@ def label_bullshit_transform(label):
 # colors['cdr3-indels'] = '#cc0000'
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False):
+def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None):
     hist_list, tmpcolors, alphas = [], [], []
     for ih, (name, hist) in enumerate(hists.items()):
         if 'misassign' in name:
@@ -508,7 +516,10 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         if hist.integral(True) == 0:
             continue
 
-        tmpcolors.append(colors.get(name, 'grey' if len(hists)==1 else default_colors[ih%len(default_colors)]))
+        if hcolors is None:
+            tmpcolors.append(colors.get(name, 'grey' if len(hists)==1 else default_colors[ih%len(default_colors)]))
+        else:
+            tmpcolors.append(hcolors.get(name, 'grey'))
         alphas.append(0.7)
         hxmin, hxmax = hist.get_filled_bin_xbounds()
         if xmin is None or hxmin < xmin:
@@ -1228,10 +1239,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return 'no values' if high_x_val is None else high_x_clusters  # 'no values' isn't really a file name, it just shows up as a dead link in the html
     fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
     if meta_info_key_to_color is not None:
-        # tme_colors = alt_colors + [c for c in frozen_pltcolors if c not in alt_colors]
-        tme_colors = [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
-        all_emph_vals = set(v for c in sorted_clusters for v in annotations.get(':'.join(c), {}).get(meta_info_key_to_color, [])) - set([None])  # set of all possible values that this meta info key takes on in any cluster
-        emph_colors = [(v, tme_colors[i%len(tme_colors)]) for i, v in enumerate(sorted(all_emph_vals))] + [(None, 'grey')]
+        _, emph_colors = meta_emph_init(meta_info_key_to_color, sorted_clusters, annotations)
     if meta_info_to_emphasize is not None:
         meta_emph_key, meta_emph_val = meta_info_to_emphasize.items()[0]
         if all(meta_emph_key not in l for l in annotations.values()):

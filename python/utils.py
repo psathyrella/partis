@@ -4206,8 +4206,12 @@ def split_partition_with_criterion(partition, criterion_fcn):  # this would prob
     return true_clusters, false_clusters
 
 # ----------------------------------------------------------------------------------------
-def group_seqs_by_value(queries, keyfunc):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
-    return [list(group) for _, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)]
+def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
+    vals, groups = zip(*[(val, list(group)) for val, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)])
+    if return_values:
+        return zip(*(vals, groups))
+    else:
+        return groups
 
 # ----------------------------------------------------------------------------------------
 def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  # <split_by_cdr3> is only needed when we're getting synthetic sw info that's a mishmash of hmm and sw annotations
