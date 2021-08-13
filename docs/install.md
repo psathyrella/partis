@@ -28,6 +28,11 @@ To then reattach to this running container, run `docker attach container-1`.
 #### Installation from scratch
 
 To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile) (ignoring the `FROM` and `COPY` lines).
+In place of `FROM`, you should clone the partis repo and init/update its submodules:
+```
+git clone git@github.com:psathyrella/partis
+git submodule update --init --recursive
+```
 If you're on a debian variant, run the apt-get install as written.
 On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/brew for apt-get.
 
