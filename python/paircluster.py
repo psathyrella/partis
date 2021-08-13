@@ -1033,9 +1033,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 jclust = utils.get_single_entry(jclusts)  # if <nearid> is in more than one cluster in the partition, it isn't a partition (which I think will only happen if it's an unfinished/uncleaned seed unique id partition)
                 jclust.append(upid)
                 n_added[tch] += 1
-        if debug:
-            totstr = '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in joint_partitions[tch])) for tch in sorted(ploci))
-            print '    re-added unpaired seqs (%s) to give total seqs in joint partitions: %s' % (', '.join('%s %d'%(utils.locstr(ploci[tch]), n) for tch, n in n_added.items()), totstr)
+        totstr = '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in joint_partitions[tch])) for tch in sorted(ploci))
+        print '    re-added unpaired seqs (%s) to give total seqs in joint partitions: %s' % (', '.join('%s %d'%(utils.locstr(ploci[tch]), n) for tch, n in n_added.items()), totstr)
 
     if true_partitions is not None:
         assert iparts is None  # just for now

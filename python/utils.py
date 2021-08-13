@@ -462,7 +462,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates', 'is_correctly_paireds',
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'reads', 'umis', 'c_genes', 'cell-types', 'chosens', 'paireds',
                        'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
@@ -2397,6 +2397,9 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
         add_alignments(glfo, aligned_gl_seqs, line)
 
     re_sort_per_gene_support(line)  # in case it was read from json.dump()'d file
+
+    if 'paired-uids' in line:
+        line['is_correctly_paireds'] = [len(pids)==1 for pids in line['paired-uids']]
 
     # for pskey in set(linekeys['per_seq']) & set(line):  # make sure all the per-seq keys have the right length (it happened once, admittedly cause i was editing by hand, but the consequences were extremely bad)
     #     if len(line[pskey]) != len(line['unique_ids']):
