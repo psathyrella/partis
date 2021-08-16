@@ -411,9 +411,9 @@ def deal_with_indel_stuff(line, reset_indel_genes=False, debug=False):  # this f
     if 'indelfos' in line and 'reversed_seq' not in line['indelfos'][0]:  # old-style files
         for iseq in range(len(line['unique_ids'])):
             reconstruct_indelfo_from_indel_list(line['indelfos'][iseq], line, iseq, debug=debug)
-    elif 'has_shm_indels' in line:  # we're reading a new-style file (reverse of this happens in utils.transfer_indel_info())
+    elif any(c in line for c in set(utils.special_indel_columns_for_output) - set(['indel_reversed_seqs'])):  # we're reading a new-style file (reverse of this happens in utils.transfer_indel_info())
         line['indelfos'] = [reconstruct_indelfo_from_gap_seqs_and_naive_seq(line['qr_gap_seqs'][iseq], line['gl_gap_seqs'][iseq], {r : line[r + '_gene'] for r in utils.regions}, line, iseq, debug=debug) for iseq in range(len(line['unique_ids']))]
-        for key in ['qr_gap_seqs', 'gl_gap_seqs']:  # NOTE uesd to also remove has_shm_indels, but i think it's better to not remove it
+        for key in ['qr_gap_seqs', 'gl_gap_seqs']:  # NOTE uesd to also remove has_shm_indels, but i think it's better to not remove it (maybe should use utils.special_indel_columns_for_output here? but don't want to change it now)
             if key in line:
                 del line[key]
 

@@ -542,7 +542,7 @@ def meta_info_equal(val1, val2):  # also ick (don't have another way to convert 
     return cfcn(val1) == cfcn(val2)
 
 # ----------------------------------------------------------------------------------------
-special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)  NOTE used to also include has_shm_indels'
+special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)  NOTE used to also include 'has_shm_indels' (also note that 'indel_reversed_seqs' is treated differently for some purposes than are the gap seq keys)
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
@@ -1993,7 +1993,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     for iseq in range(nseqs):
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : len(trimmed_seqs[iseq]) - line['j_3p_del']]
         line['input_seqs'][iseq] = trimmed_input_seqs[iseq][line['v_5p_del'] : len(trimmed_input_seqs[iseq]) - line['j_3p_del']]
-        if 'has_shm_indels' in line and line['has_shm_indels'][iseq] or 'indelfos' in line and indelutils.has_indels(line['indelfos'][iseq]):  # if 'indelfos' isn't in <line>, implicit info needs to be added, but maybe it will crash (arg)
+        if indelutils.has_indels_line(line, iseq):  # if 'indelfos' isn't in <line>, implicit info needs to be added, but maybe it will crash (arg)
             indelutils.trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, line['v_5p_del'], line['j_3p_del'])
 
     line['fv_insertion'] = final_fv_insertion
@@ -3333,7 +3333,7 @@ def get_line_for_output(headers, info, glfo=None):
         if key in ['seqs', 'indelfo', 'indelfos']:
             continue
 
-        if key not in special_indel_columns_for_output:  # these four were already added to <outfo> (and are not in <info>), but everyone else needs to be transferred from <info> to <outfo>
+        if key not in special_indel_columns_for_output:  # these keys were already added to <outfo> (and are not in <info>), but everyone else needs to be transferred from <info> to <outfo>
             if key in info:
                 if key in io_column_configs['lists-of-lists']:
                     outfo[key] = copy.deepcopy(info[key])
