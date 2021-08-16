@@ -4211,7 +4211,7 @@ def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to
     if return_values:
         return zip(*(vals, groups))
     else:
-        return groups
+        return list(groups)
 
 # ----------------------------------------------------------------------------------------
 def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  # <split_by_cdr3> is only needed when we're getting synthetic sw info that's a mishmash of hmm and sw annotations
