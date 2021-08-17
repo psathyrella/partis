@@ -1,6 +1,7 @@
 #### plotting
   * [parameter plots](#parameter-plots)
   * [partition plots](#partition-plots)
+    - [extra color/emphasis](#extra-color/emphasis)
   * germline inference plots: [separate file](germline-inference.md)
   * [annotation truth plots](#annotation-truth-plots)
   * [comparison plots](#comparison-plots)
@@ -62,6 +63,7 @@ While there is no easy biological interpretation for the various directions on t
 Both the inferred naive sequence and consensus sequence for each cluster are shown as red points on these plots (as are any queries specified with `--queries-to-include` or `--queries-to-include-fname`), and the SHM rate of each sequence is given by its transparency (darker is more mutated).
 So in cases where dots get uniformly less transparent as they get further from the red naive dot, this tells you that the dimension reduction is not losing very much information.
 In cases where the plots are, on the other hand, uniformly speckled all over, the sequences are distributed more evenly across the 400-odd dimensional space (i.e. there wasn't a way to squish down to two dimensions without losing lots of information).
+Note that duplicate sequences are collapsed/removed before passing to the MDS method, so you can't tell in the final plot how many sequences contribute to any one point.
 The plot title shows the family's zero-based, size-sorted index and size (matching the numbers on the right side of the slug plots).
 The overview html again only shows plots for the largest few clusters, while the rest can be found in the `partitions/mds/` subdirectory.
 
@@ -77,6 +79,16 @@ Making laplacian spectra will require installation of the following:
 mkdir -p packages/RPANDA/lib
 R CMD INSTALL -l packages/RPANDA/lib packages/RPANDA/
 ```
+
+###### extra color/emphasis
+
+There are several ways to add additional coloring and emphasis to the partition plots.
+You can separate different values of a variable with different colors using `--meta-info-key-to-color`, for instance giving different timepoints different colors with `--meta-info-key-to-color timepoints`.
+You can also use `--meta-info-to-emphasize` to highlight sequences with particular values of a variable (similar to `--queries-to-include`), for instance with a particular number of mutations `n_mutations,N`.
+For instance here we've colored samples by timepoint, and highlighted sequences from a paired sample (to the latter of which we added an input meta info key `paired` set to `True`, and used `--meta-info-to-emphasize paireds,True`):
+
+![meta-emph-partitions](images/meta-emph-partitions.png)
+
 
 #### germline inference plots
 
