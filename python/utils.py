@@ -522,6 +522,7 @@ def input_metafile_defaults(mkey):  # default values to use if the info isn't th
 
 reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
+# ----------------------------------------------------------------------------------------
 def add_input_meta_keys(extra_keys, are_line_keys=False):  # NOTE I'm adding this late, and not completely sure that it's ok to modify these things on the fly like this (but i think the ability to add arbitrary keys is super important)
     new_keys = []
     for ekey in extra_keys:
@@ -535,23 +536,37 @@ def add_input_meta_keys(extra_keys, are_line_keys=False):  # NOTE I'm adding thi
         annotation_headers.append(ekey+'s')
         new_keys.append(ekey)
     print '  note: added %d new input meta key%s to allowed keys (add \'s\'/plural to access it in the final annotations): %s (%s)' % (len(new_keys), plural(len(new_keys)), ' '.join(new_keys), ' '.join(k+'s' for k in new_keys))
-def meta_emph_str(key, val):  # ick
-    if isinstance(val, float):
+
+# ----------------------------------------------------------------------------------------
+def meta_emph_str(key, val, formats=None):  # ick
+    kstr, use_len = key.rstrip('s'), False  # (rstrip removes plural, and yes will probably break something at some point)
+    if formats is not None and key in formats:
+        if formats[key] == 'len':
+            use_len = True
+        else:
+            kstr = formats[key]
+    if use_len:
+        return 'None' if val is None else '%d' % len(val)
+    elif isinstance(val, float):
         return '%.2f' % v
     elif isinstance(val, bool) or val in ['True', 'False']:
-        return key.rstrip('s') if val else 'nope'  # not sure what to do if it's False, but probably you'll only call it asking for True? (rstrip removes plural, and yes will probably break something at some point)
+        return kstr if val else 'nope'  # not sure what to do if it's False, but probably you'll only call it asking for True?
     else:
         return str(val)
-def meta_info_equal(val1, val2):  # also ick (don't have another way to convert the value from the command line arg to the proper thing [the values coming from yaml file will be properly converted)
-    cfcn = lambda x: x
-    for tname in [bool, float, int]:
-        if any(isinstance(v, tname) for v in [val1, val2]):
-            bstrs = ['True', 'False']
-            if tname == bool and any(str(v) not in bstrs for v in [val1, val2]):
-                raise Exception('bool string[s] %s not among %s' % ([v for v in [val1, val2] if str(v) not in bstrs], bstrs))
-            cfcn = tname
-            break
-    return cfcn(val1) == cfcn(val2)
+
+# ----------------------------------------------------------------------------------------
+def meta_info_equal(key, val1, val2, formats=None):  # also ick (don't have another way to convert the value from the command line arg to the proper thing [the values coming from yaml file will be properly converted)
+    def cfcn():
+        if formats is not None and formats.get(key) == 'len':
+            return len
+        for tname in [bool, float, int]:
+            if any(isinstance(v, tname) for v in [val1, val2]):
+                bstrs = ['True', 'False']
+                if tname == bool and any(str(v) not in bstrs for v in [val1, val2]):
+                    raise Exception('bool string[s] %s not among %s' % ([v for v in [val1, val2] if str(v) not in bstrs], bstrs))
+                return tname
+        return lambda x: x
+    return cfcn()(val1) == cfcn()(val2)
 
 # ----------------------------------------------------------------------------------------
 special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)  NOTE used to also include 'has_shm_indels' (also note that 'indel_reversed_seqs' is treated differently for some purposes than are the gap seq keys)

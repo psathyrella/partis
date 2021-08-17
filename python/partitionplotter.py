@@ -30,7 +30,7 @@ class PartitionPlotter(object):
         self.n_plots_per_row = 4
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
-        self.mds_max_cluster_size = 50000  # it's way tf too slow
+        self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
         self.laplacian_spectra_min_clusters_size = 4
         self.max_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
 
@@ -65,7 +65,7 @@ class PartitionPlotter(object):
                     tqtis |= set(cluster) & set(self.args.queries_to_include)
                 if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(annotations, cluster):
                     key, val = self.args.meta_info_to_emphasize.items()[0]
-                    tqtis.add(utils.meta_emph_str(key, val))
+                    tqtis.add(utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats))
                 if len(tqtis) == 0:
                     continue
                 xval, yval = numpy.mean(getnmutelist(cluster)), len(cluster)
@@ -129,7 +129,7 @@ class PartitionPlotter(object):
     def meta_emph(self, annotations, cluster, uid):  # return True if <uid> from <cluster> satisfies criteria in self.args.meta_info_to_emphasize
         antn = annotations[':'.join(cluster)]
         key, val = self.args.meta_info_to_emphasize.items()[0]
-        return key in antn and utils.meta_info_equal(val, utils.per_seq_val(antn, key, uid))
+        return key in antn and utils.meta_info_equal(key, val, utils.per_seq_val(antn, key, uid), formats=self.args.meta_emph_formats)
 
     # ----------------------------------------------------------------------------------------
     def any_meta_emph(self, annotations, cluster):
@@ -178,7 +178,7 @@ class PartitionPlotter(object):
                 continue
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
             high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations,
-                                                                        queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color,
+                                                                        queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats,
                                                                         make_legend=self.args.meta_info_key_to_color is not None, debug=debug)  # have to make legend for every plot
             if len(fnd['joy']) < self.n_joyplots_in_html['shm-vs-size']:
                 fnd['joy'].append(get_fname(iclustergroup=iclustergroup))
@@ -188,7 +188,8 @@ class PartitionPlotter(object):
         if len(high_mutation_clusters) > 0 and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
             self.plotting.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations,
-                                              high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, make_legend=self.args.meta_info_key_to_color is not None, debug=debug)
+                                              high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats,
+                                              make_legend=self.args.meta_info_key_to_color is not None, debug=debug)
             fnd['high'] = [get_fname(high_mutation=True)]
 
         # size vs shm hexbin plots
@@ -231,6 +232,8 @@ class PartitionPlotter(object):
                 for sfo in seqfos:  # mds barfs if we have duplicate sequences, so if the sequence is already in there with a different name we just rename it (ick)
                     if sfo['seq'] == seq:
                         found = True
+                        if sfo['name'] in tqtis:
+                            name += '@(%s)' % tqtis[sfo['name']].lstrip('_')
                         sfo['name'] = name
                         break
                 if not found:
@@ -277,13 +280,13 @@ class PartitionPlotter(object):
             color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
 
             tqtis = {}
-            addseq('_naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
-            addseq('_consensus', utils.cons_seq_of_line(full_info))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
             if self.args.queries_to_include is not None:
                 addqtis(tqtis, {u : u for u in self.args.queries_to_include})
             if self.args.meta_info_to_emphasize is not None:
                 key, val = self.args.meta_info_to_emphasize.items()[0]
-                addqtis(tqtis, {full_cluster[i] : utils.meta_emph_str(key, val) for i in kept_indices if self.meta_emph(annotations, full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
+                addqtis(tqtis, {full_cluster[i] : utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats) for i in kept_indices if self.meta_emph(annotations, full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
+            addseq('_naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
+            addseq('_consensus', utils.cons_seq_of_line(full_info))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
 
             return seqfos, color_scale_vals, tqtis, title
 
@@ -452,23 +455,24 @@ class PartitionPlotter(object):
         csize_hists = {'best' : hutils.make_hist_from_list_of_values([len(c) for c in sorted_clusters], 'int', fname)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want
         if self.args.meta_info_key_to_color is not None:  # plot mean fraction of cluster that's X for each cluster size
             mekey = self.args.meta_info_key_to_color
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, sorted_clusters, annotations)
-            hcolors = {utils.meta_emph_str(mekey, v) : c for v, c in emph_colors}
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
+            hcolors = {v : c for v, c in emph_colors}
             plotvals = {v : [] for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
             for csize, cluster_group in itertools.groupby(sorted_clusters, key=len):
                 for tclust in cluster_group:
                     antn = annotations.get(':'.join(tclust))
-                    if antn is None or self.args.meta_info_key_to_color not in antn:
+                    if antn is None:
                         continue
-                    vgroups = utils.group_seqs_by_value(tclust, lambda x: utils.per_seq_val(antn, self.args.meta_info_key_to_color, x), return_values=True)
+                    def gfcn(x): return utils.meta_emph_str(mekey, utils.per_seq_val(antn, mekey, x, use_default=True), formats=self.args.meta_emph_formats)
+                    vgroups = utils.group_seqs_by_value(tclust, gfcn, return_values=True)
                     emph_fracs = {v : len(grp) / float(csize) for v, grp in vgroups}
                     for v, frac in emph_fracs.items():
                         plotvals[v].append((csize, frac))
             bhist = csize_hists['best']
-            csize_hists.update({utils.meta_emph_str(mekey, v) : Hist(n_bins=bhist.n_bins, xmin=bhist.xmin, xmax=bhist.xmax) for v in all_emph_vals})  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
+            csize_hists.update({v : Hist(n_bins=bhist.n_bins, xmin=bhist.xmin, xmax=bhist.xmax) for v in all_emph_vals})  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
             del csize_hists['best']
             for e_val, cvals in plotvals.items():
-                ehist = csize_hists[utils.meta_emph_str(mekey, e_val)]
+                ehist = csize_hists[e_val] #utils.meta_emph_str(mekey, e_val, formats=self.args.meta_emph_formats)]
                 for ibin in ehist.ibiniter(include_overflows=True):
                     ib_vals = [f for s, f in cvals if ehist.find_bin(s)==ibin]  # fracs whose cluster sizes fall in this bin (should all be quite similar in size if our bins are sensible, so shouldn't need to do an average weighted for cluster size)
                     if len(ib_vals) == 0:

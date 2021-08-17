@@ -134,10 +134,15 @@ def process(args):
     args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 
     args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
+    args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
     if args.meta_info_to_emphasize is not None:
         ekeys = set(args.meta_info_to_emphasize) - set(utils.input_metafile_keys.values()) - set(utils.linekeys['per_seq'])
         if len(ekeys) > 0:  # these would get added when we read the meta info file, if we read it, but we don't e.g. when reading existing output
             utils.add_input_meta_keys(ekeys, are_line_keys=True)
+        if args.meta_emph_formats is not None:  # have to make it so calling len() on this *and* on the actual values from annotations are comparable (ick, this is ugly, but... that's plotting for you)
+            for mkey, mval in args.meta_info_to_emphasize.items():
+                if args.meta_emph_formats.get(mkey) == 'len':
+                    args.meta_info_to_emphasize[mkey] = [None for _ in range(int(mval))]
         assert len(args.meta_info_to_emphasize) == 1  # should at some point let there be more than one key
     if args.meta_info_key_to_color is not None:
         if args.meta_info_key_to_color not in set(utils.input_metafile_keys) | set(utils.linekeys['per_seq']):

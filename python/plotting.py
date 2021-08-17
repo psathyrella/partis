@@ -50,11 +50,11 @@ plot_ratios = {
 }
 
 # ----------------------------------------------------------------------------------------
-def meta_emph_init(meta_info_key_to_color, sorted_clusters, antn_dict):
+def meta_emph_init(meta_info_key_to_color, sorted_clusters, antn_dict, formats=None):
     # tme_colors = alt_colors + [c for c in frozen_pltcolors if c not in alt_colors]
     tme_colors = [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
-    all_emph_vals = set(v for c in sorted_clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, []))  # set of all possible values that this meta info key takes on in any cluster
-    emph_colors = [(v, tme_colors[i%len(tme_colors)]) for i, v in enumerate(sorted(all_emph_vals - set([None])))] + [(None, 'grey')]
+    all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats) for c in sorted_clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, []))  # set of all possible values that this meta info key takes on in any cluster
+    emph_colors = [(v, tme_colors[i%len(tme_colors)]) for i, v in enumerate(sorted(all_emph_vals - set(['None'])))] + [('None', 'grey')]
     return all_emph_vals, emph_colors
 
 # # ----------------------------------------------------------------------------------------
@@ -1085,7 +1085,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # ----------------------------------------------------------------------------------------
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
-                        cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, global_max_vals=None, make_legend=False, debug=False):
+                        cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, global_max_vals=None, make_legend=False, debug=False):
     import lbplotting
     all_metrics = treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
@@ -1132,8 +1132,9 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         if meta_info_to_emphasize is not None or meta_info_key_to_color is not None:
             antn = annotations[':'.join(cluster)]
             if meta_info_to_emphasize is not None:
-                if meta_emph_key in antn and any(utils.meta_info_equal(meta_emph_val, v) for v in antn[meta_emph_key]):
-                    tqtis.update({u : utils.meta_emph_str(meta_emph_key, meta_emph_val) for u, v in zip(cluster, antn[meta_emph_key]) if utils.meta_info_equal(meta_emph_val, v)})
+                def eqfcn(v): return utils.meta_info_equal(meta_emph_key, meta_emph_val, v, formats=meta_emph_formats)
+                if meta_emph_key in antn and any(eqfcn(v) for v in antn[meta_emph_key]):
+                    tqtis.update({u : utils.meta_emph_str(meta_emph_key, meta_emph_val, formats=meta_emph_formats) for u, v in zip(cluster, antn[meta_emph_key]) if eqfcn(v)})
         if len(tqtis) > 0:
             qti_x_vals = get_xval_dict(tqtis, xkey)  # add a red line for each of 'em (i.e. color that hist bin red)
             if any(v > fixed_x1max for v in qti_x_vals.values()):
@@ -1169,7 +1170,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             barheight = utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
             if meta_info_key_to_color is not None:
                 bin_ids = [u for u, x in zip(antn['unique_ids'], get_xval_list(cluster, xkey)) if hist.find_bin(x)==ibin]  # uids in this bin
-                def psfcn(u): return utils.per_seq_val(antn, meta_info_key_to_color, u, use_default=True)
+                def psfcn(u): return utils.meta_emph_str(meta_info_key_to_color, utils.per_seq_val(antn, meta_info_key_to_color, u, use_default=True), formats=meta_emph_formats)
                 me_vals = [psfcn(u) for u in bin_ids]  # meta info values for the uids in this bin
                 me_color_fracs = [(c, me_vals.count(v) / float(len(me_vals))) for v, c in emph_colors if v in me_vals]
             bin_color = base_color
@@ -1239,7 +1240,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return 'no values' if high_x_val is None else high_x_clusters  # 'no values' isn't really a file name, it just shows up as a dead link in the html
     fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
     if meta_info_key_to_color is not None:
-        _, emph_colors = meta_emph_init(meta_info_key_to_color, sorted_clusters, annotations)
+        all_emph_vals, emph_colors = meta_emph_init(meta_info_key_to_color, sorted_clusters, annotations, formats=meta_emph_formats)
     if meta_info_to_emphasize is not None:
         meta_emph_key, meta_emph_val = meta_info_to_emphasize.items()[0]
         if all(meta_emph_key not in l for l in annotations.values()):
@@ -1316,8 +1317,13 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                     xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, yticklabelsize=11, adjust={'left' : 0.2, 'right' : 0.85})
 
     if meta_info_key_to_color is not None and make_legend:
-        # [(l, c) for l, c in emph_colors if l is not None]
-        plot_legend_only(emph_colors,  plotdir, plotname+'-legend', title=meta_info_key_to_color, alpha=base_alpha)
+        title = meta_info_key_to_color
+        if meta_emph_formats is not None and meta_emph_formats.get(meta_info_key_to_color) not in ['len', None]:
+            title = meta_emph_formats[meta_info_key_to_color]
+        emph_colors = [(v, c) for v, c in emph_colors if v in all_emph_vals]  # remove 'None' if there weren't any in the actual annotations
+        if any(c==title for c, _ in emph_colors):  # if it's actually a color (i.e. probably a bool) no point in adding title)
+            title = None
+        plot_legend_only(emph_colors,  plotdir, plotname+'-legend', title=title, alpha=base_alpha)
 
     if high_x_val is None:
         return fn
