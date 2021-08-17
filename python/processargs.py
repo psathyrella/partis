@@ -132,11 +132,17 @@ def process(args):
     args.only_genes = utils.get_arg_list(args.only_genes)
     args.queries = utils.get_arg_list(args.queries)
     args.queries_to_include = utils.get_arg_list(args.queries_to_include)
+
     args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
     if args.meta_info_to_emphasize is not None:
-        if any(k not in utils.input_metafile_keys.values() for k in args.meta_info_to_emphasize):
-            print '  %s meta info key[s] %s in --meta-info-to-emphasize not among expected choices: %s' % (utils.color('yellow', 'warning'), [k for k in args.meta_info_to_emphasize if k not in utils.input_metafile_keys.values()], utils.input_metafile_keys.values())
+        ekeys = set(args.meta_info_to_emphasize) - set(utils.input_metafile_keys.values()) - set(utils.linekeys['per_seq'])
+        if len(ekeys) > 0:  # these would get added when we read the meta info file, if we read it, but we don't e.g. when reading existing output
+            utils.add_input_meta_keys(ekeys, are_line_keys=True)
         assert len(args.meta_info_to_emphasize) == 1  # should at some point let there be more than one key
+    if args.meta_info_key_to_color is not None:
+        if args.meta_info_key_to_color not in set(utils.input_metafile_keys) | set(utils.linekeys['per_seq']):
+            utils.add_input_meta_keys([args.meta_info_key_to_color], are_line_keys=True)
+
     args.reco_ids = utils.get_arg_list(args.reco_ids)
     args.istartstop = utils.get_arg_list(args.istartstop, intify=True)
     if args.istartstop is not None:

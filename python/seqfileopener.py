@@ -28,11 +28,9 @@ def read_single_input_metafo(input_metafname, annotation_list, required_keys=Non
     metafile_keys = set(k for mfo in metafo.values() for k in mfo)
     if len(metafile_keys) == 0:  # zero length meta info file
         return
-    if len(metafile_keys & set(utils.input_metafile_keys)) == 0:
-        raise Exception('no overlap between %d metafile keys and %d allowed keys:\n    %s\n    %s' % (len(metafile_keys), len(utils.input_metafile_keys), ' '.join(metafile_keys), ' '.join(utils.input_metafile_keys)))
-    if len(metafile_keys - set(utils.input_metafile_keys)) > 0:
-        extra_keys = metafile_keys - set(utils.input_metafile_keys)
-        print '  %s %d key%s in input metafile not among allowed keys: %s' % (utils.color('yellow', 'warning'), len(extra_keys), utils.plural(len(extra_keys)), ' '.join(extra_keys))
+    extra_keys = metafile_keys - set(utils.input_metafile_keys)
+    if len(extra_keys) > 0:
+        utils.add_input_meta_keys(extra_keys)
     if required_keys is not None and len(set(required_keys) - metafile_keys) > 0:
         raise Exception('required metafile key(s) (%s) not found in %s' % (', '.join(set(required_keys) - metafile_keys), input_metafname))
 

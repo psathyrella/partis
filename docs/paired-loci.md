@@ -10,9 +10,9 @@ A simple invocation would be:
 partis partition --infname <fasta-input-file> --paired-loci --paired-outdir <output-dir> --n-procs N
 ```
 As usual, this will first cache parameters if they don't exist; also as usual, if you want to use more advanced parameter caching options, it's best to run the `cache-parameters` step by hand.
-If this is indeed 10x single cell data, partis will automatically extract the droplet id from each sequence id in your input file, and use this to write pairing info to a json/yaml file (which it'll pass internally with `--input-metafname`).
+If this is indeed 10x single cell data, partis will automatically extract the droplet id from each sequence id in your input file, and use this to write pairing info to a json/yaml file (which it'll pass internally with `--input-metafnames`).
 With current 10x conventions, this means that sequence ids look like "AAACGGGCAAGCGAGT-1_contig_2", and all sequences with the same bit before the first "-" are from the same droplet.
-You can also run the pairing info extraction by hand (for instance if 10x changes their naming conventions) with `extract-pairing-info.py <10x-fasta-input-file> <meta-info-file>`, then pass the resulting `--input-metafname` to partis.
+You can also run the pairing info extraction by hand (for instance if 10x changes their naming conventions) with `extract-pairing-info.py <10x-fasta-input-file> <meta-info-file>`, then pass the resulting `--input-metafnames` to partis.
 
 Partis will then use `bin/split-loci.py` to split the input fasta file into separate files for each locus, and run on those individually.
 Everything of potential future use (including parameters) is written to `--paired-outdir`.
@@ -23,7 +23,7 @@ You can also run the merging step by itself on existing partition output with th
 ### output directory
 
 The files in `--paired-outdir` are arranged in a standardized way, although not all actions create or use all files.
-The paired info (and any other info for `--input-metafname`) will be in `meta.yaml`.
+The paired info (and any other info for `--input-metafnames`) will be in `meta.yaml`.
 Assuming that `bin/split-loci.py` has been run (either automatically by partis, or by hand), the top-level dir will have three fasta files `ig{h,k,l}.fa` with all sequences for each locus, as well as `failed.fa` for any that could not be assigned.
 There is a directory `parameters/` with subdirs for each locus.
 The single-chain partitions for each locus are in `single-chain/partition-ig{h,k,l}.yaml`.

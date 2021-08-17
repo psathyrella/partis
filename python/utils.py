@@ -462,9 +462,8 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates', 'is_correctly_paireds',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'multiplicities', 'timepoints', 'affinities', 'subjects', 'constant-regions', 'loci', 'paired-uids', 'reads', 'umis', 'c_genes', 'cell-types', 'chosens', 'paireds',
-                       'relative_affinities', 'lambdas', 'nearest_target_indices', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -495,6 +494,7 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
 linekeys['extra'] = extra_annotation_headers
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
+# ----------------------------------------------------------------------------------------
 input_metafile_keys = {  # map between the key we want the user to put in the meta file, and the key we use in the regular <line> dicts (basically just pluralizing)
     'affinity' : 'affinities',  # should maybe add all of these to <annotation_headers>?
     'relative_affinity' : 'relative_affinities',
@@ -508,11 +508,10 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'umis' : 'umis',
     'reads' : 'reads',
     'c_gene' : 'c_genes',
-    'chosen' : 'chosens',
-    'paired' : 'paireds',
+    # 'chosen' : 'chosens',
+    # 'paired' : 'paireds',
 }
-if any(k not in linekeys['per_seq'] for k in input_metafile_keys.values()):
-    raise Exception('doesn\'t make sense to have per-seq meta info that isn\'t per-sequence (add to linekeys[\'per_seq\']): %s' % ' '.join(k for k in input_metafile_keys.values() if k not in linekeys['per_seq']))
+linekeys['per_seq'] += input_metafile_keys.values()
 def input_metafile_defaults(mkey):  # default values to use if the info isn't there (have to use a fcn rather than dict so e.g. [] doesn't give the same object each time)
     if mkey == 'multiplicities':
         return 1
@@ -523,6 +522,19 @@ def input_metafile_defaults(mkey):  # default values to use if the info isn't th
 
 reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
+def add_input_meta_keys(extra_keys, are_line_keys=False):  # NOTE I'm adding this late, and not completely sure that it's ok to modify these things on the fly like this (but i think the ability to add arbitrary keys is super important)
+    new_keys = []
+    for ekey in extra_keys:
+        if are_line_keys:
+            if ekey[-1] != 's':
+                print '  %s last char of input meta key \'%s\' isn\'t \'s\'' % (color('yellow', 'warning'), ekey)
+            ekey = ekey[:-1]  # if we could, we'd use reversed_input_metafile_keys
+        input_metafile_keys[ekey] = ekey + 's'
+        reversed_input_metafile_keys[ekey+'s'] = ekey
+        linekeys['per_seq'].append(ekey+'s')
+        annotation_headers.append(ekey+'s')
+        new_keys.append(ekey)
+    print '  note: added %d new input meta key%s to allowed keys (add \'s\'/plural to access it in the final annotations): %s (%s)' % (len(new_keys), plural(len(new_keys)), ' '.join(new_keys), ' '.join(k+'s' for k in new_keys))
 def meta_emph_str(key, val):  # ick
     if isinstance(val, float):
         return '%.2f' % v
@@ -2398,9 +2410,6 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
 
     re_sort_per_gene_support(line)  # in case it was read from json.dump()'d file
 
-    if 'paired-uids' in line:
-        line['is_correctly_paireds'] = [len(pids)==1 for pids in line['paired-uids']]
-
     # for pskey in set(linekeys['per_seq']) & set(line):  # make sure all the per-seq keys have the right length (it happened once, admittedly cause i was editing by hand, but the consequences were extremely bad)
     #     if len(line[pskey]) != len(line['unique_ids']):
     #         raise Exception('line with %d uids has %d values for key \'%s\'' % (len(line['unique_ids']), len(line[pskey]), pskey))
@@ -2483,7 +2492,7 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
             if ekey in line and ekey in linekeys['per_seq']:
                 vlist = line[ekey]
             else:
-                vlist = [line.get(ekey, '?') for _ in line['unique_ids']]
+                vlist = [line.get(ekey, color('blue', '-')) for _ in line['unique_ids']]
         # tw = str(max(len(ekey), max(len(vstr(v)) for v in vlist)))  # maybe include len of ekey in width?
         tw = max([len(vstr(v)) for v in vlist] + [len(ekey)])
         uid_extra_str_label += '  ' + wfmt(ekey, tw, jfmt='-')

@@ -464,8 +464,8 @@ For more details run `./bin/get-naive-probabilities.py --help`.
 
 In many cases partis input will consist of only sequences and names.
 In others, however, there is additional information associated with each sequence, which we refer to as meta info.
-Because the fasta format only specifies how to write sequences and names, most ways in which people add additional information to fasta files are mutually incompatible.
-This meta info is thus specified in partis via a separate json/yaml file with the argument `--input-metafname <meta.yaml>`, which for example might contain:
+Because the fasta format only specifies how to write sequences and names, many ways in which people add additional information to fasta files are mutually incompatible.
+Meta info is thus specified in partis via a [list of] separate json/yaml file[s] with the argument `--input-metafnames <meta.yaml>`, which for example might contain:
 
 ```
 seq-1:
@@ -475,18 +475,20 @@ seq-1:
 seq-2:
   multiplicity: 3
   affinity: 0.1
-  timepoint: +7d
+seq-3:
+  xyz: pqrs
 ```
 
-Currently accepted keys are multiplicity, affinity, subject, timepoint, paired-uids, locus, and constant-region; values will be propagated through to appear in any output files (with the key names changed to plural, e.g. to multiplicities, to accomodate multi-sequence annotations).
+All key/value pairs in this file will be propagated through to appear in output files.
+In order to accomodate multi-sequence annotations, key names are pluralized in output, for instance `multiplicity` in input meta info is accessed as a list with `multiplicities` in output annotations.
 When caching parameters, partis by default removes constant regions (5' of v and 3' of j).
-If --collapse-duplicate-sequences is set, it then collapses any duplicate sequences into the [duplicates key](output-formats.md); the number of such sequences is then added to any multiplicities from `--input-metafname` (see also `--dont-remove-framework-insertions`).
+If --collapse-duplicate-sequences is set, it then collapses any duplicate sequences into the [duplicates key](output-formats.md); the number of such sequences is then added to any multiplicities from `--input-metafnames` (see also `--dont-remove-framework-insertions`).
 
 ##### naive sequence comparison with linearham
 
-While partis's inferred naive sequences are much more accurate than those from single-sequence annotations, its use of a star tree assumption for computational tractability limits achievable accuracy for highly unbalanced trees.
+While partis's current "subcluster" annotation scheme effectively mitigates the accuracy limitations of the star tree assumption that it uses for individual sub clusters (which is necessary for speed), this approach is much more heuristic than real phylogenetic inference.
 The [linearham](https://github.com/matsengrp/linearham/) package is designed to solve this by performing simultaneous phylogenetic and rearrangement inference on single families.
 As described above, you can use partis's `--calculate-alternative-annotations` option to have it output some (heuristic) probabilities of alternative annotations, including naive sequences.
-If you've run linearham, you thus have collections of naive sequences and their probabilities from both programs.
+If you've also run linearham, you will then have collections of naive sequences and their probabilities from both programs.
 You can compare them with the script `bin/cf-linearham.py`, which prints (view with `less -RS`) first a comparison of the amino acid naive sequences from each program, then a comparison of the nucleotide naive sequences contributing to each of the amino acid ones.
 It also prints a comparison of partis's alternative gene calls and associated "probabilities" (linearham will have only used the one, best, set of gene calls with which it was called).
