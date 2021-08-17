@@ -1,7 +1,7 @@
 #### plotting
   * [parameter plots](#parameter-plots)
   * [partition plots](#partition-plots)
-    - [extra color/emphasis](#extra-color/emphasis)
+    - [extra color/emphasis](#extra-coloremphasis)
   * germline inference plots: [separate file](germline-inference.md)
   * [annotation truth plots](#annotation-truth-plots)
   * [comparison plots](#comparison-plots)
@@ -89,6 +89,7 @@ For instance here we've colored samples by timepoint, and highlighted sequences 
 
 ![meta-emph-partitions](images/meta-emph-partitions.png)
 
+Some details and formatting can be further modified with `--meta-emph-formats` (see `partis partition --help` for details).
 
 #### germline inference plots
 
