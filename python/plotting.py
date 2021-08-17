@@ -1126,17 +1126,18 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # ----------------------------------------------------------------------------------------
     def add_hist(xkey, sorted_xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
         qti_x_vals = {}
-        tqtis = {}  # queries to emphasize in this cluster (map from actual uid to the label we want)
+        tqtis = []  # queries to emphasize in this cluster, as pairs of (uid, label)
         if queries_to_include is not None:
-            tqtis.update({u : u for u in set(cluster) & set(queries_to_include)})
+            tqtis += [(u, u) for u in set(cluster) & set(queries_to_include)]
         if meta_info_to_emphasize is not None or meta_info_key_to_color is not None:
             antn = annotations[':'.join(cluster)]
-            if meta_info_to_emphasize is not None:
+            if meta_info_to_emphasize is not None and meta_emph_key in antn:
                 def eqfcn(v): return utils.meta_info_equal(meta_emph_key, meta_emph_val, v, formats=meta_emph_formats)
-                if meta_emph_key in antn and any(eqfcn(v) for v in antn[meta_emph_key]):
-                    tqtis.update({u : utils.meta_emph_str(meta_emph_key, meta_emph_val, formats=meta_emph_formats) for u, v in zip(cluster, antn[meta_emph_key]) if eqfcn(v)})
+                estr = utils.meta_emph_str(meta_emph_key, meta_emph_val, formats=meta_emph_formats)
+                emphids = [u for u, v in zip(cluster, antn[meta_emph_key]) if eqfcn(v)]
+                tqtis += [(u, estr) for u in emphids]
         if len(tqtis) > 0:
-            qti_x_vals = get_xval_dict(tqtis, xkey)  # add a red line for each of 'em (i.e. color that hist bin red)
+            qti_x_vals = get_xval_dict([u for u, _ in tqtis], xkey)  # add a red line for each of 'em (i.e. color that hist bin red)
             if any(v > fixed_x1max for v in qti_x_vals.values()):
                 fixed_x1max = 1.05 + max(qti_x_vals.values())
             if plot_high_x:
@@ -1145,7 +1146,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                 xfac = min(0.75, max(sorted_xvals) / float(fixed_x1max) + 0.1)
             else:  # vice versa
                 xfac = 0.1
-            qtistrs = [tqtis[u] for u in sorted(tqtis, key=lambda q: qti_x_vals[q])]  # sort by x value, then label with value from tqtis
+            qtistrs = [l for u, l in sorted(tqtis, key=lambda x: qti_x_vals[x[0]])]  # sort by x value, then label with value from tqtis
             if any(qtistrs.count(s)>1 for s in set(qtistrs)):
                 for qstr in [s for s in set(qtistrs) if qtistrs.count(s)>1]:
                     qtistrs = [s for s in qtistrs if s!=qstr] + ['%s(x%d)' % (qstr, qtistrs.count(qstr))]
@@ -1153,7 +1154,10 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
         if debug:
             fstr = '6.1f' if xkey == 'n_mutations' else '6.4f'
-            print ('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, numpy.median(sorted_xvals), numpy.mean(sorted_xvals))
+            print ('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, numpy.median(sorted_xvals), numpy.mean(sorted_xvals)),
+            if len(tqtis) > 0:
+                print '   ' + ' '.join(qtistrs),
+            print ''
 
         if xkey == 'n_mutations':
             nbins = sorted_xvals[-1] - sorted_xvals[0] + 1
