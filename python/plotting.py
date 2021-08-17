@@ -54,7 +54,8 @@ def meta_emph_init(meta_info_key_to_color, sorted_clusters, antn_dict, formats=N
     # tme_colors = alt_colors + [c for c in frozen_pltcolors if c not in alt_colors]
     tme_colors = [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
     all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats) for c in sorted_clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, []))  # set of all possible values that this meta info key takes on in any cluster
-    emph_colors = [(v, tme_colors[i%len(tme_colors)]) for i, v in enumerate(sorted(all_emph_vals - set(['None'])))] + [('None', 'grey')]
+    def cfcn(i, v): return 'grey' if v in [None, 'None'] else tme_colors[i%len(tme_colors)]
+    emph_colors = [(v, cfcn(i, v)) for i, v in enumerate(sorted(all_emph_vals - set([None, 'None'])))] + [('None', 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
     return all_emph_vals, emph_colors
 
 # # ----------------------------------------------------------------------------------------
