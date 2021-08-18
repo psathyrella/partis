@@ -8,7 +8,8 @@ import utils
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
-    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, fname=None, value_list=None, weight_list=None, init_int_bins=False, xtitle='', ytitle='counts', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+    def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, template_hist=None, fname=None, value_list=None, weight_list=None, init_int_bins=False, xtitle='', ytitle='counts', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
+        # <xbins>: low edge of all non-under/overflow bins, plus low edge of overflow bin (i.e. low edge of every bin except underflow). Weird, but it's root conventions and it's fine
         self.low_edges, self.bin_contents, self.bin_labels = [], [], []
         self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
@@ -17,6 +18,11 @@ class Hist(object):
                 assert value_list is not None
                 xmin, xmax = min(value_list) - 0.5, max(value_list) + 0.5
                 n_bins = xmax - xmin
+            if template_hist is not None:
+                assert n_bins is None and xmin is None and xmax is None and xbins is None  # specify *only* the template hist
+                n_bins = template_hist.n_bins
+                xmin, xmax = template_hist.xmin, template_hist.xmax
+                xbins = template_hist.low_edges[1:]
             assert xmin is not None and xmax is not None
             self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
         else:
@@ -33,7 +39,8 @@ class Hist(object):
         self.sum_weights_squared = [] if sumw2 else None
 
         if xbins is not None:  # check validity of handmade bins
-            assert len(xbins) == self.n_bins + 1
+            if len(xbins) != self.n_bins + 1:
+                raise Exception('misspecified xbins: should be n_bins + 1 (%d, i.e. the low edges of each non-under/overflow bin plus the low edge of the overflow bin) but got %d' % (self.n_bins + 1, len(xbins)))
             assert self.xmin == xbins[0]
             assert self.xmax == xbins[-1]
 

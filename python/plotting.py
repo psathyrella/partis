@@ -25,7 +25,7 @@ default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c
 default_linewidths = ['5', '3', '2', '2', '2']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
-def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either xmin and xmax, or hlist NOTE pretty similar to get_auto_y_ticks()
+def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either xmin and xmax, or hlist NOTE pretty similar to get_auto_y_ticks() (for search: log_bins log bins)
     if xmin is None or xmax is None:
         assert xmin is None and xmax is None  # would have to implement it if you want to be able to set just one
         assert hlist is not None
@@ -43,6 +43,7 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either
     # xticks = [x for x in numpy.logspace(math.log(csizes[0], 10), math.log(csizes[-1], 10), num=5)]
     return xticks, [tstr(xt) for xt in xticks]
 
+# ----------------------------------------------------------------------------------------
 plot_ratios = {
     'v' : (30, 3),
     'd' : (8, 4),
@@ -506,7 +507,7 @@ def label_bullshit_transform(label):
 # colors['cdr3-indels'] = '#cc0000'
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None):
+def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None, ytitle=None):
     hist_list, tmpcolors, alphas = [], [], []
     for ih, (name, hist) in enumerate(hists.items()):
         if 'misassign' in name:
@@ -538,8 +539,11 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
             xmin = 0.9
         xmax *= 1.025
     xticks, xticklabels = get_cluster_size_xticks(xmin, xmax)  # NOTE could also pass list of hists in here to get xmin, xmax
+    if ytitle is None:
+        ytitle = '%s of clusters' % ('fraction' if normalize else 'number')
+    translegend = (0, 0) if len(hists)==1 else (-0.7, -0.65)
     draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
-                 bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle='fraction of clusters' if normalize else 'number of clusters', errors=True, alphas=alphas)
+                 bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend)
 
 # ----------------------------------------------------------------------------------------
 def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title):
@@ -748,7 +752,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     return fullname  # this return is being added long after this fcn was written, so it'd be nice to go through all the places where it's called and take advantage of the return value
 
 # ----------------------------------------------------------------------------------------
-def get_auto_y_ticks(ymin, ymax, log=''):  # NOTE pretty similar to get_cluster_size_xticks()
+def get_auto_y_ticks(ymin, ymax, log=''):  # NOTE pretty similar to get_cluster_size_xticks() (for search: log_bins log bins)
     def tstr(y): return (('%.0e'%y) if (y>1000 or y < 1) else '%.0f'%y) if 'y' in log else str(y)
     tstart, tstop = math.floor(math.log(ymin, 10)), math.floor(math.log(ymax, 10))  # could also use math.ceil() for ttsop
     yticks = [y for y in numpy.logspace(tstart, tstop, num=tstop - tstart + 1)]

@@ -3,7 +3,7 @@ import math
 from hist import Hist
 
 # ----------------------------------------------------------------------------------------
-def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fcn/signature is weird because it mimics an old root fcn
+def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fcn/signature is weird because it mimics an old root fcn (for search: log_bins log bins)
     assert len(values) > 0
     values = sorted(values)
     if is_log_x:
