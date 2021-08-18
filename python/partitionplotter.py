@@ -452,7 +452,10 @@ class PartitionPlotter(object):
         subd, plotdir = self.init_subd('sizes', base_plotdir)
         fname = 'cluster-sizes'
         hcolors = None
-        csize_hists = {'best' : hutils.make_hist_from_list_of_values([len(c) for c in sorted_clusters], 'int', fname)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want
+        cslist = [len(c) for c in sorted_clusters]
+        # is_log_x = len(cslist) > 100 # and len([s for s in cslist if s>50]) > 30
+        csize_hists = {'best' : hutils.make_hist_from_list_of_values(cslist, 'int', fname, is_log_x=True)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want UPDATE ok now sometimes using log bins, for aesthetic plotting reasons, but maybe also ok for sampling?
+        ytitle = None
         if self.args.meta_info_key_to_color is not None:  # plot mean fraction of cluster that's X for each cluster size
             mekey = self.args.meta_info_key_to_color
             all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
@@ -469,7 +472,7 @@ class PartitionPlotter(object):
                     for v, frac in emph_fracs.items():
                         plotvals[v].append((csize, frac))
             bhist = csize_hists['best']
-            csize_hists.update({v : Hist(n_bins=bhist.n_bins, xmin=bhist.xmin, xmax=bhist.xmax) for v in all_emph_vals})  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
+            csize_hists.update({v : Hist(template_hist=bhist) for v in all_emph_vals})  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
             del csize_hists['best']
             for e_val, cvals in plotvals.items():
                 ehist = csize_hists[e_val] #utils.meta_emph_str(mekey, e_val, formats=self.args.meta_emph_formats)]
@@ -480,8 +483,9 @@ class PartitionPlotter(object):
                     mval = numpy.mean(ib_vals)
                     err = mval / math.sqrt(2) if len(ib_vals) == 1 else numpy.std(ib_vals, ddof=1) / math.sqrt(len(ib_vals))  # that isn't really right for len 1, but whatever
                     ehist.set_ibin(ibin, mval, err)
+            ytitle = 'mean fraction of clusters'
 
-        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors)
+        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors, ytitle=ytitle)
         for hname, thist in csize_hists.items():
             thist.write('%s/%s%s.csv' % (plotdir, fname, '' if hname=='best' else '-'+hname))
         return [[subd + '/' + fname + '.svg']]
