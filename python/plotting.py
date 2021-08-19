@@ -673,6 +673,8 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
 
 # ----------------------------------------------------------------------------------------
 def plot_legend_only(color_labels, plotdir, plotname, alpha=None, title=None):
+    if len(color_labels) == 0:
+        return
     fig = plt.figure()
     max_label_len = max(len(str(l)) for l, _ in color_labels)
     figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(color_labels) / 4.))

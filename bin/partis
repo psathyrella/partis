@@ -202,10 +202,8 @@ def read_qti_file(args):
         if args.locus is not None and any('locus' in s for s in seqfos):  # remove any that have locus info that doesn't match args.locus (if args.locus is None, we're combining loci)
             seqfos = [s for s in seqfos if 'locus' not in s or s['locus'] == args.locus]
         more_input_info = collections.OrderedDict([(s['name'], {'unique_ids' : [s['name']], 'seqs' : [s['seq']]}) for s in seqfos])
+        utils.add_input_meta_keys(set(k for sfo in seqfos for k in sfo))
         for sfo in seqfos:
-            extra_keys = set(sfo) - set(utils.input_metafile_keys)
-            if len(extra_keys) > 0:
-                utils.add_input_meta_keys(extra_keys)
             for mkey in set(utils.input_metafile_keys) & set(sfo):
                 lkey = utils.input_metafile_keys[mkey]
                 more_input_info[sfo['name']][lkey] = [sfo[mkey]]

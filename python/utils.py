@@ -495,6 +495,7 @@ linekeys['extra'] = extra_annotation_headers
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 
 # ----------------------------------------------------------------------------------------
+forbidden_metafile_keys = ['name', 'seq']  # these break things if you add them
 input_metafile_keys = {  # map between the key we want the user to put in the meta file, and the key we use in the regular <line> dicts (basically just pluralizing)
     'affinity' : 'affinities',  # should maybe add all of these to <annotation_headers>?
     'relative_affinity' : 'relative_affinities',
@@ -523,7 +524,11 @@ def input_metafile_defaults(mkey):  # default values to use if the info isn't th
 reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
 # ----------------------------------------------------------------------------------------
-def add_input_meta_keys(extra_keys, are_line_keys=False):  # NOTE I'm adding this late, and not completely sure that it's ok to modify these things on the fly like this (but i think the ability to add arbitrary keys is super important)
+# add any keys in <meta_keys> that aren't in input_metafile_keys
+def add_input_meta_keys(meta_keys, are_line_keys=False):  # NOTE I'm adding this late, and not completely sure that it's ok to modify these things on the fly like this (but i think the ability to add arbitrary keys is super important)
+    extra_keys = set(meta_keys) - set(input_metafile_keys) - set(forbidden_metafile_keys) - set(linekeys['per_seq'])
+    if len(extra_keys) == 0:
+        return
     new_keys = []
     for ekey in extra_keys:
         if are_line_keys:

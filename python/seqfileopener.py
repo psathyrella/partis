@@ -28,9 +28,7 @@ def read_single_input_metafo(input_metafname, annotation_list, required_keys=Non
     metafile_keys = set(k for mfo in metafo.values() for k in mfo)
     if len(metafile_keys) == 0:  # zero length meta info file
         return
-    extra_keys = metafile_keys - set(utils.input_metafile_keys)
-    if len(extra_keys) > 0:
-        utils.add_input_meta_keys(extra_keys)
+    utils.add_input_meta_keys(metafile_keys)
     if required_keys is not None and len(set(required_keys) - metafile_keys) > 0:
         raise Exception('required metafile key(s) (%s) not found in %s' % (', '.join(set(required_keys) - metafile_keys), input_metafname))
 
