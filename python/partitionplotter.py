@@ -68,7 +68,7 @@ class PartitionPlotter(object):
                     tqtis.add(utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats))
                 if len(tqtis) == 0:
                     continue
-                xval, yval = numpy.mean(getnmutelist(cluster)), len(cluster)
+                xval, yval = numpy.mean(getnmutelist(cluster)), len(cluster)  # it kind of sucks to recalulate the x and y vals here, but by default (i.e. no emphasis) we don't keep track of which cluster goes with which x val, and it's nice to keep that simple
                 if log_cluster_size:
                     yval = math.log(yval)
                 ax.plot([xval], [yval], color='red', marker='.', markersize=5)
