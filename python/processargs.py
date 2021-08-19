@@ -94,6 +94,9 @@ def process(args):
         assert args.input_metafnames is None
         args.input_metafnames = args.input_metafname
         delattr(args, 'input_metafname')
+        assert '--input-metafname' in sys.argv
+        utils.replace_in_arglist(sys.argv, '--input-metafname', args.input_metafnames)  # have to also modify argv in case we're using it e.g. in paired locus stuff
+        sys.argv[utils.arglist_index(sys.argv, '--input-metafname')] = '--input-metafnames'
 
     args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True, choices=['igk', 'igl'])
     if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):

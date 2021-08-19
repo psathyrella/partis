@@ -423,7 +423,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         return utils.locus_pairs[ig_or_tr]  # if args.seed_unique_id is None else [args.seed_loci]
     # ----------------------------------------------------------------------------------------
     def prep_inputs():
-        cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, getofn(None, joint=True, input_meta=True))
+        mfname = getofn(None, joint=True, input_meta=True)
+        cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, mfname)
         if args.n_max_queries > 0:
             cmd += ' --n-max-queries %d' % args.n_max_queries
         try:
@@ -435,13 +436,13 @@ def run_all_loci(args, ig_or_tr='ig'):
         cmd = './bin/split-loci.py %s --outdir %s' % (args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
-        if os.path.exists(getofn(None, joint=True, input_meta=True)):  # NOTE this won't show up up in dry_run since it won't exist yet
-            cmd += ' --input-metafnames %s' % getofn(None, joint=True, input_meta=True)
+        if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
+            cmd += ' --input-metafnames %s' % mfname
         if args.n_max_queries > 0:
             cmd += ' --n-max-queries %d' % args.n_max_queries
         utils.simplerun(cmd, dryrun=args.dry_run)
         if args.paired_outdir is None:
-            no_pairing_info = not os.path.exists(getofn(None, joint=True, input_meta=True))
+            no_pairing_info = not os.path.exists(mfname)
             work_fnames.extend(paircluster.paired_dir_fnames(getodir(), no_pairing_info=no_pairing_info and args.is_data, include_failed=True, include_meta=True))  # simulation input files should have pairing info (which is then overriden if an input meta file is specified)
     # ----------------------------------------------------------------------------------------
     def auto_cache_params():  # note that this somewhat duplicates code in run_partitiondriver() above (but they need to be separate because of the all-igh-seqs vs only-paired-with-igk/l thing)
@@ -524,11 +525,15 @@ def run_all_loci(args, ig_or_tr='ig'):
                             if not joint and lpair is None and getodir(single_chain=True) not in work_fnames:
                                 work_fnames.append(getodir(single_chain=True))
 
-            if args.input_metafnames is None and args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
-                utils.replace_in_arglist(clist, '--input-metafnames', getofn(None, joint=True, lpair=lpair, input_meta=True))
-            elif args.input_metafnames is None and os.path.exists(getifn('meta')):  # if it wasn't set on the command line, we want to look in a default-ish location to which e.g. paircluster.write_merged_simu() writes it
-                print '  note: adding --input-metafnames from default location %s' % getifn('meta')
-                utils.replace_in_arglist(clist, '--input-metafnames', getifn('meta'))
+            if args.input_metafnames is None:
+                if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
+                    utils.replace_in_arglist(clist, '--input-metafnames', getofn(None, joint=True, lpair=lpair, input_meta=True))
+                elif os.path.exists(getifn('meta')):  # if it wasn't set on the command line, we want to look in a default-ish location to which e.g. paircluster.write_merged_simu() writes it
+                    print '  note: adding --input-metafnames from default location %s' % getifn('meta')
+                    utils.replace_in_arglist(clist, '--input-metafnames', getifn('meta'))
+            else:
+                if os.path.exists(getifn('meta')):
+                    print '  %s using input metafname[s] from command line (%s) rather than default location (%s)' % (utils.color('yellow', 'warning'), ', '.join(args.input_metafnames), getifn('meta'))  # it would be nice to concatenate them, but everything is too complicated here with too many different input meta files -- if you need to have multiple ones, you can do that to start with while prepping the paired input dir
 
             if args.persistent_cachefname is not None:
                 assert args.persistent_cachefname == 'paired-outdir'
@@ -604,7 +609,9 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
         old_metafos = {}
-        if any(os.path.exists(f) for f in getofn(None, joint=True, input_meta=True)):
+        if args.input_metafnames is not None and any(os.path.exists(f) for f in getofn(None, joint=True, input_meta=True)):
+            assert isinstance(getofn(None, joint=True, input_meta=True), list)  # ok this is hackey, but in this particular case getofn() returns a list
+            print [f for f in getofn(None, joint=True, input_meta=True) if os.path.exists(f)]
             old_metafos = utils.read_json_yamls(getofn(None, joint=True, input_meta=True))
         if args.queries_to_include_fname is not None and utils.getsuffix(args.queries_to_include_fname) == '.yaml':  # this kind of sucks, but if you want to add weird extra edge case functionality, it's gonna make your code messier
             for sfo in utils.read_seqfos(args.queries_to_include_fname):
@@ -642,6 +649,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             if len(missing_seqs) > 0:
                 print '    %s missing %d/%d seqs when writing annotation input: %s' % (utils.color('yellow', 'warning'), len(missing_seqs), sum(len(c) for c in joint_partition), ' '.join(missing_seqs))  # not sure if this will actually happen or not
             work_fnames.append(getofn(ltmp, lpair=lpair, fasta=True))
+            if args.paired_outdir is None:
+                work_fnames.append(os.path.dirname(getofn(ltmp, lpair=lpair, fasta=True)))  # there's probably a better place to do this, but oh well
         # ----------------------------------------------------------------------------------------
         if len(joint_partition) == 0:
             return
