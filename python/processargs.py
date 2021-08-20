@@ -126,7 +126,8 @@ def process(args):
         if args.persistent_cachefname is not None:
             assert args.persistent_cachefname == 'paired-outdir'
     else:
-        assert args.paired_indir is None
+        if args.paired_indir is not None:
+            raise Exception('need to set --paired-loci if --paired-indir is set')
     if not args.paired_loci and (args.paired_indir is not None or args.paired_outdir is not None):
         raise Exception('--paired-loci must be set if either --paired-indir or --paired-outdir is set')
     if args.reverse_negative_strands and not args.paired_loci:

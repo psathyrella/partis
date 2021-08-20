@@ -379,8 +379,6 @@ def run_all_loci(args, ig_or_tr='ig'):
     def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False, fasta=False, persistent_cache=False, recursed=False):  # NOTE <joint> and <lpair> do *not* always have the same effect (e.g. differs with single-chain/)
         if trees:
             bname = 'trees.nwk'
-        elif input_meta and args.input_metafnames is not None and ltmp is None:  # if ltmp is set, we're rewriting the meta files for each locus
-            return args.input_metafnames
         elif args.action == 'simulate':
             return paircluster.paired_fn(getodir(), ltmp, lpair=lpair, suffix='.yaml')  # kind of weird that this getodir() call doesn't need any args
         else:
@@ -404,7 +402,19 @@ def run_all_loci(args, ig_or_tr='ig'):
             ofn = utils.insert_before_suffix('-only-partition', ofn)
         return ofn
     # ----------------------------------------------------------------------------------------
-    def getmfn(ftype):  # ok this name sucks, but this fcn is for in/out files with all loci together
+    def get_meta_fns(ltmp, joint=False, lpair=None, tdbg=False):
+        mfnames = []
+        if args.input_metafnames is not None and ltmp is None:  # if ltmp is set, we're rewriting the meta files for each locus
+            mfnames += args.input_metafnames
+        else:
+            mfnames.append(getofn(ltmp, joint=joint, lpair=lpair, input_meta=True))
+        if os.path.exists(getifn('meta')):  # look in a default-ish location to which e.g. paircluster.write_merged_simu() writes it
+            if tdbg:
+                print '  note: adding input metafname from default location (%s)' % getifn('meta')
+            mfnames.append(getifn('meta'))
+        return mfnames
+    # ----------------------------------------------------------------------------------------
+    def get_merged_fn(ftype):  # ok this name sucks, but this fcn is for in/out files with all loci together
         return '%s/%s.%s' % (getodir(), ftype, 'fa' if 'seqs' in ftype else 'yaml')
     # ----------------------------------------------------------------------------------------
     def seedid(ltmp):
@@ -437,7 +447,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
         if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
-            cmd += ' --input-metafnames %s' % mfname
+            cmd += ' --input-metafname %s' % mfname
         if args.n_max_queries > 0:
             cmd += ' --n-max-queries %d' % args.n_max_queries
         utils.simplerun(cmd, dryrun=args.dry_run)
@@ -525,15 +535,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                             if not joint and lpair is None and getodir(single_chain=True) not in work_fnames:
                                 work_fnames.append(getodir(single_chain=True))
 
-            if args.input_metafnames is None:
-                if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
-                    utils.replace_in_arglist(clist, '--input-metafnames', getofn(None, joint=True, lpair=lpair, input_meta=True))
-                elif os.path.exists(getifn('meta')):  # if it wasn't set on the command line, we want to look in a default-ish location to which e.g. paircluster.write_merged_simu() writes it
-                    print '  note: adding --input-metafnames from default location %s' % getifn('meta')
-                    utils.replace_in_arglist(clist, '--input-metafnames', getifn('meta'))
-            else:
-                if os.path.exists(getifn('meta')):
-                    print '  %s using input metafname[s] from command line (%s) rather than default location (%s)' % (utils.color('yellow', 'warning'), ', '.join(args.input_metafnames), getifn('meta'))  # it would be nice to concatenate them, but everything is too complicated here with too many different input meta files -- if you need to have multiple ones, you can do that to start with while prepping the paired input dir
+            mfnames = get_meta_fns(None, joint=True, tdbg=True)  # , lpair=lpair
+            if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
+                mfnames.append(getofn(None, joint=True, lpair=lpair, input_meta=True))  # NOTE this is *not* the same file as in the if statement
+            if len(mfnames) > 0:
+                utils.replace_in_arglist(clist, '--input-metafnames', ':'.join(mfnames))
 
             if args.persistent_cachefname is not None:
                 assert args.persistent_cachefname == 'paired-outdir'
@@ -609,10 +615,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
         old_metafos = {}
-        if args.input_metafnames is not None and any(os.path.exists(f) for f in getofn(None, joint=True, input_meta=True)):
-            assert isinstance(getofn(None, joint=True, input_meta=True), list)  # ok this is hackey, but in this particular case getofn() returns a list
-            print [f for f in getofn(None, joint=True, input_meta=True) if os.path.exists(f)]
-            old_metafos = utils.read_json_yamls(getofn(None, joint=True, input_meta=True))
+        if any(os.path.exists(f) for f in get_meta_fns(None, joint=True)):
+            old_metafos = utils.read_json_yamls(get_meta_fns(None, joint=True))
         if args.queries_to_include_fname is not None and utils.getsuffix(args.queries_to_include_fname) == '.yaml':  # this kind of sucks, but if you want to add weird extra edge case functionality, it's gonna make your code messier
             for sfo in utils.read_seqfos(args.queries_to_include_fname):
                 if sfo['name'] not in old_metafos:
@@ -703,7 +707,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         paircluster.write_lpair_output_files(spairs(), lp_infos, getofn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
         glfos, antn_lists, cpaths = handle_concatd_heavy_chain(lp_infos, headers)
-        paircluster.write_merged_simu(antn_lists, getmfn('all-seqs'), getmfn('meta'), mean_cells_per_droplet=args.mean_cells_per_droplet, fraction_of_reads_to_remove=args.fraction_of_reads_to_remove)  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
+        paircluster.write_merged_simu(antn_lists, get_merged_fn('all-seqs'), get_merged_fn('meta'), mean_cells_per_droplet=args.mean_cells_per_droplet, fraction_of_reads_to_remove=args.fraction_of_reads_to_remove)  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
     # ----------------------------------------------------------------------------------------
     def get_true_partitions(debug=False):
         if args.is_data or args.paired_indir is None:
@@ -1024,7 +1028,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not args.dry_run:
             combine_simu_chains()
         if args.paired_outdir is None:
-            work_fnames.extend(paircluster.paired_dir_fnames(getodir(), suffix='.yaml') + [getmfn('all-seqs'), getmfn('meta')])  # using extend() rather than += in a few places because of local variable/scoping behavior
+            work_fnames.extend(paircluster.paired_dir_fnames(getodir(), suffix='.yaml') + [get_merged_fn('all-seqs'), get_merged_fn('meta')])  # using extend() rather than += in a few places because of local variable/scoping behavior
     else:
         if args.action != 'cache-parameters' and auto_cache_params():  # ick. we can't just let the normal auto-parameter caching happen within each locus pair below, since it'll infer separately on the igh seqs paired with igk vs igl
             if args.seed_unique_id is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
