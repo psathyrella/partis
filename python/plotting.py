@@ -1306,9 +1306,10 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
             iclust_global += 1
 
+    fsize = 12
     if x2key is not None:
-        fig.text(0.8, 0.25, x1label if not uselog(x1key) else '%s (log)'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
-        fig.text(0.85, 0.215, x2label if not uselog(x2key) else '%s (log)'%x2label, color=offcolor('down'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+        fig.text(0.8, 0.25, x1label if not uselog(x1key) else '%s (log)'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
+        fig.text(0.8, 0.215, x2label if not uselog(x2key) else '%s (log)'%x2label, color=offcolor('down'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
 
     plot_x_bounds = [high_x_val, xbounds[x1key][1]] if plot_high_x else bexpand((xbounds[x1key][0], fixed_xmax))
     n_x_ticks, xlabel, xticks, xticklabels = 4, x1label, None, None
@@ -1316,10 +1317,10 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         xlabel = x2label
         xticks = [x for x in numpy.arange(xbounds[x1key][0], xbounds[x1key][1], (xbounds[x1key][1] - xbounds[x1key][0]) / (n_x_ticks-1))] + [xbounds[x1key][1]]
         xticklabels = ['%.1f' % utils.intexterpolate(xbounds[x1key][0], xbounds[x2key][0], xbounds[x1key][1], xbounds[x2key][1], x) for x in xticks]  # translate x1 tick positions to x2 tick labels
-        fig.text(0.22, 0.1, '%.3f'%xbounds[x1key][0], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
-        fig.text(0.9, 0.1, '%.3f'%xbounds[x1key][1], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
-        fig.text(0.55, 0.05, x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
-        fig.text(0.05, 0.9, 'sorted by\nmax %s'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'})
+        fig.text(0.13, 0.08, '%.3f'%xbounds[x1key][0], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
+        fig.text(0.89, 0.08, '%.3f'%xbounds[x1key][1], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
+        fig.text(0.52, 0.03, x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
+        fig.text(0.05, 0.9, 'sorted by\nmax %s'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
     n_y_ticks = 5
     if x2key is None and len(yticks) > n_y_ticks:
         yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_y_ticks - 1)))]

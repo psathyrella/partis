@@ -505,7 +505,7 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
             continue
         title = 'affinity and %s (%d / %d)' % (mtitlestr('per-seq', lb_metric), iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
         fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=mtitlestr('per-seq', lb_metric),
-                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title)  # note that we can't really add cluster_indices> like we do in partitionplotter.py, since (i think?) the only place there's per-cluster plots we'd want to correspond to is in the bcr phylo simulation dir, which has indices unrelated to anything we're sorting by here, and which we can't reconstruct
+                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title)  # note that we can't really add <cluster_indices> like we do in partitionplotter.py, since (i think?) the only place there's per-cluster plots we'd want to correspond to is in the bcr phylo simulation dir, which has indices unrelated to anything we're sorting by here, and which we can't reconstruct
         add_fn(fnames, fn=fn)
         iclustergroup += 1
 
@@ -553,7 +553,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
         ax.plot([xmin, xmax], [0, 0], linewidth=1, alpha=0.7, color='grey')
     leg_title, leg_prop, leg_iter = None, None, []
     if colorvar is not None:
-        leg_loc = [0.1 if xvar in cdist_keys+['affinity'] else 0.7, 0.65]  # I think this is sometimes overriding the one that's passed in
+        leg_loc = [0.05 if xvar in cdist_keys+['affinity'] else 0.7, 0.55]  # I think this is sometimes overriding the one that's passed in
         if yvar == 'cons-dist-aa':
             leg_loc = [0.75, 0.15]
         leg_prop = {'size' : 12}
@@ -580,7 +580,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
             pcorr = numpy.corrcoef(plotvals[xvar], plotvals[yvar])[0, 1]
             if set([xvar, yvar]) == set(['lbi', 'aa-lbi']) and pcorr > 0.85:
                 print '        %s correlation between lbi and aa-lbi is suspiciously high %.3f, which suggests that there weren\'t enough inferred ancestral sequences to rescale the nuc tree to amino acids, i.e. aa-lbi may have in effect basically been calculated on the nuc tree' % (utils.color('yellow', 'warning'), pcorr)
-            fig.text(0.7, 0.3, 'r = %.3f' % pcorr, fontsize=20, fontweight='bold') #, color='red')
+            fig.text(0.73, 0.22, 'r = %.3f' % pcorr, fontsize=20, fontweight='bold') #, color='red')
     fn = plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc, leg_title=leg_title, leg_prop=leg_prop)
     return fn
 
@@ -696,9 +696,9 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
 
     if n_clusters is not None:
         if within_cluster_average:
-            fig.text(0.25, 0.88, 'within-cluster average over %d families' % n_clusters, fontsize=12, fontweight='bold')  # , color='red'
+            fig.text(0.25, 0.84, 'within-cluster average over %d families' % n_clusters, fontsize=12, fontweight='bold')  # , color='red'
         else:
-            fig.text(0.37, 0.88, 'choosing among %d families' % n_clusters, fontsize=12, fontweight='bold')  # , color='red'
+            fig.text(0.37, 0.84, 'choosing among %d families' % n_clusters, fontsize=12, fontweight='bold')  # , color='red'
     fn = plotting.mpl_finish(ax, plotdir, plotname, xbounds=ptile_range_tuple, ybounds=ybounds, leg_loc=leg_loc,
                              title='%s %s' % (ungetptlabel(xvar), '' if iclust is None else ', iclust %d'%iclust),
                              xlabel='%s threshold (percentile)' % ylabel, ylabel=ptile_ylabel, adjust={'left' : 0.21}, legend_fontsize=14)
