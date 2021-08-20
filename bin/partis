@@ -406,7 +406,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         mfnames = []
         if args.input_metafnames is not None and ltmp is None:  # if ltmp is set, we're rewriting the meta files for each locus
             mfnames += args.input_metafnames
-        else:
+        elif os.path.exists(getofn(ltmp, joint=joint, lpair=lpair, input_meta=True)):
             mfnames.append(getofn(ltmp, joint=joint, lpair=lpair, input_meta=True))
         if os.path.exists(getifn('meta')):  # look in a default-ish location to which e.g. paircluster.write_merged_simu() writes it
             if tdbg:
