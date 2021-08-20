@@ -727,23 +727,28 @@ def get_fasttree_tree(seqfos, naive_seq=None, naive_seq_name='XnaiveX', taxon_na
     return dtree
 
 # ----------------------------------------------------------------------------------------
+def node_mtpy(multifo, node):  # number of reads/contigs/whatever (depending on context) with the same sequence
+    if multifo is None or node.taxon.label not in multifo or multifo[node.taxon.label] is None:  # most all of them should be in there, but for instance I'm not adding the dummy branch nodes
+        return 1
+    return multifo[node.taxon.label]
+
+# ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 # also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multifo=None, debug=False):
+def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multifo=None, use_old_multiplicity_method=False, debug=False):
     """
     traverses <dtree> in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI (and divides as LBR)
+    use_old_multiplicity_method: insert multiplicity into integrals (below), which is equivalent to adding N-1 branches between the node and its parent
+    new version: add N-1 dummy branches of length <default_lb_tau> from the node
     """
-    def getmulti(node):  # number of reads with the same sequence
-        if multifo is None or node.taxon.label not in multifo or multifo[node.taxon.label] is None:  # most all of them should be in there, but for instance I'm not adding the dummy branch nodes
-            return 1
-        return multifo[node.taxon.label]
+    getmulti = node_mtpy if use_old_multiplicity_method else lambda x, y: 1
 
     metrics_to_calc = lb_metrics.keys() if only_calc_metric is None else [only_calc_metric]
     if debug:
         print '    setting %s values with tau %.4f' % (' and '.join(metrics_to_calc), tau)
 
     initial_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
-    dtree = get_tree_with_dummy_branches(dtree, tau)  # this returns a new dtree, but the old tree is a subtree of the new one (or at least its collection of nodes are), and these nodes get modified by the process (hence the reversal fcn below)
+    dtree, dummy_labels = get_tree_with_dummy_branches(dtree, tau, add_dummy_multiplicity_nubs=not use_old_multiplicity_method, multifo=multifo)  # this returns a new dtree, but the old tree is a subtree of the new one (or at least its collection of nodes are), and these nodes get modified by the process (hence the reversal fcn below)
 
     # calculate clock length (i.e. for each node, the distance to that node's parent)
     for node in dtree.postorder_node_iter():  # postorder vs preorder doesn't matter, but I have to choose one
@@ -762,7 +767,7 @@ def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multi
             node.up_polarizer += child.up_polarizer
         bl = node.clock_length / tau
         node.up_polarizer *= numpy.exp(-bl)  # sum of child <up_polarizer>s weighted by an exponential decayed by the distance to <node>'s parent
-        node.up_polarizer += getmulti(node) * tau * (1 - numpy.exp(-bl))  # add the actual contribution (to <node>'s parent's lbi) of <node>: zero if the two are very close, increasing toward asymptote of <tau> for distances near 1/tau (integral from 0 to l of decaying exponential)
+        node.up_polarizer += getmulti(multifo, node) * tau * (1 - numpy.exp(-bl))  # add the actual contribution (to <node>'s parent's lbi) of <node>: zero if the two are very close, increasing toward asymptote of <tau> for distances near 1/tau (integral from 0 to l of decaying exponential)
 
     # traverse the tree in preorder (parents first) to calculate message to children (i.e. child1.down_polarizer)
     for node in dtree.preorder_internal_node_iter():
@@ -773,7 +778,7 @@ def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multi
                     child1.down_polarizer += child2.up_polarizer  # add the contribution of <child2> to its parent's (<node>'s) lbi (i.e. <child2>'s contribution to the lbi of its *siblings*)
             bl = child1.clock_length / tau
             child1.down_polarizer *= numpy.exp(-bl)  # and decay the previous sum by distance between <child1> and its parent (<node>)
-            child1.down_polarizer += getmulti(child1) * tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
+            child1.down_polarizer += getmulti(multifo, child1) * tau * (1 - numpy.exp(-bl))  # add contribution of <child1> to its own lbi: zero if it's very close to <node>, increasing to max of <tau> (integral from 0 to l of decaying exponential)
 
     returnfo = {m : {} for m in metrics_to_calc}
     # go over all nodes and calculate lb metrics (can be done in any order)
@@ -800,8 +805,8 @@ def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multi
                 continue
             multi_str = ''
             if multifo is not None:
-                multi_str = str(getmulti(node))
-                if getmulti(node) > 1:
+                multi_str = str(node_mtpy(multifo, node))
+                if node_mtpy(multifo, node) > 1:
                     multi_str = utils.color('blue', multi_str, width=3)
             lbstrs = ['%8.3f' % returnfo[m][node.taxon.label] for m in metrics_to_calc]
             if 'lbr' in metrics_to_calc:
@@ -814,12 +819,12 @@ def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multi
         delattr(node, 'up_polarizer')
         delattr(node, 'down_polarizer')
 
-    remove_dummy_branches(dtree, initial_labels)
+    remove_dummy_branches(dtree, initial_labels, dummy_labels)
 
     return returnfo
 
 # ----------------------------------------------------------------------------------------
-def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_leaves=False, debug=False): # add long branches above root and/or below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
+def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_leaves=False, add_dummy_multiplicity_nubs=False, multifo=None, debug=False): # add long branches above root and/or below each leaf, since otherwise we're assuming that (e.g.) leaf node fitness is zero
     # commenting this since I'm pretty sure I've fixed it, but not removing it since if a similar problem surfaces with dummy branch addition, deep copying is an easy way out
     # zero_length_edges = [e for e in old_dtree.preorder_edge_iter() if e.length == 0 and not e.head_node.is_leaf()]
     # if len(zero_length_edges) > 0:  # rerooting to remove dummy branches screws up the tree in some cases with zero length branches (see comment in that fcn)
@@ -828,10 +833,13 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
 
     dummy_edge_length = n_tau_lengths * tau
 
+    dummy_labels = []
+
     new_root_taxon = dendropy.Taxon(dummy_str + '-root')
     old_dtree.taxon_namespace.add_taxon(new_root_taxon)
     new_root_node = dendropy.Node(taxon=new_root_taxon)
     new_dtree = dendropy.Tree(seed_node=new_root_node, taxon_namespace=old_dtree.taxon_namespace, is_rooted=True)
+    dummy_labels.append(new_root_node.taxon.label)
 
     # then add the entire old tree under this new tree
     new_root_node.add_child(old_dtree.seed_node)
@@ -839,10 +847,21 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
         edge.length = dummy_edge_length
 
     if add_dummy_leaves:  # add dummy child branches to each leaf
+        tns = new_dtree.taxon_namespace
         for lnode in new_dtree.leaf_node_iter():
             new_label = '%s-%s' % (dummy_str, lnode.taxon.label)
             tns.add_taxon(dendropy.Taxon(new_label))
             new_child_node = lnode.new_child(taxon=tns.get_taxon(new_label), edge_length=dummy_edge_length)
+            dummy_labels.append(new_child_node.taxon.label)
+
+    if add_dummy_multiplicity_nubs:  # new way of incorporating multiplicity: add N-1 dummy branches from the node
+        tns = new_dtree.taxon_namespace
+        for mnode in list(new_dtree.preorder_node_iter()):  # list() is because we're adding nodes as we iterate
+            for idum in range(1, node_mtpy(multifo, mnode)):
+                new_label = '%s-multi-%d-%s' % (dummy_str, idum, mnode.taxon.label)
+                tns.add_taxon(dendropy.Taxon(new_label))
+                new_child_node = mnode.new_child(taxon=tns.get_taxon(new_label), edge_length=default_lb_tau)
+                dummy_labels.append(new_child_node.taxon.label)
 
     # TODO commenting this because it gets triggered way too much, but I'm not actually sure that I can really just ignore the problem (but maybe I can)
     # zero_len_edge_nodes = [e.head_node for n in new_dtree.preorder_node_iter() for e in n.child_edge_iter() if e.length == 0 and not e.head_node.is_leaf()]  # zero len edges above leaves are fine, since leaves don't count for lbr
@@ -858,12 +877,13 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
         print '    added dummy branches to tree:'
         print get_ascii_tree(dendro_tree=new_dtree, extra_str='      ', width=350)
 
-    return new_dtree
+    return new_dtree, dummy_labels
 
 # ----------------------------------------------------------------------------------------
-def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=False):
-    if add_dummy_leaves:
-        raise Exception('not implemented (shouldn\'t be too hard, but a.t.m. I don\'t think I\'ll need it)')
+def remove_dummy_branches(dtree, initial_labels, dummy_labels, add_dummy_leaves=False, debug=False):
+    # if add_dummy_leaves:
+    #     print 'UPDATE ok maybe it\'s fine now (since i\'m adding the dummy nubs), but i\'m not checking it'
+    #     raise Exception('not implemented (shouldn\'t be too hard, but a.t.m. I don\'t think I\'ll need it)')
 
     if len(dtree.seed_node.child_nodes()) != 1:
         print '  %s root node has more than one child when removing dummy branches: %s' % (utils.color('yellow', 'warning'), ' '.join([n.taxon.label for n in dtree.seed_node.child_nodes()]))
@@ -879,7 +899,7 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
     dtree.reroot_at_node(new_root_node, suppress_unifurcations=False)  # reroot at old root node
     if debug:
         print '       children after reroot: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
-    dtree.prune_taxa_with_labels([dummy_str + '-root'], suppress_unifurcations=False)
+    dtree.prune_taxa_with_labels(dummy_labels, suppress_unifurcations=False)
     dtree.purge_taxon_namespace()  # I'm sure there's a good reason the previous line doesn't do this
     dtree.update_bipartitions(suppress_unifurcations=False)
     if debug:
@@ -892,6 +912,7 @@ def remove_dummy_branches(dtree, initial_labels, add_dummy_leaves=False, debug=F
         print '       extra:   %s' % ' '.join(final_labels - initial_labels)
         print '       tree:'
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
+        assert False  # i think it's better to crash at this point, i think i have it working reliably
 
 # ----------------------------------------------------------------------------------------
 def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
