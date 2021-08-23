@@ -34,7 +34,9 @@ lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (
 selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr']  # I really thought this was somewhere, but can't find it so adding it here
 typical_bcr_seq_len = 400
 default_lb_tau = 0.0025
-default_lbr_tau_factor = 20
+# ----------------------------------------------------------------------------------------
+# TODO
+default_lbr_tau_factor = 1 #20
 default_min_selection_metric_cluster_size = 10
 
 dummy_str = 'x-dummy-x'

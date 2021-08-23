@@ -587,6 +587,9 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 # ----------------------------------------------------------------------------------------
 def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 100., 2.), dbgstr=None, affy_key='affinities', debug=False):
     # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot (i.e. are affinity, N ancestors, or branch length). On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
+    if xvar == 'n-ancestor':
+        plotvals = copy.deepcopy(plotvals)
+        plotvals[xvar] = [abs(v) for v in plotvals[xvar]]
     xia = xvar == 'affinity'
     xkey = 'mean_%s_ptiles' % xvar
     tmp_ptvals = {'lb_ptiles' : [], xkey : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
@@ -659,6 +662,9 @@ def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind
 def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?', title=None, fnames=None, ptile_range_tuple=(50., 100., 1.), true_inf_str='?', n_clusters=None, iclust=None, within_cluster_average=False, xlist=None, affy_key='affinities'):
     if 'lb_ptiles' not in tmp_ptvals or len(tmp_ptvals['lb_ptiles']) == 0:
         return
+
+    if xvar == 'n-ancestor':
+        xlist = [abs(v) for v in xlist]
 
     fig, ax = plotting.mpl_init()
     xia = xvar == 'affinity'
