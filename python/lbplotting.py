@@ -868,24 +868,16 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
 def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, max_scatter_plot_size=2500, max_iclust_plots=10, debug=False):
     # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
-    def check_affinity_changes(affinity_changes):
-        affinity_changes = sorted(affinity_changes)
-        if debug:
-            print '    checking affinity changes for negative values and unexpected variation: %s' % ' '.join(['%.4f' % a for a in affinity_changes])  # well, the variation isn't really unexpected, but it's worth keeping in mind
-        if len(affinity_changes) == 0:
-            if debug:
-                print '      %s empty affinity changes list' % utils.color('yellow', 'note')
-            return
-        if any(a < 0. for a in affinity_changes):
-            print '  %s negative affinity changes in %s' % (utils.color('red', 'error'), ' '.join(['%.4f' % a for a in affinity_changes]))
-        max_diff = affinity_changes[-1] - affinity_changes[0]
-        # if abs(max_diff) / numpy.mean(affinity_changes) > 0.2:  # this is almost always true, which is fine, and I don't really plan on doing anything to change it soon (it would be nice to at some point use a performance metric gives us credit for differential prediction of different affinity change magnitudes, but oh well)
-        #     print'      %s not all affinity increases were the same size (min: %.4f   max: %.4f   abs(diff) / mean: %.4f' % (utils.color('yellow', 'warning'), affinity_changes[0], affinity_changes[-1], abs(max_diff) / numpy.mean(affinity_changes))
-    # ----------------------------------------------------------------------------------------
-    def get_plotvals(line, xvar):
+    def get_plotvals(line, xvar, iclust):
         plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
-        affinity_changes = []
+        affy_increasing_edges = treeutils.find_affy_increases(dtree, line)
+        if debug and iclust == 0:
+            def e_affy(e): return utils.per_seq_val(line, 'affinities', e.head_node.taxon.label) - utils.per_seq_val(line, 'affinities', e.tail_node.taxon.label)
+            print '    %d edges with affinity increases: %s' % (len(affy_increasing_edges), ' '.join('%.4f'%e_affy(e) for e in affy_increasing_edges))
+            print '                     and child nodes: %s' % ' '.join(e.head_node.taxon.label for e in affy_increasing_edges)
+            print '                          ancestors                           chosen edge'
+            print '         node     %5s    (desc.)  steps distance  affinity  affy change    (%s: reached root/leaves without finding lower-affinity ancestor)' % (lb_metric, utils.color('yellow', '?'))
         for uid in line['unique_ids']:
             node = dtree.find_node_with_taxon_label(uid)
             if node is dtree.seed_node:  # root doesn't have any ancestors
@@ -893,13 +885,12 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             lbval = line['tree-info']['lb'][lb_metric][uid]  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if 'lbr' in lb_metric and lbval == 0:  # lbr equals 0 should really be treated as None/missing
                 continue
-            n_steps, branch_len = treeutils.get_n_ancestors_to_affy_change(node, dtree, line, affinity_changes=affinity_changes, also_return_branch_len=True, debug=debug)  # also adds to <affinity_changes>
+            n_steps, branch_len = treeutils.get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=True, lbval=line['tree-info']['lb'][lb_metric][uid], debug=debug)
             if n_steps is None:
                 continue
             plotvals[xvar].append(n_steps if xvar == 'n-ancestor' else branch_len)
             plotvals[lb_metric].append(lbval)
             # plotvals['uids'].append(uid)
-        check_affinity_changes(affinity_changes)
         return plotvals
 
     # ----------------------------------------------------------------------------------------
@@ -937,8 +928,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             if debug:
                 if iclust == 0: print ' %s' % utils.color('green', xvar)
                 print '  %s' % utils.color('blue', 'iclust %d' % iclust)
-                print '         node        ancestors  distance   affinity (%sX: change for chosen ancestor, %s: reached root without finding lower-affinity ancestor)' % (utils.color('red', '+'), utils.color('green', 'x'))
-            iclust_plotvals = get_plotvals(line, xvar)
+            iclust_plotvals = get_plotvals(line, xvar, iclust)
             for vtype in per_seq_plotvals:
                 per_seq_plotvals[vtype] += iclust_plotvals[vtype]
             if 'among-families' in lb_metric:

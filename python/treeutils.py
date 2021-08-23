@@ -1120,47 +1120,184 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
     return info
 
 # ----------------------------------------------------------------------------------------
-def get_n_ancestors_to_affy_change(node, dtree, line, affinity_changes=None, min_affinity_change=1e-6, n_max_steps=15, also_return_branch_len=False, debug=False):
-    # find number of steps/ancestors to the nearest ancestor with lower affinity than <node>'s
-    #   - also finds the corresponding distance, which is to the lower end of the branch containing the corresponding affinity-increasing mutation
-    #   - this is chosen so that <n_steps> and <branch_len> are both 0 for the node at the bottom of a branch on which affinity increases, and are *not* the distance *to* the lower-affinity node
-    #   - because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
-    #   - <min_affinity_change> is just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd) (note that at least for now, and with default settings, the affinity changes should all be pretty similar, and not small)
-    this_affinity = utils.per_seq_val(line, 'affinities', node.taxon.label)
-    if debug:
-        print '     %12s %12s %8s %9.4f' % (node.taxon.label, '', '', this_affinity)
+def find_affy_increases(dtree, line, min_affinity_change=1e-6):
+    affy_increasing_edges = []
+    for edge in dtree.preorder_edge_iter():
+        parent_node = edge.tail_node
+        child_node = edge.head_node
+        nlist = [parent_node, child_node]
+        if None in nlist:
+            continue
+        parent_affy, child_affy = [utils.per_seq_val(line, 'affinities', n.taxon.label, use_default=True) for n in nlist]
+        if None in [parent_affy, child_affy]:
+            continue
+        daffy = child_affy - parent_affy
+        if daffy > min_affinity_change:
+            affy_increasing_edges.append(edge)
+    return affy_increasing_edges
 
+# ----------------------------------------------------------------------------------------
+def get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, n_max_steps=15, also_return_branch_len=False, debug=False):
+    if affy_increasing_edges is None:
+        affy_increasing_edges = find_affy_increases(dtree, line)
     ancestor_node = node
-    chosen_ancestor_affinity = None
-    n_steps, branch_len  = 0, 0.
-    while n_steps < n_max_steps:  # note that if we can't find an ancestor with worse affinity, we don't plot the node
+    chosen_edge = None
+    n_steps, branch_len = 0, 0.
+    while n_steps < n_max_steps:
         if ancestor_node is dtree.seed_node:
             break
-        ancestor_distance = ancestor_node.edge_length  # distance from current <ancestor_node> to its parent (who in the next line becomes <ancestor_node>)
+        ancestor_edge = ancestor_node.edge  # edge from current <ancestor_node> to its parent (who in the next line becomes <ancestor_node>)
         ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
-        ancestor_uid = ancestor_node.taxon.label
-        if ancestor_uid not in line['unique_ids']:
-            print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, node.taxon.label)
-            break
-        ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
-        if this_affinity - ancestor_affinity > min_affinity_change:  # if we found an ancestor with lower affinity, we're done
-            chosen_ancestor_affinity = ancestor_affinity
-            if affinity_changes is not None:
-                affinity_changes.append(this_affinity - ancestor_affinity)
+        if debug:
+            ancestor_uid = ancestor_node.taxon.label
+            ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
+        if ancestor_edge in affy_increasing_edges:
+            chosen_edge = ancestor_edge
             break
         if debug:
-            print '     %12s %12s %8.4f %9.4f%s' % ('', ancestor_uid, branch_len, ancestor_affinity, utils.color('green', ' x') if ancestor_node is dtree.seed_node else '')
+            print '     %12s %5s %12s %2d %8.4f %9.4f   %s' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.color('yellow', '?') if ancestor_node is dtree.seed_node else '')
         n_steps += 1
-        branch_len += ancestor_distance
+        branch_len += ancestor_edge.length
 
-    if chosen_ancestor_affinity is None:  # couldn't find ancestor with lower affinity
+    if chosen_edge is None:
         return (None, None) if also_return_branch_len else None
     if debug:
-        print '     %12s %12s %8.4f %9.4f  %s%-9.4f' % ('', ancestor_uid, branch_len, chosen_ancestor_affinity, utils.color('red', '+'), this_affinity - chosen_ancestor_affinity)
+        print '     %12s %5s %12s %2d %8.4f %9.4f%+9.4f' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.per_seq_val(line, 'affinities', chosen_edge.head_node.taxon.label) - ancestor_affinity)  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
     if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
         return n_steps, branch_len
     else:
         return n_steps
+
+# ----------------------------------------------------------------------------------------
+def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line, n_max_steps=15, also_return_branch_len=False, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def get_branch_length(chosen_edge):  # go back up from the <chosen_edge> to get its total depth from <node> (otherwise we'd need to keep track of the depths for all the child nodes all the way down)
+        tedge = chosen_edge
+        blen = chosen_edge.length
+        while tedge.tail_node is not node:
+            tedge = tedge.tail_node.edge
+            blen += tedge.length
+        return blen
+    # ----------------------------------------------------------------------------------------
+    child_nodes = [node]
+    chosen_edge = None
+    n_steps, branch_len  = 1, 0.
+    while n_steps < n_max_steps:
+        found = False
+        child_nodes = [cc for c in child_nodes for cc in c.child_node_iter()]  # all children of current children
+        if len(child_nodes) == 0:  # they're all leaves
+            break
+        for cnode in child_nodes:
+            cedge = cnode.edge  # edge to <cnode>'s parent
+            if debug:
+                child_affinity = utils.per_seq_val(line, 'affinities', cnode.taxon.label)
+            if cedge in affy_increasing_edges:
+                chosen_edge = cedge
+                found = True
+                assert branch_len == 0.
+                branch_len = get_branch_length(cedge)
+                break
+            if debug and not found:
+                print '     %12s %5s %12s %2d %8.4f %9.4f  %s' % ('', '', cnode.taxon.label, -n_steps, -get_branch_length(cedge), child_affinity, utils.color('yellow', ' ?') if all(c.is_leaf() for c in child_nodes) else '')
+        if found:
+            break
+        n_steps += 1
+
+    if chosen_edge is None:
+        return (None, None) if also_return_branch_len else None
+    if debug:
+        print '     %12s %5s %12s %+2d %8.4f %9.4f%+9.4f' % ('', '', cnode.taxon.label, -n_steps, -branch_len, child_affinity, child_affinity - utils.per_seq_val(line, 'affinities', chosen_edge.tail_node.taxon.label))  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
+    if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
+        return n_steps, branch_len
+    else:
+        return n_steps
+
+# ----------------------------------------------------------------------------------------
+# looks both upwards (positive result) and downwards (negative result) for the nearest edge on which affinity increased from parent to child
+def get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=False, lbval=None, debug=False):
+    assert also_return_branch_len
+    if debug:
+        print '     %12s  %5.3f%12s %2s %8s %9.4f' % (node.taxon.label, lbval, '', '', '', utils.per_seq_val(line, 'affinities', node.taxon.label))
+    n_ance, ance_branch_len = get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=also_return_branch_len, debug=debug)
+    n_desc, desc_branch_len = get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=also_return_branch_len, debug=debug)
+    if n_desc is None and n_ance is None:
+        n_steps, blen = None, None
+    elif n_desc is None:
+        n_steps, blen = n_ance, ance_branch_len
+    elif n_ance is None:
+        n_steps, blen = -n_desc, -desc_branch_len
+    else:  # NOTE only the ancestor one can return zero
+        n_steps, blen = (-n_desc, -desc_branch_len) if n_desc < n_ance else (n_ance, ance_branch_len)  # NOTE decides based on N steps, not distance
+    if debug:
+        if n_steps is None:
+            nstr, bstr = [utils.color('yellow', ' ?') for _ in range(2)]
+        else:
+            nstr = utils.color(('red' if n_steps==0 else 'purple') if n_steps>=0 else 'blue', '%+2d'%n_steps)
+            bstr = '%+7.4f' % blen
+        print '     %12s %5s %12s %3s  %s' % ('', '', '', nstr, bstr)
+    return n_steps, blen
+
+# ----------------------------------------------------------------------------------------
+# BELOW: old upward-only fcn. Should be very similar to new ancestor fcn, except that old one looked for affinity increase to <node> whereas new fcn looks for edge on which affinity increase occurred
+# ----------------------------------------------------------------------------------------
+# NOTE discussion of why we only look upwards in "evaluation framework" section of paper's .tex file (use .tex since there's commented bits)
+#  - summary:
+#   - Searching only upward reflects the fact that a mutation can only affect the fitness of nodes below it, and thus a high \lbr\ value at a node immediately above an important mutation is likely due to random chance rather than a signal of selection.
+#     - EDIT due to random chance OR MAYBE because the super high tau helps/lets the higher node look better since it's nearer to root
+#   - Nodes with high \lbr\ that are several steps below such a mutation, on the other hand, simply reflect the fact that increased fitness typically takes several generations to manifest itself as an increase in observed offspring.
+#   - In other words searching downward would improve the apparent performance of a metric, but only by counting as successes cases that were successfully predicted only through random chance.
+#   - Another reason we do not also search in the downward direction is that in a practical sense it is much more useful to know that the important mutation is above a node than below it.
+#   - We could imagine in the lab testing one or a few branches above a node, but because of the bifurcating nature of trees there would be far too many potential branches below (not to mention adding the ambiguity of potentially going up and then down, i.e.\ how to count cousins).
+# UPDATE i think the big problem with only looking upwards is that then you don't know what to do with nodes that're above all affinity increases
+#  - then it seems reasonable (as below) to just ignore them, which is *bad* since in practice these high nodes will  have really high scores
+#  - also, this makes it seem like super large tau is a good idea, since it ignores maybe the big downside to large tau: parents get too much credit for their children's offspring
+
+# def get_n_ancestors_to_affy_change(node, dtree, line, affinity_changes=None, min_affinity_change=1e-6, n_max_steps=15, also_return_branch_len=False, affy_increasing_edges=None, debug=False):
+#     debug = True
+#     # find number of steps/ancestors to the nearest ancestor with lower affinity than <node>'s
+#     #   - also finds the corresponding distance, which is to the lower end of the branch containing the corresponding affinity-increasing mutation
+#     #   - this is chosen so that <n_steps> and <branch_len> are both 0 for the node at the bottom of a branch on which affinity increases, and are *not* the distance *to* the lower-affinity node
+#     #   - because it's so common for affinity to get worse from ancestor to descendent, it's important to remember that here we are looking for the first ancestor with lower affinity than the node in question, which is *different* to looking for the first ancestor that has lower affinity than one of its immediate descendents (which we could also plot, but it probably wouldn't be significantly different to the metric performance, since for the metric performance we only really care about the left side of the plot, but this only affects the right side)
+#     #   - <min_affinity_change> is just to eliminate floating point precision issues (especially since we're deriving affinity by inverting kd) (note that at least for now, and with default settings, the affinity changes should all be pretty similar, and not small)
+#     this_affinity = utils.per_seq_val(line, 'affinities', node.taxon.label)
+#     if debug:
+#         print '     %12s %12s %8s %9.4f' % (node.taxon.label, '', '', this_affinity)
+
+#     ancestor_node = node
+#     chosen_ancestor_affinity = None
+#     n_steps, branch_len  = 0, 0.
+#     while n_steps < n_max_steps:  # note that if we can't find an ancestor with worse affinity, we don't plot the node
+#         if ancestor_node is dtree.seed_node:
+#             break
+#         ancestor_distance = ancestor_node.edge_length  # distance from current <ancestor_node> to its parent (who in the next line becomes <ancestor_node>)
+#         ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
+#         ancestor_uid = ancestor_node.taxon.label
+#         if ancestor_uid not in line['unique_ids']:
+#             print '    %s ancestor %s of %s not in true line' % (utils.color('yellow', 'warning'), ancestor_uid, node.taxon.label)
+#             break
+#         ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
+#         if this_affinity - ancestor_affinity > min_affinity_change:  # if we found an ancestor with lower affinity, we're done
+#             chosen_ancestor_affinity = ancestor_affinity
+#             if affinity_changes is not None:
+#                 affinity_changes.append(this_affinity - ancestor_affinity)
+#             # if affy_increasing_edges is not None:
+#             #     assert any(e in affy_increasing_edges for e in ancestor_node.child_edge_iter())
+#             #     # assert ancestor_node.edge in affy_increasing_edges
+#             #     print 'OK'
+#             break
+#         if debug:
+#             print '     %12s %12s %8.4f %9.4f%s' % ('', ancestor_uid, branch_len, ancestor_affinity, utils.color('green', ' x') if ancestor_node is dtree.seed_node else '')
+#         n_steps += 1
+#         branch_len += ancestor_distance
+
+#     if chosen_ancestor_affinity is None:  # couldn't find ancestor with lower affinity
+#         return (None, None) if also_return_branch_len else None
+#     if debug:
+#         print '     %12s %12s %8.4f %9.4f  %s%-9.4f' % ('', ancestor_uid, branch_len, chosen_ancestor_affinity, utils.color('red', '+'), this_affinity - chosen_ancestor_affinity)
+#     if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
+#         return n_steps, branch_len
+#     else:
+#         return n_steps
 
 # ----------------------------------------------------------------------------------------
 lonr_files = {  # this is kind of ugly, but it's the cleanest way I can think of to have both this code and the R code know what they're called
@@ -1853,7 +1990,9 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
         def get_delta_affinity_vals():
             tmpvals = {s : [] for s in tfo}
             for iseq, uid in enumerate(line['unique_ids']):
-                n_steps = get_n_ancestors_to_affy_change(dtree.find_node_with_taxon_label(uid), dtree, line)
+                if iseq==0:
+                    print '%s dtr training target should be updated to include get_n_descendents_to_affy_increase()' % utils.color('yellow', 'warning')
+                n_steps = get_n_ancestors_to_affy_change(None, dtree.find_node_with_taxon_label(uid), dtree, line)
                 if n_steps is None:  # can't train on None-type values
                     continue
                 tmpvals['in'].append(dtr_invals[cg][iseq])
