@@ -871,7 +871,8 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         json.dump(yamlfo, yfile)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, max_scatter_plot_size=2500, max_iclust_plots=10, debug=False):
+def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, max_scatter_plot_size=2500, max_iclust_plots=10,
+                                        only_look_upwards=False, debug=False):
     # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line, xvar, iclust):
@@ -893,7 +894,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             lbval = line['tree-info']['lb'][lb_metric][uid]  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if 'lbr' in lb_metric and lbval == 0:  # lbr equals 0 should really be treated as None/missing
                 continue
-            n_steps, branch_len = treeutils.get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=True, lbval=line['tree-info']['lb'][lb_metric][uid], debug=debug)
+            n_steps, branch_len = treeutils.get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=True, lbval=line['tree-info']['lb'][lb_metric][uid], only_look_upwards=only_look_upwards, debug=debug)
             if n_steps is None:
                 continue
             plotvals[xvar].append(n_steps if xvar == 'n-ancestor' else branch_len)

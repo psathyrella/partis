@@ -1216,12 +1216,14 @@ def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line,
 
 # ----------------------------------------------------------------------------------------
 # looks both upwards (positive result) and downwards (negative result) for the nearest edge on which affinity increased from parent to child
-def get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=False, lbval=None, debug=False):
+def get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=False, lbval=None, only_look_upwards=False, debug=False):
     assert also_return_branch_len
     if debug:
         print '     %12s  %5.3f%12s %2s %8s %9.4f' % (node.taxon.label, lbval, '', '', '', utils.per_seq_val(line, 'affinities', node.taxon.label))
     n_ance, ance_branch_len = get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=also_return_branch_len, debug=debug)
-    n_desc, desc_branch_len = get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=also_return_branch_len, debug=debug)
+    n_desc, desc_branch_len = None, None
+    if not only_look_upwards:
+        n_desc, desc_branch_len = get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=also_return_branch_len, debug=debug)
     if n_desc is None and n_ance is None:
         n_steps, blen = None, None
     elif n_desc is None:
@@ -2066,7 +2068,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 #    3) doesn't plot as many things
 #    4) only runs on simulation (as opposed to making two sets of things, for simulation and data)
 def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, lbr_tau_factor=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
-                                      dont_normalize_lbi=False, cluster_indices=None, debug=False):
+                                      dont_normalize_lbi=False, cluster_indices=None, only_look_upwards=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_combo_lbfo(varlist, iclust, line, is_aa_lb=False, add_to_line=False):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
@@ -2161,7 +2163,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
         fnames = []
         if metric_method in ['delta-lbi', 'lbr', 'aa-lbr']:
-            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug, only_look_upwards=only_look_upwards)
         else:
             for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
                 lbplotting.plot_lb_vs_affinity(true_plotdir, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, affy_key=affy_key)

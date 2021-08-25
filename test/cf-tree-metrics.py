@@ -225,7 +225,7 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None, extra_str=''):
         else:  # testing
             return [get_tm_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv, use_relative_affy=use_relative_affy, extra_str=extra_str) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg] for use_relative_affy in ura_vals(tv)]
     else:
-        return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method in ['delta-lbi', 'aa-lbr'] else 'affinity', extra_str=extra_str)]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
+        return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method in ['delta-lbi', 'lbr', 'aa-lbr'] else 'affinity', extra_str=extra_str)]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
 
 # ----------------------------------------------------------------------------------------
 def get_comparison_plotdir(metric, per_x, extra_str=''):  # both <metric> and <per_x> can be None, in which case we return the parent dir
@@ -775,16 +775,17 @@ def get_tree_metrics(args):
         # it would probably be better to use dtr-run.py for everything, but then i'd be nervous i wasn't testing the partitiondriver version of the code enough
         if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
             cmd = './bin/partis get-selection-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs, extra_str=args.extra_plotstr),
-                                                                                                                                   get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
+                                                                                                                                        get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
             # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
             #     cmd += ' --n-procs %d' % args.n_sub_procs
         else:  # non-lb metrics, i.e. trying to predict with shm, etc.
+            mmtmp = None if args.metric_method in ['lbi', 'lbr'] else args.metric_method  # if we're running lbi/lbr as a --metric-method to avoid running partis get-selection-metrics
             cmd = './bin/dtr-run.py --metric-method %s --infname %s --base-plotdir %s' % (args.metric_method,
                                                                                           get_simfname(varnames, vstrs),
-                                                                                          get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr))
+                                                                                          get_tree_metric_plotdir(varnames, vstrs, metric_method=mmtmp, extra_str=args.extra_plotstr))
             if args.metric_method == 'dtr':
                 if args.train_dtr and args.overwrite:  # make sure no training files exist, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)
                     assert set([os.path.exists(f) for f in get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)]) == set([False])
