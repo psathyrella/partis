@@ -54,4 +54,4 @@ if args.metric_method == 'dtr':
 else:
     treeutils.calculate_individual_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, only_csv=args.only_csv_plots,
                                                 min_cluster_size=args.min_selection_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots,
-                                                dont_normalize_lbi=args.dont_normalize_lbi, ete_path=ete_path, workdir=workdir, cluster_indices=args.cluster_indices, debug=True)
+                                                dont_normalize_lbi=args.dont_normalize_lbi, ete_path=ete_path, workdir=workdir, cluster_indices=args.cluster_indices) #, debug=True)

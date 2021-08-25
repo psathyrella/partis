@@ -2068,7 +2068,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, lbr_tau_factor=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
                                       dont_normalize_lbi=False, cluster_indices=None, debug=False):
     # ----------------------------------------------------------------------------------------
-    def get_combo_lbfo(varlist, iclust, line, is_aa_lb=False):
+    def get_combo_lbfo(varlist, iclust, line, is_aa_lb=False, add_to_line=False):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
             utils.add_naive_seq_aa(line)
             utils.add_seqs_aa(line)
@@ -2095,6 +2095,8 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             tmp_lb_info = calculate_lb_values(dtree, tmp_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=tmp_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             for lbm in [m for m in lb_metrics if m in varlist]:  # this skips the tree, which I guess isn't a big deal
                 lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
+        if add_to_line:
+            line['tree-info'] = {'lb' : lbfo}
         return dtree, lbfo
 
     # ----------------------------------------------------------------------------------------
@@ -2134,6 +2136,8 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
         elif 'aa-lb' in metric_method:  # aa versions of lbi and lbr
             _, _ = get_combo_lbfo([metric_method.lstrip('aa-')], iclust, line, is_aa_lb=True)
+        elif metric_method in ['lbi', 'lbr']:  # last cause i'm adding them last, but would probably be cleaner to handle it differently (i'm just tired of having to run the full (non-individual) tree metric fcn to get them)
+            _, _ = get_combo_lbfo([metric_method], iclust, line, add_to_line=True)
         elif metric_method == 'cons-lbi':  # now uses aa-lbi as a tiebreaker for cons-dist-aa, but used to be old z-score style combination of (nuc-)lbi and cons-dist
             def tiefcn(uid):
                 cdist, aalbi = lbfo['cons-dist-aa'][uid], lbfo['aa-lbi'][uid]
@@ -2156,7 +2160,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
         fnames = []
-        if metric_method in ['delta-lbi', 'aa-lbr']:
+        if metric_method in ['delta-lbi', 'lbr', 'aa-lbr']:
             lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         else:
             for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
