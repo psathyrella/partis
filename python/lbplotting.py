@@ -879,11 +879,13 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         dtree = treeutils.get_dendro_tree(treestr=line['tree'])
         affy_increasing_edges = treeutils.find_affy_increases(dtree, line)
         if debug and iclust == 0:
+            if debug > 1:
+                print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250))
             def e_affy(e): return utils.per_seq_val(line, 'affinities', e.head_node.taxon.label) - utils.per_seq_val(line, 'affinities', e.tail_node.taxon.label)
             print '    %d edges with affinity increases: %s' % (len(affy_increasing_edges), ' '.join('%.4f'%e_affy(e) for e in affy_increasing_edges))
             print '                     and child nodes: %s' % ' '.join(e.head_node.taxon.label for e in affy_increasing_edges)
             print '                          ancestors                           chosen edge'
-            print '         node     %5s    (desc.)  steps distance  affinity  affy change    (%s: reached root/leaves without finding lower-affinity ancestor)' % (lb_metric, utils.color('yellow', '?'))
+            print '         node    %7s   (desc.)  steps distance  affinity  affy change    (%s: reached root/leaves without finding lower-affinity ancestor)' % (lb_metric, utils.color('yellow', '?'))
         for uid in line['unique_ids']:
             node = dtree.find_node_with_taxon_label(uid)
             if node is dtree.seed_node:  # root doesn't have any ancestors

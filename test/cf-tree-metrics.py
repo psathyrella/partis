@@ -774,7 +774,7 @@ def get_tree_metrics(args):
 
         # it would probably be better to use dtr-run.py for everything, but then i'd be nervous i wasn't testing the partitiondriver version of the code enough
         if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
-            cmd = './bin/partis get-tree-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs, extra_str=args.extra_plotstr),
+            cmd = './bin/partis get-selection-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs, extra_str=args.extra_plotstr),
                                                                                                                                    get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
             if args.no_tree_plots:

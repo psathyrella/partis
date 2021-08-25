@@ -2065,7 +2065,8 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 #    2) mosty focuses on running one metric at a time (as opposed to running all the ones that we typically want on data)
 #    3) doesn't plot as many things
 #    4) only runs on simulation (as opposed to making two sets of things, for simulation and data)
-def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, lbr_tau_factor=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False, dont_normalize_lbi=False, debug=False):
+def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, lbr_tau_factor=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
+                                      dont_normalize_lbi=False, cluster_indices=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_combo_lbfo(varlist, iclust, line, is_aa_lb=False):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
@@ -2088,10 +2089,10 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             raise Exception('unexpected combination of variables %s' % varlist)
 
         if is_aa_lb:
-            get_aa_lb_metrics(line, dtree, tmp_tau, lbr_tau_factor=tmp_factor, only_calc_metric=only_calc_metric, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust)
+            get_aa_lb_metrics(line, dtree, tmp_tau, lbr_tau_factor=tmp_factor, only_calc_metric=only_calc_metric, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             lbfo.update(line['tree-info']['lb'])
         else:
-            tmp_lb_info = calculate_lb_values(dtree, tmp_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=tmp_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust)
+            tmp_lb_info = calculate_lb_values(dtree, tmp_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=tmp_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             for lbm in [m for m in lb_metrics if m in varlist]:  # this skips the tree, which I guess isn't a big deal
                 lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
         return dtree, lbfo
@@ -2106,7 +2107,11 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
     print '        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
 
     pstart = time.time()
+    metric_antns = []  # just to keep track of the ones corresponding to <cluster_indices> (if set)
     for iclust, line in enumerate(annotations):
+        if cluster_indices is not None and iclust not in cluster_indices:
+            continue
+        metric_antns.append(line)
         assert 'tree-info' not in line  # could handle it, but don't feel like thinking about it a.t.m.
         if metric_method == 'shm':
             metric_info = {u : -utils.per_seq_val(line, 'n_mutations', u) for u in line['unique_ids']}
@@ -2146,16 +2151,18 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         import plotting
         import lbplotting
-        if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
+        if 'affinities' not in metric_antns[0] or all(affy is None for affy in metric_antns[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
             return
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
         fnames = []
         if metric_method in ['delta-lbi', 'aa-lbr']:
-            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, annotations, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         else:
             for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
-                lbplotting.plot_lb_vs_affinity(true_plotdir, annotations, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, affy_key=affy_key)
+                lbplotting.plot_lb_vs_affinity(true_plotdir, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, affy_key=affy_key)
+        if ete_path is not None:
+            lbplotting.plot_lb_trees([metric_method], base_plotdir, metric_antns, ete_path, workdir, is_true_line=True)
         if not only_csv:
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(metric_method, '%s/%s/' % (true_plotdir, metric_method)),])
         print '      non-lb metric plotting time %.1fs' % (time.time() - plstart)
