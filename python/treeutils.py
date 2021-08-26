@@ -1019,7 +1019,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, min_warn_
         utils.print_reco_event(annotation)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, extra_str=None, iclust=None, debug=False):
+def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, extra_str=None, iclust=None, dbgstr='', debug=False):
     # if <only_calc_metric> is None, we use <tau> and <lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
     #   - whereas if <only_calc_metric> is set, we use <tau> to calculate only the given metric
     # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
@@ -1058,7 +1058,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     else:
         assert lbr_tau_factor is None or dont_normalize  # we need to make sure that we weren't accidentally called with lbr_tau_factor set, but then we ignore it because the caller forgot that we ignore it if only_calc_metric is also set
         if iclust is None or iclust == 0:
-            print '    calculating %s %s with tau %.4f' % (normstr, lb_metrics[only_calc_metric], tau)
+            print '    calculating %s %s%s with tau %.4f' % (normstr, lb_metrics[only_calc_metric], dbgstr, tau)
         lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
@@ -1779,7 +1779,7 @@ def check_lb_values(line, lbvals):
 def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize_lbi=False, extra_str=None, iclust=None, debug=False):  # and add them to <line>
     utils.add_seqs_aa(line)
     aa_dtree = get_aa_tree(nuc_dtree, line, extra_str=extra_str, debug=debug)
-    aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, only_calc_metric=only_calc_metric, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, debug=debug)
+    aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, only_calc_metric=only_calc_metric, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
     if 'tree-info' not in line:
         line['tree-info'] = {'lb' : {}}
     line['tree-info']['lb']['aa-tree'] = aa_dtree.as_string(schema='newick')

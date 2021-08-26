@@ -11,6 +11,7 @@ import numpy
 import math
 import subprocess
 import multiprocessing
+import copy
 
 # ----------------------------------------------------------------------------------------
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
@@ -302,7 +303,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', debug=False):
+def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', distr_hists=True, distr_hist_limit=('frac', 0.03), debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
         print '    skipping lbr when only observing leaves'
         return
@@ -366,11 +367,11 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     # ----------------------------------------------------------------------------------------
     def get_ytmpfo(yamlfo, iclust=None):
         if 'percentiles' in yamlfo:  # new-style files
-            ytmpfo = yamlfo['percentiles']
+            ytmpfo = yamlfo['distr-hists' if distr_hists else 'percentiles']
             if per_x == 'per-seq':
-                ytmpfo = ytmpfo['per-seq']['all-clusters' if iclust is None else 'iclust-%d' % iclust]
+                ytmpfo = ytmpfo.get('per-seq', ytmpfo)['all-clusters' if iclust is None else 'iclust-%d' % iclust]  # distr-hists don't have 'per-seq'/'per-cluster' level
             else:
-                ytmpfo = ytmpfo['per-cluster'][choice_grouping]
+                ytmpfo = ytmpfo.get('per-cluster', ytmpfo)[choice_grouping]
         else:  # old-style files
             ytmpfo = yamlfo
             if iclust is not None:
@@ -386,8 +387,40 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             return 'mean_%s_ptiles' % ptilestr
     # ----------------------------------------------------------------------------------------
     def get_diff_vals(ytmpfo, iclust=None):
+        # ----------------------------------------------------------------------------------------
+        def gethist(tkey):
+            yfo = ytmpfo[k]
+            htmp = Hist(n_bins=yfo['n_bins'], xmin=yfo['xmin'], xmax=yfo['xmax'])
+            for ibin in htmp.ibiniter(True):
+                htmp.bin_contents[ibin] = yfo['bin_contents'][ibin]
+            return htmp
+        # ----------------------------------------------------------------------------------------
         ytmpfo = get_ytmpfo(ytmpfo, iclust=iclust)
-        return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key(ytmpfo)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
+        if distr_hists:  # specify distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
+            hzero, hother = [gethist(k) for k in ['zero', 'not 0']]
+            for tattr in ['n_bins', 'xmin', 'xmax']:
+                assert getattr(hzero, tattr) == getattr(hother, tattr)
+            if distr_hist_limit[0] == 'val':
+                ibin = hzero.find_bin(distr_hist_limit[1])
+            elif distr_hist_limit[0] in ['frac', 'N']:
+                hsum = copy.deepcopy(hzero)  # find ibin above which there's 10% of the entries (in both hists)
+                hsum.add(hother)
+                tsum, total = 0., hsum.integral(True)
+                tfrac = distr_hist_limit[1]
+                if distr_hist_limit[0] == 'N':
+                    tfrac = distr_hist_limit[1] / total
+                    if iclust is None:
+                        tfrac *= args.n_sim_events_per_proc
+                for ibin in hsum.ibiniter(True, reverse=True):
+                    tsum += hsum.bin_contents[ibin]
+                    if tsum > tfrac * total:
+                        break
+            else:
+                assert False
+            n_zero, n_other = [h.integral(False, ibounds=(ibin, h.n_bins+2)) for h in [hzero, hother]]
+            return n_zero, n_other, hzero.low_edges[ibin]
+        else:
+            return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key(ytmpfo)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
     # ----------------------------------------------------------------------------------------
     def get_varname_str():
         return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
@@ -416,7 +449,18 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             if len(diff_vals) == 0:
                 missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
                 return
-            diff_to_perfect = numpy.mean(diff_vals)
+            if distr_hists:
+                n_zero, n_other, lo_edge = diff_vals
+                if n_zero + n_other == 0:
+                    # print '  %s zero total in distr hists' % utils.color('yellow', 'warning')
+                    return
+                diff_to_perfect =  n_zero / float(n_zero + n_other)
+                if debug:
+                    print '%s%d/%d=%.2f (%.1f)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, diff_to_perfect, lo_edge),
+            else:
+                diff_to_perfect = numpy.mean(diff_vals)
+                if debug:
+                    print ' %.2f' % diff_to_perfect,
             tau = get_vlval(vlists, varnames, xvar)  # not necessarily tau anymore
             ikey, initfcn = getikey()
             pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
@@ -427,12 +471,12 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
 
         # ----------------------------------------------------------------------------------------
         if debug:
-            print '%s   | obs times    N/gen        carry cap       fraction sampled' % get_varname_str()
+            print '%s   | obs times    N/gen        carry cap       fraction sampled           values' % get_varname_str()
         missing_vstrs = {'missing' : [], 'empty' : []}
         for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
             obs_frac, dbgstr = get_obs_frac(vlists, varnames)
             if debug:
-                print '%s   | %s' % (get_varval_str(vstrs), dbgstr)
+                print '%s   | %s' % (get_varval_str(vstrs), dbgstr),
             yfname = get_tm_fname(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)
             try:
                 with open(yfname) as yfile:
@@ -455,6 +499,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_selection_metric_cluster_size)
                 for iclust in iclusts_in_file:
                     add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
+            if debug:
+                print ''
 
         # print info about missing and empty results
         n_printed, n_max_print = 0, 5
@@ -483,6 +529,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 print ''
                 tmplen = str(max(len(pvkey) for pvkey in plotvals))
                 print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
+                dbgvals = []
             for pvkey, ofvals in plotvals.items():
                 mean_vals, err_vals = [], []
                 ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
@@ -497,10 +544,12 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                         tmpvaldict[tkey].append(tval)
                 tvd_keys = sorted(tmpvaldict) if xvar != 'parameter-variances' else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
                 for tau in tvd_keys:  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
-                    ltmp = tmpvaldict[tau]
+                    ltmp = tmpvaldict[tau]  # len of <ltmp> is N seeds (i.e. procs) times N clusters per seed
                     mean_vals.append((tau, numpy.mean(ltmp)))
                     err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))  # standard error on mean (for standard deviation, comment out denominator)
                     n_used.append(len(ltmp))
+                    if debug:
+                        dbgvals.append((tau, mean_vals[-1][1], err_vals[-1][1]))
                 plotvals[pvkey] = mean_vals
                 errvals[pvkey] = err_vals
                 if debug:
@@ -508,6 +557,10 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     if not treat_clusters_together:
                         n_expected *= args.n_sim_events_per_proc
                     print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
+            if debug:
+                print '    final values:'
+                for tau, meanval, errval in dbgvals:
+                    print '     %6s  %5.2f +/- %.1f' % (tau, meanval, errval)
     # ----------------------------------------------------------------------------------------
     def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5, estr=''):
         markersize = 15  # 1 if len(xticks) > 1 else 15
@@ -772,9 +825,10 @@ def get_tree_metrics(args):
             if not os.path.isdir(tmpoutdir):
                 os.makedirs(tmpoutdir)
 
-        # it would probably be better to use dtr-run.py for everything, but then i'd be nervous i wasn't testing the partitiondriver version of the code enough
+        # it would probably be better to use dtr-run.py for everything, but then i'd be nervous i wasn't testing the partitiondriver version of the code enough UPDATE can now use it for lbi/lbr
+        tmpdir = get_tree_metric_plotdir(varnames, vstrs, metric_method=None if args.metric_method in ['lbi', 'lbr'] else args.metric_method, extra_str=args.extra_plotstr)  # if we're running lbi/lbr as a --metric-method to avoid running partis get-selection-metrics
         if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
-            cmd = './bin/partis get-selection-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), get_tree_metric_plotdir(varnames, vstrs, extra_str=args.extra_plotstr),
+            cmd = './bin/partis get-selection-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), tmpdir,
                                                                                                                                         get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
             if args.no_tree_plots:
@@ -782,10 +836,9 @@ def get_tree_metrics(args):
             # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
             #     cmd += ' --n-procs %d' % args.n_sub_procs
         else:  # non-lb metrics, i.e. trying to predict with shm, etc.
-            mmtmp = None if args.metric_method in ['lbi', 'lbr'] else args.metric_method  # if we're running lbi/lbr as a --metric-method to avoid running partis get-selection-metrics
             cmd = './bin/dtr-run.py --metric-method %s --infname %s --base-plotdir %s' % (args.metric_method,
                                                                                           get_simfname(varnames, vstrs),
-                                                                                          get_tree_metric_plotdir(varnames, vstrs, metric_method=mmtmp, extra_str=args.extra_plotstr))
+                                                                                          tmpdir)
             if args.metric_method == 'dtr':
                 if args.train_dtr and args.overwrite:  # make sure no training files exist, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)
                     assert set([os.path.exists(f) for f in get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)]) == set([False])
@@ -807,7 +860,7 @@ def get_tree_metrics(args):
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)[0],
-            'workdir' : get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr),
+            'workdir' : tmpdir,
         }]
 
     if n_already_there > 0:
@@ -894,6 +947,7 @@ try:
     import treeutils
     import plotting
     import lbplotting
+    from hist import Hist
 except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
@@ -958,7 +1012,7 @@ for action in args.actions:
                     print '  %s  %-s %-13s%-s' % (utils.color('blue', metric), utils.color('purple', estr, width=20, padside='right') if estr != '' else 20*' ', ptvar, utils.color('green', '(relative)') if use_relative_affy else '')
                     for cgroup in treeutils.cgroups:
                         print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
-                        arglist, kwargs = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar), {'use_relative_affy' : use_relative_affy, 'metric_extra_str' : estr}
+                        arglist, kwargs = (args, action, metric, pchoice, cgroup, ptvar, ptlabel, args.final_plot_xvar), {'use_relative_affy' : use_relative_affy, 'metric_extra_str' : estr, 'debug' : args.debug}
                         if args.test:
                             make_plots(*arglist, **kwargs)
                         else:

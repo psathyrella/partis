@@ -97,15 +97,26 @@ class Hist(object):
             assert len(self.errors) == len(self.low_edges)
 
     # ----------------------------------------------------------------------------------------
+    def getdict(self):  # get a dict suitable for writing to json/yaml file (ick! but i don't always want the hists to be in their own file) NOTE code reversing this is in test/cf-tree-metrics.py
+        return {'n_bins' : self.n_bins, 'xmin' : self.xmin, 'xmax' : self.xmax, 'bin_contents' : self.bin_contents}
+
+   # ----------------------------------------------------------------------------------------
     def overflow_contents(self):
         return self.bin_contents[0] + self.bin_contents[-1]
 
     # ----------------------------------------------------------------------------------------
-    def ibiniter(self, include_overflows):  # return iterator over ibins (adding this late, so could probably be used in a lot of places that it isn't)
+    def ibiniter(self, include_overflows, reverse=False):  # return iterator over ibins (adding this late, so could probably be used in a lot of places that it isn't)
         if include_overflows:
-            return range(self.n_bins + 2)
+            istart, istop = 0, self.n_bins + 2
         else:
-            return range(1, self.n_bins + 1)
+            istart, istop = 1, self.n_bins + 1
+        step = 1
+        if reverse:
+            itmp = istart
+            istart = istop - 1
+            istop = itmp - 1
+            step = -1
+        return range(istart, istop, step)
 
     # ----------------------------------------------------------------------------------------
     def set_ibin(self, ibin, value, error, label=None):
@@ -218,9 +229,12 @@ class Hist(object):
         return imin, imax
 
     # ----------------------------------------------------------------------------------------
-    def integral(self, include_overflows):
+    def integral(self, include_overflows, ibounds=None):
         """ NOTE does not multiply/divide by bin widths """
-        imin, imax = self.get_bounds(include_overflows)
+        if ibounds is None:
+            imin, imax = self.get_bounds(include_overflows)
+        else:
+            imin, imax = ibounds
         sum_value = 0.0
         for ib in range(imin, imax):
             sum_value += self.bin_contents[ib]
