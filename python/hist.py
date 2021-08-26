@@ -29,6 +29,8 @@ class Hist(object):
             self.file_init(fname)
 
         if value_list is not None:
+            if any(v < xmin or v >= xmax for v in value_list):  # probably because you forgot that xmax is low edge of overflow bin, so it's included in that
+                print '  %s value[s] %s outside bounds [%s, %s] in hist list fill' % (utils.color('yellow', 'warning'), [v for v in value_list if v < xmin or v >= xmax], xmin, xmax)
             self.list_fill(value_list, weight_list=weight_list)
 
     # ----------------------------------------------------------------------------------------
