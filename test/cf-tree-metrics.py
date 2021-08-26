@@ -403,7 +403,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             if distr_hist_limit[0] == 'val':
                 ibin = hzero.find_bin(distr_hist_limit[1])
             elif distr_hist_limit[0] in ['frac', 'N']:
-                hsum = copy.deepcopy(hzero)  # find ibin above which there's 10% of the entries (in both hists)
+                hsum = copy.deepcopy(hzero)
                 hsum.add(hother)
                 tsum, total = 0., hsum.integral(True)
                 tfrac = distr_hist_limit[1]
@@ -741,10 +741,22 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     leg_loc = [0.04, 0.6]
     # if metric != 'lbi' and len(title) < 17:
     #     leg_loc[0] = 0.7
+    if distr_hists:
+        ylabel = 'frac. correct'
+        if distr_hist_limit[0] == 'val':
+            ylabel += ' (%s > %.1f)' % (lbplotting.mtitlestr(per_x, metric, short=True, max_len=7), distr_hist_limit[1])
+        elif distr_hist_limit[0] == 'frac':
+            ylabel += ' (top %.0f%%)' % (100*distr_hist_limit[1])
+        elif distr_hist_limit[0] == 'N':
+            ylabel += ' (top %d per family)' % distr_hist_limit[1]
+        else:
+            assert False
+    else:
+        ylabel = '%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel)
     plotting.mpl_finish(ax, plotdir, getplotname(metric),
                         xlabel=xlabel,
                         # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
-                        ylabel='%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel),
+                        ylabel=ylabel,
                         title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
                         xticks=xticks, xticklabels=xticklabels, xticklabelsize=12 if xticklabels is not None and '\n' in xticklabels[0] else 16,
                         yticks=yticks, yticklabels=yticklabels,

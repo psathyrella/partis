@@ -987,7 +987,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             distr_hists['all-clusters'] = get_distr_hists(per_seq_plotvals, xvar)
             if not only_csv:
                 make_distr_plot(distr_hists['all-clusters'], xvar, tfns=fnames)
-                make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
+                # make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
                 make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
                                 xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
 
