@@ -324,6 +324,7 @@ def process(args):
                 print '    %s calculating selection metrics, but neither --outfname nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
         elif args.selection_metric_fname is None and args.action == 'get-selection-metrics' and not args.add_selection_metrics_to_outfname:
             args.selection_metric_fname = treeutils.smetric_fname(args.outfname)
+    args.selection_metrics_to_calculate = utils.get_arg_list(args.selection_metrics_to_calculate, choices=treeutils.selection_metrics)
 
     if args.plot_annotation_performance:
         if args.plotdir is None and args.print_n_worst_annotations is None:

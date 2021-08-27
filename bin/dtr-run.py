@@ -49,7 +49,7 @@ if args.max_family_size is not None:
         utils.restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
 if args.metric_method == 'dtr':
-    raise Exception('I think the [new] first arg here (metrics_to_calc) isn\'t right, but don\'t want to test cause i don\'t about dtr')
+    raise Exception('I think the [new] first arg here (metrics_to_calc) isn\'t right, but don\'t want to test cause i don\'t care about dtr')
     treeutils.calculate_tree_metrics(['lbi', 'lbr', 'dtr'], None, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, base_plotdir=args.base_plotdir, only_csv=args.only_csv_plots, min_cluster_size=args.min_selection_metric_cluster_size,
                                      dtr_path=args.dtr_path, train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, include_relative_affy_plots=args.include_relative_affy_plots,
                                      dont_normalize_lbi=args.dont_normalize_lbi, ete_path=ete_path, workdir=workdir, cluster_indices=args.cluster_indices)

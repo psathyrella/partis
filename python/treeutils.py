@@ -1634,7 +1634,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
     return inf_lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, queries_to_include=None, debug=False):
+def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_lines_to_use, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, queries_to_include=None, debug=False):
     import plotting
     import lbplotting
     start = time.time()
@@ -1646,20 +1646,23 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
         inf_plotdir = base_plotdir + '/inferred-tree-metrics'
         utils.prep_dir(inf_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
         fnames = []
-        if has_affinities:
+        if has_affinities and 'aa-lbi' in metrics_to_calc:
             lbplotting.plot_lb_vs_affinity(inf_plotdir, inf_lines_to_use, 'aa-lbi', only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
-        if not only_csv:
+        if not only_csv and 'aa-lbi' in metrics_to_calc:
             lbplotting.plot_lb_distributions('aa-lbi', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
-        if has_affinities:
+        if has_affinities and 'cons-dist-aa' in metrics_to_calc:
             lbplotting.plot_lb_vs_affinity(inf_plotdir, inf_lines_to_use, 'cons-dist-aa', only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
         if not only_csv:  # all the various scatter plots are really slow
-            lbplotting.plot_lb_distributions('cons-dist-aa', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
-            lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
-            # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which means we didn't have any of the internal nodes):
-            lbplotting.make_lb_scatter_plots('aa-lbi', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
-            lbplotting.plot_lb_distributions('lbr', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
-            if ete_path is not None:
-                lbplotting.plot_lb_trees(['aa-lbi', 'lbr', 'cons-dist-aa'], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
+            if 'const-dist-aa' in metrics_to_calc:
+                lbplotting.plot_lb_distributions('cons-dist-aa', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
+                lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
+            if 'aa-lbi' in metrics_to_calc:
+                # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which means we didn't have any of the internal nodes):
+                lbplotting.make_lb_scatter_plots('aa-lbi', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
+            if 'lbr' in metrics_to_calc:
+                lbplotting.plot_lb_distributions('lbr', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
+            if ete_path is not None and any('tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
+                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'lbr', 'cons-dist-aa'] if m in metrics_to_calc], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
             subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
             plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs]) # extra_links used to have inf_plotdir in it, but that seemed to not work?
 
@@ -1673,24 +1676,29 @@ def plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_pat
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
         fnames = []
         for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
-            lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'aa-lbi', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
-            lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'cons-dist-aa', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
+            if 'aa-lbi' in metrics_to_calc:
+                lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'aa-lbi', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
+            if 'cons-dist-aa' in metrics_to_calc:
+                lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'cons-dist-aa', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
-            lbplotting.make_lb_scatter_plots('cons-dist-aa', true_plotdir, 'aa-lbi', true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
-            lbplotting.make_lb_scatter_plots('aa-lbi', true_plotdir, 'lbi', true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True, add_jitter=False, add_stats='correlation')
-        lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+            if 'cons-dist-aa' in metrics_to_calc:
+                lbplotting.make_lb_scatter_plots('cons-dist-aa', true_plotdir, 'aa-lbi', true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
+            if 'aa-lbi' in metrics_to_calc:
+                lbplotting.make_lb_scatter_plots('aa-lbi', true_plotdir, 'lbi', true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True, add_jitter=False, add_stats='correlation')
+        if 'lbr' in metrics_to_calc:
+            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
             # mtmp = 'lbi'
             # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, mtmp, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%mtmp, colorvar='edge-dist', add_jitter=True)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, mtmp, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%mtmp, colorvar='edge-dist', only_overall=False, choose_among_families=True)
             # lbplotting.make_lb_scatter_plots('shm', true_plotdir, mtmp, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='edge-dist', only_overall=True, add_jitter=False)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, mtmp, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='cons-dist-nuc-ptile', colorvar='edge-dist', add_jitter=True)
-            for lb_metric in lb_metrics:
+            for lb_metric in [m for m in lb_metrics if m in metrics_to_calc]:
                 lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
             # lbplotting.plot_lb_distributions('lbi', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             # lbplotting.plot_lb_distributions('lbr', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             if ete_path is not None:
-                lbplotting.plot_lb_trees(['aa-lbi', 'lbr', 'cons-dist-aa'], true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
+                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'lbr', 'cons-dist-aa'] if m in metrics_to_calc], true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
             # for lb_metric in lb_metrics:
             #     lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, inf_lines_to_use, lb_metric, fnames=fnames)
             # lbplotting.plot_cons_seq_accuracy(true_plotdir, true_lines_to_use, fnames=fnames)
@@ -1831,7 +1839,7 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
                     print '       %s overwriting selection metric info that was already in <line>' % utils.color('yellow', 'warning')
                 n_already_there += 1
             line['tree-info'] = {'lb' : {}}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-            if 'aa-cdist' in metrics_to_calc:
+            if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
 
             # get the tree if any of the requested metrics need it
@@ -1916,7 +1924,7 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
             print '      dtr plotting time %.1fs' % (time.time() - plstart)
     elif base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        plot_tree_metrics(base_plotdir, inf_lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, queries_to_include=queries_to_include, debug=debug)
+        plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_lines_to_use, ete_path=ete_path, workdir=workdir, include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, queries_to_include=queries_to_include, debug=debug)
 
     if outfname is not None:
         print '  writing selection metrics to %s' % outfname
