@@ -303,7 +303,7 @@ def get_var_info(args, scan_vars):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', distr_hists=True, distr_hist_limit=('frac', 0.03), debug=False):
+def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', distr_hists=True, debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
         print '    skipping lbr when only observing leaves'
         return
@@ -396,19 +396,19 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             return htmp
         # ----------------------------------------------------------------------------------------
         ytmpfo = get_ytmpfo(ytmpfo, iclust=iclust)
-        if distr_hists:  # specify distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
+        if distr_hists:  # specify args.distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
             hzero, hother = [gethist(k) for k in ['zero', 'not 0']]
             for tattr in ['n_bins', 'xmin', 'xmax']:
                 assert getattr(hzero, tattr) == getattr(hother, tattr)
-            if distr_hist_limit[0] == 'val':
-                ibin = hzero.find_bin(distr_hist_limit[1])
-            elif distr_hist_limit[0] in ['frac', 'N']:
+            if args.distr_hist_limit[0] == 'val':
+                ibin = hzero.find_bin(args.distr_hist_limit[1])
+            elif args.distr_hist_limit[0] in ['frac', 'N']:
                 hsum = copy.deepcopy(hzero)
                 hsum.add(hother)
                 tsum, total = 0., hsum.integral(True)
-                tfrac = distr_hist_limit[1]
-                if distr_hist_limit[0] == 'N':
-                    tfrac = distr_hist_limit[1] / total
+                tfrac = args.distr_hist_limit[1]
+                if args.distr_hist_limit[0] == 'N':
+                    tfrac = args.distr_hist_limit[1] / total
                     if iclust is None:
                         tfrac *= args.n_sim_events_per_proc
                 for ibin in hsum.ibiniter(True, reverse=True):
@@ -743,12 +743,12 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     #     leg_loc[0] = 0.7
     if distr_hists:
         ylabel = 'frac. correct'
-        if distr_hist_limit[0] == 'val':
-            ylabel += ' (%s > %.1f)' % (lbplotting.mtitlestr(per_x, metric, short=True, max_len=7), distr_hist_limit[1])
-        elif distr_hist_limit[0] == 'frac':
-            ylabel += ' (top %.0f%%)' % (100*distr_hist_limit[1])
-        elif distr_hist_limit[0] == 'N':
-            ylabel += ' (top %d per family)' % distr_hist_limit[1]
+        if args.distr_hist_limit[0] == 'val':
+            ylabel += ' (%s > %.1f)' % (lbplotting.mtitlestr(per_x, metric, short=True, max_len=7), args.distr_hist_limit[1])
+        elif args.distr_hist_limit[0] == 'frac':
+            ylabel += ' (top %.0f%%)' % (100*args.distr_hist_limit[1])
+        elif args.distr_hist_limit[0] == 'N':
+            ylabel += ' (top %d per family)' % args.distr_hist_limit[1]
         else:
             assert False
     else:
@@ -910,6 +910,7 @@ parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until 
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
+parser.add_argument('--distr-hist-limit', default='frac:0.03', help='')
 parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
 parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
@@ -985,6 +986,9 @@ if args.plot_metric_extra_strs is None:
 if len(args.plot_metrics) != len(args.plot_metric_extra_strs):
     raise Exception('--plot-metrics %d not same length as --plot-metric-extra-strs %d' % (len(args.plot_metrics), len(args.plot_metric_extra_strs)))
 args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
+args.distr_hist_limit = utils.get_arg_list(args.distr_hist_limit) #, key_val_pairs=True)
+assert args.distr_hist_limit[0] in ['N', 'frac', 'val']
+args.distr_hist_limit[1] = float(args.distr_hist_limit[1])
 args.selection_strength_list = utils.get_arg_list(args.selection_strength_list, floatify=True, forbid_duplicates=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
