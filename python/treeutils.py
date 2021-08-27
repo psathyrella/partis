@@ -34,9 +34,7 @@ lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (
 selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr']  # I really thought this was somewhere, but can't find it so adding it here
 typical_bcr_seq_len = 400
 default_lb_tau = 0.0025
-# ----------------------------------------------------------------------------------------
-# TODO
-default_lbr_tau_factor = 1 #20
+default_lbr_tau_factor = 1
 default_min_selection_metric_cluster_size = 10
 
 dummy_str = 'x-dummy-x'
@@ -1787,9 +1785,9 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_me
         line['tree-info']['lb']['aa-'+nuc_metric] = aa_lb_info[nuc_metric]
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
+def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, add_aa_consensus_distance=False, add_aa_lb_metrics=False, true_lines_to_use=None, include_relative_affy_plots=False,
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False,
                            cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, ignore_existing_internal_node_labels=False, debug=False):
     print 'getting selection metrics'
     if reco_info is not None:
@@ -1827,25 +1825,34 @@ def calculate_tree_metrics(annotations, lb_tau, lbr_tau_factor=None, cpath=None,
                 continue
             if debug:
                 print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
-            treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
-            if treefo['tree'] is None and treefo['origin'] == 'no-uids':
-                n_skipped_uid += 1
-                continue
-            tree_origin_counts[treefo['origin']]['count'] += 1
+
             if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
                 if debug:
                     print '       %s overwriting selection metric info that was already in <line>' % utils.color('yellow', 'warning')
                 n_already_there += 1
-            line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-            line['tree-info']['lb'] = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
-            check_lb_values(line, line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
-            if add_aa_consensus_distance:
+            line['tree-info'] = {'lb' : {}}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
+            if 'aa-cdist' in metrics_to_calc:
                 add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
-            if add_aa_lb_metrics:
-                get_aa_lb_metrics(line, treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
-            if dtr_path is not None and not train_dtr:  # don't want to train on data
+
+            # get the tree if any of the requested metrics need it
+            if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):
+                treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
+                if treefo['tree'] is None and treefo['origin'] == 'no-uids':
+                    n_skipped_uid += 1
+                    continue
+                tree_origin_counts[treefo['origin']]['count'] += 1
+                if any(m in metrics_to_calc for m in ['lbi', 'lbr']):  # have to (or at least easier to) calc both even if we only need one (although i think this is only because of the lbr_tau_factor shenanigans, which maybe we don't need any more?)
+                    lbfo = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
+                    check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+                    line['tree-info']['lb'].update(lbfo)
+                if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
+                    get_aa_lb_metrics(line, treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
+
+            if dtr_path is not None and not train_dtr:  # don't want to train on data (NOTE this would probably also need all the lb metrics calculated, but i don't care atm)
                 calc_dtr(False, line, line['tree-info']['lb'], treefo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
+
             final_inf_lines.append(line)
+
         print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
         if n_skipped_uid > 0:
             print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, n_after, treefname)
