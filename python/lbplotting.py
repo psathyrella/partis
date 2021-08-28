@@ -449,7 +449,7 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
     def make_hist(plotvals, n_total, n_skipped, iclust=None, affinities=None):
         if len(plotvals) == 0:
             return
-        hist = Hist(30, min(plotvals), max(plotvals), value_list=plotvals)
+        hist = Hist(30, min(plotvals), max(plotvals) + 0.01*(max(plotvals) - min(plotvals)), value_list=plotvals)
         fig, ax = plotting.mpl_init()
         hist.mpl_plot(ax) #, square_bins=True, errors=False)
         # fig.text(0.7, 0.8, 'mean %.3f' % numpy.mean(plotvals), fontsize=15)

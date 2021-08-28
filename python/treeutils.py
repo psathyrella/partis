@@ -1653,9 +1653,10 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
         if has_affinities and 'cons-dist-aa' in metrics_to_calc:
             lbplotting.plot_lb_vs_affinity(inf_plotdir, inf_lines_to_use, 'cons-dist-aa', only_csv=only_csv, fnames=fnames, is_true_line=False, debug=debug)
         if not only_csv:  # all the various scatter plots are really slow
-            if 'const-dist-aa' in metrics_to_calc:
+            if 'cons-dist-aa' in metrics_to_calc:
                 lbplotting.plot_lb_distributions('cons-dist-aa', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
-                lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
+                if 'aa-lbi' in metrics_to_calc:
+                    lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
             if 'aa-lbi' in metrics_to_calc:
                 # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which means we didn't have any of the internal nodes):
                 lbplotting.make_lb_scatter_plots('aa-lbi', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
