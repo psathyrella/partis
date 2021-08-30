@@ -26,6 +26,10 @@ def addseq(ltmp, tline, uid):
     chosen_seqs[ltmp].append({'name' : uid, 'seq' : utils.per_seq_val(tline, 'seqs', uid)})
 
 # ----------------------------------------------------------------------------------------
+def translate_paired_ids(ltmp, pids):
+    return ['%s-%s-%s' % (args.sample_prefix, ltmp, u) for u in pids]
+
+# ----------------------------------------------------------------------------------------
 helpstr = """
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
@@ -36,16 +40,18 @@ parser.add_argument('igh_fname')
 parser.add_argument('igk_fname')
 parser.add_argument('igl_fname')
 parser.add_argument('--input-metafnames')
+parser.add_argument('--sample-prefix', default='QA013-10x-pre', help='str that needs to be prepended to paired uid to match the uid in \'paired-uids\' (necessary because when we merge samples in datascripts/preprocess.py we don\'t know which sample each paired id is from)')
 parser.add_argument('--outfname')
 parser.add_argument('--n-largest-clusters', type=int, default=3)
 parser.add_argument('--n-to-choose', type=int, default=2)
 parser.add_argument('--choose-paired', action='store_true')
+# parser.add_argument('--n-max-queries', type=int, default=-1)  # just for testing DAMMIT can't do this, you have to read all the other chains to find the right cluster
 args = parser.parse_args()
 args.input_metafnames = utils.get_arg_list(args.input_metafnames)
 
 cpaths, antn_lists = {}, {}
 for ltmp, fn in zip(['igh', 'igk', 'igl'], [args.igh_fname, args.igk_fname, args.igl_fname]):
-    _, antn_lists[ltmp], cpaths[ltmp] = utils.read_output(fn)
+    _, antn_lists[ltmp], cpaths[ltmp] = utils.read_output(fn) #, n_max_queries=args.n_max_queries)
     for tline in antn_lists[ltmp]:
         tline['paired-uids'] = [[] for _ in tline['unique_ids']]
     if args.input_metafnames is not None:
@@ -71,8 +77,9 @@ for iclust, hclust in enumerate(sorted_hclusters):
 
     lclusts = []
     for ltmp in ['igk', 'igl']:
+        l_tmp_ids = translate_paired_ids(ltmp, l_paired_ids)
         for lc in cpaths[ltmp].best():
-            if len(set(lc) & set(l_paired_ids)) > 0:
+            if len(set(lc) & set(l_tmp_ids)) > 0:
                 lclusts.append((ltmp, lc))
     if len(lclusts) != 1:
         print '    %s couldn\'t find unique light cluster (found %d) for paired ids %s (from heavy ids %s)' % (utils.color('yellow', 'warning'), len(lclusts), ' '.join(l_paired_ids), ' '.join(h_paired_ids))
@@ -95,7 +102,7 @@ for iclust, hclust in enumerate(sorted_hclusters):
     print '     %2d %2d' % (len(tmpids['igh']), len(tmpids[l_locus])),
 
     if args.choose_paired:
-        for ltmp, tline, cids in zip(('igh', l_locus), (hline, lline), (h_paired_ids, l_paired_ids)):
+        for ltmp, tline, cids in zip(('igh', l_locus), (hline, lline), (h_paired_ids, translate_paired_ids(l_locus, l_paired_ids))):
             for uid in cids:
                 addseq(ltmp, tline, uid)
         print '     %2d %2d' % (len(h_paired_ids), len(l_paired_ids)),
@@ -111,7 +118,7 @@ for iclust, (hline, lline) in enumerate(lp_antn_pairs):
         utils.print_reco_event(tline, extra_print_keys=['cons-dist-aa', 'paired-uids'], queries_to_emphasize=all_chosen_ids, extra_str='        ')
 
 if args.outfname is not None:
-    print '  writing chosen seqs to %s' % args.outfname
+    print '  writing %d chosen seqs to %s' % (len(chosen_seqs), args.outfname)
     utils.mkdir(args.outfname, isfile=True)
     with open(args.outfname, 'w') as ofile:
         writer = csv.DictWriter(ofile, ['locus', 'uid', 'seq'])  # NOTE dammit this is way too similar to treeutils.combine_selection_metrics(), i need to maybe split the csv writing code out of there?
