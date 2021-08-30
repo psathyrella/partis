@@ -112,8 +112,8 @@ if len(indel_warning_strs) > 0:
     print '\n'.join(indel_warning_strs)
 
 all_chosen_ids = [s['name'] for sfos in chosen_seqs.values() for s in sfos]
-for iclust, (hline, lline) in enumerate(lp_antn_pairs):
-    print '%s iclust %s   sizes %d %d  chose %d %d' % (utils.color('green', '-->'), utils.color('purple', str(iclust)), len(hline['unique_ids']), len(lline['unique_ids']), len([u for u in all_chosen_ids if u in hline['unique_ids']]), len([u for u in all_chosen_ids if u in hline['unique_ids']]))
+for hline, lline in lp_antn_pairs:
+    print '%s   sizes %d %d  chose %d %d' % (utils.color('green', '-->'), len(hline['unique_ids']), len(lline['unique_ids']), len([u for u in all_chosen_ids if u in hline['unique_ids']]), len([u for u in all_chosen_ids if u in hline['unique_ids']]))
     for tline in [hline, lline]:
         utils.print_reco_event(tline, extra_print_keys=['cons-dist-aa', 'paired-uids'], queries_to_emphasize=all_chosen_ids, extra_str='        ')
 
