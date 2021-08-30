@@ -20,7 +20,7 @@ def read_input_metafo(input_metafnames, annotation_list, required_keys=None, n_w
         read_single_input_metafo(mfname, annotation_list, required_keys=required_keys, n_warn_print=n_warn_print, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def read_single_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=None, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info> (wait so at this point it sounds like this fcn and the next one should be merged [although that would be hard and dangerous, so i'm not doing it now)
+def read_single_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=10, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info> (wait so at this point it sounds like this fcn and the next one should be merged [although that would be hard and dangerous, so i'm not doing it now)
     # NOTE <annotation_list> doesn't need to be real annotations, it only uses the 'unique_ids' key
     metafo = utils.read_json_yaml(input_metafname)
     if any(isinstance(tkey, int) for tkey in metafo):  # would be better to check for not being a string, but that's harder, and this probably only happens for my simulation hash ids
@@ -65,7 +65,7 @@ def read_single_input_metafo(input_metafname, annotation_list, required_keys=Non
         print '%s replaced input metafo for %d instances of key%s %s (see above, only printed the first %d)' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), n_warn_print)
     added_keys = set(k for k, us in usets['added'].items() if len(us) > 0)
     added_uids = set(u for us in usets['added'].values() for u in us)
-    print '  --input-metafnames: added meta info for %d sequences from %s: %s' % (len(added_uids), input_metafname, ' '.join(added_keys))
+    print '  --input-metafnames: %s %s%s' % ('no meta info added from' if len(added_uids)==0 else 'added meta info for %d sequences from'%len(added_uids), input_metafname, '' if len(added_keys)==0 else ': '+' '.join(added_keys))
     if debug:
         print '  read_input_metafo(): add input metafo from meta file to annotations'
         print '                       uids      uids     lines  lines'
