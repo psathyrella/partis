@@ -35,20 +35,21 @@ parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, des
 parser.add_argument('igh_fname')
 parser.add_argument('igk_fname')
 parser.add_argument('igl_fname')
-parser.add_argument('--input-metafname')
+parser.add_argument('--input-metafnames')
 parser.add_argument('--outfname')
 parser.add_argument('--n-largest-clusters', type=int, default=3)
 parser.add_argument('--n-to-choose', type=int, default=2)
 parser.add_argument('--choose-paired', action='store_true')
 args = parser.parse_args()
+args.input_metafnames = utils.get_arg_list(args.input_metafnames)
 
 cpaths, antn_lists = {}, {}
 for ltmp, fn in zip(['igh', 'igk', 'igl'], [args.igh_fname, args.igk_fname, args.igl_fname]):
     _, antn_lists[ltmp], cpaths[ltmp] = utils.read_output(fn)
     for tline in antn_lists[ltmp]:
         tline['paired-uids'] = [[] for _ in tline['unique_ids']]
-    if args.input_metafname is not None:
-        seqfileopener.read_single_input_metafo(args.input_metafname, antn_lists[ltmp])
+    if args.input_metafnames is not None:
+        seqfileopener.read_input_metafo(args.input_metafnames, antn_lists[ltmp])
 
 chosen_seqs = {l : [] for l in utils.sub_loci('ig')}
 indel_warning_strs = []
