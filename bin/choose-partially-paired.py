@@ -91,17 +91,12 @@ for iclust, hclust in enumerate(sorted_hclusters):
         tmpids[ltmp] = tmpids[ltmp][:args.n_to_choose]
         for uid in tmpids[ltmp]:
             addseq(ltmp, tline, uid)
-        # if any(indelutils.has_indels_line(tline, tline['unique_ids'].index(u)) for u in tmpids[ltmp]):
-        #     print '  %s shm indels in chosen seq, which means you need to decide by hand whether you want to choose the input or indel-reversed seq (indel-reversed is written to output file' % utils.color('yellow', 'warning')
-        # chosen_seqs[ltmp] += [{'name' : u, 'seq' : utils.per_seq_val(tline, 'seqs', u)} for u in tmpids[ltmp]]
     print '     %2d %2d' % (len(tmpids['igh']), len(tmpids[l_locus])),
 
     if args.choose_paired:
         for ltmp, tline, cids in zip(('igh', l_locus), (hline, lline), (h_paired_ids, l_paired_ids)):
             for uid in cids:
                 addseq(ltmp, tline, uid)
-        # chosen_seqs['igh'] += h_paired_ids
-        # chosen_ids[l_locus] += l_paired_ids
         print '     %2d %2d' % (len(h_paired_ids), len(l_paired_ids)),
     print ''
 
