@@ -252,16 +252,7 @@ class PartitionPlotter(object):
             # title = '%s   (size: %d)' % (self.get_cdr3_title(full_info), len(full_cluster))
             title = 'MDS comp. (index %d size %d)' % (iclust, len(full_cluster))
 
-            all_seqs = set()
-            kept_indices = []
-            for iseq in range(len(full_cluster)):
-                if full_info['seqs'][iseq] in all_seqs:  # duplicates are from shm indels (I think I did this on purpose in sw)
-                    continue
-                if full_info['n_mutations'][iseq] == 0:  # remove unmutated sequences since a) they'll crash mds after we add the naive seq below and b) they'd show up in the same spot anyway (note that the only way there can be more than one is if there's Ns either within the sequences or on either end)
-                    continue
-                kept_indices.append(iseq)
-                all_seqs.add(full_info['seqs'][iseq])
-
+            kept_indices = list(range(len(full_cluster)))
             if len(kept_indices) > max_cluster_size:
                 uids_to_choose_from = set([full_cluster[i] for i in kept_indices])  # note similarity to code in seqfileopener.post_process()
                 if self.args.queries_to_include is not None:
@@ -287,6 +278,24 @@ class PartitionPlotter(object):
                 addqtis(tqtis, {full_cluster[i] : utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats) for i in kept_indices if self.meta_emph(annotations, full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
             addseq('_naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
             addseq('_consensus', utils.cons_seq_of_line(full_info))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
+
+            # remove duplicates, since they crash mds
+            new_seqfos, all_seqs = [], {}
+            for sfo in seqfos:
+                if sfo['seq'] in all_seqs:  # if we already added this seq with a different uid, we skip it
+                    # print '    dup %s (other %s)' % (sfo['name'], all_seqs[sfo['seq']])
+                    if sfo['name'] in tqtis:  # *and* if we need this seq to be labeled, then we have to add its label under the previous/other uid
+                        oid = all_seqs[sfo['seq']]
+                        if oid in tqtis:
+                            tqtis[oid] = ''
+                        else:
+                            tqtis[oid] += ' '
+                        tqtis[oid] += tqtis[sfo['name']]
+                        # print '      qti %s' % tqtis[oid]
+                    continue
+                new_seqfos.append(sfo)
+                all_seqs[sfo['seq']] = sfo['name']
+            seqfos = new_seqfos
 
             return seqfos, color_scale_vals, tqtis, title
 
@@ -371,13 +380,13 @@ class PartitionPlotter(object):
         if run_in_parallel and len(cmdfos) > 0:
             utils.run_cmds(cmdfos, clean_on_success=True)  #, debug='print')
 
-        if debug and len(skipped_cluster_lengths) > 0:
-            print '    skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), utils.cluster_size_str(skipped_cluster_lengths, only_passing_lengths=True))
+        if len(skipped_cluster_lengths) > 0:
+            print '    mds: skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), utils.cluster_size_str(skipped_cluster_lengths, only_passing_lengths=True))
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
 
-        print '    made %d mds plots (%.1fs) with sizes %s' % (sum(len(x) for x in fnames), time.time() - start, utils.cluster_size_str(plotted_cluster_lengths, only_passing_lengths=True))
+        print '      made %d mds plots (%.1fs) with sizes %s' % (sum(len(x) for x in fnames), time.time() - start, utils.cluster_size_str(plotted_cluster_lengths, only_passing_lengths=True))
 
         return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 
