@@ -580,6 +580,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 if '--plotdir' not in clist:
                     clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
+                if not joint:  # i think for single-chain we only really want the cluster size distributions (for comparison), and we're already running mds in five other plot-partitions calls
+                    clist += ['--no-mds-plots']
             if tmpaction == 'get-selection-metrics':
                 utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)  # remove these just to make the cmd line simpler/easier to read
                 utils.remove_from_arglist(clist, '--sw-cachefname', has_arg=True)
@@ -610,7 +612,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if not os.path.exists(getofn(ltmp, joint=joint, lpair=lpair)):
                 print sdbgstr('output file missing', getofn(ltmp, joint=joint, lpair=lpair))
                 return
-        print '%s %s' % (utils.color('blue_bkg', tmpaction), utils.color('blue', ltmp))
+        print '%s %s:%s%s' % (utils.color('blue_bkg', tmpaction), lpstr, ltstr, utils.color('blue', ' merged') if joint and lpair is None else '')
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
     def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
