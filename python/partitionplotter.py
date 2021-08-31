@@ -282,16 +282,19 @@ class PartitionPlotter(object):
             # remove duplicates, since they crash mds
             new_seqfos, all_seqs = [], {}
             for sfo in seqfos:
+                # ----------------------------------------------------------------------------------------
+                def add_to_label(nid, oid):  # add label for new id <nid> to any label for old id <oid>
+                    if oid in tqtis:
+                        tqtis[oid] += '@'
+                        tqtis[nid] = tqtis[nid].lstrip('_')
+                    else:
+                        tqtis[oid] = ''
+                    tqtis[oid] += tqtis[nid]
+                    del tqtis[nid]
+                # ----------------------------------------------------------------------------------------
                 if sfo['seq'] in all_seqs:  # if we already added this seq with a different uid, we skip it
-                    # print '    dup %s (other %s)' % (sfo['name'], all_seqs[sfo['seq']])
                     if sfo['name'] in tqtis:  # *and* if we need this seq to be labeled, then we have to add its label under the previous/other uid
-                        oid = all_seqs[sfo['seq']]
-                        if oid in tqtis:
-                            tqtis[oid] = ''
-                        else:
-                            tqtis[oid] += ' '
-                        tqtis[oid] += tqtis[sfo['name']]
-                        # print '      qti %s' % tqtis[oid]
+                        add_to_label(sfo['name'], all_seqs[sfo['seq']])
                     continue
                 new_seqfos.append(sfo)
                 all_seqs[sfo['seq']] = sfo['name']
