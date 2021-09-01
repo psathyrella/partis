@@ -858,6 +858,8 @@ def get_tree_metrics(args):
                 cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs, extra_str=args.extra_plotstr))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
                 if args.dtr_cfg is not None:
                     cmd += ' --dtr-cfg %s' % args.dtr_cfg
+            if not args.only_csv_plots and not args.no_tree_plots:
+                cmd += ' --make-tree-plots'
         cmd += ' --lb-tau %s' % get_vlval(vstrs, varnames, 'lb-tau')
         if len(args.lb_tau_list) > 1:
             cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
