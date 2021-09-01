@@ -872,7 +872,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, max_scatter_plot_size=2500, max_iclust_plots=10,
-                                        only_look_upwards=False, debug=False):
+                                        only_look_upwards=False, only_distr_plots=False, debug=False):
     # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line, xvar, iclust):
@@ -916,7 +916,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if 'lbr' in lb_metric else '')
         add_fn(tfns, fn=fn)
     # ----------------------------------------------------------------------------------------
-    def make_distr_plot(dhists, xvar, iclust=None, tfns=None):
+    def make_distr_plot(plotvals, xvar, iclust=None, tfns=None):
+        dhists = get_distr_hists(plotvals, xvar, iclust=iclust, max_bin_width=1)
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
         plotname = '%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust))
         tpdir = getplotdir(xvar, extrastr='-perf-distr')
@@ -924,7 +925,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
                               errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=['#006600', 'darkred'], leg_title='N steps', ytitle='counts') #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
         add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
     # ----------------------------------------------------------------------------------------
-    def get_distr_hists(plotvals, xvar, max_bin_width=1., min_bins=30, iclust=None):
+    def get_distr_hists(plotvals, xvar, max_bin_width=0.2, min_bins=30, iclust=None):
         # ----------------------------------------------------------------------------------------
         def gethist(tstr, vfcn):
             vlist = [v for v, n in zip(plotvals[lb_metric], plotvals['n-ancestor']) if vfcn(n)]
@@ -973,25 +974,28 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
             distr_hists['iclust-%d'%iclust] = get_distr_hists(iclust_plotvals, xvar, iclust=iclust)
             if not only_csv and iclust < max_iclust_plots:
-                make_distr_plot(distr_hists['iclust-%d'%iclust], xvar, iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
-                make_scatter_plot(iclust_plotvals, xvar, iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
-                make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xlist=iclust_plotvals[xvar],
-                                xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), true_inf_str=true_inf_str, iclust=iclust)
+                make_distr_plot(iclust_plotvals, xvar, iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
+                if not only_distr_plots:
+                    make_scatter_plot(iclust_plotvals, xvar, iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
+                    make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xlist=iclust_plotvals[xvar],
+                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), true_inf_str=true_inf_str, iclust=iclust)
         fnames += iclust_fnames
 
         if 'among-families' not in lb_metric and not only_csv:
             pt_vals['per-seq']['within-families-mean'] = get_mean_ptile_vals(len(lines), pt_vals['per-seq'], xvar)
-            make_ptile_plot(pt_vals['per-seq']['within-families-mean'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None, extra_str='within-cluster-average'),
-                            xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, xlist=per_seq_plotvals[xvar])
+            if not only_distr_plots:
+                make_ptile_plot(pt_vals['per-seq']['within-families-mean'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None, extra_str='within-cluster-average'),
+                                xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, xlist=per_seq_plotvals[xvar])
 
         if 'within-families' not in lb_metric:
             pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
             distr_hists['all-clusters'] = get_distr_hists(per_seq_plotvals, xvar)
             if not only_csv:
-                make_distr_plot(distr_hists['all-clusters'], xvar, tfns=fnames)
-                # make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
-                make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
-                                xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
+                make_distr_plot(per_seq_plotvals, xvar, tfns=fnames)
+                if not only_distr_plots:
+                    # make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
+                    make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
+                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
 
         with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
             n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
