@@ -413,7 +413,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                         tfrac *= args.n_sim_events_per_proc
                 for ibin in hsum.ibiniter(True, reverse=True):
                     tsum += hsum.bin_contents[ibin]
-                    if tsum > tfrac * total:
+                    if tsum >= tfrac * total:
                         break
             else:
                 assert False
