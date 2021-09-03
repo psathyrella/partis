@@ -917,15 +917,19 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         add_fn(tfns, fn=fn)
     # ----------------------------------------------------------------------------------------
     def make_distr_plot(plotvals, xvar, iclust=None, tfns=None):
-        dhists = get_distr_hists(plotvals, xvar, iclust=iclust, max_bin_width=1)
+        dhists = get_distr_hists(plotvals, xvar, iclust=iclust, max_bin_width=1) #, extra_hists=True)
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
         plotname = '%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust))
         tpdir = getplotdir(xvar, extrastr='-perf-distr')
+        normalize, colors = False, ['#006600', 'darkred']
+        if len(dhists) > len(colors):
+            normalize = True
+            colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
         plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle='', log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
-                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=['#006600', 'darkred'], leg_title='N steps', ytitle='counts') #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
+                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='N steps', ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
         add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
     # ----------------------------------------------------------------------------------------
-    def get_distr_hists(plotvals, xvar, max_bin_width=0.2, min_bins=30, iclust=None):
+    def get_distr_hists(plotvals, xvar, max_bin_width=0.2, min_bins=30, extra_hists=False, iclust=None):
         # ----------------------------------------------------------------------------------------
         def gethist(tstr, vfcn):
             vlist = [v for v, n in zip(plotvals[lb_metric], plotvals['n-ancestor']) if vfcn(n)]
@@ -939,11 +943,15 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         n_bins = max(min_bins, int((xmax - xmin) / max_bin_width))  # for super large lbr values like 100 you need way more bins
         zero_hist = gethist('zero', lambda n: n == 0)  # lb values for nodes that are immediately below affy-increasing branch
         # <0 is a bit further right than >0, and abs(v)==1 is a bit further right than >1, but these differences are all small compared to the difference to ==0, which is much further right (this is in quick[ish] tests, not doing full parameter scans)
-        # one_hist = gethist('+/-1', lambda n: abs(n) == 1)  # off by one either direction
-        # pos_hist = gethist('>0', lambda n: n > 0)
-        # neg_hist = gethist('<0', lambda n: n < 0)
-        other_hist = gethist('not 0', lambda n: abs(n) > 0)  # not perfect
-        return [other_hist, zero_hist]
+        if extra_hists:
+            m_one_hist = gethist('-1', lambda n: n == -1)
+            p_one_hist = gethist('+1', lambda n: n == 1)
+            g_one_hist = gethist('|n|>1', lambda n: abs(n) > 1)
+            dhists = [g_one_hist, m_one_hist, p_one_hist, zero_hist]
+        else:
+            other_hist = gethist('not 0', lambda n: abs(n) > 0)  # not perfect
+            dhists = [other_hist, zero_hist]
+        return dhists
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(xvar, iclust, extra_str=None):
         return '%s-vs-%s-%s-tree-ptiles%s%s' % (lb_metric, xvar, true_inf_str, icstr(iclust), '' if extra_str is None else '-'+extra_str)

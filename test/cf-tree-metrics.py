@@ -456,7 +456,8 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     return
                 diff_to_perfect =  n_zero / float(n_zero + n_other)
                 if debug:
-                    print '%s%d/%d=%.2f (%.1f)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, diff_to_perfect, lo_edge),
+                    nd = str(0 if lo_edge >= 10. else 1)
+                    print '%s%d/%d=%.2f (%s)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, diff_to_perfect, ('%3.'+nd+'f')%lo_edge),
             else:
                 diff_to_perfect = numpy.mean(diff_vals)
                 if debug:
