@@ -118,22 +118,25 @@ Details [here](paired-loci.md).
 
 ### get-selection-metrics
 
-Calculate quantities for prediction of fitness/affinity.
-At the moment these are: AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr, in both nucleotide and amino acid versions).
-aa-cdist is an excellent predictor of an antibody's affinity for an antigen, but it has no information about what that antigen is, so it should be paired with some method using non-sequence information, such as vaccination or cell sorting (see Discussion in selection metric [paper](https://arxiv.org/abs/2004.11868)).
-Given an antibody of interest and its inferred ancestral lineage, lbr is an excellent predictor of which branches between those ancestors are likely to contain affinity-increasing mutations.
-In order to infer ancestral sequences, you should run a separate program that includes proper phylogenetic inference, such as [linearham](https://github.com/matsengrp/linearham/) or [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html).
+Calculate quantities for prediction of fitness/affinity, as described [here](https://arxiv.org/abs/2004.11868).
+At the moment metrics include: AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr, in both nucleotide and amino acid versions).
+aa-cdist is an excellent predictor of an antibody's affinity for an antigen, but it has no information about what that antigen is, so it should be paired with some method using non-sequence information, such as vaccination or cell sorting (see Discussion in the paper).
+Given an antibody of interest and its inferred ancestral lineage, aa-lbr is an excellent predictor of which branches between those ancestors are likely to contain affinity-increasing mutations.
+In order to infer ancestral sequences (and just to have a more accurate tree), if using aa-lbr you should run a separate program that includes proper phylogenetic inference, such as [linearham](https://github.com/matsengrp/linearham/) or [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html).
+
+Note that we made some significant improvements to aa-lbr (and lbr) as of Sep 2021, which are described [here](lb-correction.pdf).
 
 You can run the `get-selection-metrics` action either on an existing partis output file, or add `--get-selection-metrics` when running the `partition` action.
-The former is generally better, since you can then pass in your own separately-inferred trees with `--treefname`, and also run several different versions without having to re-partition.
+The former is generally better, since you can then pass in your own separately-inferred trees with `--treefname`, and also run several different versions without having to re-partition (see `--selection-metric-fname`).
 Both lbi and aa-cdist can include multiplicity information for each sequence (e.g. from expression levels), see [below](#input-meta-info).
 
-Both lbi and lbr need a tree, so unless you pass in your own, partis will make one.
+Both lbi and lbr (in nucleotide or amino acid versions) need a tree, so unless you pass in your own, partis will make one.
 Since we want this to be fast enough to run on all the families in a large repertoire, this uses a fairly heuristic approach to calculating trees.
 If this is run in the context of partitioning (so there's a clustering path available from hierarchical agglomeration), then that clustering path is used as the starting point for the tree.
 It is then refined by replacing any subtrees stemming from large multifurcations with a subtree inferred using FastTree (for instance, the first clustering step is to merge all sequences with similar inferred naive sequences, which results in such subtrees).
 If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
 This will make a tree for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc., or restricted with --cluster-index.
+These heuristic trees are typically fine for general studies (and note that aa-cdist does not use a tree at all), but if you're studying a lineage in great detail, especially using aa-lbr, it's probably worth using the more sophisticated methods above ([linearham](https://github.com/matsengrp/linearham/) and [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html)).
 
 If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](https://github.com/matsengrp/olmsted/).
 
