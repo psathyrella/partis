@@ -118,7 +118,7 @@ Details [here](paired-loci.md).
 
 ### get-selection-metrics
 
-Calculate quantities for prediction of fitness/affinity, as described [here](https://arxiv.org/abs/2004.11868).
+Calculate quantities for prediction of fitness/affinity, as described [here](https://doi.org/10.1371/journal.pcbi.1008391).
 At the moment metrics include: AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr, in both nucleotide and amino acid versions).
 aa-cdist is an excellent predictor of an antibody's affinity for an antigen, but it has no information about what that antigen is, so it should be paired with some method using non-sequence information, such as vaccination or cell sorting (see Discussion in the paper).
 Given an antibody of interest and its inferred ancestral lineage, aa-lbr is an excellent predictor of which branches between those ancestors are likely to contain affinity-increasing mutations.
@@ -131,7 +131,7 @@ The former is generally better, since you can then pass in your own separately-i
 Both lbi and aa-cdist can include multiplicity information for each sequence (e.g. from expression levels), see [below](#input-meta-info).
 
 Both lbi and lbr (in nucleotide or amino acid versions) need a tree, so unless you pass in your own, partis will make one.
-Since we want this to be fast enough to run on all the families in a large repertoire, this uses a fairly heuristic approach to calculating trees.
+Since we want this to be fast enough to run on most of the families in a large repertoire, this uses a fairly heuristic approach to calculating trees.
 If this is run in the context of partitioning (so there's a clustering path available from hierarchical agglomeration), then that clustering path is used as the starting point for the tree.
 It is then refined by replacing any subtrees stemming from large multifurcations with a subtree inferred using FastTree (for instance, the first clustering step is to merge all sequences with similar inferred naive sequences, which results in such subtrees).
 If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
@@ -268,7 +268,7 @@ Default simulation requires some additional [installation steps](install.md#simu
 There are two main partis-only simulation modes (with options for running hybrids between the two), plus you can combine partis with the [bcr-phylo](http://dx.doi.org/10.3389/fimmu.2018.02451) package (which is included with partis, although you may need to run `git submodule update`):
   1. you pass it an inferred parameter directory with `--parameter-dir` (e.g. `test/reference-results/test/parameters/simu`) and it mimics the sample from which those parameters were inferred
   2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
-  3. partis simulates a naive rearrangement, then passes it to bcr-phylo for mutation (as used in the [selection metric paper](https://arxiv.org/abs/2004.11868))
+  3. partis simulates a naive rearrangement, then passes it to bcr-phylo for mutation (as used in the [selection metric paper](https://doi.org/10.1371/journal.pcbi.1008391))
 
 Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire.
 Meanwhile 3. is required if you want to manipulate the details of the GC selection process (rather than parameters related to the results of the GC reaction, like number of leaves or tree depth).
