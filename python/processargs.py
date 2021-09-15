@@ -161,7 +161,11 @@ def process(args):
     if args.write_additional_cluster_annotations is not None and len(args.write_additional_cluster_annotations) != 2:
         raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
     args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
+
     args.input_metafnames = utils.get_arg_list(args.input_metafnames)
+    if args.input_metafnames is not None and len(args.input_metafnames) > 1 and os.path.exists(':'.join(args.input_metafnames)):  # hackishly try to handle single meta fname paths that have ':'s in them (this will break if you *also* try to have multiple input metfnames
+        print '  %s: guessing that --input-metafnames is only length one despite \':\'s: %s' % (utils.color('yellow', 'warning'), ':'.join(args.input_metafnames))
+        args.input_metafnames = [':'.join(args.input_metafnames)]
 
     args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)
 
@@ -391,6 +395,11 @@ def process(args):
 
         if args.constant_number_of_leaves and args.n_leaf_distribution is not None:
             raise Exception('--n-leaf-distribution has no effect if --constant-number-of-leaves is set (but both were set)')
+
+        if args.mean_cells_per_droplet is not None and args.mean_cells_per_droplet == 'None':  # it's nice to be able to unset this from the command line (even though the defualt is off) e.g. when calling from cf-paired-loci.py
+            args.mean_cells_per_droplet = None
+        if args.mean_cells_per_droplet is not None:  # ick
+            args.mean_cells_per_droplet = float(args.mean_cells_per_droplet)
 
         if args.generate_germline_set:
             args.snp_positions = None  # if you want to control the exact positions, you have to use bin/test-germline-inference.py

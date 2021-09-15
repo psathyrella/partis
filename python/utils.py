@@ -221,6 +221,99 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, bo
     return arglist
 
 # ----------------------------------------------------------------------------------------
+def svoutdir(args, varnames, vstr, svtype):
+    assert len(varnames) == len(vstr)
+    outdir = [args.base_outdir, args.label]
+    if hasattr(args, 'version'):
+        outdir.append(args.version)
+    for vn, vstr in zip(varnames, vstr):
+        if vn not in args.scan_vars[svtype]:  # e.g. lb tau, which is only for lb calculation
+            continue
+        outdir.append('%s-%s' % (vn, vstr))
+    return '/'.join(outdir)
+
+# ----------------------------------------------------------------------------------------
+def get_scanvar_arg_lists(args):
+    # ----------------------------------------------------------------------------------------
+    def galist(aname):
+        attr_name = aname.replace('-', '_') + '_list'
+        setattr(args, attr_name, get_arg_list(getattr(args, attr_name), list_of_lists=aname in args.str_list_vars, intify=aname in args.svartypes['int'], floatify=aname in args.svartypes['float'],
+                                                forbid_duplicates=args.zip_vars is None or aname not in args.zip_vars))  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()
+    # ----------------------------------------------------------------------------------------
+    for aname in set([v for vlist in args.scan_vars.values() for v in vlist]):
+        galist(aname)
+
+# ----------------------------------------------------------------------------------------
+def sargval(args, sv):  # ick this name sucks
+    def dkey(sv):
+        return sv.replace('-', '_') + '_list'
+    if sv == 'seed':
+        riter = range(args.n_replicates) if args.iseeds is None else args.iseeds
+        return [args.random_seed + i for i in riter]
+    else:
+        return args.__dict__[dkey(sv)]
+
+# ----------------------------------------------------------------------------------------
+def vlval(args, vlists, varnames, vname):  # ok this name also sucks, but they're doing complicated things while also needing really short names...
+    # NOTE I think <vlist> would be more appropriate than <vlists>
+    if vname in varnames:
+        return vlists[varnames.index(vname)]
+    else:
+        assert len(sargval(args, vname))  # um, I think?
+        return sargval(args, vname)[0]
+
+# ----------------------------------------------------------------------------------------
+# handles the complicated machinations of scanning over a variety of (mostly simulation) variables, taking as input the command line args, and returning several lists e.g. with these separated into those with/without multiple values
+# <args.str_list_vars>: vars that are lists of lists of strs, rather than simple lists of strs
+def get_var_info(args, scan_vars, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def handle_var(svar, val_lists, valstrs):
+        convert_fcn = (lambda vlist: ':'.join(str(v) for v in vlist)) if svar in args.str_list_vars else str
+        sargv = sargval(args, svar)
+        if sargv is None:  # no default value, and it wasn't set on the command line
+            pass
+        elif len(sargv) > 1 or (svar == 'seed' and args.iseeds is not None):  # if --iseeds is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
+            varnames.append(svar)
+            val_lists = [vlist + [sv] for vlist in val_lists for sv in sargv]
+            valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in sargv]
+            if debug:
+                print '    %30s  %4s    %s    %s' % (svar, 'y' if svar in args.str_list_vars else '-', val_lists, valstrs)
+        else:
+            base_args.append('--%s %s' % (svar, convert_fcn(sargv[0])))
+        return val_lists, valstrs
+
+    # ----------------------------------------------------------------------------------------
+    base_args = []  # list of command line args/values that only have one value (but support the possibility of more than one), i.e. that don't need to be looped over and don't need a subdir in the output path (e.g. ['--carry-cap 1000', '--obs-times 100:150:200:250:300', '--metric-for-target-distance aa', '--selection-strength 1.0', '--leaf-sampling-scheme uniform-random', '--target-count 1'])
+    varnames = []  # names of variables that currently have more than one value that we want to scan over (e.g. ['n-sim-seqs-per-gen', 'seed'])
+    val_lists, valstrs = [[]], [[]]  # these are both lists in which each entry is a combination of each of the vars in <varnames> that we want to run; in the former they're all lists, whereas in the latter they're strings, i.e. colon-separated lists (e.g. [[[10, 20], 0], [[10, 20], 1], [[10, 20], 2], [[50, 100], 0], [[50, 100], 1], [[50, 100], 2]] and [['10:20', '0'], ['10:20', '1'], ['10:20', '2'], ['50:100', '0'], ['50:100', '1'], ['50:100', '2']])
+    if debug:
+        print '                             name    list   val_lists              valstrs'
+    for svar in scan_vars:
+        val_lists, valstrs = handle_var(svar, val_lists, valstrs)
+
+    if args.zip_vars is not None:
+        assert len(args.zip_vars) == 2  # nothing wrong with more, but I don't feel like testing it right now
+        assert len(sargval(args, args.zip_vars[0])) == len(sargval(args, args.zip_vars[1]))  # doesn't make sense unless you provide a corresponding value for each
+        ok_zipvals = zip(sargval(args, args.zip_vars[0]), sargval(args, args.zip_vars[1]))
+        zval_lists, zvalstrs = [], []  # new ones, only containing zipped values
+        for vlist, vstrlist in zip(val_lists, valstrs):
+            zvals = tuple([vlval(args, vlist, varnames, zv) for zv in args.zip_vars])  # values for this combo of the vars we want to zip
+            if zvals in ok_zipvals and vlist not in zval_lists:  # second clause is to avoid duplicates (duh), which we get because when we're zipping vars we have to allow duplicate vals in each zip'd vars arg list, and then (above) we make combos including all those duplicate combos
+                zval_lists.append(vlist)
+                zvalstrs.append(vstrlist)
+        val_lists = zval_lists
+        valstrs = zvalstrs
+        if debug:
+            print '    zipped values for %s: %s    %s' % (' '.join(args.zip_vars), val_lists, valstrs)
+
+    if any(valstrs.count(vstrs) > 1 for vstrs in valstrs):
+        raise Exception('duplicate combinations for %s' % ' '.join(':'.join(vstr) for vstr in valstrs if valstrs.count(vstr) > 1))
+
+    if debug:
+        print '    base args: %s' % ' '.join(base_args)
+    return base_args, varnames, val_lists, valstrs
+
+# ----------------------------------------------------------------------------------------
 def add_lists(list_a, list_b):  # add two lists together, except if one is None treat it as if it was zero length (allows to maintain the convention that command line arg variables are None if unset, while still keeping things succinct)
     if list_b is None:
         return copy.deepcopy(list_a)
@@ -4994,6 +5087,7 @@ def remove_from_arglist(clist, argstr, has_arg=False):
     if has_arg:
         clist.pop(iloc + 1)
     clist.pop(iloc)
+    return clist  # NOTE usually we don't use the return value (just modify it in memory), but at least in one place we're calling with a just-created list so it's nice to be able to use the return value
 
 # ----------------------------------------------------------------------------------------
 # replace the argument to <argstr> in <clist> with <replace_with>, or if <argstr> isn't there add it. If we need to add it and <insert_after> is set, add it after <insert_after>

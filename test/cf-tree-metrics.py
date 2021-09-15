@@ -144,18 +144,8 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
                 make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=print_results)
 
 # ----------------------------------------------------------------------------------------
-def get_outdir(varnames, vstr, svtype):
-    assert len(varnames) == len(vstr)
-    outdir = [args.base_outdir, args.label]
-    for vn, vstr in zip(varnames, vstr):
-        if vn not in args.scan_vars[svtype]:  # e.g. lb tau, which is only for lb calculation
-            continue
-        outdir.append('%s-%s' % (vn, vstr))
-    return '/'.join(outdir)
-
-# ----------------------------------------------------------------------------------------
 def get_bcr_phylo_outdir(varnames, vstr):
-    return get_outdir(varnames, vstr, 'simu') + '/bcr-phylo'
+    return utils.svoutdir(args, varnames, vstr, 'simu') + '/bcr-phylo'
 
 # ----------------------------------------------------------------------------------------
 def get_simfname(varnames, vstr):
@@ -167,7 +157,7 @@ def get_parameter_dir(varnames, vstr):
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metric_outdir(varnames, vstr, metric_method=None):  # metric_method is only set if it's neither lbi nor lbr
-    return get_outdir(varnames, vstr, 'get-tree-metrics') + '/' + ('partis' if metric_method is None else metric_method)
+    return utils.svoutdir(args, varnames, vstr, 'get-tree-metrics') + '/' + ('partis' if metric_method is None else metric_method)
 
 # ----------------------------------------------------------------------------------------
 def get_partition_fname(varnames, vstr, action, metric_method=None):  # if action is 'bcr-phylo', we want the original partition output file, but if it's 'get-tree-metrics', we want the copied one, that had tree metrics added to it (and which is in the e.g. tau subdir) UPDATE no longer modifying output files by default, so no longer doing the copying thing
@@ -243,66 +233,6 @@ def get_comparison_plotdir(metric, per_x, extra_str=''):  # both <metric> and <p
     return plotdir
 
 # ----------------------------------------------------------------------------------------
-def getsargval(sv):  # ick this name sucks
-    def dkey(sv):
-        return sv.replace('-', '_') + '_list'
-    if sv == 'seed':
-        riter = range(args.n_replicates) if args.iseeds is None else args.iseeds
-        return [args.random_seed + i for i in riter]
-    else:
-        return args.__dict__[dkey(sv)]
-
-# ----------------------------------------------------------------------------------------
-def get_vlval(vlists, varnames, vname):  # ok this name also sucks, but they're doing complicated things while also needing really short names...
-    # NOTE I think <vlist> would be more appropriate than <vlists>
-    if vname in varnames:
-        return vlists[varnames.index(vname)]
-    else:
-        assert len(getsargval(vname))  # um, I think?
-        return getsargval(vname)[0]
-
-# ----------------------------------------------------------------------------------------
-def get_var_info(args, scan_vars):
-    def handle_var(svar, val_lists, valstrs):
-        convert_fcn = str if svar in ['carry-cap', 'seed', 'metric-for-target-distance', 'paratope-positions', 'parameter-variances', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'lb-tau'] else lambda vlist: ':'.join(str(v) for v in vlist)
-        sargv = getsargval(svar)
-        if sargv is None:  # no default value, and it wasn't set on the command line
-            pass
-        elif len(sargv) > 1 or (svar == 'seed' and args.iseeds is not None):  # if --iseeds is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
-            varnames.append(svar)
-            val_lists = [vlist + [sv] for vlist in val_lists for sv in sargv]
-            valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in sargv]
-        else:
-            base_args.append('--%s %s' % (svar, convert_fcn(sargv[0])))
-        return val_lists, valstrs
-
-    base_args = []
-    varnames = []
-    val_lists, valstrs = [[]], [[]]
-    for svar in scan_vars:
-        val_lists, valstrs = handle_var(svar, val_lists, valstrs)
-
-    if args.zip_vars is not None:
-        if args.debug:
-            print '    zipping values for %s' % ' '.join(args.zip_vars)
-        assert len(args.zip_vars) == 2  # nothing wrong with more, but I don't feel like testing it right now
-        assert len(getsargval(args.zip_vars[0])) == len(getsargval(args.zip_vars[1]))  # doesn't make sense unless you provide a corresponding value for each
-        ok_zipvals = zip(getsargval(args.zip_vars[0]), getsargval(args.zip_vars[1]))
-        zval_lists, zvalstrs = [], []  # new ones, only containing zipped values
-        for vlist, vstrlist in zip(val_lists, valstrs):
-            zvals = tuple([get_vlval(vlist, varnames, zv) for zv in args.zip_vars])  # values for this combo of the vars we want to zip
-            if zvals in ok_zipvals and vlist not in zval_lists:  # second clause is to avoid duplicates (duh), which we get because when we're zipping vars we have to allow duplicate vals in each zip'd vars arg list, and then (above) we make combos including all those duplicate combos
-                zval_lists.append(vlist)
-                zvalstrs.append(vstrlist)
-        val_lists = zval_lists
-        valstrs = zvalstrs
-
-    if any(valstrs.count(vstrs) > 1 for vstrs in valstrs):
-        raise Exception('duplicate combinations for %s' % ' '.join(':'.join(vstr) for vstr in valstrs if valstrs.count(vstr) > 1))
-
-    return base_args, varnames, val_lists, valstrs
-
-# ----------------------------------------------------------------------------------------
 def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', distr_hists=True, debug=False):
     if metric == 'lbr' and args.dont_observe_common_ancestors:
         print '    skipping lbr when only observing leaves'
@@ -331,15 +261,15 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames):
-        obs_times = get_vlval(vlists, varnames, 'obs-times')
-        n_per_gen_vals = get_vlval(vlists, varnames, 'n-sim-seqs-per-gen')
+        obs_times = utils.vlval(args, vlists, varnames, 'obs-times')
+        n_per_gen_vals = utils.vlval(args, vlists, varnames, 'n-sim-seqs-per-gen')
         if len(obs_times) == len(n_per_gen_vals):  # note that this duplicates logic in bcr-phylo simulator.py
             n_sampled = sum(n_per_gen_vals)
         elif len(n_per_gen_vals) == 1:
             n_sampled = len(obs_times) * n_per_gen_vals[0]
         else:
             assert False
-        n_total = get_vlval(vlists, varnames, 'carry-cap')  # note that this is of course the number alive at a given time, and very different from the total number that ever lived
+        n_total = utils.vlval(args, vlists, varnames, 'carry-cap')  # note that this is of course the number alive at a given time, and very different from the total number that ever lived
         obs_frac = n_sampled / float(n_total)
         dbgstr = '    %-12s %-12s   %-5d     %8s / %-4d = %.3f' % (' '.join(str(o) for o in obs_times), ' '.join(str(n) for n in n_per_gen_vals), n_total,
                                                                    ('(%s)' % ' + '.join(str(n) for n in n_per_gen_vals)) if len(obs_times) == len(n_per_gen_vals) else ('%d * %d' % (len(obs_times), n_per_gen_vals[0])),
@@ -348,7 +278,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     # ----------------------------------------------------------------------------------------
     def pvkeystr(vlists, varnames, obs_frac):
         def valstr(vname):
-            vval = obs_frac if vname == 'obs_frac' else get_vlval(vlists, varnames, vname)
+            vval = obs_frac if vname == 'obs_frac' else utils.vlval(args, vlists, varnames, vname)
             if vname == 'obs_frac':
                 return '%.4f' % obs_frac
             else:
@@ -439,10 +369,10 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     def initfcn(): return {i : [] for i in range(args.n_sim_events_per_proc)}
                 elif treat_clusters_together:  # but more than one replicate/seed
                     ikey = vlists[varnames.index('seed')]
-                    def initfcn(): return {i : [] for i in getsargval('seed')}
+                    def initfcn(): return {i : [] for i in utils.sargval(args, 'seed')}
                 else:  # both of 'em non-trivial
                     ikey = '%d-%d' % (vlists[varnames.index('seed')], iclust)
-                    def initfcn(): return {('%d-%d' % (i, j)) : [] for i in getsargval('seed') for j in range(args.n_sim_events_per_proc)}
+                    def initfcn(): return {('%d-%d' % (i, j)) : [] for i in utils.sargval(args, 'seed') for j in range(args.n_sim_events_per_proc)}
                 return ikey, initfcn
 
             diff_vals = get_diff_vals(ytmpfo, iclust=iclust)
@@ -462,7 +392,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 diff_to_perfect = numpy.mean(diff_vals)
                 if debug:
                     print ' %.2f' % diff_to_perfect,
-            tau = get_vlval(vlists, varnames, xvar)  # not necessarily tau anymore
+            tau = utils.vlval(args, vlists, varnames, xvar)  # not necessarily tau anymore
             ikey, initfcn = getikey()
             pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
             if pvkey not in plotvals:
@@ -638,7 +568,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         return xticks, xticklabels, xlabel
 
     # ----------------------------------------------------------------------------------------
-    _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
+    _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['get-tree-metrics'])
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     fig, ax = plotting.mpl_init()
     xticks, xlabel = None, None
@@ -766,7 +696,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(args):  # also caches parameters
-    base_args, varnames, _, valstrs = get_var_info(args, args.scan_vars['simu'])
+    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
     cmdfos = []
     print '  bcr-phylo: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
     if args.debug:
@@ -821,7 +751,7 @@ def run_bcr_phylo(args):  # also caches parameters
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metrics(args):
-    _, varnames, _, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
+    _, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['get-tree-metrics'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
     print '  get-tree-metrics (%s): running %d combinations of: %s' % (args.metric_method, len(valstrs), ' '.join(varnames))
     n_already_there = 0
@@ -861,7 +791,7 @@ def get_tree_metrics(args):
                     cmd += ' --dtr-cfg %s' % args.dtr_cfg
             if not args.only_csv_plots and not args.no_tree_plots:
                 cmd += ' --make-tree-plots'
-        cmd += ' --lb-tau %s' % get_vlval(vstrs, varnames, 'lb-tau')
+        cmd += ' --lb-tau %s' % utils.vlval(args, vstrs, varnames, 'lb-tau')
         if len(args.lb_tau_list) > 1:
             cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
         if args.only_csv_plots:
@@ -956,6 +886,7 @@ args = parser.parse_args()
 
 args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'context-depend', 'paratope-positions', 'parameter-variances'],}
 args.scan_vars['get-tree-metrics'] = args.scan_vars['simu'] + ['lb-tau']
+args.str_list_vars = ['n-sim-seqs-per-gen', 'obs-times', 'context-depend', 'n-sim-seqs-per-gen', 'obs-times', 'context-depend']
 
 sys.path.insert(1, args.partis_dir + '/python')
 try:
@@ -1018,7 +949,7 @@ for action in args.actions:
     elif action in ['plot', 'combine-plots'] and not args.dry:
         assert args.extra_plotstr == ''  # only use --extra-plotstr for get-tree-metrics, for this use --plot-metric-extra-strs (because we in general have multiple --plot-metrics when we're here)
         assert args.metric_method is None  # when plotting, you should only be using --plot-metrics
-        _, varnames, val_lists, valstrs = get_var_info(args, args.scan_vars['get-tree-metrics'])
+        _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['get-tree-metrics'])
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, get_comparison_plotdir(None, None))
         procs = []
         pchoice = 'per-seq'
