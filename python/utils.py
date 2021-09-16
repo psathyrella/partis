@@ -241,6 +241,8 @@ def get_scanvar_arg_lists(args):
                                                 forbid_duplicates=args.zip_vars is None or aname not in args.zip_vars))  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()
     # ----------------------------------------------------------------------------------------
     for aname in set([v for vlist in args.scan_vars.values() for v in vlist]):
+        if aname == 'seed':
+            continue
         galist(aname)
 
 # ----------------------------------------------------------------------------------------

@@ -19,12 +19,14 @@ parser.add_argument('--actions', default='simulate:cache-parameters:partition') 
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
 parser.add_argument('--n-sim-events', type=int, default=10)
 parser.add_argument('--n-leaves-list', default='1') #'2:3:4:10') #1 5; do10)
+parser.add_argument('--n-replicates', default=1, type=int)
+parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--mean-cells-per-droplet-list', default='None') #, default='1') #0.8 2 3 5 10; do #1.1; do
 # TODO add fraction-of-reads-to-remove
 parser.add_argument('--allowed-cdr3-lengths-list', default='30,45:30,33,36,42,45,48')
 parser.add_argument('--mutation-multiplier', type=float, default=1)
 parser.add_argument('--n-procs', type=int, default=10)
-parser.add_argument('--seed', type=int, default=1)
+parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
 parser.add_argument('--dry', action='store_true')
@@ -34,7 +36,7 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--extra-args')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['n-leaves', 'mean-cells-per-droplet', 'allowed-cdr3-lengths']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'mean-cells-per-droplet', 'allowed-cdr3-lengths']}
 for act in ['cache-parameters', 'partition']:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths']
@@ -71,7 +73,7 @@ def run_simu():
             print '    simulation output exists %s' % outdir
             n_already_there += 1
             continue
-        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --random-seed %d --paired-outdir %s %s' % (args.seed, outdir, ' '.join(base_args))  #  --parameter-dir %s in_param_dir
+        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --paired-outdir %s %s' % (outdir, ' '.join(base_args))  #  --parameter-dir %s in_param_dir
         cmd += ' --n-sim-events %d --n-procs %d --no-per-base-mutation --mutation-multiplier %.2f --constant-number-of-leaves' % (args.n_sim_events, args.n_procs, args.mutation_multiplier)
         if args.extra_args is not None:
             cmd += ' %s' % args.extra_args
@@ -96,7 +98,6 @@ def run_partis(action):
             continue
 
         cmd = './bin/partis %s --paired-loci --paired-indir %s/simu --paired-outdir %s' % (action, utils.svoutdir(args, varnames, vstrs, 'simu'), outdir)
-        cmd += ' --random-seed %d' % args.seed
         cmd += ' --n-procs %d' % args.n_procs
         if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
             cmd += ' --is-simu'
@@ -107,6 +108,11 @@ def run_partis(action):
         if args.extra_args is not None:
             cmd += ' %s' % args.extra_args
         utils.simplerun(cmd, logfname='%s-%s.log'%(outdir, action), dryrun=args.dry)
+
+# ----------------------------------------------------------------------------------------
+import random
+random.seed(args.random_seed)
+numpy.random.seed(args.random_seed)
 
 for action in args.actions:
     if action == 'simulate':
