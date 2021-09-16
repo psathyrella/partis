@@ -16,14 +16,22 @@ import glutils
 from clusterpath import ClusterPath
 import seqfileopener
 import indelutils
+import treeutils
 
 # ----------------------------------------------------------------------------------------
-def addseq(ltmp, tline, uid):
-    if any(uid==s['name'] for s in chosen_seqs[ltmp]):
+def addseq(ltmp, tline, uid, iclust):
+    if any(uid==s['name'] for s in chosen_seqs[ltmp]):  # don't add it twice
         return
     if indelutils.has_indels_line(tline, tline['unique_ids'].index(uid)):
         indel_warning_strs.append('  %s shm indels in chosen seq %s, which means you need to decide by hand whether you want to choose the input or indel-reversed seq (indel-reversed is written to output file' % (utils.color('yellow', 'warning'), uid))
-    chosen_seqs[ltmp].append({'name' : uid, 'seq' : utils.per_seq_val(tline, 'seqs', uid)})
+    chosen_seqs[ltmp].append({
+        'name' : uid,
+        'seq' : utils.per_seq_val(tline, 'seqs', uid),
+        'locus' : ltmp,
+        'iclust' : iclust,
+        'aa-cdist' : treeutils.smvals(tline, 'cons-dist-aa', uid=uid)
+        # , 'droplet_id' : utils.get_droplet_id(uid, prefix=args.paired_sample_prefix)
+    })
 
 # ----------------------------------------------------------------------------------------
 def translate_paired_ids(ltmp, pids):
@@ -45,6 +53,7 @@ parser.add_argument('--outfname')
 parser.add_argument('--n-largest-clusters', type=int, default=3)
 parser.add_argument('--n-to-choose', type=int, default=2)
 parser.add_argument('--choose-paired', action='store_true')
+# parser.add_argument('--paired-sample-prefix')
 # parser.add_argument('--n-max-queries', type=int, default=-1)  # just for testing DAMMIT can't do this, you have to read all the other chains to find the right cluster
 args = parser.parse_args()
 args.input_metafnames = utils.get_arg_list(args.input_metafnames)
@@ -98,13 +107,13 @@ for iclust, hclust in enumerate(sorted_hclusters):
         tmpids[ltmp], _ = zip(*sorted(tline['tree-info']['lb']['cons-dist-aa'].items(), key=operator.itemgetter(1), reverse=True))
         tmpids[ltmp] = tmpids[ltmp][:args.n_to_choose]
         for uid in tmpids[ltmp]:
-            addseq(ltmp, tline, uid)
+            addseq(ltmp, tline, uid, iclust)
     print '     %2d %2d' % (len(tmpids['igh']), len(tmpids[l_locus])),
 
     if args.choose_paired:
         for ltmp, tline, cids in zip(('igh', l_locus), (hline, lline), (h_paired_ids, translate_paired_ids(l_locus, l_paired_ids))):
             for uid in cids:
-                addseq(ltmp, tline, uid)
+                addseq(ltmp, tline, uid, iclust)
         print '     %2d %2d' % (len(h_paired_ids), len(l_paired_ids)),
     print ''
 
@@ -121,8 +130,8 @@ if args.outfname is not None:
     print '  writing %d chosen seqs to %s' % (len(chosen_seqs), args.outfname)
     utils.mkdir(args.outfname, isfile=True)
     with open(args.outfname, 'w') as ofile:
-        writer = csv.DictWriter(ofile, ['locus', 'uid', 'seq'])  # NOTE dammit this is way too similar to treeutils.combine_selection_metrics(), i need to maybe split the csv writing code out of there?
+        writer = csv.DictWriter(ofile, chosen_seqs['igh'][0].keys())  # NOTE dammit this is way too similar to treeutils.combine_selection_metrics(), i need to maybe split the csv writing code out of there?
         writer.writeheader()
         for ltmp, seqfos in chosen_seqs.items():
             for sfo in seqfos:
-                writer.writerow({'locus' : ltmp, 'uid' : sfo['name'], 'seq' : sfo['seq']})
+                writer.writerow(sfo)

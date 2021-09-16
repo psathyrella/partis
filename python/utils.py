@@ -752,7 +752,7 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
     return fstr
 
 # ----------------------------------------------------------------------------------------
-def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False):
+def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False): #, prefix=None):
     if uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation
         ulist = uid.split('-')
         did, locus = '-'.join(ulist[:-1]), ulist[-1]
@@ -763,6 +763,8 @@ def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False):
             raise Exception(' sep \'%s\' not in uid \'%s\'' % (sep, uid))
         did, cstr, cid = uid.split(sep)
         assert cstr == 'contig'
+    # if prefix is not None:
+    #     did = did.lstrip(prefix)
     if return_contigs:
         return did, cid  # NOTE returning cid as string
     else:

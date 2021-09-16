@@ -104,8 +104,12 @@ def add_cdists_to_lbfo(line, lbfo, cdist, debug=False):  # it's kind of dumb to 
     lbfo[cdist] = {u : -line[tkey][i] for i, u in enumerate(line['unique_ids'])}
 
 # ----------------------------------------------------------------------------------------
-def smvals(line, smetric, iseq=None, nullval=None):  # retrieve selection metric values from within line['tree-info']['lb'][yadda yadda], i.e. as if they were a normal list-based per-seq quantity
+# if neither iseq nor uid are set, returns all of the values; otherwise specify *either* iseq or uid
+def smvals(line, smetric, iseq=None, uid=None, nullval=None):  # retrieve selection metric values from within line['tree-info']['lb'][yadda yadda], i.e. as if they were a normal list-based per-seq quantity
     # NOTE this is what you use if the values are already there, in 'tree-info' -- if you want to calculate them, there's other fcns
+    assert (iseq is None and uid is None) or [iseq, uid].count(None) == 1
+    if uid is not None:
+        iseq = line['unique_ids'].index(uid)
     if 'tree-info' not in line or 'lb' not in line['tree-info'] or smetric not in line['tree-info']['lb']:
         return [nullval for _ in line['unique_ids']] if iseq is None else nullval
     lbfo = line['tree-info']['lb'][smetric]
