@@ -918,6 +918,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
     # ----------------------------------------------------------------------------------------
     def make_distr_plot(plotvals, xvar, iclust=None, tfns=None):
         dhists = get_distr_hists(plotvals, xvar, iclust=iclust, max_bin_width=1) #, extra_hists=True)
+        if dhists is None:
+            return
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
         plotname = '%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust))
         tpdir = getplotdir(xvar, extrastr='-perf-distr')
