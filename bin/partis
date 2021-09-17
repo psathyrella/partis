@@ -1054,9 +1054,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.action == 'plot-partitions' or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None and not args.no_partition_plots) or args.plot_partitions:
             plot_combined_partitions()
         if args.action == 'view-output' or args.debug_paired_clustering or args.debug:
-            for lpair in spairs():
-                for ltmp in lpair:
-                    run_step('view-output', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
+            for ltmp in sloci():
+                run_step('view-output', ltmp, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
         if args.action == 'get-selection-metrics' or args.get_selection_metrics:
             if args.action == 'get-selection-metrics':
                 for lpair in spairs():
