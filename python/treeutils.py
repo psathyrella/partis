@@ -1888,9 +1888,9 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
             true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
-            if add_aa_lb_metrics:
+            if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
                 get_aa_lb_metrics(true_line, true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
-            if add_aa_consensus_distance:
+            if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above
             if dtr_path is not None:
                 calc_dtr(train_dtr, true_line, true_lb_info, true_dtree, trainfo, pmml_models, dtr_cfgvals)  # either adds training values to trainfo, or adds predicted dtr values to lbfo
