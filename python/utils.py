@@ -758,11 +758,18 @@ def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False): #, prefix=N
         did, locus = '-'.join(ulist[:-1]), ulist[-1]
         cid = locus[2]
     else:
-        assert dtype == '10x'
         if sep not in uid:
             raise Exception(' sep \'%s\' not in uid \'%s\'' % (sep, uid))
-        did, cstr, cid = uid.split(sep)
-        assert cstr == 'contig'
+        if dtype == '10x':
+            if uid.count(sep) != 2:
+                raise Exception('need 2 instances of separator \'%s\' in \'%s\', but found %d' % (sep, uid, uid.count(sep)))
+            did, cstr, cid = uid.split(sep)
+            assert cstr == 'contig'
+        elif dtype == 'undetermined':  # well, maybe this will work for you? i just need it for some random data from meghan atm (will eventually need a more generalized way to do it)
+            did = uid.split(sep)[0]
+            cstr, cid = 'XXX', 'XXX'
+        else:
+            assert False
     # if prefix is not None:
     #     did = did.lstrip(prefix)
     if return_contigs:
@@ -773,6 +780,44 @@ def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False): #, prefix=N
 # ----------------------------------------------------------------------------------------
 def get_contig_id(uid, dtype='10x', sep='_'):
     return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
+
+# ----------------------------------------------------------------------------------------
+def extract_pairing_info(seqfos, droplet_id_separator='_', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
+    droplet_ids = {}
+    for sfo in seqfos:
+        did = droplet_id_fcn(sfo['name'], sep=droplet_id_separator)
+        if did not in droplet_ids:
+            droplet_ids[did] = []
+        droplet_ids[did].append(sfo['name'])
+
+    print '  read %d sequences with %d droplet ids' % (len(seqfos), len(droplet_ids))
+    count_info = {}
+    for dlist in droplet_ids.values():
+        if len(dlist) not in count_info:
+            count_info[len(dlist)] = 0
+        count_info[len(dlist)] += 1
+    print '    contigs per'
+    print '      droplet     count   fraction'
+    total = sum(count_info.values())
+    for size, count in sorted(count_info.items(), key=operator.itemgetter(0)):
+        frac = count / float(total)
+        print '       %2d        %5d     %s' % (size, count, ('%.3f'%frac) if frac > 0.001 else ('%.1e'%frac))
+
+    input_metafos = {}
+    if input_metafname is not None:
+        with open(input_metafname) as mfile:
+            input_metafos = json.load(mfile)
+
+    metafos = {}
+    for sfo in seqfos:
+        if sfo['name'] in metafos:
+            raise Exception('duplicate uid \'%s\' when extracting pairing info' % sfo['name'])
+        metafos[sfo['name']] = {'paired-uids' : [u for u in droplet_ids[droplet_id_fcn(sfo['name'], sep=droplet_id_separator)] if u != sfo['name']]}
+        if sfo['name'] in input_metafos:
+            assert 'paired-uids' not in input_metafos[sfo['name']]  # don't want to adjudicate between alternative versions here
+            metafos[sfo['name']].update(input_metafos[sfo['name']])
+
+    return metafos
 
 # ----------------------------------------------------------------------------------------
 def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotation_dict, use_last=False, debug=False):

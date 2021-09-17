@@ -29,42 +29,8 @@ if utils.output_exists(args, args.outfname, offset=4, debug=False):
     sys.exit(0)
 
 seqfos = utils.read_fastx(args.infname, n_max_queries=args.n_max_queries)
-droplet_ids = {}
-for sfo in seqfos:
-    did = utils.get_droplet_id(sfo['name'])
-    if did not in droplet_ids:
-        droplet_ids[did] = []
-    droplet_ids[did].append(sfo['name'])
+metafos = utils.extract_pairing_info(seqfos, droplet_id_separator=args.droplet_id_separator, input_metafname=args.input_metafname)
 
-print '  read %d sequences with %d droplet ids' % (len(seqfos), len(droplet_ids))
-count_info = {}
-for dlist in droplet_ids.values():
-    if len(dlist) not in count_info:
-        count_info[len(dlist)] = 0
-    count_info[len(dlist)] += 1
-print '    contigs per'
-print '      droplet     count   fraction'
-total = sum(count_info.values())
-for size, count in sorted(count_info.items(), key=operator.itemgetter(0)):
-    frac = count / float(total)
-    print '       %2d        %5d     %s' % (size, count, ('%.3f'%frac) if frac > 0.001 else ('%.1e'%frac))
-
-input_metafos = {}
-if args.input_metafname is not None:
-    with open(args.input_metafname) as mfile:
-        input_metafos = json.load(mfile)
-
-metafos = {}
-for sfo in seqfos:
-    if sfo['name'] in metafos:
-        raise Exception('duplicate uid \'%s\' in %s' % (sfo['name'], args.infname))
-    metafos[sfo['name']] = {'paired-uids' : [u for u in droplet_ids[utils.get_droplet_id(sfo['name'])] if u != sfo['name']]}
-    if sfo['name'] in input_metafos:
-        assert 'paired-uids' not in input_metafos[sfo['name']]  # don't want to adjudicate between alternative versions here
-        metafos[sfo['name']].update(input_metafos[sfo['name']])
-
-if not os.path.exists(os.path.dirname(args.outfname)):
-    os.makedirs(os.path.dirname(args.outfname))
+utils.mkdir(args.outfname, isfile=True)
 with open(args.outfname, 'w') as outfile:
-    # yaml.dump(metafos, outfile, Dumper=yaml.CDumper)
     json.dump(metafos, outfile)
