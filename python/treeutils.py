@@ -1681,14 +1681,12 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
         fnames = []
         for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
-            if 'aa-lbi' in metrics_to_calc:
-                lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'aa-lbi', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
-            if 'cons-dist-aa' in metrics_to_calc:
-                lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, 'cons-dist-aa', is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
+            for tmetric in set(['lbi', 'aa-lbi' 'cons-dist-aa']) & set(metrics_to_calc):
+                lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, tmetric, is_true_line=True, affy_key=affy_key, only_csv=only_csv, fnames=fnames, debug=debug)
         if not only_csv:
-            if 'cons-dist-aa' in metrics_to_calc:
+            if 'cons-dist-aa' in metrics_to_calc and 'aa-lbi' in metrics_to_calc:
                 lbplotting.make_lb_scatter_plots('cons-dist-aa', true_plotdir, 'aa-lbi', true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='affinity', only_overall=True, add_jitter=False)
-            if 'aa-lbi' in metrics_to_calc:
+            if 'aa-lbi' in metrics_to_calc and 'lbi' in metrics_to_calc:
                 lbplotting.make_lb_scatter_plots('aa-lbi', true_plotdir, 'lbi', true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True, add_jitter=False, add_stats='correlation')
         if 'lbr' in metrics_to_calc:
             lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir + '/lbr', true_lines_to_use, 'lbr', is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
@@ -1698,14 +1696,14 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
             # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, mtmp, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='%s-ptile'%mtmp, colorvar='edge-dist', only_overall=False, choose_among_families=True)
             # lbplotting.make_lb_scatter_plots('shm', true_plotdir, mtmp, true_lines_to_use, fnames=fnames, is_true_line=True, colorvar='edge-dist', only_overall=True, add_jitter=False)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', true_plotdir, mtmp, true_lines_to_use, fnames=fnames, is_true_line=True, yvar='cons-dist-nuc-ptile', colorvar='edge-dist', add_jitter=True)
-            for lb_metric in [m for m in lb_metrics if m in metrics_to_calc]:
-                lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, lb_metric, fnames=fnames)
+            for tmetric in set(lb_metrics) & set(metrics_to_calc):
+                lbplotting.make_lb_affinity_joyplots(true_plotdir + '/joyplots', true_lines_to_use, tmetric, fnames=fnames)
             # lbplotting.plot_lb_distributions('lbi', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             # lbplotting.plot_lb_distributions('lbr', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             if ete_path is not None:
                 lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'lbr', 'cons-dist-aa'] if m in metrics_to_calc], true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
-            # for lb_metric in lb_metrics:
-            #     lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + lb_metric, true_lines_to_use, inf_lines_to_use, lb_metric, fnames=fnames)
+            # for tmetric in lb_metrics:
+            #     lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + tmetric, true_lines_to_use, inf_lines_to_use, tmetric, fnames=fnames)
             # lbplotting.plot_cons_seq_accuracy(true_plotdir, true_lines_to_use, fnames=fnames)
             subdirs = [d for d in os.listdir(true_plotdir) if os.path.isdir(true_plotdir + '/' + d)]
             plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(true_plotdir), subd)) for subd in subdirs])  # extra_links used to have true_plotdir in it, but that seemed not to work?
@@ -1802,7 +1800,7 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
                            dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False,
                            cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, ignore_existing_internal_node_labels=False, debug=False):
-    print 'getting selection metrics'
+    print 'getting selection metrics: %s' % ' '.join(metrics_to_calc)
     if reco_info is not None:
         if not use_true_clusters:
             print '    note: getting selection metrics on simulation without setting <use_true_clusters> (i.e. probably without setting --simultaneous-true-clonal-seqs)'
