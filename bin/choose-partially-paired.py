@@ -28,7 +28,7 @@ def addseq(ltmp, tline, uid, iclust):
         'name' : uid,
         'seq' : utils.per_seq_val(tline, 'seqs', uid),
         'locus' : ltmp,
-        'iclust' : iclust,
+        'igh_iclust' : iclust,
         'aa-cdist' : treeutils.smvals(tline, 'cons-dist-aa', uid=uid)
         # , 'droplet_id' : utils.get_droplet_id(uid, prefix=args.paired_sample_prefix, dtype=XXX)
     })
@@ -79,7 +79,8 @@ for iclust, hclust in enumerate(sorted_hclusters):
     hline = antn_dicts['igh'][':'.join(hclust)]
     tid_lists = [(u, pids[0]) for u, pids in zip(hline['unique_ids'], hline['paired-uids']) if len(pids)==1]  # NOTE this doesn't check that the pairing info is reciprocal (i.e. that the paired-uids in the light chain correpsond to the h seqs)
     if len(tid_lists) == 0:
-        print '    no uniquely-paired seqs (paired-uids lengths: %s)' % (' '.join(str(n) for n in sorted((len(pids) for pids in hline['paired-uids']), reverse=True)))
+        non_zero_pids = [pids for pids in hline['paired-uids'] if len(pids) > 0]
+        print '         no uniquely-paired seqs (paired-uids lengths: %s, +%d unpaired)' % (' '.join(str(n) for n in sorted((len(pids) for pids in non_zero_pids), reverse=True)), len(hline['unique_ids']) - len(non_zero_pids))
         continue
     h_paired_ids, l_paired_ids = zip(*tid_lists)
     print ' %3d' % len(h_paired_ids),
@@ -91,7 +92,7 @@ for iclust, hclust in enumerate(sorted_hclusters):
             if len(set(lc) & set(l_tmp_ids)) > 0:
                 lclusts.append((ltmp, lc))
     if len(lclusts) != 1:
-        print '    %s couldn\'t find unique light cluster (found %d) for paired ids %s (from heavy ids %s)' % (utils.color('yellow', 'warning'), len(lclusts), ' '.join(l_paired_ids), ' '.join(h_paired_ids))
+        print '         couldn\'t find unique light cluster (found %d) for %d paired ids (from %d heavy ids)' % (len(lclusts), len(l_paired_ids), len(h_paired_ids))
         continue
     l_locus, lclust = lclusts[0]
     lline = antn_dicts[l_locus][':'.join(lclust)]
@@ -130,7 +131,7 @@ if args.outfname is not None:
     print '  writing %d chosen seqs to %s' % (len(chosen_seqs), args.outfname)
     utils.mkdir(args.outfname, isfile=True)
     with open(args.outfname, 'w') as ofile:
-        writer = csv.DictWriter(ofile, chosen_seqs['igh'][0].keys())  # NOTE dammit this is way too similar to treeutils.combine_selection_metrics(), i need to maybe split the csv writing code out of there?
+        writer = csv.DictWriter(ofile, sorted(chosen_seqs['igh'][0].keys()))  # NOTE dammit this is way too similar to treeutils.combine_selection_metrics(), i need to maybe split the csv writing code out of there?
         writer.writeheader()
         for ltmp, seqfos in chosen_seqs.items():
             for sfo in seqfos:
