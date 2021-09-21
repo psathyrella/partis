@@ -10,6 +10,12 @@ import numpy
 import math
 
 # ----------------------------------------------------------------------------------------
+vlabels = {
+    'obs_frac' : 'fraction sampled',
+    'n-sim-seqs-per-gen' : 'N/gen',
+    'obs-times' : 't obs',
+    'carry-cap' : 'carry cap',
+}
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
 linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
 hard_colors = {'dtr' : '#626262',
@@ -24,7 +30,7 @@ def metric_color(metric):  # as a fcn to avoid import if we're not plotting
 
 # ----------------------------------------------------------------------------------------
 def get_comparison_plotdir(args, metric, per_x, extra_str=''):  # both <metric> and <per_x> can be None, in which case we return the parent dir
-    plotdir = '%s/%s/plots' % (args.base_outdir, args.label)
+    plotdir = '%s/%s%s/plots' % (args.base_outdir, args.label, '/'+args.version if hasattr(args, 'version') else '')
     if metric is not None:
         plotdir += '/' + metric
         if metric == 'combined' and args.combo_extra_str is not None:
@@ -37,20 +43,10 @@ def get_comparison_plotdir(args, metric, per_x, extra_str=''):  # both <metric> 
     return plotdir
 
 # ----------------------------------------------------------------------------------------
-def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabel, xvar, fnfcn, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', debug=False):
-    distr_hists = ptilestr == 'n-ancestor'  # hackey, but ok for now
-    if metric == 'lbr' and args.dont_observe_common_ancestors:
-        print '    skipping lbr when only observing leaves'
-        return
-    affy_key_str = 'relative-' if (use_relative_affy and ptilestr=='affinity') else ''  # NOTE somewhat duplicates lbplotting.rel_affy_str()
-    treat_clusters_together = args.n_sim_events_per_proc is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
-    vlabels = {
-        'obs_frac' : 'fraction sampled',
-        'n-sim-seqs-per-gen' : 'N/gen',
-        'obs-times' : 't obs',
-        'carry-cap' : 'carry cap',
-    }
-    treeutils.legtexts.update(lbplotting.metric_for_target_distance_labels)
+# <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label)
+# <xvar>: x var in *final* plot
+def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
+    # ----------------------------------------------------------------------------------------
     def legstr(label, title=False):
         if label is None: return None
         jstr = '\n' if title else '; '
@@ -62,10 +58,10 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                 tmplist[il] += ': %s' % ' '.join(treeutils.legtexts.get(spvk, spvk) for spvk in subpvks)
         lstr = jstr.join(tmplist)
         return lstr
-
-    pvlabel = ['?']  # arg, this is ugly (but it does work...)
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames):
+        if per_x is None:
+            return 1., ''
         obs_times = utils.vlval(args, vlists, varnames, 'obs-times')
         n_per_gen_vals = utils.vlval(args, vlists, varnames, 'n-sim-seqs-per-gen')
         if len(obs_times) == len(n_per_gen_vals):  # note that this duplicates logic in bcr-phylo simulator.py
@@ -83,7 +79,7 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
     # ----------------------------------------------------------------------------------------
     def pvkeystr(vlists, varnames, obs_frac):
         def valstr(vname):
-            vval = obs_frac if vname == 'obs_frac' else utils.vlval(args, vlists, varnames, vname)
+            vval = obs_frac if vname == 'obs_frac' else utils.vlval(args, vlists, varnames, vname)  # obs_frac has to be treated diffferently since it's a derived value from several parameters, whereas others are just one parameter (i.e. it only matters if we're going to set obs_frac as final_plot_xvar)
             if vname == 'obs_frac':
                 return '%.4f' % obs_frac
             else:
@@ -121,7 +117,11 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         else:
             return 'mean_%s_ptiles' % ptilestr
     # ----------------------------------------------------------------------------------------
-    def get_diff_vals(ytmpfo, iclust=None):
+    def get_ptile_diff_vals(ytmpfo, iclust=None):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
+        ytmpfo = get_ytmpfo(ytmpfo, iclust=iclust)
+        return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key(ytmpfo)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
+    # ----------------------------------------------------------------------------------------
+    def get_dhist_vals(ytmpfo, iclust=None):  # specify args.distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
         # ----------------------------------------------------------------------------------------
         def gethist(tkey):
             yfo = ytmpfo[k]
@@ -131,42 +131,40 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             return htmp
         # ----------------------------------------------------------------------------------------
         ytmpfo = get_ytmpfo(ytmpfo, iclust=iclust)
-        if distr_hists:  # specify args.distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
-            hzero, hother = [gethist(k) for k in ['zero', 'not 0']]
-            for tattr in ['n_bins', 'xmin', 'xmax']:
-                assert getattr(hzero, tattr) == getattr(hother, tattr)
-            if args.distr_hist_limit[0] == 'val':
-                ibin = hzero.find_bin(args.distr_hist_limit[1])
-            elif args.distr_hist_limit[0] in ['frac', 'N']:
-                hsum = copy.deepcopy(hzero)
-                hsum.add(hother)
-                tsum, total = 0., hsum.integral(True)
-                tfrac = args.distr_hist_limit[1]
-                if args.distr_hist_limit[0] == 'N':
-                    tfrac = args.distr_hist_limit[1] / total
-                    if iclust is None:
-                        tfrac *= args.n_sim_events_per_proc
-                for ibin in hsum.ibiniter(True, reverse=True):
-                    tsum += hsum.bin_contents[ibin]
-                    if tsum >= tfrac * total:
-                        break
-            else:
-                assert False
-            n_zero, n_other = [h.integral(False, ibounds=(ibin, h.n_bins+2)) for h in [hzero, hother]]
-            return n_zero, n_other, hzero.low_edges[ibin]
+        hzero, hother = [gethist(k) for k in ['zero', 'not 0']]
+        for tattr in ['n_bins', 'xmin', 'xmax']:
+            assert getattr(hzero, tattr) == getattr(hother, tattr)
+        if args.distr_hist_limit[0] == 'val':
+            ibin = hzero.find_bin(args.distr_hist_limit[1])
+        elif args.distr_hist_limit[0] in ['frac', 'N']:
+            hsum = copy.deepcopy(hzero)
+            hsum.add(hother)
+            tsum, total = 0., hsum.integral(True)
+            tfrac = args.distr_hist_limit[1]
+            if args.distr_hist_limit[0] == 'N':
+                tfrac = args.distr_hist_limit[1] / total
+                if iclust is None:
+                    tfrac *= args.n_sim_events_per_proc
+            for ibin in hsum.ibiniter(True, reverse=True):
+                tsum += hsum.bin_contents[ibin]
+                if tsum >= tfrac * total:
+                    break
         else:
-            return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key(ytmpfo)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
+            assert False
+        n_zero, n_other = [h.integral(False, ibounds=(ibin, h.n_bins+2)) for h in [hzero, hother]]
+        return n_zero, n_other, hzero.low_edges[ibin]
     # ----------------------------------------------------------------------------------------
     def get_varname_str():
-        return ''.join('%10s' % vlabels.get(v, v) for v in varnames)
+        return ''.join(utils.wfmt(vlabels.get(v, v), 25 if per_x is None else 10) for v in varnames)
     def get_varval_str(vstrs):
-        return ''.join(' %9s' % v for v in vstrs)
+        return ''.join(utils.wfmt(v, 24 if per_x is None else 9) for v in vstrs)
     # ----------------------------------------------------------------------------------------
     def read_plot_info():
         # ----------------------------------------------------------------------------------------
-        def add_plot_vals(ytmpfo, vlists, varnames, obs_frac, iclust=None):
+        def add_plot_vals(ytmpfo, vlists, varnames, obs_frac=1., iclust=None):
+            # ----------------------------------------------------------------------------------------
             def getikey():
-                if args.n_replicates == 1 and treat_clusters_together:
+                if args.n_replicates == 1 and treat_clusters_together:  # could add 'or per_x is None' next to treat_clusters_together in all these places, but whatever
                     ikey = None
                     def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
                 elif args.n_replicates == 1:  # but more than one event per proc
@@ -179,37 +177,49 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     ikey = '%d-%d' % (vlists[varnames.index('seed')], iclust)
                     def initfcn(): return {('%d-%d' % (i, j)) : [] for i in utils.sargval(args, 'seed') for j in range(args.n_sim_events_per_proc)}
                 return ikey, initfcn
-
-            diff_vals = get_diff_vals(ytmpfo, iclust=iclust)
-            if len(diff_vals) == 0:
-                missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
-                return
-            if distr_hists:
-                n_zero, n_other, lo_edge = diff_vals
+            # ----------------------------------------------------------------------------------------
+            if per_x is None:
+                fval = ytmpfo[ptilestr]
+                if debug:
+                    print ' %.2f' % fval,
+            elif distr_hists:
+                n_zero, n_other, lo_edge = get_dhist_vals(ytmpfo, iclust=iclust)
                 if n_zero + n_other == 0:
                     # print '  %s zero total in distr hists' % utils.color('yellow', 'warning')
                     return
-                diff_to_perfect =  n_zero / float(n_zero + n_other)
+                fval =  n_zero / float(n_zero + n_other)
                 if debug:
                     nd = str(0 if lo_edge >= 10. else 1)
-                    print '%s%d/%d=%.2f (%s)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, diff_to_perfect, ('%3.'+nd+'f')%lo_edge),
+                    print '%s%d/%d=%.2f (%s)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, fval, ('%3.'+nd+'f')%lo_edge),
             else:
-                diff_to_perfect = numpy.mean(diff_vals)
+                diff_vals = get_ptile_diff_vals(ytmpfo, iclust=iclust)
+                if len(diff_vals) == 0:
+                    missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
+                    return
+                fval = numpy.mean(diff_vals)  # diff_to_perfect
                 if debug:
-                    print ' %.2f' % diff_to_perfect,
-            tau = utils.vlval(args, vlists, varnames, xvar)  # not necessarily tau anymore
+                    print ' %.2f' % fval,
+            tau = utils.vlval(args, vlists, varnames, xvar)  # not necessarily tau anymore (i think it's just final_plot_xvar?)
             ikey, initfcn = getikey()
             pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
             if pvkey not in plotvals:
                 plotvals[pvkey] = initfcn()
             plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
-            plotlist.append((tau, diff_to_perfect))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
-
+            plotlist.append((tau, fval))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
         # ----------------------------------------------------------------------------------------
-        if debug:
-            print '%s   | obs times    N/gen        carry cap       fraction sampled           values' % get_varname_str()
-        missing_vstrs = {'missing' : [], 'empty' : []}
-        for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
+        def get_iclusts(yamlfo):
+            iclusts_in_file = []
+            if 'percentiles' in yamlfo:  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
+                iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo['percentiles']['per-seq'] if 'iclust-' in k])
+            else:
+                iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])
+            missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
+            if len(missing_iclusts) > 0:
+                print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
+            # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_selection_metric_cluster_size)
+            return iclusts_in_file
+        # ----------------------------------------------------------------------------------------
+        def read_smetric_file(vlists, vstrs):
             obs_frac, dbgstr = get_obs_frac(vlists, varnames)
             if debug:
                 print '%s   | %s' % (get_varval_str(vstrs), dbgstr),
@@ -219,22 +229,33 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     yamlfo = json.load(yfile)  # too slow with yaml
             except IOError:  # os.path.exists() is too slow with this many files
                 missing_vstrs['missing'].append((None, vstrs))
-                continue
-            # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
+                return
             if treat_clusters_together:
-                add_plot_vals(yamlfo, vlists, varnames, obs_frac)
+                add_plot_vals(yamlfo, vlists, varnames, obs_frac=obs_frac)
             else:
-                iclusts_in_file = []
-                if 'percentiles' in yamlfo:
-                    iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo['percentiles']['per-seq'] if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
-                else:
-                    iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
-                missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
-                if len(missing_iclusts) > 0:
-                    print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
-                # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_selection_metric_cluster_size)
-                for iclust in iclusts_in_file:
-                    add_plot_vals(yamlfo, vlists, varnames, obs_frac, iclust=iclust)
+                for iclust in get_iclusts(yamlfo):
+                    add_plot_vals(yamlfo, vlists, varnames, obs_frac=obs_frac, iclust=iclust)
+        # ----------------------------------------------------------------------------------------
+        def read_pairclust_file(vlists, vstrs):
+            if debug:
+                print '%s   | %s' % (get_varval_str(vstrs), ''),
+            yfname = fnfcn(varnames, vstrs, metric, ptilestr)
+            _, _, cpath = utils.read_output(yfname, skip_annotations=True)
+            ccfs = cpath.ccfs[cpath.i_best]
+            ytmpfo = {'precision' : ccfs[0], 'sensitivity' : ccfs[1], 'f1' : sys.modules['scipy.stats'].hmean(ccfs)}
+            add_plot_vals(ytmpfo, vlists, varnames)
+        # ----------------------------------------------------------------------------------------
+        if debug:
+            if per_x is None:
+                print '%s              values' % get_varname_str()
+            else:
+                print '%s   | obs times    N/gen        carry cap       fraction sampled           values' % get_varname_str()
+        missing_vstrs = {'missing' : [], 'empty' : []}
+        for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
+            if per_x is None:
+                read_pairclust_file(vlists, vstrs)
+            else:
+                read_smetric_file(vlists, vstrs)
             if debug:
                 print ''
 
@@ -258,7 +279,9 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             if debug:
                 print '  averaging over %d replicates' % args.n_replicates,
                 if args.n_sim_events_per_proc is not None:
-                    if treat_clusters_together:
+                    if per_x is None:
+                        print '(using %d clusters per proc)' % args.n_sim_events_per_proc,
+                    elif treat_clusters_together:
                         print '(treating %d clusters per proc together)' % args.n_sim_events_per_proc,
                     else:
                         print 'times %d clusters per proc:' % args.n_sim_events_per_proc,
@@ -323,13 +346,21 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
         #     fig.text(0.5, 0.7, estr, color='red', fontweight='bold')
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
-        if per_x == 'per-seq':
+        if per_x is None:
+            return '%s-%s-vs-%s' % (ptilestr, mtmp if mtmp is not None else 'combined', xvar)
+        elif per_x == 'per-seq':
             return '%s%s-%s-ptiles-vs-%s-%s' % (affy_key_str, ptilestr, mtmp if mtmp is not None else 'combined', xvar, choice_grouping)
         else:
             return '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
     # ----------------------------------------------------------------------------------------
-    def yfname(mtmp, estr):
+    def get_yfname(mtmp, estr):
         return '%s/%s.yaml' % (get_comparison_plotdir(args, mtmp, per_x, extra_str=estr), getplotname(mtmp))
+    # ----------------------------------------------------------------------------------------
+    def titlestr(metric):
+        if per_x is None:
+            return metric
+        else:
+            return lbplotting.mtitlestr(per_x, metric, short=True, max_len=7)
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
         xlabel = treeutils.legtexts.get(xvar, xvar.replace('-', ' '))
@@ -367,13 +398,27 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
                     return '%s -\n %s\n(%d)' % (t[0], t[-1], len(t)) #, t[1] - t[0])
             xticks = list(range(len(xvals)))
             xticklabels = [tickstr(t) for t in xvals]
+        elif None in xvals or 'None' in xvals:  # mean-cells-per-droplet has to handle mixed none/str + float values
+            xticks = list(range(len(xvals)))
+            xticklabels = [str(t) for t in xvals]
         else:
             xticks = xvals
             xticklabels = [str(t) for t in xvals]
         return xticks, xticklabels, xlabel
 
     # ----------------------------------------------------------------------------------------
-    _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['get-tree-metrics'])
+    distr_hists, affy_key_str, treat_clusters_together = False, '', True  # only used for tree/selection metrics (well, kind of used -- e.g. treat_clusters_together needs to be true for paired clustering since we don't want to treat them separatedly)
+    if per_x is not None:
+        assert choice_grouping is not None
+        distr_hists = ptilestr == 'n-ancestor'  # hackey, but ok for now
+        if metric == 'lbr' and args.dont_observe_common_ancestors:
+            print '    skipping lbr when only observing leaves'
+            return
+        affy_key_str = 'relative-' if (use_relative_affy and ptilestr=='affinity') else ''  # NOTE somewhat duplicates lbplotting.rel_affy_str()
+        treat_clusters_together = args.n_sim_events_per_proc is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
+        treeutils.legtexts.update(lbplotting.metric_for_target_distance_labels)
+    pvlabel = ['?']  # arg, this is ugly (but it does work...)
+    _, varnames, val_lists, valstrs = utils.get_var_info(args, svars)
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     fig, ax = plotting.mpl_init()
     xticks, xlabel = None, None
@@ -390,27 +435,27 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
             plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
-        with open(yfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
+        with open(get_yfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
-        title = lbplotting.mtitlestr(per_x, metric, short=True, max_len=7) + ': '
+        title = titlestr(metric) + ': '
         plotdir = get_comparison_plotdir(args, metric, per_x, extra_str=metric_extra_str)
         ylabelstr = metric.upper()
     elif action == 'combine-plots':
         pvks_from_args = set([pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
         plotfos = collections.OrderedDict()
         for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
-            if ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
+            if per_x is not None and ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
                 continue
-            if not os.path.exists(yfname(mtmp, estr)):
-                print '    %s missing %s' % (utils.color('yellow', 'warning'), yfname(mtmp, estr))
+            if not os.path.exists(get_yfname(mtmp, estr)):
+                print '    %s missing %s' % (utils.color('yellow', 'warning'), get_yfname(mtmp, estr))
                 continue
-            with open(yfname(mtmp, estr)) as yfile:
+            with open(get_yfname(mtmp, estr)) as yfile:
                 mkey = mtmp
                 if estr != '':
                     mkey = '%s%s%s' % (mtmp, xdelim, estr)  # this is ugly, but we need to be able to split it apart in the loop just below here
                 plotfos[mkey] = collections.OrderedDict(json.load(yfile))
                 if len(plotfos[mkey]) == 0:
-                    raise Exception('read zero length info from %s' % yfname(mtmp, estr))  # if this happens when we're writing the file (above), we can skip it, but  I think we have to crash here (just rerun without this metric/extra_str). It probably means you were missing the dtr files for this per_x/cgroup
+                    raise Exception('read zero length info from %s' % get_yfname(mtmp, estr))  # if this happens when we're writing the file (above), we can skip it, but  I think we have to crash here (just rerun without this metric/extra_str). It probably means you were missing the dtr files for this per_x/cgroup
         if len(plotfos) == 0:
             print '  nothing to plot'
             return
@@ -466,29 +511,33 @@ def make_plots(args, action, metric, per_x, choice_grouping, ptilestr, ptilelabe
 
     n_ticks = 4
     dy = (ymax - ymin) / float(n_ticks - 1)
-    yticks, yticklabels = None, None
-    # if ptilestr != 'affinity':
-    #     yticks = [int(y) if ptilestr == 'affinity' else utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
-    #     yticklabels = ['%s'%y for y in yticks]
-    if per_x == 'per-seq':
-        title += 'choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
-    if use_relative_affy:
-        fig.text(0.5, 0.87, 'relative %s' % ptilestr, fontsize=15, color='red', fontweight='bold')
-    leg_loc = [0.04, 0.6]
-    # if metric != 'lbi' and len(title) < 17:
-    #     leg_loc[0] = 0.7
-    if distr_hists:
-        ylabel = 'frac. correct'
-        if args.distr_hist_limit[0] == 'val':
-            ylabel += ' (%s > %.1f)' % (lbplotting.mtitlestr(per_x, metric, short=True, max_len=7), args.distr_hist_limit[1])
-        elif args.distr_hist_limit[0] == 'frac':
-            ylabel += ' (top %.0f%%)' % (100*args.distr_hist_limit[1])
-        elif args.distr_hist_limit[0] == 'N':
-            ylabel += ' (top %d per family)' % args.distr_hist_limit[1]
-        else:
-            assert False
+    ylabel, leg_loc, yticks, yticklabels = '', None, None, None
+    if per_x is None:
+        ylabel = ptilelabel
     else:
-        ylabel = '%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel)
+        # if ptilestr != 'affinity':
+        #     yticks = [int(y) if ptilestr == 'affinity' else utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
+        #     yticklabels = ['%s'%y for y in yticks]
+        if per_x == 'per-seq':
+            title += 'choosing %s' % (choice_grouping.replace('within-families', 'within each family').replace('among-', 'among all '))
+        if use_relative_affy:
+            fig.text(0.5, 0.87, 'relative %s' % ptilestr, fontsize=15, color='red', fontweight='bold')
+        leg_loc = [0.04, 0.6]
+        # if metric != 'lbi' and len(title) < 17:
+        #     leg_loc[0] = 0.7
+        if distr_hists:
+            ylabel = 'frac. correct'
+            if args.distr_hist_limit[0] == 'val':
+                ylabel += ' (%s > %.1f)' % (titlestr(metric), args.distr_hist_limit[1])
+            elif args.distr_hist_limit[0] == 'frac':
+                ylabel += ' (top %.0f%%)' % (100*args.distr_hist_limit[1])
+            elif args.distr_hist_limit[0] == 'N':
+                ylabel += ' (top %d per family)' % args.distr_hist_limit[1]
+            else:
+                assert False
+        else:
+            ylabel = '%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel)
+
     plotting.mpl_finish(ax, plotdir, getplotname(metric),
                         xlabel=xlabel,
                         # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),

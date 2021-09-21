@@ -450,7 +450,8 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'adj_mi' : 'adj MI',
            'ccf_under' : 'precision',
            'ccf_over' : 'sensitivity',
-           'ccf_product' : 'F1 score'
+           'ccf_product' : 'F1 score',
+           'f1' : 'F1 score',
            }
 
 colors = {'true' : '#006600',
@@ -465,7 +466,7 @@ colors = {'true' : '#006600',
           'mixcr' : '#2b65ec',
           'misassign-0.60-singletons' : '#808080',
           'misassign-0.10-reassign' : '#808080',
-          'misassign-distance-0.03' : '#808080'
+          'misassign-distance-0.03' : '#808080',
 }
 
 linewidths = {'true' : 15,
@@ -480,20 +481,20 @@ linewidths = {'true' : 15,
               'mixcr' : 6,
               'misassign-0.60-singletons' : 4,
               'misassign-0.10-reassign' : 3,
-              'misassign-distance-0.03' : 2
+              'misassign-distance-0.03' : 2,
 }
 
 linestyles = {'naive-hamming-partition' : 'dashed',
               'vsearch-partition' : 'dotted',
               'changeo' : 'dashed',
               'mixcr' : 'dotted',
-              'misassign-distance-0.03' : 'dashed'
+              'misassign-distance-0.03' : 'dashed',
 }
 
 alphas = {'true' : 0.6,
           'vollmers-0.9' : 0.6,
           'misassign-0.60-singletons' : 0.5,
-          'misassign-distance-0.03' : 0.8
+          'misassign-distance-0.03' : 0.8,
 }
 
 def label_bullshit_transform(label):
