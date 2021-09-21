@@ -87,13 +87,11 @@ def run_simu():
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
-# TODO
-        outdir = '%s/simu' % utils.svoutdir(args, varnames, vstrs, 'simu')
-        if utils.all_outputs_exist(args, paircluster.paired_dir_fnames(outdir, suffix='.yaml'), debug=False):
-            print '    simulation output exists %s' % outdir
+        if utils.all_outputs_exist(args, paircluster.paired_dir_fnames(odir(args, varnames, vstrs, 'simu'), suffix='.yaml'), debug=False):
+            print '    simulation output exists %s' % odir(args, varnames, vstrs, 'simu')
             n_already_there += 1
             continue
-        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --paired-outdir %s %s' % (outdir, ' '.join(base_args))  #  --parameter-dir %s in_param_dir
+        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --paired-outdir %s %s' % (odir(args, varnames, vstrs, 'simu'), ' '.join(base_args))  #  --parameter-dir %s in_param_dir
         cmd += ' --n-procs %d --no-per-base-mutation --mutation-multiplier %.2f --constant-number-of-leaves' % (args.n_procs, args.mutation_multiplier)
         if args.n_sim_events_per_proc is not None:
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
@@ -102,7 +100,7 @@ def run_simu():
         for vname, vstr in zip(varnames, vstrs):
             vstr_for_cmd = vstr
             cmd += ' --%s %s' % (vname, vstr_for_cmd)
-        utils.simplerun(cmd, logfname='%s.log'%outdir, dryrun=args.dry)
+        utils.simplerun(cmd, logfname='%s.log'%odir(args, varnames, vstrs, 'simu'), dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
