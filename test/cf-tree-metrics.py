@@ -461,12 +461,12 @@ for action in args.actions:
         assert args.extra_plotstr == ''  # only use --extra-plotstr for get-tree-metrics, for this use --plot-metric-extra-strs (because we in general have multiple --plot-metrics when we're here)
         assert args.metric_method is None  # when plotting, you should only be using --plot-metrics
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['get-tree-metrics'])
-        print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None, None))
+        print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None))
         procs = []
         pchoice = 'per-seq'
         if action == 'plot':
             for metric, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
-                utils.prep_dir(scanplot.get_comparison_plotdir(args, metric, None, extra_str=estr), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
+                utils.prep_dir(scanplot.get_comparison_plotdir(args, metric, extra_str=estr), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
                 cfg_list = lbplotting.single_lbma_cfg_vars(metric)
                 cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
                 for ptvar, ptlabel, use_relative_affy in cfg_list:
@@ -481,9 +481,9 @@ for action in args.actions:
             if not args.test:
                 utils.run_proc_functions(procs)
             for metric, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
-                plotting.make_html(scanplot.get_comparison_plotdir(args, metric, pchoice, extra_str=estr), n_columns=2)
+                plotting.make_html(scanplot.get_comparison_plotdir(args, metric, per_x=pchoice, extra_str=estr), n_columns=2)
         elif action == 'combine-plots':
-            utils.prep_dir(scanplot.get_comparison_plotdir(args, 'combined', None), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
+            utils.prep_dir(scanplot.get_comparison_plotdir(args, 'combined'), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
             cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.single_lbma_cfg_vars(mtmp)])  # I don't think we care about the order
             cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
             for ptvar, ptlabel, use_relative_affy in cfg_list:
@@ -491,6 +491,6 @@ for action in args.actions:
                 for cgroup in treeutils.cgroups:
                     print '  ', cgroup
                     scanplot.make_plots(args, args.scan_vars['get-tree-metrics'], action, None, ptvar, ptlabel, args.final_plot_xvar, get_tm_fname, per_x=pchoice, choice_grouping=cgroup, use_relative_affy=use_relative_affy)
-            plotting.make_html(scanplot.get_comparison_plotdir(args, 'combined', pchoice), n_columns=2)
+            plotting.make_html(scanplot.get_comparison_plotdir(args, 'combined', per_x=pchoice), n_columns=2)
         else:
             assert False

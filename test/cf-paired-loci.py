@@ -15,6 +15,8 @@ import plotting
 
 # ----------------------------------------------------------------------------------------
 # in_param_dir = '_output/paired-simulation/parameters'  # TODO
+partition_types = ['single', 'joint']
+all_perf_metrics = ['precision', 'sensitivity', 'f1']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -39,7 +41,7 @@ parser.add_argument('--no-plots', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--extra-args')
 parser.add_argument('--plot-metrics', default='partis', help='NOTE these are methods, but in tree metric script + scanplot they\'re metrics, so we have to call them metrics here')
-parser.add_argument('--perf-metrics', default='precision:sensitivity:f1')
+parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics))
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--final-plot-xvar', default='mean-cells-per-droplet', help='variable to put on the x axis of the final comparison plots')
 parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
@@ -63,20 +65,9 @@ if args.plot_metric_extra_strs is None:
 if len(args.plot_metrics) != len(args.plot_metric_extra_strs):
     raise Exception('--plot-metrics %d not same length as --plot-metric-extra-strs %d' % (len(args.plot_metrics), len(args.plot_metric_extra_strs)))
 args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
-args.perf_metrics = utils.get_arg_list(args.perf_metrics)
+args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
 
 utils.get_scanvar_arg_lists(args)
-
-# ----------------------------------------------------------------------------------------
-def outpath(action):
-    if action == 'cache-parameters':
-        return 'parameters'
-    elif action in ['partition', 'merge-paired-partitions']:  # i guess it makes sense to use the same file for both?
-        return 'partition-igh.yaml'  # partition-igh.yaml is about the last file to be written, so it's probably ok to use for this
-    elif action == 'get-selection-metrics':
-        return 'igh+igk/partition-igh-selection-metrics.yaml'
-    else:
-        assert False
 
 # ----------------------------------------------------------------------------------------
 def run_simu():  # TODO this (and run_partis()) should really be combined with their equivalent fcns in cf-tree-metrics.py NOTE actually all four could be combined into one fcn i think?
@@ -126,8 +117,24 @@ def odir(args, varnames, vstrs, action):
     return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), action if action=='simu' else 'inferred')
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action):
-    return '%s/%s' % (odir(args, varnames, vstrs, action), outpath(action))
+def outpath(action, locus=None):
+    if action == 'cache-parameters':
+        return 'parameters'
+    elif action in ['partition', 'merge-paired-partitions']:  # i guess it makes sense to use the same file for both?
+        assert locus is not None
+        return os.path.basename(paircluster.paired_fn('', locus, suffix='.yaml', actstr='partition'))
+    elif action == 'get-selection-metrics':
+        assert False  # needs updating i think
+        return 'igh+igk/partition-igh-selection-metrics.yaml'
+    else:
+        assert False
+
+# ----------------------------------------------------------------------------------------
+def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False):
+    if single_file:
+        assert locus is None
+        locus = 'igh'
+    return '%s%s/%s' % (odir(args, varnames, vstrs, action), paircluster.subd(single_chain=single_chain), outpath(action, locus=locus))
 
 # ----------------------------------------------------------------------------------------
 def run_partis(action):
@@ -139,7 +146,7 @@ def run_partis(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        if utils.output_exists(args, ofname(args, varnames, vstrs, action)):
+        if utils.output_exists(args, ofname(args, varnames, vstrs, action, single_file=True)):
             n_already_there += 1
             continue
 
@@ -157,13 +164,13 @@ def run_partis(action):
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : ofname(args, varnames, vstrs, action),
+            'outfname' : ofname(args, varnames, vstrs, action, single_file=True),
             'logdir' : odir(args, varnames, vstrs, action),
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         }]
 
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), ofname(args, varnames, vstrs, action))
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), ofname(args, varnames, vstrs, action, single_file=True))
     if len(cmdfos) > 0:
         print '      %s %d jobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos))
         if args.dry:
@@ -185,22 +192,26 @@ for action in args.actions:
         run_partis(action)
     elif action in ['plot', 'combine-plots'] and not args.dry:
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['partition'])
-        def fnfcn(varnames, vstrs, tmet, x_axis_label): return ofname(args, varnames, vstrs, 'partition')
         if action == 'plot':
-            print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None, None))
+            print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None))
             for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are metrics, but here they're more like different methods
-                utils.prep_dir(scanplot.get_comparison_plotdir(args, method, None), subdirs=args.perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
-                for pmetr in args.perf_metrics:
-                    print '    ', pmetr
-                    scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn, debug=args.debug)
+                cfpdir = scanplot.get_comparison_plotdir(args, method)
+                utils.prep_dir(cfpdir, subdirs=all_perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
+                for ptntype in partition_types:
+                    for ltmp in utils.sub_loci('ig'):
+                        def fnfcn(varnames, vstrs, tmet, x_axis_label): return ofname(args, varnames, vstrs, 'partition', locus=ltmp, single_chain=ptntype=='single')  # NOTE tmet (e.g. 'precision') and x_axis_label (e.g. 'precision') aren't used for this fcn atm
+                        for pmetr in args.perf_metrics:
+                            print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
+                            scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn, locus=ltmp, ptntype=ptntype, debug=args.debug)
             for method in args.plot_metrics:
-                plotting.make_html(scanplot.get_comparison_plotdir(args, method, None), n_columns=3)
+                plotting.make_html(cfpdir, n_columns=3)
         elif action == 'combine-plots':
-            utils.prep_dir(scanplot.get_comparison_plotdir(args, 'combined', None), wildlings=['*.html', '*.svg'])
+            cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
+            utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])
             for pmetr in args.perf_metrics:
                 print '    ', pmetr
                 scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn, debug=args.debug)
-            plotting.make_html(scanplot.get_comparison_plotdir(args, 'combined', None), n_columns=3)
+            plotting.make_html(cfpdir, n_columns=3)
         else:
             assert False
 

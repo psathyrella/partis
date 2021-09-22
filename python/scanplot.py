@@ -29,23 +29,28 @@ def metric_color(metric):  # as a fcn to avoid import if we're not plotting
     return metric_colors.get(metric, 'red')
 
 # ----------------------------------------------------------------------------------------
-def get_comparison_plotdir(args, metric, per_x, extra_str=''):  # both <metric> and <per_x> can be None, in which case we return the parent dir
+# NOTE it's kind of arbitrary what gets a subdir (e.g. per_x and perf_metric) vs what doesn't (e.g. locus, choice_grouping)
+def get_comparison_plotdir(args, mtmp, per_x=None, extra_str='', perf_metric=None):
     plotdir = '%s/%s%s/plots' % (args.base_outdir, args.label, '/'+args.version if hasattr(args, 'version') else '')
-    if metric is not None:
-        plotdir += '/' + metric
-        if metric == 'combined' and args.combo_extra_str is not None:
+    if mtmp is not None:  # for tree metrics, this is the metric, whereas for paired this is the method and perf_metric is the metric
+        plotdir += '/' + mtmp
+        if mtmp == 'combined' and args.combo_extra_str is not None:
             plotdir += '-' + args.combo_extra_str
     if extra_str != '':
-        assert metric is not None
+        assert mtmp is not None
         plotdir += '_' + extra_str
     if per_x is not None:
         plotdir += '/' + per_x
+    if perf_metric is not None:
+        plotdir += '/' + perf_metric
     return plotdir
 
 # ----------------------------------------------------------------------------------------
-# <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label)
+# <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
+# <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
-def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='', xdelim='_XTRA_', debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
+def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='',
+               locus=None, ptntype=None, xdelim='_XTRA_', debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def legstr(label, title=False):
         if label is None: return None
@@ -347,14 +352,20 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
         if per_x is None:
-            return '%s-%s-vs-%s' % (ptilestr, mtmp if mtmp is not None else 'combined', xvar)
+            return '%s-%s-vs-%s-%s-%s' % (ptilestr, mtmp if mtmp is not None else 'combined', xvar, ptntype, locus)
         elif per_x == 'per-seq':
             return '%s%s-%s-ptiles-vs-%s-%s' % (affy_key_str, ptilestr, mtmp if mtmp is not None else 'combined', xvar, choice_grouping)
         else:
             return '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
     # ----------------------------------------------------------------------------------------
-    def get_yfname(mtmp, estr):
-        return '%s/%s.yaml' % (get_comparison_plotdir(args, mtmp, per_x, extra_str=estr), getplotname(mtmp))
+    def getkwargs(estr):
+        if per_x is None:
+            return {'perf_metric' : ptilestr}
+        else:
+            return {'per_x' : per_x, 'extra_str' : estr}
+    # ----------------------------------------------------------------------------------------
+    def get_outfname(mtmp, estr):
+        return '%s/%s.yaml' % (get_comparison_plotdir(args, mtmp, **getkwargs(estr)), getplotname(mtmp))
     # ----------------------------------------------------------------------------------------
     def titlestr(metric):
         if per_x is None:
@@ -435,10 +446,10 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
             plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
-        with open(get_yfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
+        with open(get_outfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
         title = titlestr(metric) + ': '
-        plotdir = get_comparison_plotdir(args, metric, per_x, extra_str=metric_extra_str)
+        plotdir = get_comparison_plotdir(args, metric, **getkwargs(metric_extra_str))  # per_x=per_x, extra_str=metric_extra_str
         ylabelstr = metric.upper()
     elif action == 'combine-plots':
         pvks_from_args = set([pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
@@ -446,16 +457,17 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
         for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
             if per_x is not None and ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
                 continue
-            if not os.path.exists(get_yfname(mtmp, estr)):
-                print '    %s missing %s' % (utils.color('yellow', 'warning'), get_yfname(mtmp, estr))
+            ofn = get_outfname(mtmp, estr)
+            if not os.path.exists(ofn):
+                print '    %s missing %s' % (utils.color('yellow', 'warning'), ofn)
                 continue
-            with open(get_yfname(mtmp, estr)) as yfile:
+            with open(ofn) as yfile:
                 mkey = mtmp
                 if estr != '':
                     mkey = '%s%s%s' % (mtmp, xdelim, estr)  # this is ugly, but we need to be able to split it apart in the loop just below here
                 plotfos[mkey] = collections.OrderedDict(json.load(yfile))
                 if len(plotfos[mkey]) == 0:
-                    raise Exception('read zero length info from %s' % get_yfname(mtmp, estr))  # if this happens when we're writing the file (above), we can skip it, but  I think we have to crash here (just rerun without this metric/extra_str). It probably means you were missing the dtr files for this per_x/cgroup
+                    raise Exception('read zero length info from %s' % ofn)  # if this happens when we're writing the file (above), we can skip it, but  I think we have to crash here (just rerun without this metric/extra_str). It probably means you were missing the dtr files for this per_x/cgroup
         if len(plotfos) == 0:
             print '  nothing to plot'
             return
@@ -481,7 +493,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
         # else:
         #     title = '+'.join(set(args.plot_metrics)) + ': '
         title = ''
-        plotdir = get_comparison_plotdir(args, 'combined', per_x)
+        plotdir = get_comparison_plotdir(args, 'combined', per_x=per_x)
         ylabelstr = 'metric'
     else:
         assert False

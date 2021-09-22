@@ -23,10 +23,21 @@ def chstr(n_before, n_after):  # empty if same number before and after, otherwis
     else: return ' ' + utils.color('red', '%+d' % (n_after - n_before))
 
 # ----------------------------------------------------------------------------------------
+def subd(seed_unique_id=None, lpair=None, single_chain=None):
+    subd = ''
+    if seed_unique_id is not None:
+        subd += '/seeds/%s' % '+'.join(seed_unique_id)
+    if lpair is not None:
+        subd += '/%s' % '+'.join(lpair)  # NOTE duplicates paired_fn()
+    if single_chain:
+        subd += '/single-chain'
+    return subd
+
+# ----------------------------------------------------------------------------------------
 # return standardized file name (including subdirs) in directory structure that we use for paired heavy/light i/o
 def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig', actstr=None):  # if set, only file(s) for this <locus>, and/or only files for this <lpair> of loci. If <lpair> is set but <locus> is None, returns subdir name
     if lpair is not None:
-        bdir = '%s/%s' % (bdir, '+'.join(lpair))
+        bdir = '%s/%s' % (bdir, '+'.join(lpair))  # NOTE duplicates subd()
         if locus is None:
             return bdir
     return '%s/%s%s%s' % (bdir, '' if actstr is None else actstr+'-', locus, suffix)

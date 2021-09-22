@@ -364,14 +364,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         odir = utils.non_none([args.paired_outdir, args.workdir])
         if is_plotting and args.plotdir is not None:
             odir = args.plotdir
-
-        if args.seed_unique_id is not None:
-            odir += '/seeds/%s' % '+'.join(args.seed_unique_id)
-        if lpair is not None:
-            odir = '%s/%s' % (odir, '+'.join(lpair))
-        if single_chain:
-            odir = '%s/single-chain' % odir
-        return odir
+        return odir + paircluster.subd(seed_unique_id=args.seed_unique_id, lpair=lpair, single_chain=single_chain)
     # ----------------------------------------------------------------------------------------
     def getplotdir(ltmp, lpair=None, single_chain=False, tmpaction=None):
         return '%s/plots%s%s' % (getodir(lpair=lpair, single_chain=single_chain, is_plotting=True), ('/'+ltmp) if ltmp is not None else '', '/parameters' if tmpaction=='cache-parameters' else '')
