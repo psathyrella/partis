@@ -197,20 +197,25 @@ for action in args.actions:
             for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are metrics, but here they're more like different methods
                 cfpdir = scanplot.get_comparison_plotdir(args, method)
                 utils.prep_dir(cfpdir, subdirs=all_perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
+                fnames = []
                 for ptntype in partition_types:
+                    fnames.append([])
                     for ltmp in utils.sub_loci('ig'):
                         def fnfcn(varnames, vstrs, tmet, x_axis_label): return ofname(args, varnames, vstrs, 'partition', locus=ltmp, single_chain=ptntype=='single')  # NOTE tmet (e.g. 'precision') and x_axis_label (e.g. 'precision') aren't used for this fcn atm
                         for pmetr in args.perf_metrics:
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
-                            scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn, locus=ltmp, ptntype=ptntype, debug=args.debug)
+                            scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn=fnfcn, locus=ltmp, ptntype=ptntype, fnames=fnames, debug=args.debug)
             for method in args.plot_metrics:
-                plotting.make_html(cfpdir, n_columns=3)
+                for pmetr in args.perf_metrics:
+                    plotting.make_html(cfpdir + '/' + pmetr, n_columns=3, fnames=fnames)
         elif action == 'combine-plots':
             cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])
             for pmetr in args.perf_metrics:
                 print '    ', pmetr
-                scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn, debug=args.debug)
+                for ptntype in partition_types:
+                    for ltmp in utils.sub_loci('ig'):
+                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, debug=args.debug)
             plotting.make_html(cfpdir, n_columns=3)
         else:
             assert False

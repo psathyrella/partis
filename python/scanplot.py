@@ -27,10 +27,14 @@ def metric_color(metric):  # as a fcn to avoid import if we're not plotting
     mstrlist = ['shm:lbi:cons-dist-aa:cons-dist-nuc:dtr:aa-lbi', 'delta-lbi:lbr:dtr:aa-lbr']
     metric_colors = {m : plotting.frozen_pltcolors[i % len(plotting.frozen_pltcolors)] for mstrs in mstrlist for i, m in enumerate(mstrs.split(':'))}
     return metric_colors.get(metric, 'red')
+ltexts = {
+    'single' : 'single chain',
+    'joint' : 'joint',
+}
 
 # ----------------------------------------------------------------------------------------
 # NOTE it's kind of arbitrary what gets a subdir (e.g. per_x and perf_metric) vs what doesn't (e.g. locus, choice_grouping)
-def get_comparison_plotdir(args, mtmp, per_x=None, extra_str='', perf_metric=None):
+def get_comparison_plotdir(args, mtmp, per_x=None, extra_str='', perf_metric=None): # NOTE that in make_plots() per_x is None indicates we're doing paired clustering, but here it does not (can also mean we want the parent dir)
     plotdir = '%s/%s%s/plots' % (args.base_outdir, args.label, '/'+args.version if hasattr(args, 'version') else '')
     if mtmp is not None:  # for tree metrics, this is the metric, whereas for paired this is the method and perf_metric is the metric
         plotdir += '/' + mtmp
@@ -49,8 +53,8 @@ def get_comparison_plotdir(args, mtmp, per_x=None, extra_str='', perf_metric=Non
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
-def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='',
-               locus=None, ptntype=None, xdelim='_XTRA_', debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
+def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=None, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='',
+               locus=None, ptntype=None, xdelim='_XTRA_', fnames=None, debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def legstr(label, title=False):
         if label is None: return None
@@ -62,6 +66,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
                 subpvks = [pvk.split('; ')[il] for pvk in args.pvks_to_plot]
                 tmplist[il] += ': %s' % ' '.join(treeutils.legtexts.get(spvk, spvk) for spvk in subpvks)
         lstr = jstr.join(tmplist)
+        if per_x is None and ptntype is not None and label in args.plot_metrics:  # need to add single/joint to the method
+            lstr += ' %s' % ltexts[ptntype]
         return lstr
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames):
@@ -245,7 +251,11 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
             if debug:
                 print '%s   | %s' % (get_varval_str(vstrs), ''),
             yfname = fnfcn(varnames, vstrs, metric, ptilestr)
-            _, _, cpath = utils.read_output(yfname, skip_annotations=True)
+            try:
+                _, _, cpath = utils.read_output(yfname, skip_annotations=True)
+            except IOError:  # os.path.exists() is too slow with this many files
+                missing_vstrs['missing'].append((None, vstrs))
+                return
             ccfs = cpath.ccfs[cpath.i_best]
             ytmpfo = {'precision' : ccfs[0], 'sensitivity' : ccfs[1], 'f1' : sys.modules['scipy.stats'].hmean(ccfs)}
             add_plot_vals(ytmpfo, vlists, varnames)
@@ -272,7 +282,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
             print '        %s: %d families' % (mkey, len(vstrs_list))
             print '     %s   iclust' % get_varname_str()
             for iclust, vstrs in vstrs_list:
-                print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str))
+                tfn = fnfcn(varnames, vstrs, metric, ptilestr) if per_x is None else fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)  # arg this is ugly
+                print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, tfn)
                 n_printed += 1
                 if n_printed >= n_max_print:
                     print '             [...]'
@@ -369,7 +380,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
     # ----------------------------------------------------------------------------------------
     def titlestr(metric):
         if per_x is None:
-            return metric
+            return '%s %s' % (metric, ltexts[ptntype])
         else:
             return lbplotting.mtitlestr(per_x, metric, short=True, max_len=7)
     # ----------------------------------------------------------------------------------------
@@ -448,13 +459,13 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
         with open(get_outfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
-        title = titlestr(metric) + ': '
+        title = '%s:' % titlestr(metric)
         plotdir = get_comparison_plotdir(args, metric, **getkwargs(metric_extra_str))  # per_x=per_x, extra_str=metric_extra_str
         ylabelstr = metric.upper()
     elif action == 'combine-plots':
         pvks_from_args = set([pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
         plotfos = collections.OrderedDict()
-        for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
+        for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):  # <mtmp>: metric for trees, method for paired
             if per_x is not None and ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
                 continue
             ofn = get_outfname(mtmp, estr)
@@ -526,6 +537,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
     ylabel, leg_loc, yticks, yticklabels = '', None, None, None
     if per_x is None:
         ylabel = ptilelabel
+        title += ' %s' % locus
     else:
         # if ptilestr != 'affinity':
         #     yticks = [int(y) if ptilestr == 'affinity' else utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
@@ -550,12 +562,14 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn, p
         else:
             ylabel = '%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel)
 
-    plotting.mpl_finish(ax, plotdir, getplotname(metric),
-                        xlabel=xlabel,
-                        # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
-                        ylabel=ylabel,
-                        title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
-                        xticks=xticks, xticklabels=xticklabels, xticklabelsize=12 if xticklabels is not None and '\n' in xticklabels[0] else 16,
-                        yticks=yticks, yticklabels=yticklabels,
-                        ybounds=(ymin, ymax), log=log, adjust=adjust,
+    ffn = plotting.mpl_finish(ax, plotdir, getplotname(metric),
+                              xlabel=xlabel,
+                              # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
+                              ylabel=ylabel,
+                              title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
+                              xticks=xticks, xticklabels=xticklabels, xticklabelsize=12 if xticklabels is not None and '\n' in xticklabels[0] else 16,
+                              yticks=yticks, yticklabels=yticklabels,
+                              ybounds=(ymin, ymax), log=log, adjust=adjust,
     )
+    if fnames is not None:
+        fnames[-1].append(ffn)

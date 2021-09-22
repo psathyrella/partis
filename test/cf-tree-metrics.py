@@ -473,7 +473,7 @@ for action in args.actions:
                     print '  %s  %-s %-13s%-s' % (utils.color('blue', metric), utils.color('purple', estr, width=20, padside='right') if estr != '' else 20*' ', ptvar, utils.color('green', '(relative)') if use_relative_affy else '')
                     for cgroup in treeutils.cgroups:
                         print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
-                        arglist, kwargs = (args, args.scan_vars['get-tree-metrics'], action, metric, ptvar, ptlabel, args.final_plot_xvar, get_tm_fname), {'per_x' : pchoice, 'choice_grouping' : cgroup, 'use_relative_affy' : use_relative_affy, 'metric_extra_str' : estr, 'debug' : args.debug}
+                        arglist, kwargs = (args, args.scan_vars['get-tree-metrics'], action, metric, ptvar, ptlabel, args.final_plot_xvar), {'fnfcn' : get_tm_fname, 'per_x' : pchoice, 'choice_grouping' : cgroup, 'use_relative_affy' : use_relative_affy, 'metric_extra_str' : estr, 'debug' : args.debug}
                         if args.test:
                             scanplot.make_plots(*arglist, **kwargs)
                         else:
@@ -490,7 +490,7 @@ for action in args.actions:
                 print ptvar
                 for cgroup in treeutils.cgroups:
                     print '  ', cgroup
-                    scanplot.make_plots(args, args.scan_vars['get-tree-metrics'], action, None, ptvar, ptlabel, args.final_plot_xvar, get_tm_fname, per_x=pchoice, choice_grouping=cgroup, use_relative_affy=use_relative_affy)
+                    scanplot.make_plots(args, args.scan_vars['get-tree-metrics'], action, None, ptvar, ptlabel, args.final_plot_xvar, per_x=pchoice, choice_grouping=cgroup, use_relative_affy=use_relative_affy)
             plotting.make_html(scanplot.get_comparison_plotdir(args, 'combined', per_x=pchoice), n_columns=2)
         else:
             assert False
