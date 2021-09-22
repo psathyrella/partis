@@ -533,12 +533,13 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         plt.xlabel('xlabel', fontsize=14)
 
     n_ticks = 4
-    dy = (ymax - ymin) / float(n_ticks - 1)
     ylabel, leg_loc, yticks, yticklabels = '', None, None, None
     if per_x is None:
         ylabel = ptilelabel
         title += ' %s' % locus
+        ymin, ymax = (0, 1)
     else:
+        # dy = (ymax - ymin) / float(n_ticks - 1)
         # if ptilestr != 'affinity':
         #     yticks = [int(y) if ptilestr == 'affinity' else utils.round_to_n_digits(y, 3) for y in numpy.arange(ymin, ymax + 0.5*dy, dy)]
         #     yticklabels = ['%s'%y for y in yticks]
