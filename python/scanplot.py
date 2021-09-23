@@ -537,7 +537,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     if per_x is None:
         ylabel = ptilelabel
         title += ' %s' % locus
-        ymin, ymax = (0, 1)
+        ymin, ymax = (0, 1.05)
     else:
         # dy = (ymax - ymin) / float(n_ticks - 1)
         # if ptilestr != 'affinity':
@@ -573,4 +573,4 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                               ybounds=(ymin, ymax), log=log, adjust=adjust,
     )
     if fnames is not None:
-        fnames[-1].append(ffn)
+        fnames.append(ffn)

@@ -20,16 +20,17 @@ all_perf_metrics = ['precision', 'sensitivity', 'f1']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simulate:cache-parameters:partition:plot')  # can also be merge-paired-partitions and get-selection-metrics
+parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')  # can also be merge-paired-partitions and get-selection-metrics
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
 parser.add_argument('--n-sim-events-per-proc', type=int, default=10)
 parser.add_argument('--n-leaves-list', default='1') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
-parser.add_argument('--mean-cells-per-droplet-list', default='None') #, default='1') #0.8 2 3 5 10; do #1.1; do
-# TODO add fraction-of-reads-to-remove
-parser.add_argument('--allowed-cdr3-lengths-list', default='30,45:30,33,36,42,45,48')
-parser.add_argument('--mutation-multiplier', type=float, default=1)
+parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
+parser.add_argument('--fraction-of-reads-to-remove-list')
+parser.add_argument('--allowed-cdr3-lengths-list') #, default='30,45:30,33,36,42,45,48')
+parser.add_argument('--flat-mute-freq-list') #, type=float, default=1)
+parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
@@ -39,7 +40,8 @@ parser.add_argument('--dry', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--no-plots', action='store_true')
 parser.add_argument('--debug', action='store_true')
-parser.add_argument('--extra-args')
+parser.add_argument('--simu-extra-args')
+parser.add_argument('--inference-extra-args')
 parser.add_argument('--plot-metrics', default='partis', help='NOTE these are methods, but in tree metric script + scanplot they\'re metrics, so we have to call them metrics here')
 parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics))
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
@@ -51,13 +53,13 @@ parser.add_argument('--combo-extra-str', help='extra label for combine-plots act
 parser.add_argument('--legend-var')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'mean-cells-per-droplet', 'allowed-cdr3-lengths']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'flat-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths']}
 for act in ['cache-parameters', 'partition']:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths']
 args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths'], 'float' : []}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
 
-args.actions = utils.get_arg_list(args.actions, choices=['simulate', 'cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'])
+args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'])
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:
@@ -70,49 +72,6 @@ args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metri
 utils.get_scanvar_arg_lists(args)
 
 # ----------------------------------------------------------------------------------------
-def run_simu():  # TODO this (and run_partis()) should really be combined with their equivalent fcns in cf-tree-metrics.py NOTE actually all four could be combined into one fcn i think?
-    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
-    cmdfos = []
-    print '  simu: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
-    if args.debug:
-        print '   %s' % ' '.join(varnames)
-    n_already_there = 0
-    for icombo, vstrs in enumerate(valstrs):
-        if args.debug:
-            print '   %s' % ' '.join(vstrs)
-        outdir = odir(args, varnames, vstrs, 'simu')
-        if utils.all_outputs_exist(args, paircluster.paired_dir_fnames(outdir, suffix='.yaml'), debug=False):
-            print '    simulation output exists %s' % outdir
-            n_already_there += 1
-            continue
-        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --paired-outdir %s %s' % (outdir, ' '.join(base_args))  #  --parameter-dir %s in_param_dir
-        cmd += ' --no-per-base-mutation --mutation-multiplier %.2f --constant-number-of-leaves' % args.mutation_multiplier
-        if args.n_sub_procs > 1:
-            cmd += ' --n-procs %d' % args.n_sub_procs
-        if args.n_sim_events_per_proc is not None:
-            cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
-        if args.extra_args is not None:
-            cmd += ' %s' % args.extra_args
-        for vname, vstr in zip(varnames, vstrs):
-            vstr_for_cmd = vstr
-            cmd += ' --%s %s' % (vname, vstr_for_cmd)
-        # utils.simplerun(cmd, logfname='%s.log'%outdir, dryrun=args.dry)
-        cmdfos += [{
-            'cmd_str' : cmd,
-            'outfname' : paircluster.paired_fn(outdir, 'igh', suffix='.yaml'),
-            'logdir' : outdir,
-            'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
-        }]
-    if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), paircluster.paired_fn(outdir, 'igh', suffix='.yaml'))
-    if len(cmdfos) > 0:
-        if args.dry:
-            print '    %s' % '\n    '.join(cfo['cmd_str'] for cfo in cmdfos)
-        else:
-            print '      starting %d jobs' % len(cmdfos)
-            utils.run_cmds(cmdfos, debug='write:simu.log', n_max_procs=args.n_max_procs, allow_failure=True)
-
-# ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
     return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), action if action=='simu' else 'inferred')
 
@@ -120,12 +79,9 @@ def odir(args, varnames, vstrs, action):
 def outpath(action, locus=None):
     if action == 'cache-parameters':
         return 'parameters'
-    elif action in ['partition', 'merge-paired-partitions']:  # i guess it makes sense to use the same file for both?
+    elif action in ['simu', 'partition', 'merge-paired-partitions']:  # i guess it makes sense to use the same file for both?
         assert locus is not None
-        return os.path.basename(paircluster.paired_fn('', locus, suffix='.yaml', actstr='partition'))
-    elif action == 'get-selection-metrics':
-        assert False  # needs updating i think
-        return 'igh+igk/partition-igh-selection-metrics.yaml'
+        return os.path.basename(paircluster.paired_fn('', locus, suffix='.yaml', actstr=None if action=='simu' else 'partition'))
     else:
         assert False
 
@@ -137,6 +93,48 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     return '%s%s/%s' % (odir(args, varnames, vstrs, action), paircluster.subd(single_chain=single_chain), outpath(action, locus=locus))
 
 # ----------------------------------------------------------------------------------------
+def run_simu(action):  # TODO this (and run_partis()) should really be combined with their equivalent fcns in cf-tree-metrics.py NOTE actually all four could be combined into one fcn i think?
+    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
+    cmdfos = []
+    print '  simu: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    if args.debug:
+        print '   %s' % ' '.join(varnames)
+    n_already_there = 0
+    for icombo, vstrs in enumerate(valstrs):
+        if args.debug:
+            print '   %s' % ' '.join(vstrs)
+        ofn = ofname(args, varnames, vstrs, action, single_file=True)
+        if utils.output_exists(args, ofn, debug=False):
+            n_already_there += 1
+            continue
+        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --paired-outdir %s %s' % (odir(args, varnames, vstrs, action), ' '.join(base_args))  #  --parameter-dir %s in_param_dir
+        cmd += ' --no-per-base-mutation'
+        if args.n_sub_procs > 1:
+            cmd += ' --n-procs %d' % args.n_sub_procs
+        if args.n_sim_events_per_proc is not None:
+            cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
+        if args.simu_extra_args is not None:
+            cmd += ' %s' % args.simu_extra_args
+        for vname, vstr in zip(varnames, vstrs):
+            vstr_for_cmd = vstr
+            cmd += ' --%s %s' % (vname, vstr_for_cmd)
+        # utils.simplerun(cmd, logfname='%s.log'%odir(args, varnames, vstrs, action), dryrun=args.dry)
+        cmdfos += [{
+            'cmd_str' : cmd,
+            'outfname' : ofn,
+            'logdir' : odir(args, varnames, vstrs, action),
+            'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
+        }]
+    if n_already_there > 0:
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), ofn)
+    if len(cmdfos) > 0:
+        if args.dry:
+            print '    %s' % '\n    '.join(cfo['cmd_str'] for cfo in cmdfos)
+        else:
+            print '      starting %d jobs' % len(cmdfos)
+            utils.run_cmds(cmdfos, debug='write:simu.log', n_max_procs=args.n_max_procs, allow_failure=True)
+
+# ----------------------------------------------------------------------------------------
 def run_partis(action):
     base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars[action])
     cmdfos = []
@@ -146,7 +144,8 @@ def run_partis(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        if utils.output_exists(args, ofname(args, varnames, vstrs, action, single_file=True)):
+        ofn = ofname(args, varnames, vstrs, action, single_file=True)
+        if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
 
@@ -159,18 +158,18 @@ def run_partis(action):
             cmd += ' --plotdir paired-outdir'
             if action in ['partition', 'merge-paired-partitions']:
                 cmd += ' --no-partition-plots' #--no-mds-plots' #
-        if args.extra_args is not None:
-            cmd += ' %s' % args.extra_args
+        if args.inference_extra_args is not None:
+            cmd += ' %s' % args.inference_extra_args
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos += [{
             'cmd_str' : cmd,
-            'outfname' : ofname(args, varnames, vstrs, action, single_file=True),
+            'outfname' : ofn,
             'logdir' : odir(args, varnames, vstrs, action),
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         }]
 
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), ofname(args, varnames, vstrs, action, single_file=True))
+        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), ofn)
     if len(cmdfos) > 0:
         print '      %s %d jobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos))
         if args.dry:
@@ -186,28 +185,29 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 for action in args.actions:
-    if action == 'simulate':
-        run_simu()
+    if action == 'simu':
+        run_simu(action)
     elif action in ['cache-parameters', 'partition']:
         run_partis(action)
     elif action in ['plot', 'combine-plots'] and not args.dry:
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['partition'])
         if action == 'plot':
             print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None))
-            for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are metrics, but here they're more like different methods
+            fnames = {meth : {pmetr : [[] for _ in partition_types] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
+            for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are [selection] metrics, but here they're [clustering] methods
                 cfpdir = scanplot.get_comparison_plotdir(args, method)
                 utils.prep_dir(cfpdir, subdirs=all_perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
-                fnames = []
-                for ptntype in partition_types:
-                    fnames.append([])
+                for ipt, ptntype in enumerate(partition_types):
                     for ltmp in utils.sub_loci('ig'):
                         def fnfcn(varnames, vstrs, tmet, x_axis_label): return ofname(args, varnames, vstrs, 'partition', locus=ltmp, single_chain=ptntype=='single')  # NOTE tmet (e.g. 'precision') and x_axis_label (e.g. 'precision') aren't used for this fcn atm
                         for pmetr in args.perf_metrics:
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
-                            scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn=fnfcn, locus=ltmp, ptntype=ptntype, fnames=fnames, debug=args.debug)
+                            scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn=fnfcn, locus=ltmp, ptntype=ptntype, fnames=fnames[method][pmetr][ipt], debug=args.debug)
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
-                    plotting.make_html(cfpdir + '/' + pmetr, n_columns=3, fnames=fnames)
+                    pmcdir = cfpdir + '/' + pmetr
+                    fnames[method][pmetr] = [[f.replace(pmcdir, '') for f in flist] for flist in fnames[method][pmetr]]
+                    plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])
         elif action == 'combine-plots':
             cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])

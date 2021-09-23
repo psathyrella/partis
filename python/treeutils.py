@@ -2155,7 +2155,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
                 delta_lbfo[uid] = lbfo['lbi'][uid] - lbfo['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
             line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
         elif 'aa-lb' in metric_method:  # aa versions of lbi and lbr
-            _, _ = get_combo_lbfo([metric_method.lstrip('aa-')], iclust, line, is_aa_lb=True)
+            _, _ = get_combo_lbfo([metric_method.lstrip('aa-')], iclust, line, is_aa_lb=True)  # NOTE i shouldn't have used lstrip() here (i keep forgetting it's character-based, not string-based', but i think it's ok
         elif metric_method in ['lbi', 'lbr']:  # last cause i'm adding them last, but would probably be cleaner to handle it differently (i'm just tired of having to run the full (non-individual) tree metric fcn to get them)
             _, _ = get_combo_lbfo([metric_method], iclust, line, add_to_line=True)
         elif metric_method == 'cons-lbi':  # now uses aa-lbi as a tiebreaker for cons-dist-aa, but used to be old z-score style combination of (nuc-)lbi and cons-dist

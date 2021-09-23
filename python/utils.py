@@ -771,6 +771,7 @@ def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False): #, prefix=N
         else:
             assert False
     # if prefix is not None:
+    #     assert False  # this is wrong, i always forget lstrip() is character-based
     #     did = did.lstrip(prefix)
     if return_contigs:
         return did, cid  # NOTE returning cid as string

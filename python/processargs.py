@@ -412,7 +412,7 @@ def process(args):
         if args.treefname is not None:
             raise Exception('--treefname was set for simulation action (probably meant to use --input-simulation-treefname)')
         if args.fraction_of_reads_to_remove is not None:
-            assert args.fraction_of_reads_to_remove > 0. and args.fraction_of_reads_to_remove < 1.
+            assert args.fraction_of_reads_to_remove >= 0. and args.fraction_of_reads_to_remove < 1.
 
         # ----------------------------------------------------------------------------------------
         def process_corr_values(cvals, estr=''):
