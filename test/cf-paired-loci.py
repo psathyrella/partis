@@ -76,21 +76,16 @@ def odir(args, varnames, vstrs, action):
     return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), action if action=='simu' else 'inferred')
 
 # ----------------------------------------------------------------------------------------
-def outpath(action, locus=None):
-    if action == 'cache-parameters':
-        return 'parameters'
-    elif action in ['simu', 'partition', 'merge-paired-partitions']:  # i guess it makes sense to use the same file for both?
-        assert locus is not None
-        return os.path.basename(paircluster.paired_fn('', locus, suffix='.yaml', actstr=None if action=='simu' else 'partition'))
-    else:
-        assert False
-
-# ----------------------------------------------------------------------------------------
 def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False):
+    outdir = odir(args, varnames, vstrs, action)
+    if action == 'cache-parameters':
+        return '%s/parameters' % outdir
+    assert action in ['simu', 'partition', 'merge-paired-partitions']
     if single_file:
         assert locus is None
         locus = 'igh'
-    return '%s%s/%s' % (odir(args, varnames, vstrs, action), paircluster.subd(single_chain=single_chain), outpath(action, locus=locus))
+    assert locus is not None
+    return paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain)
 
 # ----------------------------------------------------------------------------------------
 def run_simu(action):  # TODO this (and run_partis()) should really be combined with their equivalent fcns in cf-tree-metrics.py NOTE actually all four could be combined into one fcn i think?

@@ -28,21 +28,22 @@ def subd(seed_unique_id=None, lpair=None, single_chain=None):
     if seed_unique_id is not None:
         subd += '/seeds/%s' % '+'.join(seed_unique_id)
     if lpair is not None:
-        subd += '/%s' % '+'.join(lpair)  # NOTE duplicates paired_fn()
+        subd += '/%s' % '+'.join(lpair)
     if single_chain:
         subd += '/single-chain'
     return subd
 
 # ----------------------------------------------------------------------------------------
 # return standardized file name (including subdirs) in directory structure that we use for paired heavy/light i/o
-def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig', actstr=None):  # if set, only file(s) for this <locus>, and/or only files for this <lpair> of loci. If <lpair> is set but <locus> is None, returns subdir name
+def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig', actstr=None, seed_unique_id=None, single_chain=None):  # if set, only file(s) for this <locus>, and/or only files for this <lpair> of loci. If <lpair> is set but <locus> is None, returns subdir name
+    bdir += subd(seed_unique_id=seed_unique_id, lpair=lpair, single_chain=single_chain)  # i think you only ever want to specify one of these
     if lpair is not None:
-        bdir = '%s/%s' % (bdir, '+'.join(lpair))  # NOTE duplicates subd()
         if locus is None:
             return bdir
     return '%s/%s%s%s' % (bdir, '' if actstr is None else actstr+'-', locus, suffix)
 
 # ----------------------------------------------------------------------------------------
+# NOTE this doesn't include [e.g.] the single-chain files, since it was originally just written for simulation + split-loci.py files
 def paired_dir_fnames(bdir, no_pairing_info=False, only_paired=False, suffix='.fa', ig_or_tr='ig', include_failed=False, include_meta=False, no_dirs=False):  # return all files + dirs from previous fcn
     fnames = []
     if not only_paired:
