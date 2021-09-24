@@ -101,6 +101,9 @@ def process(args):
     args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True, choices=['igk', 'igl'])
     if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
         raise Exception('--light-chain-fractions %s don\'t add to 1: %f' % (args.light_chain_fractions, sum(args.light_chain_fractions.values())))
+    if args.single_light_chain_locus is not None:
+        if args.single_light_chain_locus not in utils.loci or utils.has_d_gene(args.single_light_chain_locus):
+            raise Exception('--single-light-chain-locus must be among: %s (got \'%s\')' % (' '.join(l for l in utils.loci if not utils.has_d_gene(l)), args.single_light_chain_locus))
     if args.action == 'merge-paired-partitions':
         assert args.paired_loci
     if args.paired_loci:
