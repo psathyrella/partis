@@ -272,7 +272,7 @@ There are two main partis-only simulation modes (with options for running hybrid
 
 Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire.
 Meanwhile 3. is required if you want to manipulate the details of the GC selection process (rather than parameters related to the results of the GC reaction, like number of leaves or tree depth).
-Note that the tree simulation packages used for 1. and 2. (TreeSim/TreeSimGM) can only output ultrametric trees with the options we need, so if you need to recapitulate shm distributions of sequences *within* families you should either use bcr-phylo or pass in your own trees (the shm distribution of all sequences in *all* families is fine either way, though).
+Note that with the options we need the tree simulation packages used for 1. and 2. (TreeSim/TreeSimGM) can only output ultrametric trees, so if you need to recapitulate shm distributions of sequences *within* families you should either use bcr-phylo or pass in your own trees (the shm distribution of all sequences in *all* families is fine either way, though).
 If you did not specify a parameter directory during inference, the parameters will still have been written to disk in a location printed to stdout (for instance, at the moment if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`).
 You could thus for instance simulate based on this parameter dir with:
 

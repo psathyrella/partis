@@ -217,7 +217,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
-                 square_bins=False, xticks=None, xticklabels=None, leg_title=None):
+                 square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None):
     assert os.path.exists(plotdir)
 
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
@@ -329,9 +329,12 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     #     yl = TLine(hframe.GetXaxis().GetXmin(), yline, hframe.GetXaxis().GetXmax(), yline)
     #     yl.Draw()
 
-    yticks, yticklabels = None, None
     if xticklabels is not None and 'y' in log:  # if xticklabels is set we need to also set the y ones so the fonts match up
+        if yticks is not None:
+            print '  %s resetting yticks' % utils.color('yellow', 'warning')
         yticks, yticklabels = get_auto_y_ticks(ymin, ymax, log=log)
+        ymin = min(yticks + [ymin])
+        ymax = max(yticks + [ymax])
     if xticks is None:
         if not no_labels and hist.bin_labels.count('') != len(hist.bin_labels):
             xticks = hist.get_bin_centers()
@@ -757,8 +760,11 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
 # ----------------------------------------------------------------------------------------
 def get_auto_y_ticks(ymin, ymax, log=''):  # NOTE pretty similar to get_cluster_size_xticks() (for search: log_bins log bins)
     def tstr(y): return (('%.0e'%y) if (y>1000 or y < 1) else '%.0f'%y) if 'y' in log else str(y)
-    tstart, tstop = math.floor(math.log(ymin, 10)), math.floor(math.log(ymax, 10))  # could also use math.ceil() for ttsop
-    yticks = [y for y in numpy.logspace(tstart, tstop, num=tstop - tstart + 1)]
+    tstart, tstop = math.floor(math.log(ymin, 10)), math.ceil(math.log(ymax, 10))
+    n_ticks = tstop - tstart + 1
+    if n_ticks == 2:  # i don't think it can be 0 or 1, but not sure
+        n_ticks += 1
+    yticks = [y for y in numpy.logspace(tstart, tstop, num=n_ticks)]
     # ymax = yticks[-1]
     if ymax > 1.4*yticks[-1]:
         yticks.append(ymax)

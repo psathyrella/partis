@@ -481,6 +481,7 @@ class PartitionPlotter(object):
                     def gfcn(x): return utils.meta_emph_str(mekey, utils.per_seq_val(antn, mekey, x, use_default=True), formats=self.args.meta_emph_formats)
                     vgroups = utils.group_seqs_by_value(tclust, gfcn, return_values=True)
                     emph_fracs = {v : len(grp) / float(csize) for v, grp in vgroups}
+                    emph_fracs.update({v : 0. for v in all_emph_vals - set(emph_fracs)})  # need to include families with no seqs with a given value (otherwise all the lines go to 1 as cluster size goes to 1)
                     for v, frac in emph_fracs.items():
                         plotvals[v].append((csize, frac))
             bhist = csize_hists['best']
@@ -495,7 +496,7 @@ class PartitionPlotter(object):
                     mval = numpy.mean(ib_vals)
                     err = mval / math.sqrt(2) if len(ib_vals) == 1 else numpy.std(ib_vals, ddof=1) / math.sqrt(len(ib_vals))  # that isn't really right for len 1, but whatever
                     ehist.set_ibin(ibin, mval, err)
-            ytitle = 'mean fraction of clusters'
+            ytitle = 'mean fraction of each cluster'
 
         self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors, ytitle=ytitle)
         for hname, thist in csize_hists.items():
