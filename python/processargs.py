@@ -98,12 +98,6 @@ def process(args):
         utils.replace_in_arglist(sys.argv, '--input-metafname', args.input_metafnames)  # have to also modify argv in case we're using it e.g. in paired locus stuff
         sys.argv[utils.arglist_index(sys.argv, '--input-metafname')] = '--input-metafnames'
 
-    args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True, choices=['igk', 'igl'])
-    if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
-        raise Exception('--light-chain-fractions %s don\'t add to 1: %f' % (args.light_chain_fractions, sum(args.light_chain_fractions.values())))
-    if args.single_light_chain_locus is not None:
-        if args.single_light_chain_locus not in utils.loci or utils.has_d_gene(args.single_light_chain_locus):
-            raise Exception('--single-light-chain-locus must be among: %s (got \'%s\')' % (' '.join(l for l in utils.loci if not utils.has_d_gene(l)), args.single_light_chain_locus))
     if args.action == 'merge-paired-partitions':
         assert args.paired_loci
     if args.paired_loci:
@@ -128,9 +122,19 @@ def process(args):
                 raise Exception('doesn\'t make sense to set --seed-loci without also setting --seed-unique-id')
         if args.persistent_cachefname is not None:
             assert args.persistent_cachefname == 'paired-outdir'
+
+        args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True, choices=utils.light_loci(args.ig_or_tr))
+        if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
+            raise Exception('--light-chain-fractions %s don\'t add to 1: %f' % (args.light_chain_fractions, sum(args.light_chain_fractions.values())))
+        if args.single_light_locus is not None:
+            if args.single_light_locus not in utils.light_loci(args.ig_or_tr):
+                raise Exception('--single-light-chain-locus must be among: %s (got \'%s\')' % (utils.light_loci(args.ig_or_tr), args.single_light_locus))
+            for ltmp in utils.light_loci(args.ig_or_tr):
+                args.light_chain_fractions[ltmp] = 1. if ltmp == args.single_light_locus else 0.
     else:
         if args.paired_indir is not None:
             raise Exception('need to set --paired-loci if --paired-indir is set')
+        args.ig_or_tr = args.locus[:2]  # this maybe/probably doesn't need to happen
     if not args.paired_loci and (args.paired_indir is not None or args.paired_outdir is not None):
         raise Exception('--paired-loci must be set if either --paired-indir or --paired-outdir is set')
     if args.reverse_negative_strands and not args.paired_loci:

@@ -119,6 +119,9 @@ def sub_loci(ig_or_tr):  # ok i probably should have just split <loci> by ig/tr,
 def heavy_locus(ig_or_tr):
     return get_single_entry([l for l in sub_loci(ig_or_tr) if has_d_gene(l)])
 
+def light_loci(ig_or_tr):
+    return [l for l in sub_loci(ig_or_tr) if not has_d_gene(l)]
+
 def getlpair(ltmp):  # return heavy/light locus pair for light chain locus <ltmp>
     if has_d_gene(ltmp): raise Exception('only makes sense for light chain, but got %s' % ltmp)
     return get_single_entry([lp for lplist in locus_pairs.values() for lp in lplist if ltmp in lp])
