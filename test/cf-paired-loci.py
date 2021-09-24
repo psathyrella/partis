@@ -29,7 +29,7 @@ parser.add_argument('--iseeds', help='if set, only run these replicate indices (
 parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
 parser.add_argument('--fraction-of-reads-to-remove-list')
 parser.add_argument('--allowed-cdr3-lengths-list') #, default='30,45:30,33,36,42,45,48')
-parser.add_argument('--flat-mute-freq-list') #, type=float, default=1)
+parser.add_argument('--scratch-mute-freq-list') #, type=float, default=1)
 parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
@@ -53,7 +53,7 @@ parser.add_argument('--combo-extra-str', help='extra label for combine-plots act
 parser.add_argument('--legend-var')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'flat-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths']}
 for act in ['cache-parameters', 'partition']:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths']
