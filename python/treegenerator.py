@@ -111,6 +111,10 @@ class TreeGenerator(object):
 
     #----------------------------------------------------------------------------------------
     def choose_full_sequence_branch_length(self):
+        # NOTE this chooses the age of the tree from the distribution of *sequence* ages, which is wrong, but maybe an ok compromise
+        # The root of the problem is that there's two shm distributions (of seqs within families, and of family means) but only have good options to control the second.
+        # Distribution of seq shm within each family is controlled by the tree shape (and for our treesim trees, is [almost?] just a delta fcn/ultrametric), whereas distribution of family means is controlled by all our actual simulation options
+        # So choosing the family mean from the distribution of sequence shms (as here) to make up for the within-family variation being too small [almost zero?] does a good job of recapitulating the shm distribution of all seqs over all families togther (of course, since this is the distribution we've spent a ton of time checking)
         iprob = numpy.random.uniform(0,1)
         sum_prob = 0.0
         for ibin in range(len(self.branch_lengths['all']['lengths'])):
@@ -230,8 +234,9 @@ class TreeGenerator(object):
                 treestrs.append(dtree.as_string(schema='newick').strip())
                 if self.args.debug > 1:
                     print utils.pad_lines(treeutils.get_ascii_tree(dtree))
-        if any(a > 1. for a in ages):
-            raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
+        if any(a > 1. for a in ages):  # maybe it's ok to change this to a warning? seems to be working
+            # raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
+            print '  %s read tree[s] with depth[s] greater than 1. from %s (see comment in choose_full_sequence_branch_length()): %s' % (utils.color('yellow', 'warning'), self.args.input_simulation_treefname, ' '.join('%.2f'%a for a in sorted(ages, reverse=True)))
         if len(ages) != self.args.n_trees:
             print '    resetting --n-trees from %d to %d to match trees read from %s' % (self.args.n_trees, len(ages), self.args.input_simulation_treefname)
         self.args.n_trees = len(ages)
