@@ -196,6 +196,7 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, bo
 
     arglist = arg.strip().split(':')  # to allow ids with minus signs, you can add a space (if you don't use --name=val), which you then have to strip() off
     if key_list:  # like key_val_pairs, but the arg just has a list, and here we supply the keys (obviously assumes order is the same)
+        assert not key_val_pairs
         if len(key_list) != len(arglist):
             raise Exception('key_list %s different length to arglist %s: %d vs %d' % (key_list, arglist, len(key_list), len(arglist)))
         arglist = ['%s,%s' % (k, v) for k, v in zip(key_list, arglist)]
@@ -246,15 +247,16 @@ def svoutdir(args, varnames, vstr, svtype):
 # ----------------------------------------------------------------------------------------
 def get_scanvar_arg_lists(args):
     # ----------------------------------------------------------------------------------------
-    def galist(aname):
+    def set_arg_list(aname):
         attr_name = aname.replace('-', '_') + '_list'
-        setattr(args, attr_name, get_arg_list(getattr(args, attr_name), list_of_lists=aname in args.str_list_vars, intify=aname in args.svartypes['int'], floatify=aname in args.svartypes['float'],
-                                                forbid_duplicates=args.zip_vars is None or aname not in args.zip_vars))  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()
+        arglist = get_arg_list(getattr(args, attr_name), list_of_lists=aname in args.str_list_vars, intify=aname in args.svartypes['int'], floatify=aname in args.svartypes['float'],
+                               forbid_duplicates=args.zip_vars is None or aname not in args.zip_vars)
+        setattr(args, attr_name, arglist)  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()
     # ----------------------------------------------------------------------------------------
     for aname in set([v for vlist in args.scan_vars.values() for v in vlist]):
         if aname == 'seed':
             continue
-        galist(aname)
+        set_arg_list(aname)
 
 # ----------------------------------------------------------------------------------------
 def sargval(args, sv):  # ick this name sucks

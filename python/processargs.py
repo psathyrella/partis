@@ -21,6 +21,9 @@ def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new al
             return utils.get_arg_list(getattr(glutils, 'default_'+aname.replace('_sim', ''))[args.locus], key_list=utils.regions)  # note that this leaves them as strings
         # ----------------------------------------------------------------------------------------
         args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True, key_list=utils.regions, default_vals=get_defaults('n_genes_per_region'))
+        if args.n_genes_per_region is not None and not utils.has_d_gene(args.locus) and args.n_genes_per_region['d'] > 1:
+            print '  --n-genes-per-region: reducing light chain d genes from %d to 1' % args.n_genes_per_region['d']
+            args.n_genes_per_region['d'] = 1
         args.n_sim_alleles_per_gene = utils.get_arg_list(args.n_sim_alleles_per_gene, floatify=True, key_list=utils.regions, default_vals=get_defaults('n_sim_alleles_per_gene'))
     positions = {
         'snp' : utils.get_arg_list(args.snp_positions),
