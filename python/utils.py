@@ -173,7 +173,8 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
-def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, boolify=False, translation=None, list_of_lists=False, key_val_pairs=False, choices=None, forbid_duplicates=False):  # make lists from args that are passed as strings of colon-separated values
+# make lists from args that are passed as strings of colon-separated values
+def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, boolify=False, translation=None, list_of_lists=False, key_val_pairs=False, key_list=None, choices=None, forbid_duplicates=False, default_vals=None):
     if arg is None:
         return None
 
@@ -194,6 +195,11 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, bo
         convert_fcn = bool
 
     arglist = arg.strip().split(':')  # to allow ids with minus signs, you can add a space (if you don't use --name=val), which you then have to strip() off
+    if key_list:  # like key_val_pairs, but the arg just has a list, and here we supply the keys (obviously assumes order is the same)
+        if len(key_list) != len(arglist):
+            raise Exception('key_list %s different length to arglist %s: %d vs %d' % (key_list, arglist, len(key_list), len(arglist)))
+        arglist = ['%s,%s' % (k, v) for k, v in zip(key_list, arglist)]
+        key_val_pairs = True
     if list_of_lists or key_val_pairs:
         arglist = [substr.split(',') for substr in arglist]
         if list_of_lists:
@@ -210,6 +216,8 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, bo
                 arglist[ia] = translation[arglist[ia]]
 
     if key_val_pairs:
+        if default_vals is not None:  # if <default_vals> is set, empty strings get replaced with value from <default_vals>
+            arglist = [(k, default_vals[k] if v=='' else v) for k, v in arglist]
         arglist = {k : convert_fcn(v) for k, v in arglist}
 
     if choices is not None:  # note that if <key_val_pairs> is set, this (and <forbid_duplicates) is just checking the keys, not the vals

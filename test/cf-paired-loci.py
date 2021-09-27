@@ -29,6 +29,8 @@ parser.add_argument('--iseeds', help='if set, only run these replicate indices (
 parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
 parser.add_argument('--fraction-of-reads-to-remove-list')
 parser.add_argument('--allowed-cdr3-lengths-list') #, default='30,45:30,33,36,42,45,48')
+parser.add_argument('--n-genes-per-region-list')
+parser.add_argument('--n-sim-alleles-per-gene-list')
 parser.add_argument('--scratch-mute-freq-list') #, type=float, default=1)
 parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -45,7 +47,7 @@ parser.add_argument('--inference-extra-args')
 parser.add_argument('--plot-metrics', default='partis', help='NOTE these are methods, but in tree metric script + scanplot they\'re metrics, so we have to call them metrics here')
 parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics))
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
-parser.add_argument('--final-plot-xvar', default='mean-cells-per-droplet', help='variable to put on the x axis of the final comparison plots')
+parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
 parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
@@ -53,11 +55,11 @@ parser.add_argument('--combo-extra-str', help='extra label for combine-plots act
 parser.add_argument('--legend-var')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']}
 for act in ['cache-parameters', 'partition']:
     args.scan_vars[act] = args.scan_vars['simu']
-args.str_list_vars = ['allowed-cdr3-lengths']
-args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths'], 'float' : []}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
+args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']
+args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-genes-per-region'], 'float' : ['n-sim-alleles-per-gene']}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
 
 args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'])
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
@@ -70,6 +72,9 @@ args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
 args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
 
 utils.get_scanvar_arg_lists(args)
+if args.final_plot_xvar is None:  # set default value based on scan vars
+    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
+    args.final_plot_xvar = [v for v in varnames if v != 'seed'][0]
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):

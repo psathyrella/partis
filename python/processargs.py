@@ -16,10 +16,12 @@ actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitio
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
 def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new allele args
     if args.locus is not None:  # if args.paired_loci is not set
-        if args.n_genes_per_region is None:
-            args.n_genes_per_region = glutils.default_n_genes_per_region[args.locus]
-        if args.n_sim_alleles_per_gene is None:
-            args.n_sim_alleles_per_gene = glutils.default_n_alleles_per_gene[args.locus]
+        # ----------------------------------------------------------------------------------------
+        def get_defaults(aname):
+            return utils.get_arg_list(getattr(glutils, 'default_'+aname.replace('_sim', ''))[args.locus], key_list=utils.regions)  # note that this leaves them as strings
+        # ----------------------------------------------------------------------------------------
+        args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True, key_list=utils.regions, default_vals=get_defaults('n_genes_per_region'))
+        args.n_sim_alleles_per_gene = utils.get_arg_list(args.n_sim_alleles_per_gene, floatify=True, key_list=utils.regions, default_vals=get_defaults('n_sim_alleles_per_gene'))
     positions = {
         'snp' : utils.get_arg_list(args.snp_positions),
         'indel' : utils.get_arg_list(args.indel_positions),

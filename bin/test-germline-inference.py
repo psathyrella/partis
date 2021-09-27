@@ -48,14 +48,14 @@ def simulate(args):
     if args.slurm:
         cmd_str += ' --batch-system slurm'
 
-    allele_prevalence_fname = args.workdir + '/allele-prevalence-freqs.csv'
+    args.allele_prevalence_fname = args.workdir + '/allele-prevalence-freqs.csv'
 
     # figure what genes we're using
     if args.gls_gen:
         sglfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus)
         glutils.remove_v_genes_with_bad_cysteines(sglfo)
-        glutils.generate_germline_set(sglfo, args.n_genes_per_region, args.n_sim_alleles_per_gene, args.min_allele_prevalence_freq, allele_prevalence_fname, new_allele_info=args.new_allele_info, dont_remove_template_genes=args.dont_remove_template_genes, debug=True)
-        cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
+        glutils.generate_germline_set(sglfo, args, new_allele_info=args.new_allele_info, dont_remove_template_genes=args.dont_remove_template_genes, debug=True)
+        cmd_str += ' --allele-prevalence-fname ' + args.allele_prevalence_fname
     else:
         sglfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus, only_genes=(args.sim_v_genes + args.dj_genes))
         added_snp_names = glutils.generate_new_alleles(sglfo, args.new_allele_info, debug=True, remove_template_genes=(not args.dont_remove_template_genes))  # NOTE template gene removal is the default for glutils.generate_germline_set
@@ -67,8 +67,8 @@ def simulate(args):
                 raise Exception('--allele-prevalence-freqs %d not the same length as sglfo %d' % (len(args.allele_prevalence_freqs), len(sglfo['seqs']['v'])))
             gene_list = sorted(sglfo['seqs']['v']) if len(added_snp_names) == 0 else list(set(args.sim_v_genes)) + added_snp_names
             prevalence_freqs = {'v' : {g : f for g, f in zip(gene_list, args.allele_prevalence_freqs)}, 'd' : {}, 'j' : {}}
-            glutils.write_allele_prevalence_freqs(prevalence_freqs, allele_prevalence_fname)
-            cmd_str += ' --allele-prevalence-fname ' + allele_prevalence_fname
+            glutils.write_allele_prevalence_freqs(prevalence_freqs, args.allele_prevalence_fname)
+            cmd_str += ' --allele-prevalence-fname ' + args.allele_prevalence_fname
 
     glutils.write_glfo(args.outdir + '/germlines/simulation', sglfo)
     cmd_str += ' --initial-germline-dir ' + args.outdir + '/germlines/simulation'
@@ -342,9 +342,9 @@ parser.add_argument('--snp-positions', help='colon-separated list (length must e
 parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes> unless --gls-gen) of the number of snps to generate for each gene (each snp at a random position). If --gls-gen, then this still gives the number of snpd genes, but it isn\'t assumed to be the same length as anything [i.e. we don\'t yet know how many v genes there\'ll be]')
 parser.add_argument('--indel-positions', help='see --snp-positions (a.t.m. the indel length distributions are hardcoded)')
 parser.add_argument('--nindel-list', help='see --nsnp-list')
-parser.add_argument('--n-genes-per-region', help='see bin/partis --help (default set in glutils.process_gls_gen_args() below)')
-parser.add_argument('--n-sim-alleles-per-gene', help='see bin/partis --help (default set in glutils.process_gls_gen_args() below)')
-parser.add_argument('--min-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float, help='see bin/partis --help')
+parser.add_argument('--n-genes-per-region', help='see bin/partis --help')
+parser.add_argument('--n-sim-alleles-per-gene', help='see bin/partis --help')
+parser.add_argument('--min-sim-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float, help='see bin/partis --help')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--dont-remove-template-genes', action='store_true', help='when generating snps, *don\'t* remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
 parser.add_argument('--mut-mult', type=float, help='see bin/partis --help')
@@ -366,6 +366,7 @@ parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit 
 parser.add_argument('--partis-path', default='./bin/partis')
 parser.add_argument('--species', default='human', choices=('human', 'macaque'))
 parser.add_argument('--locus', default='igh')
+parser.add_argument('--allele-prevalence-fname', help='for internal use only (set above)')
 
 args = parser.parse_args()
 assert args.locus == 'igh'  # would just need to update some things, e.g. propagate through to the various methods
