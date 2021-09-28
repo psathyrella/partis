@@ -14,7 +14,6 @@ import scanplot
 import plotting
 
 # ----------------------------------------------------------------------------------------
-# in_param_dir = '_output/paired-simulation/parameters'  # TODO
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1']
 
@@ -36,6 +35,7 @@ parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
+parser.add_argument('--single-light-locus')
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
 parser.add_argument('--dry', action='store_true')
@@ -108,12 +108,14 @@ def run_simu(action):  # TODO this (and run_partis()) should really be combined 
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
-        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --paired-outdir %s %s' % (odir(args, varnames, vstrs, action), ' '.join(base_args))  #  --parameter-dir %s in_param_dir
+        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --paired-outdir %s %s' % (odir(args, varnames, vstrs, action), ' '.join(base_args))
         cmd += ' --no-per-base-mutation'
         if args.n_sub_procs > 1:
             cmd += ' --n-procs %d' % args.n_sub_procs
         if args.n_sim_events_per_proc is not None:
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
+        if args.single_light_locus is not None:
+            cmd += ' --single-light-locus %s' % args.single_light_locus
         if args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         for vname, vstr in zip(varnames, vstrs):
@@ -179,6 +181,13 @@ def run_partis(action):
             utils.run_cmds(cmdfos, debug='write:%s.log'%action, n_max_procs=args.n_max_procs, allow_failure=True)
 
 # ----------------------------------------------------------------------------------------
+def plot_loci():
+    if args.single_light_locus is None:
+        return utils.sub_loci('ig')
+    else:
+        return [args.single_light_locus]
+
+# ----------------------------------------------------------------------------------------
 import random
 random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
@@ -199,7 +208,7 @@ for action in args.actions:
                 cfpdir = scanplot.get_comparison_plotdir(args, method)
                 utils.prep_dir(cfpdir, subdirs=all_perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
                 for ipt, ptntype in enumerate(partition_types):
-                    for ltmp in utils.sub_loci('ig'):
+                    for ltmp in plot_loci():
                         def fnfcn(varnames, vstrs, tmet, x_axis_label): return ofname(args, varnames, vstrs, 'partition', locus=ltmp, single_chain=ptntype=='single')  # NOTE tmet (e.g. 'precision') and x_axis_label (e.g. 'precision') aren't used for this fcn atm
                         for pmetr in args.perf_metrics:
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
@@ -215,7 +224,7 @@ for action in args.actions:
             for pmetr in args.perf_metrics:
                 print '    ', pmetr
                 for ptntype in partition_types:
-                    for ltmp in utils.sub_loci('ig'):
+                    for ltmp in plot_loci():
                         scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, debug=args.debug)
             plotting.make_html(cfpdir, n_columns=3)
         else:
