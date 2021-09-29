@@ -482,6 +482,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
             utils.remove_from_arglist(clist, '--seed-loci', has_arg=True)
             utils.remove_from_arglist(clist, '--random-seed-seq')
+            utils.remove_from_arglist(clist, '--dont-calculate-annotations')  # we need the single-chain partition steps to write annotations, although maybe it's just for pairing info so maybe we could write that separately, but whatever
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
@@ -667,10 +668,12 @@ def run_all_loci(args, ig_or_tr='ig'):
             jcp.print_seed_cluster_size(queries_to_include=args.queries_to_include, lstr='joint ')
         partition_lines = jcp.get_partition_lines(true_partition=None if true_partitions is None else true_partitions[ltmp], calc_missing_values='best')  # we could get annotations only for the missing clusters, but then we'd have to read the resulting output files, add in the non-missing cluster annotations, and then rewrite them.
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
-        if not os.path.exists(getpdir(ltmp)):  # no parameter dir, so can't get new annotations
-            print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), ltmp)
-            # TODO maybe just subset the existing annotations according to the joint partition?
-            utils.write_annotations(getofn(ltmp, joint=True), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
+        if not os.path.exists(getpdir(ltmp)) or args.dont_calculate_annotations:  # no parameter dir, so can't get new annotations (or we were told not to get annotations) NOTE in the former case, could maybe just subset the existing annotations according to the joint partition?
+            if not os.path.exists(getpdir(ltmp)):
+                print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), ltmp)
+            if args.dont_calculate_annotations:
+                print '    not calculating annotations'
+            utils.write_annotations(getofn(ltmp, joint=True, lpair=lpair), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
         else:
             utils.write_annotations(getofn(ltmp, joint=True, partition_only=True, lpair=lpair), glfo, [], headers, partition_lines=partition_lines)  # write just the partition (no annotations) to a tmp file for use by the annotation step below
             work_fnames.append(getofn(ltmp, joint=True, partition_only=True, lpair=lpair))
@@ -1159,6 +1162,7 @@ parent_args.append({'name' : '--input-partition-fname', 'kwargs' : {'help' : 'pa
 parent_args.append({'name' : '--input-partition-index', 'kwargs' : {'type' : int, 'help' : 'Index of the partition to be read from --input-partition-fname (if unset, defaults to the best partition). To figure out which index you want, you probably want to run the view-output action on the file.'}})
 parent_args.append({'name' : '--outfname', 'kwargs' : {'help' : 'output file name'}})
 parent_args.append({'name' : '--paired-outdir', 'kwargs' : {'help' : 'Directory for all output files when --paired-loci is set, i.e. involving multiple loci in input and/or paired heavy/light information.'}})
+parent_args.append({'name' : '--dont-calculate-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t calculate annotations for the final partition (so just the partition is written to output).'}})
 parent_args.append({'name' : '--write-full-yaml-output', 'kwargs' : {'action' : 'store_true', 'help' : 'By default, we write yaml output files using the json subset of yaml, since it\'s much faster. If this is set, we instead write full yaml, which is more human-readable (but also much slower).'}})
 parent_args.append({'name' : '--presto-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Write output file(s) in presto/changeo format. Since this format depends on a particular IMGT alignment, this depends on a fasta file with imgt-gapped alignments for all the V, D, and J germline genes. The default in data/germlines/<species>/imgt-alignments/, is probably fine for most cases. For the \'annotate\' action, a single .tsv file is written with annotations (so --outfname suffix must be .tsv). For the \'partition\' action, a fasta file is written with cluster information (so --outfname suffix must be .fa or .fasta), as well as a .tsv in the same directory with the corresponding annotations.'}})
 parent_args.append({'name' : '--airr-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Write output file(s) in AIRR-C format (if --outfname has suffix .tsv, only the airr .tsv is written; however if --outfname has suffix .yaml, both the standard partis .yaml file and an airr .tsv are written). A description of the airr columns can be found here https://docs.airr-community.org/en/stable/datarep/rearrangements.html#fields.'}})
@@ -1273,7 +1277,6 @@ subargs['partition'].append({'name' : '--n-precache-procs', 'kwargs' : {'type' :
 subargs['partition'].append({'name' : '--biggest-naive-seq-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 15, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
 subargs['partition'].append({'name' : '--biggest-logprob-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 15, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})
 subargs['partition'].append({'name' : '--n-partitions-to-write', 'kwargs' : {'type' : int, 'default' : 10, 'help' : 'Number of partitions (surrounding the best partition) to write to output file.'}})
-subargs['partition'].append({'name' : '--dont-calculate-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t calculate annotations for the final partition (so just the partition is written to output).'}})
 # subargs['partition'].append({'name' : '--naive-swarm', 'kwargs' : {'action' : 'store_true', 'help' : 'Use swarm instead of vsearch, which the developer recommends. Didn\'t seem to help much, and needs more work to optimize threshold, so DO NOT USE.'}})
 subargs['partition'].append({'name' : '--small-clusters-to-ignore', 'kwargs' : {'help' : 'colon-separated list (or dash-separated inclusive range) of cluster sizes to throw out after several partition steps. E.g. \'1:2\' will, after <--n-steps-at-which-to-ignore-small-clusters> partition steps, throw out all singletons and pairs. Alternatively, \'1-10\' will ignore all clusters with size less than 11.'}})
 subargs['partition'].append({'name' : '--n-steps-after-which-to-ignore-small-clusters', 'kwargs' : {'type' : int, 'default' : 3, 'help' : 'number of partition steps after which to throw out small clusters (where "small" is controlled by <--small-clusters-to-ignore>). (They\'re thrown out before this if we get to n_procs one before this).'}})

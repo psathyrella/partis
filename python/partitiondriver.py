@@ -543,7 +543,7 @@ class PartitionDriver(object):
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
             print 'caching all %d naive sequences' % len(self.sw_info['queries'])  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
             if self.args.synthetic_distance_based_partition:
-                self.write_fake_cache_file([[q] for q in self.sw_info['queries']])  # maybe should call self.get_nsets()?
+                self.write_fake_cache_file([[q] for q in self.sw_info['queries']])
             else:
                 self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
@@ -872,9 +872,11 @@ class PartitionDriver(object):
 
         # ----------------------------------------------------------------------------------------
         if self.args.dont_calculate_annotations:
-            print '    not calculating annotations'
+            print '  not calculating annotations'
             if self.args.outfname is not None:
                 self.write_output([], set(), cpath=cpath)
+            if self.args.debug:
+                self.print_results(cpath, [])  # used to just return, but now i want to at least see the cpath
             return
         self.added_extra_clusters_to_annotate = False
         clusters_to_annotate = get_clusters_to_annotate()
@@ -1852,7 +1854,7 @@ class PartitionDriver(object):
         if self.reco_info is None:
             raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input file)')
 
-        print '    %s true naive seqs' % utils.color('blue_bkg', 'caching fake')
+        print '    %s true naive seqs in fake cache file' % utils.color('blue_bkg', 'caching')
         with open(self.hmm_cachefname, 'w') as fakecachefile:
             writer = csv.DictWriter(fakecachefile, utils.partition_cachefile_headers)
             writer.writeheader()

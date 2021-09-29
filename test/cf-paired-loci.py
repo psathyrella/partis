@@ -160,7 +160,7 @@ def run_partis(action):
         if action != 'cache-parameters' and not args.no_plots:
             cmd += ' --plotdir paired-outdir'
             if action in ['partition', 'merge-paired-partitions']:
-                cmd += ' --no-partition-plots' #--no-mds-plots' #
+                cmd += ' --no-partition-plots --dont-calculate-annotations' #--no-mds-plots' #
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
