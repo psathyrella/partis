@@ -15,7 +15,7 @@ import plotting
 
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
-all_perf_metrics = ['precision', 'sensitivity', 'f1']
+all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac']
 ptn_actions = ['partition', 'synthetic']
 
 # ----------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--simu-extra-args')
 parser.add_argument('--inference-extra-args')
 parser.add_argument('--plot-metrics', default='partis', help='NOTE these are methods, but in tree metric script + scanplot they\'re metrics, so we have to call them metrics here')
-parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics))
+parser.add_argument('--perf-metrics', default='precision:sensitivity') #':'.join(all_perf_metrics))
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
 parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
@@ -193,7 +193,7 @@ def plot_loci():
     if args.single_light_locus is None:
         return utils.sub_loci('ig')
     else:
-        return [args.single_light_locus]
+        return [utils.heavy_locus('ig'), args.single_light_locus]
 
 # ----------------------------------------------------------------------------------------
 import random
@@ -217,7 +217,7 @@ for action in args.actions:
                 utils.prep_dir(cfpdir, subdirs=all_perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
                 for ipt, ptntype in enumerate(partition_types):
                     for ltmp in plot_loci():
-                        def fnfcn(varnames, vstrs, tmet, x_axis_label): return ofname(args, varnames, vstrs, 'partition', locus=ltmp, single_chain=ptntype=='single')  # NOTE tmet (e.g. 'precision') and x_axis_label (e.g. 'precision') aren't used for this fcn atm
+                        def fnfcn(varnames, vstrs, tmet, x_axis_label): return ofname(args, varnames, vstrs, method, locus=ltmp, single_chain=ptntype=='single')  # NOTE tmet (e.g. 'precision') and x_axis_label (e.g. 'precision') aren't used for this fcn atm
                         for pmetr in args.perf_metrics:
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
                             scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn=fnfcn, locus=ltmp, ptntype=ptntype, fnames=fnames[method][pmetr][ipt], debug=args.debug)

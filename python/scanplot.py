@@ -257,7 +257,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 missing_vstrs['missing'].append((None, vstrs))
                 return
             ccfs = cpath.ccfs[cpath.i_best]
-            ytmpfo = {'precision' : ccfs[0], 'sensitivity' : ccfs[1], 'f1' : sys.modules['scipy.stats'].hmean(ccfs)}
+            ytmpfo = {'precision' : ccfs[0], 'sensitivity' : ccfs[1], 'f1' : sys.modules['scipy.stats'].hmean(ccfs), 'cln-frac' : utils.collision_fraction(cpath.best())}  # NOTE this is dumb to add all of them, even though we only use one at a time, but whatever
             add_plot_vals(ytmpfo, vlists, varnames)
         # ----------------------------------------------------------------------------------------
         if debug:
