@@ -74,7 +74,7 @@ class PartitionDriver(object):
 
         self.deal_with_persistent_cachefile()
 
-        self.cached_naive_hamming_bounds = self.args.naive_hamming_bounds  # just so we don't get them every iteration through the clustering loop
+        self.cached_naive_hamming_bounds = self.args.naive_hamming_bounds  # this exists so we don't get the bounds every iteration through the clustering loop (and here is just set to the value from the args, but is set for real below)
 
         self.aligned_gl_seqs = None
         if self.args.aligned_germline_fname is not None:
@@ -542,13 +542,16 @@ class PartitionDriver(object):
         # pre-cache hmm naive seq for each single query NOTE <self.current_action> is still 'partition' for this (so that we build the correct bcrham command line)
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
             print 'caching all %d naive sequences' % len(self.sw_info['queries'])  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
-            self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
+            if self.args.synthetic_distance_based_partition:
+                self.write_fake_cache_file([[q] for q in self.sw_info['queries']])  # maybe should call self.get_nsets()?
+            else:
+                self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
 
         if self.args.simultaneous_true_clonal_seqs:
             print '  --simultaneous-true-clonal-seqs: using true clusters instead of partitioning'
             true_partition = [[uid for uid in cluster if uid in self.sw_info] for cluster in utils.get_partition_from_reco_info(self.reco_info)]  # mostly just to remove duplicates, although I think there might be other reasons why a uid would be missing
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=true_partition)
-        elif self.args.naive_vsearch or self.args.naive_swarm:
+        elif self.args.naive_vsearch: # or self.args.naive_swarm:
             cpath = self.cluster_with_naive_vsearch_or_swarm(parameter_dir=self.sub_param_dir)
         else:
             cpath = self.cluster_with_bcrham()
@@ -639,7 +642,7 @@ class PartitionDriver(object):
             if 'vtb' not in procinfo['calcd'] or 'fwd' not in procinfo['calcd']:
                 print '%s couldn\'t find vtb/fwd in:\n%s' % (utils.color('red', 'warning'), procinfo['calcd'])  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
                 return 1.  # er, or something?
-            if self.args.naive_hamming:  # make sure we didn't accidentally calculate some fwds
+            if self.args.naive_hamming_cluster:  # make sure we didn't accidentally calculate some fwds
                 assert procinfo['calcd']['fwd'] == 0.
             total += procinfo['calcd']['vtb'] + procinfo['calcd']['fwd']
         if self.args.debug:
@@ -868,6 +871,11 @@ class PartitionDriver(object):
             return clusters_to_annotate
 
         # ----------------------------------------------------------------------------------------
+        if self.args.dont_calculate_annotations:
+            print '    not calculating annotations'
+            if self.args.outfname is not None:
+                self.write_output([], set(), cpath=cpath)
+            return
         self.added_extra_clusters_to_annotate = False
         clusters_to_annotate = get_clusters_to_annotate()
         if len(clusters_to_annotate) == 0:
@@ -979,18 +987,28 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_hfrac_bounds(self, parameter_dir):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
+        # ----------------------------------------------------------------------------------------
+        def dbgstr():
+            if self.args.naive_hamming_cluster:
+                return utils.color('blue_bkg', '--naive-hamming-cluster')
+            elif self.args.naive_vsearch:  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
+                return utils.color('blue_bkg', '--naive-vsearch')
+            else:
+                return ''
+        # ----------------------------------------------------------------------------------------
         if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
+            print '      %s naive hfrac bounds: %.3f %.3f' % (dbgstr(), self.cached_naive_hamming_bounds[0], self.cached_naive_hamming_bounds[1])
             return self.cached_naive_hamming_bounds
 
         # this is a bit weird and messy because i just split out the guts into a fcn in utils (long after writing it), and i don't want to fiddle with this too much
-        if self.args.naive_hamming:
+        if self.args.naive_hamming_cluster:
             pmethod = 'naive-hamming'
         elif self.args.naive_vsearch:  # set lo and hi to the same thing, so we don't use log prob ratios, i.e. merge if less than this, don't merge if greater than this
             pmethod = 'naive-vsearch'
         else:  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
             pmethod = 'likelihood'
         self.cached_naive_hamming_bounds = utils.get_naive_hamming_bounds(pmethod, parameter_dir=parameter_dir)
-        print '       naive hfrac bounds: %.3f %.3f' % self.cached_naive_hamming_bounds
+        print '      %s setting naive hfrac bounds: %.3f %.3f' % (dbgstr(), self.cached_naive_hamming_bounds[0], self.cached_naive_hamming_bounds[1])
         return self.cached_naive_hamming_bounds
 
     # ----------------------------------------------------------------------------------------
@@ -1024,7 +1042,7 @@ class PartitionDriver(object):
                 cmd_str += ' --max-logprob-drop ' + str(self.args.max_logprob_drop)
 
                 hfrac_bounds = self.get_hfrac_bounds(parameter_dir)
-                if self.args.naive_hamming:  # shouldn't be able to happen, but...
+                if self.args.naive_hamming_cluster:  # shouldn't be able to happen, but...
                     assert hfrac_bounds[0] == hfrac_bounds[1]
                 cmd_str += ' --hamming-fraction-bound-lo ' + str(hfrac_bounds[0])
                 cmd_str += ' --hamming-fraction-bound-hi ' + str(hfrac_bounds[1])
@@ -1830,15 +1848,11 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_fake_cache_file(self, nsets):
         """ Write a fake cache file which, instead of the inferred naive sequences, has the *true* naive sequences. Used to generate synthetic partitions. """
-
+        # NOTE this will be out of sync with sw info afterwards (e.g. indel info/cdr3 length), so things may break if you do extra things (e.g. subcluster annotate, run with debug set)
         if self.reco_info is None:
-            raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input csv)')
+            raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input file)')
 
-        if os.path.exists(self.hmm_cachefname):
-            print '      cache file exists, not writing fake true naive seqs'
-            return
-
-        print '      caching fake true naive seqs'
+        print '    %s true naive seqs' % utils.color('blue_bkg', 'caching fake')
         with open(self.hmm_cachefname, 'w') as fakecachefile:
             writer = csv.DictWriter(fakecachefile, utils.partition_cachefile_headers)
             writer.writeheader()
@@ -1857,9 +1871,6 @@ class PartitionDriver(object):
 
         if shuffle_input:  # shuffle nset order (this is absolutely critical when clustering with more than one process, in order to redistribute sequences among the several processes)
             random.shuffle(nsets)
-
-        if self.current_action == 'partition' and self.args.synthetic_distance_based_partition:
-            self.write_fake_cache_file(nsets)
 
         genes_with_hmm_files = self.get_existing_hmm_files(parameter_dir)
         genes_with_enough_counts = utils.get_genes_with_enough_counts(parameter_dir, self.args.min_allele_prevalence_fractions)  # it would be nice to do this at some earlier step, but then we have to rerun sw (note that there usually won't be any to remove for V, since the same threshold was already applied in alleleremover, but there we can't do d and j since we don't yet have annotations for them)

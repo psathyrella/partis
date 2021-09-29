@@ -196,6 +196,18 @@ def process(args):
 
     args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
+    if args.naive_hamming_cluster and args.naive_vsearch:
+        raise Exception('can\'t specify both --naive-hamming-cluster and --naive-vsearch')
+    if args.synthetic_distance_based_partition:
+        if not args.is_simu:
+            raise Exception('--synthetic-distance-based-partition: have to set --is-simu (and be running on a simulation file)')
+        if not args.dont_calculate_annotations:
+            print '  --synthetic-distance-based-partition: turning on --dont-calculate-annotations, since things may crash otherwise (because true naive seqs can be out of sync with sw info)'
+            args.dont_calculate_annotations = True
+        if not args.naive_vsearch:
+            print '  --synthetic-distance-based-partition: turning on --naive-vsearch'
+            args.naive_vsearch = True
+            args.naive_hamming_cluster = False
     if args.small_clusters_to_ignore is not None:
         if '-' in args.small_clusters_to_ignore:
             lo, hi = [int(cluster_size) for cluster_size in args.small_clusters_to_ignore.split('-')]

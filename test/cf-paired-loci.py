@@ -21,7 +21,7 @@ all_perf_metrics = ['precision', 'sensitivity', 'f1']
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')  # can also be merge-paired-partitions and get-selection-metrics
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
-parser.add_argument('--n-sim-events-per-proc', type=int, default=10)
+parser.add_argument('--n-sim-events-per-proc', type=int, default=10)  # it would be nice to be able add this to scan vars, but i think that might require some work in scanplot (this should really be called something else, this name made more sense for tree metrics)
 parser.add_argument('--n-leaves-list', default='1') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')

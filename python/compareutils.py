@@ -1,3 +1,4 @@
+# NOTE this is all code to do with the original clustering paper, i.e. with current conventions it'd be in a file test/cf-clustering.py or something
 import os
 import glob
 import sys
@@ -1310,6 +1311,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
         elif action == 'synthetic-partition':  # called from generate_synthetic_partitions()
             cmd = cmd.replace(outfname, forced_outfname)
             outfname = forced_outfname  # <outfname> gets used below
+            # NOTE I don't think this was really doing what we wanted (partitiondriver was just writing true naive seqs to a fake cache file, then clustering as normal) -- after a merge bcrham will have inferred the new cluster's naive sequence and used that, which is probably quite different to single linkage clustering
             extras += ['--naive-hamming', '--synthetic-distance-based-partition']
             extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':'), '--no-indels']  # if we allow indels, it gets harder to pad seqs to the same length
             n_procs = max(1, args.n_max_queries / 500)
