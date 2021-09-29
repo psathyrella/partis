@@ -4636,6 +4636,15 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
     return (1. - under_frac, 1. - over_frac)
 
 # ----------------------------------------------------------------------------------------
+# return (# of within-cluster seq pairs) / (toal # of seq pairs, i.e. n*(n-1)/2), i.e. if a "collision" is that two seqs are in a cluster together, this counts the number of actual collided sequence pairs, over the total number of possible collisions
+def collision_fraction(partition):
+    def n_combos(n):
+        return n * (n - 1) / 2
+    n_collisions = sum(n_combos(len(c)) for c in partition)
+    cfrac = float(n_collisions) / n_combos(sum(len(c) for c in partition))
+    return cfrac
+
+# ----------------------------------------------------------------------------------------
 def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_biggest_clusters, iscn_denominator='min', debug=False):
     # iscn_denominator: denominator to divide intersection size of each pair of clusters ('min': min of the two sizes, 'mean': mean of the two sizes)
     """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest, divided by the mean size of the two clusters """

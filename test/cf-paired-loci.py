@@ -16,6 +16,7 @@ import plotting
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1']
+ptn_actions = ['partition', 'synthetic']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -36,11 +37,13 @@ parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--single-light-locus')
+parser.add_argument('--synth-hfrac', type=float, default=0.03)
+# scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
-parser.add_argument('--no-plots', action='store_true')
+parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--simu-extra-args')
 parser.add_argument('--inference-extra-args')
@@ -56,13 +59,13 @@ parser.add_argument('--legend-var')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']}
-for act in ['cache-parameters', 'partition']:
+for act in ['cache-parameters'] + ptn_actions:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']
 args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths'], 'float' : []}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
 # and these i think we can't since we want to allow blanks, 'n-genes-per-region' 'n-sim-alleles-per-gene'
 
-args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'])
+args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'] + ptn_actions)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:
@@ -75,23 +78,24 @@ args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metri
 utils.get_scanvar_arg_lists(args)
 if args.final_plot_xvar is None:  # set default value based on scan vars
     base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
-    args.final_plot_xvar = [v for v in varnames if v != 'seed'][0]
+    svars = [v for v in varnames if v != 'seed']
+    args.final_plot_xvar = svars[0] if len(svars) > 0 else 'allowed-cdr3-lengths'  # if we're not scanning over any vars, i'm not sure what we should use
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
-    return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), action if action=='simu' else 'inferred')
+    return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), 'partis' if action in ['cache-parameters', 'partition'] else action)
 
 # ----------------------------------------------------------------------------------------
 def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False):
     outdir = odir(args, varnames, vstrs, action)
     if action == 'cache-parameters':
         return '%s/parameters' % outdir
-    assert action in ['simu', 'partition', 'merge-paired-partitions']
+    assert action in ['simu', 'merge-paired-partitions'] + ptn_actions
     if single_file:
         assert locus is None
         locus = 'igh'
     assert locus is not None
-    return paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain)
+    return paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or action=='synthetic')
 
 # ----------------------------------------------------------------------------------------
 def run_simu(action):  # TODO this (and run_partis()) should really be combined with their equivalent fcns in cf-tree-metrics.py NOTE actually all four could be combined into one fcn i think?
@@ -152,15 +156,19 @@ def run_partis(action):
             n_already_there += 1
             continue
 
-        cmd = './bin/partis %s --paired-loci --paired-indir %s --paired-outdir %s' % (action, odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action))
+        cmd = './bin/partis %s --paired-loci --paired-indir %s --paired-outdir %s' % (action.replace('synthetic', 'partition'), odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action))
+        if action == 'synthetic':
+            cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f --parameter-dir %s' % (args.synth_hfrac, args.synth_hfrac, ofname(args, varnames, vstrs, 'cache-parameters', single_file=True))
         if args.n_sub_procs > 1:
             cmd += ' --n-procs %d' % args.n_sub_procs
         if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
             cmd += ' --is-simu'
-        if action != 'cache-parameters' and not args.no_plots:
+        if action in ptn_actions and not args.make_plots:
+            cmd += ' --dont-calculate-annotations'
+        if args.make_plots:
             cmd += ' --plotdir paired-outdir'
-            if action in ['partition', 'merge-paired-partitions']:
-                cmd += ' --no-partition-plots --dont-calculate-annotations' #--no-mds-plots' #
+            if action in ptn_actions:
+                cmd += ' --no-partition-plots' #--no-mds-plots' #
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
@@ -197,7 +205,7 @@ if args.workdir is None:
 for action in args.actions:
     if action == 'simu':
         run_simu(action)
-    elif action in ['cache-parameters', 'partition']:
+    elif action in ['cache-parameters', 'partition', 'synthetic']:
         run_partis(action)
     elif action in ['plot', 'combine-plots'] and not args.dry:
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['partition'])
