@@ -12,11 +12,13 @@ import utils
 import paircluster
 import scanplot
 import plotting
+import clusterpath
 
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac']
-ptn_actions = ['partition', 'synthetic']
+synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.60']]
+ptn_actions = ['partition'] + synth_actions
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -37,7 +39,6 @@ parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--single-light-locus')
-parser.add_argument('--synth-hfrac', type=float, default=0.03)
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
@@ -95,27 +96,31 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         assert locus is None
         locus = 'igh'
     assert locus is not None
-    return paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or action=='synthetic')
+    return paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or 'synth-' in action)
 
 # ----------------------------------------------------------------------------------------
-def run_simu(action):  # TODO this (and run_partis()) should really be combined with their equivalent fcns in cf-tree-metrics.py NOTE actually all four could be combined into one fcn i think?
-    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
-    cmdfos = []
-    print '  simu: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
-    if args.debug:
-        print '   %s' % ' '.join(varnames)
-    n_already_there = 0
-    for icombo, vstrs in enumerate(valstrs):
-        if args.debug:
-            print '   %s' % ' '.join(vstrs)
-        ofn = ofname(args, varnames, vstrs, action, single_file=True)
-        if utils.output_exists(args, ofn, debug=False):
-            n_already_there += 1
-            continue
-        cmd = './bin/partis simulate --paired-loci --simulate-from-scratch --paired-outdir %s %s' % (odir(args, varnames, vstrs, action), ' '.join(base_args))
-        cmd += ' --no-per-base-mutation'
-        if args.n_sub_procs > 1:
-            cmd += ' --n-procs %d' % args.n_sub_procs
+# distance-based partitions get made by running partis, but then we make the other types here
+def make_synthetic_partition(action, varnames, vstrs):
+    for ltmp in plot_loci():
+        _, _, true_cpath = utils.read_output(paircluster.paired_fn(odir(args, varnames, vstrs, 'simu'), ltmp, suffix='.yaml'))
+        _, mistype, misfrac = action.split('-')
+        new_partition = utils.generate_incorrect_partition(true_cpath.best(), float(misfrac), mistype)
+        new_cpath = clusterpath.ClusterPath(partition=new_partition)
+        new_cpath.calculate_missing_values(true_partition=true_cpath.best())
+        ofn = ofname(args, varnames, vstrs, action, locus=ltmp, single_chain=True)
+        utils.write_annotations(ofn, None, [], utils.annotation_headers, partition_lines=new_cpath.get_partition_lines())
+        print '    %s: wrote synthetic partition to %s' % (ltmp, ofn)
+
+# ----------------------------------------------------------------------------------------
+def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
+    actstr = action
+    if 'synth-distance-' in action:
+        actstr = 'partition'
+    cmd = './bin/partis %s --paired-loci --paired-outdir %s' % (actstr.replace('simu', 'simulate'), odir(args, varnames, vstrs, action))
+    if args.n_sub_procs > 1:
+        cmd += ' --n-procs %d' % args.n_sub_procs
+    if action == 'simu':
+        cmd += ' --simulate-from-scratch --no-per-base-mutation %s' % ' '.join(base_args)
         if args.n_sim_events_per_proc is not None:
             cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
         if args.single_light_locus is not None:
@@ -125,42 +130,11 @@ def run_simu(action):  # TODO this (and run_partis()) should really be combined 
         for vname, vstr in zip(varnames, vstrs):
             vstr_for_cmd = vstr
             cmd += ' --%s %s' % (vname, vstr_for_cmd)
-        # utils.simplerun(cmd, logfname='%s.log'%odir(args, varnames, vstrs, action), dryrun=args.dry)
-        cmdfos += [{
-            'cmd_str' : cmd,
-            'outfname' : ofn,
-            'logdir' : odir(args, varnames, vstrs, action),
-            'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
-        }]
-    if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), ofn)
-    if len(cmdfos) > 0:
-        if args.dry:
-            print '    %s' % '\n    '.join(cfo['cmd_str'] for cfo in cmdfos)
-        else:
-            print '      starting %d jobs' % len(cmdfos)
-            utils.run_cmds(cmdfos, debug='write:simu.log', n_max_procs=args.n_max_procs, allow_failure=True)
-
-# ----------------------------------------------------------------------------------------
-def run_partis(action):
-    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars[action])
-    cmdfos = []
-    print '  %s: running %d combinations of: %s' % (action, len(valstrs), ' '.join(varnames))
-    n_already_there = 0
-    for icombo, vstrs in enumerate(valstrs):
-        if args.debug:
-            print '   %s' % ' '.join(vstrs)
-
-        ofn = ofname(args, varnames, vstrs, action, single_file=True)
-        if utils.output_exists(args, ofn, debug=False):
-            n_already_there += 1
-            continue
-
-        cmd = './bin/partis %s --paired-loci --paired-indir %s --paired-outdir %s' % (action.replace('synthetic', 'partition'), odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action))
-        if action == 'synthetic':
-            cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f --parameter-dir %s' % (args.synth_hfrac, args.synth_hfrac, ofname(args, varnames, vstrs, 'cache-parameters', single_file=True))
-        if args.n_sub_procs > 1:
-            cmd += ' --n-procs %d' % args.n_sub_procs
+    else:
+        cmd += ' --paired-indir %s' % odir(args, varnames, vstrs, 'simu')
+        if 'synth-distance-' in action:
+            synth_hfrac = float(action.replace('synth-distance-', ''))
+            cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f --parameter-dir %s' % (synth_hfrac, synth_hfrac, ofname(args, varnames, vstrs, 'cache-parameters', single_file=True))
         if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
             cmd += ' --is-simu'
         if action in ptn_actions and not args.make_plots:
@@ -171,6 +145,32 @@ def run_partis(action):
                 cmd += ' --no-partition-plots' #--no-mds-plots' #
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
+
+    return cmd
+
+# ----------------------------------------------------------------------------------------
+# TODO combine this also with fcns in cf-tree-metrics.py (and put it in scanplot)
+def run_scan(action):
+    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars[action])
+    cmdfos = []
+    print '  %s: running %d combinations of: %s' % (action, len(valstrs), ' '.join(varnames))
+    if args.debug:
+        print '   %s' % ' '.join(varnames)
+    n_already_there = 0
+    for icombo, vstrs in enumerate(valstrs):
+        if args.debug:
+            print '   %s' % ' '.join(vstrs)
+
+        ofn = ofname(args, varnames, vstrs, action, single_file=True)
+        if utils.output_exists(args, ofn, debug=False):
+            n_already_there += 1
+            continue
+
+        if 'synth-reassign-' in action or 'synth-singletons-' in action:
+            make_synthetic_partition(action, varnames, vstrs)
+            continue
+
+        cmd = get_cmd(action, base_args, varnames, vstrs)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos += [{
             'cmd_str' : cmd,
@@ -188,6 +188,7 @@ def run_partis(action):
         else:
             utils.run_cmds(cmdfos, debug='write:%s.log'%action, n_max_procs=args.n_max_procs, allow_failure=True)
 
+
 # ----------------------------------------------------------------------------------------
 def plot_loci():
     if args.single_light_locus is None:
@@ -203,10 +204,8 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 for action in args.actions:
-    if action == 'simu':
-        run_simu(action)
-    elif action in ['cache-parameters', 'partition', 'synthetic']:
-        run_partis(action)
+    if action in ['simu', 'cache-parameters', 'partition'] + synth_actions:
+        run_scan(action)
     elif action in ['plot', 'combine-plots'] and not args.dry:
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['partition'])
         if action == 'plot':
@@ -223,6 +222,7 @@ for action in args.actions:
                             scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn=fnfcn, locus=ltmp, ptntype=ptntype, fnames=fnames[method][pmetr][ipt], debug=args.debug)
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
+                    cfpdir = scanplot.get_comparison_plotdir(args, method)
                     pmcdir = cfpdir + '/' + pmetr
                     fnames[method][pmetr] = [[f.replace(pmcdir, '') for f in flist] for flist in fnames[method][pmetr]]
                     plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])
