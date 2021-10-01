@@ -21,6 +21,7 @@ linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
 hard_colors = {'dtr' : '#626262',
                'aa-lbi' : '#e043b9',
                'aa-lbr' : '#e043b9'}  # don't like the cycle colors these end up with
+hard_colors.update(plotting.colors)
 def metric_color(metric):  # as a fcn to avoid import if we're not plotting
     if metric in hard_colors:
         return hard_colors[metric]
@@ -61,7 +62,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     def legstr(label, title=False):
         if label is None: return None
         jstr = '\n' if title else '; '
-        tmplist = [treeutils.legtexts.get(l, l.replace('-', ' ')) for l in label.split('; ')]
+        ldict = plotting.legends if per_x is None else treeutils.legtexts
+        tmplist = [ldict.get(l, l.replace('-', ' ')) for l in label.split('; ')]
         if title and args.pvks_to_plot is not None:  # if we're only plotting specific values, put them in the legend str (typically we're just plotting one value)
             assert isinstance(args.pvks_to_plot, list)  # don't really need this
             for il in range(len(tmplist)):
@@ -250,6 +252,22 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     add_plot_vals(yamlfo, vlists, varnames, obs_frac=obs_frac, iclust=iclust)
         # ----------------------------------------------------------------------------------------
         def read_pairclust_file(vlists, vstrs):
+            # ----------------------------------------------------------------------------------------
+            def gval():
+                if ptilestr == 'precision':
+                    rval = ccfs[0]
+                elif ptilestr == 'sensitivity':
+                    rval = ccfs[1]
+                elif ptilestr == 'f1':
+                    rval = sys.modules['scipy.stats'].hmean(ccfs)
+                elif ptilestr == 'cln-frac':
+                    rval = utils.collision_fraction(cpath.best())
+                else:
+                    assert False
+                if rval is None:
+                    print '  %s read none type val from %s' % (utils.color('yellow', 'warning'), yfname)
+                return rval
+            # ----------------------------------------------------------------------------------------
             if debug:
                 print '%s   | %s' % (get_varval_str(vstrs), ''),
             yfname = fnfcn(varnames, vstrs, metric, ptilestr)
@@ -259,7 +277,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 missing_vstrs['missing'].append((None, vstrs))
                 return
             ccfs = cpath.ccfs[cpath.i_best]
-            ytmpfo = {'precision' : ccfs[0], 'sensitivity' : ccfs[1], 'f1' : sys.modules['scipy.stats'].hmean(ccfs), 'cln-frac' : utils.collision_fraction(cpath.best())}  # NOTE this is dumb to add all of them, even though we only use one at a time, but whatever
+            ytmpfo = {ptilestr : gval()}
             add_plot_vals(ytmpfo, vlists, varnames)
         # ----------------------------------------------------------------------------------------
         if debug:
@@ -382,7 +400,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     # ----------------------------------------------------------------------------------------
     def titlestr(metric):
         if per_x is None:
-            return '%s %s' % (metric, ltexts[ptntype])
+            return '%s %s' % (plotting.legends.get(metric, metric), ltexts[ptntype])
         else:
             return lbplotting.mtitlestr(per_x, metric, short=True, max_len=7)
     # ----------------------------------------------------------------------------------------
@@ -463,7 +481,6 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             json.dump(outfo, yfile)
         title = '%s:' % titlestr(metric)
         plotdir = get_comparison_plotdir(args, metric, **getkwargs(metric_extra_str))  # per_x=per_x, extra_str=metric_extra_str
-        ylabelstr = metric.upper()
     elif action == 'combine-plots':
         pvks_from_args = set([pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
         plotfos = collections.OrderedDict()
@@ -507,7 +524,6 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         #     title = '+'.join(set(args.plot_metrics)) + ': '
         title = ''
         plotdir = get_comparison_plotdir(args, 'combined', per_x=per_x)
-        ylabelstr = 'metric'
     else:
         assert False
 
@@ -540,6 +556,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         ylabel = ptilelabel
         title += ' %s' % locus
         ymin, ymax = (0, 1.05)
+        leg_loc = [0.7, 0.15]
     else:
         # dy = (ymax - ymin) / float(n_ticks - 1)
         # if ptilestr != 'affinity':

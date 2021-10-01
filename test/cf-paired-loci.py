@@ -18,7 +18,7 @@ import clusterpath
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac']
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.60']]
-ptn_actions = ['partition'] + synth_actions
+ptn_actions = ['partition', 'vjcdr3-0.9'] + synth_actions
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -48,7 +48,7 @@ parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--simu-extra-args')
 parser.add_argument('--inference-extra-args')
-parser.add_argument('--plot-metrics', default='partis', help='NOTE these are methods, but in tree metric script + scanplot they\'re metrics, so we have to call them metrics here')
+parser.add_argument('--plot-metrics', default='partition', help='NOTE these are methods, but in tree metric script + scanplot they\'re metrics, so we have to call them metrics here')
 parser.add_argument('--perf-metrics', default='precision:sensitivity') #':'.join(all_perf_metrics))
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
@@ -96,7 +96,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         assert locus is None
         locus = 'igh'
     assert locus is not None
-    return paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or 'synth-' in action)
+    return paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or 'synth-' in action or 'vjcdr3-' in action)
 
 # ----------------------------------------------------------------------------------------
 # distance-based partitions get made by running partis, but then we make the other types here
@@ -116,6 +116,8 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
     actstr = action
     if 'synth-distance-' in action:
         actstr = 'partition'
+    if 'vjcdr3-' in action:
+        actstr = 'annotate'
     cmd = './bin/partis %s --paired-loci --paired-outdir %s' % (actstr.replace('simu', 'simulate'), odir(args, varnames, vstrs, action))
     if args.n_sub_procs > 1:
         cmd += ' --n-procs %d' % args.n_sub_procs
@@ -134,10 +136,14 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         cmd += ' --paired-indir %s' % odir(args, varnames, vstrs, 'simu')
         if 'synth-distance-' in action:
             synth_hfrac = float(action.replace('synth-distance-', ''))
-            cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f --parameter-dir %s' % (synth_hfrac, synth_hfrac, ofname(args, varnames, vstrs, 'cache-parameters', single_file=True))
+            cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f' % (synth_hfrac, synth_hfrac)
+        if 'synth-distance-' in action or 'vjcdr3-' in action:
+            cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters', single_file=True)
+        if 'vjcdr3-' in action:
+            cmd += ' --annotation-clustering --annotation-clustering-threshold %.2f' % float(action.split('-')[1])
         if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
             cmd += ' --is-simu'
-        if action in ptn_actions and not args.make_plots:
+        if action in ptn_actions and actstr != 'annotate' and not args.make_plots:
             cmd += ' --dont-calculate-annotations'
         if args.make_plots:
             cmd += ' --plotdir paired-outdir'
@@ -188,7 +194,6 @@ def run_scan(action):
         else:
             utils.run_cmds(cmdfos, debug='write:%s.log'%action, n_max_procs=args.n_max_procs, allow_failure=True)
 
-
 # ----------------------------------------------------------------------------------------
 def plot_loci():
     if args.single_light_locus is None:
@@ -204,7 +209,7 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 for action in args.actions:
-    if action in ['simu', 'cache-parameters', 'partition'] + synth_actions:
+    if action in ['simu', 'cache-parameters'] + ptn_actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots'] and not args.dry:
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['partition'])
@@ -234,9 +239,11 @@ for action in args.actions:
                 for ptntype in partition_types:
                     for ltmp in plot_loci():
                         scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, debug=args.debug)
-            plotting.make_html(cfpdir, n_columns=3)
+            plotting.make_html(cfpdir, n_columns=3 if len(plot_loci())==3 else 4)
         else:
             assert False
+    else:
+        assert False
 
 # bd=_output/cells-per-drop
 # subd=inferred/plots

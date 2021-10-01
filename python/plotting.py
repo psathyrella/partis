@@ -435,6 +435,7 @@ def interpolate_values(xvals, yvals):
 # NOTE annotation stuff is in plotconfig.py
 #
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
+           'vjcdr3-0.9' : 'VJ CDR3 0.9',
            # 'partition partis' : 'full partis',
            'partition' : 'full partis',
            # 'naive-hamming-partition partis' : 'point partis',
@@ -466,6 +467,7 @@ colors = {'true' : '#006600',
           'seed-naive-hamming-partition' : '#990012',
           'vollmers-0.5' : '#3333ff',
           'vollmers-0.9' : '#3399ff',
+          'vjcdr3-0.9' : '#3399ff',
           'changeo' :  '#2b65ec',
           'mixcr' : '#2b65ec',
           'misassign-0.60-singletons' : '#808080',

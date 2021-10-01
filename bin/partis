@@ -539,7 +539,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 assert args.persistent_cachefname == 'paired-outdir'
                 utils.replace_in_arglist(clist, '--persistent-cachefname', getofn(ltmp, lpair=lpair, persistent_cache=True))
 
-            if args.plot_partitions or tmpaction in ['annotate', 'view-output', 'get-selection-metrics', 'plot-partitions']:
+            if args.plot_partitions or joint and tmpaction in ['annotate', 'view-output', 'get-selection-metrics', 'plot-partitions']:
                 clist[clist.index(args.action)] = tmpaction
                 utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
@@ -547,7 +547,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))  # this does almost the same thing as the line under 'annotate', but note that the tmp .fa files end up in different dirs, since lpair is unset here, whereas it's set for 'annotate'
                 utils.remove_from_arglist(clist, '--is-simu')  # at least for now, doing this since we're using fasta input file (which maybe is ok permanently?)
                 utils.remove_from_arglist(clist, '--seed-unique-id', has_arg=True)
-            if tmpaction == 'annotate':
+            if joint and tmpaction == 'annotate':  # <joint> here is just a proxy for if this is running annotations on paired clustering output (as opposed to if we're just running the plain annotate action)
                 utils.remove_from_arglist(clist, '--queries-to-include-fname', has_arg=True)  # we end up with inconsistent sequences (well, it's just that one is N-padded and the other isn't)
                 utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)  # we're no longer running on the initial input file, so theis (and --n-random-queries) screws everything up if e.g. --queries-to-include-fname is set by not reading all the seqs
                 utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
@@ -1003,7 +1003,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             fnlist = sorted(fnoutstr.strip().split('\n'))
             plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
     # ----------------------------------------------------------------------------------------
-    paired_loci_actions = ['cache-parameters', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate']
+    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate']
     if args.action not in paired_loci_actions:
         raise Exception('action %s not supported for paired loci (choose from %s)' % (args.action, paired_loci_actions))
     if args.paired_outdir is None:
@@ -1261,7 +1261,7 @@ subargs = {subname : [] for subname in subconfig}
 # ----------------------------------------------------------------------------------------
 subargs['annotate'].append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster.'}})
 subargs['annotate'].append({'name' : '--annotation-clustering', 'kwargs' : {'action' : 'store_true', 'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
-subargs['annotate'].append({'name' : '--annotation-clustering-threshold', 'kwargs' : {'default' : 0.9, 'help' : 'threshold used by --annotation-clustering (i.e. a cluster is defined as the same v and j gene plus this threshold for single-linkage clustering on cdr3 nucleotide hamming distance)'}})
+subargs['annotate'].append({'name' : '--annotation-clustering-threshold', 'kwargs' : {'default' : 0.9, 'type' : float, 'help' : 'threshold used by --annotation-clustering (i.e. a cluster is defined as the same v and j gene plus this threshold for single-linkage clustering on cdr3 nucleotide hamming distance)'}})
 
 # ----------------------------------------------------------------------------------------
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then cluster using vsearch (in --cluster_fast mode, see https://doi.org/10.7717/peerj.2584). This is less accurate than default clustering, since it knows nothing about vdj rearrangement, but since it clusters on naive sequences it\'s still much more accurate than any clustering method on mutated sequences.'}})
