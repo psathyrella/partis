@@ -4638,6 +4638,10 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
 # ----------------------------------------------------------------------------------------
 # return (# of within-cluster seq pairs) / (toal # of seq pairs, i.e. n*(n-1)/2), i.e. if a "collision" is that two seqs are in a cluster together, this counts the number of actual collided sequence pairs, over the total number of possible collisions
 def collision_fraction(partition):
+# TODO this is only actually right on singleton true partitions.
+# I think what i really want is two numbers:
+#   - "naive" collision fraction: fraction of naive rearrangement pairs that collide (measures density/inverse diversity of naive repertoire)
+#   - "mature" collision fraction: fraction of mature/mutated seq pairs from *different* families that collide (also adds in extra collisions from shm)
     def n_combos(n):
         return n * (n - 1) / 2
     n_collisions = sum(n_combos(len(c)) for c in partition)
