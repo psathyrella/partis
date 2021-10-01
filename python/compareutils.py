@@ -1305,6 +1305,7 @@ def execute(args, action, datafname, label, n_leaves, mut_mult, procs, hfrac_bou
                 if hfrac_bounds is not None:
                     extras += ['--naive-hamming-bounds', get_str(hfrac_bounds, delimiter=':')]
         elif action == 'vjcdr3-partition':
+            assert False # i (slightly) changed the behavior of these partis args, so would need to update this if i wanted to run it now
             extras += ['--annotation-clustering', 'vollmers', '--annotation-clustering-thresholds', '0.5:0.9']
             # extras += ['--persistent-cachefname', seqfname.replace('.csv', '-naive-seq-cache.csv')]  # useful if you're rerunning a bunch of times
             n_procs = max(1, args.n_max_queries / 500)

@@ -311,8 +311,12 @@ class PartitionDriver(object):
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=utils.non_none([self.args.parameter_out_dir, self.multi_hmm_param_dir]), partition=self.input_partition)
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
+        if self.args.annotation_clustering:  # VJ CDR3 clustering
+            import annotationclustering
+            antn_ptn = annotationclustering.vollmers(annotations, self.args.annotation_clustering_threshold)
+            antn_cpath = ClusterPath(partition=antn_ptn)
         if self.args.outfname is not None:
-            self.write_output(annotations.values(), hmm_failures, cpath=self.input_cpath)
+            self.write_output(annotations.values(), hmm_failures, cpath=antn_cpath if self.args.annotation_clustering else self.input_cpath)
         if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
             assert self.input_partition is not None
             partplotter = PartitionPlotter(self.args)
@@ -2145,9 +2149,7 @@ class PartitionDriver(object):
             else:
                 for mname in bad_annotations:
                     print_bad_annotations(mname, bad_annotations)
-        self.check_for_unexpectedly_missing_keys(annotation_list, hmm_failures)  # NOTE not sure if it's really correct to use <annotations_to_use>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
-        if self.args.annotation_clustering is not None:  # annotation (VJ CDR3) clustering
-            self.deal_with_annotation_clustering(annotations_to_use, outfname)
+        self.check_for_unexpectedly_missing_keys(annotation_list, hmm_failures)  # NOTE not sure if it's really correct to use <annotation_list>, [maybe since <hmm_failures> has ones that failed the conversion to eroded line (and maybe other reasons)]
 
     # ----------------------------------------------------------------------------------------
     def add_per_seq_sw_info(self, line):
@@ -2256,37 +2258,6 @@ class PartitionDriver(object):
             self.process_annotation_output(annotations_to_use.values(), hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=print_annotations)
 
         return annotations_to_use, hmm_failures
-
-    # ----------------------------------------------------------------------------------------
-    def deal_with_annotation_clustering(self, annotation_list, outfname):
-        if self.args.annotation_clustering != 'vollmers':
-            raise Exception('we only handle \'vollmers\' (vj cdr3 0.x) annotation clustering at the moment')
-
-        # initialize output file
-        if outfname is not None:
-            outfile = open(outfname, 'w')  # NOTE overwrites annotation info that's already been written to <outfname>
-            headers = ['n_clusters', 'threshold', 'partition']
-            if not self.args.is_data:
-                headers += ['ccf_under', 'ccf_over']
-            writer = csv.DictWriter(outfile, headers)
-            writer.writeheader()
-
-        # perform annotation clustering for each threshold and write to file
-        import annotationclustering
-        for thresh in self.args.annotation_clustering_thresholds:
-            partition = annotationclustering.vollmers({':'.join(l['unique_ids']) : l for l in annotation_list}, threshold=thresh, reco_info=self.reco_info)
-            n_clusters = len(partition)
-            if outfname is not None:
-                row = {'n_clusters' : n_clusters, 'threshold' : thresh, 'partition' : utils.get_str_from_partition(partition)}
-                if not self.args.is_data:
-                    true_partition = utils.get_partition_from_reco_info(self.reco_info)
-                    ccfs = utils.per_seq_correct_cluster_fractions(partition, true_partition, reco_info=self.reco_info)
-                    row['ccf_under'] = ccfs[0]
-                    row['ccf_over'] = ccfs[1]
-                writer.writerow(row)
-
-        if outfname is not None:
-            outfile.close()
 
     # ----------------------------------------------------------------------------------------
     def write_output(self, annotation_list, hmm_failures, cpath=None, dont_write_failed_queries=False, write_sw=False, outfname=None, extra_headers=None):

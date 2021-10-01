@@ -6,7 +6,7 @@ from subprocess import check_call
 import utils
 
 # ----------------------------------------------------------------------------------------
-def vollmers(info, threshold, reco_info=None, debug=False):
+def vollmers(info, threshold, debug=False):
     """
     From Vollmers paper:
         Lineage Clustering. IGH sequences were clustered into IGH lineages according
@@ -91,6 +91,9 @@ def vollmers(info, threshold, reco_info=None, debug=False):
 
     # ----------------------------------------------------------------------------------------
     # the business
+    if any(len(l['unique_ids']) > 1 for l in info.values()):
+        raise Exception('all initial annotations in annotation clustering need to have length 1, but got: %s' % [l['unique_ids'] for l in info.values() if len(l['unique_ids'])>1])
+    print '  vj-cdr3 clustering %d sequences with threshold %.3f' % (len(info), threshold)
     unclustered_seqs = info.keys()
     last_cluster_id = 0
     while len(unclustered_seqs) > 0:

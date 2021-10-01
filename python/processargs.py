@@ -194,7 +194,8 @@ def process(args):
     delattr(args, 'min_allele_prevalence_fraction')  # delete the non-plural version
     delattr(args, 'typical_genes_per_region_per_subject')  # and we don't need this any more either
 
-    args.annotation_clustering_thresholds = utils.get_arg_list(args.annotation_clustering_thresholds, floatify=True)
+    if args.annotation_clustering and args.action != 'annotate':
+            raise Exception('action must be \'annotate\' for annotation clustering')
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
     if args.naive_hamming_cluster and args.naive_vsearch:
         raise Exception('can\'t specify both --naive-hamming-cluster and --naive-vsearch')
