@@ -17,6 +17,7 @@ vlabels = {
     'carry-cap' : 'carry cap',
 }
 linestyles = {'lbi' : '-', 'lbr' : '-', 'dtr' : '--'}
+linestyles.update(plotting.linestyles)
 linewidths = {'lbi' : 2.5, 'lbr' : 2.5, 'dtr' : 3}
 hard_colors = {'dtr' : '#626262',
                'aa-lbi' : '#e043b9',

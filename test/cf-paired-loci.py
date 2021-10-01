@@ -18,7 +18,7 @@ import clusterpath
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac']
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.60']]
-ptn_actions = ['partition', 'vjcdr3-0.9'] + synth_actions
+ptn_actions = ['partition', 'vsearch-partition', 'vjcdr3-0.9'] + synth_actions
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -114,7 +114,7 @@ def make_synthetic_partition(action, varnames, vstrs):
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
     actstr = action
-    if 'synth-distance-' in action:
+    if 'synth-distance-' in action or action == 'vsearch-partition':
         actstr = 'partition'
     if 'vjcdr3-' in action:
         actstr = 'annotate'
@@ -134,6 +134,8 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             cmd += ' --%s %s' % (vname, vstr_for_cmd)
     else:
         cmd += ' --paired-indir %s' % odir(args, varnames, vstrs, 'simu')
+        if action == 'vsearch-partition':
+            cmd += ' --naive-vsearch'
         if 'synth-distance-' in action:
             synth_hfrac = float(action.replace('synth-distance-', ''))
             cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f' % (synth_hfrac, synth_hfrac)

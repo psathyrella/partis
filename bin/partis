@@ -547,7 +547,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))  # this does almost the same thing as the line under 'annotate', but note that the tmp .fa files end up in different dirs, since lpair is unset here, whereas it's set for 'annotate'
                 utils.remove_from_arglist(clist, '--is-simu')  # at least for now, doing this since we're using fasta input file (which maybe is ok permanently?)
                 utils.remove_from_arglist(clist, '--seed-unique-id', has_arg=True)
-            if joint and tmpaction == 'annotate':  # <joint> here is just a proxy for if this is running annotations on paired clustering output (as opposed to if we're just running the plain annotate action)
+            if joint and tmpaction == 'annotate':  # <joint> here (and just above) is just a proxy for if this is running annotations on paired clustering output (as opposed to if we're just running the plain annotate action)
                 utils.remove_from_arglist(clist, '--queries-to-include-fname', has_arg=True)  # we end up with inconsistent sequences (well, it's just that one is N-padded and the other isn't)
                 utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)  # we're no longer running on the initial input file, so theis (and --n-random-queries) screws everything up if e.g. --queries-to-include-fname is set by not reading all the seqs
                 utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
