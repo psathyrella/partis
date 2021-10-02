@@ -972,7 +972,7 @@ class PartitionDriver(object):
         print '    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs),
         for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
             sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold, vsearch_binary=self.args.vsearch_binary)
-            sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[hashstr]] for hashcluster in sub_hash_partition]
+            sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[cdr3_length][hashstr]] for hashcluster in sub_hash_partition]
             partition += sub_uid_partition
             print '.',
             sys.stdout.flush()
@@ -1916,7 +1916,7 @@ class PartitionDriver(object):
                 for tcount, tclust in set([(partition.count(c), ':'.join(c)) for c in partition if partition.count(c) > 1]):
                     print '  %s cluster occurs %d times in the <nsets> we\'re sending to bcrham: %s' % (utils.color('yellow', 'warning'), tcount, tclust)
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
-            if self.input_partition is not None or self.args.simultaneous_true_clonal_seqs or self.args.naive_vsearch:  # this is hackey, but we absolutely cannot have different cdr3 lengths in the same cluster, and these are two cases where it can happen (in very rare cases, usually on really crappy sequences)
+            if self.input_partition is not None or self.args.simultaneous_true_clonal_seqs:  # this is hackey, but we absolutely cannot have different cdr3 lengths in the same cluster, and these are two cases where it can happen (in very rare cases, usually on really crappy sequences)
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)
         else:
             qlist = self.sw_info['queries']  # shorthand
