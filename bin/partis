@@ -1043,7 +1043,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             for ltmp in sloci():
                 run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions')
         ccfs = None  # if we're just plotting partitions (not merging), we'd have to go back and read single + joint/concat'd partitions in order to get these
-        if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run:
+        if args.action in ['partition', 'merge-paired-partitions'] and not args.dry_run and not args.dont_calculate_annotations:
             ccfs = combine_inf_chains()
         if args.plot_annotation_performance:
             print '  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning')
