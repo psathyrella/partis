@@ -1300,6 +1300,7 @@ class PartitionDriver(object):
                     n_hashed += 1
             for fsclust in failed_super_clusters:
                 print '    giving up on size %d cluster with failed seqs (was just split into %d subclusters): %s' % (len(skey_inverse(fsclust)), len(subd_clusters[fsclust][-1]), fsclust)
+                all_hmm_failures |= set(skey_inverse(fsclust))
                 clusters_still_to_do.remove(skey_inverse(fsclust))
                 del subd_clusters[fsclust]
             for sclust in [c for c in clusters_still_to_do if skey(c) in step_antns]:  # non-subclustered/simple/whole clusters (only happens first time through) [there's simpler ways to get these, but we need to account for failures]
