@@ -91,6 +91,8 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     outdir = odir(args, varnames, vstrs, action)
     if action == 'cache-parameters':
         outdir += '/parameters'
+        if locus is None:
+            return outdir
     if single_file:
         assert locus is None
         locus = 'igh'
@@ -145,11 +147,13 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             synth_hfrac = float(action.replace('synth-distance-', ''))
             cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f' % (synth_hfrac, synth_hfrac)
         if 'synth-distance-' in action or 'vjcdr3-' in action:
-            cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters', single_file=True)
+            cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
         if 'vjcdr3-' in action:
             cmd += ' --annotation-clustering --annotation-clustering-threshold %.2f' % float(action.split('-')[1])
         if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
             cmd += ' --is-simu'
+        if action != 'cache-parameters':
+            cmd += ' --refuse-to-cache-parameters'
         if action in ptn_actions and actstr != 'annotate' and not args.make_plots:
             cmd += ' --dont-calculate-annotations'
         if args.make_plots:
