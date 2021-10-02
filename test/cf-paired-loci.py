@@ -90,13 +90,18 @@ def odir(args, varnames, vstrs, action):
 def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False):
     outdir = odir(args, varnames, vstrs, action)
     if action == 'cache-parameters':
-        return '%s/parameters' % outdir
-    assert action in ['simu', 'merge-paired-partitions'] + ptn_actions
+        outdir += '/parameters'
     if single_file:
         assert locus is None
         locus = 'igh'
     assert locus is not None
-    return paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or 'synth-' in action or 'vjcdr3-' in action)
+    if action == 'cache-parameters':
+        ofn = outdir
+        if single_file:
+            ofn += '/%s/hmm/germline-sets/%s/%sv.fasta' % (locus, locus, locus)
+    else:
+        ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or 'synth-' in action or 'vjcdr3-' in action)
+    return ofn
 
 # ----------------------------------------------------------------------------------------
 # distance-based partitions get made by running partis, but then we make the other types here
@@ -213,7 +218,10 @@ if args.workdir is None:
 for action in args.actions:
     if action in ['simu', 'cache-parameters'] + ptn_actions:
         run_scan(action)
-    elif action in ['plot', 'combine-plots'] and not args.dry:
+    elif action in ['plot', 'combine-plots']:
+        if args.dry:
+            print '  --dry: not plotting'
+            continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['partition'])
         if action == 'plot':
             print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None))
@@ -243,9 +251,9 @@ for action in args.actions:
                         scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, debug=args.debug)
             plotting.make_html(cfpdir, n_columns=3 if len(plot_loci())==3 else 4)
         else:
-            assert False
+            raise Exception('unsupported action %s' % action)
     else:
-        assert False
+        raise Exception('unsupported action %s' % action)
 
 # bd=_output/cells-per-drop
 # subd=inferred/plots
