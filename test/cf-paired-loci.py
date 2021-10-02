@@ -146,7 +146,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         if 'synth-distance-' in action:
             synth_hfrac = float(action.replace('synth-distance-', ''))
             cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f' % (synth_hfrac, synth_hfrac)
-        if 'synth-distance-' in action or 'vjcdr3-' in action:
+        if 'synth-distance-' in action or 'vjcdr3-' in action or action == 'vsearch-partition':
             cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
         if 'vjcdr3-' in action:
             cmd += ' --annotation-clustering --annotation-clustering-threshold %.2f' % float(action.split('-')[1])
