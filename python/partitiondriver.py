@@ -1916,7 +1916,7 @@ class PartitionDriver(object):
                 for tcount, tclust in set([(partition.count(c), ':'.join(c)) for c in partition if partition.count(c) > 1]):
                     print '  %s cluster occurs %d times in the <nsets> we\'re sending to bcrham: %s' % (utils.color('yellow', 'warning'), tcount, tclust)
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
-            if self.input_partition is not None or self.args.simultaneous_true_clonal_seqs:  # this is hackey, but we absolutely cannot have different cdr3 lengths in the same cluster, and these are two cases where it can happen (in very rare cases, usually on really crappy sequences)
+            if self.input_partition is not None or self.args.simultaneous_true_clonal_seqs or self.args.naive_vsearch:  # this is hackey, but we absolutely cannot have different cdr3 lengths in the same cluster, and these are two cases where it can happen (in very rare cases, usually on really crappy sequences)
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)
         else:
             qlist = self.sw_info['queries']  # shorthand

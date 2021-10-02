@@ -154,7 +154,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             cmd += ' --is-simu'
         if action != 'cache-parameters':
             cmd += ' --refuse-to-cache-parameters'
-        if action in ptn_actions and actstr != 'annotate' and not args.make_plots:
+        if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots:
             cmd += ' --dont-calculate-annotations'
         if args.make_plots:
             cmd += ' --plotdir paired-outdir'
