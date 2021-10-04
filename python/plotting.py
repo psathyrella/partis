@@ -501,7 +501,7 @@ linestyles = {'naive-hamming-partition' : 'dashed',
               'changeo' : 'dashed',
               'mixcr' : 'dotted',
               'misassign-distance-0.03' : 'dashed',
-              'syn-distance-0.03' : 'dashed',
+              'synth-distance-0.03' : 'dashed',
 }
 
 alphas = {'true' : 0.6,
