@@ -448,8 +448,10 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            # '0.1-true-singletons' : '10% random singletons',
            # '0.1-true-reassign' : '10% random reassign',
            'misassign-0.60-singletons' : 'synth. 60%\nsingleton',
+           'synth-singletons-0.20' : 'synth. 20%\nsingleton',
            'misassign-0.10-reassign' : 'synth. 10%\nreassign',
            'misassign-distance-0.03' : 'synth.\nneighbor 0.03',
+           'synth-distance-0.03' : 'synth.\nneighbor 0.03',
            'mixcr' : 'MiXCR',
            'adj_mi' : 'adj MI',
            'ccf_under' : 'precision',
@@ -471,8 +473,10 @@ colors = {'true' : '#006600',
           'changeo' :  '#2b65ec',
           'mixcr' : '#2b65ec',
           'misassign-0.60-singletons' : '#808080',
+          'synth-singletons-0.20' : '#808080',
           'misassign-0.10-reassign' : '#808080',
           'misassign-distance-0.03' : '#808080',
+          'synth-distance-0.03' : '#808080',
 }
 
 linewidths = {'true' : 15,
@@ -486,8 +490,10 @@ linewidths = {'true' : 15,
               'changeo' : 3,
               'mixcr' : 6,
               'misassign-0.60-singletons' : 4,
+              'synth-singletons-0.20' : 4,
               'misassign-0.10-reassign' : 3,
               'misassign-distance-0.03' : 2,
+              'synth-distance-0.03' : 2,
 }
 
 linestyles = {'naive-hamming-partition' : 'dashed',
@@ -495,12 +501,15 @@ linestyles = {'naive-hamming-partition' : 'dashed',
               'changeo' : 'dashed',
               'mixcr' : 'dotted',
               'misassign-distance-0.03' : 'dashed',
+              'syn-distance-0.03' : 'dashed',
 }
 
 alphas = {'true' : 0.6,
           'vollmers-0.9' : 0.6,
           'misassign-0.60-singletons' : 0.5,
+          'synth-singletons-0.20' : 0.5,
           'misassign-distance-0.03' : 0.8,
+          'synth-distance-0.03' : 0.8,
 }
 
 def label_bullshit_transform(label):

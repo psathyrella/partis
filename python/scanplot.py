@@ -71,8 +71,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 subpvks = [pvk.split('; ')[il] for pvk in args.pvks_to_plot]
                 tmplist[il] += ': %s' % ' '.join(treeutils.legtexts.get(spvk, spvk) for spvk in subpvks)
         lstr = jstr.join(tmplist)
-        if per_x is None and ptntype is not None and label in args.plot_metrics:  # need to add single/joint to the method
-            lstr += ' %s' % ltexts[ptntype]
+        # if per_x is None and ptntype is not None and label in args.plot_metrics:  # need to add single/joint to the method
+        #     lstr += ' %s' % ltexts[ptntype]
         return lstr
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames):
@@ -555,7 +555,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     ylabel, leg_loc, yticks, yticklabels = '', None, None, None
     if per_x is None:
         ylabel = ptilelabel
-        title += ' %s' % locus
+        title += '%s: %s %s' % (locus, ltexts[ptntype], ptilestr)
         ymin, ymax = (0, 1.05)
         leg_loc = [0.7, 0.15]
     else:

@@ -17,7 +17,7 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac']
-synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.60']]
+synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'vsearch-partition', 'vjcdr3-0.9'] + synth_actions
 
 # ----------------------------------------------------------------------------------------
