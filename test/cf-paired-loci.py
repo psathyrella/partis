@@ -170,7 +170,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
 def run_scan(action):
     base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars[action])
     cmdfos = []
-    print '  %s: running %d combinations of: %s' % (action, len(valstrs), ' '.join(varnames))
+    print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
     if args.debug:
         print '   %s' % ' '.join(varnames)
     n_already_there = 0
