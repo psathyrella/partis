@@ -78,9 +78,9 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         return lstr
     # ----------------------------------------------------------------------------------------
     def nsimevts():
-        if per_x is None:  # should always be accessing it as a scan var
+        if per_x is None:  # for paired, we should always be accessing n sim events as a scan var
             assert False
-        else:  # for tree metrics it's always just one value
+        else:  # see hasattr assertions below
             return args.n_sim_events_per_proc
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames, return_dbg=False):
@@ -107,18 +107,16 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     def pvkeystr(vlists, varnames):
         # ----------------------------------------------------------------------------------------
         def valstr(vname):
-            vval = obs_frac if vname == 'obs_frac' else utils.vlval(args, vlists, varnames, vname)  # obs_frac has to be treated diffferently since it's a derived value from several parameters, whereas others are just one parameter (i.e. it only matters if we're going to set obs_frac as final_plot_xvar)
-            if vname == 'obs_frac':
-                return '%.4f' % obs_frac
+            if vname == 'obs_frac':  # obs_frac has to be treated diffferently since it's a derived value from several parameters, whereas others are just one parameter (i.e. it only matters if we're going to set obs_frac as final_plot_xvar)
+                return '%.4f' % get_obs_frac(vlists, varnames)  # shouldn't happen for paired
+            vval = utils.vlval(args, vlists, varnames, vname)
+            def strfcn(x):
+                return str(x)  # TODO
+            if isinstance(vval, list):
+                return ', '.join(strfcn(v) for v in vval)
             else:
-                def strfcn(x):
-                    return str(x)  # TODO
-                if isinstance(vval, list):
-                    return ', '.join(strfcn(v) for v in vval)
-                else:
-                    return strfcn(vval)
+                return strfcn(vval)
         # ----------------------------------------------------------------------------------------
-        obs_frac = 1. if per_x is None else get_obs_frac(vlists, varnames)
         pvnames = sorted(set(varnames) - set(['seed', xvar]))
         if args.legend_var is not None:  # pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
             pvnames = [args.legend_var]  # ['obs_frac']
@@ -239,7 +237,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
             plotlist.append((tau, fval))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
         # ----------------------------------------------------------------------------------------
-        def get_iclusts(yamlfo):
+        def get_iclusts(yamlfo, yfname):
             assert per_x is not None  # just to make clear we don't get here for paired
             iclusts_in_file = []
             if 'percentiles' in yamlfo:  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
@@ -266,7 +264,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             if treat_clusters_together:
                 add_plot_vals(yamlfo, vlists, varnames)
             else:
-                for iclust in get_iclusts(yamlfo):
+                for iclust in get_iclusts(yamlfo, yfname):
                     add_plot_vals(yamlfo, vlists, varnames, iclust=iclust)
         # ----------------------------------------------------------------------------------------
         def read_pairclust_file(vlists, vstrs):
