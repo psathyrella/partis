@@ -480,7 +480,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     _, varnames, val_lists, valstrs = utils.get_var_info(args, svars)
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     fig, ax = plotting.mpl_init()
-    xticks, xlabel = None, None
+    all_xtks, all_xtls, xlabel = [], [], None
     if action == 'plot':
         read_plot_info()
         outfo = []
@@ -490,6 +490,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         for ipv, pvkey in enumerate(plotvals):
             xvals, diffs_to_perfect = zip(*plotvals[pvkey])
             xticks, xticklabels, xlabel = getxticks(xvals)
+            all_xtks += xticks
+            all_xtls += xticklabels
             # assert xvals == tuple(sorted(xvals))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove this
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
             plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
@@ -535,6 +537,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels, xlabel = getxticks(pfo[pvkey]['xvals'])
                 plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if (imtmp == 0 and len(pvk_list) > 1) else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
+                all_xtks += xticks
+                all_xtls += xticklabels
         # if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
         #     title = '+'.join(plotfos) + ': '
         # else:
@@ -544,6 +548,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     else:
         assert False
 
+    xmin, xmax = 0.95 * min(all_xtks), 1.05 * max(all_xtks)
     ymin, ymax = ax.get_ylim()
     # if ptilestr == 'affinity':
     #     ymin, ymax = 0, max(ymax, 25)
@@ -551,7 +556,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     #     ymin, ymax = 0, max(ymax, 1.5)
 
     log, adjust = '', {}
-    if xvar == 'lb-tau' and len(xticks) > 1:
+    if xvar == 'lb-tau' and len(all_xtks) > 1:
         ax.plot([1./args.seq_len, 1./args.seq_len], (ymin, ymax), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
     if xvar == 'carry-cap':
         log = 'x'
@@ -562,7 +567,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         adjust['left'] = 0.26
     adjust['bottom'] = 0.25
     adjust['top'] = 0.9
-    if xticklabels is not None and '\n' in xticklabels[0]:
+    if all_xtls is not None and '\n' in all_xtls[0]:
         adjust['bottom'] = 0.3
         import matplotlib.pyplot as plt
         plt.xlabel('xlabel', fontsize=14)
@@ -604,9 +609,9 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                               # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
                               ylabel=ylabel,
                               title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
-                              xticks=xticks, xticklabels=xticklabels, xticklabelsize=12 if xticklabels is not None and '\n' in xticklabels[0] else 16,
+                              xticks=all_xtks, xticklabels=all_xtls, xticklabelsize=12 if all_xtls is not None and '\n' in all_xtls[0] else 16,
                               yticks=yticks, yticklabels=yticklabels,
-                              ybounds=(ymin, ymax), log=log, adjust=adjust,
+                              xbounds=(xmin, xmax), ybounds=(ymin, ymax), log=log, adjust=adjust,
     )
     if fnames is not None:
         fnames.append(ffn)

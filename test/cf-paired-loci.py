@@ -68,6 +68,7 @@ args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-sim-events'], 
 
 args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'] + ptn_actions)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
+args.zip_vars = utils.get_arg_list(args.zip_vars)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
 if args.plot_metric_extra_strs is None:
     args.plot_metric_extra_strs = ['' for _ in args.plot_metrics]
