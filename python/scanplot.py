@@ -8,6 +8,8 @@ import collections
 import json
 import numpy
 import math
+from hist import Hist
+import copy
 
 # ----------------------------------------------------------------------------------------
 vlabels = {
@@ -75,9 +77,15 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         #     lstr += ' %s' % ltexts[ptntype]
         return lstr
     # ----------------------------------------------------------------------------------------
-    def get_obs_frac(vlists, varnames):
-        if per_x is None:
-            return 1., ''
+    def nsimevts():
+        if per_x is None:  # should always be accessing it as a scan var
+            assert False
+        else:  # for tree metrics it's always just one value
+            return args.n_sim_events_per_proc
+    # ----------------------------------------------------------------------------------------
+    def get_obs_frac(vlists, varnames, return_dbg=False):
+        if per_x is None:  # really just so when you're looking at this fcn you don't need to worry what happens for paired clustering
+            assert False
         obs_times = utils.vlval(args, vlists, varnames, 'obs-times')
         n_per_gen_vals = utils.vlval(args, vlists, varnames, 'n-sim-seqs-per-gen')
         if len(obs_times) == len(n_per_gen_vals):  # note that this duplicates logic in bcr-phylo simulator.py
@@ -88,12 +96,16 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             assert False
         n_total = utils.vlval(args, vlists, varnames, 'carry-cap')  # note that this is of course the number alive at a given time, and very different from the total number that ever lived
         obs_frac = n_sampled / float(n_total)
-        dbgstr = '    %-12s %-12s   %-5d     %8s / %-4d = %.3f' % (' '.join(str(o) for o in obs_times), ' '.join(str(n) for n in n_per_gen_vals), n_total,
-                                                                   ('(%s)' % ' + '.join(str(n) for n in n_per_gen_vals)) if len(obs_times) == len(n_per_gen_vals) else ('%d * %d' % (len(obs_times), n_per_gen_vals[0])),
-                                                                   n_total, n_sampled / float(n_total))
-        return obs_frac, dbgstr
+        if return_dbg:
+            dbgstr = '    %-12s %-12s   %-5d     %8s / %-4d = %.3f' % (' '.join(str(o) for o in obs_times), ' '.join(str(n) for n in n_per_gen_vals), n_total,
+                                                                       ('(%s)' % ' + '.join(str(n) for n in n_per_gen_vals)) if len(obs_times) == len(n_per_gen_vals) else ('%d * %d' % (len(obs_times), n_per_gen_vals[0])),
+                                                                       n_total, obs_frac)
+            return dbgstr
+        else:
+            return obs_frac
     # ----------------------------------------------------------------------------------------
-    def pvkeystr(vlists, varnames, obs_frac):
+    def pvkeystr(vlists, varnames):
+        # ----------------------------------------------------------------------------------------
         def valstr(vname):
             vval = obs_frac if vname == 'obs_frac' else utils.vlval(args, vlists, varnames, vname)  # obs_frac has to be treated diffferently since it's a derived value from several parameters, whereas others are just one parameter (i.e. it only matters if we're going to set obs_frac as final_plot_xvar)
             if vname == 'obs_frac':
@@ -105,6 +117,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     return ', '.join(strfcn(v) for v in vval)
                 else:
                     return strfcn(vval)
+        # ----------------------------------------------------------------------------------------
+        obs_frac = 1. if per_x is None else get_obs_frac(vlists, varnames)
         pvnames = sorted(set(varnames) - set(['seed', xvar]))
         if args.legend_var is not None:  # pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
             pvnames = [args.legend_var]  # ['obs_frac']
@@ -160,7 +174,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             if args.distr_hist_limit[0] == 'N':
                 tfrac = args.distr_hist_limit[1] / total
                 if iclust is None:
-                    tfrac *= args.n_sim_events_per_proc
+                    tfrac *= nsimevts()
             for ibin in hsum.ibiniter(True, reverse=True):
                 tsum += hsum.bin_contents[ibin]
                 if tsum >= tfrac * total:
@@ -177,21 +191,23 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     # ----------------------------------------------------------------------------------------
     def read_plot_info():
         # ----------------------------------------------------------------------------------------
-        def add_plot_vals(ytmpfo, vlists, varnames, obs_frac=1., iclust=None):
+        def add_plot_vals(ytmpfo, vlists, varnames, iclust=None):
             # ----------------------------------------------------------------------------------------
             def getikey():
+                if args.n_replicates == 1:
+                    raise Exception('this should be checked, especially as regards nsimevts()')
                 if args.n_replicates == 1 and treat_clusters_together:  # could add 'or per_x is None' next to treat_clusters_together in all these places, but whatever
                     ikey = None
                     def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
                 elif args.n_replicates == 1:  # but more than one event per proc
                     ikey = iclust
-                    def initfcn(): return {i : [] for i in range(args.n_sim_events_per_proc)}
-                elif treat_clusters_together:  # but more than one replicate/seed
+                    def initfcn(): return {i : [] for i in range(nsimevts())}
+                elif treat_clusters_together:  # but more than one replicate/seed (paired should always use this one)
                     ikey = vlists[varnames.index('seed')]
                     def initfcn(): return {i : [] for i in utils.sargval(args, 'seed')}
                 else:  # both of 'em non-trivial
                     ikey = '%d-%d' % (vlists[varnames.index('seed')], iclust)
-                    def initfcn(): return {('%d-%d' % (i, j)) : [] for i in utils.sargval(args, 'seed') for j in range(args.n_sim_events_per_proc)}
+                    def initfcn(): return {('%d-%d' % (i, j)) : [] for i in utils.sargval(args, 'seed') for j in range(nsimevts())}
                 return ikey, initfcn
             # ----------------------------------------------------------------------------------------
             if per_x is None:
@@ -217,27 +233,28 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     print ' %.2f' % fval,
             tau = utils.vlval(args, vlists, varnames, xvar)  # not necessarily tau anymore (i think it's just final_plot_xvar?)
             ikey, initfcn = getikey()
-            pvkey = pvkeystr(vlists, varnames, obs_frac)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
+            pvkey = pvkeystr(vlists, varnames)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
             if pvkey not in plotvals:
                 plotvals[pvkey] = initfcn()
             plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
             plotlist.append((tau, fval))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
         # ----------------------------------------------------------------------------------------
         def get_iclusts(yamlfo):
+            assert per_x is not None  # just to make clear we don't get here for paired
             iclusts_in_file = []
             if 'percentiles' in yamlfo:  # if there's info for each cluster, it's in sub-dicts under 'iclust-N' (older files won't have it)
                 iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo['percentiles']['per-seq'] if 'iclust-' in k])
             else:
                 iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])
-            missing_iclusts = [i for i in range(args.n_sim_events_per_proc) if i not in iclusts_in_file]
+            missing_iclusts = [i for i in range(nsimevts()) if i not in iclusts_in_file]
             if len(missing_iclusts) > 0:
-                print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), args.n_sim_events_per_proc, ' '.join(str(i) for i in missing_iclusts), yfname)
-            # assert iclusts_in_file == list(range(args.n_sim_events_per_proc))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_selection_metric_cluster_size)
+                print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), nsimevts(), ' '.join(str(i) for i in missing_iclusts), yfname)
+            # assert iclusts_in_file == list(range(nsimevts()))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_selection_metric_cluster_size)
             return iclusts_in_file
         # ----------------------------------------------------------------------------------------
         def read_smetric_file(vlists, vstrs):
-            obs_frac, dbgstr = get_obs_frac(vlists, varnames)
             if debug:
+                dbgstr = get_obs_frac(vlists, varnames, return_dbg=True)
                 print '%s   | %s' % (get_varval_str(vstrs), dbgstr),
             yfname = fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)
             try:
@@ -247,10 +264,10 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 missing_vstrs['missing'].append((None, vstrs))
                 return
             if treat_clusters_together:
-                add_plot_vals(yamlfo, vlists, varnames, obs_frac=obs_frac)
+                add_plot_vals(yamlfo, vlists, varnames)
             else:
                 for iclust in get_iclusts(yamlfo):
-                    add_plot_vals(yamlfo, vlists, varnames, obs_frac=obs_frac, iclust=iclust)
+                    add_plot_vals(yamlfo, vlists, varnames, iclust=iclust)
         # ----------------------------------------------------------------------------------------
         def read_pairclust_file(vlists, vstrs):
             # ----------------------------------------------------------------------------------------
@@ -315,13 +332,11 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         if (args.n_replicates > 1 or not treat_clusters_together) and len(plotvals) > 0:
             if debug:
                 print '  averaging over %d replicates' % args.n_replicates,
-                if args.n_sim_events_per_proc is not None:
-                    if per_x is None:
-                        print '(using %d clusters per proc)' % args.n_sim_events_per_proc,
-                    elif treat_clusters_together:
-                        print '(treating %d clusters per proc together)' % args.n_sim_events_per_proc,
+                if per_x is not None and nsimevts() is not None:
+                    if treat_clusters_together:
+                        print '(treating %d clusters per proc together)' % nsimevts(),
                     else:
-                        print 'times %d clusters per proc:' % args.n_sim_events_per_proc,
+                        print 'times %d clusters per proc:' % nsimevts(),
                 print ''
                 tmplen = str(max(len(pvkey) for pvkey in plotvals))
                 print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
@@ -351,8 +366,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 if debug:
                     n_expected = args.n_replicates
                     if not treat_clusters_together:
-                        n_expected *= args.n_sim_events_per_proc
-                    print ('    %'+tmplen+'s    %s   %4d%s') % (pvkey, ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
+                        n_expected *= nsimevts()
+                    print ('     %'+tmplen+'s     %s     %4d%s') % (pvkey if pvkey!='' else '-', ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
             if debug:
                 print '    final values:'
                 for tau, meanval, errval in dbgvals:
@@ -401,9 +416,9 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     # ----------------------------------------------------------------------------------------
     def titlestr(metric):
         if per_x is None:
-            return '%s %s' % (plotting.legends.get(metric, metric), ltexts[ptntype])
+            return '%s' % plotting.legends.get(metric, metric)
         else:
-            return lbplotting.mtitlestr(per_x, metric, short=True, max_len=7)
+            return '%s:' % lbplotting.mtitlestr(per_x, metric, short=True, max_len=7)
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
         xlabel = treeutils.legtexts.get(xvar, xvar.replace('-', ' '))
@@ -450,15 +465,18 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         return xticks, xticklabels, xlabel
 
     # ----------------------------------------------------------------------------------------
-    distr_hists, affy_key_str, treat_clusters_together = False, '', True  # only used for tree/selection metrics (well, kind of used -- e.g. treat_clusters_together needs to be true for paired clustering since we don't want to treat them separatedly)
-    if per_x is not None:
+    if per_x is None:  # paired clustering
+        assert hasattr(args, 'n_sim_events_list') and not hasattr(args, 'n_sim_events_per_proc')
+        distr_hists, affy_key_str, treat_clusters_together = False, '', True  # it's important that treat_clusters_together is True, but the others i think aren't used for paired clustering
+    else:  # tree metrics
+        assert not hasattr(args, 'n_sim_events_list') and hasattr(args, 'n_sim_events_per_proc')
         assert choice_grouping is not None
         distr_hists = ptilestr == 'n-ancestor'  # hackey, but ok for now
         if metric == 'lbr' and args.dont_observe_common_ancestors:
             print '    skipping lbr when only observing leaves'
             return
         affy_key_str = 'relative-' if (use_relative_affy and ptilestr=='affinity') else ''  # NOTE somewhat duplicates lbplotting.rel_affy_str()
-        treat_clusters_together = args.n_sim_events_per_proc is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
+        treat_clusters_together = nsimevts() is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
         treeutils.legtexts.update(lbplotting.metric_for_target_distance_labels)
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     _, varnames, val_lists, valstrs = utils.get_var_info(args, svars)
@@ -480,10 +498,10 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
         with open(get_outfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
             json.dump(outfo, yfile)
-        title = '%s:' % titlestr(metric)
+        title = titlestr(metric)
         plotdir = get_comparison_plotdir(args, metric, **getkwargs(metric_extra_str))  # per_x=per_x, extra_str=metric_extra_str
     elif action == 'combine-plots':
-        pvks_from_args = set([pvkeystr(vlists, varnames, get_obs_frac(vlists, varnames)[0]) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
+        pvks_from_args = set([pvkeystr(vlists, varnames) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
         plotfos = collections.OrderedDict()
         for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):  # <mtmp>: metric for trees, method for paired
             if per_x is not None and ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
@@ -555,7 +573,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     ylabel, leg_loc, yticks, yticklabels = '', None, None, None
     if per_x is None:
         ylabel = ptilelabel
-        title += '%s: %s %s' % (locus, ltexts[ptntype], ptilestr)
+        title += ' %s: %s %s' % (locus, ltexts[ptntype], ptilestr)
         ymin, ymax = (0, 1.05)
         leg_loc = [0.7, 0.15]
     else:

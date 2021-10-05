@@ -24,7 +24,7 @@ ptn_actions = ['partition', 'vsearch-partition', 'vjcdr3-0.9'] + synth_actions
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')  # can also be merge-paired-partitions and get-selection-metrics
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
-parser.add_argument('--n-sim-events-per-proc', type=int, default=10)  # it would be nice to be able add this to scan vars, but i think that might require some work in scanplot (this should really be called something else, this name made more sense for tree metrics)
+parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
 parser.add_argument('--n-leaves-list', default='1') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
@@ -59,11 +59,11 @@ parser.add_argument('--combo-extra-str', help='extra label for combine-plots act
 parser.add_argument('--legend-var')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
 for act in ['cache-parameters'] + ptn_actions:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']
-args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths'], 'float' : []}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
+args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-sim-events'], 'float' : []}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
 # and these i think we can't since we want to allow blanks, 'n-genes-per-region' 'n-sim-alleles-per-gene'
 
 args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'] + ptn_actions)
@@ -80,7 +80,7 @@ utils.get_scanvar_arg_lists(args)
 if args.final_plot_xvar is None:  # set default value based on scan vars
     base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
     svars = [v for v in varnames if v != 'seed']
-    args.final_plot_xvar = svars[0] if len(svars) > 0 else 'allowed-cdr3-lengths'  # if we're not scanning over any vars, i'm not sure what we should use
+    args.final_plot_xvar = svars[0] if len(svars) > 0 else 'seed'  # if we're not scanning over any vars, i'm not sure what we should use
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
@@ -130,8 +130,6 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         cmd += ' --n-procs %d' % args.n_sub_procs
     if action == 'simu':
         cmd += ' --simulate-from-scratch --no-per-base-mutation %s' % ' '.join(base_args)
-        if args.n_sim_events_per_proc is not None:
-            cmd += ' --n-sim-events %d' % args.n_sim_events_per_proc
         if args.single_light_locus is not None:
             cmd += ' --single-light-locus %s' % args.single_light_locus
         if args.simu_extra_args is not None:
@@ -228,7 +226,7 @@ for action in args.actions:
             continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['partition'])
         if action == 'plot':
-            print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None))
+            print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
             fnames = {meth : {pmetr : [[] for _ in partition_types] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are [selection] metrics, but here they're [clustering] methods
                 cfpdir = scanplot.get_comparison_plotdir(args, method)
