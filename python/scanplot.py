@@ -351,7 +351,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                         if tkey not in tmpvaldict:  # these will usually get added in order, except when there's missing ones in some ikeys
                             tmpvaldict[tkey] = []
                         tmpvaldict[tkey].append(tval)
-                tvd_keys = sorted(tmpvaldict) if xvar != 'parameter-variances' else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
+                use_sort = xvar != 'parameter-variances' and 'None' not in tmpvaldict.keys()  # we want None to be first
+                tvd_keys = sorted(tmpvaldict) if use_sort else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
                 for tau in tvd_keys:  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
                     ltmp = tmpvaldict[tau]  # len of <ltmp> is N seeds (i.e. procs) times N clusters per seed
                     mean_vals.append((tau, numpy.mean(ltmp)))
@@ -454,11 +455,11 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     return '%s -\n %s\n(%d)' % (t[0], t[-1], len(t)) #, t[1] - t[0])
             xticks = list(range(len(xvals)))
             xticklabels = [tickstr(t) for t in xvals]
-        elif None in xvals or 'None' in xvals:  # mean-cells-per-droplet has to handle mixed none/str + float values
-            xticks = list(range(len(xvals)))
-            xticklabels = [str(t) for t in xvals]
+        elif None in xvals or 'None' in xvals:  # e.g. mean-cells-per-droplet has to handle mixed none/str + float values
+            xticks = list(range(len(xvals)))  # arbitrarily put the ticks at integer vals starting with 0
+            xticklabels = [str(t) for t in xvals]  # labels are the actual xvals tho
         else:
-            xticks = xvals
+            xticks = [float(x) for x in xvals]  # i guess we can just float() all of them (and ignore svartypes)?
             xticklabels = [str(t) for t in xvals]
         return xticks, xticklabels, xlabel
 

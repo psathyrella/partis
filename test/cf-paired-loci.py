@@ -63,8 +63,10 @@ args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-m
 for act in ['cache-parameters'] + ptn_actions:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']
-args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-sim-events'], 'float' : []}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
+# NOTE ignoring svartypes atm, which may actually work?
+# args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-sim-events'], 'float' : ['scratch-mute-freq', 'mutation-multiplier']}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
 # and these i think we can't since we want to allow blanks, 'n-genes-per-region' 'n-sim-alleles-per-gene'
+# args.float_var_digits = 2  # ick
 
 args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'] + ptn_actions)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)

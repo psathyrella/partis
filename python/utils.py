@@ -233,12 +233,12 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, bo
     return arglist
 
 # ----------------------------------------------------------------------------------------
-def svoutdir(args, varnames, vstr, svtype):
-    assert len(varnames) == len(vstr)
+def svoutdir(args, varnames, valstrs, svtype):
+    assert len(varnames) == len(valstrs)
     outdir = [args.base_outdir, args.label]
     if hasattr(args, 'version'):
         outdir.append(args.version)
-    for vn, vstr in zip(varnames, vstr):
+    for vn, vstr in zip(varnames, valstrs):
         if vn not in args.scan_vars[svtype]:  # e.g. lb tau, which is only for lb calculation
             continue
         outdir.append('%s-%s' % (vn, vstr))
@@ -247,9 +247,9 @@ def svoutdir(args, varnames, vstr, svtype):
 # ----------------------------------------------------------------------------------------
 def get_scanvar_arg_lists(args):
     # ----------------------------------------------------------------------------------------
-    def set_arg_list(aname):
+    def set_arg_list(aname):  # NOTE we *don't* want to set intify or floatify here since the dir structure stuff is too hard if we don't have strings; conversions happen only for plotting axes
         attr_name = aname.replace('-', '_') + '_list'
-        arglist = get_arg_list(getattr(args, attr_name), list_of_lists=aname in args.str_list_vars, intify=aname in args.svartypes['int'], floatify=aname in args.svartypes['float'],
+        arglist = get_arg_list(getattr(args, attr_name), list_of_lists=aname in args.str_list_vars, #, intify=aname in args.svartypes['int'], floatify=aname in args.svartypes['float'],
                                forbid_duplicates=args.zip_vars is None or aname not in args.zip_vars)
         setattr(args, attr_name, arglist)  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()
     # ----------------------------------------------------------------------------------------
