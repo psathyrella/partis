@@ -491,8 +491,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         for ipv, pvkey in enumerate(plotvals):
             xvals, diffs_to_perfect = zip(*plotvals[pvkey])
             xticks, xticklabels, xlabel = getxticks(xvals)
-            all_xtks += xticks
-            all_xtls += xticklabels
+            all_xtks += [x for x in xticks if x not in all_xtks]
+            all_xtls += [l for l in xticklabels if l not in all_xtls]
             # assert xvals == tuple(sorted(xvals))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove this
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
             plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
@@ -538,8 +538,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels, xlabel = getxticks(pfo[pvkey]['xvals'])
                 plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if (imtmp == 0 and len(pvk_list) > 1) else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
-                all_xtks += xticks
-                all_xtls += xticklabels
+                all_xtks += [x for x in xticks if x not in all_xtks]
+                all_xtls += [l for l in xticklabels if l not in all_xtls]
         # if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
         #     title = '+'.join(plotfos) + ': '
         # else:
