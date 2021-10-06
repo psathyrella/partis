@@ -460,6 +460,8 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'f1' : 'F1 score',
            'cln-frac' : 'collision frac.',
            'n-leaves' : 'N leaves',
+           'mfreq' : 'SHM fraction (nuc)',
+           'mfreq-pct' : 'SHM % (nuc)',
            }
 
 colors = {'true' : '#006600',

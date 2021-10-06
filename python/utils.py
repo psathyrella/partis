@@ -4997,12 +4997,16 @@ def intexterpolate(x1, y1, x2, y2, x):
     return m * x + b
 
 # ----------------------------------------------------------------------------------------
+def get_mean_mfreq(parameter_dir):
+    from hist import Hist
+    mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
+    return mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
+
+# ----------------------------------------------------------------------------------------
 def get_naive_hamming_bounds(partition_method, parameter_dir=None, overall_mute_freq=None):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
     if parameter_dir is not None:
         assert overall_mute_freq is None
-        from hist import Hist
-        mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-        mute_freq = mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
+        mute_freq = get_mean_mfreq(parameter_dir)
     else:
         assert overall_mute_freq is not None
         mute_freq = overall_mute_freq

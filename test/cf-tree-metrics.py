@@ -382,7 +382,7 @@ parser.add_argument('--slurm', action='store_true', help='run child procs with s
 parser.add_argument('--sub-slurm', action='store_true', help='run grandchild procs with slurm')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--final-plot-xvar', default='lb-tau', help='variable to put on the x axis of the final comparison plots')
-parser.add_argument('--legend-var')
+parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
 # specific to get-lb-bounds:

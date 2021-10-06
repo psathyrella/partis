@@ -52,11 +52,12 @@ parser.add_argument('--plot-metrics', default='partition', help='NOTE these are 
 parser.add_argument('--perf-metrics', default='precision:sensitivity') #':'.join(all_perf_metrics))
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
+parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
+parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm %] when --final-plot-x-var is scratch-mute-freq)')
 parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
-parser.add_argument('--legend-var')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
@@ -101,7 +102,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         locus = 'igh'
     assert locus is not None
     if action == 'cache-parameters':
-        ofn = outdir
+        ofn = '%s/%s' % (outdir, locus)
         if single_file:
             ofn += '/%s/hmm/germline-sets/%s/%sv.fasta' % (locus, locus, locus)
     else:
@@ -236,10 +237,11 @@ for action in args.actions:
                 utils.prep_dir(cfpdir, subdirs=all_perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
                 for ipt, ptntype in enumerate(partition_types):
                     for ltmp in plot_loci():
-                        def fnfcn(varnames, vstrs, tmet, x_axis_label): return ofname(args, varnames, vstrs, method, locus=ltmp, single_chain=ptntype=='single')  # NOTE tmet (e.g. 'precision') and x_axis_label (e.g. 'precision') aren't used for this fcn atm
+                        def fnfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=ltmp, single_chain=ptntype=='single')
+                        def pdirfcn(varnames, vstrs): return ofname(args, varnames, vstrs, 'cache-parameters', locus=ltmp)
                         for pmetr in args.perf_metrics:
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
-                            scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn=fnfcn, locus=ltmp, ptntype=ptntype, fnames=fnames[method][pmetr][ipt], debug=args.debug)
+                            scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn=fnfcn, locus=ltmp, ptntype=ptntype, fnames=fnames[method][pmetr][ipt], pdirfcn=pdirfcn, debug=args.debug)
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
                     cfpdir = scanplot.get_comparison_plotdir(args, method)

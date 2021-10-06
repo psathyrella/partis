@@ -60,7 +60,7 @@ def get_comparison_plotdir(args, mtmp, per_x=None, extra_str='', perf_metric=Non
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
 def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=None, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='',
-               locus=None, ptntype=None, xdelim='_XTRA_', fnames=None, debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
+               locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def legstr(label, title=False):
         if label is None: return None
@@ -235,6 +235,15 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 plotvals[pvkey] = initfcn()
             plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
             plotlist.append((tau, fval))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
+            if args.x_legend_var is not None:
+                if 'mfreq' in args.x_legend_var:
+                    mfreq = utils.get_mean_mfreq(pdirfcn(varnames, vstrs) + '/hmm')
+                    if args.x_legend_var == 'mfreq-pct':
+                        xleg_vals[tau] = '%.0f' % (100*mfreq)
+                    else:
+                        xleg_vals[tau] = '%.2f' % mfreq
+                else:
+                    assert False
         # ----------------------------------------------------------------------------------------
         def get_iclusts(yamlfo, yfname):
             assert per_x is not None  # just to make clear we don't get here for paired
@@ -285,7 +294,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             # ----------------------------------------------------------------------------------------
             if debug:
                 print '%s   | %s' % (get_varval_str(vstrs), ''),
-            yfname = fnfcn(varnames, vstrs, metric, ptilestr)
+            yfname = fnfcn(varnames, vstrs)
             try:
                 _, _, cpath = utils.read_output(yfname, skip_annotations=True)
             except IOError:  # os.path.exists() is too slow with this many files
@@ -419,8 +428,12 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             return '%s:' % lbplotting.mtitlestr(per_x, metric, short=True, max_len=7)
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
-        xlabel = legdict.get(xvar, xvar.replace('-', ' '))
-        if xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
+        l_xvar = xvar
+        if args.x_legend_var is not None:
+            xvals = [xleg_vals.get(x, x) for x in xvals]
+            l_xvar = args.x_legend_var
+        xlabel = legdict.get(l_xvar, l_xvar.replace('-', ' '))
+        if l_xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
             xticks, xticklabels = [], []
             global_pv_vars = None
             for ipv, pv_cft_str in enumerate(xvals):  # <pv_cft_str> corresponds to one bcr-phylo run, but can contain more than one parameter variance specification
@@ -467,6 +480,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         assert hasattr(args, 'n_sim_events_list') and not hasattr(args, 'n_sim_events_per_proc')
         distr_hists, affy_key_str, treat_clusters_together = False, '', True  # it's important that treat_clusters_together is True, but the others i think aren't used for paired clustering
         legdict = plotting.legends
+        if args.x_legend_var is not None:
+            xleg_vals = {}
     else:  # tree metrics
         assert not hasattr(args, 'n_sim_events_list') and hasattr(args, 'n_sim_events_per_proc')
         assert choice_grouping is not None
