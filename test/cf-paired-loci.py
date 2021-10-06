@@ -95,16 +95,17 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     outdir = odir(args, varnames, vstrs, action)
     if action == 'cache-parameters':
         outdir += '/parameters'
-        if locus is None:
+        if locus is None and not single_file:
             return outdir
     if single_file:
         assert locus is None
-        locus = 'igh'
+        locus = 'igk'
     assert locus is not None
     if action == 'cache-parameters':
         ofn = '%s/%s' % (outdir, locus)
         if single_file:
-            ofn += '/%s/hmm/germline-sets/%s/%sv.fasta' % (locus, locus, locus)
+            # ofn += '/hmm/germline-sets/%s/%sv.fasta' % (locus, locus)
+            ofn += '/hmm/all-mean-mute-freqs.csv'
     else:
         ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or 'synth-' in action or 'vjcdr3-' in action)
     return ofn
