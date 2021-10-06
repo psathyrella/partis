@@ -13,3 +13,4 @@ for act in simulate cache-parameters partition; do
 done
 ./test/cf-paired-loci.py --n-leaves-list 5:10 --label vs-shm --version v0 --n-replicates 5 --n-sim-events-list 1000 --scratch-mute-freq-list 0.01:0.05:0.10:0.30:0.50:0.80 --n-sub-procs 7 --n-max-procs 5 --single-light-locus igk --base-outdir /fh/local/dralph/partis/paired-loci --actions cache-parameters:partition:vsearch-partition:vjcdr3-0.9:synth-distance-0.03:synth-singletons-0.20 --dry  --final-plot-xvar scratch-mute-freq --combo-extra-str scratch-x-var --pvks-to-plot 10
 ./test/cf-paired-loci.py --label vs-n-leaves --version v0 --n-replicates 3 --n-leaves-list 1:5:10:50 --simu-extra-args="--constant-number-of-leaves" --n-sim-events-list 1000 --n-sub-procs 5 --n-max-procs 5 --single-light-locus igk --base-outdir /fh/local/dralph/partis/paired-loci --actions simu:cache-parameters:partition:vsearch-partition:vjcdr3-0.9:synth-distance-0.03:synth-singletons-0.20 --dry
+# --x-legend-var mfreq

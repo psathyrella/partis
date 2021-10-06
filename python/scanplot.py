@@ -238,10 +238,11 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             if args.x_legend_var is not None:
                 if 'mfreq' in args.x_legend_var:
                     mfreq = utils.get_mean_mfreq(pdirfcn(varnames, vstrs) + '/hmm')
-                    if args.x_legend_var == 'mfreq-pct':
-                        xleg_vals[tau] = '%.0f' % (100*mfreq)
+                    mstr = ('%.0f' % (100*mfreq)) if '-pct' in args.x_legend_var else '%.2f' % mfreq
+                    if mstr not in xleg_vals:
+                        xleg_vals[tau] = mstr
                     else:
-                        xleg_vals[tau] = '%.2f' % mfreq
+                        assert mstr == xleg_vals[tau]
                 else:
                     assert False
         # ----------------------------------------------------------------------------------------
@@ -430,7 +431,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     def getxticks(xvals):
         l_xvar = xvar
         if args.x_legend_var is not None:
-            xvals = [xleg_vals.get(x, x) for x in xvals]
+            if action == 'plot':
+                xvals = [xleg_vals[x] for x in xvals]
             l_xvar = args.x_legend_var
         xlabel = legdict.get(l_xvar, l_xvar.replace('-', ' '))
         if l_xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
@@ -511,6 +513,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             all_xtls += [l for l in xticklabels if l not in all_xtls]
             # assert xvals == tuple(sorted(xvals))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove this
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
+            if args.x_legend_var is not None:
+                xvals = [xleg_vals[x] for x in xvals]
             plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
         with open(get_outfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
