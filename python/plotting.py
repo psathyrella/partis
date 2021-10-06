@@ -459,6 +459,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'ccf_product' : 'F1 score',
            'f1' : 'F1 score',
            'cln-frac' : 'collision frac.',
+           'n-leaves' : 'N leaves',
            }
 
 colors = {'true' : '#006600',

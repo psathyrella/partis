@@ -65,13 +65,12 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     def legstr(label, title=False):
         if label is None: return None
         jstr = '\n' if title else '; '
-        ldict = plotting.legends if per_x is None else treeutils.legtexts
-        tmplist = [ldict.get(l, l.replace('-', ' ')) for l in label.split('; ')]
+        tmplist = [legdict.get(l, l.replace('-', ' ')) for l in label.split('; ')]
         if title and args.pvks_to_plot is not None:  # if we're only plotting specific values, put them in the legend str (typically we're just plotting one value)
             assert isinstance(args.pvks_to_plot, list)  # don't really need this
             for il in range(len(tmplist)):
                 subpvks = [pvk.split('; ')[il] for pvk in args.pvks_to_plot]
-                tmplist[il] += ': %s' % ' '.join(treeutils.legtexts.get(spvk, spvk) for spvk in subpvks)
+                tmplist[il] += ': %s' % ' '.join(legdict.get(spvk, spvk) for spvk in subpvks)
         lstr = jstr.join(tmplist)
         # if per_x is None and ptntype is not None and label in args.plot_metrics:  # need to add single/joint to the method
         #     lstr += ' %s' % ltexts[ptntype]
@@ -351,7 +350,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                         if tkey not in tmpvaldict:  # these will usually get added in order, except when there's missing ones in some ikeys
                             tmpvaldict[tkey] = []
                         tmpvaldict[tkey].append(tval)
-                use_sort = xvar != 'parameter-variances' and 'None' not in tmpvaldict.keys()  # we want None to be first
+                use_sort = False # UPDATE i think we can just not sort? it means you have to have the order right on the command line # xvar != 'parameter-variances' and 'None' not in tmpvaldict.keys()  # we want None to be first
                 tvd_keys = sorted(tmpvaldict) if use_sort else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
                 for tau in tvd_keys:  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
                     ltmp = tmpvaldict[tau]  # len of <ltmp> is N seeds (i.e. procs) times N clusters per seed
@@ -420,7 +419,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             return '%s:' % lbplotting.mtitlestr(per_x, metric, short=True, max_len=7)
     # ----------------------------------------------------------------------------------------
     def getxticks(xvals):
-        xlabel = treeutils.legtexts.get(xvar, xvar.replace('-', ' '))
+        xlabel = legdict.get(xvar, xvar.replace('-', ' '))
         if xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
             xticks, xticklabels = [], []
             global_pv_vars = None
@@ -446,7 +445,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     global_pv_vars = pv_vars
                 if pv_vars != global_pv_vars:
                     raise Exception('each bcr-phylo run has to have the same variables with parameter variances, but got %s and %s' % (global_pv_vars, pv_vars))
-            xlabel = ', '.join(treeutils.legtexts.get(p, p.replace('-', ' ')) for p in global_pv_vars)
+            xlabel = ', '.join(legdict.get(p, p.replace('-', ' ')) for p in global_pv_vars)
         elif isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
             def tickstr(t):
                 if len(t) < 4:
@@ -467,6 +466,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     if per_x is None:  # paired clustering
         assert hasattr(args, 'n_sim_events_list') and not hasattr(args, 'n_sim_events_per_proc')
         distr_hists, affy_key_str, treat_clusters_together = False, '', True  # it's important that treat_clusters_together is True, but the others i think aren't used for paired clustering
+        legdict = plotting.legends
     else:  # tree metrics
         assert not hasattr(args, 'n_sim_events_list') and hasattr(args, 'n_sim_events_per_proc')
         assert choice_grouping is not None
@@ -476,7 +476,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             return
         affy_key_str = 'relative-' if (use_relative_affy and ptilestr=='affinity') else ''  # NOTE somewhat duplicates lbplotting.rel_affy_str()
         treat_clusters_together = nsimevts() is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
-        treeutils.legtexts.update(lbplotting.metric_for_target_distance_labels)
+        legdict = treeutils.legtexts
+        legdict.update(lbplotting.metric_for_target_distance_labels)
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     _, varnames, val_lists, valstrs = utils.get_var_info(args, svars)
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
@@ -580,6 +581,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         title += ' %s: %s %s' % (locus, ltexts[ptntype], ptilestr)
         ymin, ymax = (0, 1.05)
         leg_loc = [0.7, 0.15]
+        if args.final_plot_xvar == 'n-leaves' and '--constant-number-of-leaves' in args.simu_extra_args:
+            xlabel += ' (constant)'
     else:
         # dy = (ymax - ymin) / float(n_ticks - 1)
         # if ptilestr != 'affinity':

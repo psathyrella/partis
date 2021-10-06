@@ -15,6 +15,7 @@ from hist import Hist
 import glutils
 import treeutils
 
+# TODO this comment isn't right # these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
 naive_hamming_bound_type = 'naive-hamming' #'likelihood'
 
 # ----------------------------------------------------------------------------------------
@@ -857,7 +858,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             print '\n'.join(jstrs)
             print '     split into %d cdr3 group%s' % (len(cdr3_groups), utils.plural(len(cdr3_groups)))
         if not overmerge:  # default/normal
-            _, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))  # these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
+            _, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))
         else:  # don't do any naive hamming splitting (correct only for --n-final-clusters 1)
             hi_hbound = 1.
         return_clusts = []
