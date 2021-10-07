@@ -431,7 +431,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     def getxticks(xvals):
         l_xvar = xvar
         if args.x_legend_var is not None:
-            if action == 'plot':
+            if action == 'plot':  # if combining plots, we're reading files in which the conversion already happened before writing
                 xvals = [xleg_vals[x] for x in xvals]
             l_xvar = args.x_legend_var
         xlabel = legdict.get(l_xvar, l_xvar.replace('-', ' '))
