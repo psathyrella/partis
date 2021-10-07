@@ -6,6 +6,7 @@ import colored_traceback.always
 import numpy
 import math
 import collections
+import multiprocessing
 
 sys.path.insert(1, './python')
 import utils
@@ -45,6 +46,7 @@ parser.add_argument('--label', default='test')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--make-plots', action='store_true')
+parser.add_argument('--test', action='store_true', help='don\'t parallelize \'plot\' action')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--simu-extra-args')
 parser.add_argument('--inference-extra-args')
@@ -216,6 +218,16 @@ def plot_loci():
         return [utils.heavy_locus('ig'), args.single_light_locus]
 
 # ----------------------------------------------------------------------------------------
+def get_fnfcn(method, locus, ptntype):
+    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single')
+    return tmpfcn
+
+# ----------------------------------------------------------------------------------------
+def get_pdirfcn(locus):
+    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, 'cache-parameters', locus=locus)
+    return tmpfcn
+
+# ----------------------------------------------------------------------------------------
 import random
 random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
@@ -233,20 +245,23 @@ for action in args.actions:
         if action == 'plot':
             print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
             fnames = {meth : {pmetr : [[] for _ in partition_types] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
+            procs = []
             for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are [selection] metrics, but here they're [clustering] methods
-                cfpdir = scanplot.get_comparison_plotdir(args, method)
-                utils.prep_dir(cfpdir, subdirs=all_perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
+                utils.prep_dir(scanplot.get_comparison_plotdir(args, method), subdirs=args.perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
                 for ipt, ptntype in enumerate(partition_types):
                     for ltmp in plot_loci():
-                        def fnfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=ltmp, single_chain=ptntype=='single')
-                        def pdirfcn(varnames, vstrs): return ofname(args, varnames, vstrs, 'cache-parameters', locus=ltmp)
                         for pmetr in args.perf_metrics:
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
-                            scanplot.make_plots(args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, fnfcn=fnfcn, locus=ltmp, ptntype=ptntype, fnames=fnames[method][pmetr][ipt], pdirfcn=pdirfcn, debug=args.debug)
+                            arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}
+                            if args.test:
+                                scanplot.make_plots(*arglist, **kwargs)
+                            else:
+                                procs.append(multiprocessing.Process(target=scanplot.make_plots, args=arglist, kwargs=kwargs))
+            if not args.test:
+                utils.run_proc_functions(procs)
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
-                    cfpdir = scanplot.get_comparison_plotdir(args, method)
-                    pmcdir = cfpdir + '/' + pmetr
+                    pmcdir = scanplot.get_comparison_plotdir(args, method) + '/' + pmetr
                     fnames[method][pmetr] = [[f.replace(pmcdir, '') for f in flist] for flist in fnames[method][pmetr]]
                     plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])
         elif action == 'combine-plots':

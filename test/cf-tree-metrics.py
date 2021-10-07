@@ -462,9 +462,9 @@ for action in args.actions:
         assert args.metric_method is None  # when plotting, you should only be using --plot-metrics
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['get-tree-metrics'])
         print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None))
-        procs = []
         pchoice = 'per-seq'
         if action == 'plot':
+            procs = []
             for metric, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
                 utils.prep_dir(scanplot.get_comparison_plotdir(args, metric, extra_str=estr), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
                 cfg_list = lbplotting.single_lbma_cfg_vars(metric)

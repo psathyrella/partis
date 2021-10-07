@@ -238,11 +238,12 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             if args.x_legend_var is not None:
                 if 'mfreq' in args.x_legend_var:
                     mfreq = utils.get_mean_mfreq(pdirfcn(varnames, vstrs) + '/hmm')
-                    mstr = ('%.0f' % (100*mfreq)) if '-pct' in args.x_legend_var else '%.2f' % mfreq
+                    mstr = ('%.0f' % (100*mfreq)) if '-pct' in args.x_legend_var else '%.3f' % mfreq
                     if mstr not in xleg_vals:
                         xleg_vals[tau] = mstr
                     else:
-                        assert mstr == xleg_vals[tau]
+                        if mstr != xleg_vals[tau]:
+                            print '  %s different values for derived var %s: %s vs %s' % (utils.color('yellow', 'warning'), args.x_legend_var, mstr, xleg_vals[tau])
                 else:
                     assert False
         # ----------------------------------------------------------------------------------------
@@ -579,7 +580,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     log, adjust = '', {}
     if xvar == 'lb-tau' and len(all_xtks) > 1:
         ax.plot([1./args.seq_len, 1./args.seq_len], (ymin, ymax), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-    if xvar == 'carry-cap':
+    if xvar in ['carry-cap', 'n-sim-events', 'n-leaves']:
         log = 'x'
 
     if ax.get_ylim()[1] < 1:
