@@ -328,7 +328,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             print '        %s: %d families' % (mkey, len(vstrs_list))
             print '     %s   iclust' % get_varname_str()
             for iclust, vstrs in vstrs_list:
-                tfn = fnfcn(varnames, vstrs, metric, ptilestr) if per_x is None else fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)  # arg this is ugly
+                tfn = fnfcn(varnames, vstrs) if per_x is None else fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)  # arg this is ugly
                 print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, tfn)
                 n_printed += 1
                 if n_printed >= n_max_print:

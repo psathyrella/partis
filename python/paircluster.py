@@ -15,9 +15,6 @@ from hist import Hist
 import glutils
 import treeutils
 
-# TODO this comment isn't right # these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
-naive_hamming_bound_type = 'naive-hamming' #'likelihood'
-
 # ----------------------------------------------------------------------------------------
 def chstr(n_before, n_after):  # empty if same number before and after, otherwise red +/-N
     if n_before == n_after: return ''
@@ -822,7 +819,7 @@ def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_par
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
-def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, overmerge=False, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, overmerge=False, naive_hamming_bound_type=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
     dbgids = None #['1437084736471665213-igh']  # None
     # ----------------------------------------------------------------------------------------
     def akey(klist):
@@ -858,6 +855,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             print '\n'.join(jstrs)
             print '     split into %d cdr3 group%s' % (len(cdr3_groups), utils.plural(len(cdr3_groups)))
         if not overmerge:  # default/normal
+            assert naive_hamming_bound_type is not None  # ugly, but i want to only have the default set in bin/partis
             _, hi_hbound = utils.get_naive_hamming_bounds(naive_hamming_bound_type, overall_mute_freq=numpy.mean([f for l in annotation_list for f in l['mut_freqs']]))
         else:  # don't do any naive hamming splitting (correct only for --n-final-clusters 1)
             hi_hbound = 1.

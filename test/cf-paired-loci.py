@@ -19,7 +19,7 @@ import clusterpath
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac']
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
-ptn_actions = ['partition', 'vsearch-partition', 'vjcdr3-0.9'] + synth_actions
+ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -128,7 +128,7 @@ def make_synthetic_partition(action, varnames, vstrs):
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
     actstr = action
-    if 'synth-distance-' in action or action == 'vsearch-partition':
+    if 'synth-distance-' in action or action == 'vsearch-partition' or action == 'partition-lthresh':
         actstr = 'partition'
     if 'vjcdr3-' in action:
         actstr = 'annotate'
@@ -151,14 +151,16 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         if 'synth-distance-' in action:
             synth_hfrac = float(action.replace('synth-distance-', ''))
             cmd += ' --synthetic-distance-based-partition --naive-hamming-bounds %.2f:%.2f' % (synth_hfrac, synth_hfrac)
-        if 'synth-distance-' in action or 'vjcdr3-' in action or action == 'vsearch-partition':
-            cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
         if 'vjcdr3-' in action:
             cmd += ' --annotation-clustering --annotation-clustering-threshold %.2f' % float(action.split('-')[1])
+        if action == 'partition-lthresh':
+            cmd += ' --paired-naive-hfrac-threshold-type likelihood'
         if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
             cmd += ' --is-simu'
         if action != 'cache-parameters':
             cmd += ' --refuse-to-cache-parameters'
+        if 'synth-distance-' in action or 'vjcdr3-' in action or action == 'vsearch-partition' or action == 'partition-lthresh':
+            cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
         if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots:
             cmd += ' --dont-calculate-annotations'
         if args.make_plots:
